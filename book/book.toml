@@ -1,0 +1,6 @@
+[book]
+authors = ["Niko Matsakis"]
+language = "en"
+multilingual = false
+src = "src"
+title = "The Dada Programming Language"
