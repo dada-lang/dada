@@ -6,3 +6,6 @@ This page is about the programming language Dada. Dada is derived from the ideas
 
 Dada, at this moment, does not exist. It's a thought experiment. It might be fun to build it, though!
 
+## Radically incomplete work in progress
+
+This book in particular is just a total work in progress. It's probably woefully inconsistent. Don't read it.
