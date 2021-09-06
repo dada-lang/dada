@@ -1,8 +1,10 @@
 # Summary
 
 - [Welcome](./welcome.md)
-- [Desired experience](./experience.md)
-- [Tutorial](./tutorial.md)
+- [Dada for Rust users](./for_rust_users.md)
+- [Dada for Java users](./tutorial.md)
+- [Design notes](./design_notes.md)
+  - [Desired experience](./design_notes/experience.md)
 - [Reference](./reference.md)
     - [Types](./reference/types.md)
       - [Generics](./reference/generics.md)
@@ -12,6 +14,5 @@
     - [Boxes](./reference/boxes.md)
     - [Pattern matching](./reference/patterns.md)
     - [Atomicity](./reference/atomicity.md)
-- [Dada for Rust programmers](./for_rust.md)
 - [FAQ](./faq.md)
 - [Acknowledgments](./acknowledgments.md)
