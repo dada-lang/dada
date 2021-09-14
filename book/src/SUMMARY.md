@@ -1,6 +1,8 @@
 # Summary
 
 - [Welcome](./welcome.md)
+- [Dada the calculus](./calculus.md)
+- [Dada the language](./language.md)
 - [Dada for Rust users](./for_rust_users.md)
 - [Dada for Java users](./tutorial.md)
 - [Design notes](./design_notes.md)
