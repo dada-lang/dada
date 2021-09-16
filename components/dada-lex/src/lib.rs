@@ -2,9 +2,9 @@ extern crate peg;
 
 #[derive(Debug)]
 pub enum Token {
-    Leaf(String),
+    Leaf(usize, usize),
     Branch(Delimiter, Vec<Token>),
-    Comment,
+    Comment(usize, usize),
 }
 
 #[derive(Debug)]
@@ -19,8 +19,8 @@ peg::parser! {
             n
         }
 
-        rule nl() -> Token = ['\n'] { 
-            Token::Leaf(format!("\n") )
+        rule nl() -> Token = s:position!() "\n" e:position!() { 
+            Token::Leaf(s, e)
         }
 
         rule token() -> Token = comment()
@@ -38,18 +38,20 @@ peg::parser! {
             Token::Branch(Delimiter::CurlyBrace, t)
         }
 
-        rule comment() -> Token = "//" [^'\n']* "\n" { Token::Comment }
-
-        rule ident() -> Token = t:$("'"?['a'..='z' | 'A'..='Z' | '_' | '0' ..= '9' | '*' ]+) {
-            Token::Leaf(t.to_string())
+        rule comment() -> Token = s:position!() "//" [^'\n']* "\n" e:position!() {
+            Token::Comment(s, e) 
         }
 
-        rule comma() -> Token = t:$(",") {
-            Token::Leaf(t.to_string())
+        rule ident() -> Token = s:position!() ['a'..='z' | 'A'..='Z' | '_' | '0' ..= '9' | '*' ]+ e:position!() {
+            Token::Leaf(s, e)
         }
 
-        rule string() -> Token = ['"'] t:$([^'"']*) ['"'] {
-            Token::Leaf(t.to_string())
+        rule comma() -> Token = s:position!() "," e:position!() {
+            Token::Leaf(s, e)
+        }
+
+        rule string() -> Token = s:position!() ['"'] t:$([^'"']*) ['"'] e:position!() {
+            Token::Leaf(s, e)
         }
 
         rule _ = quiet!{[' ' | '\t']*}
