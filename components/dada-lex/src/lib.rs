@@ -1,13 +1,11 @@
-extern crate peg;
-
-#[derive(Debug)]
+#[derive(Clone, Debug)]
 pub enum Token {
     Leaf(usize, usize),
     Branch(Delimiter, Vec<Token>),
     Comment(usize, usize),
 }
 
-#[derive(Debug)]
+#[derive(Clone, Debug)]
 pub enum Delimiter {
     Paren,
     CurlyBrace,
@@ -27,8 +25,10 @@ peg::parser! {
             / nl()
             / ident()
             / string()
+            / paren()
             / curly_brace()
             / comma()
+            / colon()
         
         rule paren() -> Token = ['('] _ t:token()**__ _ [')'] {
             Token::Branch(Delimiter::Paren, t)
@@ -50,18 +50,22 @@ peg::parser! {
             Token::Leaf(s, e)
         }
 
+        rule colon() -> Token = s:position!() ":" e:position!() {
+            Token::Leaf(s, e)
+        }
+
         rule string() -> Token = s:position!() ['"'] t:$([^'"']*) ['"'] e:position!() {
             Token::Leaf(s, e)
         }
 
         rule _ = quiet!{[' ' | '\t']*}
         
-        rule __ = quiet!{[' ' | '\t']+}
+        rule __ = quiet!{[' ' | '\t']*}
     }
 }
 
 #[test]
 fn main_test() {
-    let d = tokenizer::tokens("abc zzz { abc }");
+    let d = tokenizer::tokens("class Foo(x: u32) { abc }");
     println!("{:#?}", d);
 }
