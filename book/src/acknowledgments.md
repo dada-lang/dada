@@ -5,9 +5,9 @@ Dada is designed by [nikomatsakis], but heavily based on ideas from [Lark], whic
 [Lionel Parreaux]: https://twitter.com/lparreaux?lang=en
 [Seagl]: https://www.dropbox.com/s/be1u4xp1t2h0uxa/Seagl_Report.pdf
 [nikomatsakis]: https://github.com/nikomatsakis/
-[nikomatsakis]: https://github.com/aturon/
+[aturon]: https://github.com/aturon/
 [jntrnr]: https://twitter.com/jntrnr/
-[wycats]; https://twitter.com/wycats/
+[wycats]: https://twitter.com/wycats/
 [carllerche]: https://github.com/carllerche/
 [shanemccrary]: https://github.com/shanemccrary/
 
