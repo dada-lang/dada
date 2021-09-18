@@ -2,6 +2,8 @@
 
 *This tutorial aims to explain Dada from scratch. Dada as described here doesn't really exist, so this tutorial is purely hypothetical. It's goal is to get a feeling for how it would be to teach Dada and to explore the ideas without going through the trouble of implementing them.*
 
+**Caveat:** *The act of writing this tutorial caused me to rethink a lot of things about Dada, so I hope to post an updated version.*
+
 ## Hello, World
 
 The classic “Hello, World” program in Dada should be quite familiar:
