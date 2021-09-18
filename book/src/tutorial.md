@@ -239,10 +239,10 @@ In contrast, a **shared lease** means that you have joint access. There could be
 
 Effectively, ownership in Dada results in a table like this:
 
-| | Unique (permits mutation) | Joint (generally immutable) |
-| —- | —- | —- |
-| Owned (permanent access) | my | our |
-| Leased (temporary access) | borrowed | shared |
+|                           | Unique (permits mutation) | Joint (generally immutable) |
+| ------------------------- | ------------------------- | --------------------------- |
+| Owned (permanent access)  | my                        | our                         |
+| Leased (temporary access) | borrowed                  | shared                      |
 
 On the horizontal axis, you have unique vs joint. This indicates whether there are multiple ways to reference the same value at the same time.
 
