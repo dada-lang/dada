@@ -1,3 +1,12 @@
+[salsa::query_group(InternerDatabase)]
+pub trait Lexer: salsa::Database {
+    #[salsa::interned]
+    fn intern_field(&self, field: FieldData) -> Field;
+
+    #[salsa::interned]
+    fn intern_class(&self, class: ClassData) -> Class;
+}
+
 #[derive(Clone, Debug)]
 pub enum Token {
     Leaf(usize, usize),
