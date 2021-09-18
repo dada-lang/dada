@@ -1,7 +1,11 @@
 # Acknowledgments
 
-Dada is designed by [nikomatsakis], but heavily based on ideas from [Lark], which was a joint project by [nikomatsakis], [wycats], and [JT]. Thanks to [Lionel Parreaux] for his work on [Seagl], which resembles Dada in some ways, and to [aturon], [carllerche] and [shanemccrary] for recent brainstorming and conversations.
+Dada is designed by [nikomatsakis], but heavily based on ideas from [Lark], which was a joint project by [nikomatsakis], [wycats], and [JT]. Thanks to [aturon], [carllerche] and [shanemccrary] for recent brainstorming and conversations.
 
+I also want to highlight [Lionel Parreaux]'s work on [Seagl]. It has a lot of similarities to Dada's leases and Polonius's origins. Parreaux described it to me many years ago and I didn't fully appreciate the power of this direction at the time. Cool stuff. --nikomatsakis
+
+[Lionel Parreaux]: https://twitter.com/lparreaux?lang=en
+[Seagl]: https://www.dropbox.com/s/be1u4xp1t2h0uxa/Seagl_Report.pdf
 [Lionel Parreaux]: https://twitter.com/lparreaux?lang=en
 [Seagl]: https://www.dropbox.com/s/be1u4xp1t2h0uxa/Seagl_Report.pdf
 [nikomatsakis]: https://github.com/nikomatsakis/
