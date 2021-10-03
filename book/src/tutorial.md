@@ -14,22 +14,110 @@ async fn main() {
 }
 ```
 
-The main twist that may be surprising is that, like JavaScript, Dada is based exclusively on **async-await**. This means that 
+The main twist that may be surprising is that, like JavaScript, Dada is based exclusively on **async-await**. This means that operations that perform I/O, like `print`, don't execute immediately. Instead, they return a *thunk*, which is basically "code waiting to run" (but not running yet). The thunk doesn't execute until you *await* it by using the `.await` operation. 
 
-## Variables and ownership
+## Introducing variables
 
-To make the program a bit more interesting, let’s try introducing a variable:
+Let's try creating some local variables. Local variables in Dada are introduced with the `var` keyword. For example, we could create a local variable that stores the `print` thunk like so:
 
 ```
 async fn main() {
-    my greeting = “Hello, world”
+    var thunk = print(“Hello, world!”)
+    thunk.await
+}
+```
+
+Alternatively, we could put the "Hello, world!" string into a variable like so:
+
+```
+async fn main() {
+    var greeting = “Hello, world!”
     print(greeting).await
 }
 ```
 
-Now we start to see some differences. The `my` keyword here is one of the ways that Dada has to introduce a variable; as the name `my` probably suggests, Dada is an *ownership-based language*. This means that when you create values in Dada — like a String — those values always have 1 or more *owners*.
+## Type inference and type annotations on variables
 
-For the time being, when we talk about an owner, we are talking about some function that is currently running. So when you see `my greeting = …`, we are saying that the function `main` owns the string called `greeting`. Later on, we’ll extend the concept of owners to also include other data structures (example: a list or map).
+When you create local variables like `greeting`, you may have noticed that the IDE displays some grey text next to each variable:
+
+```
+async fn main() {
+    var greeting: my String = “Hello, world!”
+    //          ^^^^^^^^^^^ type hint displayed by the IDE
+    print(greeting).await
+}
+```
+
+This text indicates the type of the variable `greeting`; as you can see, the compiler typically infers the types of local variables, but you can also write the annotations yourself if you prefer.
+
+## Ownership permission
+
+Let's discuss the type `my String` itself! The `String` part is probably fairly familiar to you, but you might be wondering what the word `my` is about. The keyword `my` is called an *ownership permission*; ownership permissions are the way that Dada tracks who has access to a given value, and what kind of access they have. These permissions are the "secret sauce" that allows Dada programs to avoid all kinds of bugs (and the use of a garbage collector).
+
+The `my` permission indicates that the owner of the value has function `main` *owns* the value `greeting`[^unique]. When a function owns a value, that means a few things. First, it means that the function *keeps that value alive*. Once all functions are done using the value, it will get freed.
+
+[^unique]: More precisely, it indicates that `main` is the *only* owner of `greeting`; we'll cover joint ownership later.
+
+## Building up a string imperatively
+
+Let's try something a bit more interesting. Instead of writing "Hello, world!" as a constant string, let's construct the string by starting with "Hello, " and then appending the word "world":
+
+```
+async fn main() {
+    var greeting = “Hello, “
+    var name = “world”
+    greeting.push_str(name)
+    print(greeting).await
+}
+```
+
+You'll notice that when you type this in the IDE, the IDE inserts some greyed out text into the call to `push_str`:
+
+```
+    greeting.lend.push_str(name)
+    //      ^^^^^
+```
+
+What is going on here? What is this `lend` keyword?
+
+## Lending
+
+Dada is an *ownership-based language*: every value in Dada has 1 or more *owners*. For the time being, when we talk about an owner, we are talking about some function that is currently running. In our example, the `greeting` and `name` strings are owned by the function `main`. (Later on, we’ll extend the concept of owners to also include other data structures, such as a list or map.)
+
+When you are the only owner of a value (as is true in this case for the `greeting` and `name` strings), you have special privileges, then you control it completely. Nobody can access that value unless you give the permission. In our case, the `push_str` function would like to modify `greeting` (to append to it). For it to do that, we have to *lend* `greeting` to `push_str`. This means that we give `push_str` temporary access to modify `greeting`.
+
+Right now, all of the reasoning about who owns what and whether something is being lent out is taking place in the compiler. The compiler shows you what it figured out by adding little annotations, like the `.lend`. This is meant both to help you learn how the system works and to help you understand what the code is doing: knowing when a value is lent also indicates places that it is likely being modified.
+
+## Helper function
+
+To better understanding lending, let's create a helper function of our own. We're going to make a function `append_name` that appends a name to a greeting. The syntax for a function in Dada looks like this:
+
+```
+fn append_name(greeting: String) {
+    var name = “world”
+    greeting.push_str(name)
+}
+```
+
+But what's this? We're getting an error! Highlight the "squiggly line" on the call to `push_str`, we see:
+
+```
+error: cannot lend `greeting`
+| fn append_name(greeting: String) {
+                 ---------------- greeting is not declared with any permissions
+|     greeting.push_str(name)
+               ^^^^^^^^
+               push_str requires a lent string
+help: try declaring `greeting` as a `Lent` string
+| fn append_name(greeting: lent String) {
+                           +++++
+```
+
+The problem 
+
+## Sharing
+
+You might have noticed that the `push_str` method actually accesses another of our strings, the `name` string. But there is no `lend` annotation there: why is that? This is because s
 
 ## Mutation and ownership
 
