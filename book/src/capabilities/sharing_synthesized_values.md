@@ -229,19 +229,10 @@ In practice this means that the compiler would have to generate code to check a 
 
 ### Conclusion
 
-I hope you enjoyed this tour through Dada. To recap, there were two primary ideas that I introduced in this post:
+To recap, there were two primary ideas that I introduced in this post:
 
 * Sharing that is specified in terms of variables, not lifetimes.
 * Subtyping between owned and shared values, which:
     * means that semantically equivalent types like `shared Vec<String>` and `shared Vec<shared String>` also have the same representation;
     * permits one to return synthesized data when shared data is expected;
     * but comes at some cost in space and checking whether destructors are needed.
-
-I think this post is a good 'nutshell' summary of the direction I've been exploring with Dada. What if we were willing to trade some amount of runtime performance, what kind of modified model could we get?
-
-### Cool related work
-
-Before I go, I wanted to highlight [Lionel Parreaux]'s work on [Seagl]. It has a lot of similarities to Dada's leases and Polonius's origins. Parreaux described it to me many years ago and I didn't fully appreciate the power of this direction at the time. Cool stuff.
-
-[Lionel Parreaux]: https://twitter.com/lparreaux?lang=en
-[Seagl]: https://www.dropbox.com/s/be1u4xp1t2h0uxa/Seagl_Report.pdf
