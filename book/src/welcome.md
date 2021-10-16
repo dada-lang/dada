@@ -4,15 +4,38 @@
 
 Dada is a thought experiment. What if we were making a language like Rust, but one that was meant to feel more like Java or JavaScript, and less like C++? One didn't aspire to being used in kernels or tiny embedded devices and was willing to require a minimal runtime. What might that look like?
 
-## Why work on Dada?
+## What is the state of Dada?
 
-Working on Dada is really fun and, frankly, kind of relaxing for me. It's also a way to explore different language ideas unfettered by constraints of backwards compatibility. It is my hope that some of the ideas in Dada can make their way back to Rust. --nikomatsakis
+At the moment, Dada doesn't really exist. Everything you read on this site is imaginary. However, there is an experimental operational semantics implemented in [PLT Redex](https://redex.racket-lang.org/why-redex.html), which you can find at [dada-lang/dada-model](https://github.com/dada-lang/dada-model/). More details are available (or will be eventually) in the [calculus section](./calculus.md) of this site.
 
-## The calculus
+OK, from here on out I'm going to start pretend that Dada really exists.
 
-At the moment, Dada is implemented as a [PLT Redex](https://redex.racket-lang.org/why-redex.html) model. It includes a formal grammar, a type system, and an operational semantics (for single threaded programs only). This model explores an alternative, Rust-like type system. This site has an [explanation of how the calculus works](./calculus.md).
+## Dada in a nutshell
 
-## Tutorial
+Dada is an ownership-based language that is in some ways similar to Rust:
 
-Currently, there is no "surface syntax" for Dada. But it's fun to think about! So a second part of this site is a kind of exploration of some ideas for how Dada might look if it were taken from being a model into a full-fledged language. This takes the form of a [tutorial](./tutorial.md).
+* Like Rust, Dada doesn't require a garbage collector.
+* Like Rust, Dada guarantees memory safety and data-race freedom.
+* Like Rust, Dada data structures can be allocated in the stack and use flat memory layouts.
 
+In other ways, though, Dada is very different:
+
+* Like TypeScript, Dada is a **gradually typed** language:
+    * That means you can **start out using Dada in the interpreter, with no type annotations**, to get a feel for how it works.
+    * Once you've gotten comfortable with it, you can **add type annotations and use the compiler for performance comparable to Rust**.
+* Dada **targets WebAssembly** first and foremost:
+    * You can build native targets with Dada, but its FFI system is based on [WebAssembly interface types](https://hacks.mozilla.org/2019/08/webassembly-interface-types/).
+* Dada is **object-oriented**, though not in a purist way:
+    * Dada combines OO with nice features like pattern matching, taking inspiration from languages like Scala.
+
+Dada also has some limitations compared to Rust:
+
+* Dada has a required runtime and does not target "bare metal systems" or kernels.
+* Dada does not support inline assembly or arbitrary unsafe code.
+
+## Curious to learn more?
+
+Check out one of our tutorials:
+
+* [Dynamic Dada](./dyn_tutorial.md)
+* [Dada for Rustaceans](./rustaceans.md)
