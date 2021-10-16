@@ -6,7 +6,9 @@ Dada is a thought experiment. What if we were making a language like Rust, but o
 
 ## What is the state of Dada?
 
-At the moment, Dada doesn't really exist. Everything you read on this site is imaginary. However, there is an experimental operational semantics implemented in [PLT Redex](https://redex.racket-lang.org/why-redex.html), which you can find at [dada-lang/dada-model](https://github.com/dada-lang/dada-model/). More details are available (or will be eventually) in the [calculus section](./calculus.md) of this site.
+At the moment, Dada doesn't really exist. Everything you read on this site is imaginary. However, there is an experimental operational semantics implemented in [PLT Redex], which you can find at [dada-lang/dada-model](https://github.com/dada-lang/dada-model/). More details are available (or will be eventually) in the [calculus section](./calculus.md) of this site.
+
+[PLT Redex]: https://redex.racket-lang.org/why-redex.html
 
 OK, from here on out I'm going to start pretend that Dada really exists.
 
