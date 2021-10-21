@@ -6,9 +6,16 @@ Let's try something a bit more interesting. We'll define a class `Point` for sto
 
 ```
 class Point(var x, var y)
+//    ^^^^^ ^^^ ^
+//      |    |  |
+//      |    | Field name
+//      |   Field mode (we'll cover this later)
+//    Class name
 ```
 
-This declares a class `Point` with two fields, `x` and `y`. It also defines a constructor function `Point`, so you can create an instance of `Point` by calling that function. Try executing the following code:
+This declares a class `Point` with two fields, `x` and `y`. There are actually three kinds of fields (`shared`, `var`, and `atomic`) but for now we will just focus on `var` fields, which are the most common. 
+
+The class syntax implictly defines a constructor function `Point`, so you can create an instance of `Point` by calling that function. Try executing the following code:
 
 ```
 async fn main() {
