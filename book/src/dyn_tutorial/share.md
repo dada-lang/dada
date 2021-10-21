@@ -209,7 +209,7 @@ Next go past the `var r := q.share` line. As always, sharing a shared thing simp
 │   │                  │ Point │
 │ q ├─shared(p)───────►│ ───── │
 │   │                  │ x: 22 │
-│ r ├─shared(q)───────►│ y: 44 │
+│ r ├─shared(p)───────►│ y: 44 │
 │   │                  └───────┘
 └───┘                  
 ```
