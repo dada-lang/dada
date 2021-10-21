@@ -1,4 +1,4 @@
-# Giving permission
+# Giving permissions away
 
 {{#include caveat.md}}
 
