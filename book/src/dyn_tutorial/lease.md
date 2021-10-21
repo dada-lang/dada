@@ -64,12 +64,12 @@ Here `p` was leased to create `q`, and `q` then leased *its* permission to `r`. 
 
 ```
 ┌───┐
-│   │                  ┌───────┐
-│ p ├─my──────────────►│ Point │
-│   │                  │ ───── │
-│ q ├─leased(p)───────►│ x: 22 │
-│   │                  │ y: 44 │
-│ r ├─leased(q)───────►│ x: 22 │
+│   │                  
+│ p ├─my──────────────►┌───────┐
+│   │                  │ Point │
+│ q ├─leased(p)───────►│ ───── │
+│   │                  │ x: 22 │
+│ r ├─leased(q)───────►│ y: 44 │
 │   │                  └───────┘
 └───┘                  
 ```
