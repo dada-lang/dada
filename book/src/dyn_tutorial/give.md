@@ -6,77 +6,98 @@ At the end of the previous tutorial, we were working with this program:
 
 ```
 async fn main() {
-    var q
-    do {
-        var p = Point(x: 22, y: 44)
-        print("The point is ({p.x}, {p.y})").await
-        q := p
-    }
-    print("The point q is ({q.x}, {q.y})).await
+    var p = Point(x: 22, y: 44)
+    print("The point is ({p.x}, {p.y})").await
 }
 ```
 
-We saw that `q = p` *shared* the permissions of `p` with `q`; since `p` was still the owner, the point was dropped as we exited the `do { .. }` block, and then we got an error as `q` had no value. But what if we wanted `q` to become the new owner? We can do that with the `give` keyword:
+We observed that `p` owned the `Point` which was created and that the `Point` was automatically freed after `p` finished with it.
+
+## Assignments
+
+Next, let's take a look at this program:
 
 ```
 async fn main() {
-    var q
-    do {
-        var p = Point(x: 22, y: 44)
-        print("The point is ({p.x}, {p.y})").await
-        q := p.give
-    }
-    print("The point q is ({q.x}, {q.y})).await
+    var p = Point(x: 22, y: 44)
+    var q = p // <-- Added this line!
+    print("The point is ({p.x}, {p.y})").await
 }
 ```
 
-If you run the program now, you will find it prints
+If you run it, you will find that it gets an error:
 
 ```
-The point is (22, 44)
-The point q is (22, 44)
+error: `p` has no value
+  > var q = p // <-- Added this line!
+            - value in `p` was given to `q` here
+  > print("The point is ({p.x}, {q.y})).await
+                          ^^^ `p` has no value
 ```
 
-If you position the cursor to right after the line `q = p.give`, you will see the [following](https://asciiflow.com/#/share/eJyrVspLzE1VssorzcnRUcpJrEwtUrJSqo5RqohRsrK0MNGJUaoEsozArJLUihIgJ0bp0ZQ9yCgmJg9IKigoINiFCnDZ3Eo05cQgZCMVsAC4EmSEVeE0vGYRdkIBDm0KAfmZeSUKBNwKEkJ3JVFuBwlVWCkYGUGVY%2FMbWFGllYKJCQFFOL2oVKtUCwBpCOYz)):
+When you have an assignment like `var q = p`, the default in Dada is that you are **giving** whatever permissions `p` has over to `q`. In this case, since `p` was the exclusive owner of the value, `q` becomes the exclusive owner of the value. You can't have two exclusive owners, so that means that `p` is empty. If you run the debugger, you can see this in action. Position the cursor right before the `p` in `var q = p` line:
 
 ```
-┌───┐
-│   │
-│ q ├──my────────────────┐
-│   │                    │
-├───┤                    ▼
-│   │                ┌───────┐
-│ p │                │ Point │
-│   │                │ ───── │
-└───┘                │ x: 22 │
-                     │ y: 44 │
-                     └───────┘
+class Point(var x, var y)
+
+async fn main() {
+    var p = Point(x: 22, y: 44)
+    var q = p
+    //     ▲
+    // ────┘
+    print("The point is ({p.x}, {p.y})").await
+}
 ```
 
-In other words, `p` gave up all of its permissions and they now belong to `q`. 
+If you look at the state of the program, you will see:
 
-### Use after give
+```
+┌───┐       ┌───────┐
+│ p ├──my──►│ Point │
+│   │       │ ───── │
+│ q │       │ x: 22 │
+└───┘       │ y: 44 │
+            └───────┘
+```
 
-Question: What do you think will happen if you try to use `p` after `q = p.give`? Try it and see!
+Now position the cursor at the end of the line and see how the state changes:
+
+```
+class Point(var x, var y)
+
+async fn main() {
+    var p = Point(x: 22, y: 44)
+    var q = p
+    //       ▲
+    // ──────┘
+    print("The point is ({p.x}, {p.y})").await
+}
+
+
+┌───┐       ┌───────┐
+│ p │       │ Point │
+│   │       │ ───── │
+│ q ├──my──►│ x: 22 │
+└───┘       │ y: 44 │
+            └───────┘
+```
+
+The `Point` is now owned by `q`!
+
+Try changing the `print` to print from `q` instead of `p`...you will find the program works as expected.
+
+## Making this explicit: the `give` keyword
+
+If you prefer, you can make the move from `p` to `q` explicit by using the `give` keyword:
 
 ```
 async fn main() {
-    var q
-    do {
-        var p = Point(x: 22, y: 44)
-        q := p.give
-        print("The point is ({p.x}, {p.y})").await
-    }
-    print("The point q is ({q.x}, {q.y})).await
+    var p = Point(x: 22, y: 44)
+    var q = p.give
+    print("The point is ({q.x}, {q.y})").await
 }
 ```
 
-As you might expect, running this program results in an error:
+## Give can give more than ownership
 
-```
-error: accessing variable with no value
-  >     q = p.give
-            - `p` gave up its value here
-  >     print("The point is ({p.x}, {p.y})").await
-                              ^^^ p has no value
-```
+Earlier, we said that the `give` keywords gives *all the permissions* from one place to another. That is true no matter how many or how few permissions you have. Right now, we're working with things we own, so `give` transfers ownership. As the tutorial proceeds, we're going to see ways that we can create variables with fewer permissions; using `give` on those variables will then give those fewer permissions.

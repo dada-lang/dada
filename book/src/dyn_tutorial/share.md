@@ -136,7 +136,7 @@ async fn main() {
     var p = Point(x: 22, y: 44)
     var q = p.share
     var r = q.give
-    var s = r.give
+    var s = r        // equivalent to r.give
 }
 ```
 

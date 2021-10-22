@@ -122,6 +122,20 @@ async fn main() {
 }
 ```
 
+Alternatively, we can even leave the `give` keyword away:
+
+```
+class Point(var x, var y)
+
+async fn main() {
+    var p = Point(x: 22, y: 44)
+    var q = p.lease
+    var r = q
+    r.x += 1
+    print("The point is ({p.x}, {p.y})").await
+}
+```
+
 If you step through to the line `r.x`, you will see the same picture that we saw with `q.lease`:
 
 ```
