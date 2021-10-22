@@ -1,6 +1,6 @@
 # Hello, Dada!
 
-{{#include caveat.md}}
+{{#include ../caveat.md}}
 
 ## Gradual ownership
 

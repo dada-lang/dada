@@ -1,6 +1,6 @@
 # Leasing permissions
 
-{{#include caveat.md}}
+{{#include ../caveat.md}}
 
 In the previous chapter, we talked about *giving permissions away*. But sometimes we would just like to give temporary access; this is where the `lease` keyword comes in. Consider the following program:
 

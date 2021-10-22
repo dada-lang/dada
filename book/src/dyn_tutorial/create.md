@@ -1,6 +1,6 @@
 # Creating, dropping, and scopes
 
-{{#include caveat.md}}
+{{#include ../caveat.md}}
 
 ## Running example
 

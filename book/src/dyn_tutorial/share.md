@@ -1,6 +1,6 @@
 # Sharing and shared leases
 
-{{#include caveat.md}}
+{{#include ../caveat.md}}
 
 We are now coming to the end of our tour of Dada's permissions. In the previous few chapters we saw:
 

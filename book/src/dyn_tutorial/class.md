@@ -1,6 +1,6 @@
 # Declaring the `Point` class
 
-{{#include caveat.md}}
+{{#include ../caveat.md}}
 
 Let's try something a bit more interesting. We'll define a class `Point` for storing `(x, y)` values. The simplest syntax for declaring a class in Dada is as follows:
 
@@ -15,7 +15,7 @@ class Point(var x, var y)
 
 This declares a class `Point` with two fields, `x` and `y`. There are actually three kinds of fields (`shared`, `var`, and `atomic`) but for now we will just focus on `var` fields, which are the most common. 
 
-The class syntax implictly defines a constructor function `Point`, so you can create an instance of `Point` by calling that function. Try executing the following code:
+It also defines a constructor function `Point`, so you can create an instance of `Point` by calling that function. Try executing the following code:
 
 ```
 async fn main() {

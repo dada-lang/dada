@@ -1,6 +1,6 @@
 # Giving permissions away
 
-{{#include caveat.md}}
+{{#include ../caveat.md}}
 
 At the end of the previous tutorial, we were working with this program:
 
