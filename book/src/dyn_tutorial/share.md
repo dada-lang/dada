@@ -20,8 +20,8 @@ Consider this program:
 class Point(var x, var y)
 
 async fn main() {
-    var p := Point(x: 22, y: 44)
-    var q := p.share
+    var p = Point(x: 22, y: 44)
+    var q = p.share
     print("The point is ({p.x}, {p.y})").await
     print("The point is ({q.x}, {q.y})").await
 }
@@ -47,9 +47,9 @@ Objects with multiple owners are freed once *all* of their owners have gone out 
 async fn main() {
     var q
     do {
-        var p := Point(x: 22, y: 44)
+        var p = Point(x: 22, y: 44)
         print("The point is ({p.x}, {p.y})").await
-        q = p.share
+        q := p.share
     }
     print("The point q is ({q.x}, {q.y})).await
 }
@@ -117,10 +117,10 @@ Once something is shared, we can go on and share it even further:
 class Point(var x, var y)
 
 async fn main() {
-    var p := Point(x: 22, y: 44)
-    var q := p.share
-    var r := q.share
-    var s := r.share
+    var p = Point(x: 22, y: 44)
+    var q = p.share
+    var r = q.share
+    var s = r.share
     // ...and so on
 }
 ```
@@ -133,10 +133,10 @@ Similarly, since all shared variables are equal, when a shared variable gives it
 class Point(var x, var y)
 
 async fn main() {
-    var p := Point(x: 22, y: 44)
-    var q := p.share
-    var r := q.give
-    var s := r.give
+    var p = Point(x: 22, y: 44)
+    var q = p.share
+    var r = q.give
+    var s = r.give
 }
 ```
 
@@ -148,7 +148,7 @@ Sharing allows many variables to have equal access to the same object at the sam
 class Point(var x, var y)
 
 async fn main() {
-    var p := Point(x: 22, y: 44).share
+    var p = Point(x: 22, y: 44).share
     p.x += 1 // Exception!
     print("The point is ({p.x}, {p.y})").await
 }
@@ -164,9 +164,9 @@ Shared leases are illustrated in the following program:
 class Point(var x, var y)
 
 async fn main() {
-    var p := Point(x: 22, y: 44)
-    var q := p.lease.share
-    var r := q.share
+    var p = Point(x: 22, y: 44)
+    var q = p.lease.share
+    var r = q.share
     print("p is ({p.x}, {p.y})").await
     print("q is ({q.x}, {q.y})").await
     print("r is ({r.x}, {r.y})").await
@@ -200,7 +200,7 @@ Just after the `lease`, we have that `q` is leased from `p`, the owner. Move the
 
 Although the lease is now shared, `p` remains the owner of the point (and the lessor of the lease).
 
-Next go past the `var r := q.share` line. As always, sharing a shared thing simply reproduces it:
+Next go past the `var r = q.share` line. As always, sharing a shared thing simply reproduces it:
 
 ```
 ┌───┐

@@ -8,14 +8,14 @@ In the previous chapter, we talked about *giving permissions away*. But sometime
 class Point(var x, var y)
 
 async fn main() {
-    var p := Point(x: 22, y: 44)
-    var q := p.lease
+    var p = Point(x: 22, y: 44)
+    var q = p.lease
     q.x += 1
     print("The point is ({p.x}, {p.y})").await
 }
 ```
 
-Here, we added the line `var q := p.lease`. What that does is to create a *leased* copy of the `Point`. When you lease an object, you are temporarily getting permission to access it. 
+Here, we added the line `var q = p.lease`. What that does is to create a *leased* copy of the `Point`. When you lease an object, you are temporarily getting permission to access it. 
 ## Unique leases
 
 The default lease is an **unique** lease. That means that the new variable has exclusive access to the object. So long as the lease is active, all reads and writes to that object have to go through the leased variable (`q`) or some sublease of `q`. In the next chapter, we'll talk about shared leases, which can be accessed from many variables (we actually saw a shared lease earlier, in the [chapter on creating and dropping objects](create.md)).
@@ -52,9 +52,9 @@ When you have a leased value, you can lease it again, creating a sublease:
 class Point(var x, var y)
 
 async fn main() {
-    var p := Point(x: 22, y: 44)
-    var q := p.lease
-    var r := q.lease
+    var p = Point(x: 22, y: 44)
+    var q = p.lease
+    var r = q.lease
     r.x += 1
     print("The point is ({p.x}, {p.y})").await
 }
@@ -85,8 +85,8 @@ Leases last until the lessor chooses to end them. Lessors end a lease by taking 
 class Point(var x, var y)
 
 async fn main() {
-    var p := Point(x: 22, y: 44)
-    var q := p.lease
+    var p = Point(x: 22, y: 44)
+    var q = p.lease
     q.x += 1
     print("The point is ({p.x}, {p.y})").await
 }
@@ -114,9 +114,9 @@ Earlier, we saw that the [`give`](./give.md) keyword can be used to give ownersh
 class Point(var x, var y)
 
 async fn main() {
-    var p := Point(x: 22, y: 44)
-    var q := p.lease
-    var r := q.give
+    var p = Point(x: 22, y: 44)
+    var q = p.lease
+    var r = q.give
     r.x += 1
     print("The point is ({p.x}, {p.y})").await
 }

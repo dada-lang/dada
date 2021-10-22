@@ -9,6 +9,7 @@
   - [Giving permissions away](./dyn_tutorial/give.md)
   - [Leasing permissions](./dyn_tutorial/lease.md)
   - [Sharing permissions](./dyn_tutorial/share.md)
+  - [Atomic storage and blocks](./dyn_tutorial/atomic.md)
 - [Tutorial: Typed Dada](./typed_tutorial.md)
 - [Dada for Rustaceans](./rustaceans.md)
 - [FAQ](./faq.md)

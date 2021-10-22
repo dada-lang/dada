@@ -8,9 +8,9 @@ At the end of the previous tutorial, we were working with this program:
 async fn main() {
     var q
     do {
-        var p := Point(x: 22, y: 44)
+        var p = Point(x: 22, y: 44)
         print("The point is ({p.x}, {p.y})").await
-        q = p
+        q := p
     }
     print("The point q is ({q.x}, {q.y})).await
 }
@@ -22,9 +22,9 @@ We saw that `q = p` *shared* the permissions of `p` with `q`; since `p` was stil
 async fn main() {
     var q
     do {
-        var p := Point(x: 22, y: 44)
+        var p = Point(x: 22, y: 44)
         print("The point is ({p.x}, {p.y})").await
-        q = p.give
+        q := p.give
     }
     print("The point q is ({q.x}, {q.y})).await
 }
@@ -63,8 +63,8 @@ Question: What do you think will happen if you try to use `p` after `q = p.give`
 async fn main() {
     var q
     do {
-        var p := Point(x: 22, y: 44)
-        q = p.give
+        var p = Point(x: 22, y: 44)
+        q := p.give
         print("The point is ({p.x}, {p.y})").await
     }
     print("The point q is ({q.x}, {q.y})).await

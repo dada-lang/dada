@@ -10,7 +10,7 @@ For the next several chapters, we're going to work with variations on this examp
 class Point(var x, var y)
 
 async fn main() {
-    var p := Point(x: 22, y: 44)
+    var p = Point(x: 22, y: 44)
     print("The point is ({p.x}, {p.y})").await
 }
 ```
@@ -29,7 +29,7 @@ When you invoke a constructor, you get back a freshly created object with full p
 
 ### Exploring ownership with the debugger
 
-We can use the interactive debugger to explore permissions and watch how they evolve. To start, run the program below and move the cursor to the start of the `print` line. This will take you to the point right after `var p := Point(..)` has executed. If you look at the state of the program, you will see:
+We can use the interactive debugger to explore permissions and watch how they evolve. To start, run the program below and move the cursor to the start of the `print` line. This will take you to the point right after `var p = Point(..)` has executed. If you look at the state of the program, you will see:
 
 ```
 ┌───┐       ┌───────┐
@@ -57,7 +57,7 @@ Let's play wit the concept of ownership and drops a bit more. To start, we have 
 ```
 async fn main() {
     do {
-        var p := Point(x: 22, y: 44)
+        var p = Point(x: 22, y: 44)
         print("The point is ({p.x}, {p.y})").await
     } // <-- p will get freed as we exit this block
 }
@@ -69,21 +69,21 @@ As the comment notes, we are now creating `p` inside a subblock, and when that s
 async fn main() {
     var q
     do {
-        var p := Point(x: 22, y: 44)
+        var p = Point(x: 22, y: 44)
         print("The point is ({p.x}, {p.y})").await
-        q = p
+        q := p
     }
     print("The point q is ({q.x}, {q.y})).await
 }
 ```
 
-Here we introduce a bit of new syntax: `var q` by itself simply creates a variable without giving it any value. Later on, when we write `q = p`, we are reassigning the value of that variable. (Note that we didn't write `q := p`; the `:=` syntax is only for declaring *new* variables, not reassigning existing ones.)
+Here we introduce a bit of new syntax: `var q` by itself simply creates a variable without giving it any value. Later on, when we write `q = p`, we are reassigning the value of that variable. (Note that we didn't write `q = p`; the `=` syntax is only for declaring *new* variables, not reassigning existing ones.)
 
 So, what happens when we try to print the value of `q` at the end of `main`? Try it and see! Clicking run yields:
 
 ```
 error: accessing freed object
-  >     var p := Point(x: 22, y: 44)
+  >     var p = Point(x: 22, y: 44)
             - object was freed when `p` went out of scope
   > print("The point q is ({q.x}, {q.y})).await
                             ^^^ q.x refers to a freed object   

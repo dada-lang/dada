@@ -40,6 +40,10 @@ Like Java or Python, Dada encourages programmers just to think about the *values
 
 Dada has destructors, but they are not expected to have side-effects apart from releasing resources. The Dada compiler is always free to drop values even before the variable that owns them has gone out of scope.
 
+## Sharing xor mutability
+
+Dada shares Rust's obsession with exposing *sharing* (aliasing) or *mutability*, but not both at the same time -- or at least, if you're going to expose both at the same time, that should be explicit.
+
 # Longer term goals
 
 ## Rust interop
