@@ -6,7 +6,8 @@ The classic “Hello, World” program in Dada should be quite familiar:
 
 ```
 async fn main() {
-    print("I have forced myself to contradict myself in order to avoid conforming to my own taste.").await
+    print("I have forced myself to contradict myself").await
+    print("in order to avoid conforming to my own taste.").await
     print("  -- Marcel Duchamp").await
 }
 ```
