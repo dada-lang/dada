@@ -2,7 +2,7 @@
 
 Dada is designed by [nikomatsakis] and [wycats].
 
-It is derived from ideas in [Lark], which was a joint project by [nikomatsakis], [wycats], and [JT].
+Dada started as a "fork" of the ideas in [Lark], which was a joint project by [nikomatsakis], [wycats], and [JT].
 
 [Ralf Jung]'s work on [stacked borrows] is a key ingredient for Dada's operational semantics and overall approach.
 
