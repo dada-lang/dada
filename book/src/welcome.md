@@ -1,5 +1,9 @@
 # Welcome
 
+> I speak only of myself since I do not wish to convince, I have no right to drag others into my river, I oblige no one to follow me and everybody practices their art their own way.
+> 
+> Tristan Tzara, "Dada Manifesto 1918” (updated to use modern pronouns)
+
 ## What the heck is Dada?
 
 Dada is a thought experiment. What if we were making a language like Rust, but one that was meant to feel more like Java or JavaScript, and less like C++? One didn't aspire to being used in kernels or tiny embedded devices and was willing to require a minimal runtime. What might that look like?
