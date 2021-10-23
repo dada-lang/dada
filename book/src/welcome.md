@@ -2,7 +2,7 @@
 
 > I speak only of myself since I do not wish to convince, I have no right to drag others into my river, I oblige no one to follow me and everybody practices their art their own way.
 > 
-> Tristan Tzara, "Dada Manifesto 1918” (updated to use modern pronouns)
+> Tristan Tzara, "Dada Manifesto 1918”[^pronouns]
 
 ## What the heck is Dada?
 
@@ -45,3 +45,7 @@ Check out one of our tutorials:
 
 * [Dynamic Dada](./dyn_tutorial.md)
 * [Dada for Rustaceans](./rustaceans.md)
+
+## Footnotes
+
+[^pronouns]: Updated to use modern pronouns.
