@@ -1,5 +1,7 @@
 # Shared storage
 
+{{#include ../caveat.md}}
+
 We've seen that [the `share` keyword can be used to share objects](./share.md) and learned about the [sharing xor mutation][sxm] principle. Now, if you think back to when we were [first learning the syntax for classes](./class.md), you may recall that there were actually three access modes, `shared`, `var`, and `atomic`. We've only been using `var` so far. In this section, we're going to discuss the `shared` mode a bit deeper.
 
 [sxm]: ./sharing_xor_mutation.md

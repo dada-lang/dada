@@ -1,5 +1,7 @@
 # Atomic storage and blocks
 
+{{#include ../caveat.md}}
+
 In the [sharing xor mutability][sxm] section, we discussed how `var` fields, when shared, become immutable. We also talked about the dangers of mixing sharing and mutation. The challenge is that *sometimes* you *really do* want to mix sharing and mutation. As a simple example, we might want to have a shared cache that multiple parts of our code can access. How do we do that?
 
 [sxm]: ./sharing_xor_mutability.md

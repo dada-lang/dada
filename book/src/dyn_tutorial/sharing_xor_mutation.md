@@ -1,5 +1,7 @@
 # Sharing xor mutation
 
+{{#include ../caveat.md}}
+
 Sharing allows many variables to have equal access to the same object at the same time, but that comes with one key limitation: the `var` fields of that object become immutable!
 
 ```
@@ -81,7 +83,7 @@ Functional languges respond to this problem by preventing *all* mutation. That c
 
 "OK", you're thinking, "I get that sharing and mutation can be dangerous, but what if I want a shared counter? How do I do *that?*" That's another good question! Dada has a mechanism for doing this called transactions, and they're covered in a [future section of this tutorial](./atomic.md). The short version, though, is that you can declare when you want to have fields that are mutable even when shared and then modify them: but you can only do it inside a transaction. Inside of that transaction, the Dada runtime ensures that there aren't overlapping reads and writes to the same object from two different variables or two different threads. So we still have sharing xor mutation, but it is enforced differently.
 
-### Footnotes
+## Footnotes
 
 [^GIL]: In Python, it's a bit harder to observe this because of the [Global Interpreter Lock](https://wiki.python.org/moin/GlobalInterpreterLock), but as you can see, it's certainly possible.
 
