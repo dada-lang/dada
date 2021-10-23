@@ -83,7 +83,7 @@ The `my` permission from `p` has been converted to an `our` permission, and `q` 
 │   │                  ┌───────┐
 │ p │                  │ Point │
 │   │                  │ ───── │
-│ q ├─my──────────────►│ x: 22 │
+│ q ├─our─────────────►│ x: 22 │
 │   │                  │ y: 44 │
 └───┘                  └───────┘
 ```
