@@ -42,7 +42,7 @@ Dada has destructors, but they are not expected to have side-effects apart from 
 
 ## Sharing xor mutability
 
-Dada shares Rust's obsession with exposing *sharing* (aliasing) or *mutability*, but not both at the same time -- or at least, if you're going to expose both at the same time, that should be explicit.
+Dada shares Rust's obsession with exposing *sharing* (aliasing) and *mutability*, but not both at the same time.
 
 # Longer term goals
 
