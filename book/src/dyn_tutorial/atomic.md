@@ -209,7 +209,7 @@ error: use of invalidated lease
 ...
 |    cell2.value.x += 1
                  - lease invalidated here
-|    point1.x = v + 1
+|    point1.x := v + 1
      ^^^^^^^^ invalidated lease used here
 ```
 
