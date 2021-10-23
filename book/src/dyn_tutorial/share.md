@@ -41,69 +41,54 @@ The expression `p.share` means that `p` is converting its unique ownership into 
 
 ## Joint ownership
 
-Objects with multiple owners are freed once *all* of their owners have gone out of scope. If we go back to the example with the `do { .. }` block that we saw in the [object creation](./create.md) chapter, but modify it to use sharing, we can explore this:
+Objects with multiple owners are freed once *all* of their owners have gone out of scope. Let's explore this with this example:
 
 ```
 async fn main() {
-    var q
-    do {
-        var p = Point(x: 22, y: 44)
-        print("The point is ({p.x}, {p.y})").await
-        q := p.share
-    }
+    var p = Point(x: 22, y: 44)
+    print("The point is ({p.x}, {p.y})").await
+    var q = p.share
     print("The point q is ({q.x}, {q.y})).await
 }
 ```
 
-Position the cursor right before `q = p.share`. You will [see](https://asciiflow.com/#/share/eJyrVspLzE1VssorzcnRUcpJrEwtUrJSqo5RqohRsrK0MNGJUaoEsozArJLUihIgJ0bp0ZQ9yCgmJg9IKigoINiFCljFcelSQANoSrFoK0Coya3EoxyKpu0CaQrIz8wrQXcZFrvR7cfuAWwaK6wUjIygytHl4YoqrRRMTAgowul9pVqlWgBzC8%2FT):
+Position the cursor right before `var q = p.share`. You will see:
 
 ```
 ┌───┐
-│   │
-│ q │
-│   │
-├───┤
-│   │                ┌───────┐
-│ p ├──my───────────►│ Point │
-│   │                │ ───── │
-└───┘                │ x: 22 │
-                     │ y: 44 │
-                     └───────┘
+│   │                  ┌───────┐
+│ p ├─my──────────────►│ Point │
+│   │                  │ ───── │
+│ q │                  │ x: 22 │
+│   │                  │ y: 44 │
+└───┘                  └───────┘
 ```
 
-Now move the cursor right *after* `q = p.share`. You will [see](https://asciiflow.com/#/share/eJyrVspLzE1VslIKzkgsSk1RKClKLEstKk7MUdJRykmsTC0CSlXHKFXEKFlZWpjoxChVAllGYFZJakUJkBOj9GjKHmQUE5MHJBUUFBDsQgW4bH5pEZp6%2FAjZNAVMAFeBjLCpm4bXJMIOKCDFC9N2gbQE5GfmlSCFAi6b0W0nzlMgoQorBSMjqHIsnoYoqrRSMDEhoAin55VqlWoBF5ECwg%3D%3D):
+Now move the cursor right *after* `q = p.share`. You will see:
 
 ```
 ┌───┐
-│   │
-│ q ├──our──────────────┐
-│   │                   │
-├───┤                   ▼
-│   │                ┌───────┐
-│ p ├──our──────────►│ Point │
-│   │                │ ───── │
-└───┘                │ x: 22 │
-                     │ y: 44 │
-                     └───────┘
+│   │                  ┌───────┐
+│ p ├─our─────────────►│ Point │
+│   │                  │ ───── │
+│ q ├─our─────────────►│ x: 22 │
+│   │                  │ y: 44 │
+└───┘                  └───────┘
 ```
 
-The `my` permission from `p` has been converted to an `our` permission, and `q` also has `our` permission. OK, let's move one step forward, out of the `do { ... }` block. Now we [see](https://asciiflow.com/#/share/eJyrVspLzE1VslIKzkgsSk1RKClKLEstKk7MUdJRykmsTC0CSlXHKFXEKFlZWpjoxChVAllGYFZJakUJkBOj9GjKHmQUE5MHJBUUFBDsQgW4bH5pEZp6%2FAjZNAVMAFeBjLCpm4bXJMIOKMChTSEgPzOvRIGAS0FC6I4kyukgoQorBSMjqHIsXoMoqrRSMDEhoAinF5VqlWoB2r7m0w%3D%3D):
+The `my` permission from `p` has been converted to an `our` permission, and `q` also has `our` permission. OK, let's move one step forward, to right before the `print`. Now we see:
 
 ```
 ┌───┐
-│   │
-│ q ├──our──────────────┐
-│   │                   │
-├───┤                   ▼
-│   │                ┌───────┐
-│ p │                │ Point │
-│   │                │ ───── │
-└───┘                │ x: 22 │
-                     │ y: 44 │
-                     └───────┘
+│   │                  ┌───────┐
+│ p │                  │ Point │
+│   │                  │ ───── │
+│ q ├─my──────────────►│ x: 22 │
+│   │                  │ y: 44 │
+└───┘                  └───────┘
 ```
 
-The value for `p` has been dropped, but the `Point` is not freed. That's because it still has one owner (`q`). 
+`p` is no longer in active use, so the value for `p` has been dropped, but the `Point` is not freed. That's because it still has one owner (`q`). 
 
 Notice that `q` still only has `our` permission, not `my`. Once an object is shared, it remains shared. This is because `q` doesn't know how many other variables there are that may have access to the `Point`, so it always acts "as if" there are more. There are ways to test at runtime whether you are the only owner left and convert an `our` permission back into a `my` permission, but we'll discuss that later.
 
