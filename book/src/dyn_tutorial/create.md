@@ -66,5 +66,3 @@ What is going on? The answer is that once you get to the point where there `p` w
 ## Footnotes
 
 [^precise]: The *precise* time when `p` gets destroyed depends on the compiler's analysis, but it will always occur some time after the last use of `p` and some time before `p` goes out of scope.
-
-[^closure]: What's actually happening here is that the `{...}` block is a closure and the `do` function is being called with that closure as argument. `do` is a very simple function that simply invokes its argument.
