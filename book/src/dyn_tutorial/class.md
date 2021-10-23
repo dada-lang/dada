@@ -18,7 +18,7 @@ class Point(var x, var y)
 This declares a class `Point` with two fields, `x` and `y`. For each field, besides its name, there is a "storage mode":
 
 * `shared`: Shared fields cannot be reassigned.
-    * If you're familiar with Java, shared fields are similar to `final` fields, although with some important differences that we will cover later [when we cover sharing](./share.md).
+    * If you're familiar with Java, shared fields are similar to `final` fields, although with some important differences that we will cover later [when we cover sharing and shared storage](./shared_storage.md).
     * Shared fields are the default if you say nothing (e.g., `class Point(x, y)` would have shared fields).[^good]
 * `var`: Variable fields (as we see here) can be reassigned.
     * `var` fields are the most common kind of mutable field, and are kind of analogous to "normal fields" in Java.
