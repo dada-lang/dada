@@ -4,3 +4,7 @@ language = "en"
 multilingual = false
 src = "src"
 title = "The Dada Programming Language"
+
+[output.html]
+git-repository-url = "https://github.com/dada-lang/dada/tree/master/book"
+edit-url-template = "https://github.com/dada-lang/dada/edit/master/book/{path}"
