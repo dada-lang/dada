@@ -36,9 +36,9 @@ Dada's type system is meant to be "fully erasable", similar to the relationship 
 
 Like Java or Python, Dada encourages programmers just to think about the *values* they are working with. Dada doesn't have pointer types like `*` or `&` nor a "dereference" operator like `*`. Even though Dada doesn't require a GC, it's meant to encourage familiar, GC-like patterns. If you were to remove all of Dada's sharing and ownership annotations, the result should be a program that could run just fine with a GC, with the expected semantics.
 
-## RAII is for freeing memory, not side effects
+## RAII is for releasing resources, not side effects
 
-Dada has destructors, but they are not expected to have side-effects apart from releasing resources. The Dada compiler is always free to drop values even before the variable that owns them has gone out of scope.
+Dada has destructors, but they are not expected to have side-effects apart from releasing resources. The Dada compiler is always free to drop values even before the variable that owns them has gone out of scope. So, things like freeing memory, closing files, database handles, and sockets? Perfect. Printing data onto the console or sending a message over the wire? Not so good.
 
 ## Sharing xor mutability
 
