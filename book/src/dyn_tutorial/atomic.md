@@ -193,7 +193,7 @@ async fn main() {
         point1 = cell1.value.lease
         v = point1.x
         cell2.value.x += 1
-        point1.x = v + 1
+        point1.x := v + 1
     }
 
     print("{x}").await
@@ -229,7 +229,7 @@ async fn main() {
         // ───────────────────────┘
         v = point1.x
         cell2.value.x += 1
-        point1.x = v + 1
+        point1.x := v + 1
     }
 
     print("{x}").await
@@ -263,7 +263,7 @@ async fn main() {
         cell2.value.x += 1
         //                ▲
         // ───────────────┘
-        point1.x = v + 1
+        point1.x := v + 1
     }
 
     print("{x}").await
@@ -300,7 +300,7 @@ async fn main() {
     x = atomic {
         v = cell1.value.x
         cell2.value.x += 1
-        cell1.value.x = v + 1
+        cell1.value.x := v + 1
     }
 
     print("{x}").await
