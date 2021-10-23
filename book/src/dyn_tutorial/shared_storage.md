@@ -32,6 +32,63 @@ async fn main() {
 }
 ```
 
+## Shared locals can be copied
+
+In addition to preventing mutation, the shared mode allows easy copies. In this snippet, both `p` and `q` are joint owners of the same `Point`:
+
+```
+class Point(var x, var y)
+
+async fn main() {
+    p = Point(x: 22, y: 44)
+    q = p
+}
+```
+
+What do you think happens in this example, where we declared `q` with the `var` mode? Hint: try putting your cursor right after the end of `p = Point(..)`:
+
+```
+class Point(var x, var y)
+
+async fn main() {
+    p = Point(x: 22, y: 44)
+    //                     ▲
+    // ────────────────────┘
+    var q = p
+}
+
+// ┌───┐
+// │   │                  ┌───────┐
+// │ p ├─our─────────────►│ Point │
+// │   │                  │ ───── │
+// │ q │                  │ x: 22 │
+// │   │                  │ y: 44 │
+// └───┘                  └───────┘
+```
+
+As you can see, because `p` is shared storage, the `Point` is already held with `our` permission. Therefore, if we move the cursor to after `var q = p`, we see that there are two `our` references to the same `Point`:
+
+```
+class Point(var x, var y)
+
+async fn main() {
+    p = Point(x: 22, y: 44)
+    var q = p
+    //       ▲
+    // ──────┘
+}
+
+// ┌───┐
+// │   │                  ┌───────┐
+// │ p ├─our─────────────►│ Point │
+// │   │                  │ ───── │
+// │ q ├─our─────────────►│ x: 22 │
+// │   │                  │ y: 44 │
+// └───┘                  └───────┘
+```
+
+ What do you think happens if we do `q.x += 1`? Try it and see!
+
 ## Shared fields
 
 We can make shared fields as well. for example, we might prefer to define `Point` with all shared fields. The result is a `Point` that cannot be mutated:
