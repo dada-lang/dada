@@ -1,5 +1,7 @@
 # Shared leases
 
+{{#include ../caveat.md}}
+
 Earlier, we saw how you can [use the `share` keyword to create joint ownership](./share.md). You can also apply `share` to a **leased object**. In that case, the lease becomes a *shared lease*. Like any shared permission, it can be copied freely, and it doesn't permit mutation. Like a lease, it can be cancelled by the lessor. Unlike an exclusive lease, however, lessors cancel a shared lease by *writing*. They are permitted to read because shared leases allow anyone to read.
 
 Shared leases are illustrated in the following program:
