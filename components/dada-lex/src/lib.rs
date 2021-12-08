@@ -1,24 +1,28 @@
-use dada_manifest::Manifest;
+use dada_ast::span::Span;
+use dada_ast::word::Word;
 use std::iter::Peekable;
 
 #[salsa::jar(Lexer)]
 pub struct Jar(token_tree::TokenTree, lex);
 
-pub trait Lexer: salsa::DbWithJar<Jar> + salsa::DbWithJar<dada_manifest::Jar> + Manifest {}
-impl<T> Lexer for T where T: salsa::DbWithJar<Jar> + salsa::DbWithJar<dada_manifest::Jar> + Manifest {}
+pub trait Lexer: salsa::DbWithJar<Jar> + dada_manifest::Manifest + dada_ast::Ast {}
+impl<T> Lexer for T where T: salsa::DbWithJar<Jar> + dada_manifest::Manifest + dada_ast::Ast {}
 
-pub mod span;
 pub mod token;
 pub mod token_tree;
-use dada_manifest::Text;
-use span::Span;
 use token::Token;
 
 #[salsa::memoized(in Jar)]
-pub fn lex(db: &dyn Lexer, filename: Text) -> token_tree::TokenTree {
+pub fn lex(db: &dyn Lexer, filename: Word) -> token_tree::TokenTree {
     let source_text = db.source_text(filename);
     let chars = &mut source_text.char_indices().peekable();
     lex_tokens(db, chars, source_text.len(), None)
+}
+
+macro_rules! op {
+    () => {
+        '+' | '-' | '/' | '*' | '>' | '<' | '&' | '|' | '.' | ',' | ':' | ';'
+    };
 }
 
 fn lex_tokens(
@@ -78,20 +82,24 @@ fn lex_tokens(
                 let text = accumulate(db, ch, chars, |c| matches!(c, '0'..='9'));
                 tokens.push(Token::Number(text));
             }
+            op!() => {
+                if let Some(&(_, op!())) = chars.peek() {
+                    // Followed by another operator
+                    tokens.push(Token::OpAdjacent(ch));
+                } else {
+                    // Not followed by another operator
+                    tokens.push(Token::OpAlone(ch));
+                }
+            }
             _ => {
-                tokens.push(Token::Unknown(ch));
+                if !ch.is_whitespace() {
+                    tokens.push(Token::Unknown(ch));
+                }
             }
         }
     }
 
-    token_tree::TokenTree::new(
-        db,
-        tokens,
-        Span {
-            start: start_pos,
-            end: end_pos,
-        },
-    )
+    token_tree::TokenTree::new(db, tokens, Span::from(start_pos, end_pos))
 }
 
 fn accumulate(
@@ -99,7 +107,7 @@ fn accumulate(
     ch0: char,
     chars: &mut Peekable<impl Iterator<Item = (usize, char)>>,
     matches: impl Fn(char) -> bool,
-) -> Text {
+) -> Word {
     let mut string = String::new();
     string.push(ch0);
     while let Some(&(_, ch1)) = chars.peek() {
@@ -110,5 +118,5 @@ fn accumulate(
         string.push(ch1);
         chars.next();
     }
-    db.intern_text(string)
+    Word::from(db, string)
 }

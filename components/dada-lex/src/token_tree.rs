@@ -1,4 +1,6 @@
-use crate::{span::Span, token::Token, Jar};
+use dada_ast::span::Span;
+
+use crate::{token::Token, Jar};
 
 salsa::entity2! {
     entity TokenTree in Jar {
