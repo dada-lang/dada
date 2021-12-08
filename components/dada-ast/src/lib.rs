@@ -6,7 +6,7 @@ pub mod ty;
 pub mod word;
 
 #[salsa::jar(Ast)]
-pub struct Jar(class::Class, class::Field, word::Word, ty::Ty);
+pub struct Jar(class::Class, class::Field, ast::Expr, word::Word, ty::Ty);
 
 pub trait Ast: salsa::DbWithJar<Jar> {}
 impl<T: salsa::DbWithJar<Jar>> Ast for T {}

@@ -132,10 +132,18 @@ dependencies = [
 ]
 
 [[package]]
+name = "dada-collections"
+version = "0.1.0"
+dependencies = [
+ "rustc-hash",
+]
+
+[[package]]
 name = "dada-lex"
 version = "0.1.0"
 dependencies = [
  "dada-ast",
+ "dada-collections",
  "dada-manifest",
  "im",
  "peg",

@@ -15,6 +15,7 @@ impl TokenTree {
         self.tokens(db).iter().map(move |token| {
             let len = token.span_len(db);
             let span = Span::from(start, start + len);
+            start += len;
             (span, *token)
         })
     }

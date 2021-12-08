@@ -1,13 +1,24 @@
 use dada_ast::span::Span;
 use dada_ast::word::Word;
+use dada_collections::Map;
 use std::iter::Peekable;
 
 #[salsa::jar(Lexer)]
-pub struct Jar(token_tree::TokenTree, lex);
+pub struct Jar(token_tree::TokenTree, lex, kw::keywords);
 
-pub trait Lexer: salsa::DbWithJar<Jar> + dada_manifest::Manifest + dada_ast::Ast {}
-impl<T> Lexer for T where T: salsa::DbWithJar<Jar> + dada_manifest::Manifest + dada_ast::Ast {}
+pub trait Lexer: salsa::DbWithJar<Jar> + dada_manifest::Manifest + dada_ast::Ast {
+    fn keywords(&self) -> &Map<Word, kw::Keyword>;
+}
+impl<T> Lexer for T
+where
+    T: salsa::DbWithJar<Jar> + dada_manifest::Manifest + dada_ast::Ast,
+{
+    fn keywords(&self) -> &Map<Word, kw::Keyword> {
+        kw::keywords::get(self)
+    }
+}
 
+pub mod kw;
 pub mod token;
 pub mod token_tree;
 use token::Token;
