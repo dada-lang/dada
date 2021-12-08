@@ -7,3 +7,4 @@ edition = "2021"
 
 [dependencies]
 salsa-entity-mock = { git = "https://github.com/nikomatsakis/salsa/", branch = "entity" }
+#salsa-entity-mock = { path = "../../../salsa/components/salsa-entity-mock" }

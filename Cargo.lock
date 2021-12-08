@@ -430,7 +430,7 @@ dependencies = [
 [[package]]
 name = "salsa-entity-macros"
 version = "0.1.0"
-source = "git+https://github.com/nikomatsakis/salsa/?branch=entity#c1772dc978cd2c7b6efdc1b3435c4d2e69dc3ef2"
+source = "git+https://github.com/nikomatsakis/salsa/?branch=entity#f33d36b6879bd1a9b232bb82e109947e16c8df38"
 dependencies = [
  "eyre",
  "heck",
@@ -442,7 +442,7 @@ dependencies = [
 [[package]]
 name = "salsa-entity-mock"
 version = "0.1.0"
-source = "git+https://github.com/nikomatsakis/salsa/?branch=entity#c1772dc978cd2c7b6efdc1b3435c4d2e69dc3ef2"
+source = "git+https://github.com/nikomatsakis/salsa/?branch=entity#f33d36b6879bd1a9b232bb82e109947e16c8df38"
 dependencies = [
  "arc-swap",
  "crossbeam",

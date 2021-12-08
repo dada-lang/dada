@@ -95,7 +95,7 @@ fn lex_tokens(
                 tokens.push(Token::NewLine);
             }
             _ => {
-                if !ch.is_whitespace() => {
+                if !ch.is_whitespace() {
                     tokens.push(Token::Unknown(ch));
                 }
             }
