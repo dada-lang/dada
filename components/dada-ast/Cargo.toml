@@ -8,3 +8,4 @@ edition = "2021"
 [dependencies]
 salsa = { path = "../salsa" }
 im = "15"
+dada-intern = { path = "../dada-intern" }

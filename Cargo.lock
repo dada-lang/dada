@@ -127,6 +127,7 @@ dependencies = [
 name = "dada-ast"
 version = "0.1.0"
 dependencies = [
+ "dada-intern",
  "im",
  "salsa",
 ]
@@ -135,7 +136,16 @@ dependencies = [
 name = "dada-collections"
 version = "0.1.0"
 dependencies = [
+ "indexmap",
  "rustc-hash",
+]
+
+[[package]]
+name = "dada-intern"
+version = "0.1.0"
+dependencies = [
+ "dada-collections",
+ "salsa",
 ]
 
 [[package]]

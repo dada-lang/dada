@@ -8,6 +8,8 @@ pub enum Keyword {
     Give,
     Share,
     Shared,
+    Lease,
+    Leased,
     Atomic,
     Fn,
     Async,
@@ -21,6 +23,8 @@ pub(crate) fn keywords(db: &dyn crate::Lexer) -> Map<Word, Keyword> {
     map.insert(Word::from(db, "give"), Keyword::Give);
     map.insert(Word::from(db, "share"), Keyword::Share);
     map.insert(Word::from(db, "shared"), Keyword::Shared);
+    map.insert(Word::from(db, "lease"), Keyword::Lease);
+    map.insert(Word::from(db, "leased"), Keyword::Leased);
     map.insert(Word::from(db, "atomic"), Keyword::Atomic);
     map.insert(Word::from(db, "fn"), Keyword::Fn);
     map.insert(Word::from(db, "async"), Keyword::Async);
