@@ -1,80 +1,114 @@
-[salsa::query_group(InternerDatabase)]
-pub trait Lexer: salsa::Database {
-    #[salsa::interned]
-    fn intern_field(&self, field: FieldData) -> Field;
+use dada_manifest::Manifest;
+use std::iter::Peekable;
 
-    #[salsa::interned]
-    fn intern_class(&self, class: ClassData) -> Class;
+#[salsa::jar(Lexer)]
+pub struct Jar(token_tree::TokenTree, lex);
+
+pub trait Lexer: salsa::DbWithJar<Jar> + salsa::DbWithJar<dada_manifest::Jar> + Manifest {}
+impl<T> Lexer for T where T: salsa::DbWithJar<Jar> + salsa::DbWithJar<dada_manifest::Jar> + Manifest {}
+
+pub mod span;
+pub mod token;
+pub mod token_tree;
+use dada_manifest::Text;
+use span::Span;
+use token::Token;
+
+#[salsa::memoized(in Jar)]
+pub fn lex(db: &dyn Lexer, filename: Text) -> token_tree::TokenTree {
+    let source_text = db.source_text(filename);
+    let chars = &mut source_text.char_indices().peekable();
+    lex_tokens(db, chars, source_text.len(), None)
 }
 
-#[derive(Clone, Debug)]
-pub enum Token {
-    Leaf(usize, usize),
-    Branch(Delimiter, Vec<Token>),
-    Comment(usize, usize),
-}
+fn lex_tokens(
+    db: &dyn Lexer,
+    chars: &mut Peekable<impl Iterator<Item = (usize, char)>>,
+    file_len: usize,
+    end_ch: Option<char>,
+) -> token_tree::TokenTree {
+    let mut tokens = vec![];
+    let mut start_pos = file_len;
+    let mut end_pos = file_len;
+    while let Some((pos, ch)) = chars.peek().cloned() {
+        start_pos = start_pos.min(pos);
+        end_pos = end_pos.max(pos);
 
-#[derive(Clone, Debug)]
-pub enum Delimiter {
-    Paren,
-    CurlyBrace,
-}
-
-peg::parser! {
-    grammar tokenizer() for str {
-        pub rule tokens() -> Vec<Token> = n:token()**__ {
-            n
+        if Some(ch) == end_ch {
+            break;
         }
 
-        rule nl() -> Token = s:position!() "\n" e:position!() { 
-            Token::Leaf(s, e)
-        }
+        chars.next();
 
-        rule token() -> Token = comment()
-            / nl()
-            / ident()
-            / string()
-            / paren()
-            / curly_brace()
-            / comma()
-            / colon()
-        
-        rule paren() -> Token = ['('] _ t:token()**__ _ [')'] {
-            Token::Branch(Delimiter::Paren, t)
+        match ch {
+            '(' => {
+                tokens.push(Token::OpenParen);
+                let tree = lex_tokens(db, chars, file_len, Some(')'));
+                tokens.push(Token::Tree(tree));
+            }
+            ')' => {
+                tokens.push(Token::CloseParen);
+            }
+            '[' => {
+                tokens.push(Token::OpenBracket);
+                let tree = lex_tokens(db, chars, file_len, Some(']'));
+                tokens.push(Token::Tree(tree));
+            }
+            ']' => {
+                tokens.push(Token::CloseBracket);
+            }
+            '{' => {
+                tokens.push(Token::OpenBrace);
+                let tree = lex_tokens(db, chars, file_len, Some('}'));
+                tokens.push(Token::Tree(tree));
+            }
+            '}' => {
+                tokens.push(Token::CloseBrace);
+            }
+            'a'..='z' | 'A'..='Z' | '_' => {
+                let text = accumulate(
+                    db,
+                    ch,
+                    chars,
+                    |c| matches!(c, 'a'..='z' | 'A'..='Z' | '_' | '0'..='9'),
+                );
+                tokens.push(Token::Identifier(text));
+            }
+            '0'..='9' => {
+                let text = accumulate(db, ch, chars, |c| matches!(c, '0'..='9'));
+                tokens.push(Token::Number(text));
+            }
+            _ => {
+                tokens.push(Token::Unknown(ch));
+            }
         }
-
-        rule curly_brace() -> Token = ['{'] _ t:token()**__ _ ['}'] {
-            Token::Branch(Delimiter::CurlyBrace, t)
-        }
-
-        rule comment() -> Token = s:position!() "//" [^'\n']* "\n" e:position!() {
-            Token::Comment(s, e) 
-        }
-
-        rule ident() -> Token = s:position!() ['a'..='z' | 'A'..='Z' | '_' | '0' ..= '9' | '*' ]+ e:position!() {
-            Token::Leaf(s, e)
-        }
-
-        rule comma() -> Token = s:position!() "," e:position!() {
-            Token::Leaf(s, e)
-        }
-
-        rule colon() -> Token = s:position!() ":" e:position!() {
-            Token::Leaf(s, e)
-        }
-
-        rule string() -> Token = s:position!() ['"'] t:$([^'"']*) ['"'] e:position!() {
-            Token::Leaf(s, e)
-        }
-
-        rule _ = quiet!{[' ' | '\t']*}
-        
-        rule __ = quiet!{[' ' | '\t']*}
     }
+
+    token_tree::TokenTree::new(
+        db,
+        tokens,
+        Span {
+            start: start_pos,
+            end: end_pos,
+        },
+    )
 }
 
-#[test]
-fn main_test() {
-    let d = tokenizer::tokens("class Foo(x: u32) { abc }");
-    println!("{:#?}", d);
+fn accumulate(
+    db: &dyn Lexer,
+    ch0: char,
+    chars: &mut Peekable<impl Iterator<Item = (usize, char)>>,
+    matches: impl Fn(char) -> bool,
+) -> Text {
+    let mut string = String::new();
+    string.push(ch0);
+    while let Some(&(_, ch1)) = chars.peek() {
+        if !matches(ch1) {
+            break;
+        }
+
+        string.push(ch1);
+        chars.next();
+    }
+    db.intern_text(string)
 }
