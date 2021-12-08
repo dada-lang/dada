@@ -45,29 +45,13 @@ fn lex_tokens(
         chars.next();
 
         match ch {
-            '(' => {
-                tokens.push(Token::OpenParen);
-                let tree = lex_tokens(db, chars, file_len, Some(')'));
+            '(' | '[' | '{' => {
+                tokens.push(Token::Delimeter(ch));
+                let tree = lex_tokens(db, chars, file_len, Some(closing_delimeter(ch)));
                 tokens.push(Token::Tree(tree));
             }
-            ')' => {
-                tokens.push(Token::CloseParen);
-            }
-            '[' => {
-                tokens.push(Token::OpenBracket);
-                let tree = lex_tokens(db, chars, file_len, Some(']'));
-                tokens.push(Token::Tree(tree));
-            }
-            ']' => {
-                tokens.push(Token::CloseBracket);
-            }
-            '{' => {
-                tokens.push(Token::OpenBrace);
-                let tree = lex_tokens(db, chars, file_len, Some('}'));
-                tokens.push(Token::Tree(tree));
-            }
-            '}' => {
-                tokens.push(Token::CloseBrace);
+            ')' | ']' | '}' => {
+                tokens.push(Token::Delimeter(ch));
             }
             'a'..='z' | 'A'..='Z' | '_' => {
                 let text = accumulate(
@@ -91,18 +75,27 @@ fn lex_tokens(
                     tokens.push(Token::OpAlone(ch));
                 }
             }
-            '\n' => {
-                tokens.push(Token::NewLine);
-            }
             _ => {
                 if !ch.is_whitespace() {
                     tokens.push(Token::Unknown(ch));
+                } else {
+                    tokens.push(Token::Whitespace(ch));
                 }
             }
         }
     }
 
     token_tree::TokenTree::new(db, tokens, Span::from(start_pos, end_pos))
+}
+
+#[track_caller]
+pub fn closing_delimeter(ch: char) -> char {
+    match ch {
+        '(' => ')',
+        '[' => ']',
+        '{' => '}',
+        _ => panic!("not a delimeter: {:?}", ch),
+    }
 }
 
 fn accumulate(

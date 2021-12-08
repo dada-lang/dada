@@ -1,4 +1,4 @@
-#[derive(Clone, Debug, PartialEq, Eq, Hash)]
+#[derive(Copy, Clone, Debug, PartialEq, Eq, Hash)]
 pub struct Span {
     pub start: u32,
     pub end: u32,
@@ -11,5 +11,9 @@ impl Span {
             start: start.try_into().ok().unwrap(),
             end: end.try_into().ok().unwrap(),
         }
+    }
+
+    pub fn len(self) -> u32 {
+        self.end - self.start
     }
 }
