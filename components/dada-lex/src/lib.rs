@@ -79,7 +79,7 @@ fn lex_tokens(
                 tokens.push(Token::Identifier(text));
             }
             '0'..='9' => {
-                let text = accumulate(db, ch, chars, |c| matches!(c, '0'..='9'));
+                let text = accumulate(db, ch, chars, |c| matches!(c, '0'..='9' | '_'));
                 tokens.push(Token::Number(text));
             }
             op!() => {
@@ -91,8 +91,11 @@ fn lex_tokens(
                     tokens.push(Token::OpAlone(ch));
                 }
             }
+            '\n' => {
+                tokens.push(Token::NewLine);
+            }
             _ => {
-                if !ch.is_whitespace() {
+                if !ch.is_whitespace() => {
                     tokens.push(Token::Unknown(ch));
                 }
             }

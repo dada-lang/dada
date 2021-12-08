@@ -4,8 +4,13 @@ use crate::token_tree;
 
 #[derive(Copy, Clone, Debug, PartialEq, Eq, Hash)]
 pub enum Token {
+    /// "foo"
     Identifier(Word),
+
+    /// 22_000
     Number(Word),
+
+    NewLine,
 
     /// An operator like `+` that is NOT followed by another operator.
     OpAlone(char),

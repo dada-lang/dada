@@ -1,5 +1,4 @@
 use dada_lex::Lexer;
-use std::iter::Peekable;
 
 #[salsa::jar(Parser)]
 pub struct Jar;
