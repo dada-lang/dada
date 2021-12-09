@@ -1,7 +1,16 @@
 use crate::{storage_mode::StorageMode, word::Word};
-use dada_intern::intern_id;
+use dada_id::{id, tables};
 
-intern_id!(pub struct Expr);
+tables! {
+    pub struct Ast {
+        exprs: alloc Expr => ExprData,
+        named_exprs: alloc NamedExpr => NamedExprData,
+        blocks: alloc Block => BlockData,
+        paths: alloc Path => PathData,
+    }
+}
+
+id!(pub struct Expr);
 
 #[derive(PartialEq, Eq, PartialOrd, Ord, Clone, Hash, Debug)]
 pub enum ExprData {
@@ -27,7 +36,7 @@ pub enum Op {
     ShiftRight,
 }
 
-intern_id!(pub struct NamedExpr);
+id!(pub struct NamedExpr);
 
 #[derive(PartialEq, Eq, PartialOrd, Ord, Clone, Hash, Debug)]
 pub struct NamedExprData {
@@ -35,14 +44,14 @@ pub struct NamedExprData {
     expr: Expr,
 }
 
-intern_id!(pub struct Block);
+id!(pub struct Block);
 
 #[derive(PartialEq, Eq, PartialOrd, Ord, Clone, Hash, Debug)]
 pub struct BlockData {
     exprs: Vec<Expr>,
 }
 
-intern_id!(pub struct Path);
+id!(pub struct Path);
 
 #[derive(PartialEq, Eq, PartialOrd, Ord, Clone, Hash, Debug)]
 pub struct PathData {
