@@ -1,8 +1,20 @@
 use crate::{storage_mode::StorageMode, word::Word};
 use dada_id::{id, tables};
 
+salsa::entity2! {
+    entity Code in crate::Jar {
+        #[no_eq] ast: Ast,
+    }
+}
+
+#[derive(Clone, Debug)]
+pub struct Ast {
+    pub tables: CodeTables,
+    pub block: Block,
+}
+
 tables! {
-    pub struct Ast {
+    pub struct CodeTables {
         exprs: alloc Expr => ExprData,
         named_exprs: alloc NamedExpr => NamedExprData,
         blocks: alloc Block => BlockData,

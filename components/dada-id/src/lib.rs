@@ -66,6 +66,7 @@ macro_rules! tables {
             $f:ident: $tty:ident $k:ty => $v:ty,
         )*
     }) => {
+        #[derive(Clone, Debug)]
         $vis struct $n {
             $(
                 $f: dada_id::table_types::$tty<$k, $v>,
