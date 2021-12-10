@@ -6,7 +6,7 @@ pub mod storage_mode;
 pub mod ty;
 pub mod word;
 
-#[salsa::jar(Ast)]
+#[salsa::jar(Ir)]
 pub struct Jar(
     code::Code,
     class::Class,
@@ -17,5 +17,5 @@ pub struct Jar(
     ty::Ty,
 );
 
-pub trait Ast: salsa::DbWithJar<Jar> {}
-impl<T: salsa::DbWithJar<Jar>> Ast for T {}
+pub trait Ir: salsa::DbWithJar<Jar> {}
+impl<T: salsa::DbWithJar<Jar>> Ir for T {}

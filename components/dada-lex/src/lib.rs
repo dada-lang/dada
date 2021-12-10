@@ -6,12 +6,12 @@ use std::iter::Peekable;
 #[salsa::jar(Lexer)]
 pub struct Jar(token_tree::TokenTree, lex, kw::keywords);
 
-pub trait Lexer: salsa::DbWithJar<Jar> + dada_manifest::Manifest + dada_ir::Ast {
+pub trait Lexer: salsa::DbWithJar<Jar> + dada_manifest::Manifest + dada_ir::Ir {
     fn keywords(&self) -> &Map<Word, kw::Keyword>;
 }
 impl<T> Lexer for T
 where
-    T: salsa::DbWithJar<Jar> + dada_manifest::Manifest + dada_ir::Ast,
+    T: salsa::DbWithJar<Jar> + dada_manifest::Manifest + dada_ir::Ir,
 {
     fn keywords(&self) -> &Map<Word, kw::Keyword> {
         kw::keywords::get(self)

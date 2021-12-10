@@ -1,4 +1,4 @@
-use super::{Ast, Jar};
+use super::{Ir, Jar};
 
 #[salsa::interned(Word in Jar)]
 #[derive(Clone, Debug, PartialEq, Eq, Hash)]
@@ -7,14 +7,14 @@ pub struct WordData {
 }
 
 impl Word {
-    pub fn from<DB: ?Sized + Ast>(db: &DB, string: impl ToString) -> Self {
+    pub fn from<DB: ?Sized + Ir>(db: &DB, string: impl ToString) -> Self {
         WordData {
             string: string.to_string(),
         }
         .intern(db)
     }
 
-    pub fn as_str<DB: ?Sized + Ast>(self, db: &DB) -> &str {
+    pub fn as_str<DB: ?Sized + Ir>(self, db: &DB) -> &str {
         &self.data(db).string
     }
 }
