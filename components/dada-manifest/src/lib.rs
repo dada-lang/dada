@@ -1,4 +1,4 @@
-use dada_ast::word::Word;
+use dada_ir::word::Word;
 use std::sync::Arc;
 
 #[salsa::jar(Manifest)]

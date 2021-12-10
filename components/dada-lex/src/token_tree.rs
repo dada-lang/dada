@@ -1,4 +1,4 @@
-use dada_ast::span::Span;
+use dada_ir::span::Span;
 
 use crate::{token::Token, Jar, Lexer};
 

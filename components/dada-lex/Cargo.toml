@@ -10,5 +10,5 @@ peg = "0.7.0"
 salsa = { path = "../salsa" }
 im = "15"
 dada-manifest = { path = "../dada-manifest" }
-dada-ast = { path = "../dada-ast" }
+dada-ir = { path = "../dada-ir" }
 dada-collections = { path = "../dada-collections" }

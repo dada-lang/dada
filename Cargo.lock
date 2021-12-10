@@ -124,15 +124,6 @@ dependencies = [
 ]
 
 [[package]]
-name = "dada-ast"
-version = "0.1.0"
-dependencies = [
- "dada-id",
- "im",
- "salsa",
-]
-
-[[package]]
 name = "dada-collections"
 version = "0.1.0"
 dependencies = [
@@ -149,11 +140,20 @@ dependencies = [
 ]
 
 [[package]]
+name = "dada-ir"
+version = "0.1.0"
+dependencies = [
+ "dada-id",
+ "im",
+ "salsa",
+]
+
+[[package]]
 name = "dada-lex"
 version = "0.1.0"
 dependencies = [
- "dada-ast",
  "dada-collections",
+ "dada-ir",
  "dada-manifest",
  "im",
  "peg",
@@ -164,7 +164,7 @@ dependencies = [
 name = "dada-manifest"
 version = "0.1.0"
 dependencies = [
- "dada-ast",
+ "dada-ir",
  "salsa",
 ]
 
@@ -172,6 +172,7 @@ dependencies = [
 name = "dada-parse"
 version = "0.1.0"
 dependencies = [
+ "dada-ir",
  "dada-lex",
  "im",
  "salsa",

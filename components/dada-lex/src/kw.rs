@@ -1,5 +1,5 @@
-use dada_ast::word::Word;
 use dada_collections::Map;
+use dada_ir::word::Word;
 
 #[derive(Copy, Clone, PartialEq, Eq, PartialOrd, Ord, Hash, Debug)]
 pub enum Keyword {

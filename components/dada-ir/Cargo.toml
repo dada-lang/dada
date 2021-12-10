@@ -1,5 +1,5 @@
 [package]
-name = "dada-ast"
+name = "dada-ir"
 version = "0.1.0"
 edition = "2021"
 
