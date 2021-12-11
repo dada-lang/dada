@@ -1,3 +1,5 @@
-fn main() {
-    println!("Hello, world!");
+mod ide;
+
+fn main() -> eyre::Result<()> {
+    ide::main()
 }
