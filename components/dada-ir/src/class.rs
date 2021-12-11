@@ -1,11 +1,10 @@
-use crate::{span::Span, word::Word};
+use crate::{span::Span, token_tree::TokenTree, word::Word};
 
 salsa::entity2! {
     entity Class in crate::Jar {
         #[id] name: Word,
         name_span: Span,
-        fields: Vec<Field>,
-
+        field_tokens: TokenTree,
     }
 }
 

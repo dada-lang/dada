@@ -9,3 +9,4 @@ edition = "2021"
 salsa = { path = "../salsa" }
 im = "15"
 dada-id = { path = "../dada-id" }
+dada-collections = { path = "../dada-collections" }

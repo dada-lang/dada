@@ -1,12 +1,12 @@
-use crate::{code::Code, span::Span, word::Word};
+use crate::{span::Span, token_tree::TokenTree, word::Word};
 
 salsa::entity2! {
-    entity Func in crate::Jar {
+    entity Function in crate::Jar {
         #[id] name: Word,
-        effect: Effect,
         name_span: Span,
-        arguments: Vec<Variable>,
-        code: Code,
+        effect: Effect,
+        argument_tokens: TokenTree,
+        body_tokens: TokenTree,
     }
 }
 

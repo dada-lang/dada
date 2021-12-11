@@ -13,6 +13,10 @@ impl Span {
         }
     }
 
+    pub fn start() -> Self {
+        Self { start: 0, end: 0 }
+    }
+
     pub fn len(self) -> u32 {
         self.end - self.start
     }

@@ -1,31 +1,30 @@
-use dada_collections::Map;
+#![feature(trait_upcasting)]
+#![allow(incomplete_features)]
+
 use dada_ir::span::Span;
+use dada_ir::token::Token;
+use dada_ir::token_tree::TokenTree;
 use dada_ir::word::Word;
 use std::iter::Peekable;
 
-#[salsa::jar(Lexer)]
-pub struct Jar(token_tree::TokenTree, lex, kw::keywords);
+#[salsa::jar(Db)]
+pub struct Jar(lex_file);
 
-pub trait Lexer: salsa::DbWithJar<Jar> + dada_manifest::Manifest + dada_ir::Ir {
-    fn keywords(&self) -> &Map<Word, kw::Keyword>;
+pub trait Db: salsa::DbWithJar<Jar> + dada_manifest::Db + dada_ir::Db {
+    fn lex(&self) -> &dyn Db;
 }
-impl<T> Lexer for T
+impl<T> Db for T
 where
-    T: salsa::DbWithJar<Jar> + dada_manifest::Manifest + dada_ir::Ir,
+    T: salsa::DbWithJar<Jar> + dada_manifest::Db + dada_ir::Db,
 {
-    fn keywords(&self) -> &Map<Word, kw::Keyword> {
-        kw::keywords::get(self)
+    fn lex(&self) -> &dyn Db {
+        self
     }
 }
 
-pub mod kw;
-pub mod token;
-pub mod token_tree;
-use token::Token;
-
 #[salsa::memoized(in Jar)]
-pub fn lex(db: &dyn Lexer, filename: Word) -> token_tree::TokenTree {
-    let source_text = db.source_text(filename);
+pub fn lex_file(db: &dyn Db, filename: Word) -> TokenTree {
+    let source_text = dada_manifest::source_text(db, filename);
     let chars = &mut source_text.char_indices().peekable();
     lex_tokens(db, chars, source_text.len(), None)
 }
@@ -37,11 +36,11 @@ macro_rules! op {
 }
 
 fn lex_tokens(
-    db: &dyn Lexer,
+    db: &dyn Db,
     chars: &mut Peekable<impl Iterator<Item = (usize, char)>>,
     file_len: usize,
     end_ch: Option<char>,
-) -> token_tree::TokenTree {
+) -> TokenTree {
     let mut tokens = vec![];
     let mut start_pos = file_len;
     let mut end_pos = file_len;
@@ -57,12 +56,12 @@ fn lex_tokens(
 
         match ch {
             '(' | '[' | '{' => {
-                tokens.push(Token::Delimeter(ch));
-                let tree = lex_tokens(db, chars, file_len, Some(closing_delimeter(ch)));
+                tokens.push(Token::Delimiter(ch));
+                let tree = lex_tokens(db, chars, file_len, Some(closing_delimiter(ch)));
                 tokens.push(Token::Tree(tree));
             }
             ')' | ']' | '}' => {
-                tokens.push(Token::Delimeter(ch));
+                tokens.push(Token::Delimiter(ch));
             }
             'a'..='z' | 'A'..='Z' | '_' => {
                 let text = accumulate(
@@ -71,7 +70,7 @@ fn lex_tokens(
                     chars,
                     |c| matches!(c, 'a'..='z' | 'A'..='Z' | '_' | '0'..='9'),
                 );
-                tokens.push(Token::Identifier(text));
+                tokens.push(Token::Alphabetic(text));
             }
             '0'..='9' => {
                 let text = accumulate(db, ch, chars, |c| matches!(c, '0'..='9' | '_'));
@@ -96,21 +95,21 @@ fn lex_tokens(
         }
     }
 
-    token_tree::TokenTree::new(db, tokens, Span::from(start_pos, end_pos))
+    TokenTree::new(db, tokens, Span::from(start_pos, end_pos))
 }
 
 #[track_caller]
-pub fn closing_delimeter(ch: char) -> char {
+pub fn closing_delimiter(ch: char) -> char {
     match ch {
         '(' => ')',
         '[' => ']',
         '{' => '}',
-        _ => panic!("not a delimeter: {:?}", ch),
+        _ => panic!("not a delimiter: {:?}", ch),
     }
 }
 
 fn accumulate(
-    db: &dyn Lexer,
+    db: &dyn Db,
     ch0: char,
     chars: &mut Peekable<impl Iterator<Item = (usize, char)>>,
     matches: impl Fn(char) -> bool,

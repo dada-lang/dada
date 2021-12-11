@@ -1,8 +1,13 @@
-use dada_ir::Ir;
-use dada_lex::Lexer;
+#![feature(trait_upcasting)]
+#![feature(let_else)]
+#![allow(incomplete_features)]
 
-#[salsa::jar(Parser)]
-pub struct Jar;
+pub mod parse;
+mod token_test;
+mod tokens;
 
-pub trait Parser: salsa::DbWithJar<Jar> + Lexer + Ir {}
-impl<T> Parser for T where T: salsa::DbWithJar<Jar> + Lexer + Ir {}
+#[salsa::jar(Db)]
+pub struct Jar(parse::parse_file);
+
+pub trait Db: salsa::DbWithJar<Jar> + dada_lex::Db + dada_ir::Db {}
+impl<T> Db for T where T: salsa::DbWithJar<Jar> + dada_lex::Db + dada_ir::Db {}

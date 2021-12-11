@@ -1,28 +1,12 @@
 use dada_ir::word::Word;
-use std::sync::Arc;
 
-#[salsa::jar(Manifest)]
+#[salsa::jar(Db)]
 pub struct Jar(source_text);
 
-pub trait Manifest: salsa::DbWithJar<Jar> {
-    fn source_text(&self, filename: Word) -> &Arc<String>;
-    fn set_source_text(&mut self, filename: Word, text: Arc<String>);
-}
+pub trait Db: salsa::DbWithJar<Jar> {}
+impl<T> Db for T where T: salsa::DbWithJar<Jar> {}
 
-impl<T> Manifest for T
-where
-    T: salsa::DbWithJar<Jar>,
-{
-    fn source_text(&self, filename: Word) -> &Arc<String> {
-        source_text::get(self, filename)
-    }
-
-    fn set_source_text(&mut self, filename: Word, value: Arc<String>) {
-        source_text::set(self, filename, value)
-    }
-}
-
-#[salsa::memoized(in Jar)]
-fn source_text(_db: &dyn Manifest, _filename: Word) -> Arc<String> {
+#[salsa::memoized(in Jar ref)]
+pub fn source_text(_db: &dyn Db, _filename: Word) -> String {
     panic!("input")
 }

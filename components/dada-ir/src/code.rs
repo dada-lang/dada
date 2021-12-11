@@ -3,7 +3,7 @@ use dada_id::{id, tables};
 
 salsa::entity2! {
     entity Code in crate::Jar {
-        #[no_eq] ast: Ast,
+        #[value no_eq] ast: Ast,
     }
 }
 

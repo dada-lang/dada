@@ -143,6 +143,7 @@ dependencies = [
 name = "dada-ir"
 version = "0.1.0"
 dependencies = [
+ "dada-collections",
  "dada-id",
  "im",
  "salsa",
@@ -238,9 +239,9 @@ dependencies = [
 
 [[package]]
 name = "hermit-abi"
-version = "0.1.20"
+version = "0.1.19"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "c7a30908dbce072eca83216eab939d2290080e00ca71611b96a09e5cdce5f3fa"
+checksum = "62b467343b94ba476dcb2500d242dadbb39557df889310ac77c5d99100aaac33"
 dependencies = [
  "libc",
 ]
@@ -292,9 +293,9 @@ checksum = "e2abad23fbc42b3700f2f279844dc832adb2b2eb069b2df918f455c4e18cc646"
 
 [[package]]
 name = "libc"
-version = "0.2.110"
+version = "0.2.109"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "b58a4469763e4e3a906c4ed786e1c70512d16aa88f84dded826da42640fc6a1c"
+checksum = "f98a04dce437184842841303488f70d0188c5f51437d2a834dc097eafa909a01"
 
 [[package]]
 name = "lock_api"
@@ -449,7 +450,7 @@ dependencies = [
 [[package]]
 name = "salsa-entity-macros"
 version = "0.1.0"
-source = "git+https://github.com/nikomatsakis/salsa/?branch=entity#8cab3780a0da1a9c48f3c04879234ed0de999512"
+source = "git+https://github.com/nikomatsakis/salsa/?branch=entity#ecbfcc6ef2367821b362faffaa39d835fc2f019d"
 dependencies = [
  "eyre",
  "heck",
@@ -461,7 +462,7 @@ dependencies = [
 [[package]]
 name = "salsa-entity-mock"
 version = "0.1.0"
-source = "git+https://github.com/nikomatsakis/salsa/?branch=entity#8cab3780a0da1a9c48f3c04879234ed0de999512"
+source = "git+https://github.com/nikomatsakis/salsa/?branch=entity#ecbfcc6ef2367821b362faffaa39d835fc2f019d"
 dependencies = [
  "arc-swap",
  "crossbeam",

@@ -1,16 +1,14 @@
-use dada_ir::span::Span;
-
-use crate::{token::Token, Jar, Lexer};
+use crate::{span::Span, token::Token, Jar};
 
 salsa::entity2! {
     entity TokenTree in Jar {
-        tokens: Vec<Token>,
+        #[value ref] tokens: Vec<Token>,
         span: Span,
     }
 }
 
 impl TokenTree {
-    pub fn spanned_tokens(self, db: &dyn Lexer) -> impl Iterator<Item = (Span, Token)> + '_ {
+    pub fn spanned_tokens(self, db: &dyn crate::Db) -> impl Iterator<Item = (Span, Token)> + '_ {
         let mut start = self.span(db).start;
         self.tokens(db).iter().map(move |token| {
             let len = token.span_len(db);
