@@ -1,5 +1,6 @@
 pub mod class;
 pub mod code;
+pub mod diagnostic;
 pub mod func;
 pub mod item;
 pub mod kw;

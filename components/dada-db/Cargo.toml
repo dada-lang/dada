@@ -1,0 +1,13 @@
+[package]
+name = "dada-db"
+version = "0.1.0"
+edition = "2021"
+
+# See more keys and their definitions at https://doc.rust-lang.org/cargo/reference/manifest.html
+
+[dependencies]
+salsa = { path = "../salsa" }
+dada-ir = { path = "../dada-ir" }
+dada-lex = { path = "../dada-lex" }
+dada-manifest = { path = "../dada-manifest" }
+dada-parse = { path = "../dada-parse" }

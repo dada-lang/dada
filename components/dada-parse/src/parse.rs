@@ -2,6 +2,7 @@ use crate::{token_test::*, tokens::Tokens};
 
 use dada_ir::{
     class::Class,
+    diagnostic::Diagnostic,
     func::{Effect, Function},
     item::Item,
     kw::Keyword,
@@ -11,18 +12,13 @@ use dada_ir::{
     word::Word,
 };
 
-#[derive(Debug, PartialEq, Eq, Clone, Hash)]
-pub struct ParseError {
-    span: Span,
-    message: String,
-}
-
 #[salsa::memoized(in crate::Jar ref)]
-pub fn parse_file(db: &dyn crate::Db, filename: Word) -> (Vec<Item>, Vec<ParseError>) {
-    let token_tree = dada_lex::lex_file(db, filename);
+pub fn parse_file(db: &dyn crate::Db, filename: Word) -> (Vec<Item>, Vec<Diagnostic>) {
+    let token_tree = dada_lex::lex::lex_file(db, filename);
     let tokens = Tokens::new(db, token_tree);
     let mut parser = Parser {
         db,
+        filename,
         tokens,
         result: vec![],
         errors: vec![],
@@ -33,9 +29,10 @@ pub fn parse_file(db: &dyn crate::Db, filename: Word) -> (Vec<Item>, Vec<ParseEr
 
 struct Parser<'db> {
     db: &'db dyn crate::Db,
+    filename: Word,
     tokens: Tokens<'db>,
     result: Vec<Item>,
-    errors: Vec<ParseError>,
+    errors: Vec<Diagnostic>,
 }
 
 impl<'db> Parser<'db> {
@@ -61,7 +58,8 @@ impl<'db> Parser<'db> {
                 self.result.push(item);
             } else {
                 let (span, _) = self.tokens.consume().unwrap();
-                self.errors.push(ParseError {
+                self.errors.push(Diagnostic {
+                    filename: self.filename,
                     span,
                     message: format!("unexpected token"),
                 });
@@ -130,7 +128,7 @@ impl<'db> Parser<'db> {
         let (_, token_tree) = self.eat_if(AnyTree).unwrap();
 
         // Consume closing delimiter (if present)
-        let closing_delimiter = dada_lex::closing_delimiter(delimiter);
+        let closing_delimiter = dada_lex::lex::closing_delimiter(delimiter);
         self.eat_if(Token::Delimiter(closing_delimiter))
             .or_report_error(self, || format!("expected `{closing_delimiter}`"));
 
@@ -149,7 +147,8 @@ impl<T> OrReportError for Option<T> {
         }
 
         let span = parser.tokens.peek_span();
-        parser.errors.push(ParseError {
+        parser.errors.push(Diagnostic {
+            filename: parser.filename,
             span,
             message: message(),
         });
