@@ -1,3 +1,4 @@
+use salsa::DebugWithDb;
 use std::path::PathBuf;
 
 use eyre::Context;
@@ -5,6 +6,9 @@ use eyre::Context;
 #[derive(structopt::StructOpt)]
 pub struct Options {
     paths: Vec<PathBuf>,
+
+    #[structopt(long)]
+    print_ast: bool,
 }
 
 impl Options {
@@ -17,6 +21,12 @@ impl Options {
             let filename = dada_ir::word::Word::from(&db, path);
             db.update_file(filename, contents);
             all_diagnostics.extend(db.diagnostics(filename));
+
+            if self.print_ast {
+                for item in db.items(filename) {
+                    eprintln!("{:#?}", item.debug(&db));
+                }
+            }
         }
 
         println!("{:#?}", all_diagnostics);

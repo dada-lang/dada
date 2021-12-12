@@ -21,6 +21,17 @@ impl<'me> Tokens<'me> {
     pub fn consume(&mut self) -> Option<(Span, Token)> {
         let (span, token) = self.tokens.next()?;
         self.last_span = span;
+
+        // Skip whitespace and other stuff.
+        while let Some(t) = self.peek() {
+            match t {
+                Token::Whitespace(_) => (),
+                _ => break,
+            }
+
+            self.tokens.next();
+        }
+
         Some((span, token))
     }
 

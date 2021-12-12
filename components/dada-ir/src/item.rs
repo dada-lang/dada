@@ -17,3 +17,12 @@ impl From<Class> for Item {
         Self::Class(value)
     }
 }
+
+impl salsa::DebugWithDb<dyn crate::Db + '_> for Item {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>, db: &dyn crate::Db) -> std::fmt::Result {
+        match self {
+            Item::Function(v) => std::fmt::Debug::fmt(&v.debug(db), f),
+            Item::Class(v) => std::fmt::Debug::fmt(&v.debug(db), f),
+        }
+    }
+}

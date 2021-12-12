@@ -175,6 +175,7 @@ dependencies = [
  "lsp-server",
  "lsp-types",
  "regex",
+ "salsa",
  "serde",
  "serde_json",
  "similar",
@@ -627,7 +628,7 @@ dependencies = [
 [[package]]
 name = "salsa-entity-macros"
 version = "0.1.0"
-source = "git+https://github.com/nikomatsakis/salsa/?branch=entity#4d33e528bacf0cf43dc2dbdf77791fd8d7ef18ad"
+source = "git+https://github.com/nikomatsakis/salsa/?branch=entity#3ae3ede4099ee533c7a3537c8b7b1c6a08132fda"
 dependencies = [
  "eyre",
  "heck",
@@ -639,7 +640,7 @@ dependencies = [
 [[package]]
 name = "salsa-entity-mock"
 version = "0.1.0"
-source = "git+https://github.com/nikomatsakis/salsa/?branch=entity#4d33e528bacf0cf43dc2dbdf77791fd8d7ef18ad"
+source = "git+https://github.com/nikomatsakis/salsa/?branch=entity#3ae3ede4099ee533c7a3537c8b7b1c6a08132fda"
 dependencies = [
  "arc-swap",
  "crossbeam",
