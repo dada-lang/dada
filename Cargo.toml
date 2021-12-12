@@ -16,6 +16,7 @@ lsp-types = "0.83.1"
 serde_json = "1.0.72"
 serde = "1.0.131"
 eyre = "0.6.5"
+structopt = "0.3"
 
 [dev-dependencies]
 walkdir = "2.3.2"
