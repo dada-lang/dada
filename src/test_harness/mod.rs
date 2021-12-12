@@ -9,7 +9,7 @@ mod lsp_client;
 #[derive(structopt::StructOpt, Default)]
 pub struct Options {
     #[structopt(parse(from_os_str), default_value = "dada_tests")]
-    dada_path: PathBuf,
+    dada_path: Vec<PathBuf>,
 
     #[structopt(long)]
     bless: bool,
@@ -20,21 +20,23 @@ impl Options {
         let mut total = 0;
         let mut errors = Errors::default();
 
-        for entry in walkdir::WalkDir::new(&self.dada_path) {
-            let run_test = || -> eyre::Result<()> {
-                let entry = entry?;
-                let path = entry.path();
-                if let Some(ext) = path.extension() {
-                    if ext == "dada" {
-                        total += 1;
-                        self.test_dada_file(path)
-                            .with_context(|| format!("testing `{}`", path.display()))?;
+        for root in &self.dada_path {
+            for entry in walkdir::WalkDir::new(root) {
+                let run_test = || -> eyre::Result<()> {
+                    let entry = entry?;
+                    let path = entry.path();
+                    if let Some(ext) = path.extension() {
+                        if ext == "dada" {
+                            total += 1;
+                            self.test_dada_file(path)
+                                .with_context(|| format!("testing `{}`", path.display()))?;
+                        }
                     }
-                }
-                Ok(())
-            };
+                    Ok(())
+                };
 
-            errors.push_result(run_test());
+                errors.push_result(run_test());
+            }
         }
 
         let num_errors = errors.reports.len();
