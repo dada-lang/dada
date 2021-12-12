@@ -19,10 +19,17 @@ pub fn line_column(db: &dyn crate::Db, filename: Word, position: Offset) -> Line
             line: line as u32 + 1,
             column: 1,
         },
-        Err(line) => LineColumn {
-            line: line as u32 + 1,
-            column: position - table.line_endings[line] + 1,
+        Err(0) => LineColumn {
+            line: 1,
+            column: (position + 1_u32).into(),
         },
+        Err(line) => {
+            let end_previous_line = table.line_endings[line - 1];
+            LineColumn {
+                line: line as u32 + 1,
+                column: position - end_previous_line + 1,
+            }
+        }
     }
 }
 

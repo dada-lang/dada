@@ -1,12 +1,12 @@
 use lsp_server::{Notification, Request, RequestId};
-use lsp_types::notification::DidOpenTextDocument;
+use lsp_types::notification::{DidOpenTextDocument, PublishDiagnostics};
 use lsp_types::request::Initialize;
-use lsp_types::{DidOpenTextDocumentParams, TextDocumentItem, Url};
+use lsp_types::{ClientCapabilities, Diagnostic, DidOpenTextDocumentParams, TextDocumentItem, Url};
 use serde::{Deserialize, Serialize};
 use std::io::{Read, Write};
+use std::path::Path;
 use std::process::{Command, Stdio};
-
-struct ChildSession {
+pub(crate) struct ChildSession {
     child: std::process::Child,
 }
 
@@ -17,7 +17,7 @@ impl Drop for ChildSession {
 }
 
 impl ChildSession {
-    fn spawn() -> ChildSession {
+    pub fn spawn() -> ChildSession {
         let child = Command::new("cargo")
             .arg("run")
             .arg("--")
@@ -46,14 +46,19 @@ impl ChildSession {
         &mut self,
         id: RequestId,
         params: T::Params,
-    ) -> eyre::Result<()> {
+    ) -> eyre::Result<T::Result> {
         let msg = Request {
-            id,
+            id: id.clone(),
             method: T::METHOD.to_owned(),
             params: serde_json::to_value(&params).unwrap(),
         };
 
-        self.send_any(msg)
+        self.send_any(msg)?;
+
+        let response: JsonRpcResponse<T::Result> = self.receive()?;
+
+        assert_eq!(response.id, id);
+        Ok(response.result)
     }
 
     fn send_any(&mut self, msg: impl Serialize) -> eyre::Result<()> {
@@ -75,7 +80,15 @@ impl ChildSession {
         Ok(())
     }
 
-    fn receive<T: for<'de> Deserialize<'de>>(&mut self) -> Result<T, Box<std::error::Error>> {
+    fn receive_notification<T: lsp_types::notification::Notification>(
+        &mut self,
+    ) -> eyre::Result<T::Params> {
+        let msg: Notification = self.receive()?;
+        assert_eq!(msg.method, T::METHOD);
+        Ok(serde_json::from_value(msg.params)?)
+    }
+
+    fn receive<T: for<'de> Deserialize<'de>>(&mut self) -> eyre::Result<T> {
         let child_stdout = self.child.stdout.as_mut().ok_or(std::io::Error::new(
             std::io::ErrorKind::BrokenPipe,
             "can connect to child stdout",
@@ -108,12 +121,35 @@ impl ChildSession {
         Ok(response)
     }
 
-    fn send_init(&mut self, id: usize) -> eyre::Result<()> {
-        Ok(self
-            .send_request::<Initialize>(serde_json::from_str("22")?, serde_json::from_str("{}")?)?)
+    #[allow(deprecated)]
+    pub fn send_init(&mut self) -> eyre::Result<()> {
+        self.send_request::<Initialize>(
+            serde_json::from_str("22")?,
+            lsp_types::InitializeParams {
+                process_id: None,
+                root_path: None,
+                root_uri: None,
+                initialization_options: None,
+                capabilities: ClientCapabilities {
+                    workspace: None,
+                    text_document: None,
+                    window: None,
+                    experimental: None,
+                },
+                trace: None,
+                workspace_folders: None,
+                client_info: None,
+            },
+        )?;
+
+        self.send_notification::<lsp_types::notification::Initialized>(
+            lsp_types::InitializedParams {},
+        )?;
+
+        Ok(())
     }
 
-    fn send_open(&mut self, filepath: &str) -> eyre::Result<()> {
+    pub fn send_open(&mut self, filepath: &Path) -> eyre::Result<()> {
         let contents = std::fs::read_to_string(filepath)?;
         let path = std::path::Path::new(filepath).canonicalize()?;
         Ok(
@@ -126,37 +162,80 @@ impl ChildSession {
                             "Bad filepath"
                         ))?
                     ))?,
-                    language_id: "lark".into(),
+                    language_id: "dada".into(),
                     version: 1,
                     text: contents,
                 },
             })?,
         )
     }
+
+    pub fn receive_errors(&mut self) -> eyre::Result<Vec<Diagnostic>> {
+        let result = self.receive_notification::<PublishDiagnostics>()?;
+        Ok(result.diagnostics)
+    }
 }
 
-#[test]
-fn find_expected_error_message() -> Result<(), Box<std::error::Error>> {
-    let mut child_session = ChildSession::spawn();
+/// The command given by the IDE to the LSP server. These represent the actions of the user in the IDE,
+/// as well as actions the IDE might perform as a result of user actions (like cancelling a task)
+#[derive(Debug, Serialize, Deserialize)]
+#[serde(tag = "method")]
+#[allow(non_camel_case_types)]
+pub enum LspCommand {
+    initialize {
+        id: usize,
+        params: lsp_types::InitializeParams,
+    },
+    initialized,
+    #[serde(rename = "textDocument/didOpen")]
+    didOpen {
+        params: lsp_types::DidOpenTextDocumentParams,
+    },
+    #[serde(rename = "textDocument/didChange")]
+    didChange {
+        params: lsp_types::DidChangeTextDocumentParams,
+    },
+    #[serde(rename = "textDocument/hover")]
+    hover {
+        id: usize,
+        params: lsp_types::TextDocumentPositionParams,
+    },
+    #[serde(rename = "textDocument/completion")]
+    completion {
+        id: usize,
+        params: lsp_types::CompletionParams,
+    },
+    #[serde(rename = "textDocument/definition")]
+    definition {
+        id: usize,
+        params: lsp_types::TextDocumentPositionParams,
+    },
+    #[serde(rename = "textDocument/references")]
+    references {
+        id: usize,
+        params: lsp_types::TextDocumentPositionParams,
+    },
+    #[serde(rename = "textDocument/rename")]
+    rename {
+        id: usize,
+        params: lsp_types::RenameParams,
+    },
+    #[serde(rename = "$/cancelRequest")]
+    cancelRequest {
+        params: lsp_types::CancelParams,
+    },
+    #[serde(rename = "completionItem/resolve")]
+    completionItemResolve {
+        id: usize,
+        params: lsp_types::CompletionItem,
+    },
+}
 
-    // Child that we are initialized
-    child_session.send_init(100)?;
-
-    let result = child_session.receive::<JsonRPCResponse<InitializeResult>>()?;
-
-    assert_eq!(result.id, 100);
-
-    // Open the document
-    child_session.send_open("tests/test_files/error_type_mismatch.lark")?;
-
-    let result = child_session.receive::<JsonRPCNotification<PublishDiagnosticsParams>>()?;
-
-    assert_eq!(result.method, "textDocument/publishDiagnostics",);
-    assert_eq!(result.params.diagnostics.len(), 1,);
-    assert_eq!(
-        result.params.diagnostics[0].message,
-        "mismatched types (uint vs bool)",
-    );
-
-    Ok(())
+/// A wrapper for responses back to the IDE from the LSP service. These must follow
+/// the JSON 2.0 RPC spec
+#[derive(Debug, Serialize, Deserialize)]
+pub struct JsonRpcResponse<T> {
+    jsonrpc: String,
+    pub id: RequestId,
+    pub result: T,
 }

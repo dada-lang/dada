@@ -3,7 +3,6 @@ use std::iter::Peekable;
 use dada_ir::{span::Span, token::Token, token_tree::TokenTree};
 
 pub(crate) struct Tokens<'me> {
-    db: &'me dyn crate::Db,
     last_span: Span,
     tokens: Peekable<Box<dyn Iterator<Item = (Span, Token)> + 'me>>,
 }
@@ -13,7 +12,6 @@ impl<'me> Tokens<'me> {
         let tokens: Box<dyn Iterator<Item = (Span, Token)>> =
             Box::new(token_tree.spanned_tokens(db));
         Tokens {
-            db,
             last_span: Span::start(),
             tokens: tokens.peekable(),
         }

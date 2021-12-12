@@ -1,0 +1,3 @@
+async fn main() {
+    print("Hello, world").await
+}
