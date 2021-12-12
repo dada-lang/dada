@@ -1,4 +1,4 @@
-use std::path::Path;
+use std::path::{Path, PathBuf};
 
 use eyre::Context;
 use lsp_types::Diagnostic;
@@ -7,40 +7,91 @@ use regex::Regex;
 mod lsp_client;
 
 #[derive(structopt::StructOpt, Default)]
-pub struct Options {}
+pub struct Options {
+    #[structopt(parse(from_os_str), default_value = "dada_tests")]
+    dada_path: PathBuf,
 
-pub fn main(_crate_options: &crate::Options, _options: &Options) -> eyre::Result<()> {
-    let mut total = 0;
-    let mut errors = Errors::default();
+    #[structopt(long)]
+    bless: bool,
+}
 
-    for entry in walkdir::WalkDir::new("tests/dada_files") {
-        let run_test = || -> eyre::Result<()> {
-            let entry = entry?;
-            let path = entry.path();
-            if let Some(ext) = path.extension() {
-                if ext == "dada" {
-                    total += 1;
-                    test_dada_file(path)
-                        .with_context(|| format!("testing `{}`", path.display()))?;
+impl Options {
+    pub fn main(&self, _crate_options: &crate::Options) -> eyre::Result<()> {
+        let mut total = 0;
+        let mut errors = Errors::default();
+
+        for entry in walkdir::WalkDir::new(&self.dada_path) {
+            let run_test = || -> eyre::Result<()> {
+                let entry = entry?;
+                let path = entry.path();
+                if let Some(ext) = path.extension() {
+                    if ext == "dada" {
+                        total += 1;
+                        self.test_dada_file(path)
+                            .with_context(|| format!("testing `{}`", path.display()))?;
+                    }
                 }
-            }
+                Ok(())
+            };
+
+            errors.push_result(run_test());
+        }
+
+        let num_errors = errors.reports.len();
+        for error in errors.reports {
+            eprintln!("{error:?}");
+        }
+
+        eprintln!("{total} tests executed");
+
+        if num_errors == 0 {
             Ok(())
-        };
-
-        errors.push_result(run_test());
+        } else {
+            eyre::bail!("{} tests failed", num_errors)
+        }
     }
 
-    let num_errors = errors.reports.len();
-    for error in errors.reports {
-        eprintln!("{error:?}");
+    fn test_dada_file(&self, path: &Path) -> eyre::Result<()> {
+        let mut c = lsp_client::ChildSession::spawn();
+        c.send_init()?;
+        c.send_open(path)?;
+        let diagnostics = c.receive_errors()?;
+
+        let mut errors = Errors::default();
+
+        // First, go through any expected diagnostics and make sure that
+        // they match against *something* in the results.
+        let expected_diagnostics = expected_diagnostics(path)?;
+        for e in expected_diagnostics {
+            if !diagnostics.iter().any(|d| e.matches(d)) {
+                errors.push(ExpectedDiagnosticNotFound(e));
+            }
+        }
+
+        // Second, compare the full details to the `.ref` file.
+        // If we are in DADA_BLESS mode, then update the `.ref` file.
+        let ref_path = path.with_extension("ref");
+        let actual_diagnostics = format!("{:#?}", diagnostics);
+        self.maybe_bless_file(&ref_path, &actual_diagnostics)?;
+        let ref_contents = std::fs::read_to_string(&ref_path)
+            .with_context(|| format!("reading `{}`", ref_path.display()))?;
+        if ref_contents != actual_diagnostics {
+            errors.push(RefOutputDoesNotMatch {
+                expected: ref_contents,
+                actual: actual_diagnostics,
+            });
+        }
+
+        errors.into_result()
     }
 
-    eprintln!("{total} tests executed");
+    fn maybe_bless_file(&self, ref_path: &Path, actual_diagnostics: &str) -> eyre::Result<()> {
+        if self.bless {
+            std::fs::write(&ref_path, actual_diagnostics)
+                .with_context(|| format!("writing `{}`", ref_path.display()))?;
+        }
 
-    if num_errors == 0 {
         Ok(())
-    } else {
-        eyre::bail!("{} tests failed", num_errors)
     }
 }
 
@@ -120,53 +171,6 @@ impl std::fmt::Display for RefOutputDoesNotMatch {
             similar::TextDiff::from_lines(&self.expected, &self.actual).unified_diff()
         )
     }
-}
-
-fn test_dada_file(path: &Path) -> eyre::Result<()> {
-    let mut c = lsp_client::ChildSession::spawn();
-    c.send_init()?;
-    c.send_open(path)?;
-    let diagnostics = c.receive_errors()?;
-
-    let mut errors = Errors::default();
-
-    // First, go through any expected diagnostics and make sure that
-    // they match against *something* in the results.
-    let expected_diagnostics = expected_diagnostics(path)?;
-    for e in expected_diagnostics {
-        if !diagnostics.iter().any(|d| e.matches(d)) {
-            errors.push(ExpectedDiagnosticNotFound(e));
-        }
-    }
-
-    // Second, compare the full details to the `.ref` file.
-    // If we are in DADA_BLESS mode, then update the `.ref` file.
-    let ref_path = path.with_extension("ref");
-    let actual_diagnostics = format!("{:#?}", diagnostics);
-    maybe_bless_file(&ref_path, &actual_diagnostics)?;
-    let ref_contents = std::fs::read_to_string(&ref_path)
-        .with_context(|| format!("reading `{}`", ref_path.display()))?;
-    if ref_contents != actual_diagnostics {
-        errors.push(RefOutputDoesNotMatch {
-            expected: ref_contents,
-            actual: actual_diagnostics,
-        });
-    }
-
-    errors.into_result()
-}
-
-fn maybe_bless_file(ref_path: &Path, actual_diagnostics: &str) -> eyre::Result<()> {
-    if let Ok(s) = std::env::var("DADA_BLESS") {
-        if s == "1" {
-            std::fs::write(&ref_path, actual_diagnostics)
-                .with_context(|| format!("writing `{}`", ref_path.display()))?;
-        } else {
-            eyre::bail!("unexpected value for DADA_BLESS: `{}`", s);
-        }
-    }
-
-    Ok(())
 }
 
 #[derive(Debug)]

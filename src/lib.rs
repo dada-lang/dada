@@ -22,9 +22,7 @@ impl Options {
             Command::Ide(command_options) => {
                 ide::main(self, command_options)?;
             }
-            Command::Test(command_options) => {
-                test_harness::main(self, command_options)?;
-            }
+            Command::Test(command_options) => command_options.main(self)?,
         }
         Ok(())
     }
