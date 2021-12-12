@@ -6,7 +6,10 @@ use regex::Regex;
 
 mod lsp_client;
 
-fn main() -> eyre::Result<()> {
+#[derive(structopt::StructOpt, Default)]
+pub struct Options {}
+
+pub fn main(_crate_options: &crate::Options, _options: &Options) -> eyre::Result<()> {
     let mut total = 0;
     let mut errors = Errors::default();
 

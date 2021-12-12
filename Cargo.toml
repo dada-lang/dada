@@ -17,8 +17,6 @@ serde_json = "1.0.72"
 serde = "1.0.131"
 eyre = "0.6.5"
 structopt = "0.3"
-
-[dev-dependencies]
 walkdir = "2.3.2"
 regex = "1.5.4"
 similar = "2.1.0"
