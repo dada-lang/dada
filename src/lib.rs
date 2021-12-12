@@ -1,5 +1,6 @@
 use structopt::StructOpt;
 
+mod check;
 mod ide;
 mod test_harness;
 
@@ -22,6 +23,7 @@ impl Options {
             Command::Ide(command_options) => {
                 ide::main(self, command_options)?;
             }
+            Command::Check(command_options) => command_options.main(self)?,
             Command::Test(command_options) => command_options.main(self)?,
         }
         Ok(())
@@ -32,5 +34,6 @@ impl Options {
 pub enum Command {
     /// Pound acorns into flour for cookie dough.
     Ide(ide::Options),
+    Check(check::Options),
     Test(test_harness::Options),
 }

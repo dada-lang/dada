@@ -34,3 +34,15 @@ impl ToString for &str {
         self.to_owned()
     }
 }
+
+impl ToString for &std::path::Path {
+    fn to_string(self) -> String {
+        self.display().to_string()
+    }
+}
+
+impl ToString for &std::path::PathBuf {
+    fn to_string(self) -> String {
+        self.display().to_string()
+    }
+}

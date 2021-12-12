@@ -168,6 +168,8 @@ dependencies = [
 name = "dada"
 version = "0.1.0"
 dependencies = [
+ "dada-db",
+ "dada-ir",
  "dada-lsp",
  "eyre",
  "lsp-server",
