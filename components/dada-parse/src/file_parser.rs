@@ -10,3 +10,22 @@ pub fn parse_file(db: &dyn crate::Db, filename: Word) -> (Vec<Item>, Vec<Diagnos
     let mut result = parser.parse_items();
     (result, parser.into_errors())
 }
+
+impl<'db> Parser<'db> {
+    fn parse_items(&mut self) -> Vec<Item> {
+        let mut items = vec![];
+        while self.tokens.peek().is_some() {
+            if let Some(item) = self.parse_item() {
+                items.push(item);
+            } else {
+                let (span, _) = self.tokens.consume().unwrap();
+                self.errors.push(Diagnostic {
+                    filename: self.filename,
+                    span,
+                    message: format!("unexpected token"),
+                });
+            }
+        }
+        items
+    }
+}

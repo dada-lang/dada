@@ -14,10 +14,10 @@ use dada_ir::{
 };
 
 pub(crate) struct Parser<'db> {
-    db: &'db dyn crate::Db,
-    filename: Word,
-    tokens: Tokens<'db>,
-    errors: Vec<Diagnostic>,
+    pub(crate) db: &'db dyn crate::Db,
+    pub(crate) filename: Word,
+    pub(crate) tokens: Tokens<'db>,
+    pub(crate) errors: Vec<Diagnostic>,
 }
 
 impl<'db> Parser<'db> {
@@ -50,24 +50,7 @@ impl<'db> Parser<'db> {
         self.errors
     }
 
-    pub(crate) fn parse_items(&mut self) -> Vec<Item> {
-        let mut items = vec![];
-        while self.tokens.peek().is_some() {
-            if let Some(item) = self.parse_item() {
-                items.push(item);
-            } else {
-                let (span, _) = self.tokens.consume().unwrap();
-                self.errors.push(Diagnostic {
-                    filename: self.filename,
-                    span,
-                    message: format!("unexpected token"),
-                });
-            }
-        }
-        items
-    }
-
-    fn parse_item(&mut self) -> Option<Item> {
+    pub(crate) fn parse_item(&mut self) -> Option<Item> {
         if let Some(class) = self.parse_class() {
             Some(Item::Class(class))
         } else if let Some(function) = self.parse_function() {
