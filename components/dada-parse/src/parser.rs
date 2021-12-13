@@ -13,30 +13,23 @@ use dada_ir::{
     word::Word,
 };
 
-#[salsa::memoized(in crate::Jar ref)]
-pub fn parse_file(db: &dyn crate::Db, filename: Word) -> (Vec<Item>, Vec<Diagnostic>) {
-    let token_tree = dada_lex::lex_file(db, filename);
-    let tokens = Tokens::new(db, token_tree);
-    let mut parser = Parser {
-        db,
-        filename,
-        tokens,
-        result: vec![],
-        errors: vec![],
-    };
-    parser.parse_items();
-    (parser.result, parser.errors)
-}
-
-struct Parser<'db> {
+pub(crate) struct Parser<'db> {
     db: &'db dyn crate::Db,
     filename: Word,
     tokens: Tokens<'db>,
-    result: Vec<Item>,
     errors: Vec<Diagnostic>,
 }
 
 impl<'db> Parser<'db> {
+    pub(crate) fn new(db: &'db dyn crate::Db, filename: Word, tokens: Tokens<'db>) -> Self {
+        Self {
+            db,
+            filename,
+            tokens,
+            errors: vec![],
+        }
+    }
+
     /// Returns Some if the next pending token matches `is`, along
     /// with the narrowed view of the next token.
     fn peek_if<TT: TokenTest>(&mut self, is: TT) -> Option<TT::Narrow> {
@@ -53,10 +46,15 @@ impl<'db> Parser<'db> {
         Some((self.tokens.last_span(), narrow))
     }
 
-    fn parse_items(&mut self) {
+    pub(crate) fn into_errors(self) -> Vec<Diagnostic> {
+        self.errors
+    }
+
+    pub(crate) fn parse_items(&mut self) -> Vec<Item> {
+        let mut items = vec![];
         while self.tokens.peek().is_some() {
             if let Some(item) = self.parse_item() {
-                self.result.push(item);
+                items.push(item);
             } else {
                 let (span, _) = self.tokens.consume().unwrap();
                 self.errors.push(Diagnostic {
@@ -66,6 +64,7 @@ impl<'db> Parser<'db> {
                 });
             }
         }
+        items
     }
 
     fn parse_item(&mut self) -> Option<Item> {
