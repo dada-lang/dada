@@ -4,7 +4,6 @@ use dada_ir::token_tree::TokenTree;
 use dada_ir::word::Word;
 use std::iter::Peekable;
 
-#[salsa::memoized(in crate::Jar)]
 pub fn lex_file(db: &dyn crate::Db, filename: Word) -> TokenTree {
     let source_text = dada_manifest::source_text(db, filename);
     let chars = &mut source_text.char_indices().peekable();

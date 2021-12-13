@@ -5,7 +5,7 @@ mod lex;
 mod lines;
 
 #[salsa::jar(Db)]
-pub struct Jar(lex::lex_file, lines::line_table);
+pub struct Jar(lines::line_table);
 
 pub trait Db: salsa::DbWithJar<Jar> + dada_manifest::Db + dada_ir::Db {
     fn lex(&self) -> &dyn Db;
