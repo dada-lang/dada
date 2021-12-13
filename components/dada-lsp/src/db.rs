@@ -81,7 +81,7 @@ trait DadaLspMethods {
 
 impl DadaLspMethods for dada_db::Db {
     fn lsp_position(&self, filename: Word, offset: Offset) -> Position {
-        let line_column = dada_lex::lines::line_column(self, filename, offset);
+        let line_column = dada_lex::line_column(self, filename, offset);
         Position {
             line: line_column.line,
             character: line_column.column,

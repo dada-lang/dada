@@ -26,12 +26,12 @@ impl Db {
     }
 
     pub fn diagnostics(&self, filename: Word) -> Vec<Diagnostic> {
-        let (_, errors) = dada_parse::parse::parse_file(self, filename);
+        let (_, errors) = dada_parse::parse_file(self, filename);
         errors.clone()
     }
 
     pub fn items(&self, filename: Word) -> Vec<Item> {
-        let (items, _) = dada_parse::parse::parse_file(self, filename);
+        let (items, _) = dada_parse::parse_file(self, filename);
         items.clone()
     }
 }

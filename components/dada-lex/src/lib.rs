@@ -1,8 +1,8 @@
 #![feature(trait_upcasting)]
 #![allow(incomplete_features)]
 
-pub mod lex;
-pub mod lines;
+mod lex;
+mod lines;
 
 #[salsa::jar(Db)]
 pub struct Jar(lex::lex_file, lines::line_table);
@@ -18,3 +18,7 @@ where
         self
     }
 }
+
+pub use lex::closing_delimiter;
+pub use lex::lex_file;
+pub use lines::line_column;

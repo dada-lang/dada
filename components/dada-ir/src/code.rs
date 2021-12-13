@@ -1,9 +1,9 @@
-use crate::{storage_mode::StorageMode, word::Word};
+use crate::{storage_mode::StorageMode, token_tree::TokenTree, word::Word};
 use dada_id::{id, tables};
 
 salsa::entity2! {
     entity Code in crate::Jar {
-        #[value no_eq] ast: Ast,
+        tokens: TokenTree,
     }
 }
 

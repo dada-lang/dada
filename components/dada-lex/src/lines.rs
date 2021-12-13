@@ -34,7 +34,7 @@ pub fn line_column(db: &dyn crate::Db, filename: Word, position: Offset) -> Line
 }
 
 #[salsa::memoized(in crate::Jar ref)]
-pub fn line_table(db: &dyn crate::Db, filename: Word) -> LineTable {
+fn line_table(db: &dyn crate::Db, filename: Word) -> LineTable {
     let source_text = dada_manifest::source_text(db, filename);
     let mut p: usize = 0;
     let mut table = LineTable {

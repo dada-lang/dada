@@ -2,6 +2,7 @@ use crate::{token_test::*, tokens::Tokens};
 
 use dada_ir::{
     class::Class,
+    code::Code,
     diagnostic::Diagnostic,
     func::{Effect, Function},
     item::Item,
@@ -14,7 +15,7 @@ use dada_ir::{
 
 #[salsa::memoized(in crate::Jar ref)]
 pub fn parse_file(db: &dyn crate::Db, filename: Word) -> (Vec<Item>, Vec<Diagnostic>) {
-    let token_tree = dada_lex::lex::lex_file(db, filename);
+    let token_tree = dada_lex::lex_file(db, filename);
     let tokens = Tokens::new(db, token_tree);
     let mut parser = Parser {
         db,
@@ -111,13 +112,14 @@ impl<'db> Parser<'db> {
         let body_tokens = self
             .delimited('{')
             .or_report_error(self, || format!("expected function body"))?;
+        let code = Code::new(self.db, body_tokens);
         Some(Function::new(
             self.db,
             func_name,
             func_name_span,
             effect,
             argument_tokens,
-            body_tokens,
+            code,
         ))
     }
 
@@ -128,7 +130,7 @@ impl<'db> Parser<'db> {
         let (_, token_tree) = self.eat_if(AnyTree).unwrap();
 
         // Consume closing delimiter (if present)
-        let closing_delimiter = dada_lex::lex::closing_delimiter(delimiter);
+        let closing_delimiter = dada_lex::closing_delimiter(delimiter);
         self.eat_if(Token::Delimiter(closing_delimiter))
             .or_report_error(self, || format!("expected `{closing_delimiter}`"));
 

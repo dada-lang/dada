@@ -1,4 +1,4 @@
-use crate::{span::Span, token_tree::TokenTree, word::Word};
+use crate::{code::Code, span::Span, token_tree::TokenTree, word::Word};
 
 salsa::entity2! {
     entity Function in crate::Jar {
@@ -6,7 +6,7 @@ salsa::entity2! {
         name_span: Span,
         effect: Effect,
         argument_tokens: TokenTree,
-        body_tokens: TokenTree,
+        code: Code,
     }
 }
 
