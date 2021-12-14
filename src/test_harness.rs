@@ -20,6 +20,10 @@ impl Options {
         let mut total = 0;
         let mut errors = Errors::default();
 
+        if self.dada_path.is_empty() {
+            eyre::bail!("no test paths given; try --dada-path");
+        }
+
         for root in &self.dada_path {
             for entry in walkdir::WalkDir::new(root) {
                 let run_test = || -> eyre::Result<()> {
