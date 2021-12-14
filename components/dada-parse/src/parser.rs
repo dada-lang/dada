@@ -4,19 +4,18 @@ use dada_ir::{
     diagnostic::Diagnostic, span::Span, token::Token, token_tree::TokenTree, word::Word,
 };
 
+mod code;
 mod items;
 pub(crate) struct Parser<'db> {
     db: &'db dyn crate::Db,
-    filename: Word,
     tokens: Tokens<'db>,
     errors: Vec<Diagnostic>,
 }
 
 impl<'db> Parser<'db> {
-    pub(crate) fn new(db: &'db dyn crate::Db, filename: Word, tokens: Tokens<'db>) -> Self {
+    pub(crate) fn new(db: &'db dyn crate::Db, tokens: Tokens<'db>) -> Self {
         Self {
             db,
-            filename,
             tokens,
             errors: vec![],
         }
@@ -55,6 +54,10 @@ impl<'db> Parser<'db> {
 
         Some(token_tree)
     }
+
+    pub fn filename(&self) -> Word {
+        self.tokens.filename()
+    }
 }
 
 trait OrReportError {
@@ -69,7 +72,7 @@ impl<T> OrReportError for Option<T> {
 
         let span = parser.tokens.peek_span();
         parser.errors.push(Diagnostic {
-            filename: parser.filename,
+            filename: parser.filename(),
             span,
             message: message(),
         });

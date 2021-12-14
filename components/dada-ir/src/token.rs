@@ -9,11 +9,8 @@ pub enum Token {
     /// 22_000
     Number(Word),
 
-    /// An operator like `+` that is NOT followed by another operator.
-    OpAlone(char),
-
-    /// An operator like `+` that IS followed by another operator.
-    OpAdjacent(char),
+    /// A single character from an operator like `+`
+    Op(char),
 
     /// `(`, `)`, `[`, `]`, `{`, or `}`
     Delimiter(char),
@@ -36,11 +33,9 @@ impl Token {
             Token::Alphabetic(word) | Token::Number(word) => {
                 word.as_str(db).len().try_into().unwrap()
             }
-            Token::Delimiter(ch)
-            | Token::OpAlone(ch)
-            | Token::OpAdjacent(ch)
-            | Token::Whitespace(ch)
-            | Token::Unknown(ch) => ch.len_utf8().try_into().unwrap(),
+            Token::Delimiter(ch) | Token::Op(ch) | Token::Whitespace(ch) | Token::Unknown(ch) => {
+                ch.len_utf8().try_into().unwrap()
+            }
         }
     }
 

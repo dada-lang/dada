@@ -7,7 +7,7 @@ use std::iter::Peekable;
 pub fn lex_file(db: &dyn crate::Db, filename: Word) -> TokenTree {
     let source_text = dada_manifest::source_text(db, filename);
     let chars = &mut source_text.char_indices().peekable();
-    lex_tokens(db, chars, source_text.len(), None)
+    lex_tokens(db, filename, chars, source_text.len(), None)
 }
 
 macro_rules! op {
@@ -18,6 +18,7 @@ macro_rules! op {
 
 fn lex_tokens(
     db: &dyn crate::Db,
+    filename: Word,
     chars: &mut Peekable<impl Iterator<Item = (usize, char)>>,
     file_len: usize,
     end_ch: Option<char>,
@@ -38,7 +39,7 @@ fn lex_tokens(
         match ch {
             '(' | '[' | '{' => {
                 tokens.push(Token::Delimiter(ch));
-                let tree = lex_tokens(db, chars, file_len, Some(closing_delimiter(ch)));
+                let tree = lex_tokens(db, filename, chars, file_len, Some(closing_delimiter(ch)));
                 tokens.push(Token::Tree(tree));
             }
             ')' | ']' | '}' => {
@@ -58,13 +59,7 @@ fn lex_tokens(
                 tokens.push(Token::Number(text));
             }
             op!() => {
-                if let Some(&(_, op!())) = chars.peek() {
-                    // Followed by another operator
-                    tokens.push(Token::OpAdjacent(ch));
-                } else {
-                    // Not followed by another operator
-                    tokens.push(Token::OpAlone(ch));
-                }
+                tokens.push(Token::Op(ch));
             }
             _ => {
                 if !ch.is_whitespace() {
@@ -76,7 +71,7 @@ fn lex_tokens(
         }
     }
 
-    TokenTree::new(db, tokens, Span::from(start_pos, end_pos))
+    TokenTree::new(db, filename, Span::from(start_pos, end_pos), tokens)
 }
 
 #[track_caller]

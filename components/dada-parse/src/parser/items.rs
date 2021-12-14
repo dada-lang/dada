@@ -20,7 +20,7 @@ impl<'db> Parser<'db> {
             } else {
                 let (span, _) = self.tokens.consume().unwrap();
                 self.errors.push(Diagnostic {
-                    filename: self.filename,
+                    filename: self.filename(),
                     span,
                     message: format!("unexpected token"),
                 });

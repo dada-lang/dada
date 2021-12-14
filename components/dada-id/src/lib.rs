@@ -93,7 +93,7 @@ macro_rules! tables {
         }
 
         impl $n {
-            fn add<K, V>(&mut self, value: V) -> K
+            pub fn add<K, V>(&mut self, value: V) -> K
             where
                 Self: dada_id::InternValue<V, Key = K>,
                 K: salsa::AsId,

@@ -32,7 +32,8 @@ pub enum ExprData {
     Share(Expr),
     Give(Expr),
     Var(StorageMode, Word, Expr),
-    Block(Block),
+    If(Expr, Block, Option<Block>),
+
     Op(Expr, Op, Expr),
     OpEq(Path, Op, Expr),
     Assign(Path, Expr),
@@ -52,21 +53,21 @@ id!(pub struct NamedExpr);
 
 #[derive(PartialEq, Eq, PartialOrd, Ord, Clone, Hash, Debug)]
 pub struct NamedExprData {
-    name: Word,
-    expr: Expr,
+    pub name: Word,
+    pub expr: Expr,
 }
 
 id!(pub struct Block);
 
 #[derive(PartialEq, Eq, PartialOrd, Ord, Clone, Hash, Debug)]
 pub struct BlockData {
-    exprs: Vec<Expr>,
+    pub exprs: Vec<Expr>,
 }
 
 id!(pub struct Path);
 
 #[derive(PartialEq, Eq, PartialOrd, Ord, Clone, Hash, Debug)]
 pub struct PathData {
-    base: Word,
-    fields: Vec<Word>,
+    pub base: Word,
+    pub fields: Vec<Word>,
 }
