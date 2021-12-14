@@ -14,12 +14,14 @@ impl<'me> Tokens<'me> {
         let tokens: Box<dyn Iterator<Item = (Span, Token)>> =
             Box::new(token_tree.spanned_tokens(db));
         let filename = token_tree.filename(db);
-        Tokens {
+        let mut this = Tokens {
             last_span: Span::start(),
             filename,
             tokens: tokens.peekable(),
             skipped_newline: false,
-        }
+        };
+        this.skip_tokens();
+        this
     }
 
     /// Returns the filename that these tokens are from
