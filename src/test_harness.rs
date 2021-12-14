@@ -6,7 +6,7 @@ use regex::Regex;
 
 mod lsp_client;
 
-#[derive(structopt::StructOpt, Default)]
+#[derive(structopt::StructOpt)]
 pub struct Options {
     #[structopt(parse(from_os_str), default_value = "dada_tests")]
     dada_path: Vec<PathBuf>,
@@ -37,6 +37,17 @@ impl Options {
 
                 errors.push_result(run_test());
             }
+        }
+
+        if total == 0 {
+            eyre::bail!(
+                "no tests found in {}",
+                self.dada_path
+                    .iter()
+                    .map(|p| format!("`{}`", p.display()))
+                    .collect::<Vec<_>>()
+                    .join(", "),
+            )
         }
 
         let num_errors = errors.reports.len();

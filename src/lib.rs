@@ -1,3 +1,5 @@
+use std::ffi::OsString;
+
 use structopt::StructOpt;
 
 mod check;
@@ -14,7 +16,7 @@ impl Options {
     /// Returns the options to run the default test harness.
     pub fn test_harness() -> Self {
         Options {
-            cmd: Command::Test(Default::default()),
+            cmd: Command::Test(test_harness::Options::from_iter(None::<OsString>)),
         }
     }
 
