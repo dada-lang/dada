@@ -7,7 +7,7 @@ salsa::entity2! {
     }
 }
 
-#[derive(Clone, Debug)]
+#[derive(Clone, Debug, PartialEq, Eq)]
 pub struct Ast {
     pub tables: CodeTables,
     pub block: Block,

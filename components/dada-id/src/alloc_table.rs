@@ -2,7 +2,7 @@ use std::{hash::Hash, marker::PhantomData};
 
 /// An individual allocating table, where each thing
 /// added to the table gets a unique index.
-#[derive(Clone, Debug)]
+#[derive(Clone, Debug, PartialEq, Eq)]
 pub struct AllocTable<K: salsa::AsId, V: Hash + Eq> {
     vec: Vec<V>,
     phantom: PhantomData<K>,

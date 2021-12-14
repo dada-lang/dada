@@ -4,7 +4,7 @@ use std::{hash::Hash, marker::PhantomData};
 /// An individual interning table, where each unique thing added
 /// to the table gets a unique index, but adding the same thing
 /// twice gets the same index.
-#[derive(Clone, Debug)]
+#[derive(Clone, Debug, PartialEq, Eq)]
 pub struct InternTable<K: salsa::AsId, V: Hash + Eq> {
     map: IndexSet<V>,
     phantom: PhantomData<K>,
