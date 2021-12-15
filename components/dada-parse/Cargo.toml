@@ -10,3 +10,5 @@ salsa = { path = "../salsa" }
 im = "15"
 dada-lex = { path = "../dada-lex" }
 dada-ir = { path = "../dada-ir" }
+dada-id = { path = "../dada-id" }
+stacker = "0.1.14"

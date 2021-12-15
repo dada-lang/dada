@@ -20,10 +20,12 @@ pub struct LineColumn {
 impl Span {
     #[track_caller]
     pub fn from(start: impl Into<Offset>, end: impl Into<Offset>) -> Self {
-        Self {
+        let this = Self {
             start: start.into(),
             end: end.into(),
-        }
+        };
+        assert!(this.start <= this.end);
+        this
     }
 
     pub fn start() -> Self {
@@ -35,6 +37,14 @@ impl Span {
 
     pub fn len(self) -> u32 {
         self.end - self.start
+    }
+
+    pub fn to(self, other: Span) -> Span {
+        assert!(self == other || self.end <= other.start);
+        Span {
+            start: self.start,
+            end: other.end,
+        }
     }
 }
 

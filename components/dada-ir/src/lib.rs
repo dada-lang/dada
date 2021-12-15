@@ -4,6 +4,7 @@ pub mod diagnostic;
 pub mod func;
 pub mod item;
 pub mod kw;
+pub mod op;
 pub mod span;
 pub mod storage_mode;
 pub mod token;
@@ -18,10 +19,11 @@ pub struct Jar(
     class::Field,
     func::Function,
     func::Variable,
-    word::Word,
-    ty::Ty,
-    token_tree::TokenTree,
     kw::keywords,
+    op::binary_ops,
+    token_tree::TokenTree,
+    ty::Ty,
+    word::Word,
 );
 
 pub trait Db: salsa::DbWithJar<Jar> {}

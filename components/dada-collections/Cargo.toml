@@ -8,3 +8,4 @@ edition = "2021"
 [dependencies]
 rustc-hash = "1.1.0"
 indexmap = "1.7.0"
+typed-index-collections = "3.0.3"

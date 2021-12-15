@@ -44,7 +44,7 @@ impl<'db> Parser<'db> {
         let (class_name_span, class_name) = self
             .eat_if(Identifier)
             .or_report_error(self, || format!("expected a class name"))?;
-        let field_tokens = self
+        let (_, field_tokens) = self
             .delimited('(')
             .or_report_error(self, || format!("expected class parameters"))?;
         Some(Class::new(
@@ -67,10 +67,10 @@ impl<'db> Parser<'db> {
         let (func_name_span, func_name) = self
             .eat_if(Identifier)
             .or_report_error(self, || format!("expected function name"))?;
-        let argument_tokens = self
+        let (_, argument_tokens) = self
             .delimited('(')
             .or_report_error(self, || format!("expected function parameters"))?;
-        let body_tokens = self
+        let (_, body_tokens) = self
             .delimited('{')
             .or_report_error(self, || format!("expected function body"))?;
         let code = Code::new(self.db, body_tokens);

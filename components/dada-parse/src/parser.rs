@@ -6,43 +6,44 @@ use dada_ir::{
 
 mod code;
 mod items;
-pub(crate) struct Parser<'db> {
-    db: &'db dyn crate::Db,
-    tokens: Tokens<'db>,
-    errors: Vec<Diagnostic>,
+pub(crate) struct Parser<'me> {
+    db: &'me dyn crate::Db,
+    tokens: Tokens<'me>,
+    errors: &'me mut Vec<Diagnostic>,
 }
 
-impl<'db> Parser<'db> {
-    pub(crate) fn new(db: &'db dyn crate::Db, tokens: Tokens<'db>) -> Self {
-        Self {
-            db,
-            tokens,
-            errors: vec![],
-        }
+impl<'me> Parser<'me> {
+    pub(crate) fn new(
+        db: &'me dyn crate::Db,
+        tokens: Tokens<'me>,
+        errors: &'me mut Vec<Diagnostic>,
+    ) -> Self {
+        Self { db, tokens, errors }
     }
 
     /// Returns Some if the next pending token matches `is`, along
     /// with the narrowed view of the next token.
     fn peek_if<TT: TokenTest>(&mut self, is: TT) -> Option<TT::Narrow> {
-        let token = self.tokens.peek()?;
-        is.test(self.db, token)
+        is.test(self.db, &mut self.tokens)
     }
 
     /// If the next pending token matches `is`, consumes it and
     /// returns the span + narrowed view. Otherwise returns None
     /// and has no effect. Returns None if there is no pending token.
     fn eat_if<TT: TokenTest>(&mut self, is: TT) -> Option<(Span, TT::Narrow)> {
+        let start_span = self.tokens.peek_span();
         let narrow = self.peek_if(is)?;
         self.tokens.consume();
-        Some((self.tokens.last_span(), narrow))
+        let end_span = self.tokens.last_span();
+        Some((start_span.to(end_span), narrow))
     }
 
-    pub(crate) fn into_errors(self) -> Vec<Diagnostic> {
-        self.errors
-    }
-
-    fn delimited(&mut self, delimiter: char) -> Option<TokenTree> {
-        self.eat_if(Token::Delimiter(delimiter))?;
+    /// If the next token is an opening delimiter, like `(` or `{`,
+    /// then consumes it, the token-tree that follows, and the closing delimiter (if present).
+    /// Returns the token tree + the span including delimiters.
+    /// Reports an error if there is no closing delimiter.
+    fn delimited(&mut self, delimiter: char) -> Option<(Span, TokenTree)> {
+        let (open_span, _) = self.eat_if(Token::Delimiter(delimiter))?;
 
         // Lexer always produces a token tree as the next token after a delimiter:
         let (_, token_tree) = self.eat_if(AnyTree).unwrap();
@@ -52,11 +53,20 @@ impl<'db> Parser<'db> {
         self.eat_if(Token::Delimiter(closing_delimiter))
             .or_report_error(self, || format!("expected `{closing_delimiter}`"));
 
-        Some(token_tree)
+        let span = open_span.to(self.tokens.last_span());
+        Some((span, token_tree))
     }
 
     pub fn filename(&self) -> Word {
         self.tokens.filename()
+    }
+
+    pub fn report_error(&mut self, span: Span, message: impl AsRef<str>) {
+        self.errors.push(Diagnostic {
+            filename: self.filename(),
+            span,
+            message: message.as_ref().to_string(),
+        });
     }
 }
 
@@ -70,12 +80,8 @@ impl<T> OrReportError for Option<T> {
             return self;
         }
 
-        let span = parser.tokens.peek_span();
-        parser.errors.push(Diagnostic {
-            filename: parser.filename(),
-            span,
-            message: message(),
-        });
+        parser.report_error(parser.tokens.peek_span(), message());
+
         None
     }
 }

@@ -44,6 +44,18 @@ macro_rules! id {
                 Self(id)
             }
         }
+
+        impl From<usize> for $n {
+            fn from(u: usize) -> $n {
+                $n(salsa::Id::from(u))
+            }
+        }
+
+        impl From<$n> for usize {
+            fn from(n: $n) -> usize {
+                n.0.into()
+            }
+        }
     }
 }
 
