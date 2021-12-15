@@ -60,7 +60,7 @@ pub enum ExprData {
     Share(Expr),
     Give(Expr),
     Var(StorageMode, Word, Expr),
-    If(Expr, Block, Option<Block>),
+    If(Expr, Expr, Option<Expr>),
 
     // { ... } ==> closure?
     Block(Block),
@@ -68,6 +68,8 @@ pub enum ExprData {
     Op(Expr, Op, Expr),
     OpEq(Expr, Op, Expr),
     Assign(Expr, Expr),
+
+    Error,
 }
 
 impl HasSpan for Expr {

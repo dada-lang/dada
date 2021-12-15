@@ -61,6 +61,17 @@ impl<'me> Parser<'me> {
         self.tokens.filename()
     }
 
+    /// Returns the span that starts at `span` and ends with the
+    /// last consumed token.
+    pub fn span_consumed_since(&self, span: Span) -> Span {
+        span.to(self.tokens.last_span())
+    }
+
+    pub fn report_error_at_current_token(&mut self, message: impl AsRef<str>) {
+        let span = self.tokens.peek_span();
+        self.report_error(span, message)
+    }
+
     pub fn report_error(&mut self, span: Span, message: impl AsRef<str>) {
         self.errors.push(Diagnostic {
             filename: self.filename(),

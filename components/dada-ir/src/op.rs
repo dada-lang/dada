@@ -29,6 +29,12 @@ macro_rules! define_operators {
     }
 }
 
+impl std::fmt::Display for Op {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        write!(f, "{}", self.str())
+    }
+}
+
 define_operators! {
     // 2-character ops (must come first!)
     PlusEqual => "+=",

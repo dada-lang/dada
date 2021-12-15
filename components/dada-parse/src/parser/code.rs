@@ -7,10 +7,13 @@ use crate::{
 use dada_id::InternValue;
 use dada_ir::{
     code::{Ast, Block, BlockData, Expr, ExprData, NamedExpr, PushSpan, Spans, Tables},
+    kw::Keyword,
     op::{BinaryOp, Op},
     token_tree::TokenTree,
 };
 use salsa::AsId;
+
+use super::OrReportError;
 
 impl Parser<'_> {
     pub(crate) fn parse_ast(&mut self) -> Ast {
@@ -52,8 +55,12 @@ impl CodeParser<'_, '_> {
     pub(crate) fn parse_block_contents(&mut self) -> Block {
         let mut exprs = vec![];
         while self.tokens.peek().is_some() {
-            let expr = self.parse_expr();
-            exprs.push(expr);
+            if let Some(expr) = self.parse_expr() {
+                exprs.push(expr);
+            } else {
+                self.report_error_at_current_token("expected expression");
+                self.tokens.consume();
+            }
         }
         self.tables.add(BlockData { exprs })
     }
@@ -73,6 +80,12 @@ impl CodeParser<'_, '_> {
         key
     }
 
+    fn parse_required_expr(&mut self, before: impl std::fmt::Display) -> Expr {
+        self.parse_expr()
+            .or_report_error(self, || format!("expected expression after {before}"))
+            .or_dummy_expr(self)
+    }
+
     /// ```
     /// Expr := Id
     ///       | UnaryOp Expr
@@ -87,21 +100,43 @@ impl CodeParser<'_, '_> {
     ///       | Expr BinaryOp Expr
     ///       | Expr ( args )
     /// ```
-    pub(crate) fn parse_expr(&mut self) -> Expr {
+    pub(crate) fn parse_expr(&mut self) -> Option<Expr> {
         if let Some((id_span, id)) = self.eat_if(Identifier) {
             let expr = self.add(ExprData::Id(id), id_span);
-            self.parse_expr_follow(expr)
-        } else if let Some((span, token_tree)) = self.delimited('{') {
+            Some(self.parse_expr_follow(expr))
+        } else if let Some(expr) = self.parse_block_expr() {
             // { ... }
-            let block =
-                self.with_sub_parser(token_tree, |sub_parser| sub_parser.parse_block_contents());
-            let expr = self.add(ExprData::Block(block), span);
-            self.parse_expr_follow(expr)
-        } else if let Some((kw_span, kw)) = self.eat_if(AnyKeyword) {
-            todo!()
+            Some(self.parse_expr_follow(expr))
+        } else if let Some((if_span, _)) = self.eat_if(Keyword::If) {
+            if let Some(condition) = self.parse_expr() {
+                let then_expr = self.parse_required_block_expr(Keyword::If);
+                let else_expr = self
+                    .eat_if(Keyword::Else)
+                    .map(|_| self.parse_required_block_expr(Keyword::Else));
+                let span = self.span_consumed_since(if_span);
+                let expr = self.add(ExprData::If(condition, then_expr, else_expr), span);
+                Some(self.parse_expr_follow(expr))
+            } else {
+                self.report_error_at_current_token("expected `if` condition");
+                None
+            }
         } else {
-            todo!()
+            None
         }
+    }
+
+    fn parse_required_block_expr(&mut self, after: impl std::fmt::Display) -> Expr {
+        self.parse_block_expr()
+            .or_report_error(self, || format!("expected block after {after}"))
+            .or_dummy_expr(self)
+    }
+
+    fn parse_block_expr(&mut self) -> Option<Expr> {
+        let (span, token_tree) = self.delimited('{')?;
+        let block =
+            self.with_sub_parser(token_tree, |sub_parser| sub_parser.parse_block_contents());
+        let expr = self.add(ExprData::Block(block), span);
+        Some(expr)
     }
 
     fn parse_expr_follow(&mut self, mut base: Expr) -> Expr {
@@ -113,7 +148,7 @@ impl CodeParser<'_, '_> {
                     continue 'extend;
                 } else {
                     self.parser
-                        .report_error(self.tokens.peek_span(), "expected identifier after `.`");
+                        .report_error_at_current_token("expected identifier after `.`");
                     continue 'extend;
                 }
             }
@@ -123,13 +158,13 @@ impl CodeParser<'_, '_> {
                 assign_op,
             } in dada_ir::op::binary_ops(self.db)
             {
-                if let Some(_) = self.eat_if(binary_op) {
-                    let rhs = self.parse_expr();
+                if let Some((_, op)) = self.eat_if(binary_op) {
+                    let rhs = self.parse_required_expr(op);
                     let span = self.spans[base].to(self.spans[rhs]);
                     base = self.add(ExprData::Op(base, binary_op, rhs), span);
                     continue 'extend;
-                } else if let Some(_) = self.eat_if(assign_op) {
-                    let rhs = self.parse_expr();
+                } else if let Some((_, op)) = self.eat_if(assign_op) {
+                    let rhs = self.parse_required_expr(op);
                     let span = self.spans[base].to(self.spans[rhs]);
                     base = self.add(ExprData::OpEq(base, binary_op, rhs), span);
                     continue 'extend;
@@ -154,7 +189,7 @@ impl CodeParser<'_, '_> {
         token_tree: TokenTree,
         op: impl FnOnce(&mut CodeParser<'_, '_>) -> R,
     ) -> R {
-        let mut tokens = Tokens::new(self.db, token_tree);
+        let tokens = Tokens::new(self.db, token_tree);
         let mut parser = Parser::new(self.db, tokens, &mut self.parser.errors);
         let mut sub_parser = CodeParser {
             parser: &mut parser,
@@ -162,5 +197,15 @@ impl CodeParser<'_, '_> {
             spans: &mut self.spans,
         };
         stacker::maybe_grow(32 * 1024, 1024 * 1024, || op(&mut sub_parser))
+    }
+}
+
+trait OrDummyExpr {
+    fn or_dummy_expr(self, parser: &mut CodeParser<'_, '_>) -> Expr;
+}
+
+impl OrDummyExpr for Option<Expr> {
+    fn or_dummy_expr(self, parser: &mut CodeParser<'_, '_>) -> Expr {
+        self.unwrap_or_else(|| parser.add(ExprData::Error, parser.tokens.peek_span()))
     }
 }
