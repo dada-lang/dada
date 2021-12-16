@@ -116,6 +116,12 @@ impl<'me> Parser<'me> {
         self.report_error(span, message)
     }
 
+    pub fn report_error_if_more_tokens(&mut self, message: impl AsRef<str>) {
+        if self.tokens.peek().is_some() {
+            self.report_error_at_current_token(message);
+        }
+    }
+
     pub fn report_error(&mut self, span: Span, message: impl AsRef<str>) {
         self.errors.push(Diagnostic {
             filename: self.filename(),

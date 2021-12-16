@@ -32,6 +32,12 @@ impl<'me> Tokens<'me> {
         self.peek()
     }
 
+    /// True if we skipped a newline after consuming
+    /// the last token.
+    pub(crate) fn skipped_newline(&self) -> bool {
+        self.skipped_newline
+    }
+
     /// Skip tokens that the parser doesn't want to see,
     /// such as whitespace.
     fn skip_tokens(&mut self) {

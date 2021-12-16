@@ -53,29 +53,15 @@ impl<'db> std::ops::DerefMut for CodeParser<'_, 'db> {
 impl CodeParser<'_, '_> {
     /// Parses a series of expressions; expects to consume all available tokens (and errors if there are extra).
     pub(crate) fn parse_only_block_contents(&mut self) -> Block {
-        let mut exprs = vec![];
-        while self.tokens.peek().is_some() {
-            if let Some(expr) = self.parse_expr() {
-                exprs.push(expr);
-            } else {
-                self.report_error_at_current_token("expected expression");
-                self.tokens.consume();
-            }
-        }
+        let exprs = self.parse_list(None, CodeParser::parse_expr);
+        self.report_error_if_more_tokens("extra tokens after end of expression");
         self.tables.add(BlockData { exprs })
     }
 
     /// Parses a series of named expressions (`id: expr`); expects to consume all available tokens (and errors if there are extra).
     pub(crate) fn parse_only_named_exprs(&mut self) -> Vec<NamedExpr> {
-        let mut exprs = vec![];
-        while self.tokens.peek().is_some() {
-            if let Some(expr) = self.parse_named_expr() {
-                exprs.push(expr);
-            } else {
-                self.report_error_at_current_token("expected expression");
-                self.tokens.consume();
-            }
-        }
+        let exprs = self.parse_list(Some(Op::Comma), CodeParser::parse_named_expr);
+        self.report_error_if_more_tokens("extra tokens after end of arguments");
         exprs
     }
 
@@ -277,6 +263,34 @@ impl CodeParser<'_, '_> {
             spans: &mut self.spans,
         };
         stacker::maybe_grow(32 * 1024, 1024 * 1024, || op(&mut sub_parser))
+    }
+
+    /// Parses a list of items. The items must be separated by either the given separator `sep` (if any)
+    /// or a newline. Trailing separators are ok. For example, given given `sep = Op::Comma`, any of the following are accepted:
+    ///
+    /// * `foo, bar`
+    /// * `foo, bar,`
+    /// * `foo \n bar`
+    /// * `foo, \n bar`
+    /// * `foo, \n bar,`
+    ///
+    /// The following is not accepted:
+    ///
+    /// * `foo bar`
+    fn parse_list<T>(
+        &mut self,
+        sep: Option<Op>,
+        mut parse_item: impl FnMut(&mut Self) -> Option<T>,
+    ) -> Vec<T> {
+        let mut v = vec![];
+        while let Some(i) = parse_item(self) {
+            v.push(i);
+
+            if sep.and_then(|sep| self.eat_op(sep)).is_none() && !self.tokens.skipped_newline() {
+                break;
+            }
+        }
+        v
     }
 }
 

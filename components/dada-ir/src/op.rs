@@ -50,12 +50,14 @@ define_operators! {
     Times => "*",
     DividedBy => "/",
     Colon => ":",
+    SemiColon => ";",
     Equal => "=",
     LessThan => "<",
     GreaterThan => ">",
     LeftAngle => "<",
     RightAngle => ">",
     Dot => ".",
+    Comma => ",",
 }
 
 #[derive(Debug, PartialEq, Eq)]
@@ -68,7 +70,7 @@ impl Op {
     /// Operators that can be adjacent to other operators. e.g. we can have `<<`
     /// and parse that as two left angle brackets. Note that we *cannot* parse
     /// that as two "less than" operators.
-    pub const ACCEPT_ADJACENT: &'static [Op] = &[Op::LeftAngle, Op::RightAngle];
+    pub const ACCEPT_ADJACENT: &'static [Op] = &[Op::LeftAngle, Op::RightAngle, Op::Comma];
 }
 
 /// Returns a table mapping binary operators like `+` to their `+=` form.
