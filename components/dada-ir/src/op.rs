@@ -51,6 +51,8 @@ define_operators! {
     DividedBy => "/",
     Colon => ":",
     Equal => "=",
+    LessThan => "<",
+    GreaterThan => ">",
     LeftAngle => "<",
     RightAngle => ">",
     Dot => ".",
@@ -60,6 +62,13 @@ define_operators! {
 pub struct BinaryOp {
     pub binary_op: Op,
     pub assign_op: Op,
+}
+
+impl Op {
+    /// Operators that can be adjacent to other operators. e.g. we can have `<<`
+    /// and parse that as two left angle brackets. Note that we *cannot* parse
+    /// that as two "less than" operators.
+    pub const ACCEPT_ADJACENT: &'static [Op] = &[Op::LeftAngle, Op::RightAngle];
 }
 
 /// Returns a table mapping binary operators like `+` to their `+=` form.

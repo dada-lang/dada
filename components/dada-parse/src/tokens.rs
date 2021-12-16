@@ -1,8 +1,8 @@
-use dada_ir::{span::Span, token::Token, token_tree::TokenTree, word::Word};
+use dada_ir::{span::Span, token::Token, token_tree::TokenTree};
 
+#[derive(Copy, Clone)]
 pub(crate) struct Tokens<'me> {
     db: &'me dyn crate::Db,
-    filename: Word,
 
     /// Span of last token consumed.
     last_span: Span,
@@ -13,21 +13,14 @@ pub(crate) struct Tokens<'me> {
 impl<'me> Tokens<'me> {
     pub fn new(db: &'me dyn crate::Db, token_tree: TokenTree) -> Self {
         let tokens = token_tree.tokens(db);
-        let filename = token_tree.filename(db);
         let mut this = Tokens {
             db,
             last_span: Span::start(),
-            filename,
             tokens,
             skipped_newline: false,
         };
         this.skip_tokens();
         this
-    }
-
-    /// Returns the filename that these tokens are from
-    pub fn filename(&self) -> Word {
-        self.filename
     }
 
     fn next_token(&mut self) -> Option<Token> {
@@ -54,14 +47,13 @@ impl<'me> Tokens<'me> {
     }
 
     /// Advance by one token and return the span + token just consumed (if any).
-    pub fn consume(&mut self) -> Option<(Span, Token)> {
+    pub fn consume(&mut self) -> Option<Token> {
         let token = self.next_token()?;
-        let span = self.last_span;
         self.skipped_newline = false;
 
         self.skip_tokens();
 
-        Some((span, token))
+        Some(token)
     }
 
     /// Span of the previously consumed token (or `Span::start` otherwise).
@@ -84,11 +76,5 @@ impl<'me> Tokens<'me> {
     /// Next pending token, if any.
     pub fn peek(&self) -> Option<Token> {
         self.tokens.get(0).copied()
-    }
-
-    /// Peek ahead by n tokens; n == 0 is equivalent to `peek`.
-    /// Use carefully as this exposes whitespace!
-    pub fn peek_n(&self, n: usize) -> Option<Token> {
-        self.tokens.get(n).copied()
     }
 }

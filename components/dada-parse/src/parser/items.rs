@@ -18,7 +18,8 @@ impl<'db> Parser<'db> {
             if let Some(item) = self.parse_item() {
                 items.push(item);
             } else {
-                let (span, _) = self.tokens.consume().unwrap();
+                let span = self.tokens.last_span();
+                self.tokens.consume();
                 self.errors.push(Diagnostic {
                     filename: self.filename(),
                     span,

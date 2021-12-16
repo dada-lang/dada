@@ -1,13 +1,14 @@
 use crate::{token_test::*, tokens::Tokens};
 
 use dada_ir::{
-    diagnostic::Diagnostic, span::Span, token::Token, token_tree::TokenTree, word::Word,
+    diagnostic::Diagnostic, op::Op, span::Span, token::Token, token_tree::TokenTree, word::Word,
 };
 
 mod code;
 mod items;
 pub(crate) struct Parser<'me> {
     db: &'me dyn crate::Db,
+    filename: Word,
     tokens: Tokens<'me>,
     errors: &'me mut Vec<Diagnostic>,
 }
@@ -15,16 +16,23 @@ pub(crate) struct Parser<'me> {
 impl<'me> Parser<'me> {
     pub(crate) fn new(
         db: &'me dyn crate::Db,
-        tokens: Tokens<'me>,
+        token_tree: TokenTree,
         errors: &'me mut Vec<Diagnostic>,
     ) -> Self {
-        Self { db, tokens, errors }
+        let tokens = Tokens::new(db, token_tree);
+        let filename = token_tree.filename(db);
+        Self {
+            db,
+            tokens,
+            filename,
+            errors,
+        }
     }
 
     /// Returns Some if the next pending token matches `is`, along
     /// with the narrowed view of the next token.
     fn peek_if<TT: TokenTest>(&mut self, is: TT) -> Option<TT::Narrow> {
-        is.test(self.db, &mut self.tokens)
+        is.test(self.db, self.tokens.peek()?)
     }
 
     /// If the next pending token matches `is`, consumes it and
@@ -36,6 +44,42 @@ impl<'me> Parser<'me> {
         self.tokens.consume();
         let end_span = self.tokens.last_span();
         Some((start_span.to(end_span), narrow))
+    }
+
+    /// Peek ahead to see if `op` matches the next set of tokens;
+    /// if so, return the span and the tokens after skipping the operator.
+    fn test_op(&self, op: Op) -> Option<(Span, Tokens<'me>)> {
+        let mut tokens = self.tokens;
+        let span0 = tokens.last_span();
+
+        for ch in op.str().chars() {
+            match tokens.consume() {
+                Some(Token::Op(ch1)) if ch == ch1 => continue,
+                _ => return None,
+            }
+        }
+
+        let span = span0.to(tokens.last_span());
+
+        // Careful: for most operators, if we are looking for `+`
+        // and we see `++` or `+-` or something like that,
+        // we don't want that to match!
+        if Op::ACCEPT_ADJACENT.contains(&op) {
+            Some((span, tokens))
+        } else {
+            match tokens.consume() {
+                Some(Token::Op(_)) => None,
+                _ => Some((span, tokens)),
+            }
+        }
+    }
+
+    /// If the next tokens match the given operator, consume it and
+    /// return.
+    fn eat_op(&mut self, op: Op) -> Option<Span> {
+        let (span, tokens) = self.test_op(op)?;
+        self.tokens = tokens;
+        Some(span)
     }
 
     /// If the next token is an opening delimiter, like `(` or `{`,
@@ -58,7 +102,7 @@ impl<'me> Parser<'me> {
     }
 
     pub fn filename(&self) -> Word {
-        self.tokens.filename()
+        self.filename
     }
 
     /// Returns the span that starts at `span` and ends with the

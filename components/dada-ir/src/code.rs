@@ -60,7 +60,12 @@ pub enum ExprData {
     Share(Expr),
     Give(Expr),
     Var(StorageMode, Word, Expr),
+
+    Parenthesized(Expr),
+
     If(Expr, Expr, Option<Expr>),
+    Loop(Expr),
+    While(Expr, Expr),
 
     // { ... } ==> closure?
     Block(Block),
