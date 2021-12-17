@@ -81,10 +81,11 @@ impl CodeParser<'_, '_> {
 
     fn add<D, K>(&mut self, data: D, span: K::Span) -> K
     where
-        D: std::hash::Hash + Eq,
+        D: std::hash::Hash + Eq + std::fmt::Debug,
         Tables: InternValue<D, Key = K>,
         K: PushSpan + AsId,
     {
+        eprintln!("add {data:?}");
         let key = self.tables.add(data);
         key.push_span(&mut self.spans, span);
         key
@@ -173,6 +174,18 @@ impl CodeParser<'_, '_> {
             if let Some((id_span, id)) = self.eat_if(Identifier) {
                 let span = self.spans[expr].to(id_span);
                 return Some(self.add(ExprData::Dot(expr, id), span));
+            } else if let Some((kw_span, _)) = self.eat_if(Keyword::Async) {
+                let span = self.spans[expr].to(kw_span);
+                return Some(self.add(ExprData::Await(expr), span));
+            } else if let Some((kw_span, _)) = self.eat_if(Keyword::Share) {
+                let span = self.spans[expr].to(kw_span);
+                return Some(self.add(ExprData::Share(expr), span));
+            } else if let Some((kw_span, _)) = self.eat_if(Keyword::Give) {
+                let span = self.spans[expr].to(kw_span);
+                return Some(self.add(ExprData::Give(expr), span));
+            } else if let Some((kw_span, _)) = self.eat_if(Keyword::Lease) {
+                let span = self.spans[expr].to(kw_span);
+                return Some(self.add(ExprData::Lease(expr), span));
             } else {
                 self.parser
                     .report_error_at_current_token("expected identifier after `.`");

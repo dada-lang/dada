@@ -52,7 +52,19 @@ impl<'me> Parser<'me> {
         let mut tokens = self.tokens;
         let span0 = tokens.last_span();
 
-        for ch in op.str().chars() {
+        let mut chars = op.str().chars();
+
+        let ch0 = chars.next().unwrap();
+        match tokens.consume() {
+            Some(Token::Op(ch1)) if ch0 == ch1 => (),
+            _ => return None,
+        }
+
+        for ch in chars {
+            if tokens.skipped_any() {
+                return None;
+            }
+
             match tokens.consume() {
                 Some(Token::Op(ch1)) if ch == ch1 => continue,
                 _ => return None,
@@ -64,14 +76,25 @@ impl<'me> Parser<'me> {
         // Careful: for most operators, if we are looking for `+`
         // and we see `++` or `+-` or something like that,
         // we don't want that to match!
-        if Op::ACCEPT_ADJACENT.contains(&op) {
-            Some((span, tokens))
-        } else {
-            match tokens.consume() {
-                Some(Token::Op(_)) => None,
-                _ => Some((span, tokens)),
-            }
+
+        // If we skipped whitespace, then the token was on its own.
+        if tokens.skipped_any() {
+            return Some((span, tokens));
         }
+
+        // For some operators, it doesn't matter if they are adjacent
+        // to other operators.
+        if Op::ACCEPT_ADJACENT.contains(&op) {
+            return Some((span, tokens));
+        }
+
+        // For the rest, check if the next token is an operator...
+        if let Some(Token::Op(_)) = tokens.peek() {
+            return None;
+        }
+
+        // ...if not, we've got a match!
+        return Some((span, tokens));
     }
 
     /// If the next tokens match the given operator, consume it and

@@ -58,6 +58,7 @@ pub enum ExprData {
     Await(Expr),
     Call(Expr, Vec<NamedExpr>),
     Share(Expr),
+    Lease(Expr),
     Give(Expr),
     Var(StorageMode, Word, Expr),
 
@@ -87,8 +88,8 @@ impl PushSpan for Expr {
     type Span = Span;
 
     fn push_span(self, spans: &mut Spans, span: Span) {
-        spans.expr_spans.push(span);
         assert_eq!(Expr::from(spans.expr_spans.len()), self);
+        spans.expr_spans.push(span);
     }
 }
 
@@ -115,8 +116,8 @@ impl PushSpan for NamedExpr {
     type Span = NamedExprSpan;
 
     fn push_span(self, spans: &mut Spans, span: NamedExprSpan) {
-        spans.named_expr_spans.push(span);
         assert_eq!(NamedExpr::from(spans.named_expr_spans.len()), self);
+        spans.named_expr_spans.push(span);
     }
 }
 
@@ -137,7 +138,7 @@ impl PushSpan for Block {
     type Span = Span;
 
     fn push_span(self, spans: &mut Spans, span: Span) {
-        spans.block_spans.push(span);
         assert_eq!(Block::from(spans.block_spans.len()), self);
+        spans.block_spans.push(span);
     }
 }

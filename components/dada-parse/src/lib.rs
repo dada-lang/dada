@@ -16,3 +16,4 @@ impl<T> Db for T where T: salsa::DbWithJar<Jar> + dada_lex::Db + dada_ir::Db {}
 
 pub use code_parser::parse_code;
 pub use file_parser::parse_file;
+pub mod prelude;

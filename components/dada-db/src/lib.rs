@@ -1,4 +1,5 @@
 use dada_ir::{diagnostic::Diagnostic, item::Item, word::Word};
+use dada_parse::prelude::*;
 
 #[salsa::db(dada_ir::Jar, dada_lex::Jar, dada_manifest::Jar, dada_parse::Jar)]
 #[derive(Default)]
@@ -26,8 +27,22 @@ impl Db {
     }
 
     pub fn diagnostics(&self, filename: Word) -> Vec<Diagnostic> {
-        let (_, errors) = dada_parse::parse_file(self, filename);
-        errors.clone()
+        let mut all_errors = vec![];
+
+        let (items, errors) = dada_parse::parse_file(self, filename);
+        all_errors.extend(errors.iter().cloned());
+
+        for &item in items {
+            match item {
+                Item::Function(function) => {
+                    let (_, errors) = function.parse_ast(self);
+                    all_errors.extend(errors.iter().cloned());
+                }
+                Item::Class(_class) => {}
+            }
+        }
+
+        all_errors
     }
 
     pub fn items(&self, filename: Word) -> Vec<Item> {

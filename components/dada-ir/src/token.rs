@@ -19,6 +19,13 @@ pub enum Token {
     /// the closing delimiter are read into a Tree.
     Tree(token_tree::TokenTree),
 
+    /// A alphabetic word that is "nuzzled" right up to a char/string
+    /// literal, e.g. the `r` in `r"foo"`.
+    Prefix(Word),
+
+    /// A string literal like `"foo"`
+    String(Word),
+
     /// Some whitespace (` `, `\n`, etc)
     Whitespace(char),
 
@@ -30,9 +37,10 @@ impl Token {
     pub fn span_len(self, db: &dyn Db) -> u32 {
         match self {
             Token::Tree(tree) => tree.span(db).len(),
-            Token::Alphabetic(word) | Token::Number(word) => {
-                word.as_str(db).len().try_into().unwrap()
-            }
+            Token::Alphabetic(word)
+            | Token::Number(word)
+            | Token::Prefix(word)
+            | Token::String(word) => word.as_str(db).len().try_into().unwrap(),
             Token::Delimiter(ch) | Token::Op(ch) | Token::Whitespace(ch) | Token::Unknown(ch) => {
                 ch.len_utf8().try_into().unwrap()
             }

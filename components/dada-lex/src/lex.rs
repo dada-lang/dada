@@ -52,7 +52,19 @@ fn lex_tokens(
                     chars,
                     |c| matches!(c, 'a'..='z' | 'A'..='Z' | '_' | '0'..='9'),
                 );
-                tokens.push(Token::Alphabetic(text));
+
+                // Check what comes next to decide if this is
+                // a "prefix" like `r'foo"` or an identifier `r`.
+                let is_prefix = chars
+                    .peek()
+                    .map(|&(_, ch)| matches!(ch, '"' | '\''))
+                    .unwrap_or(false);
+
+                if is_prefix {
+                    tokens.push(Token::Prefix(text));
+                } else {
+                    tokens.push(Token::Alphabetic(text));
+                }
             }
             '0'..='9' => {
                 let text = accumulate(db, ch, chars, |c| matches!(c, '0'..='9' | '_'));
@@ -61,6 +73,7 @@ fn lex_tokens(
             op!() => {
                 tokens.push(Token::Op(ch));
             }
+            '"' => {}
             _ => {
                 if !ch.is_whitespace() {
                     tokens.push(Token::Unknown(ch));

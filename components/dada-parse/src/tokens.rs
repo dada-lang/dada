@@ -6,8 +6,15 @@ pub(crate) struct Tokens<'me> {
 
     /// Span of last token consumed.
     last_span: Span,
-    skipped_newline: bool,
+    skipped: Skipped,
     tokens: &'me [Token],
+}
+
+#[derive(Copy, Clone, PartialEq, Eq, PartialOrd, Ord, Debug)]
+enum Skipped {
+    None,
+    Any,
+    Newline,
 }
 
 impl<'me> Tokens<'me> {
@@ -17,7 +24,7 @@ impl<'me> Tokens<'me> {
             db,
             last_span: Span::start(),
             tokens,
-            skipped_newline: false,
+            skipped: Skipped::None,
         };
         this.skip_tokens();
         this
@@ -28,23 +35,31 @@ impl<'me> Tokens<'me> {
             return None;
         }
         self.last_span = self.peek_span();
+        let result = self.peek();
         self.tokens = &self.tokens[1..];
-        self.peek()
+        result
     }
 
     /// True if we skipped a newline after consuming
     /// the last token.
     pub(crate) fn skipped_newline(&self) -> bool {
-        self.skipped_newline
+        self.skipped >= Skipped::Newline
+    }
+
+    /// True if we skipped whitespace after consuming
+    /// the last token.
+    pub(crate) fn skipped_any(&self) -> bool {
+        self.skipped >= Skipped::Any
     }
 
     /// Skip tokens that the parser doesn't want to see,
     /// such as whitespace.
     fn skip_tokens(&mut self) {
+        self.skipped = Skipped::None;
         while let Some(t) = self.peek() {
             match t {
-                Token::Whitespace('\n') => self.skipped_newline = true,
-                Token::Whitespace(_) => (),
+                Token::Whitespace('\n') => self.skipped = self.skipped.max(Skipped::Newline),
+                Token::Whitespace(_) => self.skipped = self.skipped.max(Skipped::Any),
                 _ => return,
             }
 
@@ -55,7 +70,6 @@ impl<'me> Tokens<'me> {
     /// Advance by one token and return the span + token just consumed (if any).
     pub fn consume(&mut self) -> Option<Token> {
         let token = self.next_token()?;
-        self.skipped_newline = false;
 
         self.skip_tokens();
 
