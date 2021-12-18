@@ -147,7 +147,7 @@ The reason this works is that the string `s` to be printed is computed inside th
 
 ## Interference between threads
 
-The fact that we can't read shared, atomic fields outside of an atomic block is telling us something interesting. For a moment, imagine that we had shared `c1` with other threads: since is a shared value, that is something we would be alloweed to do. 
+The fact that we can't read shared, atomic fields outside of an atomic block is telling us something interesting. For a moment, imagine that we had shared `c1` with other threads: since it is a shared value, that is something we would be alloweed to do. 
 
 ```
 class Counter(atomic value)

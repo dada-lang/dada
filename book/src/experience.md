@@ -8,7 +8,7 @@ Dada is meant to a language that experts want to use. It should be easy to learn
 
 ## Does the right thing, not everything
 
-Dada doesn't attempt to do *everything*. It's not really meant to run on a tiny sensor node, for example, and nobody is going to to put it in a kernel antime soon. But it aims to expose the *right things* that most people building complex software really need. In other words, you can't always do what you want, but if you try sometimes, with Dada, you can do what you need.
+Dada doesn't attempt to do *everything*. It's not really meant to run on a tiny sensor node, for example, and nobody is going to to put it in a kernel anytime soon. But it aims to expose the *right things* that most people building complex software really need. In other words, you can't always do what you want, but if you try sometimes, with Dada, you can do what you need.
 
 ## Opinionated (in a good way) 
 
