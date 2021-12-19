@@ -10,22 +10,16 @@ pub(crate) struct Parser<'me> {
     db: &'me dyn crate::Db,
     filename: Word,
     tokens: Tokens<'me>,
-    errors: &'me mut Vec<Diagnostic>,
 }
 
 impl<'me> Parser<'me> {
-    pub(crate) fn new(
-        db: &'me dyn crate::Db,
-        token_tree: TokenTree,
-        errors: &'me mut Vec<Diagnostic>,
-    ) -> Self {
+    pub(crate) fn new(db: &'me dyn crate::Db, token_tree: TokenTree) -> Self {
         let tokens = Tokens::new(db, token_tree);
         let filename = token_tree.filename(db);
         Self {
             db,
             tokens,
             filename,
-            errors,
         }
     }
 
@@ -146,11 +140,14 @@ impl<'me> Parser<'me> {
     }
 
     pub fn report_error(&mut self, span: Span, message: impl AsRef<str>) {
-        self.errors.push(Diagnostic {
-            filename: self.filename(),
-            span,
-            message: message.as_ref().to_string(),
-        });
+        dada_ir::diagnostic::Diagnostics::push(
+            self.db,
+            Diagnostic {
+                filename: self.filename(),
+                span,
+                message: message.as_ref().to_string(),
+            },
+        );
     }
 }
 

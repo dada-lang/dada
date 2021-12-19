@@ -6,3 +6,6 @@ pub struct Diagnostic {
     pub span: Span,
     pub message: String,
 }
+
+#[salsa::accumulator(in crate::Jar)]
+pub struct Diagnostics(Diagnostic);

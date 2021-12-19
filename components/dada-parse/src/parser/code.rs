@@ -269,7 +269,7 @@ impl CodeParser<'_, '_> {
         token_tree: TokenTree,
         op: impl FnOnce(&mut CodeParser<'_, '_>) -> R,
     ) -> R {
-        let mut parser = Parser::new(self.db, token_tree, &mut self.parser.errors);
+        let mut parser = Parser::new(self.db, token_tree);
         let mut sub_parser = CodeParser {
             parser: &mut parser,
             tables: &mut self.tables,

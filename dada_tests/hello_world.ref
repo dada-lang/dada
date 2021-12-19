@@ -1,1 +1,62 @@
-[]
+[
+    Diagnostic {
+        range: Range {
+            start: Position {
+                line: 1,
+                character: 11,
+            },
+            end: Position {
+                line: 1,
+                character: 16,
+            },
+        },
+        severity: Some(
+            Error,
+        ),
+        code: None,
+        source: None,
+        message: "expected name for argument",
+        related_information: None,
+        tags: None,
+    },
+    Diagnostic {
+        range: Range {
+            start: Position {
+                line: 1,
+                character: 11,
+            },
+            end: Position {
+                line: 1,
+                character: 16,
+            },
+        },
+        severity: Some(
+            Error,
+        ),
+        code: None,
+        source: None,
+        message: "extra tokens after end of arguments",
+        related_information: None,
+        tags: None,
+    },
+    Diagnostic {
+        range: Range {
+            start: Position {
+                line: 2,
+                character: 22,
+            },
+            end: Position {
+                line: 2,
+                character: 23,
+            },
+        },
+        severity: Some(
+            Error,
+        ),
+        code: None,
+        source: None,
+        message: "extra tokens after end of expression",
+        related_information: None,
+        tags: None,
+    },
+]

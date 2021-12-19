@@ -190,6 +190,17 @@ dependencies = [
 ]
 
 [[package]]
+name = "dada-check"
+version = "0.1.0"
+dependencies = [
+ "dada-ir",
+ "dada-lex",
+ "dada-manifest",
+ "dada-parse",
+ "salsa",
+]
+
+[[package]]
 name = "dada-collections"
 version = "0.1.0"
 dependencies = [
@@ -202,6 +213,7 @@ dependencies = [
 name = "dada-db"
 version = "0.1.0"
 dependencies = [
+ "dada-check",
  "dada-ir",
  "dada-lex",
  "dada-manifest",
@@ -646,7 +658,7 @@ dependencies = [
 [[package]]
 name = "salsa-entity-macros"
 version = "0.1.0"
-source = "git+https://github.com/nikomatsakis/salsa/?branch=entity#7a325456d1eb02a67233d0dcb437d7cbe0b39037"
+source = "git+https://github.com/nikomatsakis/salsa/?branch=entity#7f8bf27ca4659f5b92f13ffea3bc848268661a1a"
 dependencies = [
  "eyre",
  "heck",
@@ -658,7 +670,7 @@ dependencies = [
 [[package]]
 name = "salsa-entity-mock"
 version = "0.1.0"
-source = "git+https://github.com/nikomatsakis/salsa/?branch=entity#7a325456d1eb02a67233d0dcb437d7cbe0b39037"
+source = "git+https://github.com/nikomatsakis/salsa/?branch=entity#7f8bf27ca4659f5b92f13ffea3bc848268661a1a"
 dependencies = [
  "arc-swap",
  "crossbeam",
@@ -690,18 +702,18 @@ checksum = "d29ab0c6d3fc0ee92fe66e2d99f700eab17a8d57d1c1d3b748380fb20baa78cd"
 
 [[package]]
 name = "serde"
-version = "1.0.131"
+version = "1.0.132"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "b4ad69dfbd3e45369132cc64e6748c2d65cdfb001a2b1c232d128b4ad60561c1"
+checksum = "8b9875c23cf305cd1fd7eb77234cbb705f21ea6a72c637a5c6db5fe4b8e7f008"
 dependencies = [
  "serde_derive",
 ]
 
 [[package]]
 name = "serde_derive"
-version = "1.0.131"
+version = "1.0.132"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "b710a83c4e0dff6a3d511946b95274ad9ca9e5d3ae497b63fda866ac955358d2"
+checksum = "ecc0db5cb2556c0e558887d9bbdcf6ac4471e83ff66cf696e5419024d1606276"
 dependencies = [
  "proc-macro2",
  "quote",

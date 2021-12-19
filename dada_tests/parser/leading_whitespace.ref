@@ -1,1 +1,102 @@
-[]
+[
+    Diagnostic {
+        range: Range {
+            start: Position {
+                line: 3,
+                character: 6,
+            },
+            end: Position {
+                line: 3,
+                character: 7,
+            },
+        },
+        severity: Some(
+            Error,
+        ),
+        code: None,
+        source: None,
+        message: "expected `:` after argument name",
+        related_information: None,
+        tags: None,
+    },
+    Diagnostic {
+        range: Range {
+            start: Position {
+                line: 3,
+                character: 6,
+            },
+            end: Position {
+                line: 3,
+                character: 7,
+            },
+        },
+        severity: Some(
+            Error,
+        ),
+        code: None,
+        source: None,
+        message: "expected expression",
+        related_information: None,
+        tags: None,
+    },
+    Diagnostic {
+        range: Range {
+            start: Position {
+                line: 3,
+                character: 8,
+            },
+            end: Position {
+                line: 3,
+                character: 13,
+            },
+        },
+        severity: Some(
+            Error,
+        ),
+        code: None,
+        source: None,
+        message: "expected name for argument",
+        related_information: None,
+        tags: None,
+    },
+    Diagnostic {
+        range: Range {
+            start: Position {
+                line: 3,
+                character: 8,
+            },
+            end: Position {
+                line: 3,
+                character: 13,
+            },
+        },
+        severity: Some(
+            Error,
+        ),
+        code: None,
+        source: None,
+        message: "extra tokens after end of arguments",
+        related_information: None,
+        tags: None,
+    },
+    Diagnostic {
+        range: Range {
+            start: Position {
+                line: 4,
+                character: 19,
+            },
+            end: Position {
+                line: 4,
+                character: 20,
+            },
+        },
+        severity: Some(
+            Error,
+        ),
+        code: None,
+        source: None,
+        message: "extra tokens after end of expression",
+        related_information: None,
+        tags: None,
+    },
+]

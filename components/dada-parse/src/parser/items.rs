@@ -20,11 +20,14 @@ impl<'db> Parser<'db> {
             } else {
                 let span = self.tokens.last_span();
                 self.tokens.consume();
-                self.errors.push(Diagnostic {
-                    filename: self.filename(),
-                    span,
-                    message: format!("unexpected token"),
-                });
+                dada_ir::diagnostic::Diagnostics::push(
+                    self.db,
+                    Diagnostic {
+                        filename: self.filename(),
+                        span,
+                        message: format!("unexpected token"),
+                    },
+                );
             }
         }
         items

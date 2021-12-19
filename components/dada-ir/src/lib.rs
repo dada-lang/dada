@@ -17,6 +17,7 @@ pub struct Jar(
     code::Code,
     class::Class,
     class::Field,
+    diagnostic::Diagnostics,
     func::Function,
     func::Variable,
     kw::keywords,
