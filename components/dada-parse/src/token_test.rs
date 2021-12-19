@@ -1,4 +1,6 @@
-use dada_ir::{kw::Keyword, token::Token, token_tree::TokenTree, word::Word};
+use dada_ir::{
+    format_string::FormatString, kw::Keyword, token::Token, token_tree::TokenTree, word::Word,
+};
 
 /// Represents some kind of "condition test" that can be applied to a single token
 /// (e.g., is an identifier or is a keyword).
@@ -50,6 +52,30 @@ impl TokenTest for Identifier {
             None
         } else {
             Some(word)
+        }
+    }
+}
+
+pub(crate) struct StringLiteral;
+impl TokenTest for StringLiteral {
+    type Narrow = Word;
+
+    fn test(self, _db: &dyn crate::Db, token: Token) -> Option<Word> {
+        match token {
+            Token::StringLiteral(word) => Some(word),
+            _ => None,
+        }
+    }
+}
+
+pub(crate) struct FormatStringLiteral;
+impl TokenTest for FormatStringLiteral {
+    type Narrow = FormatString;
+
+    fn test(self, _db: &dyn crate::Db, token: Token) -> Option<FormatString> {
+        match token {
+            Token::FormatString(fs) => Some(fs),
+            _ => None,
         }
     }
 }

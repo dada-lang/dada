@@ -1,4 +1,7 @@
-use crate::{parser::Parser, token_test::Identifier};
+use crate::{
+    parser::Parser,
+    token_test::{Identifier, StringLiteral},
+};
 
 use dada_id::InternValue;
 use dada_ir::{
@@ -206,6 +209,8 @@ impl CodeParser<'_, '_> {
     pub(crate) fn parse_expr_0(&mut self) -> Option<Expr> {
         if let Some((id_span, id)) = self.eat_if(Identifier) {
             Some(self.add(ExprData::Id(id), id_span))
+        } else if let Some((span, text)) = self.eat_if(StringLiteral) {
+            Some(self.add(ExprData::StringLiteral(text), span))
         } else if let Some(expr) = self.parse_block_expr() {
             // { ... }
             Some(expr)

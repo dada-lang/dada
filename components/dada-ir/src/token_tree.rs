@@ -9,6 +9,10 @@ salsa::entity2! {
 }
 
 impl TokenTree {
+    pub fn len(self, db: &dyn crate::Db) -> u32 {
+        self.span(db).len()
+    }
+
     pub fn spanned_tokens(self, db: &dyn crate::Db) -> impl Iterator<Item = (Span, Token)> + '_ {
         let mut start = self.span(db).start;
         self.tokens(db).iter().map(move |token| {

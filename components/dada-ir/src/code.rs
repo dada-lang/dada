@@ -54,6 +54,7 @@ id!(pub struct Expr);
 #[derive(PartialEq, Eq, PartialOrd, Ord, Clone, Hash, Debug)]
 pub enum ExprData {
     Id(Word),
+    StringLiteral(Word),
     Dot(Expr, Word),
     Await(Expr),
     Call(Expr, Vec<NamedExpr>),

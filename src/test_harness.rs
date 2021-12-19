@@ -69,6 +69,8 @@ impl Options {
     }
 
     fn test_dada_file(&self, path: &Path) -> eyre::Result<()> {
+        eprintln!("test_data_file({})", path.display());
+
         let mut c = lsp_client::ChildSession::spawn();
         c.send_init()?;
         c.send_open(path)?;

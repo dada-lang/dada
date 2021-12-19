@@ -1,6 +1,7 @@
 pub mod class;
 pub mod code;
 pub mod diagnostic;
+pub mod format_string;
 pub mod func;
 pub mod item;
 pub mod kw;
@@ -18,6 +19,8 @@ pub struct Jar(
     class::Class,
     class::Field,
     diagnostic::Diagnostics,
+    format_string::FormatString,
+    format_string::FormatStringSection,
     func::Function,
     func::Variable,
     kw::keywords,

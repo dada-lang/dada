@@ -17,6 +17,10 @@ impl Word {
     pub fn as_str<DB: ?Sized + Db>(self, db: &DB) -> &str {
         &self.data(db).string
     }
+
+    pub fn len(self, db: &dyn crate::Db) -> u32 {
+        self.as_str(db).len() as u32
+    }
 }
 
 pub trait ToString {
