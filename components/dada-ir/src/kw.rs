@@ -53,6 +53,7 @@ define_keywords! {
     Atomic => "atomic",
     Fn => "fn",
     Async => "async",
+    Await => "await",
     If => "if",
     Else => "else",
     Loop => "loop",

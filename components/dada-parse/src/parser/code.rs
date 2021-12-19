@@ -94,12 +94,6 @@ impl CodeParser<'_, '_> {
         key
     }
 
-    fn parse_required_expr(&mut self, before: impl std::fmt::Display) -> Expr {
-        self.parse_expr()
-            .or_report_error(self, || format!("expected expression after {before}"))
-            .or_dummy_expr(self)
-    }
-
     /// Parses an if/while condition -- this can be any sort of expression but a block.
     pub(crate) fn parse_condition(&mut self) -> Option<Expr> {
         if self.peek(Token::Delimiter('{')).is_some() {
@@ -151,56 +145,80 @@ impl CodeParser<'_, '_> {
     }
 
     pub(crate) fn parse_expr_3(&mut self) -> Option<Expr> {
-        let expr = self.parse_expr_2()?;
+        let mut expr = self.parse_expr_2()?;
 
-        if let Some(expr1) = self.parse_binop(expr, &[Op::Plus, Op::Minus]) {
-            return Some(expr1);
+        loop {
+            if let Some(expr1) = self.parse_binop(expr, &[Op::Plus, Op::Minus], Self::parse_expr_2)
+            {
+                expr = expr1;
+                continue;
+            }
+
+            break;
         }
 
         Some(expr)
     }
 
     pub(crate) fn parse_expr_2(&mut self) -> Option<Expr> {
-        let expr = self.parse_expr_1()?;
+        let mut expr = self.parse_expr_1()?;
 
-        if let Some(expr1) = self.parse_binop(expr, &[Op::DividedBy, Op::Times]) {
-            return Some(expr1);
+        loop {
+            if let Some(expr1) =
+                self.parse_binop(expr, &[Op::DividedBy, Op::Times], Self::parse_expr_1)
+            {
+                expr = expr1;
+                continue;
+            }
+
+            break;
         }
 
         Some(expr)
     }
 
     pub(crate) fn parse_expr_1(&mut self) -> Option<Expr> {
-        let expr = self.parse_expr_0()?;
+        let mut expr = self.parse_expr_0()?;
 
-        if let Some(_) = self.eat_op(Op::Dot) {
-            if let Some((id_span, id)) = self.eat(Identifier) {
-                let span = self.spans[expr].to(id_span);
-                return Some(self.add(ExprData::Dot(expr, id), span));
-            } else if let Some((kw_span, _)) = self.eat(Keyword::Async) {
-                let span = self.spans[expr].to(kw_span);
-                return Some(self.add(ExprData::Await(expr), span));
-            } else if let Some((kw_span, _)) = self.eat(Keyword::Share) {
-                let span = self.spans[expr].to(kw_span);
-                return Some(self.add(ExprData::Share(expr), span));
-            } else if let Some((kw_span, _)) = self.eat(Keyword::Give) {
-                let span = self.spans[expr].to(kw_span);
-                return Some(self.add(ExprData::Give(expr), span));
-            } else if let Some((kw_span, _)) = self.eat(Keyword::Lease) {
-                let span = self.spans[expr].to(kw_span);
-                return Some(self.add(ExprData::Lease(expr), span));
-            } else {
-                self.parser
-                    .report_error_at_current_token("expected identifier after `.`");
+        loop {
+            if let Some(_) = self.eat_op(Op::Dot) {
+                if let Some((id_span, id)) = self.eat(Identifier) {
+                    let span = self.spans[expr].to(id_span);
+                    expr = self.add(ExprData::Dot(expr, id), span);
+                    continue;
+                } else if let Some((kw_span, _)) = self.eat(Keyword::Await) {
+                    let span = self.spans[expr].to(kw_span);
+                    expr = self.add(ExprData::Await(expr), span);
+                    continue;
+                } else if let Some((kw_span, _)) = self.eat(Keyword::Share) {
+                    let span = self.spans[expr].to(kw_span);
+                    expr = self.add(ExprData::Share(expr), span);
+                    continue;
+                } else if let Some((kw_span, _)) = self.eat(Keyword::Give) {
+                    let span = self.spans[expr].to(kw_span);
+                    expr = self.add(ExprData::Give(expr), span);
+                    continue;
+                } else if let Some((kw_span, _)) = self.eat(Keyword::Lease) {
+                    let span = self.spans[expr].to(kw_span);
+                    expr = self.add(ExprData::Lease(expr), span);
+                    continue;
+                } else {
+                    self.parser
+                        .report_error_at_current_token("expected identifier after `.`");
+                    continue;
+                }
             }
-        }
 
-        if let Some((arg_span, token_tree)) = self.delimited('(') {
-            // `base(...)`
-            let named_exprs =
-                self.with_sub_parser(token_tree, |sub_parser| sub_parser.parse_only_named_exprs());
-            let span = self.spans[expr].to(arg_span);
-            return Some(self.add(ExprData::Call(expr, named_exprs), span));
+            if let Some((arg_span, token_tree)) = self.delimited('(') {
+                // `base(...)`
+                let named_exprs = self
+                    .with_sub_parser(token_tree, |sub_parser| sub_parser.parse_only_named_exprs());
+                let span = self.spans[expr].to(arg_span);
+                expr = self.add(ExprData::Call(expr, named_exprs), span);
+                continue;
+            }
+
+            break;
         }
 
         Some(expr)
@@ -273,10 +291,17 @@ impl CodeParser<'_, '_> {
         todo!()
     }
 
-    fn parse_binop(&mut self, base: Expr, ops: &[Op]) -> Option<Expr> {
+    fn parse_binop(
+        &mut self,
+        base: Expr,
+        ops: &[Op],
+        mut parse_rhs: impl FnMut(&mut Self) -> Option<Expr>,
+    ) -> Option<Expr> {
         for &op in ops {
             if let Some(_) = self.eat_op(op) {
-                let rhs = self.parse_required_expr(op);
+                let rhs = parse_rhs(self)
+                    .or_report_error(self, || format!("expected expression after {op}"))
+                    .or_dummy_expr(self);
                 let span = self.spans[base].to(self.spans[rhs]);
                 return Some(self.add(ExprData::Op(base, op, rhs), span));
             }
