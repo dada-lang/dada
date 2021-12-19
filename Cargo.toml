@@ -10,6 +10,7 @@ name = "harness"
 harness = false
 
 [dependencies]
+ariadne = "0.1.3"
 dada-lsp = { path = "components/dada-lsp" }
 dada-ir = { path = "components/dada-ir" }
 dada-db = { path = "components/dada-db" }

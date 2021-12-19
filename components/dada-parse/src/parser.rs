@@ -1,8 +1,6 @@
 use crate::{token_test::*, tokens::Tokens};
 
-use dada_ir::{
-    diagnostic::Diagnostic, op::Op, span::Span, token::Token, token_tree::TokenTree, word::Word,
-};
+use dada_ir::{op::Op, span::Span, token::Token, token_tree::TokenTree, word::Word};
 
 mod code;
 mod items;
@@ -118,10 +116,6 @@ impl<'me> Parser<'me> {
         Some((span, token_tree))
     }
 
-    pub fn filename(&self) -> Word {
-        self.filename
-    }
-
     /// Returns the span that starts at `span` and ends with the
     /// last consumed token.
     pub fn span_consumed_since(&self, span: Span) -> Span {
@@ -140,14 +134,7 @@ impl<'me> Parser<'me> {
     }
 
     pub fn report_error(&mut self, span: Span, message: impl AsRef<str>) {
-        dada_ir::diagnostic::Diagnostics::push(
-            self.db,
-            Diagnostic {
-                filename: self.filename(),
-                span,
-                message: message.as_ref().to_string(),
-            },
-        );
+        dada_ir::diag!(span.in_file(self.filename), "{}", message.as_ref()).emit(self.db);
     }
 }
 

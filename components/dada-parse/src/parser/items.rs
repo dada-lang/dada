@@ -3,7 +3,6 @@ use crate::{parser::Parser, token_test::Identifier};
 use dada_ir::{
     class::Class,
     code::Code,
-    diagnostic::Diagnostic,
     func::{Effect, Function},
     item::Item,
     kw::Keyword,
@@ -20,14 +19,7 @@ impl<'db> Parser<'db> {
             } else {
                 let span = self.tokens.last_span();
                 self.tokens.consume();
-                dada_ir::diagnostic::Diagnostics::push(
-                    self.db,
-                    Diagnostic {
-                        filename: self.filename(),
-                        span,
-                        message: format!("unexpected token"),
-                    },
-                );
+                dada_ir::diag!(span.in_file(self.filename), "unexpected token").emit(self.db);
             }
         }
         items

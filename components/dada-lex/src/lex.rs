@@ -1,4 +1,3 @@
-use dada_ir::diagnostic::{Diagnostic, Diagnostics};
 use dada_ir::format_string::{FormatStringData, FormatStringSection, FormatStringSectionData};
 use dada_ir::span::{Offset, Span};
 use dada_ir::token::Token;
@@ -159,17 +158,15 @@ where
                             .map(|pair| pair.0)
                             .unwrap_or(self.file_len),
                     );
-                    Diagnostics::push(
-                        self.db,
-                        Diagnostic {
-                            filename: self.filename,
-                            span: Span {
-                                start: Offset::from(ch_offset),
-                                end,
-                            },
-                            message: format!("format string missing closing brace in code section"),
-                        },
-                    );
+                    dada_ir::diag!(
+                        Span {
+                            start: Offset::from(ch_offset),
+                            end,
+                        }
+                        .in_file(self.filename),
+                        "format string missing closing brace in code section"
+                    )
+                    .emit(self.db);
                     break;
                 }
                 continue;

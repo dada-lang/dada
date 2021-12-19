@@ -75,7 +75,7 @@ impl LspServerDatabase {
 
 trait DadaLspMethods {
     fn lsp_position(&self, filename: Word, offset: Offset) -> Position;
-    fn lsp_range(&self, filename: Word, span: dada_ir::span::Span) -> Range;
+    fn lsp_range(&self, span: dada_ir::span::FullSpan) -> Range;
     fn lsp_diagnostic(&self, dada_diagnostic: dada_ir::diagnostic::Diagnostic) -> Diagnostic;
 }
 
@@ -87,19 +87,19 @@ impl DadaLspMethods for dada_db::Db {
             character: line_column.column,
         }
     }
-    fn lsp_range(&self, filename: Word, span: dada_ir::span::Span) -> Range {
+    fn lsp_range(&self, span: dada_ir::span::FullSpan) -> Range {
         Range {
-            start: self.lsp_position(filename, span.start),
-            end: self.lsp_position(filename, span.end),
+            start: self.lsp_position(span.filename, span.span.start),
+            end: self.lsp_position(span.filename, span.span.end),
         }
     }
 
     fn lsp_diagnostic(&self, dada_diagnostic: dada_ir::diagnostic::Diagnostic) -> Diagnostic {
-        let range = self.lsp_range(dada_diagnostic.filename, dada_diagnostic.span);
+        let range = self.lsp_range(dada_diagnostic.span());
         let severity = Some(DiagnosticSeverity::Error);
         let code = None;
         let source = None;
-        let message = dada_diagnostic.message;
+        let message = dada_diagnostic.message().clone();
         let related_information = None;
         let tags = None;
         Diagnostic {

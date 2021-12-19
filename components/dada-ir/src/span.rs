@@ -1,3 +1,11 @@
+use crate::word::Word;
+
+#[derive(Copy, Clone, Debug, PartialEq, Eq, Hash)]
+pub struct FullSpan {
+    pub filename: Word,
+    pub span: Span,
+}
+
 #[derive(Copy, Clone, Debug, PartialEq, Eq, Hash)]
 pub struct Span {
     pub start: Offset,
@@ -26,6 +34,13 @@ impl Span {
         };
         assert!(this.start <= this.end);
         this
+    }
+
+    pub fn in_file(self, filename: Word) -> FullSpan {
+        FullSpan {
+            filename,
+            span: self,
+        }
     }
 
     /// Returns a 0-length span at the start of this span

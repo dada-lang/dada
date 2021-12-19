@@ -3,6 +3,7 @@ use std::ffi::OsString;
 use structopt::StructOpt;
 
 mod check;
+mod format;
 mod ide;
 mod test_harness;
 
