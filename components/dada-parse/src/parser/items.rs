@@ -19,7 +19,7 @@ impl<'db> Parser<'db> {
             } else {
                 let span = self.tokens.last_span();
                 self.tokens.consume();
-                dada_ir::diag!(span.in_file(self.filename), "unexpected token").emit(self.db);
+                dada_ir::error!(span.in_file(self.filename), "unexpected token").emit(self.db);
             }
         }
         items

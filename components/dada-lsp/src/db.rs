@@ -2,8 +2,9 @@ use crossbeam_channel::Sender;
 use dada_ir::{span::Offset, word::Word};
 use lsp_server::Message;
 use lsp_types::{
-    notification::PublishDiagnostics, Diagnostic, DiagnosticSeverity, DidChangeTextDocumentParams,
-    DidOpenTextDocumentParams, Position, PublishDiagnosticsParams, Range, Url,
+    notification::PublishDiagnostics, Diagnostic, DiagnosticRelatedInformation, DiagnosticSeverity,
+    DidChangeTextDocumentParams, DidOpenTextDocumentParams, Location, Position,
+    PublishDiagnosticsParams, Range, Url,
 };
 use salsa::ParallelDatabase;
 
@@ -76,6 +77,7 @@ impl LspServerDatabase {
 trait DadaLspMethods {
     fn lsp_position(&self, filename: Word, offset: Offset) -> Position;
     fn lsp_range(&self, span: dada_ir::span::FullSpan) -> Range;
+    fn lsp_location(&self, span: dada_ir::span::FullSpan) -> Location;
     fn lsp_diagnostic(&self, dada_diagnostic: dada_ir::diagnostic::Diagnostic) -> Diagnostic;
 }
 
@@ -87,20 +89,42 @@ impl DadaLspMethods for dada_db::Db {
             character: line_column.column,
         }
     }
+
     fn lsp_range(&self, span: dada_ir::span::FullSpan) -> Range {
         Range {
-            start: self.lsp_position(span.filename, span.span.start),
-            end: self.lsp_position(span.filename, span.span.end),
+            start: self.lsp_position(span.filename, span.start),
+            end: self.lsp_position(span.filename, span.end),
+        }
+    }
+
+    fn lsp_location(&self, span: dada_ir::span::FullSpan) -> Location {
+        Location {
+            uri: Url::parse(span.filename.as_str(self)).unwrap(),
+            range: self.lsp_range(span),
         }
     }
 
     fn lsp_diagnostic(&self, dada_diagnostic: dada_ir::diagnostic::Diagnostic) -> Diagnostic {
-        let range = self.lsp_range(dada_diagnostic.span());
-        let severity = Some(DiagnosticSeverity::Error);
+        let range = self.lsp_range(dada_diagnostic.span);
+        let severity = Some(match dada_diagnostic.severity {
+            dada_ir::diagnostic::Severity::Help => DiagnosticSeverity::Hint,
+            dada_ir::diagnostic::Severity::Note => DiagnosticSeverity::Information,
+            dada_ir::diagnostic::Severity::Warning => DiagnosticSeverity::Warning,
+            dada_ir::diagnostic::Severity::Error => DiagnosticSeverity::Error,
+        });
         let code = None;
         let source = None;
-        let message = dada_diagnostic.message().clone();
-        let related_information = None;
+        let message = dada_diagnostic.message.clone();
+        let related_information = Some(
+            dada_diagnostic
+                .labels
+                .into_iter()
+                .map(|label| DiagnosticRelatedInformation {
+                    location: self.lsp_location(label.span),
+                    message: label.message,
+                })
+                .collect(),
+        );
         let tags = None;
         Diagnostic {
             range,

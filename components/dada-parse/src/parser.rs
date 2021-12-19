@@ -134,7 +134,7 @@ impl<'me> Parser<'me> {
     }
 
     pub fn report_error(&mut self, span: Span, message: impl AsRef<str>) {
-        dada_ir::diag!(span.in_file(self.filename), "{}", message.as_ref()).emit(self.db);
+        dada_ir::error!(span.in_file(self.filename), "{}", message.as_ref()).emit(self.db);
     }
 }
 

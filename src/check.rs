@@ -29,7 +29,9 @@ impl Options {
             }
         }
 
-        println!("{:#?}", all_diagnostics);
+        for diagnostic in all_diagnostics {
+            crate::format::print_diagnostic(&db, &diagnostic)?;
+        }
 
         Ok(())
     }

@@ -1,4 +1,6 @@
-use dada_ir::format_string::{FormatStringData, FormatStringSection, FormatStringSectionData};
+use dada_ir::format_string::{
+    FormatString, FormatStringData, FormatStringSection, FormatStringSectionData,
+};
 use dada_ir::span::{Offset, Span};
 use dada_ir::token::Token;
 use dada_ir::token_tree::TokenTree;
@@ -50,7 +52,7 @@ where
     fn lex_tokens(&mut self, end_ch: Option<char>) -> TokenTree {
         let mut tokens = vec![];
         let mut start_pos = self.file_len;
-        let mut end_pos = self.file_len;
+        let mut end_pos = 0;
         while let Some((pos, ch)) = self.chars.peek().cloned() {
             start_pos = start_pos.min(pos);
             end_pos = end_pos.max(pos);
@@ -96,7 +98,7 @@ where
                     tokens.push(Token::Op(ch));
                 }
                 '"' => {
-                    tokens.push(self.string_literal(Offset::from(pos)));
+                    tokens.push(Token::FormatString(self.string_literal(Offset::from(pos))));
                 }
                 _ => {
                     if !ch.is_whitespace() {
@@ -108,12 +110,26 @@ where
             }
         }
 
+        if self.chars.peek().is_none() {
+            end_pos = end_pos.max(self.file_len);
+        }
+
+        end_pos = end_pos.max(start_pos);
+
         TokenTree::new(
             self.db,
             self.filename,
             Span::from(start_pos, end_pos),
             tokens,
         )
+    }
+
+    /// Returns the offset of the next character within the file.
+    fn peek_offset(&mut self) -> usize {
+        match self.chars.peek() {
+            Some((o, _)) => *o,
+            None => self.file_len,
+        }
     }
 
     /// Accumulate `ch0` and following characters while `matches` returns true
@@ -133,12 +149,10 @@ where
     }
 
     /// Invoked after consuming a `"`
-    fn string_literal(&mut self, start: Offset) -> Token {
+    fn string_literal(&mut self, start: Offset) -> FormatString {
         let mut buffer = StringFormatBuffer::new(self.db);
-        let mut end = start;
         while let Some((ch_offset, ch)) = self.chars.next() {
             let ch_offset = Offset::from(ch_offset);
-            end = end.max(ch_offset);
 
             if ch == '"' {
                 break;
@@ -158,7 +172,7 @@ where
                             .map(|pair| pair.0)
                             .unwrap_or(self.file_len),
                     );
-                    dada_ir::diag!(
+                    dada_ir::error!(
                         Span {
                             start: Offset::from(ch_offset),
                             end,
@@ -177,18 +191,13 @@ where
 
         buffer.flush_text();
 
-        if buffer.sections.len() == 1 {
-            if let FormatStringSectionData::Text(word) = buffer.sections[0].data(self.db) {
-                return Token::StringLiteral(*word);
-            }
-        }
+        let end = Offset::from(self.peek_offset());
 
-        let format_string = FormatStringData {
+        FormatStringData {
             len: end - start,
             sections: buffer.sections,
         }
-        .intern(self.db);
-        Token::FormatString(format_string)
+        .intern(self.db)
     }
 }
 

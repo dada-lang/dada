@@ -184,9 +184,12 @@ name = "dada"
 version = "0.1.0"
 dependencies = [
  "ariadne",
+ "dada-collections",
  "dada-db",
  "dada-ir",
+ "dada-lex",
  "dada-lsp",
+ "dada-manifest",
  "eyre",
  "lsp-server",
  "lsp-types",
@@ -292,6 +295,7 @@ dependencies = [
  "dada-id",
  "dada-ir",
  "dada-lex",
+ "dada-manifest",
  "im",
  "salsa",
  "stacker",

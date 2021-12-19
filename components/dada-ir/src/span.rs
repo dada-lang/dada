@@ -3,7 +3,8 @@ use crate::word::Word;
 #[derive(Copy, Clone, Debug, PartialEq, Eq, Hash)]
 pub struct FullSpan {
     pub filename: Word,
-    pub span: Span,
+    pub start: Offset,
+    pub end: Offset,
 }
 
 #[derive(Copy, Clone, Debug, PartialEq, Eq, Hash)]
@@ -25,6 +26,15 @@ pub struct LineColumn {
     pub column: u32,
 }
 
+impl From<FullSpan> for Span {
+    fn from(fs: FullSpan) -> Span {
+        Span {
+            start: fs.start,
+            end: fs.end,
+        }
+    }
+}
+
 impl Span {
     #[track_caller]
     pub fn from(start: impl Into<Offset>, end: impl Into<Offset>) -> Self {
@@ -39,15 +49,16 @@ impl Span {
     pub fn in_file(self, filename: Word) -> FullSpan {
         FullSpan {
             filename,
-            span: self,
+            start: self.start,
+            end: self.end,
         }
     }
 
     /// Returns a 0-length span at the start of this span
-    pub fn start(self) -> Span {
+    pub fn span_at_start(self) -> Span {
         Span {
             start: self.start,
-            end: self.end,
+            end: self.start,
         }
     }
 

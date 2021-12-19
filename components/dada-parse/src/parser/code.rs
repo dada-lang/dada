@@ -1,6 +1,6 @@
 use crate::{
     parser::Parser,
-    token_test::{Identifier, StringLiteral},
+    token_test::{FormatStringLiteral, Identifier},
 };
 
 use dada_id::InternValue;
@@ -8,6 +8,7 @@ use dada_ir::{
     code::{
         Ast, Block, BlockData, Expr, ExprData, NamedExpr, NamedExprSpan, PushSpan, Spans, Tables,
     },
+    format_string::FormatStringSectionData,
     kw::Keyword,
     op::Op,
     token::Token,
@@ -88,7 +89,6 @@ impl CodeParser<'_, '_> {
         Tables: InternValue<D, Key = K>,
         K: PushSpan + AsId,
     {
-        eprintln!("add {data:?}");
         let key = self.tables.add(data);
         key.push_span(&mut self.spans, span);
         key
@@ -209,8 +209,8 @@ impl CodeParser<'_, '_> {
     pub(crate) fn parse_expr_0(&mut self) -> Option<Expr> {
         if let Some((id_span, id)) = self.eat(Identifier) {
             Some(self.add(ExprData::Id(id), id_span))
-        } else if let Some((span, text)) = self.eat(StringLiteral) {
-            Some(self.add(ExprData::StringLiteral(text), span))
+        } else if let Some(expr) = self.parse_format_string() {
+            Some(expr)
         } else if let Some(expr) = self.parse_block_expr() {
             // { ... }
             Some(expr)
@@ -256,6 +256,21 @@ impl CodeParser<'_, '_> {
         });
         let expr = self.add(ExprData::Block(block), span);
         Some(expr)
+    }
+
+    fn parse_format_string(&mut self) -> Option<Expr> {
+        let (span, format_string) = self.eat(FormatStringLiteral)?;
+
+        // Special case for a string with no code like `"foo"`:
+        if format_string.data(self.db).sections.len() == 1 {
+            if let FormatStringSectionData::Text(word) =
+                format_string.data(self.db).sections[0].data(self.db)
+            {
+                return Some(self.add(ExprData::StringLiteral(*word), span));
+            }
+        }
+
+        todo!()
     }
 
     fn parse_binop(&mut self, base: Expr, ops: &[Op]) -> Option<Expr> {

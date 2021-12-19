@@ -24,9 +24,6 @@ pub enum Token {
     /// literal, e.g. the `r` in `r"foo"`.
     Prefix(Word),
 
-    /// A simple string literal like `"foo"`
-    StringLiteral(Word),
-
     /// A string literal like `"foo"` or `"foo {bar}"`
     FormatString(FormatString),
 
@@ -41,10 +38,9 @@ impl Token {
     pub fn span_len(self, db: &dyn Db) -> u32 {
         match self {
             Token::Tree(tree) => tree.span(db).len(),
-            Token::Alphabetic(word)
-            | Token::Number(word)
-            | Token::Prefix(word)
-            | Token::StringLiteral(word) => word.as_str(db).len().try_into().unwrap(),
+            Token::Alphabetic(word) | Token::Number(word) | Token::Prefix(word) => {
+                word.as_str(db).len().try_into().unwrap()
+            }
             Token::FormatString(f) => f.len(db),
             Token::Delimiter(ch) | Token::Op(ch) | Token::Whitespace(ch) | Token::Unknown(ch) => {
                 ch.len_utf8().try_into().unwrap()

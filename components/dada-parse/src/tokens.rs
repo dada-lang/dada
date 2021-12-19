@@ -19,7 +19,7 @@ enum Skipped {
 
 impl<'me> Tokens<'me> {
     pub fn new(db: &'me dyn crate::Db, token_tree: TokenTree) -> Self {
-        let start_span = token_tree.span(db).start();
+        let start_span = token_tree.span(db).span_at_start();
         let tokens = token_tree.tokens(db);
         let mut this = Tokens {
             db,
@@ -38,6 +38,7 @@ impl<'me> Tokens<'me> {
         self.last_span = self.peek_span();
         let result = self.peek();
         self.tokens = &self.tokens[1..];
+
         result
     }
 

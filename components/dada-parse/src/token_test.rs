@@ -56,18 +56,6 @@ impl TokenTest for Identifier {
     }
 }
 
-pub(crate) struct StringLiteral;
-impl TokenTest for StringLiteral {
-    type Narrow = Word;
-
-    fn test(self, _db: &dyn crate::Db, token: Token) -> Option<Word> {
-        match token {
-            Token::StringLiteral(word) => Some(word),
-            _ => None,
-        }
-    }
-}
-
 pub(crate) struct FormatStringLiteral;
 impl TokenTest for FormatStringLiteral {
     type Narrow = FormatString;
