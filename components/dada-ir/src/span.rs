@@ -28,7 +28,15 @@ impl Span {
         this
     }
 
-    pub fn start() -> Self {
+    /// Returns a 0-length span at the start of this span
+    pub fn start(self) -> Span {
+        Span {
+            start: self.start,
+            end: self.end,
+        }
+    }
+
+    pub fn zero() -> Self {
         Self {
             start: Offset(0),
             end: Offset(0),
