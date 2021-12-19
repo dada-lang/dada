@@ -25,16 +25,16 @@ impl<'me> Parser<'me> {
 
     /// Returns Some if the next pending token matches `is`, along
     /// with the narrowed view of the next token.
-    fn peek_if<TT: TokenTest>(&mut self, is: TT) -> Option<TT::Narrow> {
-        is.test(self.db, self.tokens.peek()?)
+    fn peek<TT: TokenTest>(&mut self, test: TT) -> Option<TT::Narrow> {
+        test.test(self.db, self.tokens.peek()?)
     }
 
-    /// If the next pending token matches `is`, consumes it and
+    /// If the next pending token matches `test`, consumes it and
     /// returns the span + narrowed view. Otherwise returns None
     /// and has no effect. Returns None if there is no pending token.
-    fn eat_if<TT: TokenTest>(&mut self, is: TT) -> Option<(Span, TT::Narrow)> {
+    fn eat<TT: TokenTest>(&mut self, test: TT) -> Option<(Span, TT::Narrow)> {
         let start_span = self.tokens.peek_span();
-        let narrow = self.peek_if(is)?;
+        let narrow = self.peek(test)?;
         self.tokens.consume();
         let end_span = self.tokens.last_span();
         Some((start_span.to(end_span), narrow))
@@ -104,14 +104,14 @@ impl<'me> Parser<'me> {
     /// Returns the token tree + the span including delimiters.
     /// Reports an error if there is no closing delimiter.
     fn delimited(&mut self, delimiter: char) -> Option<(Span, TokenTree)> {
-        let (open_span, _) = self.eat_if(Token::Delimiter(delimiter))?;
+        let (open_span, _) = self.eat(Token::Delimiter(delimiter))?;
 
         // Lexer always produces a token tree as the next token after a delimiter:
-        let (_, token_tree) = self.eat_if(AnyTree).unwrap();
+        let (_, token_tree) = self.eat(AnyTree).unwrap();
 
         // Consume closing delimiter (if present)
         let closing_delimiter = dada_lex::closing_delimiter(delimiter);
-        self.eat_if(Token::Delimiter(closing_delimiter))
+        self.eat(Token::Delimiter(closing_delimiter))
             .or_report_error(self, || format!("expected `{closing_delimiter}`"));
 
         let span = open_span.to(self.tokens.last_span());

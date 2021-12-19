@@ -44,9 +44,9 @@ impl<'db> Parser<'db> {
     }
 
     fn parse_class(&mut self) -> Option<Class> {
-        self.eat_if(Keyword::Class)?;
+        self.eat(Keyword::Class)?;
         let (class_name_span, class_name) = self
-            .eat_if(Identifier)
+            .eat(Identifier)
             .or_report_error(self, || format!("expected a class name"))?;
         let (_, field_tokens) = self
             .delimited('(')
@@ -60,16 +60,16 @@ impl<'db> Parser<'db> {
     }
 
     fn parse_function(&mut self) -> Option<Function> {
-        let async_kw = self.eat_if(Keyword::Async);
+        let async_kw = self.eat(Keyword::Async);
         let effect = if async_kw.is_some() {
             Effect::Async
         } else {
             Effect::None
         };
-        self.eat_if(Keyword::Fn)
+        self.eat(Keyword::Fn)
             .or_report_error(self, || format!("expected `fn`"))?;
         let (func_name_span, func_name) = self
-            .eat_if(Identifier)
+            .eat(Identifier)
             .or_report_error(self, || format!("expected function name"))?;
         let (_, argument_tokens) = self
             .delimited('(')

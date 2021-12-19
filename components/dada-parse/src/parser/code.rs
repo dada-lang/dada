@@ -102,7 +102,7 @@ impl CodeParser<'_, '_> {
 
     /// Parses an if/while condition -- this can be any sort of expression but a block.
     pub(crate) fn parse_condition(&mut self) -> Option<Expr> {
-        if self.peek_if(Token::Delimiter('{')).is_some() {
+        if self.peek(Token::Delimiter('{')).is_some() {
             None
         } else {
             self.parse_expr()
@@ -112,7 +112,7 @@ impl CodeParser<'_, '_> {
     ///
     pub(crate) fn parse_named_expr(&mut self) -> Option<NamedExpr> {
         let (id_span, id) = self
-            .eat_if(Identifier)
+            .eat(Identifier)
             .or_report_error(self, || format!("expected name for argument"))?;
 
         self.eat_op(Op::Colon)
@@ -174,19 +174,19 @@ impl CodeParser<'_, '_> {
         let expr = self.parse_expr_0()?;
 
         if let Some(_) = self.eat_op(Op::Dot) {
-            if let Some((id_span, id)) = self.eat_if(Identifier) {
+            if let Some((id_span, id)) = self.eat(Identifier) {
                 let span = self.spans[expr].to(id_span);
                 return Some(self.add(ExprData::Dot(expr, id), span));
-            } else if let Some((kw_span, _)) = self.eat_if(Keyword::Async) {
+            } else if let Some((kw_span, _)) = self.eat(Keyword::Async) {
                 let span = self.spans[expr].to(kw_span);
                 return Some(self.add(ExprData::Await(expr), span));
-            } else if let Some((kw_span, _)) = self.eat_if(Keyword::Share) {
+            } else if let Some((kw_span, _)) = self.eat(Keyword::Share) {
                 let span = self.spans[expr].to(kw_span);
                 return Some(self.add(ExprData::Share(expr), span));
-            } else if let Some((kw_span, _)) = self.eat_if(Keyword::Give) {
+            } else if let Some((kw_span, _)) = self.eat(Keyword::Give) {
                 let span = self.spans[expr].to(kw_span);
                 return Some(self.add(ExprData::Give(expr), span));
-            } else if let Some((kw_span, _)) = self.eat_if(Keyword::Lease) {
+            } else if let Some((kw_span, _)) = self.eat(Keyword::Lease) {
                 let span = self.spans[expr].to(kw_span);
                 return Some(self.add(ExprData::Lease(expr), span));
             } else {
@@ -207,18 +207,18 @@ impl CodeParser<'_, '_> {
     }
 
     pub(crate) fn parse_expr_0(&mut self) -> Option<Expr> {
-        if let Some((id_span, id)) = self.eat_if(Identifier) {
+        if let Some((id_span, id)) = self.eat(Identifier) {
             Some(self.add(ExprData::Id(id), id_span))
-        } else if let Some((span, text)) = self.eat_if(StringLiteral) {
+        } else if let Some((span, text)) = self.eat(StringLiteral) {
             Some(self.add(ExprData::StringLiteral(text), span))
         } else if let Some(expr) = self.parse_block_expr() {
             // { ... }
             Some(expr)
-        } else if let Some((if_span, _)) = self.eat_if(Keyword::If) {
+        } else if let Some((if_span, _)) = self.eat(Keyword::If) {
             if let Some(condition) = self.parse_condition() {
                 let then_expr = self.parse_required_block_expr(Keyword::If);
                 let else_expr = self
-                    .eat_if(Keyword::Else)
+                    .eat(Keyword::Else)
                     .map(|_| self.parse_required_block_expr(Keyword::Else));
                 let span = self.span_consumed_since(if_span);
                 Some(self.add(ExprData::If(condition, then_expr, else_expr), span))
@@ -226,7 +226,7 @@ impl CodeParser<'_, '_> {
                 self.report_error_at_current_token("expected `if` condition");
                 None
             }
-        } else if let Some((while_span, _)) = self.eat_if(Keyword::While) {
+        } else if let Some((while_span, _)) = self.eat(Keyword::While) {
             if let Some(condition) = self.parse_condition() {
                 let body = self.parse_required_block_expr(Keyword::While);
                 let span = self.span_consumed_since(while_span);
