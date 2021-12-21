@@ -20,6 +20,10 @@ use super::OrReportError;
 
 impl Parser<'_> {
     pub(crate) fn parse_ast(&mut self) -> Ast {
+        self.parse_ast_and_spans().0
+    }
+
+    pub(crate) fn parse_ast_and_spans(&mut self) -> (Ast, Spans) {
         let mut tables = Tables::default();
         let mut spans = Spans::default();
 
@@ -30,7 +34,7 @@ impl Parser<'_> {
         };
 
         let block = code_parser.parse_only_block_contents();
-        Ast { tables, block }
+        (Ast { tables, block }, spans)
     }
 }
 
