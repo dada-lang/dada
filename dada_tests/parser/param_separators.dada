@@ -1,0 +1,39 @@
+fn param1(a) {
+}
+
+fn param2(a,) {
+}
+
+fn param3(a, b) {
+}
+
+fn param4(a, b,) {
+}
+
+fn param5(a:, b,) {
+    # Error expected type after
+}
+
+fn param6(
+    a
+    b
+) {
+}
+
+fn param7(
+    a
+) {
+}
+
+fn param8(
+    a,
+    b
+) {
+}
+
+fn param9(
+    a:,
+    # Error expected type after
+    b
+) {
+}

@@ -34,6 +34,18 @@ impl Options {
                             total += 1;
                             self.test_dada_file(path)
                                 .with_context(|| format!("testing `{}`", path.display()))?;
+                        } else if ext == "ref" {
+                            // ignore ref files
+                        } else {
+                            // Error out for random files -- I've frequently accidentally made
+                            // tests with the extension `dad`, for example.
+                            //
+                            // FIXME: we should probably consider gitignore here
+                            eyre::bail!(
+                                "file `{}` has unrecognized extension `{}`",
+                                path.display(),
+                                ext.to_string_lossy(),
+                            )
                         }
                     }
                     Ok(())
