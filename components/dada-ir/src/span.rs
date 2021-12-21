@@ -1,7 +1,7 @@
 use crate::word::Word;
 
 #[derive(Copy, Clone, Debug, PartialEq, Eq, Hash)]
-pub struct FullSpan {
+pub struct FileSpan {
     pub filename: Word,
     pub start: Offset,
     pub end: Offset,
@@ -26,8 +26,8 @@ pub struct LineColumn {
     pub column: u32,
 }
 
-impl From<FullSpan> for Span {
-    fn from(fs: FullSpan) -> Span {
+impl From<FileSpan> for Span {
+    fn from(fs: FileSpan) -> Span {
         Span {
             start: fs.start,
             end: fs.end,
@@ -46,8 +46,8 @@ impl Span {
         this
     }
 
-    pub fn in_file(self, filename: Word) -> FullSpan {
-        FullSpan {
+    pub fn in_file(self, filename: Word) -> FileSpan {
+        FileSpan {
             filename,
             start: self.start,
             end: self.end,

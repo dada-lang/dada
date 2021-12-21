@@ -6,6 +6,7 @@ pub mod func;
 pub mod item;
 pub mod kw;
 pub mod op;
+pub mod parameter;
 pub mod span;
 pub mod storage_mode;
 pub mod token;
@@ -17,7 +18,6 @@ pub mod word;
 pub struct Jar(
     code::Code,
     class::Class,
-    class::Field,
     diagnostic::Diagnostics,
     format_string::FormatString,
     format_string::FormatStringSection,
@@ -25,6 +25,7 @@ pub struct Jar(
     func::Variable,
     kw::keywords,
     op::binary_ops,
+    parameter::Parameter,
     token_tree::TokenTree,
     ty::Ty,
     word::Word,

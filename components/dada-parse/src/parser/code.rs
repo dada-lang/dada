@@ -16,7 +16,7 @@ use dada_ir::{
 };
 use salsa::AsId;
 
-use super::OrReportError;
+use super::{OrReportError, ParseList};
 
 impl Parser<'_> {
     pub(crate) fn parse_ast(&mut self) -> Ast {
@@ -61,15 +61,15 @@ impl<'db> std::ops::DerefMut for CodeParser<'_, 'db> {
 impl CodeParser<'_, '_> {
     /// Parses a series of expressions; expects to consume all available tokens (and errors if there are extra).
     pub(crate) fn parse_only_block_contents(&mut self) -> Block {
-        let exprs = self.parse_list(None, CodeParser::parse_expr);
-        self.report_error_if_more_tokens("extra tokens after end of expression");
+        let exprs = self.parse_list(false, CodeParser::parse_expr);
+        self.emit_error_if_more_tokens("extra tokens after end of expression");
         self.tables.add(BlockData { exprs })
     }
 
     /// Parses a series of named expressions (`id: expr`); expects to consume all available tokens (and errors if there are extra).
     pub(crate) fn parse_only_named_exprs(&mut self) -> Vec<NamedExpr> {
-        let exprs = self.parse_list(Some(Op::Comma), CodeParser::parse_named_expr);
-        self.report_error_if_more_tokens("extra tokens after end of arguments");
+        let exprs = self.parse_list(true, CodeParser::parse_named_expr);
+        self.emit_error_if_more_tokens("extra tokens after end of arguments");
         exprs
     }
 
@@ -77,13 +77,16 @@ impl CodeParser<'_, '_> {
     pub(crate) fn parse_only_expr(&mut self) -> Expr {
         if let Some(expr) = self.parse_expr() {
             if self.tokens.peek().is_some() {
-                self.report_error_at_current_token("extra tokens after expression");
+                self.error_at_current_token("extra tokens after expression")
+                    .label(self.tokens.last_span(), "expression ends here")
+                    .emit(self.db);
             }
 
             return expr;
         }
 
-        self.report_error_at_current_token("expected expression");
+        self.error_at_current_token("expected expression")
+            .emit(self.db);
         None.or_dummy_expr(self)
     }
 
@@ -111,14 +114,14 @@ impl CodeParser<'_, '_> {
     pub(crate) fn parse_named_expr(&mut self) -> Option<NamedExpr> {
         let (id_span, id) = self
             .eat(Identifier)
-            .or_report_error(self, || format!("expected name for argument"))?;
+            .or_report_error(self, || "expected name for argument")?;
 
         self.eat_op(Op::Colon)
-            .or_report_error(self, || format!("expected `:` after argument name"));
+            .or_report_error(self, || "expected `:` after argument name");
 
         let expr = self
             .parse_expr()
-            .or_report_error(self, || format!("expected expression"))
+            .or_report_error(self, || "expected expression")
             .or_dummy_expr(self);
 
         Some(self.add(
@@ -208,7 +211,8 @@ impl CodeParser<'_, '_> {
                     continue;
                 } else {
                     self.parser
-                        .report_error_at_current_token("expected identifier after `.`");
+                        .error_at_current_token("expected identifier after `.`")
+                        .emit(self.db);
                     continue;
                 }
             }
@@ -245,7 +249,8 @@ impl CodeParser<'_, '_> {
                 let span = self.span_consumed_since(if_span);
                 Some(self.add(ExprData::If(condition, then_expr, else_expr), span))
             } else {
-                self.report_error_at_current_token("expected `if` condition");
+                self.error_at_current_token("expected `if` condition")
+                    .emit(self.db);
                 None
             }
         } else if let Some((while_span, _)) = self.eat(Keyword::While) {
@@ -254,7 +259,8 @@ impl CodeParser<'_, '_> {
                 let span = self.span_consumed_since(while_span);
                 Some(self.add(ExprData::While(condition, body), span))
             } else {
-                self.report_error_at_current_token("expected `while` condition");
+                self.error_at_current_token("expected `while` condition")
+                    .emit(self.db);
                 None
             }
         } else if let Some((span, token_tree)) = self.delimited('(') {
@@ -326,34 +332,6 @@ impl CodeParser<'_, '_> {
         };
         stacker::maybe_grow(32 * 1024, 1024 * 1024, || op(&mut sub_parser))
     }
-
-    /// Parses a list of items. The items must be separated by either the given separator `sep` (if any)
-    /// or a newline. Trailing separators are ok. For example, given given `sep = Op::Comma`, any of the following are accepted:
-    ///
-    /// * `foo, bar`
-    /// * `foo, bar,`
-    /// * `foo \n bar`
-    /// * `foo, \n bar`
-    /// * `foo, \n bar,`
-    ///
-    /// The following is not accepted:
-    ///
-    /// * `foo bar`
-    fn parse_list<T>(
-        &mut self,
-        sep: Option<Op>,
-        mut parse_item: impl FnMut(&mut Self) -> Option<T>,
-    ) -> Vec<T> {
-        let mut v = vec![];
-        while let Some(i) = parse_item(self) {
-            v.push(i);
-
-            if sep.and_then(|sep| self.eat_op(sep)).is_none() && !self.tokens.skipped_newline() {
-                break;
-            }
-        }
-        v
-    }
 }
 
 trait OrDummyExpr {
@@ -363,5 +341,15 @@ trait OrDummyExpr {
 impl OrDummyExpr for Option<Expr> {
     fn or_dummy_expr(self, parser: &mut CodeParser<'_, '_>) -> Expr {
         self.unwrap_or_else(|| parser.add(ExprData::Error, parser.tokens.peek_span()))
+    }
+}
+
+impl ParseList for CodeParser<'_, '_> {
+    fn skipped_newline(&self) -> bool {
+        Parser::skipped_newline(self)
+    }
+
+    fn eat_comma(&mut self) -> bool {
+        Parser::eat_comma(self)
     }
 }

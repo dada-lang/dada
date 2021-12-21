@@ -204,7 +204,7 @@ struct ExpectedDiagnostic {
 fn expected_diagnostics(path: &Path) -> eyre::Result<Vec<ExpectedDiagnostic>> {
     let file_contents = std::fs::read_to_string(path)?;
 
-    let re = regex::Regex::new(r"^\s*//! ((?P<severity>[A-Z]+):)? (?P<msg>.*)").unwrap();
+    let re = regex::Regex::new(r"^\s*//! ((?P<severity>[^ ]+))? (?P<msg>.*)").unwrap();
 
     let mut last_code_line = 1;
     let mut result = vec![];

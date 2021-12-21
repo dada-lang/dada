@@ -31,7 +31,7 @@ pub fn closing_delimiter(ch: char) -> char {
 
 macro_rules! op {
     () => {
-        '+' | '-' | '/' | '*' | '>' | '<' | '&' | '|' | '.' | ',' | ':' | ';'
+        '+' | '-' | '/' | '*' | '>' | '<' | '&' | '|' | '.' | ':' | ';'
     };
 }
 
@@ -90,6 +90,14 @@ where
                         tokens.push(Token::Alphabetic(text));
                     }
                 }
+                '#' => {
+                    let s = self.accumulate_string(ch, |c| c != '\n');
+                    let len: u32 = s.len().try_into().unwrap();
+                    tokens.push(Token::Comment(len + 1));
+                }
+                ',' => {
+                    tokens.push(Token::Comma);
+                }
                 '0'..='9' => {
                     let text = self.accumulate(ch, |c| matches!(c, '0'..='9' | '_'));
                     tokens.push(Token::Number(text));
@@ -133,8 +141,8 @@ where
     }
 
     /// Accumulate `ch0` and following characters while `matches` returns true
-    /// into an interned string.
-    fn accumulate(&mut self, ch0: char, matches: impl Fn(char) -> bool) -> Word {
+    /// into a string.
+    fn accumulate_string(&mut self, ch0: char, matches: impl Fn(char) -> bool) -> String {
         let mut string = String::new();
         string.push(ch0);
         while let Some(&(_, ch1)) = self.chars.peek() {
@@ -145,6 +153,12 @@ where
             string.push(ch1);
             self.chars.next();
         }
+        string
+    }
+
+    /// Like [`Self::accumulate_string`], but interns the result.
+    fn accumulate(&mut self, ch0: char, matches: impl Fn(char) -> bool) -> Word {
+        let string = self.accumulate_string(ch0, matches);
         Word::from(self.db, string)
     }
 

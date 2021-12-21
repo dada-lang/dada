@@ -18,7 +18,7 @@ enum Skipped {
 }
 
 impl<'me> Tokens<'me> {
-    pub fn new(db: &'me dyn crate::Db, token_tree: TokenTree) -> Self {
+    pub(crate) fn new(db: &'me dyn crate::Db, token_tree: TokenTree) -> Self {
         let start_span = token_tree.span(db).span_at_start();
         let tokens = token_tree.tokens(db);
         let mut this = Tokens {
@@ -62,6 +62,7 @@ impl<'me> Tokens<'me> {
             match t {
                 Token::Whitespace('\n') => self.skipped = self.skipped.max(Skipped::Newline),
                 Token::Whitespace(_) => self.skipped = self.skipped.max(Skipped::Any),
+                Token::Comment(_) => self.skipped = self.skipped.max(Skipped::Any),
                 _ => return,
             }
 
@@ -70,7 +71,7 @@ impl<'me> Tokens<'me> {
     }
 
     /// Advance by one token and return the span + token just consumed (if any).
-    pub fn consume(&mut self) -> Option<Token> {
+    pub(crate) fn consume(&mut self) -> Option<Token> {
         let token = self.next_token()?;
 
         self.skip_tokens();
@@ -79,12 +80,12 @@ impl<'me> Tokens<'me> {
     }
 
     /// Span of the previously consumed token (or `Span::start` otherwise).
-    pub fn last_span(&self) -> Span {
+    pub(crate) fn last_span(&self) -> Span {
         self.last_span
     }
 
     /// Span of the next pending token (or last span if there are no more tokens).
-    pub fn peek_span(&self) -> Span {
+    pub(crate) fn peek_span(&self) -> Span {
         match self.tokens.get(0) {
             None => self.last_span,
             Some(token) => {
@@ -96,7 +97,7 @@ impl<'me> Tokens<'me> {
     }
 
     /// Next pending token, if any.
-    pub fn peek(&self) -> Option<Token> {
+    pub(crate) fn peek(&self) -> Option<Token> {
         self.tokens.get(0).copied()
     }
 }

@@ -10,6 +10,10 @@ pub enum Token {
     /// 22_000
     Number(Word),
 
+    /// A `,` -- this is lexed separately from an operator
+    /// since it never combines with anything else.
+    Comma,
+
     /// A single character from an operator like `+`
     Op(char),
 
@@ -32,6 +36,11 @@ pub enum Token {
 
     /// Some unclassifiable, non-whitespace char
     Unknown(char),
+
+    /// `# ...`, argument is the length (including `#`).
+    /// Note that the newline that comes after a comment is
+    /// considered a separate whitespace token.
+    Comment(u32),
 }
 
 impl Token {
@@ -45,6 +54,8 @@ impl Token {
             Token::Delimiter(ch) | Token::Op(ch) | Token::Whitespace(ch) | Token::Unknown(ch) => {
                 ch.len_utf8().try_into().unwrap()
             }
+            Token::Comma => 1,
+            Token::Comment(l) => l,
         }
     }
 

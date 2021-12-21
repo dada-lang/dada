@@ -1,10 +1,10 @@
-use crate::span::FullSpan;
+use crate::span::{FileSpan, Span};
 
 #[derive(Clone, PartialEq, Eq, Hash, Debug)]
 #[non_exhaustive]
 pub struct Diagnostic {
     pub severity: Severity,
-    pub span: FullSpan,
+    pub span: FileSpan,
     pub message: String,
     pub labels: Vec<Label>,
     pub children: Vec<Diagnostic>,
@@ -21,7 +21,7 @@ pub enum Severity {
 #[derive(Clone, PartialEq, Eq, Hash, Debug)]
 #[non_exhaustive]
 pub struct Label {
-    pub span: FullSpan,
+    pub span: FileSpan,
     pub message: String,
 }
 
@@ -71,7 +71,7 @@ macro_rules! help {
 impl Diagnostic {
     /// Create a new diagnostic with the given "main message" at the
     /// given span.
-    pub fn new(severity: Severity, span: FullSpan, message: String) -> DiagnosticBuilder {
+    pub fn new(severity: Severity, span: FileSpan, message: String) -> DiagnosticBuilder {
         DiagnosticBuilder::new(severity, span, message)
     }
 
@@ -84,7 +84,7 @@ impl Diagnostic {
 }
 
 impl Label {
-    pub fn span(&self) -> FullSpan {
+    pub fn span(&self) -> FileSpan {
         self.span
     }
 
@@ -93,28 +93,39 @@ impl Label {
     }
 }
 
+#[must_use]
 pub struct DiagnosticBuilder {
     severity: Severity,
-    span: FullSpan,
+    span: FileSpan,
     message: String,
     labels: Vec<Label>,
     children: Vec<Diagnostic>,
 }
 
 impl DiagnosticBuilder {
-    fn new(severity: Severity, span: FullSpan, message: String) -> Self {
+    fn new(severity: Severity, span: FileSpan, message: impl ToString) -> Self {
         Self {
             severity,
             span,
-            message,
+            message: message.to_string(),
             labels: vec![],
             children: vec![],
         }
     }
 
-    /// Add a label to this diagnostic
-    pub fn label(mut self, span: FullSpan, message: String) -> Self {
-        self.labels.push(Label { span, message });
+    /// Add a label to this diagnostic; the label is assumed to
+    /// be in the same file as the "main" error.
+    pub fn label(self, span: Span, message: impl ToString) -> Self {
+        let file_span = span.in_file(self.span.filename);
+        self.label_in_any_file(file_span, message)
+    }
+
+    /// Add a label to this diagnostic; the label may be in any file.
+    pub fn label_in_any_file(mut self, span: FileSpan, message: impl ToString) -> Self {
+        self.labels.push(Label {
+            span,
+            message: message.to_string(),
+        });
         self
     }
 
@@ -133,10 +144,8 @@ impl DiagnosticBuilder {
     /// Return the completed diagnostic.
     pub fn finish(mut self) -> Diagnostic {
         if self.labels.is_empty() {
-            self.labels.push(Label {
-                span: self.span,
-                message: format!("here"),
-            });
+            let span = self.span;
+            self = self.label_in_any_file(span, "here");
         }
 
         Diagnostic {

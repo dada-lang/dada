@@ -76,8 +76,8 @@ impl LspServerDatabase {
 
 trait DadaLspMethods {
     fn lsp_position(&self, filename: Word, offset: Offset) -> Position;
-    fn lsp_range(&self, span: dada_ir::span::FullSpan) -> Range;
-    fn lsp_location(&self, span: dada_ir::span::FullSpan) -> Location;
+    fn lsp_range(&self, span: dada_ir::span::FileSpan) -> Range;
+    fn lsp_location(&self, span: dada_ir::span::FileSpan) -> Location;
     fn lsp_diagnostic(&self, dada_diagnostic: dada_ir::diagnostic::Diagnostic) -> Diagnostic;
 }
 
@@ -90,14 +90,14 @@ impl DadaLspMethods for dada_db::Db {
         }
     }
 
-    fn lsp_range(&self, span: dada_ir::span::FullSpan) -> Range {
+    fn lsp_range(&self, span: dada_ir::span::FileSpan) -> Range {
         Range {
             start: self.lsp_position(span.filename, span.start),
             end: self.lsp_position(span.filename, span.end),
         }
     }
 
-    fn lsp_location(&self, span: dada_ir::span::FullSpan) -> Location {
+    fn lsp_location(&self, span: dada_ir::span::FileSpan) -> Location {
         Location {
             uri: Url::parse(span.filename.as_str(self)).unwrap(),
             range: self.lsp_range(span),

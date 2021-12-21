@@ -9,9 +9,12 @@ pub fn check_filename(db: &dyn crate::Db, filename: Word) {
     for &item in items {
         match item {
             Item::Function(function) => {
+                function.parameters(db);
                 function.ast(db);
             }
-            Item::Class(_class) => {}
+            Item::Class(class) => {
+                class.fields(db);
+            }
         }
     }
 }

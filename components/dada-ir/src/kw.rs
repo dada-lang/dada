@@ -38,7 +38,7 @@ macro_rules! define_keywords {
 
 impl std::fmt::Display for Keyword {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
-        write!(f, "{}", self.str())
+        write!(f, "`{}`", self.str())
     }
 }
 

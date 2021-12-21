@@ -1,9 +1,17 @@
+use std::string::ToString;
+
 use crate::{token_test::*, tokens::Tokens};
 
-use dada_ir::{op::Op, span::Span, token::Token, token_tree::TokenTree, word::Word};
+use dada_ir::{
+    diagnostic::DiagnosticBuilder, op::Op, span::Span, token::Token, token_tree::TokenTree,
+    word::Word,
+};
 
 mod code;
 mod items;
+mod parameter;
+mod ty;
+
 pub(crate) struct Parser<'me> {
     db: &'me dyn crate::Db,
     filename: Word,
@@ -80,11 +88,6 @@ impl<'me> Parser<'me> {
             return Some((span, tokens));
         }
 
-        // For the rest, check if the next token is an operator...
-        if let Some(Token::Op(_)) = tokens.peek() {
-            return None;
-        }
-
         // ...if not, we've got a match!
         return Some((span, tokens));
     }
@@ -118,38 +121,102 @@ impl<'me> Parser<'me> {
 
     /// Returns the span that starts at `span` and ends with the
     /// last consumed token.
-    pub fn span_consumed_since(&self, span: Span) -> Span {
+    fn span_consumed_since(&self, span: Span) -> Span {
         span.to(self.tokens.last_span())
     }
 
-    pub fn report_error_at_current_token(&mut self, message: impl AsRef<str>) {
-        let span = self.tokens.peek_span();
-        self.report_error(span, message)
+    fn emit_error_if_more_tokens(&self, message: impl ToString) {
+        self.emit_labeled_error_if_more_tokens(message, |d| d)
     }
 
-    pub fn report_error_if_more_tokens(&mut self, message: impl AsRef<str>) {
+    fn emit_labeled_error_if_more_tokens(
+        &self,
+        message: impl ToString,
+        op: impl FnOnce(DiagnosticBuilder) -> DiagnosticBuilder,
+    ) {
         if self.tokens.peek().is_some() {
-            self.report_error_at_current_token(message);
+            op(self.error_at_current_token(message)).emit(self.db);
         }
     }
 
-    pub fn report_error(&mut self, span: Span, message: impl AsRef<str>) {
-        dada_ir::error!(span.in_file(self.filename), "{}", message.as_ref()).emit(self.db);
+    fn error_at_current_token(&self, message: impl ToString) -> DiagnosticBuilder {
+        let span = self.tokens.peek_span();
+        self.error(span, message)
+    }
+
+    fn error(&self, span: Span, message: impl ToString) -> DiagnosticBuilder {
+        dada_ir::error!(span.in_file(self.filename), "{}", message.to_string())
     }
 }
 
 trait OrReportError {
-    fn or_report_error(self, parser: &mut Parser<'_>, message: impl FnOnce() -> String) -> Self;
+    fn or_report_error<S>(self, parser: &mut Parser<'_>, message: impl FnOnce() -> S) -> Self
+    where
+        S: ToString;
 }
 
 impl<T> OrReportError for Option<T> {
-    fn or_report_error(self, parser: &mut Parser<'_>, message: impl FnOnce() -> String) -> Self {
+    fn or_report_error<S>(self, parser: &mut Parser<'_>, message: impl FnOnce() -> S) -> Self
+    where
+        S: ToString,
+    {
         if self.is_some() {
             return self;
         }
 
-        parser.report_error(parser.tokens.peek_span(), message());
+        parser
+            .error(parser.tokens.peek_span(), message())
+            .emit(parser.db);
 
         None
+    }
+}
+
+trait ParseList {
+    /// Parses a list of items. The items must be separated by either the given separator `sep` (if any)
+    /// or a newline. Trailing separators are ok. For example, given given `sep = Op::Comma`, any of the following are accepted:
+    ///
+    /// * `foo, bar`
+    /// * `foo, bar,`
+    /// * `foo \n bar`
+    /// * `foo, \n bar`
+    /// * `foo, \n bar,`
+    ///
+    /// The following is not accepted:
+    ///
+    /// * `foo bar`
+    fn parse_list<T>(
+        &mut self,
+        comma_separated: bool,
+        mut parse_item: impl FnMut(&mut Self) -> Option<T>,
+    ) -> Vec<T> {
+        let mut v = vec![];
+        while let Some(i) = parse_item(self) {
+            v.push(i);
+
+            // List items can always be separated by a newline...
+            if !self.skipped_newline() {
+                // ...otherwise, they *may* require a separator
+                if comma_separated {
+                    if !self.eat_comma() {
+                        break;
+                    }
+                }
+            }
+        }
+        v
+    }
+
+    fn skipped_newline(&self) -> bool;
+    fn eat_comma(&mut self) -> bool;
+}
+
+impl ParseList for Parser<'_> {
+    fn skipped_newline(&self) -> bool {
+        self.tokens.skipped_newline()
+    }
+
+    fn eat_comma(&mut self) -> bool {
+        self.eat(Token::Comma).is_some()
     }
 }

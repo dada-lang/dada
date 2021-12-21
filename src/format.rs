@@ -5,7 +5,13 @@ pub fn print_diagnostic(
     db: &dada_db::Db,
     diagnostic: &dada_ir::diagnostic::Diagnostic,
 ) -> eyre::Result<()> {
-    let cache = SourceCache::new(db);
+    Ok(ariadne_diagnostic(db, diagnostic)?.print(SourceCache::new(db))?)
+}
+
+fn ariadne_diagnostic(
+    _db: &dada_db::Db,
+    diagnostic: &dada_ir::diagnostic::Diagnostic,
+) -> eyre::Result<ariadne::Report<ASpan>> {
     let mut builder = Report::<ASpan>::build(
         ReportKind::Error,
         diagnostic.span.filename,
@@ -17,8 +23,7 @@ pub fn print_diagnostic(
         builder = builder.with_label(Label::new(ASpan(label.span())).with_message(&label.message));
     }
 
-    builder.finish().print(cache)?;
-    Ok(())
+    Ok(builder.finish())
 }
 
 struct SourceCache<'me> {
@@ -49,7 +54,7 @@ impl ariadne::Cache<Word> for SourceCache<'_> {
     }
 }
 
-struct ASpan(dada_ir::span::FullSpan);
+struct ASpan(dada_ir::span::FileSpan);
 
 impl ariadne::Span for ASpan {
     type SourceId = Word;

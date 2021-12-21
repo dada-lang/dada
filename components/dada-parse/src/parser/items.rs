@@ -6,6 +6,7 @@ use dada_ir::{
     func::{Effect, Function},
     item::Item,
     kw::Keyword,
+    parameter::UnparsedParameters,
 };
 
 use super::OrReportError;
@@ -39,15 +40,15 @@ impl<'db> Parser<'db> {
         self.eat(Keyword::Class)?;
         let (class_name_span, class_name) = self
             .eat(Identifier)
-            .or_report_error(self, || format!("expected a class name"))?;
+            .or_report_error(self, || "expected a class name")?;
         let (_, field_tokens) = self
             .delimited('(')
-            .or_report_error(self, || format!("expected class parameters"))?;
+            .or_report_error(self, || "expected class parameters")?;
         Some(Class::new(
             self.db,
             class_name,
             class_name_span,
-            field_tokens,
+            UnparsedParameters(field_tokens),
         ))
     }
 
@@ -63,7 +64,7 @@ impl<'db> Parser<'db> {
         let (func_name_span, func_name) = self
             .eat(Identifier)
             .or_report_error(self, || format!("expected function name"))?;
-        let (_, argument_tokens) = self
+        let (_, parameter_tokens) = self
             .delimited('(')
             .or_report_error(self, || format!("expected function parameters"))?;
         let (_, body_tokens) = self
@@ -75,7 +76,7 @@ impl<'db> Parser<'db> {
             func_name,
             func_name_span,
             effect,
-            argument_tokens,
+            UnparsedParameters(parameter_tokens),
             code,
         ))
     }
