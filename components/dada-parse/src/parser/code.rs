@@ -5,12 +5,11 @@ use crate::{
 
 use dada_id::InternValue;
 use dada_ir::{
-    code::{
-        Ast, Block, BlockData, Expr, ExprData, NamedExpr, NamedExprSpan, PushSpan, Spans, Tables,
-    },
+    code::{Ast, Block, BlockData, Expr, ExprData, NamedExpr, NamedExprSpan, Spans, Tables},
     format_string::FormatStringSectionData,
     kw::Keyword,
     op::Op,
+    span_table::PushSpanIn,
     token::Token,
     token_tree::TokenTree,
 };
@@ -94,10 +93,10 @@ impl CodeParser<'_, '_> {
     where
         D: std::hash::Hash + Eq + std::fmt::Debug,
         Tables: InternValue<D, Key = K>,
-        K: PushSpan + AsId,
+        K: PushSpanIn<Spans> + AsId,
     {
         let key = self.tables.add(data);
-        key.push_span(&mut self.spans, span);
+        self.spans.push(key, span);
         key
     }
 

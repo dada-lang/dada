@@ -1,3 +1,6 @@
+#[macro_use]
+pub mod span_table;
+
 pub mod class;
 pub mod code;
 pub mod diagnostic;

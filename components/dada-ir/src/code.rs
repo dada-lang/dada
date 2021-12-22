@@ -1,4 +1,7 @@
-use crate::{op::Op, span::Span, storage_mode::StorageMode, token_tree::TokenTree, word::Word};
+use crate::{
+    op::Op, span::Span, span_table::EntireSpan, storage_mode::StorageMode, token_tree::TokenTree,
+    word::Word,
+};
 use dada_collections::IndexVec;
 use dada_id::{id, tables};
 
@@ -23,36 +26,18 @@ pub struct Ast {
     pub block: Block,
 }
 
-/// Side table that contains the spans for everything in an AST.
-/// This isn't normally needed except for diagnostics, so it's
-/// kept separate to avoid reducing incremental reuse.
-/// You can request it by invoking the `spans`
-/// method in the `dada_parse` prelude.
-#[derive(Clone, Debug, Default, PartialEq, Eq, Hash)]
-pub struct Spans {
-    pub expr_spans: IndexVec<Expr, Span>,
-    pub named_expr_spans: IndexVec<NamedExpr, NamedExprSpan>,
-    pub block_spans: IndexVec<Block, Span>,
-}
-
-impl<K> std::ops::Index<K> for Spans
-where
-    K: HasSpan,
-{
-    type Output = Span;
-
-    fn index(&self, index: K) -> &Self::Output {
-        index.span_in(self)
+span_table! {
+    /// Side table that contains the spans for everything in an AST.
+    /// This isn't normally needed except for diagnostics, so it's
+    /// kept separate to avoid reducing incremental reuse.
+    /// You can request it by invoking the `spans`
+    /// method in the `dada_parse` prelude.
+    #[derive(Clone, Debug, Default, PartialEq, Eq, Hash)]
+    pub struct Spans {
+        expr_spans: Expr => Span,
+        named_expr_spans: NamedExpr => NamedExprSpan,
+        block_spans: Block => Span,
     }
-}
-
-pub trait HasSpan {
-    fn span_in(self, spans: &Spans) -> &Span;
-}
-
-pub trait PushSpan {
-    type Span;
-    fn push_span(self, spans: &mut Spans, span: Self::Span);
 }
 
 tables! {
@@ -121,21 +106,6 @@ pub enum ExprData {
     Error,
 }
 
-impl HasSpan for Expr {
-    fn span_in(self, spans: &Spans) -> &Span {
-        &spans.expr_spans[self]
-    }
-}
-
-impl PushSpan for Expr {
-    type Span = Span;
-
-    fn push_span(self, spans: &mut Spans, span: Span) {
-        assert_eq!(Expr::from(spans.expr_spans.len()), self);
-        spans.expr_spans.push(span);
-    }
-}
-
 id!(pub struct NamedExpr);
 
 #[derive(PartialEq, Eq, PartialOrd, Ord, Clone, Hash, Debug)]
@@ -150,18 +120,9 @@ pub struct NamedExprSpan {
     pub name_span: Span,
 }
 
-impl HasSpan for NamedExpr {
-    fn span_in(self, spans: &Spans) -> &Span {
-        &spans.named_expr_spans[self].span
-    }
-}
-
-impl PushSpan for NamedExpr {
-    type Span = NamedExprSpan;
-
-    fn push_span(self, spans: &mut Spans, span: NamedExprSpan) {
-        assert_eq!(NamedExpr::from(spans.named_expr_spans.len()), self);
-        spans.named_expr_spans.push(span);
+impl EntireSpan for NamedExprSpan {
+    fn entire_span(&self) -> &Span {
+        &self.span
     }
 }
 
@@ -170,19 +131,4 @@ id!(pub struct Block);
 #[derive(PartialEq, Eq, PartialOrd, Ord, Clone, Hash, Debug)]
 pub struct BlockData {
     pub exprs: Vec<Expr>,
-}
-
-impl HasSpan for Block {
-    fn span_in(self, spans: &Spans) -> &Span {
-        &spans.block_spans[self]
-    }
-}
-
-impl PushSpan for Block {
-    type Span = Span;
-
-    fn push_span(self, spans: &mut Spans, span: Span) {
-        assert_eq!(Block::from(spans.block_spans.len()), self);
-        spans.block_spans.push(span);
-    }
 }
