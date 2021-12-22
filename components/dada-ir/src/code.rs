@@ -2,7 +2,6 @@ use crate::{
     op::Op, span::Span, span_table::EntireSpan, storage_mode::StorageMode, token_tree::TokenTree,
     word::Word,
 };
-use dada_collections::IndexVec;
 use dada_id::{id, tables};
 
 salsa::entity2! {
@@ -26,6 +25,14 @@ pub struct Ast {
     pub block: Block,
 }
 
+tables! {
+    pub struct Tables {
+        exprs: alloc Expr => ExprData,
+        named_exprs: alloc NamedExpr => NamedExprData,
+        blocks: alloc Block => BlockData,
+    }
+}
+
 span_table! {
     /// Side table that contains the spans for everything in an AST.
     /// This isn't normally needed except for diagnostics, so it's
@@ -37,14 +44,6 @@ span_table! {
         expr_spans: Expr => Span,
         named_expr_spans: NamedExpr => NamedExprSpan,
         block_spans: Block => Span,
-    }
-}
-
-tables! {
-    pub struct Tables {
-        exprs: alloc Expr => ExprData,
-        named_exprs: alloc NamedExpr => NamedExprData,
-        blocks: alloc Block => BlockData,
     }
 }
 
