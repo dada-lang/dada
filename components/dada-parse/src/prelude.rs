@@ -1,4 +1,25 @@
-use dada_ir::{class::Class, code::syntax, func::Function, parameter::Parameter};
+use dada_ir::{
+    class::Class,
+    code::{syntax, Code},
+    func::Function,
+    parameter::Parameter,
+};
+
+pub trait CodeExt {
+    /// Returns the Ast for a function.
+    fn syntax_tree(self, db: &dyn crate::Db) -> &syntax::Tree;
+    fn syntax_tree_spans(self, db: &dyn crate::Db) -> &syntax::Spans;
+}
+
+impl CodeExt for Code {
+    fn syntax_tree(self, db: &dyn crate::Db) -> &syntax::Tree {
+        crate::parse_code(db, self)
+    }
+
+    fn syntax_tree_spans(self, db: &dyn crate::Db) -> &syntax::Spans {
+        crate::spans_for_parsed_code(db, self)
+    }
+}
 
 pub trait FunctionExt {
     /// Returns the Ast for a function.
@@ -9,11 +30,11 @@ pub trait FunctionExt {
 
 impl FunctionExt for Function {
     fn syntax_tree(self, db: &dyn crate::Db) -> &syntax::Tree {
-        crate::parse_code(db, self.code(db))
+        self.code(db).syntax_tree(db)
     }
 
     fn syntax_tree_spans(self, db: &dyn crate::Db) -> &syntax::Spans {
-        crate::spans_for_parsed_code(db, self.code(db))
+        self.code(db).syntax_tree_spans(db)
     }
 
     fn parameters(self, db: &dyn crate::Db) -> &Vec<Parameter> {

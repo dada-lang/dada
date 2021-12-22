@@ -12,3 +12,4 @@ salsa::entity2! {
 }
 
 pub mod syntax;
+pub mod validated;

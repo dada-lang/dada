@@ -35,8 +35,11 @@ impl Parser<'_> {
             spans: &mut spans,
         };
 
+        let start = code_parser.tokens.last_span();
         let block = code_parser.parse_only_block_contents();
-        (Tree { tables, block }, spans)
+        let span = code_parser.span_consumed_since(start);
+        let root_expr = code_parser.add(ExprData::Block(block), span);
+        (Tree { tables, root_expr }, spans)
     }
 }
 
@@ -95,7 +98,7 @@ impl CodeParser<'_, '_> {
     fn add<D, K>(&mut self, data: D, span: K::Span) -> K
     where
         D: std::hash::Hash + Eq + std::fmt::Debug,
-        Tables: InternValue<D, Key = K>,
+        D: InternValue<Table = Tables, Key = K>,
         K: PushSpanIn<Spans> + AsId,
     {
         let key = self.tables.add(data);

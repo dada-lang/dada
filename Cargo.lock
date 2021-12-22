@@ -210,6 +210,7 @@ dependencies = [
  "dada-lex",
  "dada-manifest",
  "dada-parse",
+ "dada-validate",
  "salsa",
 ]
 
@@ -299,6 +300,16 @@ dependencies = [
  "im",
  "salsa",
  "stacker",
+]
+
+[[package]]
+name = "dada-validate"
+version = "0.1.0"
+dependencies = [
+ "dada-id",
+ "dada-ir",
+ "dada-parse",
+ "salsa",
 ]
 
 [[package]]

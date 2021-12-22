@@ -57,6 +57,8 @@ define_keywords! {
     If => "if",
     Else => "else",
     Loop => "loop",
+    True => "true",
+    False => "false",
     While => "while",
 }
 

@@ -1,5 +1,10 @@
-use crate::{op::Op, span::Span, span_table::EntireSpan, storage_mode::StorageMode, word::Word};
+use crate::{
+    class::Class, func::Function, op::Op, span::Span, span_table::EntireSpan,
+    storage_mode::StorageMode, word::Word,
+};
 use dada_id::{id, tables};
+
+use super::syntax::{self, NamedExprSpan};
 
 /// Stores the ast for a function.
 #[derive(Clone, Debug, PartialEq, Eq)]
@@ -16,31 +21,33 @@ tables! {
     /// You can use `tables[expr]` (etc) to access the data.
     #[derive(Clone, Debug, PartialEq, Eq)]
     pub struct Tables {
+        local_variables: alloc LocalVariable => LocalVariableData,
         exprs: alloc Expr => ExprData,
         named_exprs: alloc NamedExpr => NamedExprData,
         blocks: alloc Block => BlockData,
     }
 }
 
-span_table! {
-    /// Side table that contains the spans for everything in an AST.
-    /// This isn't normally needed except for diagnostics, so it's
-    /// kept separate to avoid reducing incremental reuse.
-    /// You can request it by invoking the `spans`
-    /// method in the `dada_parse` prelude.
-    #[derive(Clone, Debug, Default, PartialEq, Eq, Hash)]
-    pub struct Spans {
-        expr_spans: Expr => Span,
-        named_expr_spans: NamedExpr => NamedExprSpan,
-        block_spans: Block => Span,
-    }
+#[derive(Default)]
+pub struct Spans;
+
+id!(pub struct LocalVariable);
+
+#[derive(PartialEq, Eq, PartialOrd, Ord, Clone, Hash, Debug)]
+pub struct LocalVariableData {
+    /// Name given to this variable by the user.
+    /// If it is None, then this is a temporary
+    /// introduced by the compiler.
+    pub name: Option<Word>,
+    pub storage_mode: StorageMode,
 }
 
 id!(pub struct Expr);
 
 #[derive(PartialEq, Eq, PartialOrd, Ord, Clone, Hash, Debug)]
 pub enum ExprData {
-    Id(Word),
+    /// Reference to a local variable
+    Place(Place),
 
     /// true, false
     BooleanLiteral(bool),
@@ -49,13 +56,7 @@ pub enum ExprData {
     IntegerLiteral(Word),
 
     /// `"foo"` with no format strings
-    ///
-    /// FIXME: We should replace the FormatString token with a Concatenate
-    /// that has parsed expressions.
     StringLiteral(Word),
-
-    /// `expr.ident`
-    Dot(Expr, Word),
 
     /// `expr.await`
     Await(Expr),
@@ -64,19 +65,13 @@ pub enum ExprData {
     Call(Expr, Vec<NamedExpr>),
 
     /// `expr.share`
-    Share(Expr),
+    Share(Place),
 
     /// `expr.lease`
-    Lease(Expr),
+    Lease(Place),
 
     /// `expr.give`
-    Give(Expr),
-
-    /// `[shared|var|atomic] x = expr`
-    Var(StorageMode, Word, Expr),
-
-    /// `(expr)`
-    Parenthesized(Expr),
+    Give(Place),
 
     /// `if condition { block } [else { block }]`
     If(Expr, Expr, Option<Expr>),
@@ -87,23 +82,38 @@ pub enum ExprData {
     /// `loop { block }`
     Loop(Expr),
 
-    /// `while condition { block }`
-    While(Expr, Expr),
+    /// `break [from expr] [with value]`
+    ///
+    /// * `from_expr`: Identifies the loop from which we are breaking
+    /// * `with_value`: The value produced by the loop
+    Break { from_expr: Expr, with_value: Expr },
 
-    // { ... } ==> closure?
-    Block(Block),
+    /// `continue`
+    ///
+    /// * `0`: identifies the loop with which we are continuing.
+    Continue(Expr),
+
+    /// `break [from expr] [with value]`
+    Return(Expr),
 
     /// `a + b`
     Op(Expr, Op, Expr),
 
-    /// `a += b`
-    OpEq(Expr, Op, Expr),
-
     /// `a := b`
-    Assign(Expr, Expr),
+    Assign(Place, Expr),
 
     /// parse or other error
     Error,
+}
+
+id!(pub struct Place);
+
+#[derive(PartialEq, Eq, PartialOrd, Ord, Clone, Hash, Debug)]
+pub enum PlaceData {
+    LocalVariable(LocalVariable),
+    Function(Function),
+    Class(Class),
+    Dot(LocalVariable, Word),
 }
 
 id!(pub struct NamedExpr);
@@ -112,18 +122,6 @@ id!(pub struct NamedExpr);
 pub struct NamedExprData {
     pub name: Word,
     pub expr: Expr,
-}
-
-#[derive(Clone, Copy, PartialEq, Eq, Hash, Debug)]
-pub struct NamedExprSpan {
-    pub span: Span,
-    pub name_span: Span,
-}
-
-impl EntireSpan for NamedExprSpan {
-    fn entire_span(&self) -> &Span {
-        &self.span
-    }
 }
 
 id!(pub struct Block);

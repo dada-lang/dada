@@ -20,6 +20,10 @@ use std::hash::Hash;
 
 pub mod alloc_table;
 pub mod intern_table;
+pub mod prelude {
+    pub use crate::InternKey;
+    pub use crate::InternValue;
+}
 
 /// This module is used by the `tables` macro.
 pub mod table_types {
@@ -93,56 +97,58 @@ macro_rules! tables {
             }
         }
 
-        impl<K: salsa::AsId + 'static> std::ops::Index<K> for $n
+        impl<K> std::ops::Index<K> for $n
         where
-            $n: dada_id::InternKey<K>,
+            K: $crate::InternKey<Table = Self>,
         {
-            type Output = <$n as dada_id::InternKey<K>>::Value;
+            type Output = K::Value;
 
             fn index(&self, key: K) -> &Self::Output {
-                dada_id::InternKey::data(self, key)
+                K::data(key, self)
             }
         }
 
         impl $n {
-            pub fn add<K, V>(&mut self, value: V) -> K
+            pub fn add<V>(&mut self, value: V) -> V::Key
             where
-                Self: dada_id::InternValue<V, Key = K>,
-                K: salsa::AsId,
-                V: std::hash::Hash + Eq,
+                V: $crate::InternValue<Table = Self>,
             {
-                dada_id::InternValue::add(self, value)
+                dada_id::InternValue::add(value, self)
             }
         }
 
         $(
-            impl dada_id::InternValue<$v> for $n {
+            impl $crate::InternValue for $v {
+                type Table = $n;
                 type Key = $k;
 
-                fn add(&mut self, value: $v) -> Self::Key {
-                    self.$f.add(value)
+                fn add(self, table: &mut Self::Table) -> Self::Key {
+                    table.$f.add(self)
                 }
             }
 
-            impl dada_id::InternKey<$k> for $n {
+            impl dada_id::InternKey for $k {
+                type Table = $n;
                 type Value = $v;
 
-                fn data(&self, key: $k) -> &$v {
-                    self.$f.data(key)
+                fn data(self, table: &Self::Table) -> &Self::Value {
+                    table.$f.data(self)
                 }
             }
         )*
     }
 }
 
-pub trait InternValue<V: Hash + Eq> {
+pub trait InternValue: Hash + Eq {
+    type Table;
     type Key: salsa::AsId;
 
-    fn add(&mut self, value: V) -> Self::Key;
+    fn add(self, table: &mut Self::Table) -> Self::Key;
 }
 
-pub trait InternKey<K: salsa::AsId> {
+pub trait InternKey: salsa::AsId + 'static {
+    type Table;
     type Value: Hash + Eq;
 
-    fn data(&self, key: K) -> &Self::Value;
+    fn data(self, table: &Self::Table) -> &Self::Value;
 }
