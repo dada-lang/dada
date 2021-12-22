@@ -5,7 +5,10 @@ use crate::{
 
 use dada_id::InternValue;
 use dada_ir::{
-    code::{Ast, Block, BlockData, Expr, ExprData, NamedExpr, NamedExprSpan, Spans, Tables},
+    code::syntax::{
+        Block, BlockData, Expr, ExprData, NamedExpr, NamedExprData, NamedExprSpan, Spans, Tables,
+        Tree,
+    },
     format_string::FormatStringSectionData,
     kw::Keyword,
     op::Op,
@@ -18,11 +21,11 @@ use salsa::AsId;
 use super::{OrReportError, ParseList};
 
 impl Parser<'_> {
-    pub(crate) fn parse_ast(&mut self) -> Ast {
-        self.parse_ast_and_spans().0
+    pub(crate) fn parse_syntax_tree(&mut self) -> Tree {
+        self.parse_syntax_tree_and_spans().0
     }
 
-    pub(crate) fn parse_ast_and_spans(&mut self) -> (Ast, Spans) {
+    pub(crate) fn parse_syntax_tree_and_spans(&mut self) -> (Tree, Spans) {
         let mut tables = Tables::default();
         let mut spans = Spans::default();
 
@@ -33,7 +36,7 @@ impl Parser<'_> {
         };
 
         let block = code_parser.parse_only_block_contents();
-        (Ast { tables, block }, spans)
+        (Tree { tables, block }, spans)
     }
 }
 
@@ -124,7 +127,7 @@ impl CodeParser<'_, '_> {
             .or_dummy_expr(self);
 
         Some(self.add(
-            dada_ir::code::NamedExprData { name: id, expr },
+            NamedExprData { name: id, expr },
             NamedExprSpan {
                 span: self.span_consumed_since(id_span),
                 name_span: id_span,

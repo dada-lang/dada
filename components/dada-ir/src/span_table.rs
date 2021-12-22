@@ -10,7 +10,7 @@ macro_rules! span_table {
         $(#[$attr])*
         $pub struct $table {
             $(
-                $pub $field: dada_collections::IndexVec<$key, $spans>,
+                $field: dada_collections::IndexVec<$key, $spans>,
             )*
         }
 

@@ -73,12 +73,12 @@ macro_rules! id {
 /// ```
 #[macro_export]
 macro_rules! tables {
-    ($vis:vis struct $n:ident {
+    ($(#[$attr:meta])* $vis:vis struct $n:ident {
         $(
             $f:ident: $tty:ident $k:ty => $v:ty,
         )*
     }) => {
-        #[derive(Clone, Debug, PartialEq, Eq)]
+        $(#[$attr])*
         $vis struct $n {
             $(
                 $f: dada_id::table_types::$tty<$k, $v>,

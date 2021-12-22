@@ -10,7 +10,7 @@ pub fn check_filename(db: &dyn crate::Db, filename: Word) {
         match item {
             Item::Function(function) => {
                 function.parameters(db);
-                function.ast(db);
+                function.syntax_tree(db);
             }
             Item::Class(class) => {
                 class.fields(db);
