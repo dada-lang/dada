@@ -1,10 +1,5 @@
-use crate::{
-    class::Class, func::Function, op::Op, span::Span, span_table::EntireSpan,
-    storage_mode::StorageMode, word::Word,
-};
+use crate::{class::Class, func::Function, op::Op, storage_mode::StorageMode, word::Word};
 use dada_id::{id, tables};
-
-use super::syntax::{self, NamedExprSpan};
 
 /// Stores the ast for a function.
 #[derive(Clone, Debug, PartialEq, Eq)]

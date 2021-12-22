@@ -1,4 +1,4 @@
-use crate::{op::Op, span::Span, span_table::EntireSpan, storage_mode::StorageMode, word::Word};
+use crate::{op::Op, span::Span, storage_mode::StorageMode, word::Word};
 use dada_id::{id, tables};
 
 /// Stores the ast for a function.
@@ -118,12 +118,6 @@ pub struct NamedExprData {
 pub struct NamedExprSpan {
     pub span: Span,
     pub name_span: Span,
-}
-
-impl EntireSpan for NamedExprSpan {
-    fn entire_span(&self) -> &Span {
-        &self.span
-    }
 }
 
 id!(pub struct Block);

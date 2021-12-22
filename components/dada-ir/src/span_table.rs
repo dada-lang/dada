@@ -1,5 +1,3 @@
-use crate::span::Span;
-
 /// Side table that contains the spans for everything in an AST.
 /// This isn't normally needed except for diagnostics, so it's
 /// kept separate to avoid reducing incremental reuse.
@@ -18,10 +16,10 @@ macro_rules! span_table {
         where
             K: $crate::span_table::HasSpanIn<$table>,
         {
-            type Output = $crate::span::Span;
+            type Output = K::Span;
 
             fn index(&self, index: K) -> &Self::Output {
-                EntireSpan::entire_span(index.span_in(self))
+                index.span_in(self)
             }
         }
 
@@ -62,29 +60,14 @@ macro_rules! span_table {
     }
 }
 
-/// For some types, we want to track the span not just of the
-/// entire thing but also of subentities. In that case, we map
-/// the type to a struct with multiple spans. This trait
-/// returns the span in that struct that represents the "entire thing",
-/// which is what gets returned by some of the acccessor methods.
-pub trait EntireSpan: 'static + Clone {
-    fn entire_span(&self) -> &Span;
-}
-
-impl EntireSpan for Span {
-    fn entire_span(&self) -> &Span {
-        self
-    }
-}
-
 pub trait HasSpanIn<T> {
-    type Span: EntireSpan;
+    type Span: Clone;
 
     fn span_in(self, spans: &T) -> &Self::Span;
 }
 
 pub trait PushSpanIn<T> {
-    type Span: EntireSpan;
+    type Span: Clone;
 
     fn push_span_in(self, spans: &mut T, span: Self::Span);
 }
