@@ -12,7 +12,7 @@ use dada_ir::{
     format_string::FormatStringSectionData,
     kw::Keyword,
     op::Op,
-    span_table::PushSpanIn,
+    origin_table::PushOriginIn,
     token::Token,
     token_tree::TokenTree,
 };
@@ -95,11 +95,11 @@ impl CodeParser<'_, '_> {
         None.or_dummy_expr(self)
     }
 
-    fn add<D, K>(&mut self, data: D, span: K::Span) -> K
+    fn add<D, K>(&mut self, data: D, span: K::Origin) -> K
     where
         D: std::hash::Hash + Eq + std::fmt::Debug,
         D: InternValue<Table = Tables, Key = K>,
-        K: PushSpanIn<Spans> + AsId,
+        K: PushOriginIn<Spans> + AsId,
     {
         let key = self.tables.add(data);
         self.spans.push(key, span);

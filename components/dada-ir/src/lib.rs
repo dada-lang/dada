@@ -1,5 +1,5 @@
 #[macro_use]
-pub mod span_table;
+pub mod origin_table;
 
 pub mod class;
 pub mod code;

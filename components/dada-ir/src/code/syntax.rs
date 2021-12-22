@@ -22,8 +22,8 @@ tables! {
     }
 }
 
-span_table! {
-    /// Side table that contains the spans for everything in an AST.
+origin_table! {
+    /// Side table that contains the spans for everything in a syntax tree.
     /// This isn't normally needed except for diagnostics, so it's
     /// kept separate to avoid reducing incremental reuse.
     /// You can request it by invoking the `spans`
