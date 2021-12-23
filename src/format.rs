@@ -1,5 +1,5 @@
 use ariadne::{Label, Report, ReportKind, Source};
-use dada_ir::word::Word;
+use dada_ir::{filename::Filename, word::Word};
 
 pub fn print_diagnostic(
     db: &dada_db::Db,
@@ -28,7 +28,7 @@ fn ariadne_diagnostic(
 
 struct SourceCache<'me> {
     db: &'me dada_db::Db,
-    map: dada_collections::Map<Word, Source>,
+    map: dada_collections::Map<Filename, Source>,
 }
 
 impl<'me> SourceCache<'me> {
@@ -40,15 +40,15 @@ impl<'me> SourceCache<'me> {
     }
 }
 
-impl ariadne::Cache<Word> for SourceCache<'_> {
-    fn fetch(&mut self, id: &Word) -> Result<&Source, Box<dyn std::fmt::Debug + '_>> {
+impl ariadne::Cache<Filename> for SourceCache<'_> {
+    fn fetch(&mut self, id: &Filename) -> Result<&Source, Box<dyn std::fmt::Debug + '_>> {
         Ok(self.map.entry(*id).or_insert_with(|| {
             let source_text = dada_manifest::source_text(self.db, *id);
             Source::from(source_text)
         }))
     }
 
-    fn display<'a>(&self, id: &'a Word) -> Option<Box<dyn std::fmt::Display + 'a>> {
+    fn display<'a>(&self, id: &'a Filename) -> Option<Box<dyn std::fmt::Display + 'a>> {
         let s = id.as_str(self.db).to_string();
         Some(Box::new(s))
     }
@@ -57,7 +57,7 @@ impl ariadne::Cache<Word> for SourceCache<'_> {
 struct ASpan(dada_ir::span::FileSpan);
 
 impl ariadne::Span for ASpan {
-    type SourceId = Word;
+    type SourceId = Filename;
 
     fn source(&self) -> &Self::SourceId {
         &self.0.filename

@@ -1,4 +1,4 @@
-use crate::{token_tree::TokenTree, word::Word};
+use crate::{filename::Filename, token_tree::TokenTree};
 
 /// "Code" represents a block of code attached to a method.
 /// After parsing, it just contains a token tree, but you can...
@@ -17,7 +17,7 @@ impl Code {
         self.0
     }
 
-    pub fn filename(self, db: &dyn crate::Db) -> Word {
+    pub fn filename(self, db: &dyn crate::Db) -> Filename {
         self.token_tree().filename(db)
     }
 }

@@ -1,11 +1,5 @@
-use dada_collections::Map;
-use dada_id::prelude::*;
-use dada_ir::class::Class;
-use dada_ir::code::syntax;
 use dada_ir::code::validated;
 use dada_ir::code::Code;
-use dada_ir::func::Function;
-use dada_ir::word::Word;
 use dada_parse::prelude::*;
 
 mod name_lookup;

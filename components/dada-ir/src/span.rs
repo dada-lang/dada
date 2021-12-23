@@ -1,8 +1,8 @@
-use crate::word::Word;
+use crate::filename::Filename;
 
 #[derive(Copy, Clone, Debug, PartialEq, Eq, Hash)]
 pub struct FileSpan {
-    pub filename: Word,
+    pub filename: Filename,
     pub start: Offset,
     pub end: Offset,
 }
@@ -46,7 +46,7 @@ impl Span {
         this
     }
 
-    pub fn in_file(self, filename: Word) -> FileSpan {
+    pub fn in_file(self, filename: Filename) -> FileSpan {
         FileSpan {
             filename,
             start: self.start,

@@ -1,7 +1,9 @@
 use dada_ir::{
     class::Class,
     code::{syntax, Code},
+    filename::Filename,
     func::Function,
+    item::Item,
     parameter::Parameter,
 };
 
@@ -13,11 +15,11 @@ pub trait CodeExt {
 
 impl CodeExt for Code {
     fn syntax_tree(self, db: &dyn crate::Db) -> &syntax::Tree {
-        crate::parse_code(db, self)
+        crate::code_parser::parse_code(db, self)
     }
 
     fn syntax_tree_spans(self, db: &dyn crate::Db) -> &syntax::Spans {
-        crate::spans_for_parsed_code(db, self)
+        crate::code_parser::spans_for_parsed_code(db, self)
     }
 }
 
@@ -38,7 +40,7 @@ impl FunctionExt for Function {
     }
 
     fn parameters(self, db: &dyn crate::Db) -> &Vec<Parameter> {
-        crate::parse_parameters(db, self.unparsed_parameters(db))
+        crate::parameter_parser::parse_parameters(db, self.unparsed_parameters(db))
     }
 }
 
@@ -48,6 +50,16 @@ pub trait ClassExt {
 
 impl ClassExt for Class {
     fn fields(self, db: &dyn crate::Db) -> &Vec<Parameter> {
-        crate::parse_parameters(db, self.unparsed_parameters(db))
+        crate::parameter_parser::parse_parameters(db, self.unparsed_parameters(db))
+    }
+}
+
+pub trait FilenameExt {
+    fn items(self, db: &dyn crate::Db) -> &Vec<Item>;
+}
+
+impl FilenameExt for Filename {
+    fn items(self, db: &dyn crate::Db) -> &Vec<Item> {
+        crate::file_parser::parse_file(db, self)
     }
 }

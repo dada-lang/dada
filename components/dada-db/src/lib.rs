@@ -1,4 +1,5 @@
-use dada_ir::{diagnostic::Diagnostic, item::Item, word::Word};
+use dada_ir::{diagnostic::Diagnostic, filename::Filename, item::Item};
+use dada_parse::prelude::*;
 
 #[salsa::db(
     dada_check::Jar,
@@ -27,17 +28,17 @@ impl salsa::ParallelDatabase for Db {
 }
 
 impl Db {
-    pub fn update_file(&mut self, filename: Word, source_text: String) {
+    pub fn update_file(&mut self, filename: Filename, source_text: String) {
         dada_manifest::source_text::set(self, filename, source_text)
     }
 
     /// Checks `filename` for compilation errors and returns all relevant diagnostics.
-    pub fn diagnostics(&self, filename: Word) -> Vec<Diagnostic> {
+    pub fn diagnostics(&self, filename: Filename) -> Vec<Diagnostic> {
         dada_check::check_filename::accumulated::<dada_ir::diagnostic::Diagnostics>(self, filename)
     }
 
     /// Parses `filename` and returns a lits of the items within.
-    pub fn items(&self, filename: Word) -> Vec<Item> {
-        dada_parse::parse_file(self, filename).clone()
+    pub fn items(&self, filename: Filename) -> Vec<Item> {
+        filename.items(self).clone()
     }
 }

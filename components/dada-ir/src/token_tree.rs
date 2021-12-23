@@ -1,8 +1,8 @@
-use crate::{span::Span, token::Token, word::Word, Jar};
+use crate::{filename::Filename, span::Span, token::Token, Jar};
 
 salsa::entity2! {
     entity TokenTree in Jar {
-        filename: Word,
+        filename: Filename,
         span: Span,
         #[value ref] tokens: Vec<Token>,
     }

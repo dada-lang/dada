@@ -1,3 +1,4 @@
+use dada_ir::filename::Filename;
 use dada_ir::format_string::{
     FormatString, FormatStringData, FormatStringSection, FormatStringSectionData,
 };
@@ -7,7 +8,7 @@ use dada_ir::token_tree::TokenTree;
 use dada_ir::word::Word;
 use std::iter::Peekable;
 
-pub fn lex_file(db: &dyn crate::Db, filename: Word) -> TokenTree {
+pub fn lex_file(db: &dyn crate::Db, filename: Filename) -> TokenTree {
     let source_text = dada_manifest::source_text(db, filename);
     let chars = &mut source_text.char_indices().peekable();
     let mut lexer = Lexer {
@@ -40,7 +41,7 @@ where
     I: Iterator<Item = (usize, char)>,
 {
     db: &'me dyn crate::Db,
-    filename: Word,
+    filename: Filename,
     chars: &'me mut Peekable<I>,
     file_len: usize,
 }

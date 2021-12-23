@@ -1,10 +1,9 @@
-use dada_ir::item::Item;
-use dada_ir::word::Word;
+use dada_ir::{filename::Filename, item::Item};
 use dada_parse::prelude::*;
 
 #[salsa::memoized(in crate::Jar)]
-pub fn check_filename(db: &dyn crate::Db, filename: Word) {
-    let items = dada_parse::parse_file(db, filename);
+pub fn check_filename(db: &dyn crate::Db, filename: Filename) {
+    let items = filename.items(db);
 
     for &item in items {
         match item {

@@ -18,7 +18,7 @@ impl Options {
         for path in &self.paths {
             let contents = std::fs::read_to_string(path)
                 .with_context(|| format!("reading `{}`", path.display()))?;
-            let filename = dada_ir::word::Word::from(&db, path);
+            let filename = dada_ir::filename::Filename::from(&db, path);
             db.update_file(filename, contents);
             all_diagnostics.extend(db.diagnostics(filename));
 

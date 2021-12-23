@@ -1,6 +1,6 @@
 use dada_ir::{
+    filename::Filename,
     span::{LineColumn, Offset},
-    word::Word,
 };
 
 #[derive(Debug, PartialEq, Eq, Hash)]
@@ -22,7 +22,7 @@ impl LineTable {
 }
 
 /// Converts a character index `position` into a (1-based) line and column tuple.
-pub fn line_column(db: &dyn crate::Db, filename: Word, position: Offset) -> LineColumn {
+pub fn line_column(db: &dyn crate::Db, filename: Filename, position: Offset) -> LineColumn {
     let table = line_table(db, filename);
     match table.line_endings.binary_search(&position) {
         Ok(line) | Err(line) => {
@@ -36,7 +36,7 @@ pub fn line_column(db: &dyn crate::Db, filename: Word, position: Offset) -> Line
 }
 
 #[salsa::memoized(in crate::Jar ref)]
-fn line_table(db: &dyn crate::Db, filename: Word) -> LineTable {
+fn line_table(db: &dyn crate::Db, filename: Filename) -> LineTable {
     let source_text = dada_manifest::source_text(db, filename);
     let mut p: usize = 0;
     let mut table = LineTable {

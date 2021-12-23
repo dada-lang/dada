@@ -3,8 +3,8 @@ use std::string::ToString;
 use crate::{token_test::*, tokens::Tokens};
 
 use dada_ir::{
-    diagnostic::DiagnosticBuilder, op::Op, span::Span, token::Token, token_tree::TokenTree,
-    word::Word,
+    diagnostic::DiagnosticBuilder, filename::Filename, op::Op, span::Span, token::Token,
+    token_tree::TokenTree,
 };
 
 mod code;
@@ -14,7 +14,7 @@ mod ty;
 
 pub(crate) struct Parser<'me> {
     db: &'me dyn crate::Db,
-    filename: Word,
+    filename: Filename,
     tokens: Tokens<'me>,
 }
 

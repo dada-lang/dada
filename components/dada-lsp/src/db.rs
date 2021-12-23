@@ -1,5 +1,5 @@
 use crossbeam_channel::Sender;
-use dada_ir::{span::Offset, word::Word};
+use dada_ir::{filename::Filename, span::Offset};
 use lsp_server::Message;
 use lsp_types::{
     notification::PublishDiagnostics, Diagnostic, DiagnosticRelatedInformation, DiagnosticSeverity,
@@ -23,9 +23,9 @@ impl LspServerDatabase {
         }
     }
 
-    fn filename_from_uri(&self, uri: &Url) -> Word {
+    fn filename_from_uri(&self, uri: &Url) -> Filename {
         let filename = uri.to_string();
-        Word::from(&self.db, filename)
+        Filename::from(&self.db, filename)
     }
 
     pub fn did_open(&mut self, params: DidOpenTextDocumentParams) {
@@ -52,7 +52,7 @@ impl LspServerDatabase {
         );
     }
 
-    fn spawn_check(&self, uri: Url, version: i32, filename: Word) {
+    fn spawn_check(&self, uri: Url, version: i32, filename: Filename) {
         let sender = self.sender.clone();
         let db = self.db.snapshot();
         self.threads.execute(move || {
@@ -75,14 +75,14 @@ impl LspServerDatabase {
 }
 
 trait DadaLspMethods {
-    fn lsp_position(&self, filename: Word, offset: Offset) -> Position;
+    fn lsp_position(&self, filename: Filename, offset: Offset) -> Position;
     fn lsp_range(&self, span: dada_ir::span::FileSpan) -> Range;
     fn lsp_location(&self, span: dada_ir::span::FileSpan) -> Location;
     fn lsp_diagnostic(&self, dada_diagnostic: dada_ir::diagnostic::Diagnostic) -> Diagnostic;
 }
 
 impl DadaLspMethods for dada_db::Db {
-    fn lsp_position(&self, filename: Word, offset: Offset) -> Position {
+    fn lsp_position(&self, filename: Filename, offset: Offset) -> Position {
         let line_column = dada_lex::line_column(self, filename, offset);
         Position {
             line: line_column.line,
