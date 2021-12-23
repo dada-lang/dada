@@ -70,7 +70,7 @@ impl<'db> Parser<'db> {
         let (_, body_tokens) = self
             .delimited('{')
             .or_report_error(self, || format!("expected function body"))?;
-        let code = Code::new(self.db, body_tokens);
+        let code = Code::new(body_tokens);
         Some(Function::new(
             self.db,
             func_name,

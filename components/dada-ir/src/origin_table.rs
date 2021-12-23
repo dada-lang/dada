@@ -1,8 +1,7 @@
-/// Side table that contains the spans for everything in an AST.
-/// This isn't normally needed except for diagnostics, so it's
-/// kept separate to avoid reducing incremental reuse.
-/// You can request it by invoking the `spans`
-/// method in the `dada_parse` prelude.
+/// Creates a side table struct for tracking the "origin" of
+/// something in the IR. The meaning of origin depends on the IR:
+/// for a syntax tree, we map directly into the input. For other IRs,
+/// we typically map back to the previous IR.
 macro_rules! origin_table {
     ($(#[$attr:meta])* $pub:vis struct $table:ident { $($field:ident : $key:ty => $origins:ty,)* }) => {
         $(#[$attr])*

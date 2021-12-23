@@ -1,13 +1,24 @@
-use crate::token_tree::TokenTree;
+use crate::{token_tree::TokenTree, word::Word};
 
-salsa::entity2! {
-    /// "Code" represents a block of code attached to a method.
-    /// After parsing, it just contains a token tree, but you can...
-    ///
-    /// * use the `ast` method from the `dada_parse` prelude to
-    ///   parse it into an `Ast`.
-    entity Code in crate::Jar {
-        tokens: TokenTree,
+/// "Code" represents a block of code attached to a method.
+/// After parsing, it just contains a token tree, but you can...
+///
+/// * use the `ast` method from the `dada_parse` prelude to
+///   parse it into an `Ast`.
+#[derive(Copy, Clone, PartialEq, Eq, Hash, Debug)]
+pub struct Code(TokenTree);
+
+impl Code {
+    pub fn new(token_tree: TokenTree) -> Self {
+        Self(token_tree)
+    }
+
+    pub fn token_tree(self) -> TokenTree {
+        self.0
+    }
+
+    pub fn filename(self, db: &dyn crate::Db) -> Word {
+        self.token_tree().filename(db)
     }
 }
 

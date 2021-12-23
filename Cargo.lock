@@ -306,6 +306,7 @@ dependencies = [
 name = "dada-validate"
 version = "0.1.0"
 dependencies = [
+ "dada-collections",
  "dada-id",
  "dada-ir",
  "dada-parse",

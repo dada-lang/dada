@@ -1,6 +1,8 @@
 use crate::{class::Class, func::Function, op::Op, storage_mode::StorageMode, word::Word};
 use dada_id::{id, tables};
 
+use super::syntax;
+
 /// Stores the ast for a function.
 #[derive(Clone, Debug, PartialEq, Eq)]
 pub struct Tree {
@@ -23,8 +25,17 @@ tables! {
     }
 }
 
-#[derive(Default)]
-pub struct Spans;
+origin_table! {
+    /// Side table that contains the spans for everything in a syntax tree.
+    /// This isn't normally needed except for diagnostics, so it's
+    /// kept separate to avoid reducing incremental reuse.
+    /// You can request it by invoking the `spans`
+    /// method in the `dada_parse` prelude.
+    #[derive(Clone, Debug, Default, PartialEq, Eq, Hash)]
+    pub struct Origins {
+        expr_spans: Expr => syntax::Expr,
+    }
+}
 
 id!(pub struct LocalVariable);
 
