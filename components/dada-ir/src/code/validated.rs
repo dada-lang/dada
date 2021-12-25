@@ -1,3 +1,7 @@
+//! The "validated" IR is the IR that we use for type checks
+//! and so forth. It is still in tree form and is mildly
+//! desugared and easy to work with.
+
 use crate::{class::Class, func::Function, op::Op, storage_mode::StorageMode, word::Word};
 use dada_id::{id, prelude::*, tables};
 use salsa::DebugWithDb;
