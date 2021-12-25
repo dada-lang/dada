@@ -1,3 +1,5 @@
+use std::io::Cursor;
+
 use ariadne::{Label, Report, ReportKind, Source};
 use dada_ir::filename::Filename;
 
@@ -6,6 +8,20 @@ pub fn print_diagnostic(
     diagnostic: &dada_ir::diagnostic::Diagnostic,
 ) -> eyre::Result<()> {
     Ok(ariadne_diagnostic(db, diagnostic)?.print(SourceCache::new(db))?)
+}
+
+pub fn format_diagnostics(
+    db: &dada_db::Db,
+    diagnostics: &[dada_ir::diagnostic::Diagnostic],
+) -> eyre::Result<String> {
+    let mut output = Vec::new();
+    let mut cursor = Cursor::new(&mut output);
+    let mut cache = SourceCache::new(db);
+    for diagnostic in diagnostics {
+        let ariadne = ariadne_diagnostic(db, diagnostic)?;
+        ariadne.write(&mut cache, &mut cursor)?;
+    }
+    Ok(String::from_utf8(output)?)
 }
 
 fn ariadne_diagnostic(

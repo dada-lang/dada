@@ -1,100 +1,35 @@
-[
-    Diagnostic {
-        range: Range {
-            start: Position {
-                line: 4,
-                character: 11,
-            },
-            end: Position {
-                line: 4,
-                character: 25,
-            },
-        },
-        severity: Some(
-            Error,
-        ),
-        code: None,
-        source: None,
-        message: "expected name for argument",
-        related_information: Some(
-            [
-                DiagnosticRelatedInformation {
-                    location: Location {
-                        uri: Url {
-                            scheme: "file",
-                            cannot_be_a_base: false,
-                            username: "",
-                            password: None,
-                            host: None,
-                            port: None,
-                            path: "/home/nmatsakis/versioned/dada/dada_tests/parser/leading_whitespace.dada",
-                            query: None,
-                            fragment: None,
-                        },
-                        range: Range {
-                            start: Position {
-                                line: 4,
-                                character: 11,
-                            },
-                            end: Position {
-                                line: 4,
-                                character: 25,
-                            },
-                        },
-                    },
-                    message: "here",
-                },
-            ],
-        ),
-        tags: None,
-    },
-    Diagnostic {
-        range: Range {
-            start: Position {
-                line: 4,
-                character: 11,
-            },
-            end: Position {
-                line: 4,
-                character: 25,
-            },
-        },
-        severity: Some(
-            Error,
-        ),
-        code: None,
-        source: None,
-        message: "extra tokens after end of arguments",
-        related_information: Some(
-            [
-                DiagnosticRelatedInformation {
-                    location: Location {
-                        uri: Url {
-                            scheme: "file",
-                            cannot_be_a_base: false,
-                            username: "",
-                            password: None,
-                            host: None,
-                            port: None,
-                            path: "/home/nmatsakis/versioned/dada/dada_tests/parser/leading_whitespace.dada",
-                            query: None,
-                            fragment: None,
-                        },
-                        range: Range {
-                            start: Position {
-                                line: 4,
-                                character: 11,
-                            },
-                            end: Position {
-                                line: 4,
-                                character: 25,
-                            },
-                        },
-                    },
-                    message: "here",
-                },
-            ],
-        ),
-        tags: None,
-    },
-]
+[31mError:[0m can't find anything named `print`
+   [38;5;246m╭[0m[38;5;246m─[0m[38;5;246m[[0mdada_tests/parser/leading_whitespace.dada:4:5[38;5;246m][0m
+   [38;5;246m│[0m
+ [38;5;246m4 │[0m [38;5;249m [0m[38;5;249m [0m[38;5;249m [0m[38;5;249m [0mprint[38;5;249m([0m[38;5;249m"[0m[38;5;249mH[0m[38;5;249me[0m[38;5;249ml[0m[38;5;249ml[0m[38;5;249mo[0m[38;5;249m,[0m[38;5;249m [0m[38;5;249mw[0m[38;5;249mo[0m[38;5;249mr[0m[38;5;249ml[0m[38;5;249md[0m[38;5;249m"[0m[38;5;249m)[0m[38;5;249m.[0m[38;5;249ma[0m[38;5;249mw[0m[38;5;249ma[0m[38;5;249mi[0m[38;5;249mt[0m
+ [38;5;246m  ·[0m     ──┬──  
+ [38;5;246m  ·[0m       ╰──── here
+[38;5;246m───╯[0m
+[31mError:[0m expected name for argument
+   [38;5;246m╭[0m[38;5;246m─[0m[38;5;246m[[0mdada_tests/parser/leading_whitespace.dada:4:11[38;5;246m][0m
+   [38;5;246m│[0m
+ [38;5;246m4 │[0m [38;5;249m [0m[38;5;249m [0m[38;5;249m [0m[38;5;249m [0m[38;5;249mp[0m[38;5;249mr[0m[38;5;249mi[0m[38;5;249mn[0m[38;5;249mt[0m[38;5;249m([0m"Hello, world"[38;5;249m)[0m[38;5;249m.[0m[38;5;249ma[0m[38;5;249mw[0m[38;5;249ma[0m[38;5;249mi[0m[38;5;249mt[0m
+ [38;5;246m  ·[0m           ───────┬──────  
+ [38;5;246m  ·[0m                  ╰──────── here
+[38;5;246m───╯[0m
+[31mError:[0m extra tokens after end of arguments
+   [38;5;246m╭[0m[38;5;246m─[0m[38;5;246m[[0mdada_tests/parser/leading_whitespace.dada:4:11[38;5;246m][0m
+   [38;5;246m│[0m
+ [38;5;246m4 │[0m [38;5;249m [0m[38;5;249m [0m[38;5;249m [0m[38;5;249m [0m[38;5;249mp[0m[38;5;249mr[0m[38;5;249mi[0m[38;5;249mn[0m[38;5;249mt[0m[38;5;249m([0m"Hello, world"[38;5;249m)[0m[38;5;249m.[0m[38;5;249ma[0m[38;5;249mw[0m[38;5;249ma[0m[38;5;249mi[0m[38;5;249mt[0m
+ [38;5;246m  ·[0m           ───────┬──────  
+ [38;5;246m  ·[0m                  ╰──────── here
+[38;5;246m───╯[0m
+[31mError:[0m expected name for argument
+   [38;5;246m╭[0m[38;5;246m─[0m[38;5;246m[[0mdada_tests/parser/leading_whitespace.dada:4:11[38;5;246m][0m
+   [38;5;246m│[0m
+ [38;5;246m4 │[0m [38;5;249m [0m[38;5;249m [0m[38;5;249m [0m[38;5;249m [0m[38;5;249mp[0m[38;5;249mr[0m[38;5;249mi[0m[38;5;249mn[0m[38;5;249mt[0m[38;5;249m([0m"Hello, world"[38;5;249m)[0m[38;5;249m.[0m[38;5;249ma[0m[38;5;249mw[0m[38;5;249ma[0m[38;5;249mi[0m[38;5;249mt[0m
+ [38;5;246m  ·[0m           ───────┬──────  
+ [38;5;246m  ·[0m                  ╰──────── here
+[38;5;246m───╯[0m
+[31mError:[0m extra tokens after end of arguments
+   [38;5;246m╭[0m[38;5;246m─[0m[38;5;246m[[0mdada_tests/parser/leading_whitespace.dada:4:11[38;5;246m][0m
+   [38;5;246m│[0m
+ [38;5;246m4 │[0m [38;5;249m [0m[38;5;249m [0m[38;5;249m [0m[38;5;249m [0m[38;5;249mp[0m[38;5;249mr[0m[38;5;249mi[0m[38;5;249mn[0m[38;5;249mt[0m[38;5;249m([0m"Hello, world"[38;5;249m)[0m[38;5;249m.[0m[38;5;249ma[0m[38;5;249mw[0m[38;5;249ma[0m[38;5;249mi[0m[38;5;249mt[0m
+ [38;5;246m  ·[0m           ───────┬──────  
+ [38;5;246m  ·[0m                  ╰──────── here
+[38;5;246m───╯[0m

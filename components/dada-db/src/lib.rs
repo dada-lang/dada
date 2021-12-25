@@ -1,4 +1,9 @@
-use dada_ir::{diagnostic::Diagnostic, filename::Filename, item::Item};
+use dada_ir::{
+    diagnostic::Diagnostic,
+    filename::Filename,
+    item::Item,
+    span::{FileSpan, LineColumn, Offset},
+};
 use dada_parse::prelude::*;
 use dada_validate::prelude::*;
 use salsa::DebugWithDb;
@@ -53,5 +58,17 @@ impl Db {
     /// Parses `filename` and returns a lits of the items within.
     pub fn debug_validated_tree(&self, item: Item) -> Option<impl std::fmt::Debug + '_> {
         Some(item.validated_tree(self)?.debug(self))
+    }
+
+    /// Converts a given offset in a given file into line/column information.
+    pub fn line_column(&self, filename: Filename, offset: Offset) -> LineColumn {
+        dada_lex::line_column(self, filename, offset)
+    }
+
+    /// Converts a `FileSpan` into its constituent parts.
+    pub fn line_columns(&self, span: FileSpan) -> (Filename, LineColumn, LineColumn) {
+        let start = self.line_column(span.filename, span.start);
+        let end = self.line_column(span.filename, span.end);
+        (span.filename, start, end)
     }
 }

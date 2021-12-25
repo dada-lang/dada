@@ -34,7 +34,7 @@ impl Options {
                             total += 1;
                             self.test_dada_file(path)
                                 .with_context(|| format!("testing `{}`", path.display()))?;
-                        } else if ext == "ref" {
+                        } else if ext == "ref" || ext == "lsp" {
                             // ignore ref files
                         } else {
                             // Error out for random files -- I've frequently accidentally made
@@ -82,6 +82,55 @@ impl Options {
 
     #[tracing::instrument(level = "info", skip(self))]
     fn test_dada_file(&self, path: &Path) -> eyre::Result<()> {
+        let expected_diagnostics = &expected_diagnostics(path)?;
+        self.test_dada_file_normal(path, expected_diagnostics)?;
+        self.test_dada_file_in_ide(path, expected_diagnostics)?;
+        Ok(())
+    }
+
+    #[tracing::instrument(level = "info", skip(self))]
+    fn test_dada_file_normal(
+        &self,
+        path: &Path,
+        expected_diagnostics: &[ExpectedDiagnostic],
+    ) -> eyre::Result<()> {
+        let mut db = dada_db::Db::default();
+
+        let contents = std::fs::read_to_string(path)
+            .with_context(|| format!("reading `{}`", path.display()))?;
+
+        let filename = dada_ir::filename::Filename::from(&db, path);
+        db.update_file(filename, contents);
+
+        let diagnostics = db.diagnostics(filename);
+
+        let mut errors = Errors::default();
+
+        // First, go through any expected diagnostics and make sure that
+        // they match against *something* in the results.
+        for e in expected_diagnostics {
+            if !diagnostics.iter().any(|d| e.matches_db(&db, d)) {
+                errors.push(ExpectedDiagnosticNotFound(e.clone()));
+            }
+        }
+
+        // Second, compare the full details to the `.ide` file.
+        // If we are in DADA_BLESS mode, then update the `.ide` file.
+        self.check_output(
+            crate::format::format_diagnostics(&db, &diagnostics)?,
+            path.with_extension("ref"),
+            &mut errors,
+        )?;
+
+        errors.into_result()
+    }
+
+    #[tracing::instrument(level = "info", skip(self))]
+    fn test_dada_file_in_ide(
+        &self,
+        path: &Path,
+        expected_diagnostics: &[ExpectedDiagnostic],
+    ) -> eyre::Result<()> {
         let mut c = lsp_client::ChildSession::spawn();
         c.send_init()?;
         c.send_open(path)?;
@@ -91,28 +140,40 @@ impl Options {
 
         // First, go through any expected diagnostics and make sure that
         // they match against *something* in the results.
-        let expected_diagnostics = expected_diagnostics(path)?;
         for e in expected_diagnostics {
-            if !diagnostics.iter().any(|d| e.matches(d)) {
-                errors.push(ExpectedDiagnosticNotFound(e));
+            if !diagnostics.iter().any(|d| e.matches_lsp(d)) {
+                errors.push(ExpectedDiagnosticNotFound(e.clone()));
             }
         }
 
-        // Second, compare the full details to the `.ref` file.
-        // If we are in DADA_BLESS mode, then update the `.ref` file.
-        let ref_path = path.with_extension("ref");
-        let actual_diagnostics = format!("{:#?}", diagnostics);
-        self.maybe_bless_file(&ref_path, &actual_diagnostics)?;
-        let ref_contents = std::fs::read_to_string(&ref_path)
-            .with_context(|| format!("reading `{}`", ref_path.display()))?;
-        if ref_contents != actual_diagnostics {
-            errors.push(RefOutputDoesNotMatch {
-                expected: ref_contents,
-                actual: actual_diagnostics,
-            });
-        }
+        // Second, compare the full details to the `.ide` file.
+        // If we are in DADA_BLESS mode, then update the `.ide` file.
+        self.check_output(
+            format!("{:#?}", diagnostics),
+            path.with_extension("lsp"),
+            &mut errors,
+        )?;
 
         errors.into_result()
+    }
+
+    fn check_output(
+        &self,
+        actual_output: String,
+        ref_path: PathBuf,
+        errors: &mut Errors,
+    ) -> eyre::Result<()> {
+        self.maybe_bless_file(&ref_path, &actual_output)?;
+        let ref_contents = std::fs::read_to_string(&ref_path)
+            .with_context(|| format!("reading `{}`", ref_path.display()))?;
+        if ref_contents != actual_output {
+            errors.push(RefOutputDoesNotMatch {
+                ref_path,
+                expected: ref_contents,
+                actual: actual_output,
+            });
+        }
+        Ok(())
     }
 
     fn maybe_bless_file(&self, ref_path: &Path, actual_diagnostics: &str) -> eyre::Result<()> {
@@ -187,6 +248,7 @@ impl std::fmt::Display for ExpectedDiagnosticNotFound {
 
 #[derive(Debug)]
 struct RefOutputDoesNotMatch {
+    ref_path: PathBuf,
     expected: String,
     actual: String,
 }
@@ -198,12 +260,14 @@ impl std::fmt::Display for RefOutputDoesNotMatch {
         write!(
             f,
             "{}",
-            similar::TextDiff::from_lines(&self.expected, &self.actual).unified_diff()
+            similar::TextDiff::from_lines(&self.expected, &self.actual)
+                .unified_diff()
+                .header(&self.ref_path.display().to_string(), "actual output")
         )
     }
 }
 
-#[derive(Debug)]
+#[derive(Clone, Debug)]
 struct ExpectedDiagnostic {
     start_line: u32,
     start_column: Option<u32>,
@@ -235,7 +299,36 @@ fn expected_diagnostics(path: &Path) -> eyre::Result<Vec<ExpectedDiagnostic>> {
     Ok(result)
 }
 impl ExpectedDiagnostic {
-    fn matches(&self, diagnostic: &Diagnostic) -> bool {
+    fn matches_db(&self, db: &dada_db::Db, diagnostic: &dada_ir::diagnostic::Diagnostic) -> bool {
+        let (_, start, end) = db.line_columns(diagnostic.span);
+
+        if start.line != self.start_line {
+            return false;
+        }
+
+        if let Some(start_column) = self.start_column {
+            if start.column != start_column {
+                return false;
+            }
+        }
+
+        if let Some((end_line, end_column)) = self.end_line_column {
+            if end_line != end.line || end_column != end.column {
+                return false;
+            }
+        }
+
+        // Check the severity against the one provided (if any).
+        if let Some(s) = &self.severity {
+            if *s != format!("{:?}", diagnostic.severity) {
+                return false;
+            }
+        }
+
+        self.message.is_match(&diagnostic.message)
+    }
+
+    fn matches_lsp(&self, diagnostic: &Diagnostic) -> bool {
         if diagnostic.range.start.line != self.start_line {
             return false;
         }
