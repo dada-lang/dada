@@ -6,7 +6,8 @@ use dada_parse::prelude::*;
     dada_ir::Jar,
     dada_lex::Jar,
     dada_manifest::Jar,
-    dada_parse::Jar
+    dada_parse::Jar,
+    dada_validate::Jar
 )]
 #[derive(Default)]
 pub struct Db {

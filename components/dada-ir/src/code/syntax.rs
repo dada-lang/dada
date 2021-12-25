@@ -18,7 +18,7 @@ tables! {
     pub struct Tables {
         exprs: alloc Expr => ExprData,
         named_exprs: alloc NamedExpr => NamedExprData,
-        blocks: alloc Block => BlockData,
+        local_variable_decls: alloc LocalVariableDecl => LocalVariableDeclData,
     }
 }
 
@@ -32,7 +32,7 @@ origin_table! {
     pub struct Spans {
         expr_spans: Expr => Span,
         named_expr_spans: NamedExpr => NamedExprSpan,
-        block_spans: Block => Span,
+        local_variable_decl_spans: LocalVariableDecl => LocalVariableDeclSpan,
     }
 }
 
@@ -73,10 +73,13 @@ pub enum ExprData {
     Give(Expr),
 
     /// `[shared|var|atomic] x = expr`
-    Var(StorageMode, Word, Expr),
+    Var(LocalVariableDecl, Expr),
 
-    /// `(expr)`
+    /// `expr`
     Parenthesized(Expr),
+
+    /// `(expr)` of len != 1
+    Tuple(Vec<Expr>),
 
     /// `if condition { block } [else { block }]`
     If(Expr, Expr, Option<Expr>),
@@ -90,8 +93,8 @@ pub enum ExprData {
     /// `while condition { block }`
     While(Expr, Expr),
 
-    // { ... } ==> closure?
-    Block(Block),
+    // `{ ... }`, but only as part of a control-flow construct
+    Seq(Vec<Expr>),
 
     /// `a + b`
     Op(Expr, Op, Expr),
@@ -106,6 +109,20 @@ pub enum ExprData {
     Error,
 }
 
+id!(pub struct LocalVariableDecl);
+
+#[derive(PartialEq, Eq, PartialOrd, Ord, Clone, Hash, Debug)]
+pub struct LocalVariableDeclData {
+    pub mode: Option<StorageMode>,
+    pub name: Word,
+}
+
+#[derive(PartialEq, Eq, Clone, Hash, Debug)]
+pub struct LocalVariableDeclSpan {
+    pub mode_span: Span,
+    pub name_span: Span,
+}
+
 id!(pub struct NamedExpr);
 
 #[derive(PartialEq, Eq, PartialOrd, Ord, Clone, Hash, Debug)]
@@ -118,11 +135,4 @@ pub struct NamedExprData {
 pub struct NamedExprSpan {
     pub span: Span,
     pub name_span: Span,
-}
-
-id!(pub struct Block);
-
-#[derive(PartialEq, Eq, PartialOrd, Ord, Clone, Hash, Debug)]
-pub struct BlockData {
-    pub exprs: Vec<Expr>,
 }

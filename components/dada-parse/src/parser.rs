@@ -204,6 +204,7 @@ trait ParseList {
                 }
             }
         }
+        v.shrink_to_fit();
         v
     }
 

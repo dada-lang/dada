@@ -22,6 +22,7 @@ pub mod alloc_table;
 pub mod intern_table;
 pub mod prelude {
     pub use crate::InternKey;
+    pub use crate::InternReplaceKey;
     pub use crate::InternValue;
 }
 
@@ -118,25 +119,50 @@ macro_rules! tables {
         }
 
         $(
-            impl $crate::InternValue for $v {
-                type Table = $n;
-                type Key = $k;
-
-                fn add(self, table: &mut Self::Table) -> Self::Key {
-                    table.$f.add(self)
-                }
-            }
-
-            impl dada_id::InternKey for $k {
-                type Table = $n;
-                type Value = $v;
-
-                fn data(self, table: &Self::Table) -> &Self::Value {
-                    table.$f.data(self)
-                }
+            dada_id::tables!{
+                @field_impl[$n] $f: $tty $k => $v
             }
         )*
-    }
+    };
+
+    (@field_impl[$n:ident] $f:ident: alloc $k:ty => $v:ty) => {
+        dada_id::tables!{
+            @any_field_impl[$n] $f: $k => $v
+        }
+
+        impl dada_id::InternReplaceKey for $k {
+            fn replace(self, value: Self::Value, table: &mut Self::Table) {
+                table.$f.replace(self, value)
+            }
+        }
+    };
+
+    (@field_impl[$n:ident] $f:ident: intern $k:ty => $v:ty) => {
+        dada_id::tables!{
+            @any_field_impl[$n] $f: $k => $v
+        }
+    };
+
+    (@any_field_impl[$n:ident] $f:ident: $k:ty => $v:ty) => {
+        impl $crate::InternValue for $v {
+            type Table = $n;
+            type Key = $k;
+
+            fn add(self, table: &mut Self::Table) -> Self::Key {
+                table.$f.add(self)
+            }
+        }
+
+        impl dada_id::InternKey for $k {
+            type Table = $n;
+            type Value = $v;
+
+            fn data(self, table: &Self::Table) -> &Self::Value {
+                table.$f.data(self)
+            }
+        }
+    };
+
 }
 
 pub trait InternValue: Hash + Eq {
@@ -150,5 +176,11 @@ pub trait InternKey: salsa::AsId + 'static {
     type Table;
     type Value: Hash + Eq;
 
+    /// Get the data for this key from the given table.
     fn data(self, table: &Self::Table) -> &Self::Value;
+}
+
+pub trait InternReplaceKey: InternKey {
+    /// Get the data for this key from the given table.
+    fn replace(self, value: Self::Value, table: &mut Self::Table);
 }

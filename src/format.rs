@@ -1,5 +1,5 @@
 use ariadne::{Label, Report, ReportKind, Source};
-use dada_ir::{filename::Filename, word::Word};
+use dada_ir::filename::Filename;
 
 pub fn print_diagnostic(
     db: &dada_db::Db,

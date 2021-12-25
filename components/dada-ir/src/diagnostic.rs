@@ -1,4 +1,11 @@
-use crate::span::{FileSpan, Span};
+use crate::{
+    filename::Filename,
+    span::{FileSpan, Span},
+};
+
+/// Used as the "error" value for a `Result` to indicate that an error was detected
+/// and reported to the user (i.e., pushed onto the [`Diagnostics`] accumulator).
+pub struct ErrorReported;
 
 #[derive(Clone, PartialEq, Eq, Hash, Debug)]
 #[non_exhaustive]
@@ -78,8 +85,9 @@ impl Diagnostic {
     /// Emit the diagnostic to the [`Diagnostics`] accumulator.
     /// You can fetch the diagnostics produced by a query (and its
     /// dependencies) by invoking `query::accumulated::<Diagnostics>(..)`.
-    pub fn emit(self, db: &dyn crate::Db) {
-        Diagnostics::push(db, self)
+    pub fn emit(self, db: &dyn crate::Db) -> ErrorReported {
+        Diagnostics::push(db, self);
+        ErrorReported
     }
 }
 
@@ -115,13 +123,8 @@ impl DiagnosticBuilder {
 
     /// Add a label to this diagnostic; the label is assumed to
     /// be in the same file as the "main" error.
-    pub fn label(self, span: Span, message: impl ToString) -> Self {
-        let file_span = span.in_file(self.span.filename);
-        self.label_in_any_file(file_span, message)
-    }
-
-    /// Add a label to this diagnostic; the label may be in any file.
-    pub fn label_in_any_file(mut self, span: FileSpan, message: impl ToString) -> Self {
+    pub fn label(mut self, span: impl IntoFileSpan, message: impl ToString) -> Self {
+        let span = span.maybe_in_file(self.span.filename);
         self.labels.push(Label {
             span,
             message: message.to_string(),
@@ -145,7 +148,7 @@ impl DiagnosticBuilder {
     pub fn finish(mut self) -> Diagnostic {
         if self.labels.is_empty() {
             let span = self.span;
-            self = self.label_in_any_file(span, "here");
+            self = self.label(span, "here");
         }
 
         Diagnostic {
@@ -158,7 +161,23 @@ impl DiagnosticBuilder {
     }
 
     /// Finish and emit the diagnostic.
-    pub fn emit(self, db: &dyn crate::Db) {
+    pub fn emit(self, db: &dyn crate::Db) -> ErrorReported {
         self.finish().emit(db)
+    }
+}
+
+pub trait IntoFileSpan {
+    fn maybe_in_file(self, default_file: Filename) -> FileSpan;
+}
+
+impl IntoFileSpan for FileSpan {
+    fn maybe_in_file(self, _default_file: Filename) -> FileSpan {
+        self
+    }
+}
+
+impl IntoFileSpan for Span {
+    fn maybe_in_file(self, default_file: Filename) -> FileSpan {
+        self.in_file(default_file)
     }
 }

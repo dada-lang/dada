@@ -1,9 +1,10 @@
 use crate::{parser::Parser, token_test::Identifier};
 
 use dada_ir::{
+    code::syntax::{LocalVariableDeclData, LocalVariableDeclSpan},
     kw::Keyword,
     op::Op,
-    parameter::{Parameter, ParameterSpans},
+    parameter::Parameter,
     span::Span,
     storage_mode::StorageMode,
 };
@@ -35,16 +36,18 @@ impl<'db> Parser<'db> {
             };
 
             let (mode_span, mode) = match opt_storage_mode {
-                Some(pair) => pair,
-                None => (name_span, StorageMode::Shared),
+                Some((span, mode)) => (span, Some(mode)),
+                None => (name_span, None),
             };
 
-            let spans = ParameterSpans {
-                name: name_span,
-                mode: mode_span,
+            let decl = LocalVariableDeclData { mode, name };
+
+            let spans = LocalVariableDeclSpan {
+                mode_span,
+                name_span,
             };
 
-            Some(Parameter::new(self.db, name, mode, opt_ty, spans))
+            Some(Parameter::new(self.db, name, decl, spans, opt_ty))
         } else {
             // No identifier == no parameter; if there's a storage mode,
             // that's an error.

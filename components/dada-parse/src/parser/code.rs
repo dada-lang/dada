@@ -5,10 +5,7 @@ use crate::{
 
 use dada_id::InternValue;
 use dada_ir::{
-    code::syntax::{
-        Block, BlockData, Expr, ExprData, NamedExpr, NamedExprData, NamedExprSpan, Spans, Tables,
-        Tree,
-    },
+    code::syntax::{Expr, ExprData, NamedExpr, NamedExprData, NamedExprSpan, Spans, Tables, Tree},
     format_string::FormatStringSectionData,
     kw::Keyword,
     op::Op,
@@ -36,9 +33,9 @@ impl Parser<'_> {
         };
 
         let start = code_parser.tokens.last_span();
-        let block = code_parser.parse_only_block_contents();
+        let block = code_parser.parse_only_expr_seq();
         let span = code_parser.span_consumed_since(start);
-        let root_expr = code_parser.add(ExprData::Block(block), span);
+        let root_expr = code_parser.add(ExprData::Seq(block), span);
         (Tree { tables, root_expr }, spans)
     }
 }
@@ -65,10 +62,10 @@ impl<'db> std::ops::DerefMut for CodeParser<'_, 'db> {
 
 impl CodeParser<'_, '_> {
     /// Parses a series of expressions; expects to consume all available tokens (and errors if there are extra).
-    pub(crate) fn parse_only_block_contents(&mut self) -> Block {
+    pub(crate) fn parse_only_expr_seq(&mut self) -> Vec<Expr> {
         let exprs = self.parse_list(false, CodeParser::parse_expr);
         self.emit_error_if_more_tokens("extra tokens after end of expression");
-        self.tables.add(BlockData { exprs })
+        exprs
     }
 
     /// Parses a series of named expressions (`id: expr`); expects to consume all available tokens (and errors if there are extra).
@@ -76,23 +73,6 @@ impl CodeParser<'_, '_> {
         let exprs = self.parse_list(true, CodeParser::parse_named_expr);
         self.emit_error_if_more_tokens("extra tokens after end of arguments");
         exprs
-    }
-
-    /// Parses a single expression (and errors if there are extra tokens)
-    pub(crate) fn parse_only_expr(&mut self) -> Expr {
-        if let Some(expr) = self.parse_expr() {
-            if self.tokens.peek().is_some() {
-                self.error_at_current_token("extra tokens after expression")
-                    .label(self.tokens.last_span(), "expression ends here")
-                    .emit(self.db);
-            }
-
-            return expr;
-        }
-
-        self.error_at_current_token("expected expression")
-            .emit(self.db);
-        None.or_dummy_expr(self)
     }
 
     fn add<D, K>(&mut self, data: D, span: K::Origin) -> K
@@ -269,8 +249,9 @@ impl CodeParser<'_, '_> {
                 None
             }
         } else if let Some((span, token_tree)) = self.delimited('(') {
-            let expr = self.with_sub_parser(token_tree, |subparser| subparser.parse_only_expr());
-            Some(self.add(ExprData::Parenthesized(expr), span))
+            let expr =
+                self.with_sub_parser(token_tree, |subparser| subparser.parse_only_expr_seq());
+            Some(self.add(ExprData::Tuple(expr), span))
         } else {
             None
         }
@@ -284,10 +265,8 @@ impl CodeParser<'_, '_> {
 
     fn parse_block_expr(&mut self) -> Option<Expr> {
         let (span, token_tree) = self.delimited('{')?;
-        let block = self.with_sub_parser(token_tree, |sub_parser| {
-            sub_parser.parse_only_block_contents()
-        });
-        let expr = self.add(ExprData::Block(block), span);
+        let block = self.with_sub_parser(token_tree, |sub_parser| sub_parser.parse_only_expr_seq());
+        let expr = self.add(ExprData::Seq(block), span);
         Some(expr)
     }
 

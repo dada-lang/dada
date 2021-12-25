@@ -21,7 +21,7 @@ tables! {
         local_variables: alloc LocalVariable => LocalVariableData,
         exprs: alloc Expr => ExprData,
         named_exprs: alloc NamedExpr => NamedExprData,
-        blocks: alloc Block => BlockData,
+        places: alloc Place => PlaceData,
     }
 }
 
@@ -34,6 +34,9 @@ origin_table! {
     #[derive(Clone, Debug, Default, PartialEq, Eq, Hash)]
     pub struct Origins {
         expr_spans: Expr => syntax::Expr,
+        place_spans: Place => syntax::Expr,
+        named_exprs: NamedExpr => syntax::NamedExpr,
+        local_variables: LocalVariable => syntax::Expr,
     }
 }
 
@@ -79,8 +82,11 @@ pub enum ExprData {
     /// `expr.give`
     Give(Place),
 
+    /// `()` or `(a, b, ...)` (i.e., expr seq cannot have length 1)
+    Tuple(Vec<Expr>),
+
     /// `if condition { block } [else { block }]`
-    If(Expr, Expr, Option<Expr>),
+    If(Expr, Expr, Expr),
 
     /// `atomic { block }`
     Atomic(Expr),
@@ -102,6 +108,9 @@ pub enum ExprData {
     /// `break [from expr] [with value]`
     Return(Expr),
 
+    /// expr[0]; expr[1]; ...
+    Seq(Vec<Expr>),
+
     /// `a + b`
     Op(Expr, Op, Expr),
 
@@ -119,7 +128,7 @@ pub enum PlaceData {
     LocalVariable(LocalVariable),
     Function(Function),
     Class(Class),
-    Dot(LocalVariable, Word),
+    Dot(Place, Word),
 }
 
 id!(pub struct NamedExpr);
@@ -128,11 +137,4 @@ id!(pub struct NamedExpr);
 pub struct NamedExprData {
     pub name: Word,
     pub expr: Expr,
-}
-
-id!(pub struct Block);
-
-#[derive(PartialEq, Eq, PartialOrd, Ord, Clone, Hash, Debug)]
-pub struct BlockData {
-    pub exprs: Vec<Expr>,
 }

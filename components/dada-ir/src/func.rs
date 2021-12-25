@@ -1,9 +1,9 @@
-use crate::{code::Code, parameter::UnparsedParameters, span::Span, word::Word};
+use crate::{code::Code, parameter::UnparsedParameters, span::FileSpan, word::Word};
 
 salsa::entity2! {
     entity Function in crate::Jar {
         #[id] name: Word,
-        name_span: Span,
+        name_span: FileSpan,
         effect: Effect,
         unparsed_parameters: UnparsedParameters,
         code: Code,

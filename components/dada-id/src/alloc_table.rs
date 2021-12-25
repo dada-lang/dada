@@ -1,17 +1,19 @@
 use std::{hash::Hash, marker::PhantomData};
 
+use dada_collections::IndexVec;
+
 /// An individual allocating table, where each thing
 /// added to the table gets a unique index.
 #[derive(Clone, Debug, PartialEq, Eq)]
 pub struct AllocTable<K: salsa::AsId, V: Hash + Eq> {
-    vec: Vec<V>,
+    vec: IndexVec<salsa::Id, V>,
     phantom: PhantomData<K>,
 }
 
 impl<K: salsa::AsId, V: Hash + Eq> Default for AllocTable<K, V> {
     fn default() -> Self {
         Self {
-            vec: Vec::default(),
+            vec: IndexVec::default(),
             phantom: PhantomData,
         }
     }
@@ -25,8 +27,12 @@ impl<K: salsa::AsId, V: Hash + Eq> AllocTable<K, V> {
     }
 
     pub fn data(&self, key: K) -> &V {
-        let index: usize = key.as_id().as_u32().try_into().unwrap();
-        &self.vec[index]
+        &self.vec[key.as_id()]
+    }
+
+    /// Replace the value for K with V.
+    pub fn replace(&mut self, key: K, value: V) {
+        self.vec[key.as_id()] = value;
     }
 }
 

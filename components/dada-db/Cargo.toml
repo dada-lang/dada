@@ -12,3 +12,4 @@ dada-lex = { path = "../dada-lex" }
 dada-manifest = { path = "../dada-manifest" }
 dada-parse = { path = "../dada-parse" }
 dada-check = { path = "../dada-check" }
+dada-validate = { path = "../dada-validate" }

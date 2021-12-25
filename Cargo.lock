@@ -232,6 +232,7 @@ dependencies = [
  "dada-lex",
  "dada-manifest",
  "dada-parse",
+ "dada-validate",
  "salsa",
 ]
 
@@ -684,7 +685,7 @@ dependencies = [
 [[package]]
 name = "salsa-entity-macros"
 version = "0.1.0"
-source = "git+https://github.com/nikomatsakis/salsa/?branch=entity#bd6f1479d647254b0b93d18a59acc56390d9ad51"
+source = "git+https://github.com/nikomatsakis/salsa/?branch=entity#84d5cd6b20ad3c20354822ff46bfc74ba1c59cf9"
 dependencies = [
  "eyre",
  "heck",
@@ -696,7 +697,7 @@ dependencies = [
 [[package]]
 name = "salsa-entity-mock"
 version = "0.1.0"
-source = "git+https://github.com/nikomatsakis/salsa/?branch=entity#bd6f1479d647254b0b93d18a59acc56390d9ad51"
+source = "git+https://github.com/nikomatsakis/salsa/?branch=entity#84d5cd6b20ad3c20354822ff46bfc74ba1c59cf9"
 dependencies = [
  "arc-swap",
  "crossbeam",
@@ -835,9 +836,9 @@ dependencies = [
 
 [[package]]
 name = "syn"
-version = "1.0.82"
+version = "1.0.83"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "8daf5dd0bb60cbd4137b1b587d2fc0ae729bc07cf01cd70b36a1ed5ade3b9d59"
+checksum = "23a1dfb999630e338648c83e91c59a4e9fb7620f520c3194b6b89e276f2f1959"
 dependencies = [
  "proc-macro2",
  "quote",

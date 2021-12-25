@@ -47,7 +47,7 @@ impl<'db> Parser<'db> {
         Some(Class::new(
             self.db,
             class_name,
-            class_name_span,
+            class_name_span.in_file(self.filename),
             UnparsedParameters(field_tokens),
         ))
     }
@@ -74,7 +74,7 @@ impl<'db> Parser<'db> {
         Some(Function::new(
             self.db,
             func_name,
-            func_name_span,
+            func_name_span.in_file(self.filename),
             effect,
             UnparsedParameters(parameter_tokens),
             code,
