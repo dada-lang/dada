@@ -1,6 +1,6 @@
 use dada_ir::{filename::Filename, item::Item};
 use dada_parse::prelude::*;
-use dada_validate::prelude::CodeExt;
+use dada_validate::prelude::*;
 
 #[salsa::memoized(in crate::Jar)]
 pub fn check_filename(db: &dyn crate::Db, filename: Filename) {
@@ -11,7 +11,7 @@ pub fn check_filename(db: &dyn crate::Db, filename: Filename) {
             Item::Function(function) => {
                 function.parameters(db);
                 function.syntax_tree(db);
-                function.code(db).validated_ast(db);
+                function.validated_tree(db);
             }
             Item::Class(class) => {
                 class.fields(db);

@@ -1,3 +1,3 @@
 fn main() -> eyre::Result<()> {
-    dada::Options::test_harness().main()
+    dada_lang::Options::test_harness().main()
 }

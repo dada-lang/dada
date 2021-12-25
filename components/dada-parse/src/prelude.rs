@@ -7,13 +7,23 @@ use dada_ir::{
     parameter::Parameter,
 };
 
-pub trait CodeExt {
+pub trait DadaParseItemExt {
+    fn syntax_tree(self, db: &dyn crate::Db) -> Option<&syntax::Tree>;
+}
+
+impl DadaParseItemExt for Item {
+    fn syntax_tree(self, db: &dyn crate::Db) -> Option<&syntax::Tree> {
+        Some(self.code(db)?.syntax_tree(db))
+    }
+}
+
+pub trait DadaParseCodeExt {
     /// Returns the Ast for a function.
     fn syntax_tree(self, db: &dyn crate::Db) -> &syntax::Tree;
     fn syntax_tree_spans(self, db: &dyn crate::Db) -> &syntax::Spans;
 }
 
-impl CodeExt for Code {
+impl DadaParseCodeExt for Code {
     fn syntax_tree(self, db: &dyn crate::Db) -> &syntax::Tree {
         crate::code_parser::parse_code(db, self)
     }
@@ -23,14 +33,14 @@ impl CodeExt for Code {
     }
 }
 
-pub trait FunctionExt {
+pub trait DadaParseFunctionExt {
     /// Returns the Ast for a function.
     fn syntax_tree(self, db: &dyn crate::Db) -> &syntax::Tree;
     fn syntax_tree_spans(self, db: &dyn crate::Db) -> &syntax::Spans;
     fn parameters(self, db: &dyn crate::Db) -> &Vec<Parameter>;
 }
 
-impl FunctionExt for Function {
+impl DadaParseFunctionExt for Function {
     fn syntax_tree(self, db: &dyn crate::Db) -> &syntax::Tree {
         self.code(db).syntax_tree(db)
     }
@@ -44,21 +54,21 @@ impl FunctionExt for Function {
     }
 }
 
-pub trait ClassExt {
+pub trait DadaParseClassExt {
     fn fields(self, db: &dyn crate::Db) -> &Vec<Parameter>;
 }
 
-impl ClassExt for Class {
+impl DadaParseClassExt for Class {
     fn fields(self, db: &dyn crate::Db) -> &Vec<Parameter> {
         crate::parameter_parser::parse_parameters(db, self.unparsed_parameters(db))
     }
 }
 
-pub trait FilenameExt {
+pub trait DadaParseFilenameExt {
     fn items(self, db: &dyn crate::Db) -> &Vec<Item>;
 }
 
-impl FilenameExt for Filename {
+impl DadaParseFilenameExt for Filename {
     fn items(self, db: &dyn crate::Db) -> &Vec<Item> {
         crate::file_parser::parse_file(db, self)
     }

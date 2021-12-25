@@ -21,8 +21,8 @@ use std::hash::Hash;
 pub mod alloc_table;
 pub mod intern_table;
 pub mod prelude {
+    pub use crate::InternAllocKey;
     pub use crate::InternKey;
-    pub use crate::InternReplaceKey;
     pub use crate::InternValue;
 }
 
@@ -50,14 +50,42 @@ macro_rules! id {
             }
         }
 
+        impl std::ops::Add<usize> for $n {
+            type Output = $n;
+
+            fn add(self, other: usize) -> $n {
+                $n::from(usize::from(self) + other)
+            }
+        }
+
+        impl std::ops::Add<u32> for $n {
+            type Output = $n;
+
+            fn add(self, other: u32) -> $n {
+                $n::from(u32::from(self) + other)
+            }
+        }
+
         impl From<usize> for $n {
             fn from(u: usize) -> $n {
                 $n(salsa::Id::from(u))
             }
         }
 
+        impl From<u32> for $n {
+            fn from(u: u32) -> $n {
+                $n(salsa::Id::from(u))
+            }
+        }
+
         impl From<$n> for usize {
             fn from(n: $n) -> usize {
+                n.0.into()
+            }
+        }
+
+        impl From<$n> for u32 {
+            fn from(n: $n) -> u32 {
                 n.0.into()
             }
         }
@@ -130,7 +158,11 @@ macro_rules! tables {
             @any_field_impl[$n] $f: $k => $v
         }
 
-        impl dada_id::InternReplaceKey for $k {
+        impl dada_id::InternAllocKey for $k {
+            fn max_key(table: &Self::Table) -> $k {
+                table.$f.next_key()
+            }
+
             fn replace(self, value: Self::Value, table: &mut Self::Table) {
                 table.$f.replace(self, value)
             }
@@ -144,6 +176,12 @@ macro_rules! tables {
     };
 
     (@any_field_impl[$n:ident] $f:ident: $k:ty => $v:ty) => {
+        impl $k {
+            fn zero() -> Self {
+                Self::from(0_u32)
+            }
+        }
+
         impl $crate::InternValue for $v {
             type Table = $n;
             type Key = $k;
@@ -180,7 +218,11 @@ pub trait InternKey: salsa::AsId + 'static {
     fn data(self, table: &Self::Table) -> &Self::Value;
 }
 
-pub trait InternReplaceKey: InternKey {
+pub trait InternAllocKey: InternKey {
+    /// Get the "max", which is the next key of this type which would be allocated.
+    /// Note that this is not (yet) a valid key.
+    fn max_key(table: &Self::Table) -> Self;
+
     /// Get the data for this key from the given table.
     fn replace(self, value: Self::Value, table: &mut Self::Table);
 }

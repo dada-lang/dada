@@ -1,4 +1,3 @@
-use salsa::DebugWithDb;
 use std::path::PathBuf;
 
 use eyre::Context;
@@ -8,7 +7,10 @@ pub struct Options {
     paths: Vec<PathBuf>,
 
     #[structopt(long)]
-    print_ast: bool,
+    log_syntax_tree: bool,
+
+    #[structopt(long)]
+    log_validated_tree: bool,
 }
 
 impl Options {
@@ -22,9 +24,19 @@ impl Options {
             db.update_file(filename, contents);
             all_diagnostics.extend(db.diagnostics(filename));
 
-            if self.print_ast {
+            if self.log_syntax_tree {
                 for item in db.items(filename) {
-                    eprintln!("{:#?}", item.debug(&db));
+                    if let Some(tree) = db.debug_syntax_tree(item) {
+                        tracing::info!("{:#?}", tree);
+                    }
+                }
+            }
+
+            if self.log_validated_tree {
+                for item in db.items(filename) {
+                    if let Some(tree) = db.debug_validated_tree(item) {
+                        tracing::info!("{:#?}", tree);
+                    }
                 }
             }
         }

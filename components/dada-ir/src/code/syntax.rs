@@ -1,5 +1,6 @@
 use crate::{op::Op, span::Span, storage_mode::StorageMode, word::Word};
 use dada_id::{id, tables};
+use salsa::DebugWithDb;
 
 /// Stores the ast for a function.
 #[derive(Clone, Debug, PartialEq, Eq)]
@@ -9,6 +10,14 @@ pub struct Tree {
 
     /// The root
     pub root_expr: Expr,
+}
+
+impl DebugWithDb<dyn crate::Db + '_> for Tree {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>, _db: &dyn crate::Db) -> std::fmt::Result {
+        f.debug_struct("syntax::Tree")
+            .field("root_expr", &self.root_expr) // FIXME
+            .finish()
+    }
 }
 
 tables! {

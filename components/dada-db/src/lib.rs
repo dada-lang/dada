@@ -1,5 +1,7 @@
 use dada_ir::{diagnostic::Diagnostic, filename::Filename, item::Item};
 use dada_parse::prelude::*;
+use dada_validate::prelude::*;
+use salsa::DebugWithDb;
 
 #[salsa::db(
     dada_check::Jar,
@@ -41,5 +43,15 @@ impl Db {
     /// Parses `filename` and returns a lits of the items within.
     pub fn items(&self, filename: Filename) -> Vec<Item> {
         filename.items(self).clone()
+    }
+
+    /// Parses `filename` and returns a lits of the items within.
+    pub fn debug_syntax_tree(&self, item: Item) -> Option<impl std::fmt::Debug + '_> {
+        Some(item.syntax_tree(self)?.debug(self))
+    }
+
+    /// Parses `filename` and returns a lits of the items within.
+    pub fn debug_validated_tree(&self, item: Item) -> Option<impl std::fmt::Debug + '_> {
+        Some(item.validated_tree(self)?.debug(self))
     }
 }

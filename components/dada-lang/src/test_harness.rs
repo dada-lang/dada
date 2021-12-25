@@ -68,10 +68,10 @@ impl Options {
 
         let num_errors = errors.reports.len();
         for error in errors.reports {
-            eprintln!("{error:?}");
+            tracing::error!("{error:?}");
         }
 
-        eprintln!("{total} tests executed");
+        tracing::info!("{total} tests executed");
 
         if num_errors == 0 {
             Ok(())
@@ -80,9 +80,8 @@ impl Options {
         }
     }
 
+    #[tracing::instrument(level = "info", skip(self))]
     fn test_dada_file(&self, path: &Path) -> eyre::Result<()> {
-        eprintln!("test_data_file({})", path.display());
-
         let mut c = lsp_client::ChildSession::spawn();
         c.send_init()?;
         c.send_open(path)?;

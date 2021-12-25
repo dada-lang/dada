@@ -13,3 +13,4 @@ harness = false
 dada-lang = { path = "components/dada-lang" }
 eyre = "0.6.5"
 structopt = "0.3"
+tracing-subscriber = "0.2"

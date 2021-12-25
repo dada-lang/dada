@@ -19,11 +19,20 @@ impl<K: salsa::AsId, V: Hash + Eq> Default for AllocTable<K, V> {
     }
 }
 impl<K: salsa::AsId, V: Hash + Eq> AllocTable<K, V> {
-    pub fn add(&mut self, value: V) -> K {
+    /// Returns the key that will be assigned to the next
+    /// item that is added. As keys are assigned continguously,
+    /// this also determines the range of valid keys
+    /// (i.e., if this function returns N, then keys `0..N` are valid).
+    pub fn next_key(&self) -> K {
         let index = self.vec.len();
-        self.vec.push(value);
         let index: u32 = index.try_into().unwrap();
         K::from_id(salsa::Id::from_u32(index))
+    }
+
+    pub fn add(&mut self, value: V) -> K {
+        let key = self.next_key();
+        self.vec.push(value);
+        key
     }
 
     pub fn data(&self, key: K) -> &V {
@@ -33,6 +42,11 @@ impl<K: salsa::AsId, V: Hash + Eq> AllocTable<K, V> {
     /// Replace the value for K with V.
     pub fn replace(&mut self, key: K, value: V) {
         self.vec[key.as_id()] = value;
+    }
+
+    /// Replace the value for K with V.
+    pub fn all_keys(&self) -> impl Iterator<Item = K> {
+        (0..self.vec.len()).map(|i| K::from_id(salsa::Id::from(i)))
     }
 }
 

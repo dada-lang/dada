@@ -1,5 +1,6 @@
 use crate::{class::Class, func::Function, op::Op, storage_mode::StorageMode, word::Word};
-use dada_id::{id, tables};
+use dada_id::{id, prelude::*, tables};
+use salsa::DebugWithDb;
 
 use super::syntax;
 
@@ -7,10 +8,36 @@ use super::syntax;
 #[derive(Clone, Debug, PartialEq, Eq)]
 pub struct Tree {
     /// Interning tables for expressions and the like.
-    pub tables: Tables,
+    tables: Tables,
 
     /// The root
-    pub root_expr: Expr,
+    root_expr: Expr,
+}
+
+impl DebugWithDb<dyn crate::Db + '_> for Tree {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>, _db: &dyn crate::Db) -> std::fmt::Result {
+        f.debug_struct("validated::Tree")
+            .field("root_expr", &self.root_expr) // FIXME
+            .finish()
+    }
+}
+
+impl Tree {
+    pub fn new(tables: Tables, root_expr: Expr) -> Self {
+        Self { tables, root_expr }
+    }
+
+    pub fn tables(&self) -> &Tables {
+        &self.tables
+    }
+
+    pub fn root_expr(&self) -> Expr {
+        self.root_expr
+    }
+
+    pub fn max_local_variable(&self) -> LocalVariable {
+        LocalVariable::max_key(&self.tables)
+    }
 }
 
 tables! {
@@ -119,6 +146,12 @@ pub enum ExprData {
 
     /// parse or other error
     Error,
+}
+
+impl DebugWithDb<dyn crate::Db + '_> for ExprData {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>, _db: &dyn crate::Db) -> std::fmt::Result {
+        std::fmt::Debug::fmt(self, f) // FIXME
+    }
 }
 
 id!(pub struct Place);

@@ -8,7 +8,7 @@ use dada_ir::origin_table::PushOriginIn;
 use dada_ir::span::FileSpan;
 use dada_ir::span::Span;
 use dada_ir::storage_mode::StorageMode;
-use dada_parse::prelude::CodeExt;
+use dada_parse::prelude::*;
 
 use super::name_lookup::Definition;
 use super::name_lookup::Scope;
