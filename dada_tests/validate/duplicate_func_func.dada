@@ -1,2 +1,4 @@
 fn test() {}
 fn test() {}
+#! ERROR already have a function named `test`
+#! ERROR already have a function named `test`

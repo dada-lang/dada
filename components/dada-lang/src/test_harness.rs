@@ -95,33 +95,24 @@ impl Options {
         expected_diagnostics: &[ExpectedDiagnostic],
     ) -> eyre::Result<()> {
         let mut db = dada_db::Db::default();
-
         let contents = std::fs::read_to_string(path)
             .with_context(|| format!("reading `{}`", path.display()))?;
-
         let filename = dada_ir::filename::Filename::from(&db, path);
         db.update_file(filename, contents);
-
         let diagnostics = db.diagnostics(filename);
 
         let mut errors = Errors::default();
-
-        // First, go through any expected diagnostics and make sure that
-        // they match against *something* in the results.
-        for e in expected_diagnostics {
-            if !diagnostics.iter().any(|d| e.matches_db(&db, d)) {
-                errors.push(ExpectedDiagnosticNotFound(e.clone()));
-            }
-        }
-
-        // Second, compare the full details to the `.ide` file.
-        // If we are in DADA_BLESS mode, then update the `.ide` file.
-        self.check_output(
+        self.match_diagnostics_against_expectations(
+            &db,
+            &diagnostics,
+            expected_diagnostics,
+            &mut errors,
+        )?;
+        self.check_output_against_ref_file(
             crate::format::format_diagnostics(&db, &diagnostics)?,
             path.with_extension("ref"),
             &mut errors,
         )?;
-
         errors.into_result()
     }
 
@@ -137,27 +128,21 @@ impl Options {
         let diagnostics = c.receive_errors()?;
 
         let mut errors = Errors::default();
-
-        // First, go through any expected diagnostics and make sure that
-        // they match against *something* in the results.
-        for e in expected_diagnostics {
-            if !diagnostics.iter().any(|d| e.matches_lsp(d)) {
-                errors.push(ExpectedDiagnosticNotFound(e.clone()));
-            }
-        }
-
-        // Second, compare the full details to the `.ide` file.
-        // If we are in DADA_BLESS mode, then update the `.ide` file.
-        self.check_output(
+        self.match_diagnostics_against_expectations(
+            &(),
+            &diagnostics,
+            expected_diagnostics,
+            &mut errors,
+        )?;
+        self.check_output_against_ref_file(
             format!("{:#?}", diagnostics),
             path.with_extension("lsp"),
             &mut errors,
         )?;
-
         errors.into_result()
     }
 
-    fn check_output(
+    fn check_output_against_ref_file(
         &self,
         actual_output: String,
         ref_path: PathBuf,
@@ -180,6 +165,68 @@ impl Options {
         if self.bless {
             std::fs::write(&ref_path, actual_diagnostics)
                 .with_context(|| format!("writing `{}`", ref_path.display()))?;
+        }
+
+        Ok(())
+    }
+
+    fn match_diagnostics_against_expectations<D>(
+        &self,
+        db: &D::Db,
+        actual_diagnostics: &[D],
+        expected_diagnostics: &[ExpectedDiagnostic],
+        errors: &mut Errors,
+    ) -> eyre::Result<()>
+    where
+        D: ActualDiagnostic,
+    {
+        let mut actual_diagnostics: Vec<D> = actual_diagnostics.to_vec();
+        actual_diagnostics.sort_by_key(|a| a.start(db));
+
+        let mut expected_iter = expected_diagnostics.iter().fuse().peekable();
+        let mut actual_iter = actual_diagnostics.iter().fuse().peekable();
+
+        let mut expected_output = Vec::new();
+        let mut actual_output = Vec::new();
+
+        while expected_iter.peek().is_some() && actual_iter.peek().is_some() {
+            let actual_diagnostic = actual_iter.peek().unwrap();
+            let expected_diagnostic = expected_iter.peek().unwrap();
+            if actual_diagnostic.matches(db, expected_diagnostic) {
+                actual_output.push(actual_diagnostic.summary(db));
+                expected_output.push(actual_diagnostic.summary(db));
+                actual_iter.next();
+                expected_iter.next();
+                continue;
+            }
+
+            let (actual_line, _) = actual_diagnostic.start(db);
+            let expected_line = expected_diagnostic.start_line;
+
+            if actual_line < expected_line {
+                actual_output.push(actual_diagnostic.summary(db));
+                actual_iter.next();
+                continue;
+            }
+
+            expected_output.push(expected_diagnostic.summary());
+            expected_iter.next();
+            continue;
+        }
+
+        for actual_diagnostic in actual_iter {
+            actual_output.push(actual_diagnostic.summary(db));
+        }
+
+        for expected_diagnostic in expected_iter {
+            expected_output.push(expected_diagnostic.summary());
+        }
+
+        if expected_output != actual_output {
+            errors.push(DiagnosticsDoNotMatch {
+                expected: expected_output,
+                actual: actual_output,
+            });
         }
 
         Ok(())
@@ -247,6 +294,36 @@ impl std::fmt::Display for ExpectedDiagnosticNotFound {
 }
 
 #[derive(Debug)]
+struct DiagnosticsDoNotMatch {
+    expected: Vec<String>,
+    actual: Vec<String>,
+}
+
+impl std::error::Error for DiagnosticsDoNotMatch {}
+
+impl std::fmt::Display for DiagnosticsDoNotMatch {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        let expected: String = self
+            .expected
+            .iter()
+            .flat_map(|e| vec![&e[..], "\n"])
+            .collect();
+        let actual: String = self
+            .actual
+            .iter()
+            .flat_map(|e| vec![&e[..], "\n"])
+            .collect();
+        write!(
+            f,
+            "{}",
+            similar::TextDiff::from_lines(&expected, &actual)
+                .unified_diff()
+                .header("from comments", "actual output")
+        )
+    }
+}
+
+#[derive(Debug)]
 struct RefOutputDoesNotMatch {
     ref_path: PathBuf,
     expected: String,
@@ -272,24 +349,35 @@ struct ExpectedDiagnostic {
     start_line: u32,
     start_column: Option<u32>,
     end_line_column: Option<(u32, u32)>,
-    severity: Option<String>,
+    severity: String,
     message: Regex,
 }
 
+/// Returns the diagnostics that we expect to see in the file, sorted by line number.
 fn expected_diagnostics(path: &Path) -> eyre::Result<Vec<ExpectedDiagnostic>> {
     let file_contents = std::fs::read_to_string(path)?;
 
-    let re = regex::Regex::new(r"^\s*//! ((?P<severity>[^ ]+))? (?P<msg>.*)").unwrap();
+    let re = regex::Regex::new(r"^(?P<prefix>[^#]*)#! (?P<severity>[^ ]+) (?P<msg>.*)").unwrap();
 
     let mut last_code_line = 1;
     let mut result = vec![];
     for (line, line_number) in file_contents.lines().zip(1..) {
         if let Some(c) = re.captures(line) {
+            let start_line = if c["prefix"].chars().all(char::is_whitespace) {
+                // A comment alone on a line, like `#! ERROR ...`, will apply to the
+                // last code line.
+                last_code_line
+            } else {
+                // A comment at the end of a line, like `foo() #! ERROR`, applies to
+                // that line.
+                line_number
+            };
+
             result.push(ExpectedDiagnostic {
-                start_line: last_code_line,
+                start_line,
                 start_column: None,
                 end_line_column: None,
-                severity: c.name("severity").map(|s| s.as_str().to_string()),
+                severity: c["severity"].to_string(),
                 message: Regex::new(&c["msg"])?,
             });
         } else {
@@ -298,63 +386,134 @@ fn expected_diagnostics(path: &Path) -> eyre::Result<Vec<ExpectedDiagnostic>> {
     }
     Ok(result)
 }
-impl ExpectedDiagnostic {
-    fn matches_db(&self, db: &dada_db::Db, diagnostic: &dada_ir::diagnostic::Diagnostic) -> bool {
-        let (_, start, end) = db.line_columns(diagnostic.span);
 
-        if start.line != self.start_line {
+trait ActualDiagnostic: Clone {
+    type Db: ?Sized;
+
+    // Line number and column.
+    fn start(&self, db: &Self::Db) -> (u32, u32);
+
+    fn summary(&self, db: &Self::Db) -> String;
+
+    fn severity(&self, db: &Self::Db) -> String;
+
+    fn matches(&self, db: &Self::Db, expected: &ExpectedDiagnostic) -> bool;
+}
+
+impl ActualDiagnostic for dada_ir::diagnostic::Diagnostic {
+    type Db = dada_db::Db;
+
+    fn matches(&self, db: &Self::Db, expected: &ExpectedDiagnostic) -> bool {
+        let (_, start, end) = db.line_columns(self.span);
+
+        if start.line != expected.start_line {
             return false;
         }
 
-        if let Some(start_column) = self.start_column {
+        if let Some(start_column) = expected.start_column {
             if start.column != start_column {
                 return false;
             }
         }
 
-        if let Some((end_line, end_column)) = self.end_line_column {
+        if let Some((end_line, end_column)) = expected.end_line_column {
             if end_line != end.line || end_column != end.column {
                 return false;
             }
         }
 
         // Check the severity against the one provided (if any).
-        if let Some(s) = &self.severity {
-            if *s != format!("{:?}", diagnostic.severity) {
-                return false;
-            }
-        }
-
-        self.message.is_match(&diagnostic.message)
-    }
-
-    fn matches_lsp(&self, diagnostic: &Diagnostic) -> bool {
-        if diagnostic.range.start.line != self.start_line {
+        if expected.severity != self.severity(db) {
             return false;
         }
 
-        if let Some(start_column) = self.start_column {
-            if diagnostic.range.start.character != start_column {
+        expected.message.is_match(&self.message)
+    }
+
+    fn start(&self, db: &Self::Db) -> (u32, u32) {
+        let (_, start, _) = db.line_columns(self.span);
+        (start.line, start.column)
+    }
+
+    fn summary(&self, db: &Self::Db) -> String {
+        let (filename, start, end) = db.line_columns(self.span);
+        format!(
+            " {}:{}:{}:{}:{}: {} {} [from db]",
+            filename.as_str(db),
+            start.line,
+            start.column,
+            end.line,
+            end.column,
+            self.severity(db),
+            self.message
+        )
+    }
+
+    fn severity(&self, _db: &Self::Db) -> String {
+        format!("{:?}", self.severity).to_uppercase()
+    }
+}
+
+impl ActualDiagnostic for Diagnostic {
+    type Db = ();
+
+    fn matches(&self, db: &(), expected: &ExpectedDiagnostic) -> bool {
+        if self.range.start.line != expected.start_line {
+            return false;
+        }
+
+        if let Some(start_column) = expected.start_column {
+            if self.range.start.character != start_column {
                 return false;
             }
         }
 
-        if let Some((end_line, end_column)) = self.end_line_column {
-            if diagnostic.range.end.line != end_line {
+        if let Some((end_line, end_column)) = expected.end_line_column {
+            if self.range.end.line != end_line {
                 return false;
             }
-            if diagnostic.range.end.character != end_column {
+            if self.range.end.character != end_column {
                 return false;
             }
         }
 
         // Check the severity against the one provided (if any).
-        match (&self.severity, &diagnostic.severity) {
-            (Some(s), Some(d)) if s == &format!("{d:?}") => {}
-            (None, None) => {}
-            _ => return false,
+        if expected.severity != self.severity(db) {
+            return false;
         }
 
-        self.message.is_match(&diagnostic.message)
+        expected.message.is_match(&self.message)
+    }
+
+    fn start(&self, _db: &Self::Db) -> (u32, u32) {
+        (self.range.start.line, self.range.start.character)
+    }
+
+    fn severity(&self, _db: &Self::Db) -> String {
+        if let Some(s) = self.severity {
+            format!("{s:?}").to_uppercase()
+        } else {
+            format!("(none)")
+        }
+    }
+
+    fn summary(&self, db: &Self::Db) -> String {
+        let (line, column) = self.start(db);
+        format!(
+            " {}:{}: {} {} [from LSP]",
+            line,
+            column,
+            self.severity(db),
+            self.message
+        )
+    }
+}
+
+impl ExpectedDiagnostic {
+    fn summary(&self) -> String {
+        format!(
+            " {}: {} {} [expected]",
+            self.start_line, self.severity, self.message
+        )
     }
 }

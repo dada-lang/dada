@@ -9,7 +9,6 @@ class MyClass2(
 )
 
 class MyClass3(
-    field1:
-    # Error expected type after 
-    field2
+    field1: 
+    field2  #! ERROR expected type after `:`
 )

@@ -2,12 +2,12 @@
     Diagnostic {
         range: Range {
             start: Position {
-                line: 14,
-                character: 6,
+                line: 13,
+                character: 5,
             },
             end: Position {
-                line: 15,
-                character: 1,
+                line: 13,
+                character: 11,
             },
         },
         severity: Some(
@@ -37,8 +37,8 @@
                                 character: 5,
                             },
                             end: Position {
-                                line: 14,
-                                character: 6,
+                                line: 13,
+                                character: 5,
                             },
                         },
                     },

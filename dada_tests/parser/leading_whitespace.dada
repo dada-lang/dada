@@ -1,5 +1,6 @@
 
 
 async fn main() {
-    print("Hello, world").await
+    print(message: "Hello, world").await
+    #! ERROR can't find anything named `print`
 }

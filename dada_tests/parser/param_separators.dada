@@ -11,7 +11,7 @@ fn param4(a, b,) {
 }
 
 fn param5(a:, b,) {
-    # Error expected type after
+    #! ERROR expected type after `:`
 }
 
 fn param6(
@@ -32,8 +32,7 @@ fn param8(
 }
 
 fn param9(
-    a:,
-    # Error expected type after
+    a:, #! ERROR expected type after `:`
     b
 ) {
 }
