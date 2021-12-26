@@ -8,6 +8,7 @@ use self::name_lookup::Scope;
 mod name_lookup;
 mod validator;
 
+/// Computes a validated tree for the given code (may produce errors).
 #[salsa::memoized(in crate::Jar ref)]
 pub fn validate_code(db: &dyn crate::Db, code: Code) -> validated::Tree {
     let syntax_tree = code.syntax_tree(db);
@@ -21,6 +22,9 @@ pub fn validate_code(db: &dyn crate::Db, code: Code) -> validated::Tree {
     validated::Tree::new(tables, root_expr)
 }
 
+/// Compute the root definitions for the module. This is not memoized to
+/// save effort but rather because it may generate errors and we don't want to issue those
+/// errors multiple times.
 #[salsa::memoized(in crate::Jar ref)]
 pub fn root_definitions(db: &dyn crate::Db, filename: Filename) -> name_lookup::RootDefinitions {
     name_lookup::RootDefinitions::new(db, filename)
