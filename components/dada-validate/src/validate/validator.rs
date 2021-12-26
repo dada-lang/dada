@@ -352,6 +352,9 @@ impl<'me> Validator<'me> {
                     Some(Definition::LocalVariable(lv)) => {
                         self.add(validated::PlaceData::LocalVariable(lv), expr)
                     }
+                    Some(Definition::Intrinsic(i)) => {
+                        self.add(validated::PlaceData::Intrinsic(i), expr)
+                    }
                     None => {
                         return Err(dada_ir::error!(
                             self.span(expr),

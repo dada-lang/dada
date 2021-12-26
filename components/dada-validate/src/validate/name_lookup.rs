@@ -1,6 +1,7 @@
 use dada_collections::Map;
 use dada_ir::{
-    class::Class, code::validated, filename::Filename, func::Function, item::Item, word::Word,
+    class::Class, code::validated, filename::Filename, func::Function, intrinsic::Intrinsic,
+    item::Item, word::Word,
 };
 use dada_parse::prelude::*;
 
@@ -19,6 +20,7 @@ pub(crate) enum Definition {
     LocalVariable(validated::LocalVariable),
     Function(Function),
     Class(Class),
+    Intrinsic(Intrinsic),
 }
 
 impl From<Item> for Definition {
@@ -35,6 +37,7 @@ impl TryInto<Item> for Definition {
     fn try_into(self) -> Result<Item, ()> {
         match self {
             Definition::LocalVariable(_) => Err(()),
+            Definition::Intrinsic(_) => Err(()),
             Definition::Function(f) => Ok(Item::Function(f)),
             Definition::Class(c) => Ok(Item::Class(c)),
         }
@@ -101,6 +104,12 @@ impl RootDefinitions {
             } else {
                 names.insert(name, Definition::from(item));
             }
+        }
+
+        // Populate with intrinsics from the prelude (these can be shadowed, so don't error if
+        // user generates something with the same name)
+        for &intrinsic in Intrinsic::ALL {
+            names.insert(intrinsic.name(db), Definition::Intrinsic(intrinsic));
         }
 
         RootDefinitions { names }

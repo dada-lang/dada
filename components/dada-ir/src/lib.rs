@@ -7,6 +7,7 @@ pub mod diagnostic;
 pub mod filename;
 pub mod format_string;
 pub mod func;
+pub mod intrinsic;
 pub mod item;
 pub mod kw;
 pub mod op;

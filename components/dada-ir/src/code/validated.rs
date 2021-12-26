@@ -2,7 +2,10 @@
 //! and so forth. It is still in tree form and is mildly
 //! desugared and easy to work with.
 
-use crate::{class::Class, func::Function, op::Op, storage_mode::StorageMode, word::Word};
+use crate::{
+    class::Class, func::Function, intrinsic::Intrinsic, op::Op, storage_mode::StorageMode,
+    word::Word,
+};
 use dada_id::{id, prelude::*, tables};
 use salsa::DebugWithDb;
 
@@ -73,7 +76,7 @@ origin_table! {
 
 id!(pub struct LocalVariable);
 
-#[derive(PartialEq, Eq, PartialOrd, Ord, Clone, Hash, Debug)]
+#[derive(PartialEq, Eq, Clone, Hash, Debug)]
 pub struct LocalVariableData {
     /// Name given to this variable by the user.
     /// If it is None, then this is a temporary
@@ -84,7 +87,7 @@ pub struct LocalVariableData {
 
 id!(pub struct Expr);
 
-#[derive(PartialEq, Eq, PartialOrd, Ord, Clone, Hash, Debug)]
+#[derive(PartialEq, Eq, Clone, Hash, Debug)]
 pub enum ExprData {
     /// Reference to a local variable
     Place(Place),
@@ -160,17 +163,18 @@ impl DebugWithDb<dyn crate::Db + '_> for ExprData {
 
 id!(pub struct Place);
 
-#[derive(PartialEq, Eq, PartialOrd, Ord, Clone, Hash, Debug)]
+#[derive(PartialEq, Eq, Clone, Hash, Debug)]
 pub enum PlaceData {
     LocalVariable(LocalVariable),
     Function(Function),
+    Intrinsic(Intrinsic),
     Class(Class),
     Dot(Place, Word),
 }
 
 id!(pub struct NamedExpr);
 
-#[derive(PartialEq, Eq, PartialOrd, Ord, Clone, Hash, Debug)]
+#[derive(PartialEq, Eq, Clone, Hash, Debug)]
 pub struct NamedExprData {
     pub name: Word,
     pub expr: Expr,

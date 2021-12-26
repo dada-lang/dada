@@ -2,5 +2,4 @@
 
 async fn main() {
     print(message: "Hello, world").await
-    #! ERROR can't find anything named `print`
 }
