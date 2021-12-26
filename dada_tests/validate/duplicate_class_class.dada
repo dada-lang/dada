@@ -1,0 +1,3 @@
+class Foo()
+class Foo()
+#! ERROR already have a class named `Foo`

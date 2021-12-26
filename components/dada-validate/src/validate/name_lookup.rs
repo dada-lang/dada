@@ -9,6 +9,11 @@ pub(crate) struct Scope<'me> {
     names: Map<Word, Definition>,
 }
 
+#[derive(Clone, Debug, PartialEq, Eq)]
+pub struct RootDefinitions {
+    names: Map<Word, Definition>,
+}
+
 #[derive(Clone, Copy, PartialEq, Eq, Hash, Debug)]
 pub(crate) enum Definition {
     LocalVariable(validated::LocalVariable),
@@ -39,7 +44,36 @@ impl TryInto<Item> for Definition {
 impl<'me> Scope<'me> {
     /// Constructs the root scope for a file, reporting errors if there are
     /// duplicate items.
-    pub(crate) fn root(db: &'me dyn crate::Db, filename: Filename) -> Self {
+    pub(crate) fn root(db: &'me dyn crate::Db, root_definitions: &RootDefinitions) -> Self {
+        let names = root_definitions.names.clone();
+        Self { db, names }
+    }
+
+    pub(crate) fn subscope(&self) -> Self {
+        Self {
+            db: self.db,
+            names: self.names.clone(),
+        }
+    }
+
+    /// Inserts a local variable into the scope. Returns any definition that is now shadowed as a result.
+    pub(crate) fn insert(
+        &mut self,
+        name: Word,
+        local_variable: validated::LocalVariable,
+    ) -> Option<Definition> {
+        self.names
+            .insert(name, Definition::LocalVariable(local_variable))
+    }
+
+    /// Lookup the given name in the scope.
+    pub(crate) fn lookup(&self, name: Word) -> Option<Definition> {
+        self.names.get(&name).copied()
+    }
+}
+
+impl RootDefinitions {
+    pub fn new(db: &dyn crate::Db, filename: Filename) -> Self {
         let items = filename.items(db);
         let mut names: Map<Word, Definition> = Map::default();
 
@@ -69,28 +103,6 @@ impl<'me> Scope<'me> {
             }
         }
 
-        Self { db, names }
-    }
-
-    pub(crate) fn subscope(&self) -> Self {
-        Self {
-            db: self.db,
-            names: self.names.clone(),
-        }
-    }
-
-    /// Inserts a local variable into the scope. Returns any definition that is now shadowed as a result.
-    pub(crate) fn insert(
-        &mut self,
-        name: Word,
-        local_variable: validated::LocalVariable,
-    ) -> Option<Definition> {
-        self.names
-            .insert(name, Definition::LocalVariable(local_variable))
-    }
-
-    /// Lookup the given name in the scope.
-    pub(crate) fn lookup(&self, name: Word) -> Option<Definition> {
-        self.names.get(&name).copied()
+        RootDefinitions { names }
     }
 }

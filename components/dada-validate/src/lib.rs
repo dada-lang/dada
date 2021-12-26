@@ -7,7 +7,7 @@
 mod validate;
 
 #[salsa::jar(Db)]
-pub struct Jar(validate::validate_code);
+pub struct Jar(validate::root_definitions, validate::validate_code);
 
 pub trait Db: salsa::DbWithJar<Jar> + dada_ir::Db + dada_parse::Db {}
 

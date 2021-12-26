@@ -3,11 +3,11 @@
         range: Range {
             start: Position {
                 line: 2,
-                character: 4,
+                character: 7,
             },
             end: Position {
                 line: 2,
-                character: 8,
+                character: 10,
             },
         },
         severity: Some(
@@ -15,7 +15,7 @@
         ),
         code: None,
         source: None,
-        message: "already have a function named `test`",
+        message: "already have a class named `Foo`",
         related_information: Some(
             [
                 DiagnosticRelatedInformation {
@@ -27,22 +27,22 @@
                             password: None,
                             host: None,
                             port: None,
-                            path: "/home/nmatsakis/versioned/dada/dada_tests/validate/duplicate_func_func.dada",
+                            path: "/home/nmatsakis/versioned/dada/dada_tests/validate/duplicate_class_class.dada",
                             query: None,
                             fragment: None,
                         },
                         range: Range {
                             start: Position {
                                 line: 2,
-                                character: 4,
+                                character: 7,
                             },
                             end: Position {
                                 line: 2,
-                                character: 8,
+                                character: 10,
                             },
                         },
                     },
-                    message: "ignoring this function for now",
+                    message: "ignoring this class for now",
                 },
                 DiagnosticRelatedInformation {
                     location: Location {
@@ -53,22 +53,22 @@
                             password: None,
                             host: None,
                             port: None,
-                            path: "/home/nmatsakis/versioned/dada/dada_tests/validate/duplicate_func_func.dada",
+                            path: "/home/nmatsakis/versioned/dada/dada_tests/validate/duplicate_class_class.dada",
                             query: None,
                             fragment: None,
                         },
                         range: Range {
                             start: Position {
                                 line: 1,
-                                character: 4,
+                                character: 7,
                             },
                             end: Position {
                                 line: 1,
-                                character: 8,
+                                character: 10,
                             },
                         },
                     },
-                    message: "the function is here",
+                    message: "the class is here",
                 },
             ],
         ),

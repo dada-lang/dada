@@ -6,6 +6,8 @@ use dada_validate::prelude::*;
 pub fn check_filename(db: &dyn crate::Db, filename: Filename) {
     let items = filename.items(db);
 
+    filename.validate_root(db);
+
     for &item in items {
         match item {
             Item::Function(function) => {

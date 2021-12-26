@@ -1,8 +1,21 @@
 use dada_ir::{
     code::{validated, Code},
+    filename::Filename,
     func::Function,
     item::Item,
 };
+
+pub trait DadaValidateFilenameExt {
+    /// Validates that the root definitions of the file are ok
+    /// (shallowly).
+    fn validate_root(self, db: &dyn crate::Db);
+}
+
+impl DadaValidateFilenameExt for Filename {
+    fn validate_root(self, db: &dyn crate::Db) {
+        crate::validate::root_definitions(db, self);
+    }
+}
 
 pub trait DadaValidateCodeExt {
     fn validated_tree(self, db: &dyn crate::Db) -> &validated::Tree;
