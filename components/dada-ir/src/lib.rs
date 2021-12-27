@@ -23,6 +23,7 @@ pub mod word;
 
 #[salsa::jar(Db)]
 pub struct Jar(
+    code::syntax::Tree,
     code::validated::Tree,
     class::Class,
     diagnostic::Diagnostics,

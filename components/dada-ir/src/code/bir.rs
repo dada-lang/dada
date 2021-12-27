@@ -239,8 +239,10 @@ impl DebugWithDb<InIrDb<'_, Tables>> for ExprData {
                 write!(f, "{}", class.name(db.db()).as_str(db.db()))?;
                 write_parenthesized_variables(f, vars, db)
             }
-            ExprData::Op(_, _, _) => todo!(),
-            ExprData::Error => todo!(),
+            ExprData::Op(lhs, op, rhs) => {
+                write!(f, "{:?} {} {:?}", lhs.debug(db), op.str(), rhs.debug(db))
+            }
+            ExprData::Error => write!(f, "<error>"),
         }
     }
 }

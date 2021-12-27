@@ -12,7 +12,6 @@ mod tokens;
 #[salsa::jar(Db)]
 pub struct Jar(
     code_parser::parse_code,
-    code_parser::spans_for_parsed_code,
     file_parser::parse_file,
     parameter_parser::parse_parameters,
 );

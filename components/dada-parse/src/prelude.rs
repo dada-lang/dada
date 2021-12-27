@@ -8,45 +8,35 @@ use dada_ir::{
 };
 
 pub trait DadaParseItemExt {
-    fn syntax_tree(self, db: &dyn crate::Db) -> Option<&syntax::Tree>;
+    fn syntax_tree(self, db: &dyn crate::Db) -> Option<syntax::Tree>;
 }
 
 impl DadaParseItemExt for Item {
-    fn syntax_tree(self, db: &dyn crate::Db) -> Option<&syntax::Tree> {
+    fn syntax_tree(self, db: &dyn crate::Db) -> Option<syntax::Tree> {
         Some(self.code(db)?.syntax_tree(db))
     }
 }
 
 pub trait DadaParseCodeExt {
     /// Returns the Ast for a function.
-    fn syntax_tree(self, db: &dyn crate::Db) -> &syntax::Tree;
-    fn syntax_tree_spans(self, db: &dyn crate::Db) -> &syntax::Spans;
+    fn syntax_tree(self, db: &dyn crate::Db) -> syntax::Tree;
 }
 
 impl DadaParseCodeExt for Code {
-    fn syntax_tree(self, db: &dyn crate::Db) -> &syntax::Tree {
+    fn syntax_tree(self, db: &dyn crate::Db) -> syntax::Tree {
         crate::code_parser::parse_code(db, self)
-    }
-
-    fn syntax_tree_spans(self, db: &dyn crate::Db) -> &syntax::Spans {
-        crate::code_parser::spans_for_parsed_code(db, self)
     }
 }
 
 pub trait DadaParseFunctionExt {
     /// Returns the Ast for a function.
-    fn syntax_tree(self, db: &dyn crate::Db) -> &syntax::Tree;
-    fn syntax_tree_spans(self, db: &dyn crate::Db) -> &syntax::Spans;
+    fn syntax_tree(self, db: &dyn crate::Db) -> syntax::Tree;
     fn parameters(self, db: &dyn crate::Db) -> &Vec<Parameter>;
 }
 
 impl DadaParseFunctionExt for Function {
-    fn syntax_tree(self, db: &dyn crate::Db) -> &syntax::Tree {
+    fn syntax_tree(self, db: &dyn crate::Db) -> syntax::Tree {
         self.code(db).syntax_tree(db)
-    }
-
-    fn syntax_tree_spans(self, db: &dyn crate::Db) -> &syntax::Spans {
-        self.code(db).syntax_tree_spans(db)
     }
 
     fn parameters(self, db: &dyn crate::Db) -> &Vec<Parameter> {

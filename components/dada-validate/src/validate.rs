@@ -18,9 +18,9 @@ pub fn validate_code(db: &dyn crate::Db, code: Code) -> validated::Tree {
     let scope = Scope::root(db, root_definitions);
     let mut validator =
         validator::Validator::new(db, code, syntax_tree, &mut tables, &mut origins, scope);
-    let root_expr = validator.validate_expr(syntax_tree.root_expr);
+    let root_expr = validator.validate_expr(syntax_tree.data(db).root_expr);
     let data = validated::TreeData::new(tables, root_expr);
-    validated::Tree::new(db, code, data)
+    validated::Tree::new(db, code, data, origins)
 }
 
 /// Compute the root definitions for the module. This is not memoized to

@@ -15,6 +15,7 @@ salsa::entity2! {
     entity Tree in crate::Jar {
         origin: Code,
         data: TreeData,
+        origins: Origins,
     }
 }
 

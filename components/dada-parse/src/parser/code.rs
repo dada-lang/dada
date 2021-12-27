@@ -5,7 +5,12 @@ use crate::{
 
 use dada_id::InternValue;
 use dada_ir::{
-    code::syntax::{Expr, ExprData, NamedExpr, NamedExprData, NamedExprSpan, Spans, Tables, Tree},
+    code::{
+        syntax::{
+            Expr, ExprData, NamedExpr, NamedExprData, NamedExprSpan, Spans, Tables, Tree, TreeData,
+        },
+        Code,
+    },
     format_string::FormatStringSectionData,
     kw::Keyword,
     op::Op,
@@ -18,11 +23,7 @@ use salsa::AsId;
 use super::{OrReportError, ParseList};
 
 impl Parser<'_> {
-    pub(crate) fn parse_syntax_tree(&mut self) -> Tree {
-        self.parse_syntax_tree_and_spans().0
-    }
-
-    pub(crate) fn parse_syntax_tree_and_spans(&mut self) -> (Tree, Spans) {
+    pub(crate) fn parse_syntax_tree(&mut self, origin: Code) -> Tree {
         let mut tables = Tables::default();
         let mut spans = Spans::default();
 
@@ -36,7 +37,8 @@ impl Parser<'_> {
         let block = code_parser.parse_only_expr_seq();
         let span = code_parser.span_consumed_since(start);
         let root_expr = code_parser.add(ExprData::Seq(block), span);
-        (Tree { tables, root_expr }, spans)
+        let tree_data = TreeData { tables, root_expr };
+        Tree::new(self.db, origin, tree_data, spans)
     }
 }
 

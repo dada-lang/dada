@@ -2,9 +2,27 @@ use crate::{op::Op, span::Span, storage_mode::StorageMode, word::Word};
 use dada_id::{id, tables};
 use salsa::DebugWithDb;
 
+use super::Code;
+
+salsa::entity2! {
+    entity Tree in crate::Jar {
+        origin: Code,
+        #[value ref] data: TreeData,
+        spans: Spans,
+    }
+}
+
+impl DebugWithDb<dyn crate::Db + '_> for Tree {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>, db: &dyn crate::Db) -> std::fmt::Result {
+        f.debug_struct("syntax::Tree")
+            .field("origin", &self.origin(db).debug(db)) // FIXME
+            .finish()
+    }
+}
+
 /// Stores the ast for a function.
 #[derive(Clone, Debug, PartialEq, Eq)]
-pub struct Tree {
+pub struct TreeData {
     /// Interning tables for expressions and the like.
     pub tables: Tables,
 
@@ -12,7 +30,7 @@ pub struct Tree {
     pub root_expr: Expr,
 }
 
-impl DebugWithDb<dyn crate::Db + '_> for Tree {
+impl DebugWithDb<dyn crate::Db + '_> for TreeData {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>, _db: &dyn crate::Db) -> std::fmt::Result {
         f.debug_struct("syntax::Tree")
             .field("root_expr", &self.root_expr) // FIXME

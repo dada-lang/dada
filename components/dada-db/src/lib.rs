@@ -53,7 +53,7 @@ impl Db {
 
     /// Parses `filename` and returns a lits of the items within.
     pub fn debug_syntax_tree(&self, item: Item) -> Option<impl std::fmt::Debug + '_> {
-        Some(item.syntax_tree(self)?.debug(self))
+        Some(item.syntax_tree(self)?.into_debug(self))
     }
 
     /// Parses `filename` and returns a lits of the items within.

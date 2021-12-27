@@ -16,7 +16,7 @@ use super::name_lookup::Scope;
 pub(crate) struct Validator<'me> {
     db: &'me dyn crate::Db,
     code: Code,
-    syntax_tree: &'me syntax::Tree,
+    syntax_tree: &'me syntax::TreeData,
     tables: &'me mut validated::Tables,
     origins: &'me mut validated::Origins,
     loop_stack: Vec<validated::Expr>,
@@ -27,11 +27,12 @@ impl<'me> Validator<'me> {
     pub(crate) fn new(
         db: &'me dyn crate::Db,
         code: Code,
-        syntax_tree: &'me syntax::Tree,
+        syntax_tree: syntax::Tree,
         tables: &'me mut validated::Tables,
         origins: &'me mut validated::Origins,
         scope: Scope<'me>,
     ) -> Self {
+        let syntax_tree = syntax_tree.data(db);
         Self {
             db,
             code,
@@ -78,7 +79,7 @@ impl<'me> Validator<'me> {
     }
 
     fn span(&self, e: impl HasOriginIn<syntax::Spans, Origin = Span>) -> FileSpan {
-        self.code.syntax_tree_spans(self.db)[e].in_file(self.code.filename(self.db))
+        self.code.syntax_tree(self.db).spans(self.db)[e].in_file(self.code.filename(self.db))
     }
 
     fn empty_tuple(&mut self, origin: syntax::Expr) -> validated::Expr {
