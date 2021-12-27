@@ -7,6 +7,7 @@ edition = "2021"
 
 [dependencies]
 salsa = { path = "../salsa" }
+dada-brew = { path = "../dada-brew" }
 dada-ir = { path = "../dada-ir" }
 dada-lex = { path = "../dada-lex" }
 dada-manifest = { path = "../dada-manifest" }

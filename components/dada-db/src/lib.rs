@@ -9,6 +9,7 @@ use dada_validate::prelude::*;
 use salsa::DebugWithDb;
 
 #[salsa::db(
+    dada_brew::Jar,
     dada_check::Jar,
     dada_ir::Jar,
     dada_lex::Jar,

@@ -202,9 +202,20 @@ dependencies = [
 ]
 
 [[package]]
+name = "dada-brew"
+version = "0.1.0"
+dependencies = [
+ "dada-ir",
+ "dada-parse",
+ "dada-validate",
+ "salsa",
+]
+
+[[package]]
 name = "dada-check"
 version = "0.1.0"
 dependencies = [
+ "dada-brew",
  "dada-ir",
  "dada-lex",
  "dada-manifest",
@@ -226,6 +237,7 @@ dependencies = [
 name = "dada-db"
 version = "0.1.0"
 dependencies = [
+ "dada-brew",
  "dada-check",
  "dada-ir",
  "dada-lex",
