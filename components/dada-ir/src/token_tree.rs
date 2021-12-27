@@ -8,6 +8,17 @@ salsa::entity2! {
     }
 }
 
+impl salsa::DebugWithDb<dyn crate::Db + '_> for TokenTree {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>, db: &dyn crate::Db) -> std::fmt::Result {
+        write!(
+            f,
+            "{:?}@{:?}",
+            self.filename(db).as_str(db),
+            self.span(db).debug(db)
+        )
+    }
+}
+
 impl TokenTree {
     pub fn len(self, db: &dyn crate::Db) -> u32 {
         self.span(db).len()

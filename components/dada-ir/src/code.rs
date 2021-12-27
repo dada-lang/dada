@@ -22,6 +22,12 @@ impl Code {
     }
 }
 
+impl salsa::DebugWithDb<dyn crate::Db + '_> for Code {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>, db: &dyn crate::Db) -> std::fmt::Result {
+        self.0.fmt(f, db)
+    }
+}
+
 pub mod bir;
 pub mod syntax;
 pub mod validated;

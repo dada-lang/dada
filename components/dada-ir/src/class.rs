@@ -7,3 +7,9 @@ salsa::entity2! {
         unparsed_parameters: UnparsedParameters,
     }
 }
+
+impl salsa::DebugWithDb<dyn crate::Db + '_> for Class {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>, _db: &dyn crate::Db) -> std::fmt::Result {
+        std::fmt::Debug::fmt(self, f)
+    }
+}

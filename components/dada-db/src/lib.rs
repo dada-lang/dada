@@ -58,7 +58,7 @@ impl Db {
 
     /// Parses `filename` and returns a lits of the items within.
     pub fn debug_validated_tree(&self, item: Item) -> Option<impl std::fmt::Debug + '_> {
-        Some(item.validated_tree(self)?.debug(self))
+        Some(item.validated_tree(self)?.into_debug(self))
     }
 
     /// Converts a given offset in a given file into line/column information.

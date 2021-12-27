@@ -9,7 +9,7 @@ mod name_lookup;
 mod validator;
 
 /// Computes a validated tree for the given code (may produce errors).
-#[salsa::memoized(in crate::Jar ref)]
+#[salsa::memoized(in crate::Jar)]
 pub fn validate_code(db: &dyn crate::Db, code: Code) -> validated::Tree {
     let syntax_tree = code.syntax_tree(db);
     let mut tables = validated::Tables::default();
@@ -19,7 +19,8 @@ pub fn validate_code(db: &dyn crate::Db, code: Code) -> validated::Tree {
     let mut validator =
         validator::Validator::new(db, code, syntax_tree, &mut tables, &mut origins, scope);
     let root_expr = validator.validate_expr(syntax_tree.root_expr);
-    validated::Tree::new(tables, root_expr)
+    let data = validated::TreeData::new(tables, root_expr);
+    validated::Tree::new(db, code, data)
 }
 
 /// Compute the root definitions for the module. This is not memoized to

@@ -7,10 +7,36 @@ pub struct FileSpan {
     pub end: Offset,
 }
 
-#[derive(Copy, Clone, Debug, PartialEq, Eq, Hash)]
+impl salsa::DebugWithDb<dyn crate::Db + '_> for FileSpan {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>, db: &dyn crate::Db) -> std::fmt::Result {
+        write!(
+            f,
+            "{}@{:?}",
+            self.filename.as_str(db),
+            Span {
+                start: self.start,
+                end: self.end
+            }
+        )
+    }
+}
+
+#[derive(Copy, Clone, PartialEq, Eq, Hash)]
 pub struct Span {
     pub start: Offset,
     pub end: Offset,
+}
+
+impl std::fmt::Debug for Span {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        write!(f, "({:?}..{:?})", self.start.0, self.end.0)
+    }
+}
+
+impl salsa::DebugWithDb<dyn crate::Db + '_> for Span {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>, _db: &dyn crate::Db) -> std::fmt::Result {
+        std::fmt::Debug::fmt(self, f)
+    }
 }
 
 #[derive(Copy, Clone, Debug, PartialEq, Eq, PartialOrd, Ord, Hash)]

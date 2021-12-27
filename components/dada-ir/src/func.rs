@@ -10,11 +10,11 @@ salsa::entity2! {
     }
 }
 
-// impl DebugWithDb<dyn crate::Db + '_> for Function {
-//     fn fmt(&self, f: &mut std::fmt::Formatter<'_>, db: &dyn crate::Db + '_) -> std::fmt::Result {
-//         todo!()
-//     }
-// }
+impl salsa::DebugWithDb<dyn crate::Db + '_> for Function {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>, db: &dyn crate::Db) -> std::fmt::Result {
+        write!(f, "{}", self.name(db).as_str(db))
+    }
+}
 
 #[derive(Copy, Clone, PartialEq, Eq, Debug, Hash)]
 pub enum Effect {

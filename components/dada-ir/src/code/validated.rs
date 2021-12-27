@@ -9,11 +9,26 @@ use crate::{
 use dada_id::{id, prelude::*, tables};
 use salsa::DebugWithDb;
 
-use super::syntax;
+use super::{syntax, Code};
+
+salsa::entity2! {
+    entity Tree in crate::Jar {
+        origin: Code,
+        data: TreeData,
+    }
+}
+
+impl DebugWithDb<dyn crate::Db + '_> for Tree {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>, db: &dyn crate::Db) -> std::fmt::Result {
+        f.debug_struct("validated::Tree")
+            .field("origin", &self.origin(db).debug(db)) // FIXME
+            .finish()
+    }
+}
 
 /// Stores the ast for a function.
 #[derive(Clone, Debug, PartialEq, Eq)]
-pub struct Tree {
+pub struct TreeData {
     /// Interning tables for expressions and the like.
     tables: Tables,
 
@@ -21,7 +36,7 @@ pub struct Tree {
     root_expr: Expr,
 }
 
-impl DebugWithDb<dyn crate::Db + '_> for Tree {
+impl DebugWithDb<dyn crate::Db + '_> for TreeData {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>, _db: &dyn crate::Db) -> std::fmt::Result {
         f.debug_struct("validated::Tree")
             .field("root_expr", &self.root_expr) // FIXME
@@ -29,7 +44,7 @@ impl DebugWithDb<dyn crate::Db + '_> for Tree {
     }
 }
 
-impl Tree {
+impl TreeData {
     pub fn new(tables: Tables, root_expr: Expr) -> Self {
         Self { tables, root_expr }
     }
