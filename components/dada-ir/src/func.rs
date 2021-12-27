@@ -10,6 +10,12 @@ salsa::entity2! {
     }
 }
 
+// impl DebugWithDb<dyn crate::Db + '_> for Function {
+//     fn fmt(&self, f: &mut std::fmt::Formatter<'_>, db: &dyn crate::Db + '_) -> std::fmt::Result {
+//         todo!()
+//     }
+// }
+
 #[derive(Copy, Clone, PartialEq, Eq, Debug, Hash)]
 pub enum Effect {
     None,

@@ -22,5 +22,6 @@ impl Code {
     }
 }
 
+pub mod bir;
 pub mod syntax;
 pub mod validated;

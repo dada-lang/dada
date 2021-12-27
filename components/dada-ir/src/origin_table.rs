@@ -3,10 +3,11 @@
 /// for a syntax tree, we map directly into the input. For other IRs,
 /// we typically map back to the previous IR.
 macro_rules! origin_table {
-    ($(#[$attr:meta])* $pub:vis struct $table:ident { $($field:ident : $key:ty => $origins:ty,)* }) => {
+    ($(#[$attr:meta])* $pub:vis struct $table:ident { $($(#[$field_attr:meta])* $field:ident : $key:ty => $origins:ty,)* }) => {
         $(#[$attr])*
         $pub struct $table {
             $(
+                $(#[$field_attr])*
                 $field: dada_collections::IndexVec<$key, $origins>,
             )*
         }
