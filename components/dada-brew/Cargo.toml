@@ -6,6 +6,8 @@ edition = "2021"
 # See more keys and their definitions at https://doc.rust-lang.org/cargo/reference/manifest.html
 
 [dependencies]
+dada-collections = { path = "../dada-collections" }
+dada-id = { path = "../dada-id" }
 dada-ir = { path = "../dada-ir" }
 dada-validate = { path = "../dada-validate" }
 dada-parse = { path = "../dada-parse" }

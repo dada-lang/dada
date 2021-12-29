@@ -1,5 +1,6 @@
 use std::path::{Path, PathBuf};
 
+use dada_ir::{filename::Filename, item::Item};
 use eyre::Context;
 use lsp_types::Diagnostic;
 use regex::Regex;
@@ -24,6 +25,8 @@ impl Options {
             eyre::bail!("no test paths given; try --dada-path");
         }
 
+        const REF_EXTENSIONS: &[&str] = &["ref", "lsp", "bir"];
+
         for root in &self.dada_path {
             for entry in walkdir::WalkDir::new(root) {
                 let run_test = || -> eyre::Result<()> {
@@ -34,7 +37,7 @@ impl Options {
                             total += 1;
                             self.test_dada_file(path)
                                 .with_context(|| format!("testing `{}`", path.display()))?;
-                        } else if ext == "ref" || ext == "lsp" {
+                        } else if REF_EXTENSIONS.iter().any(|e| *e == ext) {
                             // ignore ref files
                         } else {
                             // Error out for random files -- I've frequently accidentally made
@@ -110,9 +113,10 @@ impl Options {
         )?;
         self.check_output_against_ref_file(
             crate::format::format_diagnostics(&db, &diagnostics)?,
-            path.with_extension("ref"),
+            &path.with_extension("ref"),
             &mut errors,
         )?;
+        self.check_bir(&db, &[filename], &path.with_extension("bir"), &mut errors)?;
         errors.into_result()
     }
 
@@ -136,7 +140,7 @@ impl Options {
         )?;
         self.check_output_against_ref_file(
             format!("{:#?}", diagnostics),
-            path.with_extension("lsp"),
+            &path.with_extension("lsp"),
             &mut errors,
         )?;
         errors.into_result()
@@ -145,7 +149,7 @@ impl Options {
     fn check_output_against_ref_file(
         &self,
         actual_output: String,
-        ref_path: PathBuf,
+        ref_path: &Path,
         errors: &mut Errors,
     ) -> eyre::Result<()> {
         self.maybe_bless_file(&ref_path, &actual_output)?;
@@ -153,7 +157,7 @@ impl Options {
             .with_context(|| format!("reading `{}`", ref_path.display()))?;
         if ref_contents != actual_output {
             errors.push(RefOutputDoesNotMatch {
-                ref_path,
+                ref_path: ref_path.to_owned(),
                 expected: ref_contents,
                 actual: actual_output,
             });
@@ -228,6 +232,24 @@ impl Options {
                 actual: actual_output,
             });
         }
+
+        Ok(())
+    }
+
+    fn check_bir(
+        &self,
+        db: &dada_db::Db,
+        filenames: &[Filename],
+        bir_path: &Path,
+        errors: &mut Errors,
+    ) -> eyre::Result<()> {
+        let items: Vec<Item> = filenames
+            .iter()
+            .flat_map(|filename| db.items(*filename))
+            .collect();
+
+        let birs = items.iter().flat_map(|&item| db.debug_bir(item));
+        self.check_output_against_ref_file(format!("{birs:#?}"), bir_path, errors)?;
 
         Ok(())
     }

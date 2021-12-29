@@ -50,7 +50,8 @@ impl From<Class> for Item {
     }
 }
 
-impl salsa::DebugWithDb<dyn crate::Db + '_> for Item {
+impl<'db> salsa::DebugWithDb<'db> for Item {
+    type Db = dyn crate::Db + 'db;
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>, db: &dyn crate::Db) -> std::fmt::Result {
         match self {
             Item::Function(v) => std::fmt::Debug::fmt(&v.debug(db), f),

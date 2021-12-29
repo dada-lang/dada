@@ -205,6 +205,8 @@ dependencies = [
 name = "dada-brew"
 version = "0.1.0"
 dependencies = [
+ "dada-collections",
+ "dada-id",
  "dada-ir",
  "dada-parse",
  "dada-validate",
@@ -763,7 +765,6 @@ dependencies = [
 [[package]]
 name = "salsa-entity-macros"
 version = "0.1.0"
-source = "git+https://github.com/nikomatsakis/salsa/?branch=entity#72424fd12996777976c383b6d24a88870477eea5"
 dependencies = [
  "eyre",
  "heck",
@@ -775,7 +776,6 @@ dependencies = [
 [[package]]
 name = "salsa-entity-mock"
 version = "0.1.0"
-source = "git+https://github.com/nikomatsakis/salsa/?branch=entity#72424fd12996777976c383b6d24a88870477eea5"
 dependencies = [
  "arc-swap",
  "crossbeam",

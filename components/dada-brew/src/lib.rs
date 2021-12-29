@@ -5,10 +5,13 @@
 #![allow(incomplete_features)]
 
 #[salsa::jar(Db)]
-pub struct Jar();
+pub struct Jar(brew::brew);
 
-pub trait Db: salsa::DbWithJar<Jar> + dada_ir::Db + dada_parse::Db {}
+pub trait Db: salsa::DbWithJar<Jar> + dada_ir::Db + dada_parse::Db + dada_validate::Db {}
 
-impl<T> Db for T where T: salsa::DbWithJar<Jar> + dada_ir::Db + dada_parse::Db {}
+impl<T> Db for T where T: salsa::DbWithJar<Jar> + dada_ir::Db + dada_parse::Db + dada_validate::Db {}
 
+mod brew;
+mod brewery;
+mod cursor;
 pub mod prelude;

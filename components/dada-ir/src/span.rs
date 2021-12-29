@@ -7,7 +7,8 @@ pub struct FileSpan {
     pub end: Offset,
 }
 
-impl salsa::DebugWithDb<dyn crate::Db + '_> for FileSpan {
+impl<'db> salsa::DebugWithDb<'db> for FileSpan {
+    type Db = dyn crate::Db + 'db;
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>, db: &dyn crate::Db) -> std::fmt::Result {
         write!(
             f,
@@ -30,12 +31,6 @@ pub struct Span {
 impl std::fmt::Debug for Span {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
         write!(f, "({:?}..{:?})", self.start.0, self.end.0)
-    }
-}
-
-impl salsa::DebugWithDb<dyn crate::Db + '_> for Span {
-    fn fmt(&self, f: &mut std::fmt::Formatter<'_>, _db: &dyn crate::Db) -> std::fmt::Result {
-        std::fmt::Debug::fmt(self, f)
     }
 }
 

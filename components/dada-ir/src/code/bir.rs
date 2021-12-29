@@ -2,25 +2,35 @@
 //! for interpretation.
 
 use crate::{
-    class::Class, func::Function, in_ir_db::InIrDb, op::Op, prelude::InIrDbExt,
-    storage_mode::StorageMode, word::Word,
+    class::Class, func::Function, in_ir_db::InIrDb, intrinsic::Intrinsic, op::Op,
+    prelude::InIrDbExt, storage_mode::StorageMode, word::Word,
 };
 use dada_id::{id, prelude::*, tables};
 use salsa::DebugWithDb;
 
-use super::syntax;
+use super::{syntax, Code};
+
+salsa::entity2! {
+    entity Bir in crate::Jar {
+        origin: Code,
+        #[value ref] data: BirData,
+        #[value ref] origins: Origins,
+    }
+}
 
 /// Stores the ast for a function.
 #[derive(Clone, Debug, PartialEq, Eq)]
-pub struct Bir {
+pub struct BirData {
     /// Interning tables for expressions and the like.
-    tables: Tables,
+    pub tables: Tables,
 
     /// The starting block
-    start_basic_block: BasicBlock,
+    pub start_basic_block: BasicBlock,
 }
 
-impl DebugWithDb<dyn crate::Db + '_> for Bir {
+impl<'db> DebugWithDb<'db> for BirData {
+    type Db = dyn crate::Db + 'db;
+
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>, db: &dyn crate::Db) -> std::fmt::Result {
         let this = &self.tables.in_ir_db(db);
 
@@ -38,7 +48,7 @@ impl DebugWithDb<dyn crate::Db + '_> for Bir {
     }
 }
 
-impl Bir {
+impl BirData {
     pub fn new(tables: Tables, start_basic_block: BasicBlock) -> Self {
         Self {
             tables,
@@ -103,8 +113,9 @@ origin_table! {
 
 id!(pub struct LocalVariable);
 
-impl DebugWithDb<InIrDb<'_, Tables>> for LocalVariable {
-    fn fmt(&self, f: &mut std::fmt::Formatter<'_>, db: &InIrDb<'_, Tables>) -> std::fmt::Result {
+impl<'db> DebugWithDb<'db> for LocalVariable {
+    type Db = InIrDb<'db, Tables>;
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>, db: &InIrDb<'db, Tables>) -> std::fmt::Result {
         let id = u32::from(*self);
         let data = self.data(db);
         let name = data.name.map(|n| n.as_str(db.db())).unwrap_or("temp");
@@ -125,11 +136,12 @@ id!(pub struct BasicBlock);
 
 #[derive(PartialEq, Eq, Clone, Hash, Debug)]
 pub struct BasicBlockData {
-    statements: Vec<Statement>,
-    terminator: Terminator,
+    pub statements: Vec<Statement>,
+    pub terminator: Terminator,
 }
 
-impl DebugWithDb<InIrDb<'_, Tables>> for BasicBlockData {
+impl<'db> DebugWithDb<'db> for BasicBlockData {
+    type Db = InIrDb<'db, Tables>;
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>, db: &InIrDb<'_, Tables>) -> std::fmt::Result {
         let mut f = f.debug_struct("BasicBlockData");
 
@@ -151,7 +163,8 @@ pub enum StatementData {
     Assign(Place, Expr),
 }
 
-impl DebugWithDb<InIrDb<'_, Tables>> for StatementData {
+impl<'db> DebugWithDb<'db> for StatementData {
+    type Db = InIrDb<'db, Tables>;
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>, db: &InIrDb<'_, Tables>) -> std::fmt::Result {
         match self {
             StatementData::Assign(place, expr) => {
@@ -170,21 +183,27 @@ id!(pub struct Terminator);
 
 #[derive(PartialEq, Eq, Clone, Hash, Debug)]
 pub enum TerminatorData {
-    If(LocalVariable, BasicBlock, BasicBlock),
-    Await(LocalVariable, BasicBlock),
+    Goto(BasicBlock),
+    If(Place, BasicBlock, BasicBlock),
     StartAtomic(BasicBlock),
     EndAtomic(BasicBlock),
-    Return(LocalVariable),
-    Call {
-        arguments: Vec<NamedExpr>,
-        if_ok: BasicBlock,
-    },
+    Return(Place),
+    Assign(Place, TerminatorExpr, BasicBlock),
+    Error,
+    Panic,
+}
+
+#[derive(PartialEq, Eq, Clone, Hash, Debug)]
+pub enum TerminatorExpr {
+    Await(Place),
+    Call(Vec<NamedExpr>),
 }
 
 id!(pub struct Expr);
 
-impl DebugWithDb<InIrDb<'_, Tables>> for Expr {
-    fn fmt(&self, f: &mut std::fmt::Formatter<'_>, db: &InIrDb<'_, Tables>) -> std::fmt::Result {
+impl<'db> DebugWithDb<'db> for Expr {
+    type Db = InIrDb<'db, Tables>;
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>, db: &InIrDb<'db, Tables>) -> std::fmt::Result {
         write!(f, "{:?}", self.data(db))
     }
 }
@@ -212,19 +231,20 @@ pub enum ExprData {
     Give(Place),
 
     /// `()` or `(a, b, ...)` (i.e., expr seq cannot have length 1)
-    Tuple(Vec<LocalVariable>),
+    Tuple(Vec<Place>),
 
     /// allocate an instance of a class
-    New(Class, Vec<LocalVariable>),
+    New(Class, Vec<Place>),
 
     /// `a + b`
-    Op(LocalVariable, Op, LocalVariable),
+    Op(Place, Op, Place),
 
     /// parse or other error
     Error,
 }
 
-impl DebugWithDb<InIrDb<'_, Tables>> for ExprData {
+impl<'db> DebugWithDb<'db> for ExprData {
+    type Db = InIrDb<'db, Tables>;
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>, db: &InIrDb<'_, Tables>) -> std::fmt::Result {
         match self {
             ExprData::Place(p) => write!(f, "{:?}", p.debug(db)),
@@ -234,10 +254,10 @@ impl DebugWithDb<InIrDb<'_, Tables>> for ExprData {
             ExprData::Share(p) => write!(f, "{:?}.share", p.debug(db)),
             ExprData::Lease(p) => write!(f, "{:?}.lease", p.debug(db)),
             ExprData::Give(p) => write!(f, "{:?}.give", p.debug(db)),
-            ExprData::Tuple(vars) => write_parenthesized_variables(f, vars, db),
+            ExprData::Tuple(vars) => write_parenthesized_places(f, vars, db),
             ExprData::New(class, vars) => {
                 write!(f, "{}", class.name(db.db()).as_str(db.db()))?;
-                write_parenthesized_variables(f, vars, db)
+                write_parenthesized_places(f, vars, db)
             }
             ExprData::Op(lhs, op, rhs) => {
                 write!(f, "{:?} {} {:?}", lhs.debug(db), op.str(), rhs.debug(db))
@@ -247,9 +267,9 @@ impl DebugWithDb<InIrDb<'_, Tables>> for ExprData {
     }
 }
 
-fn write_parenthesized_variables(
+fn write_parenthesized_places(
     f: &mut std::fmt::Formatter<'_>,
-    vars: &Vec<LocalVariable>,
+    vars: &Vec<Place>,
     db: &InIrDb<'_, Tables>,
 ) -> std::fmt::Result {
     write!(f, "(")?;
@@ -265,26 +285,30 @@ fn write_parenthesized_variables(
 
 id!(pub struct Place);
 
-impl DebugWithDb<InIrDb<'_, Tables>> for Place {
+impl<'db> DebugWithDb<'db> for Place {
+    type Db = InIrDb<'db, Tables>;
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>, db: &InIrDb<'_, Tables>) -> std::fmt::Result {
         write!(f, "{:?}", self.data(db))
     }
 }
 
-#[derive(PartialEq, Eq, PartialOrd, Ord, Clone, Hash, Debug)]
+#[derive(PartialEq, Eq, Clone, Hash, Debug)]
 pub enum PlaceData {
     LocalVariable(LocalVariable),
     Function(Function),
     Class(Class),
+    Intrinsic(Intrinsic),
     Dot(Place, Word),
 }
 
-impl DebugWithDb<InIrDb<'_, Tables>> for PlaceData {
+impl<'db> DebugWithDb<'db> for PlaceData {
+    type Db = InIrDb<'db, Tables>;
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>, db: &InIrDb<'_, Tables>) -> std::fmt::Result {
         match self {
             PlaceData::LocalVariable(v) => write!(f, "{:?}", v.debug(db)),
             PlaceData::Function(func) => write!(f, "{:?}", func.debug(db.db())),
             PlaceData::Class(class) => write!(f, "{:?}", class.debug(db.db())),
+            PlaceData::Intrinsic(intrinsic) => write!(f, "{:?}", intrinsic),
             PlaceData::Dot(p, id) => write!(f, "{:?}.{}", p.debug(db), id.as_str(db.db())),
         }
     }
@@ -298,7 +322,8 @@ pub struct NamedExprData {
     pub expr: Expr,
 }
 
-impl DebugWithDb<InIrDb<'_, Tables>> for NamedExprData {
+impl<'db> DebugWithDb<'db> for NamedExprData {
+    type Db = InIrDb<'db, Tables>;
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>, db: &InIrDb<'_, Tables>) -> std::fmt::Result {
         write!(
             f,

@@ -12,7 +12,8 @@ salsa::entity2! {
     }
 }
 
-impl DebugWithDb<dyn crate::Db + '_> for Tree {
+impl<'db> DebugWithDb<'db> for Tree {
+    type Db = dyn crate::Db + 'db;
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>, db: &dyn crate::Db) -> std::fmt::Result {
         f.debug_struct("syntax::Tree")
             .field("origin", &self.origin(db).debug(db)) // FIXME
@@ -30,7 +31,8 @@ pub struct TreeData {
     pub root_expr: Expr,
 }
 
-impl DebugWithDb<dyn crate::Db + '_> for TreeData {
+impl<'db> DebugWithDb<'db> for TreeData {
+    type Db = dyn crate::Db + 'db;
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>, _db: &dyn crate::Db) -> std::fmt::Result {
         f.debug_struct("syntax::Tree")
             .field("root_expr", &self.root_expr) // FIXME

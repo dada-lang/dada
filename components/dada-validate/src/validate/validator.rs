@@ -192,10 +192,7 @@ impl<'me> Validator<'me> {
                 subscope.loop_stack.push(loop_expr);
                 let validated_body_expr = subscope.validate_expr(*body_expr);
 
-                loop_expr.replace(
-                    validated::ExprData::Loop(validated_body_expr),
-                    &mut self.tables,
-                );
+                self.tables[loop_expr] = validated::ExprData::Loop(validated_body_expr);
 
                 loop_expr
             }
@@ -240,7 +237,7 @@ impl<'me> Validator<'me> {
                     validated::ExprData::Seq(vec![validated_body_expr, if_break_expr]),
                     expr,
                 );
-                loop_expr.replace(validated::ExprData::Loop(loop_body), &mut self.tables);
+                self.tables[loop_expr] = validated::ExprData::Loop(loop_body);
 
                 loop_expr
             }

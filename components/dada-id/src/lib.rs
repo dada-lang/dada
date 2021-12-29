@@ -40,6 +40,18 @@ macro_rules! id {
         #[derive(Copy, Clone, PartialEq, Eq, PartialOrd, Ord, Debug, Hash)]
         $v struct $n(salsa::Id);
 
+        impl $n {
+            pub fn zero() -> Self {
+                Self::from(0_u32)
+            }
+
+            /// Returns an iterator from `0 .. self`.
+            pub fn iter(self) -> impl Iterator<Item = Self> {
+                (0_u32 .. u32::from(self))
+                .map(move |i| Self::from(i))
+            }
+        }
+
         impl salsa::AsId for $n {
             fn as_id(self) -> salsa::Id {
                 self.0
@@ -137,6 +149,15 @@ macro_rules! tables {
             }
         }
 
+        impl<K> std::ops::IndexMut<K> for $n
+        where
+            K: $crate::InternAllocKey<Table = Self>,
+        {
+            fn index_mut(&mut self, key: K) -> &mut Self::Output {
+                K::data_mut(key, self)
+            }
+        }
+
         impl $n {
             pub fn add<V>(&mut self, value: V) -> V::Key
             where
@@ -163,8 +184,8 @@ macro_rules! tables {
                 table.$f.next_key()
             }
 
-            fn replace(self, value: Self::Value, table: &mut Self::Table) {
-                table.$f.replace(self, value)
+            fn data_mut(self, table: &mut Self::Table) -> &mut Self::Value {
+                table.$f.data_mut(self)
             }
         }
     };
@@ -176,12 +197,6 @@ macro_rules! tables {
     };
 
     (@any_field_impl[$n:ident] $f:ident: $k:ty => $v:ty) => {
-        impl $k {
-            fn zero() -> Self {
-                Self::from(0_u32)
-            }
-        }
-
         impl $crate::InternValue for $v {
             type Table = $n;
             type Key = $k;
@@ -223,6 +238,6 @@ pub trait InternAllocKey: InternKey {
     /// Note that this is not (yet) a valid key.
     fn max_key(table: &Self::Table) -> Self;
 
-    /// Get the data for this key from the given table.
-    fn replace(self, value: Self::Value, table: &mut Self::Table);
+    /// Get mut ref to data for this key from the given table.
+    fn data_mut(self, table: &mut Self::Table) -> &mut Self::Value;
 }

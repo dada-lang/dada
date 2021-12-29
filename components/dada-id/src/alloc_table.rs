@@ -39,9 +39,8 @@ impl<K: salsa::AsId, V: Hash + Eq> AllocTable<K, V> {
         &self.vec[key.as_id()]
     }
 
-    /// Replace the value for K with V.
-    pub fn replace(&mut self, key: K, value: V) {
-        self.vec[key.as_id()] = value;
+    pub fn data_mut(&mut self, key: K) -> &mut V {
+        &mut self.vec[key.as_id()]
     }
 
     /// Replace the value for K with V.
@@ -55,5 +54,11 @@ impl<K: salsa::AsId, V: Hash + Eq> std::ops::Index<K> for AllocTable<K, V> {
 
     fn index(&self, key: K) -> &Self::Output {
         self.data(key)
+    }
+}
+
+impl<K: salsa::AsId, V: Hash + Eq> std::ops::IndexMut<K> for AllocTable<K, V> {
+    fn index_mut(&mut self, key: K) -> &mut Self::Output {
+        self.data_mut(key)
     }
 }

@@ -14,12 +14,13 @@ use super::{syntax, Code};
 salsa::entity2! {
     entity Tree in crate::Jar {
         origin: Code,
-        data: TreeData,
-        origins: Origins,
+        #[value ref] data: TreeData,
+        #[value ref] origins: Origins,
     }
 }
 
-impl DebugWithDb<dyn crate::Db + '_> for Tree {
+impl<'db> DebugWithDb<'db> for Tree {
+    type Db = dyn crate::Db + 'db;
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>, db: &dyn crate::Db) -> std::fmt::Result {
         f.debug_struct("validated::Tree")
             .field("origin", &self.origin(db).debug(db)) // FIXME
@@ -31,13 +32,14 @@ impl DebugWithDb<dyn crate::Db + '_> for Tree {
 #[derive(Clone, Debug, PartialEq, Eq)]
 pub struct TreeData {
     /// Interning tables for expressions and the like.
-    tables: Tables,
+    pub tables: Tables,
 
     /// The root
-    root_expr: Expr,
+    pub root_expr: Expr,
 }
 
-impl DebugWithDb<dyn crate::Db + '_> for TreeData {
+impl<'db> DebugWithDb<'db> for TreeData {
+    type Db = dyn crate::Db + 'db;
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>, _db: &dyn crate::Db) -> std::fmt::Result {
         f.debug_struct("validated::Tree")
             .field("root_expr", &self.root_expr) // FIXME
@@ -48,14 +50,6 @@ impl DebugWithDb<dyn crate::Db + '_> for TreeData {
 impl TreeData {
     pub fn new(tables: Tables, root_expr: Expr) -> Self {
         Self { tables, root_expr }
-    }
-
-    pub fn tables(&self) -> &Tables {
-        &self.tables
-    }
-
-    pub fn root_expr(&self) -> Expr {
-        self.root_expr
     }
 
     pub fn max_local_variable(&self) -> LocalVariable {
@@ -171,7 +165,8 @@ pub enum ExprData {
     Error,
 }
 
-impl DebugWithDb<dyn crate::Db + '_> for ExprData {
+impl<'db> DebugWithDb<'db> for ExprData {
+    type Db = dyn crate::Db + 'db;
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>, _db: &dyn crate::Db) -> std::fmt::Result {
         std::fmt::Debug::fmt(self, f) // FIXME
     }
