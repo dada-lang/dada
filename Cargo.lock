@@ -250,6 +250,16 @@ dependencies = [
 ]
 
 [[package]]
+name = "dada-execute"
+version = "0.1.0"
+dependencies = [
+ "dada-collections",
+ "dada-id",
+ "dada-ir",
+ "salsa",
+]
+
+[[package]]
 name = "dada-id"
 version = "0.1.0"
 dependencies = [
@@ -274,6 +284,7 @@ dependencies = [
  "ariadne",
  "dada-collections",
  "dada-db",
+ "dada-execute",
  "dada-ir",
  "dada-lex",
  "dada-lsp",

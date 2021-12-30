@@ -10,6 +10,7 @@ ariadne = "0.1.3"
 dada-db = { path = "../dada-db" }
 dada-collections = { path = "../dada-collections" }
 dada-ir = { path = "../dada-ir" }
+dada-execute = { path = "../dada-execute" }
 dada-lex = { path = "../dada-lex" }
 dada-lsp = { path = "../dada-lsp" }
 dada-manifest = { path = "../dada-manifest" }
