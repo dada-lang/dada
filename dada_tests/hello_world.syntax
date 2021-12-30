@@ -1,0 +1,5 @@
+[
+    syntax::Tree {
+        origin: Tokens(dada_tests/hello_world.dada@(17..59)),
+    },
+]

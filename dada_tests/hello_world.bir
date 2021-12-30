@@ -1,20 +1,39 @@
 [
     validated::Tree {
-        start_basic_block: BasicBlock(
-            Id {
-                value: 1,
-            },
-        ),
-        BasicBlock(Id { value: 1 }): BasicBlockData {
-            statements: [
-                temp{2} = "Hello, world",
+        start_basic_block: BasicBlock(0),
+        BasicBlock(0): BasicBlockData(
+            [
+                Assign(
+                    temp{2},
+                    "Hello, world",
+                ),
             ],
-        },
-        BasicBlock(Id { value: 2 }): BasicBlockData {
-            statements: [],
-        },
-        BasicBlock(Id { value: 3 }): BasicBlockData {
-            statements: [],
-        },
+            Assign(
+                temp{1},
+                Call(
+                    Print,
+                    [
+                        message: temp{2},
+                    ],
+                ),
+                BasicBlock(1),
+            ),
+        ),
+        BasicBlock(1): BasicBlockData(
+            [],
+            Assign(
+                temp{0},
+                Await(
+                    temp{1},
+                ),
+                BasicBlock(2),
+            ),
+        ),
+        BasicBlock(2): BasicBlockData(
+            [],
+            Return(
+                temp{0},
+            ),
+        ),
     },
 ]

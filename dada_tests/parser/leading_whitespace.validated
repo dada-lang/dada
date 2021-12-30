@@ -1,0 +1,18 @@
+[
+    validated::Tree {
+        root_expr: Seq(
+            [
+                Await(
+                    Call(
+                        Print,
+                        [
+                            message(
+                                "Hello, world",
+                            ),
+                        ],
+                    ),
+                ),
+            ],
+        ),
+    },
+]

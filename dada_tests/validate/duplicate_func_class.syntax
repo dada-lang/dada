@@ -1,0 +1,5 @@
+[
+    syntax::Tree {
+        origin: Tokens(dada_tests/validate/duplicate_func_class.dada@(11..11)),
+    },
+]

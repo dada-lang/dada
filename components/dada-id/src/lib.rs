@@ -37,7 +37,7 @@ pub mod table_types {
 #[macro_export]
 macro_rules! id {
     ($v:vis struct $n:ident) => {
-        #[derive(Copy, Clone, PartialEq, Eq, PartialOrd, Ord, Debug, Hash)]
+        #[derive(Copy, Clone, PartialEq, Eq, PartialOrd, Ord, Hash)]
         $v struct $n(salsa::Id);
 
         impl $n {
@@ -49,6 +49,12 @@ macro_rules! id {
             pub fn iter(self) -> impl Iterator<Item = Self> {
                 (0_u32 .. u32::from(self))
                 .map(move |i| Self::from(i))
+            }
+        }
+
+        impl std::fmt::Debug for $n {
+            fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+                write!(f, "{}({})", stringify!($n), u32::from(*self))
             }
         }
 

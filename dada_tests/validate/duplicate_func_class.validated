@@ -1,0 +1,7 @@
+[
+    validated::Tree {
+        root_expr: Seq(
+            [],
+        ),
+    },
+]

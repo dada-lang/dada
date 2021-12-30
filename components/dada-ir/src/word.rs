@@ -23,6 +23,12 @@ impl Word {
     }
 }
 
+impl<Db: ?Sized + crate::Db> salsa::DebugWithDb<Db> for Word {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>, db: &Db) -> std::fmt::Result {
+        std::fmt::Debug::fmt(self.as_str(db), f)
+    }
+}
+
 pub trait ToString {
     fn to_string(self) -> String;
 }

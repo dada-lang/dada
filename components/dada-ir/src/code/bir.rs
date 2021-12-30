@@ -131,6 +131,12 @@ pub struct LocalVariableData {
 
 id!(pub struct BasicBlock);
 
+impl<Db: ?Sized> DebugWithDb<Db> for BasicBlock {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>, _db: &Db) -> std::fmt::Result {
+        std::fmt::Debug::fmt(self, f)
+    }
+}
+
 #[derive(PartialEq, Eq, Clone, Hash, Debug)]
 pub struct BasicBlockData {
     pub statements: Vec<Statement>,
@@ -139,20 +145,20 @@ pub struct BasicBlockData {
 
 impl DebugWithDb<InIrDb<'_, Tables>> for BasicBlockData {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>, db: &InIrDb<'_, Tables>) -> std::fmt::Result {
-        let mut f = f.debug_struct("BasicBlockData");
-
-        let statements: Vec<_> = self
-            .statements
-            .iter()
-            .map(|s| s.data(db).debug(db))
-            .collect();
-        f.field("statements", &statements);
-
-        f.finish()
+        f.debug_tuple("BasicBlockData")
+            .field(&self.statements.debug(db))
+            .field(&self.terminator.debug(db))
+            .finish()
     }
 }
 
 id!(pub struct Statement);
+
+impl DebugWithDb<InIrDb<'_, Tables>> for Statement {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>, db: &InIrDb<'_, Tables>) -> std::fmt::Result {
+        DebugWithDb::fmt(&self.data(db), f, db)
+    }
+}
 
 #[derive(PartialEq, Eq, Clone, Hash, Debug)]
 pub enum StatementData {
@@ -162,19 +168,22 @@ pub enum StatementData {
 impl DebugWithDb<InIrDb<'_, Tables>> for StatementData {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>, db: &InIrDb<'_, Tables>) -> std::fmt::Result {
         match self {
-            StatementData::Assign(place, expr) => {
-                write!(
-                    f,
-                    "{:?} = {:?}",
-                    place.data(db).debug(db),
-                    expr.data(db).debug(db)
-                )
-            }
+            StatementData::Assign(place, expr) => f
+                .debug_tuple("Assign")
+                .field(&place.debug(db))
+                .field(&expr.debug(db))
+                .finish(),
         }
     }
 }
 
 id!(pub struct Terminator);
+
+impl DebugWithDb<InIrDb<'_, Tables>> for Terminator {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>, db: &InIrDb<'_, Tables>) -> std::fmt::Result {
+        DebugWithDb::fmt(self.data(db), f, db)
+    }
+}
 
 #[derive(PartialEq, Eq, Clone, Hash, Debug)]
 pub enum TerminatorData {
@@ -188,17 +197,61 @@ pub enum TerminatorData {
     Panic,
 }
 
+impl DebugWithDb<InIrDb<'_, Tables>> for TerminatorData {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>, db: &InIrDb<'_, Tables>) -> std::fmt::Result {
+        match self {
+            TerminatorData::Goto(block) => f.debug_tuple("Goto").field(block).finish(),
+            TerminatorData::If(condition, if_true, if_false) => f
+                .debug_tuple("If")
+                .field(&condition.debug(db))
+                .field(&if_true.debug(db))
+                .field(&if_false.debug(db))
+                .finish(),
+            TerminatorData::StartAtomic(block) => {
+                f.debug_tuple("StartAomic").field(&block.debug(db)).finish()
+            }
+            TerminatorData::EndAtomic(block) => {
+                f.debug_tuple("EndAtomic").field(&block.debug(db)).finish()
+            }
+            TerminatorData::Return(value) => {
+                f.debug_tuple("Return").field(&value.debug(db)).finish()
+            }
+            TerminatorData::Assign(target, expr, next) => f
+                .debug_tuple("Assign")
+                .field(&target.debug(db))
+                .field(&expr.debug(db))
+                .field(&next.debug(db))
+                .finish(),
+            TerminatorData::Error => f.debug_tuple("Error").finish(),
+            TerminatorData::Panic => f.debug_tuple("Panic").finish(),
+        }
+    }
+}
+
 #[derive(PartialEq, Eq, Clone, Hash, Debug)]
 pub enum TerminatorExpr {
     Await(Place),
     Call(Place, Vec<NamedPlace>),
 }
 
+impl DebugWithDb<InIrDb<'_, Tables>> for TerminatorExpr {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>, db: &InIrDb<'_, Tables>) -> std::fmt::Result {
+        match self {
+            TerminatorExpr::Await(place) => f.debug_tuple("Await").field(&place.debug(db)).finish(),
+            TerminatorExpr::Call(func, args) => f
+                .debug_tuple("Call")
+                .field(&func.debug(db))
+                .field(&args.debug(db))
+                .finish(),
+        }
+    }
+}
+
 id!(pub struct Expr);
 
 impl DebugWithDb<InIrDb<'_, Tables>> for Expr {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>, db: &InIrDb<'_, Tables>) -> std::fmt::Result {
-        write!(f, "{:?}", self.data(db))
+        write!(f, "{:?}", self.data(db).debug(db))
     }
 }
 #[derive(PartialEq, Eq, Clone, Hash, Debug)]
@@ -280,7 +333,7 @@ id!(pub struct Place);
 
 impl DebugWithDb<InIrDb<'_, Tables>> for Place {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>, db: &InIrDb<'_, Tables>) -> std::fmt::Result {
-        write!(f, "{:?}", self.data(db))
+        write!(f, "{:?}", self.data(db).debug(db))
     }
 }
 
@@ -306,6 +359,12 @@ impl DebugWithDb<InIrDb<'_, Tables>> for PlaceData {
 }
 
 id!(pub struct NamedPlace);
+
+impl DebugWithDb<InIrDb<'_, Tables>> for NamedPlace {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>, db: &InIrDb<'_, Tables>) -> std::fmt::Result {
+        DebugWithDb::fmt(&self.data(db), f, db)
+    }
+}
 
 #[derive(PartialEq, Eq, PartialOrd, Ord, Clone, Hash, Debug)]
 pub struct NamedPlaceData {

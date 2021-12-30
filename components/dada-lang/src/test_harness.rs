@@ -116,7 +116,27 @@ impl Options {
             &path.with_extension("ref"),
             &mut errors,
         )?;
-        self.check_bir(&db, &[filename], &path.with_extension("bir"), &mut errors)?;
+        self.check_compiled(
+            &db,
+            &[filename],
+            |item| db.debug_syntax_tree(item),
+            &path.with_extension("syntax"),
+            &mut errors,
+        )?;
+        self.check_compiled(
+            &db,
+            &[filename],
+            |item| db.debug_validated_tree(item),
+            &path.with_extension("validated"),
+            &mut errors,
+        )?;
+        self.check_compiled(
+            &db,
+            &[filename],
+            |item| db.debug_bir(item),
+            &path.with_extension("bir"),
+            &mut errors,
+        )?;
         errors.into_result()
     }
 
@@ -236,13 +256,17 @@ impl Options {
         Ok(())
     }
 
-    fn check_bir(
+    fn check_compiled<D>(
         &self,
         db: &dada_db::Db,
         filenames: &[Filename],
+        mut item_op: impl FnMut(Item) -> Option<D>,
         bir_path: &Path,
         errors: &mut Errors,
-    ) -> eyre::Result<()> {
+    ) -> eyre::Result<()>
+    where
+        D: std::fmt::Debug,
+    {
         let items: Vec<Item> = filenames
             .iter()
             .flat_map(|filename| db.items(*filename))
@@ -250,7 +274,7 @@ impl Options {
 
         let birs = items
             .iter()
-            .flat_map(|&item| db.debug_bir(item))
+            .flat_map(|&item| item_op(item))
             .collect::<Vec<_>>();
         self.check_output_against_ref_file(format!("{birs:#?}"), bir_path, errors)?;
 

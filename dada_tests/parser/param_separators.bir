@@ -1,110 +1,128 @@
 [
     validated::Tree {
-        start_basic_block: BasicBlock(
-            Id {
-                value: 1,
-            },
-        ),
-        BasicBlock(Id { value: 1 }): BasicBlockData {
-            statements: [
-                temp{0} = (),
+        start_basic_block: BasicBlock(0),
+        BasicBlock(0): BasicBlockData(
+            [
+                Assign(
+                    temp{0},
+                    (),
+                ),
             ],
-        },
+            Return(
+                temp{0},
+            ),
+        ),
     },
     validated::Tree {
-        start_basic_block: BasicBlock(
-            Id {
-                value: 1,
-            },
-        ),
-        BasicBlock(Id { value: 1 }): BasicBlockData {
-            statements: [
-                temp{0} = (),
+        start_basic_block: BasicBlock(0),
+        BasicBlock(0): BasicBlockData(
+            [
+                Assign(
+                    temp{0},
+                    (),
+                ),
             ],
-        },
+            Return(
+                temp{0},
+            ),
+        ),
     },
     validated::Tree {
-        start_basic_block: BasicBlock(
-            Id {
-                value: 1,
-            },
-        ),
-        BasicBlock(Id { value: 1 }): BasicBlockData {
-            statements: [
-                temp{0} = (),
+        start_basic_block: BasicBlock(0),
+        BasicBlock(0): BasicBlockData(
+            [
+                Assign(
+                    temp{0},
+                    (),
+                ),
             ],
-        },
+            Return(
+                temp{0},
+            ),
+        ),
     },
     validated::Tree {
-        start_basic_block: BasicBlock(
-            Id {
-                value: 1,
-            },
-        ),
-        BasicBlock(Id { value: 1 }): BasicBlockData {
-            statements: [
-                temp{0} = (),
+        start_basic_block: BasicBlock(0),
+        BasicBlock(0): BasicBlockData(
+            [
+                Assign(
+                    temp{0},
+                    (),
+                ),
             ],
-        },
+            Return(
+                temp{0},
+            ),
+        ),
     },
     validated::Tree {
-        start_basic_block: BasicBlock(
-            Id {
-                value: 1,
-            },
-        ),
-        BasicBlock(Id { value: 1 }): BasicBlockData {
-            statements: [
-                temp{0} = (),
+        start_basic_block: BasicBlock(0),
+        BasicBlock(0): BasicBlockData(
+            [
+                Assign(
+                    temp{0},
+                    (),
+                ),
             ],
-        },
+            Return(
+                temp{0},
+            ),
+        ),
     },
     validated::Tree {
-        start_basic_block: BasicBlock(
-            Id {
-                value: 1,
-            },
-        ),
-        BasicBlock(Id { value: 1 }): BasicBlockData {
-            statements: [
-                temp{0} = (),
+        start_basic_block: BasicBlock(0),
+        BasicBlock(0): BasicBlockData(
+            [
+                Assign(
+                    temp{0},
+                    (),
+                ),
             ],
-        },
+            Return(
+                temp{0},
+            ),
+        ),
     },
     validated::Tree {
-        start_basic_block: BasicBlock(
-            Id {
-                value: 1,
-            },
-        ),
-        BasicBlock(Id { value: 1 }): BasicBlockData {
-            statements: [
-                temp{0} = (),
+        start_basic_block: BasicBlock(0),
+        BasicBlock(0): BasicBlockData(
+            [
+                Assign(
+                    temp{0},
+                    (),
+                ),
             ],
-        },
+            Return(
+                temp{0},
+            ),
+        ),
     },
     validated::Tree {
-        start_basic_block: BasicBlock(
-            Id {
-                value: 1,
-            },
-        ),
-        BasicBlock(Id { value: 1 }): BasicBlockData {
-            statements: [
-                temp{0} = (),
+        start_basic_block: BasicBlock(0),
+        BasicBlock(0): BasicBlockData(
+            [
+                Assign(
+                    temp{0},
+                    (),
+                ),
             ],
-        },
+            Return(
+                temp{0},
+            ),
+        ),
     },
     validated::Tree {
-        start_basic_block: BasicBlock(
-            Id {
-                value: 1,
-            },
-        ),
-        BasicBlock(Id { value: 1 }): BasicBlockData {
-            statements: [
-                temp{0} = (),
+        start_basic_block: BasicBlock(0),
+        BasicBlock(0): BasicBlockData(
+            [
+                Assign(
+                    temp{0},
+                    (),
+                ),
             ],
-        },
+            Return(
+                temp{0},
+            ),
+        ),
     },
 ]

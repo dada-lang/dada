@@ -1,6 +1,7 @@
 use std::path::PathBuf;
 
 use eyre::Context;
+use salsa::DebugWithDb;
 
 #[derive(structopt::StructOpt)]
 pub struct Options {
@@ -11,6 +12,9 @@ pub struct Options {
 
     #[structopt(long)]
     log_validated_tree: bool,
+
+    #[structopt(long)]
+    log_bir: bool,
 }
 
 impl Options {
@@ -27,7 +31,7 @@ impl Options {
             if self.log_syntax_tree {
                 for item in db.items(filename) {
                     if let Some(tree) = db.debug_syntax_tree(item) {
-                        tracing::info!("{:#?}", tree);
+                        tracing::info!("syntax tree for {:?} is {:#?}", item.debug(&db), tree);
                     }
                 }
             }
@@ -35,7 +39,15 @@ impl Options {
             if self.log_validated_tree {
                 for item in db.items(filename) {
                     if let Some(tree) = db.debug_validated_tree(item) {
-                        tracing::info!("{:#?}", tree);
+                        tracing::info!("validated tree for {:?} is {:#?}", item.debug(&db), tree);
+                    }
+                }
+            }
+
+            if self.log_bir {
+                for item in db.items(filename) {
+                    if let Some(tree) = db.debug_bir(item) {
+                        tracing::info!("BIR for {:?} is {:#?}", item.debug(&db), tree);
                     }
                 }
             }

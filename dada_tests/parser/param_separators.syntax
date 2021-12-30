@@ -1,0 +1,29 @@
+[
+    syntax::Tree {
+        origin: Tokens(dada_tests/parser/param_separators.dada@(14..15)),
+    },
+    syntax::Tree {
+        origin: Tokens(dada_tests/parser/param_separators.dada@(33..34)),
+    },
+    syntax::Tree {
+        origin: Tokens(dada_tests/parser/param_separators.dada@(54..55)),
+    },
+    syntax::Tree {
+        origin: Tokens(dada_tests/parser/param_separators.dada@(76..77)),
+    },
+    syntax::Tree {
+        origin: Tokens(dada_tests/parser/param_separators.dada@(99..137)),
+    },
+    syntax::Tree {
+        origin: Tokens(dada_tests/parser/param_separators.dada@(166..167)),
+    },
+    syntax::Tree {
+        origin: Tokens(dada_tests/parser/param_separators.dada@(190..191)),
+    },
+    syntax::Tree {
+        origin: Tokens(dada_tests/parser/param_separators.dada@(221..222)),
+    },
+    syntax::Tree {
+        origin: Tokens(dada_tests/parser/param_separators.dada@(286..287)),
+    },
+]
