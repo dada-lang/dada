@@ -668,9 +668,9 @@ dependencies = [
 
 [[package]]
 name = "proc-macro2"
-version = "1.0.35"
+version = "1.0.36"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "392a54546fda6b7cc663379d0e6ce8b324cf88aecc5a499838e1be9781bdce2e"
+checksum = "c7342d5883fbccae1cc37a2353b09c87c9b0f3afd73f5fb9bba687a1f733b029"
 dependencies = [
  "unicode-xid",
 ]
@@ -686,9 +686,9 @@ dependencies = [
 
 [[package]]
 name = "quote"
-version = "1.0.10"
+version = "1.0.14"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "38bc8cc6a5f2e3655e0899c1b848643b2562f853f114bfec7be120678e3ace05"
+checksum = "47aa80447ce4daf1717500037052af176af5d38cc3e571d9ec1c7353fc10c87d"
 dependencies = [
  "proc-macro2",
 ]
@@ -765,6 +765,7 @@ dependencies = [
 [[package]]
 name = "salsa-entity-macros"
 version = "0.1.0"
+source = "git+https://github.com/nikomatsakis/salsa/?branch=entity#9991991043e1ed85be9202b24a7162040d3ed42d"
 dependencies = [
  "eyre",
  "heck",
@@ -776,6 +777,7 @@ dependencies = [
 [[package]]
 name = "salsa-entity-mock"
 version = "0.1.0"
+source = "git+https://github.com/nikomatsakis/salsa/?branch=entity#9991991043e1ed85be9202b24a7162040d3ed42d"
 dependencies = [
  "arc-swap",
  "crossbeam",
@@ -1115,9 +1117,9 @@ checksum = "f1bddf1187be692e79c5ffeab891132dfb0f236ed36a43c7ed39f1165ee20191"
 
 [[package]]
 name = "version_check"
-version = "0.9.3"
+version = "0.9.4"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "5fecdca9a5291cc2b8dcf7dc02453fee791a280f3743cb0905f8822ae463b3fe"
+checksum = "49874b5167b65d7193b8aba1567f5c7d93d001cafc34600cee003eda787e483f"
 
 [[package]]
 name = "walkdir"

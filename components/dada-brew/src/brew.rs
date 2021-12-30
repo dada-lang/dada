@@ -287,7 +287,28 @@ impl Cursor {
                 self.push_assignment(brewery, target, bir::ExprData::Tuple(vec![]), origin);
             }
 
-            validated::ExprData::Call(_, _) => todo!(),
+            validated::ExprData::Call(func, args) => {
+                if let Some(func_place) = self.brew_expr_to_place(brewery, *func) {
+                    if let Some(bir_args) = args
+                        .iter()
+                        .map(|arg| self.brew_named_expr(brewery, *arg))
+                        .collect::<Option<Vec<_>>>()
+                    {
+                        assert_eq!(bir_args.len(), args.len());
+                        self.terminate_and_continue(
+                            brewery,
+                            |next_block| {
+                                bir::TerminatorData::Assign(
+                                    target,
+                                    bir::TerminatorExpr::Call(func_place, bir_args),
+                                    next_block,
+                                )
+                            },
+                            origin,
+                        );
+                    }
+                }
+            }
             validated::ExprData::Atomic(_) => todo!(),
 
             validated::ExprData::Error

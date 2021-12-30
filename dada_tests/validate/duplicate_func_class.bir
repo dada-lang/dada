@@ -1,0 +1,14 @@
+[
+    validated::Tree {
+        start_basic_block: BasicBlock(
+            Id {
+                value: 1,
+            },
+        ),
+        BasicBlock(Id { value: 1 }): BasicBlockData {
+            statements: [
+                temp{0} = (),
+            ],
+        },
+    },
+]

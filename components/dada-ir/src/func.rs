@@ -10,9 +10,9 @@ salsa::entity2! {
     }
 }
 
-impl<'db> salsa::DebugWithDb<'db> for Function {
-    type Db = dyn crate::Db + 'db;
-    fn fmt(&self, f: &mut std::fmt::Formatter<'_>, db: &dyn crate::Db) -> std::fmt::Result {
+impl<Db: ?Sized + crate::Db> salsa::DebugWithDb<Db> for Function {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>, db: &Db) -> std::fmt::Result {
+        let db = db.as_dyn_ir_db();
         write!(f, "{}", self.name(db).as_str(db))
     }
 }

@@ -13,9 +13,9 @@ salsa::entity2! {
     }
 }
 
-impl<'db> salsa::DebugWithDb<'db> for TokenTree {
-    type Db = dyn crate::Db + 'db;
-    fn fmt(&self, f: &mut std::fmt::Formatter<'_>, db: &dyn crate::Db) -> std::fmt::Result {
+impl<Db: ?Sized + crate::Db> salsa::DebugWithDb<Db> for TokenTree {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>, db: &Db) -> std::fmt::Result {
+        let db = db.as_dyn_ir_db();
         let file_span: FileSpan = self.span(db).in_file(self.filename(db));
         write!(f, "Tokens({:?})", file_span.into_debug(db))
     }

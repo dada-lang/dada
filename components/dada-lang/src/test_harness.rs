@@ -248,7 +248,10 @@ impl Options {
             .flat_map(|filename| db.items(*filename))
             .collect();
 
-        let birs = items.iter().flat_map(|&item| db.debug_bir(item));
+        let birs = items
+            .iter()
+            .flat_map(|&item| db.debug_bir(item))
+            .collect::<Vec<_>>();
         self.check_output_against_ref_file(format!("{birs:#?}"), bir_path, errors)?;
 
         Ok(())

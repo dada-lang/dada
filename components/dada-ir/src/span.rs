@@ -7,9 +7,9 @@ pub struct FileSpan {
     pub end: Offset,
 }
 
-impl<'db> salsa::DebugWithDb<'db> for FileSpan {
-    type Db = dyn crate::Db + 'db;
-    fn fmt(&self, f: &mut std::fmt::Formatter<'_>, db: &dyn crate::Db) -> std::fmt::Result {
+impl<Db: ?Sized + crate::Db> salsa::DebugWithDb<Db> for FileSpan {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>, db: &Db) -> std::fmt::Result {
+        let db = db.as_dyn_ir_db();
         write!(
             f,
             "{}@{:?}",

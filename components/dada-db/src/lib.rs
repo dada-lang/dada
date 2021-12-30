@@ -59,7 +59,7 @@ impl Db {
 
     /// Returns the validated tree for `item`.
     pub fn debug_validated_tree(&self, item: Item) -> Option<impl std::fmt::Debug + '_> {
-        Some(item.validated_tree(self)?.into_debug(self))
+        Some(item.validated_tree(self)?.data(self).into_debug(self))
     }
 
     /// Returns the validated tree for `item`.

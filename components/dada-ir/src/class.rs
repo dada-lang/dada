@@ -8,9 +8,8 @@ salsa::entity2! {
     }
 }
 
-impl<'db> salsa::DebugWithDb<'db> for Class {
-    type Db = dyn crate::Db + 'db;
-    fn fmt(&self, f: &mut std::fmt::Formatter<'_>, _db: &dyn crate::Db) -> std::fmt::Result {
+impl<Db: ?Sized + crate::Db> salsa::DebugWithDb<Db> for Class {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>, _db: &Db) -> std::fmt::Result {
         std::fmt::Debug::fmt(self, f)
     }
 }

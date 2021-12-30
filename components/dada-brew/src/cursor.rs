@@ -1,4 +1,5 @@
-use dada_ir::code::{bir, syntax};
+use dada_id::prelude::*;
+use dada_ir::code::{bir, syntax, validated};
 
 use crate::brewery::Brewery;
 
@@ -100,5 +101,16 @@ impl Cursor {
         origin: syntax::Expr,
     ) {
         self.terminate_and_diverge(brewery, bir::TerminatorData::Goto(target), origin);
+    }
+
+    pub(crate) fn brew_named_expr(
+        &mut self,
+        brewery: &mut Brewery,
+        arg: validated::NamedExpr,
+    ) -> Option<bir::NamedPlace> {
+        let origin = brewery.origin(arg);
+        let validated::NamedExprData { name, expr } = arg.data(brewery.validated_tables());
+        let place = self.brew_expr_to_place(brewery, *expr)?;
+        Some(brewery.add(bir::NamedPlaceData { name: *name, place }, origin))
     }
 }

@@ -12,11 +12,10 @@ salsa::entity2! {
     }
 }
 
-impl<'db> DebugWithDb<'db> for Tree {
-    type Db = dyn crate::Db + 'db;
-    fn fmt(&self, f: &mut std::fmt::Formatter<'_>, db: &dyn crate::Db) -> std::fmt::Result {
+impl<Db: ?Sized + crate::Db> DebugWithDb<Db> for Tree {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>, db: &Db) -> std::fmt::Result {
         f.debug_struct("syntax::Tree")
-            .field("origin", &self.origin(db).debug(db)) // FIXME
+            .field("origin", &self.origin(db.as_dyn_ir_db()).debug(db)) // FIXME
             .finish()
     }
 }
@@ -31,9 +30,8 @@ pub struct TreeData {
     pub root_expr: Expr,
 }
 
-impl<'db> DebugWithDb<'db> for TreeData {
-    type Db = dyn crate::Db + 'db;
-    fn fmt(&self, f: &mut std::fmt::Formatter<'_>, _db: &dyn crate::Db) -> std::fmt::Result {
+impl<Db: ?Sized + crate::Db> DebugWithDb<Db> for TreeData {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>, _db: &Db) -> std::fmt::Result {
         f.debug_struct("syntax::Tree")
             .field("root_expr", &self.root_expr) // FIXME
             .finish()

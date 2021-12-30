@@ -22,9 +22,8 @@ impl Code {
     }
 }
 
-impl<'db> salsa::DebugWithDb<'db> for Code {
-    type Db = dyn crate::Db + 'db;
-    fn fmt(&self, f: &mut std::fmt::Formatter<'_>, db: &dyn crate::Db) -> std::fmt::Result {
+impl<Db: ?Sized + crate::Db> salsa::DebugWithDb<Db> for Code {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>, db: &Db) -> std::fmt::Result {
         self.0.fmt(f, db)
     }
 }

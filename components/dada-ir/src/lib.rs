@@ -40,5 +40,11 @@ pub struct Jar(
     word::Word,
 );
 
-pub trait Db: salsa::DbWithJar<Jar> {}
-impl<T: salsa::DbWithJar<Jar>> Db for T {}
+pub trait Db: salsa::DbWithJar<Jar> {
+    fn as_dyn_ir_db(&self) -> &dyn crate::Db;
+}
+impl<T: salsa::DbWithJar<Jar>> Db for T {
+    fn as_dyn_ir_db(&self) -> &dyn crate::Db {
+        self
+    }
+}
