@@ -5,6 +5,7 @@ use crate::{
 
 /// Used as the "error" value for a `Result` to indicate that an error was detected
 /// and reported to the user (i.e., pushed onto the [`Diagnostics`] accumulator).
+#[derive(Debug)]
 pub struct ErrorReported;
 
 pub type Fallible<T> = Result<T, ErrorReported>;

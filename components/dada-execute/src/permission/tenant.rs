@@ -1,50 +1,46 @@
 use arc_swap::ArcSwapOption;
-use dada_ir::diagnostic::Fallible;
 
-use crate::{interpreter::Interpreter, moment::Moment};
+use crate::interpreter::Interpreter;
 
 use super::{Permission, PermissionData};
 
 /// Core struct for any unique permission
-#[derive(Default)]
+#[derive(Default, Debug)]
 pub(super) struct Tenant {
     /// Has this permission been leased or shared?
     tenant: ArcSwapOption<PermissionData>,
 }
 
 impl Tenant {
-    pub(super) fn lease(
-        &self,
-        interpreter: &Interpreter<'_>,
-        moment: Moment,
-    ) -> Fallible<Permission> {
-        self.cancel_tenant(interpreter, moment)?;
-        let perm = Permission::leased(moment);
+    pub(super) fn lease(&self, interpreter: &Interpreter<'_>) -> Permission {
+        self.cancel_tenant(interpreter);
+        let perm = Permission::leased(interpreter);
         self.tenant.store(Some(perm.data.clone()));
-        Ok(perm)
+        perm
     }
 
-    pub(super) fn share(
-        &self,
-        interpreter: &Interpreter<'_>,
-        moment: Moment,
-    ) -> Fallible<Permission> {
-        self.cancel_tenant(interpreter, moment)?;
-        let perm = Permission::shared(moment);
+    pub(super) fn share(&self, interpreter: &Interpreter<'_>) -> Permission {
+        self.cancel_tenant(interpreter);
+        let perm = Permission::shared(interpreter);
         self.tenant.store(Some(perm.data.clone()));
-        Ok(perm)
+        perm
     }
 
-    pub(super) fn cancel_tenant(
-        &self,
-        interpreter: &Interpreter<'_>,
-        moment: Moment,
-    ) -> Fallible<()> {
+    pub(super) fn cancel_tenant(&self, interpreter: &Interpreter<'_>) {
         let tenant = self.tenant.load();
         if let Some(tenant) = &*tenant {
-            tenant.cancel(interpreter, moment)?;
+            tenant.cancel(interpreter).expect("failed to cancel tenant");
+            self.tenant.store(None);
         }
-        self.tenant.store(None);
-        Ok(())
+    }
+
+    pub(crate) fn cancel_tenant_if_exclusive(&self, interpreter: &Interpreter) {
+        let tenant = self.tenant.load();
+        if let Some(tenant) = &*tenant {
+            if tenant.exclusive() {
+                tenant.cancel(interpreter).expect("failed to cancel tenant");
+                self.tenant.store(None);
+            }
+        }
     }
 }

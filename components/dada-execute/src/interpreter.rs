@@ -7,7 +7,16 @@ use crate::moment::Moment;
 
 pub struct Interpreter<'me> {
     db: &'me dyn crate::Db,
+
+    /// clock tick: increases monotonically
     clock: AtomicCell<u64>,
+
+    /// span of current clock tick
+    span: AtomicCell<FileSpan>,
+
+    /// recorded moments in history: occur at significant events
+    /// (e.g., when a permission is canceled) so that we can
+    /// go back and report errors if needed
     moments: Mutex<IndexVec<Moment, MomentData>>,
 }
 
@@ -18,25 +27,35 @@ impl Interpreter<'_> {
         self.db
     }
 
-    pub fn tick_clock(&self) {
+    /// Advance to the next clock tick, potentially altering the current span
+    /// in the process.
+    pub fn tick_clock(&self, span: FileSpan) {
         self.clock.fetch_add(1);
+        self.span.store(span);
     }
 
-    pub fn record_moment(&self, span: FileSpan) -> Moment {
+    /// Return the span at the current moment.
+    pub fn span_now(&self) -> FileSpan {
+        self.span.load()
+    }
+
+    /// Record the current moment for posterity.
+    pub fn moment_now(&self) -> Moment {
         let clock = self.clock.load();
         let moments = self.moments.lock();
 
-        let data = MomentData { clock: clock, span };
         if let Some(last_moment) = moments.last() {
-            if *last_moment == data {
+            if last_moment.clock == clock {
                 return moments.last_key().unwrap();
             }
         }
 
-        moments.push(data);
+        let span = self.span.load();
+        moments.push(MomentData { clock, span });
         return moments.last_key().unwrap();
     }
 
+    /// Return the span for a recorded moment.
     pub fn span(&self, moment: Moment) -> FileSpan {
         let moments = self.moments.lock();
         moments[moment].span

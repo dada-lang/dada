@@ -4,10 +4,7 @@ use dada_collections::Map;
 use dada_id::prelude::*;
 use dada_ir::code::bir;
 
-use crate::{
-    interpreter::{Interpreter, StackFrameClock},
-    value::Value,
-};
+use crate::{interpreter::Interpreter, value::Value};
 
 struct StackFrame<'me> {
     interpreter: &'me Interpreter<'me>,
@@ -98,10 +95,10 @@ impl StackFrame<'_> {
         todo!()
     }
 
-    fn eval_place(&mut self, place: bir::Place) -> eyre::Result<Value> {
+    fn eval_place(&mut self, place: bir::Place) -> eyre::Result<&Value> {
         match place.data(self.tables) {
             bir::PlaceData::LocalVariable(local_variable) => {
-                Ok(self.local_variables.get(local_variable).unwrap().clone())
+                Ok(self.local_variables.get(local_variable).unwrap())
             }
             bir::PlaceData::Function(function) => {}
             bir::PlaceData::Class(class) => todo!(),

@@ -1,8 +1,8 @@
 use crate::value::Value;
 use dada_collections::Map;
-use dada_ir::{class::Class, word::Word};
+use dada_ir::{class::Class, diagnostic::Fallible, word::Word};
 
-#[derive(Clone, Debug)]
+#[derive(Debug)]
 pub enum Data {
     Instance(Instance),
     Class(Class),
@@ -15,13 +15,19 @@ pub enum Data {
     None,
 }
 
-#[derive(Clone, Debug)]
+impl Data {
+    pub(crate) fn field(&self, name: Word) -> Fallible<&Value> {
+        todo!()
+    }
+}
+
+#[derive(Debug)]
 pub struct Instance {
     pub class: Class,
     pub fields: Map<Word, Value>,
 }
 
-#[derive(Clone, Debug)]
+#[derive(Debug)]
 pub struct Tuple {
     pub fields: Vec<Value>,
 }

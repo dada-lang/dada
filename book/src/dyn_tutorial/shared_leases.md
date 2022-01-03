@@ -2,8 +2,16 @@
 
 {{#include ../caveat.md}}
 
-Earlier, we saw how you can [use the `share` keyword to create joint ownership](./share.md). You can also apply `share` to a **leased object**. In that case, the lease becomes a *shared lease*. Like any shared permission, it can be copied freely, and it doesn't permit mutation. Like a lease, it can be cancelled by the lessor. Unlike an exclusive lease, however, lessors cancel a shared lease by *writing*. They are permitted to read because shared leases allow anyone to read.
+Earlier, we saw how you can [use the `share` keyword to create joint ownership](./share.md). Often, though, you only need to create shared access temporarily, for example during a particular function. For this purpose, you can use a **shared lease**. A shared lease combines the properties of [shared ownership](./share.md) and [leases](./lease.md):
 
+* Shared leases can be copied freely, and they do not permit mutation. 
+* Shared leases are temporary, and can be cancelled by the lessor.
+    * Unlike an exclusive lease, however, lessors cancel a shared lease by *writing*. They are permitted to read because shared leases allow anyone to read.
+
+There are two ways to create a shared lease:
+
+* Apply the `share` keyword to a variable or other "place" in memory (e.g., `p.lease`); 
+To create a shared lease, you  apply the `share` keyword 
 Shared leases are illustrated in the following program:
 
 ```
