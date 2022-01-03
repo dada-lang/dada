@@ -1,11 +1,13 @@
 use std::sync::Arc;
 
-use arc_swap::{ArcSwap, ArcSwapOption};
-use crossbeam::atomic::AtomicCell;
-use dada_ir::{
-    diagnostic::{self, Diagnostic, Fallible, Severity},
-    error,
-};
+use dada_ir::diagnostic::Fallible;
+
+mod invalidated;
+mod leased;
+mod my;
+mod our;
+mod shared;
+mod tenant;
 
 use crate::{interpreter::Interpreter, moment::Moment};
 
@@ -20,159 +22,130 @@ impl Permission {
         }
     }
 
-    pub fn my(granted: Moment) -> Self {
-        Permission::allocate(My::new(granted))
+    fn my(granted: Moment) -> Self {
+        Self::allocate(my::My::new(granted))
     }
 
     fn leased(granted: Moment) -> Self {
-        Permission::allocate(Leased::new(granted))
+        Self::allocate(leased::Leased::new(granted))
+    }
+
+    fn shared(granted: Moment) -> Self {
+        Self::allocate(shared::Shared::new(granted))
+    }
+
+    fn our(granted: Moment) -> Self {
+        Self::allocate(our::Our::new(granted))
+    }
+
+    /// Duplicates thie permision. Must be a non-affine permission.
+    fn duplicate(&self) -> Self {
+        assert!(matches!(
+            &*self.data,
+            PermissionData::Our(_) | PermissionData::Shared(_)
+        ));
+
+        Permission {
+            data: self.data.clone(),
+        }
+    }
+
+    /// Given `var q = p.give`, what permission does `q` get?
+    ///
+    /// May also affect the permissions of `p`!
+    pub fn give(&self, interpreter: &Interpreter<'_>, moment: Moment) -> Fallible<Permission> {
+        self.data.give(self, interpreter, moment)
+    }
+
+    /// Given `var q = p.lease`, what permission does `q` get?
+    ///
+    /// May also affect the permissions of `p`!
+    pub fn lease(&self, interpreter: &Interpreter<'_>, moment: Moment) -> Fallible<Permission> {
+        self.data.lease(self, interpreter, moment)
+    }
+
+    /// Given `var q = p.share`, what permission does `q` get?
+    ///
+    /// May also affect the permissions of `p`!
+    pub fn share(&self, interpreter: &Interpreter<'_>, moment: Moment) -> Fallible<Permission> {
+        self.data.share(self, interpreter, moment)
+    }
+
+    /// Invoked when the lessor wishes to cancel a lease.
+    ///
+    /// Not possible for owned leases.
+    pub fn cancel(&self, interpreter: &Interpreter<'_>, moment: Moment) -> Fallible<()> {
+        self.data.cancel(interpreter, moment)
     }
 }
 
 enum PermissionData {
-    My(My),
-    Leased(Leased),
-    Our(Our),
-    Shared(Shared),
+    My(my::My),
+    Leased(leased::Leased),
+    Our(our::Our),
+    Shared(shared::Shared),
 }
 
 impl PermissionData {
+    /// See [`Permission::give`]
+    fn give(
+        &self,
+        this: &Permission,
+        interpreter: &Interpreter<'_>,
+        moment: Moment,
+    ) -> Fallible<Permission> {
+        match self {
+            PermissionData::My(p) => p.give(interpreter, moment),
+
+            // For exclusive, leased permissions, giving is the same as subleasing:
+            PermissionData::Leased(p) => p.lease(interpreter, moment),
+
+            // For non-exclusive permisions, giving is the same as sharing:
+            PermissionData::Shared(p) => p.share(this, interpreter, moment),
+            PermissionData::Our(p) => p.share(this, interpreter, moment),
+        }
+    }
+
+    /// See [`Permission::lease`]
+    fn lease(
+        &self,
+        this: &Permission,
+        interpreter: &Interpreter<'_>,
+        moment: Moment,
+    ) -> Fallible<Permission> {
+        match self {
+            PermissionData::My(p) => p.lease(interpreter, moment),
+            PermissionData::Leased(p) => p.lease(interpreter, moment),
+
+            // For non-exclusive permisions, leasing is the same as sharing:
+            PermissionData::Shared(p) => p.share(this, interpreter, moment),
+            PermissionData::Our(p) => p.share(this, interpreter, moment),
+        }
+    }
+
+    /// See [`Permission::share`]
+    fn share(
+        &self,
+        this: &Permission,
+        interpreter: &Interpreter<'_>,
+        moment: Moment,
+    ) -> Fallible<Permission> {
+        match self {
+            PermissionData::My(p) => p.share(interpreter, moment),
+            PermissionData::Leased(p) => p.share(interpreter, moment),
+            PermissionData::Shared(p) => p.share(this, interpreter, moment),
+            PermissionData::Our(p) => p.share(this, interpreter, moment),
+        }
+    }
+
+    /// See [`Permission::cancel`]
     fn cancel(&self, interpreter: &Interpreter<'_>, moment: Moment) -> Fallible<()> {
         match self {
-            PermissionData::My(p) => p.cancel(interpreter, moment),
             PermissionData::Leased(p) => p.cancel(interpreter, moment),
-            PermissionData::Our(p) => p.cancel(interpreter, moment),
             PermissionData::Shared(p) => p.cancel(interpreter, moment),
-        }
-    }
-}
-
-struct My {
-    granted: Moment,
-    canceled: AtomicCell<Option<Moment>>,
-    tenant: ArcSwapOption<PermissionData>,
-}
-
-impl From<My> for PermissionData {
-    fn from(m: My) -> Self {
-        Self::My(m)
-    }
-}
-
-impl My {
-    fn new(granted: Moment) -> Self {
-        Self {
-            granted,
-            canceled: Default::default(),
-            tenant: Default::default(),
-        }
-    }
-
-    fn give(&self, interpreter: &Interpreter<'_>, moment: Moment) -> Fallible<Permission> {
-        self.cancel(interpreter, moment)?;
-        Ok(Permission::my(moment))
-    }
-
-    fn lease(&self, interpreter: &Interpreter<'_>, moment: Moment) -> Fallible<Permission> {
-        self.check_canceled(interpreter, moment)?;
-        self.cancel_tenant(interpreter, moment)?;
-        let perm = Permission::leased(moment);
-        self.tenant.store(Some(perm.data.clone()));
-        Ok(perm)
-    }
-
-    fn share(&self, interpreter: &Interpreter<'_>, moment: Moment) -> Fallible<Permission> {
-        self.check_canceled(interpreter, moment)?;
-        self.cancel_tenant(interpreter, moment)?;
-        let perm = Permission::leased(moment);
-        self.tenant.store(Some(perm.data.clone()));
-        Ok(perm)
-    }
-
-    fn cancel(&self, interpreter: &Interpreter<'_>, moment: Moment) -> Fallible<()> {
-        self.check_canceled(interpreter, moment)?;
-        self.cancel_tenant(interpreter, moment)?;
-        self.canceled.store(Some(moment));
-        Ok(())
-    }
-
-    fn cancel_tenant(&self, interpreter: &Interpreter<'_>, moment: Moment) -> Fallible<()> {
-        let tenant = self.tenant.load();
-        if let Some(tenant) = &*tenant {
-            tenant.cancel(interpreter, moment)?;
-        }
-        self.tenant.store(None);
-        Ok(())
-    }
-
-    fn check_canceled(&self, interpreter: &Interpreter<'_>, moment: Moment) -> Fallible<()> {
-        if let Some(previous_moment) = self.canceled.load() {
-            let span_now = interpreter.span(moment);
-            let span_then = interpreter.span(previous_moment);
-            return Err(error!(span_now, "permission already given")
-                .label(span_then, "permission given here")
-                .emit(interpreter.db()));
-        }
-        Ok(())
-    }
-}
-
-struct Leased {
-    granted: Moment,
-    canceled: AtomicCell<Option<Moment>>,
-    tenant: ArcSwapOption<PermissionData>,
-}
-
-impl From<Leased> for PermissionData {
-    fn from(v: Leased) -> Self {
-        Self::Leased(v)
-    }
-}
-
-impl Leased {
-    fn new(granted: Moment) -> Self {
-        Self {
-            granted,
-            canceled: Default::default(),
-            tenant: Default::default(),
-        }
-    }
-}
-
-struct Our {
-    granted: Moment,
-}
-
-impl From<Our> for PermissionData {
-    fn from(v: Our) -> Self {
-        Self::Our(v)
-    }
-}
-
-impl Our {
-    fn new(granted: Moment) -> Self {
-        Self { granted }
-    }
-}
-
-struct Shared {
-    granted: Moment,
-    canceled: AtomicCell<Option<Moment>>,
-    next: ArcSwapOption<PermissionData>,
-}
-
-impl From<Shared> for PermissionData {
-    fn from(v: Shared) -> Self {
-        Self::Shared(v)
-    }
-}
-
-impl Shared {
-    fn new(granted: Moment) -> Self {
-        Self {
-            granted,
-            canceled: Default::default(),
-            next: Default::default(),
+            PermissionData::My(_) | PermissionData::Our(_) => {
+                unreachable!("cannot cancel an owned permission")
+            }
         }
     }
 }
