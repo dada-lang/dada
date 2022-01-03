@@ -46,10 +46,12 @@ impl Leased {
     }
 
     pub(super) fn check_read(&self, interpreter: &Interpreter) -> Fallible<()> {
-        self.canceled.check_still_valid(interpreter)
+        self.canceled.check_still_valid(interpreter)?;
+        Ok(self.tenant.cancel_tenant_if_exclusive(interpreter))
     }
 
     pub(super) fn check_write(&self, interpreter: &Interpreter) -> Fallible<()> {
-        self.canceled.check_still_valid(interpreter)
+        self.canceled.check_still_valid(interpreter)?;
+        Ok(self.tenant.cancel_tenant(interpreter))
     }
 }
