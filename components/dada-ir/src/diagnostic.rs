@@ -7,6 +7,8 @@ use crate::{
 /// and reported to the user (i.e., pushed onto the [`Diagnostics`] accumulator).
 pub struct ErrorReported;
 
+pub type Fallible<T> = Result<T, ErrorReported>;
+
 #[derive(Clone, PartialEq, Eq, Hash, Debug)]
 #[non_exhaustive]
 pub struct Diagnostic {

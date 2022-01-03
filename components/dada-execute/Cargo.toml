@@ -6,7 +6,12 @@ edition = "2021"
 # See more keys and their definitions at https://doc.rust-lang.org/cargo/reference/manifest.html
 
 [dependencies]
+arc-swap = "1.5.0"
+crossbeam = "0.8.1"
 dada-collections = { path = "../dada-collections" }
 dada-id = { path = "../dada-id" }
 dada-ir = { path = "../dada-ir" }
+eyre = "0.6.5"
 salsa = { path = "../salsa" }
+triomphe = "0.1.5"
+parking_lot = "0.11.2"

@@ -9,6 +9,10 @@ pub trait Db: salsa::DbWithJar<Jar> + dada_ir::Db {}
 
 impl<T> Db for T where T: salsa::DbWithJar<Jar> + dada_ir::Db {}
 
+mod data;
 mod execute;
+mod interpreter;
+mod moment;
+mod permission;
 pub mod prelude;
 mod value;
