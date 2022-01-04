@@ -27,7 +27,7 @@
                             password: None,
                             host: None,
                             port: None,
-                            path: "/home/nmatsakis/versioned/dada/dada_tests/parser/param_class.dada",
+                            path: "(local-file-prefix)/dada_tests/parser/param_class.dada",
                             query: None,
                             fragment: None,
                         },
