@@ -21,7 +21,7 @@ impl Invalidated {
             let span_now = interpreter.span_now();
             let span_then = interpreter.span(previous_moment);
             return Err(error!(span_now, "permission already given")
-                .label(span_then, "permission given here")
+                .secondary_label(span_then, "permission given here")
                 .emit(interpreter.db()));
         }
         Ok(())

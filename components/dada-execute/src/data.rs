@@ -15,7 +15,7 @@ pub(crate) enum Data {
     Uint(u64),
     Int(i64),
     Float(f64),
-    String(String),
+    String(Word),
     None,
 }
 
@@ -41,11 +41,15 @@ data_from_impl! {
     Uint(u64),
     Int(i64),
     Float(f64),
-    String(String),
+    String(Word),
 }
 
 impl Data {
     pub(crate) fn field(&self, name: Word) -> Fallible<&Value> {
+        todo!()
+    }
+
+    pub(crate) fn assign_field(&self, name: Word, value: Value) -> Fallible<()> {
         todo!()
     }
 

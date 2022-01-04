@@ -109,8 +109,15 @@ pub struct DiagnosticBuilder {
     severity: Severity,
     span: FileSpan,
     message: String,
+
+    /// All labels added by user so far (primary or secondary).
     labels: Vec<Label>,
     children: Vec<Diagnostic>,
+
+    /// Initially true. Indicates if we should add a default primary
+    /// label ("here") when the diagnostic is emitted. Set to false
+    /// if user adds an explicit primary label or calls [`Self::skip_primary_label`].
+    add_primary_label: bool,
 }
 
 impl DiagnosticBuilder {
@@ -121,12 +128,32 @@ impl DiagnosticBuilder {
             message: message.to_string(),
             labels: vec![],
             children: vec![],
+            add_primary_label: false,
         }
     }
 
-    /// Add a label to this diagnostic; the label is assumed to
-    /// be in the same file as the "main" error.
-    pub fn label(mut self, span: impl IntoFileSpan, message: impl ToString) -> Self {
+    /// Replaces the "primary label", which is always placed on the source
+    /// of the diagnostic. The default primary label, if nothing else is given,
+    /// is just "here".
+    pub fn primary_label(mut self, message: impl ToString) -> Self {
+        self.labels.push(Label {
+            span: self.span,
+            message: message.to_string(),
+        });
+        self.skip_primary_label()
+    }
+
+    /// Avoids adding any primary label at all.
+    pub fn skip_primary_label(mut self) -> Self {
+        self.add_primary_label = false;
+        self
+    }
+
+    /// Add a "secondary" label to this diagnostic; secondary labels
+    /// give auxiliary information and can be located at any span.
+    /// (if you supply a [`Span`] and not a [`FileSpan`], the [`Span`]
+    /// is assumed to be in the same file as the primary location).
+    pub fn secondary_label(mut self, span: impl IntoFileSpan, message: impl ToString) -> Self {
         let span = span.maybe_in_file(self.span.filename);
         self.labels.push(Label {
             span,
@@ -149,9 +176,8 @@ impl DiagnosticBuilder {
 
     /// Return the completed diagnostic.
     pub fn finish(mut self) -> Diagnostic {
-        if self.labels.is_empty() {
-            let span = self.span;
-            self = self.label(span, "here");
+        if self.add_primary_label {
+            self = self.primary_label("here");
         }
 
         Diagnostic {

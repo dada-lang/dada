@@ -26,7 +26,7 @@ impl<'db> Parser<'db> {
 
                 if opt_ty.is_none() {
                     self.error_at_current_token(&format!("expected type after `:`"))
-                        .label(colon_span, format!("`:` is here"))
+                        .secondary_label(colon_span, format!("`:` is here"))
                         .emit(self.db);
                 }
 
@@ -55,7 +55,7 @@ impl<'db> Parser<'db> {
                 self.error_at_current_token(format!(
                     "expected parameter name after storage mode `{mode}`"
                 ))
-                .label(span, "storage mode specified here")
+                .secondary_label(span, "storage mode specified here")
                 .emit(self.db);
             }
 

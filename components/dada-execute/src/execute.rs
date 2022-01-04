@@ -9,13 +9,8 @@ use dada_ir::{
     origin_table::HasOriginIn,
     span::FileSpan,
 };
-use dada_parse::prelude::*;
 
-use crate::{
-    data::{Data, Tuple},
-    interpreter::Interpreter,
-    value::Value,
-};
+use crate::{data::Tuple, interpreter::Interpreter, value::Value};
 
 struct StackFrame<'me> {
     interpreter: &'me Interpreter<'me>,
@@ -106,16 +101,9 @@ impl StackFrame<'_> {
             bir::ExprData::ShareValue(expr) => {
                 self.evaluate_bir_expr(*expr)?.into_share(self.interpreter)
             }
-            bir::ExprData::Share(place) => {
-                self.with_place(*place, |interpreter, value| value.share(interpreter))
-            }
-            bir::ExprData::Lease(place) => {
-                self.with_place(*place, |interpreter, value| value.lease(interpreter))
-            }
-
-            bir::ExprData::Give(place) => {
-                self.with_place(*place, |interpreter, value| value.give(interpreter))
-            }
+            bir::ExprData::Share(place) => self.with_place(*place, Value::share),
+            bir::ExprData::Lease(place) => self.with_place(*place, Value::lease),
+            bir::ExprData::Give(place) => self.with_place(*place, Value::give),
             bir::ExprData::Tuple(places) => {
                 let fields = places
                     .iter()
@@ -132,7 +120,7 @@ impl StackFrame<'_> {
     }
 
     fn give_place<'s>(&'s mut self, place: bir::Place) -> Fallible<Value> {
-        self.with_place(place, |interpreter, value| value.give(interpreter))
+        self.with_place(place, Value::give)
     }
 
     fn span_from_bir(
@@ -143,36 +131,72 @@ impl StackFrame<'_> {
     }
 
     async fn assign_place(&mut self, place: bir::Place, value: Value) -> Fallible<()> {
-        todo!()
+        match place.data(self.tables) {
+            bir::PlaceData::LocalVariable(local_variable) => {
+                // FIXME: Presently infallible, but think about atomic etc eventually. =)
+                let slot = self.local_variables.get_mut(local_variable).unwrap();
+                *slot = value;
+                Ok(())
+            }
+            bir::PlaceData::Function(function) => {
+                let span_now = self.interpreter.span_now();
+                let name = function.name(self.db()).as_str(self.db());
+                let name_span = function.name_span(self.db());
+                Err(error!(span_now, "cannot assign to `{}`", name)
+                    .secondary_label(
+                        name_span,
+                        &format!("`{}` is a function, declared here", name),
+                    )
+                    .emit(self.db()))
+            }
+            bir::PlaceData::Class(class) => {
+                let span_now = self.interpreter.span_now();
+                let name = class.name(self.db()).as_str(self.db());
+                let name_span = class.name_span(self.db());
+                Err(error!(span_now, "cannot assign to `{}`", name)
+                    .secondary_label(name_span, &format!("`{}` is a class, declared here", name))
+                    .emit(self.db()))
+            }
+            bir::PlaceData::Intrinsic(intrinsic) => {
+                let span_now = self.interpreter.span_now();
+                let name = intrinsic.as_str(self.db());
+                Err(error!(span_now, "cannot assign to `{}`", name).emit(self.db()))
+            }
+            bir::PlaceData::Dot(owner_place, field_name) => {
+                self.with_place(*owner_place, |owner_value, interpreter| {
+                    owner_value.write(interpreter, |data| data.assign_field(*field_name, value))
+                })
+            }
+        }
     }
 
     fn with_place<R>(
         &mut self,
         place: bir::Place,
-        op: impl FnOnce(&Interpreter, &Value) -> Fallible<R>,
+        op: impl FnOnce(&Value, &Interpreter) -> Fallible<R>,
     ) -> Fallible<R> {
         match place.data(self.tables) {
             bir::PlaceData::LocalVariable(local_variable) => op(
-                self.interpreter,
                 self.local_variables.get(local_variable).unwrap(),
+                self.interpreter,
             ),
             bir::PlaceData::Function(function) => {
-                op(self.interpreter, &Value::new(self.interpreter, *function))
+                op(&Value::new(self.interpreter, *function), self.interpreter)
             }
             bir::PlaceData::Class(class) => {
-                op(self.interpreter, &Value::new(self.interpreter, *class))
+                op(&Value::new(self.interpreter, *class), self.interpreter)
             }
             bir::PlaceData::Intrinsic(intrinsic) => {
-                op(self.interpreter, &Value::new(self.interpreter, *intrinsic))
+                op(&Value::new(self.interpreter, *intrinsic), self.interpreter)
             }
-            bir::PlaceData::Dot(place, word) => self.with_place(*place, |interpreter, value| {
-                value.field(interpreter, *word, |v| op(interpreter, v))
+            bir::PlaceData::Dot(place, word) => self.with_place(*place, |value, interpreter| {
+                value.field(interpreter, *word, |v| op(v, interpreter))
             }),
         }
     }
 
     fn eval_place_to_bool(&mut self, place: bir::Place) -> Fallible<bool> {
-        self.with_place(place, |interpreter, value| {
+        self.with_place(place, |value, interpreter| {
             value.read(interpreter, |data| data.to_bool(interpreter))
         })
     }

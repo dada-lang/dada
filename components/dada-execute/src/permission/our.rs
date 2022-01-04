@@ -38,7 +38,7 @@ impl Our {
         let span_now = interpreter.span_now();
         let span_then = interpreter.span(self.granted);
         Err(error!(span_now, "shared permission does not permit writes")
-            .label(span_then, "permission granted here")
+            .secondary_label(span_then, "permission granted here")
             .emit(interpreter.db()))
     }
 }

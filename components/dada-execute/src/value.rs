@@ -1,6 +1,6 @@
 use std::sync::Arc;
 
-use dada_ir::{diagnostic::Fallible, func::Function, word::Word};
+use dada_ir::{diagnostic::Fallible, word::Word};
 use parking_lot::Mutex;
 
 use crate::{data::Data, interpreter::Interpreter, permission::Permission};

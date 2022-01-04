@@ -92,11 +92,8 @@ impl RootDefinitions {
                     other_item.kind_str(),
                     name.as_str(db),
                 )
-                .label(
-                    item.name_span(db),
-                    format!("ignoring this {} for now", item.kind_str()),
-                )
-                .label(
+                .primary_label(format!("ignoring this {} for now", item.kind_str()))
+                .secondary_label(
                     other_item.name_span(db),
                     format!("the {} is here", other_item.kind_str()),
                 )
