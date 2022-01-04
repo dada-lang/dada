@@ -2,27 +2,40 @@ use std::{future::Future, pin::Pin};
 
 use dada_collections::Map;
 use dada_id::prelude::*;
-use dada_ir::code::bir;
+use dada_ir::{
+    code::{bir, syntax},
+    diagnostic::Fallible,
+    error,
+    origin_table::HasOriginIn,
+    span::FileSpan,
+};
+use dada_parse::prelude::*;
 
-use crate::{interpreter::Interpreter, value::Value};
+use crate::{
+    data::{Data, Tuple},
+    interpreter::Interpreter,
+    value::Value,
+};
 
 struct StackFrame<'me> {
     interpreter: &'me Interpreter<'me>,
+    bir: bir::Bir,
     tables: &'me bir::Tables,
     local_variables: Map<bir::LocalVariable, Value>,
 }
 
 impl Interpreter<'_> {
-    pub fn execute_bir<'me>(
+    pub(crate) fn execute_bir<'me>(
         &'me self,
         bir: bir::Bir,
-    ) -> Pin<Box<dyn Future<Output = eyre::Result<Value>> + 'me>> {
+    ) -> Pin<Box<dyn Future<Output = Fallible<Value>> + 'me>> {
         let bir::BirData {
             tables,
             start_basic_block,
         } = bir.data(self.db());
         let stack_frame = StackFrame {
             interpreter: self,
+            bir,
             tables,
             local_variables: Map::default(),
         };
@@ -31,13 +44,18 @@ impl Interpreter<'_> {
 }
 
 impl StackFrame<'_> {
-    async fn execute(mut self, mut basic_block: bir::BasicBlock) -> eyre::Result<Value> {
+    fn db(&self) -> &dyn crate::Db {
+        self.interpreter.db()
+    }
+
+    async fn execute(mut self, mut basic_block: bir::BasicBlock) -> Fallible<Value> {
+        let interpreter = self.interpreter;
         loop {
             let basic_block_data = basic_block.data(self.tables);
             for statement in &basic_block_data.statements {
                 match statement.data(self.tables) {
                     dada_ir::code::bir::StatementData::Assign(place, expr) => {
-                        let expr_value = self.evaluate_bir_expr(*expr).await?;
+                        let expr_value = self.evaluate_bir_expr(*expr)?;
                         self.assign_place(*place, expr_value).await;
                     }
                 }
@@ -61,56 +79,105 @@ impl StackFrame<'_> {
                     basic_block = *next_block;
                 }
                 dada_ir::code::bir::TerminatorData::Return(place) => {
-                    let value = self.eval_place(*place)?;
-                    return Ok(value);
+                    return self.give_place(*place);
                 }
-                dada_ir::code::bir::TerminatorData::Assign(place, expr, next) => {}
+                dada_ir::code::bir::TerminatorData::Assign(place, expr, next) => {
+                    let value = self.evaluate_terminator_expr(expr).await?;
+                    self.assign_place(*place, value);
+                    basic_block = *next;
+                }
                 dada_ir::code::bir::TerminatorData::Error => {
-                    return Err(eyre::eyre!("compilation error")); //FIXME
+                    let span = self.span_from_bir(basic_block_data.terminator);
+                    return Err(error!(span, "compilation error").emit(self.db()));
                 }
                 dada_ir::code::bir::TerminatorData::Panic => {
-                    return Err(eyre::eyre!("panic")); //FIXME
+                    let span = self.span_from_bir(basic_block_data.terminator);
+                    return Err(error!(span, "panic").emit(self.db()));
                 }
             }
         }
     }
 
-    async fn evaluate_bir_expr(&mut self, expr: bir::Expr) -> eyre::Result<Value> {
+    fn evaluate_bir_expr(&mut self, expr: bir::Expr) -> Fallible<Value> {
         match expr.data(self.tables) {
-            bir::ExprData::Place(place) => self.eval_place(*place),
-            bir::ExprData::BooleanLiteral(_) => todo!(),
-            bir::ExprData::IntegerLiteral(_) => todo!(),
-            bir::ExprData::StringLiteral(_) => todo!(),
-            bir::ExprData::Share(_) => todo!(),
-            bir::ExprData::Lease(_) => todo!(),
-            bir::ExprData::Give(_) => todo!(),
-            bir::ExprData::Tuple(places) => todo!(),
-            bir::ExprData::New(class, args) => todo!(),
+            bir::ExprData::BooleanLiteral(value) => Ok(Value::new(self.interpreter, *value)),
+            bir::ExprData::IntegerLiteral(value) => Ok(Value::new(self.interpreter, *value)),
+            bir::ExprData::StringLiteral(value) => Ok(Value::new(self.interpreter, *value)),
+            bir::ExprData::ShareValue(expr) => {
+                self.evaluate_bir_expr(*expr)?.into_share(self.interpreter)
+            }
+            bir::ExprData::Share(place) => {
+                self.with_place(*place, |interpreter, value| value.share(interpreter))
+            }
+            bir::ExprData::Lease(place) => {
+                self.with_place(*place, |interpreter, value| value.lease(interpreter))
+            }
+
+            bir::ExprData::Give(place) => {
+                self.with_place(*place, |interpreter, value| value.give(interpreter))
+            }
+            bir::ExprData::Tuple(places) => {
+                let fields = places
+                    .iter()
+                    .map(|place| self.give_place(*place))
+                    .collect::<Fallible<Vec<_>>>()?;
+                Ok(Value::new(self.interpreter, Tuple { fields }))
+            }
             bir::ExprData::Op(lhs, op, rhs) => todo!(),
-            bir::ExprData::Error => Err(eyre::eyre!("compilation error")),
+            bir::ExprData::Error => {
+                let span = self.span_from_bir(expr);
+                Err(error!(span, "compilation error").emit(self.db()))
+            }
         }
     }
 
-    async fn assign_place(&mut self, place: bir::Place, value: Value) -> eyre::Result<()> {
+    fn give_place<'s>(&'s mut self, place: bir::Place) -> Fallible<Value> {
+        self.with_place(place, |interpreter, value| value.give(interpreter))
+    }
+
+    fn span_from_bir(
+        &self,
+        expr: impl HasOriginIn<bir::Origins, Origin = syntax::Expr>,
+    ) -> FileSpan {
+        self.interpreter.span_from_bir(self.bir, expr)
+    }
+
+    async fn assign_place(&mut self, place: bir::Place, value: Value) -> Fallible<()> {
         todo!()
     }
 
-    fn eval_place(&mut self, place: bir::Place) -> eyre::Result<&Value> {
+    fn with_place<R>(
+        &mut self,
+        place: bir::Place,
+        op: impl FnOnce(&Interpreter, &Value) -> Fallible<R>,
+    ) -> Fallible<R> {
         match place.data(self.tables) {
-            bir::PlaceData::LocalVariable(local_variable) => {
-                Ok(self.local_variables.get(local_variable).unwrap())
+            bir::PlaceData::LocalVariable(local_variable) => op(
+                self.interpreter,
+                self.local_variables.get(local_variable).unwrap(),
+            ),
+            bir::PlaceData::Function(function) => {
+                op(self.interpreter, &Value::new(self.interpreter, *function))
             }
-            bir::PlaceData::Function(function) => {}
-            bir::PlaceData::Class(class) => todo!(),
-            bir::PlaceData::Intrinsic(intrinsic) => todo!(),
-            bir::PlaceData::Dot(place, word) => {
-                let value = self.eval_place(*place)?;
-                Ok(value.field(*word))
+            bir::PlaceData::Class(class) => {
+                op(self.interpreter, &Value::new(self.interpreter, *class))
             }
+            bir::PlaceData::Intrinsic(intrinsic) => {
+                op(self.interpreter, &Value::new(self.interpreter, *intrinsic))
+            }
+            bir::PlaceData::Dot(place, word) => self.with_place(*place, |interpreter, value| {
+                value.field(interpreter, *word, |v| op(interpreter, v))
+            }),
         }
     }
 
-    fn eval_place_to_bool(&mut self, place: bir::Place) -> eyre::Result<bool> {
+    fn eval_place_to_bool(&mut self, place: bir::Place) -> Fallible<bool> {
+        self.with_place(place, |interpreter, value| {
+            value.read(interpreter, |data| data.to_bool(interpreter))
+        })
+    }
+
+    async fn evaluate_terminator_expr(&self, expr: &bir::TerminatorExpr) -> Fallible<Value> {
         todo!()
     }
 }

@@ -9,6 +9,7 @@ use dada_ir::span::FileSpan;
 use dada_ir::span::Span;
 use dada_ir::storage_mode::StorageMode;
 use dada_parse::prelude::*;
+use std::str::FromStr;
 
 use super::name_lookup::Definition;
 use super::name_lookup::Scope;
@@ -98,7 +99,21 @@ impl<'me> Validator<'me> {
             }
 
             syntax::ExprData::IntegerLiteral(w) => {
-                self.add(validated::ExprData::IntegerLiteral(*w), expr)
+                let raw_str = w.as_str(self.db);
+                let without_underscore: String = raw_str.chars().filter(|&c| c != '_').collect();
+                match u64::from_str(&without_underscore) {
+                    Ok(v) => self.add(validated::ExprData::IntegerLiteral(v), expr),
+                    Err(e) => {
+                        dada_ir::error!(
+                            self.span(expr),
+                            "`{}` is not a valid integer: {}",
+                            w.as_str(self.db),
+                            e,
+                        )
+                        .emit(self.db);
+                        self.add(validated::ExprData::Error, expr)
+                    }
+                }
             }
 
             syntax::ExprData::StringLiteral(w) => {

@@ -256,20 +256,20 @@ impl DebugWithDb<InIrDb<'_, Tables>> for Expr {
 }
 #[derive(PartialEq, Eq, Clone, Hash, Debug)]
 pub enum ExprData {
-    /// Reference to a local variable
-    Place(Place),
-
     /// true, false
     BooleanLiteral(bool),
 
     /// `22`, `22_222`, etc
-    IntegerLiteral(Word),
+    IntegerLiteral(u64),
 
     /// `"foo"` with no format strings
     StringLiteral(Word),
 
     /// `expr.share`
     Share(Place),
+
+    /// `expr.give.share`
+    ShareValue(Expr),
 
     /// `expr.lease`
     Lease(Place),
@@ -279,9 +279,6 @@ pub enum ExprData {
 
     /// `()` or `(a, b, ...)` (i.e., expr seq cannot have length 1)
     Tuple(Vec<Place>),
-
-    /// allocate an instance of a class
-    New(Class, Vec<Place>),
 
     /// `a + b`
     Op(Place, Op, Place),
@@ -293,18 +290,14 @@ pub enum ExprData {
 impl DebugWithDb<InIrDb<'_, Tables>> for ExprData {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>, db: &InIrDb<'_, Tables>) -> std::fmt::Result {
         match self {
-            ExprData::Place(p) => write!(f, "{:?}", p.debug(db)),
             ExprData::BooleanLiteral(b) => write!(f, "{}", b),
-            ExprData::IntegerLiteral(w) => write!(f, "{}", w.as_str(db.db())),
+            ExprData::IntegerLiteral(w) => write!(f, "{}", w),
             ExprData::StringLiteral(w) => write!(f, "{:?}", w.as_str(db.db())),
             ExprData::Share(p) => write!(f, "{:?}.share", p.debug(db)),
+            ExprData::ShareValue(e) => write!(f, "{:?}.share", e.debug(db)),
             ExprData::Lease(p) => write!(f, "{:?}.lease", p.debug(db)),
             ExprData::Give(p) => write!(f, "{:?}.give", p.debug(db)),
             ExprData::Tuple(vars) => write_parenthesized_places(f, vars, db),
-            ExprData::New(class, vars) => {
-                write!(f, "{}", class.name(db.db()).as_str(db.db()))?;
-                write_parenthesized_places(f, vars, db)
-            }
             ExprData::Op(lhs, op, rhs) => {
                 write!(f, "{:?} {} {:?}", lhs.debug(db), op.str(), rhs.debug(db))
             }

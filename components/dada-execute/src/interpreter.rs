@@ -1,6 +1,11 @@
 use crossbeam::atomic::AtomicCell;
 use dada_collections::IndexVec;
-use dada_ir::span::FileSpan;
+use dada_ir::{
+    code::{bir, syntax},
+    origin_table::HasOriginIn,
+    span::FileSpan,
+};
+use dada_parse::prelude::*;
 use parking_lot::Mutex;
 
 use crate::moment::Moment;
@@ -29,20 +34,20 @@ impl Interpreter<'_> {
 
     /// Advance to the next clock tick, potentially altering the current span
     /// in the process.
-    pub fn tick_clock(&self, span: FileSpan) {
+    pub(crate) fn tick_clock(&self, span: FileSpan) {
         self.clock.fetch_add(1);
         self.span.store(span);
     }
 
     /// Return the span at the current moment.
-    pub fn span_now(&self) -> FileSpan {
+    pub(crate) fn span_now(&self) -> FileSpan {
         self.span.load()
     }
 
     /// Record the current moment for posterity.
-    pub fn moment_now(&self) -> Moment {
+    pub(crate) fn moment_now(&self) -> Moment {
         let clock = self.clock.load();
-        let moments = self.moments.lock();
+        let mut moments = self.moments.lock();
 
         if let Some(last_moment) = moments.last() {
             if last_moment.clock == clock {
@@ -56,14 +61,27 @@ impl Interpreter<'_> {
     }
 
     /// Return the span for a recorded moment.
-    pub fn span(&self, moment: Moment) -> FileSpan {
+    pub(crate) fn span(&self, moment: Moment) -> FileSpan {
         let moments = self.moments.lock();
         moments[moment].span
+    }
+
+    /// Returns the `FileSpan` for a given expression `expr` found in `bir`
+    pub(crate) fn span_from_bir(
+        &self,
+        bir: bir::Bir,
+        expr: impl HasOriginIn<bir::Origins, Origin = syntax::Expr>,
+    ) -> FileSpan {
+        let code = bir.origin(self.db());
+        let filename = code.filename(self.db());
+        let syntax_expr = bir.origins(self.db())[expr];
+        let syntax_tree = code.syntax_tree(self.db());
+        syntax_tree.spans(self.db())[syntax_expr].in_file(filename)
     }
 }
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
-pub struct MomentData {
+struct MomentData {
     clock: u64,
     span: FileSpan,
 }

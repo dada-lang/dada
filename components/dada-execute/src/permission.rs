@@ -17,13 +17,15 @@ pub(crate) struct Permission {
 }
 
 impl Permission {
-    fn allocate(data: impl Into<PermissionData>) -> Self {
-        Self {
-            data: Arc::new(data.into()),
-        }
+    fn new(data: Arc<PermissionData>) -> Self {
+        Self { data }
     }
 
-    fn my(interpreter: &Interpreter<'_>) -> Self {
+    fn allocate(data: impl Into<PermissionData>) -> Self {
+        Self::new(Arc::new(data.into()))
+    }
+
+    pub(crate) fn my(interpreter: &Interpreter<'_>) -> Self {
         Self::allocate(my::My::new(interpreter))
     }
 
@@ -56,6 +58,11 @@ impl Permission {
         self.data.check_read(interpreter)
     }
 
+    /// Checks that this permission permits writing to a field.
+    pub(crate) fn check_write(&self, interpreter: &Interpreter<'_>) -> Fallible<()> {
+        self.data.check_write(interpreter)
+    }
+
     /// Given `var q = p.give`, what permission does `q` get?
     ///
     /// May also affect the permissions of `p`!
@@ -68,6 +75,11 @@ impl Permission {
     /// May also affect the permissions of `p`!
     pub(crate) fn lease(&self, interpreter: &Interpreter<'_>) -> Fallible<Permission> {
         self.data.lease(self, interpreter)
+    }
+
+    /// Given `var q = p.give.share`, what permission does `q` get?
+    pub(crate) fn into_share(self, interpreter: &Interpreter<'_>) -> Fallible<Permission> {
+        self.data.into_share(interpreter)
     }
 
     /// Given `var q = p.share`, what permission does `q` get?
@@ -127,6 +139,15 @@ impl PermissionData {
             // For non-exclusive permisions, leasing is the same as sharing:
             PermissionData::Shared(p) => p.share(this, interpreter),
             PermissionData::Our(p) => p.share(this, interpreter),
+        }
+    }
+
+    /// See [`Permission::share`]
+    fn into_share(self: Arc<Self>, interpreter: &Interpreter<'_>) -> Fallible<Permission> {
+        match &*self {
+            PermissionData::My(_) => Ok(Permission::our(interpreter)),
+            PermissionData::Leased(p) => p.share(interpreter),
+            PermissionData::Shared(_) | PermissionData::Our(_) => Ok(Permission::new(self)),
         }
     }
 

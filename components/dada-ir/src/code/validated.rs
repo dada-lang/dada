@@ -121,7 +121,7 @@ pub enum ExprData {
     BooleanLiteral(bool),
 
     /// `22`, `22_222`, etc
-    IntegerLiteral(Word),
+    IntegerLiteral(u64),
 
     /// `"foo"` with no format strings
     StringLiteral(Word),
@@ -197,7 +197,7 @@ impl ExprData {
         match self {
             ExprData::Place(p) => DebugWithDb::fmt(p, f, db),
             ExprData::BooleanLiteral(v) => std::fmt::Debug::fmt(v, f),
-            ExprData::IntegerLiteral(v) => write!(f, "{}", v.as_str(db.db())),
+            ExprData::IntegerLiteral(v) => write!(f, "{}", v),
             ExprData::StringLiteral(v) => std::fmt::Debug::fmt(&v.as_str(db.db()), f),
             ExprData::Await(expr) => f.debug_tuple("Await").field(&expr.debug(db)).finish(),
             ExprData::Call(expr, args) => f

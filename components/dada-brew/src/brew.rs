@@ -145,7 +145,7 @@ impl Cursor {
         match expr.data(brewery.validated_tables()) {
             validated::ExprData::Place(_) => {
                 if let Some(place) = self.brew_expr_to_place(brewery, expr) {
-                    self.push_assignment(brewery, target, bir::ExprData::Place(place), origin);
+                    self.push_assignment(brewery, target, bir::ExprData::Give(place), origin);
                 }
             }
 

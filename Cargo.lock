@@ -258,6 +258,7 @@ dependencies = [
  "dada-collections",
  "dada-id",
  "dada-ir",
+ "dada-parse",
  "eyre",
  "parking_lot",
  "salsa",

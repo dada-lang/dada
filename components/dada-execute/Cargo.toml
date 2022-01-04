@@ -11,6 +11,7 @@ crossbeam = "0.8.1"
 dada-collections = { path = "../dada-collections" }
 dada-id = { path = "../dada-id" }
 dada-ir = { path = "../dada-ir" }
+dada-parse = { path = "../dada-parse" }
 eyre = "0.6.5"
 salsa = { path = "../salsa" }
 triomphe = "0.1.5"

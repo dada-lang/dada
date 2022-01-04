@@ -5,9 +5,9 @@
 #[salsa::jar(Db)]
 pub struct Jar();
 
-pub trait Db: salsa::DbWithJar<Jar> + dada_ir::Db {}
+pub trait Db: salsa::DbWithJar<Jar> + dada_ir::Db + dada_parse::Db {}
 
-impl<T> Db for T where T: salsa::DbWithJar<Jar> + dada_ir::Db {}
+impl<T> Db for T where T: salsa::DbWithJar<Jar> + dada_ir::Db + dada_parse::Db {}
 
 mod data;
 mod execute;
