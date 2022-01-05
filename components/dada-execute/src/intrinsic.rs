@@ -3,7 +3,7 @@ use dada_ir::{intrinsic::Intrinsic, word::Word};
 use crate::{data::DadaFuture, interpreter::Interpreter, thunk::Thunk, value::Value};
 
 pub(crate) type IntrinsicClosure =
-    Box<dyn for<'i> Fn(&'i Interpreter<'_>, Vec<Value>) -> DadaFuture<'i>>;
+    Box<dyn for<'i> Fn(&'i Interpreter<'_, '_>, Vec<Value>) -> DadaFuture<'i>>;
 
 pub(crate) struct IntrinsicDefinition {
     pub(crate) argument_names: Vec<Word>,
@@ -24,7 +24,7 @@ impl IntrinsicDefinition {
 }
 
 async fn intrinsic_write(
-    interpreter: &Interpreter<'_>,
+    interpreter: &Interpreter<'_, '_>,
     mut values: Vec<Value>,
 ) -> eyre::Result<Value> {
     Ok(Value::new(

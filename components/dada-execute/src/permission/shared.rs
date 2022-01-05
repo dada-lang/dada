@@ -17,14 +17,14 @@ impl From<Shared> for PermissionData {
 }
 
 impl Shared {
-    pub(super) fn new(interpreter: &Interpreter<'_>) -> Self {
+    pub(super) fn new(interpreter: &Interpreter<'_, '_>) -> Self {
         Self {
             granted: interpreter.moment_now(),
             canceled: Default::default(),
         }
     }
 
-    pub(super) fn cancel(&self, interpreter: &Interpreter<'_>) -> eyre::Result<()> {
+    pub(super) fn cancel(&self, interpreter: &Interpreter<'_, '_>) -> eyre::Result<()> {
         self.canceled.invalidate(interpreter)?;
         Ok(())
     }
@@ -32,7 +32,7 @@ impl Shared {
     pub(super) fn share(
         &self,
         this: &Permission,
-        interpreter: &Interpreter<'_>,
+        interpreter: &Interpreter<'_, '_>,
     ) -> eyre::Result<Permission> {
         self.canceled.check_still_valid(interpreter)?;
         Ok(this.duplicate())

@@ -19,7 +19,7 @@ use crate::{data::Tuple, error::DiagnosticBuilderExt, interpreter::Interpreter, 
 pub async fn interpret(
     function: Function,
     db: &dyn crate::Db,
-    stdout: Pin<Box<dyn tokio::io::AsyncWrite>>,
+    stdout: Pin<Box<dyn tokio::io::AsyncWrite + '_>>,
 ) -> eyre::Result<()> {
     let initial_span = function.name_span(db);
     let interpreter = &Interpreter::new(db, stdout, initial_span);
@@ -28,14 +28,14 @@ pub async fn interpret(
     value.read(interpreter, |data| data.to_unit(interpreter))
 }
 
-struct StackFrame<'me> {
-    interpreter: &'me Interpreter<'me>,
+struct StackFrame<'me, 'out> {
+    interpreter: &'me Interpreter<'me, 'out>,
     bir: bir::Bir,
     tables: &'me bir::Tables,
     local_variables: Map<bir::LocalVariable, Value>,
 }
 
-impl Interpreter<'_> {
+impl Interpreter<'_, '_> {
     pub(crate) fn execute_bir<'me>(
         &'me self,
         bir: bir::Bir,
@@ -60,7 +60,7 @@ impl Interpreter<'_> {
     }
 }
 
-impl StackFrame<'_> {
+impl StackFrame<'_, '_> {
     fn db(&self) -> &dyn crate::Db {
         self.interpreter.db()
     }

@@ -14,10 +14,10 @@ use tokio::io::AsyncWriteExt;
 
 use crate::{error::DiagnosticBuilderExt, moment::Moment};
 
-pub(crate) struct Interpreter<'me> {
+pub(crate) struct Interpreter<'me, 'out> {
     db: &'me dyn crate::Db,
 
-    stdout: tokio::sync::Mutex<Pin<Box<dyn tokio::io::AsyncWrite>>>,
+    stdout: tokio::sync::Mutex<Pin<Box<dyn tokio::io::AsyncWrite + 'out>>>,
 
     /// clock tick: increases monotonically
     clock: AtomicCell<u64>,
@@ -31,10 +31,10 @@ pub(crate) struct Interpreter<'me> {
     moments: Mutex<IndexVec<Moment, MomentData>>,
 }
 
-impl<'me> Interpreter<'me> {
+impl<'me, 'out> Interpreter<'me, 'out> {
     pub(crate) fn new(
         db: &'me dyn crate::Db,
-        stdout: Pin<Box<dyn tokio::io::AsyncWrite>>,
+        stdout: Pin<Box<dyn tokio::io::AsyncWrite + 'out>>,
         start_span: FileSpan,
     ) -> Self {
         Self {

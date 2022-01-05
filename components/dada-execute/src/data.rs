@@ -53,7 +53,7 @@ data_from_impl! {
 }
 
 impl Data {
-    fn kind_str(&self, interpreter: &Interpreter<'_>) -> String {
+    fn kind_str(&self, interpreter: &Interpreter<'_, '_>) -> String {
         let db = interpreter.db();
         match self {
             Data::Instance(i) => format!("an instance of `{}`", i.class.name(db).as_str(db)),
@@ -71,7 +71,7 @@ impl Data {
         }
     }
 
-    fn expected(&self, interpreter: &Interpreter<'_>, what: &str) -> eyre::Report {
+    fn expected(&self, interpreter: &Interpreter<'_, '_>, what: &str) -> eyre::Report {
         let span = interpreter.span_now();
         error!(
             span,
@@ -82,7 +82,7 @@ impl Data {
         .eyre(interpreter.db())
     }
 
-    fn no_such_field(interpreter: &Interpreter<'_>, class: Class, name: Word) -> eyre::Report {
+    fn no_such_field(interpreter: &Interpreter<'_, '_>, class: Class, name: Word) -> eyre::Report {
         let span = interpreter.span_now();
         let class_name = class.name(interpreter.db()).as_str(interpreter.db());
         let class_span = class.name_span(interpreter.db());
@@ -101,7 +101,7 @@ impl Data {
 
     pub(crate) fn field_mut(
         &mut self,
-        interpreter: &Interpreter<'_>,
+        interpreter: &Interpreter<'_, '_>,
         name: Word,
     ) -> eyre::Result<&mut Value> {
         match self {
@@ -115,7 +115,7 @@ impl Data {
 
     pub(crate) fn assign_field(
         &mut self,
-        interpreter: &Interpreter<'_>,
+        interpreter: &Interpreter<'_, '_>,
         name: Word,
         value: Value,
     ) -> eyre::Result<()> {
@@ -128,28 +128,28 @@ impl Data {
         }
     }
 
-    pub(crate) fn to_bool(&self, interpreter: &Interpreter<'_>) -> eyre::Result<bool> {
+    pub(crate) fn to_bool(&self, interpreter: &Interpreter<'_, '_>) -> eyre::Result<bool> {
         match self {
             Data::Bool(b) => Ok(*b),
             _ => Err(self.expected(interpreter, "a boolean")),
         }
     }
 
-    pub(crate) fn to_word(&self, interpreter: &Interpreter<'_>) -> eyre::Result<Word> {
+    pub(crate) fn to_word(&self, interpreter: &Interpreter<'_, '_>) -> eyre::Result<Word> {
         match self {
             Data::String(w) => Ok(*w),
             _ => Err(self.expected(interpreter, "a string")),
         }
     }
 
-    pub(crate) fn to_unit(&self, interpreter: &Interpreter<'_>) -> eyre::Result<()> {
+    pub(crate) fn to_unit(&self, interpreter: &Interpreter<'_, '_>) -> eyre::Result<()> {
         match self {
             Data::Unit(()) => Ok(()),
             _ => Err(self.expected(interpreter, "nothing")),
         }
     }
 
-    pub(crate) fn into_thunk(self, interpreter: &Interpreter<'_>) -> eyre::Result<Thunk> {
+    pub(crate) fn into_thunk(self, interpreter: &Interpreter<'_, '_>) -> eyre::Result<Thunk> {
         match self {
             Data::Thunk(v) => Ok(v),
             _ => Err(self.expected(interpreter, "an async thunk")),
@@ -158,7 +158,7 @@ impl Data {
 
     pub(crate) fn call<'i>(
         &self,
-        interpreter: &'i Interpreter<'_>,
+        interpreter: &'i Interpreter<'_, '_>,
         named_values: Vec<(Word, Value)>,
     ) -> eyre::Result<DadaFuture<'i>> {
         match self {
@@ -189,7 +189,7 @@ impl Data {
 }
 
 fn match_values(
-    interpreter: &Interpreter<'_>,
+    interpreter: &Interpreter<'_, '_>,
     mut named_values: Vec<(Word, Value)>,
     names: &[Word],
 ) -> eyre::Result<Vec<Value>> {

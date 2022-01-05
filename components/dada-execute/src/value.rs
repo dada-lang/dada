@@ -12,20 +12,20 @@ pub(crate) struct Value {
 }
 
 impl Value {
-    pub(crate) fn new(interpreter: &Interpreter<'_>, value: impl Into<Data>) -> Value {
+    pub(crate) fn new(interpreter: &Interpreter<'_, '_>, value: impl Into<Data>) -> Value {
         Value {
             permission: Permission::my(interpreter),
             data: Arc::new(Mutex::new(value.into())),
         }
     }
-    pub(crate) fn our(interpreter: &Interpreter<'_>, value: impl Into<Data>) -> Value {
+    pub(crate) fn our(interpreter: &Interpreter<'_, '_>, value: impl Into<Data>) -> Value {
         Value {
             permission: Permission::our(interpreter),
             data: Arc::new(Mutex::new(value.into())),
         }
     }
 
-    pub(crate) fn unit(interpreter: &Interpreter<'_>) -> Value {
+    pub(crate) fn unit(interpreter: &Interpreter<'_, '_>) -> Value {
         Value::new(interpreter, ())
     }
 
@@ -34,7 +34,7 @@ impl Value {
     /// Can fail if the permission doesn't permit reads.
     pub(crate) fn read<R>(
         &self,
-        interpreter: &Interpreter<'_>,
+        interpreter: &Interpreter<'_, '_>,
         op: impl FnOnce(&Data) -> eyre::Result<R>,
     ) -> eyre::Result<R> {
         self.permission.perform_read(interpreter)?;
@@ -46,7 +46,7 @@ impl Value {
     /// Can fail if the permission doesn't permit writes.
     pub(crate) fn write<R>(
         &self,
-        interpreter: &Interpreter<'_>,
+        interpreter: &Interpreter<'_, '_>,
         op: impl FnOnce(&mut Data) -> eyre::Result<R>,
     ) -> eyre::Result<R> {
         self.permission.perform_write(interpreter)?;
@@ -55,7 +55,7 @@ impl Value {
 
     pub(crate) fn field_mut<R>(
         &self,
-        interpreter: &Interpreter<'_>,
+        interpreter: &Interpreter<'_, '_>,
         word: Word,
         op: impl FnOnce(&mut Value) -> eyre::Result<R>,
     ) -> eyre::Result<R> {
@@ -63,7 +63,7 @@ impl Value {
         op(self.data.lock().field_mut(interpreter, word)?)
     }
 
-    pub(crate) fn give(&mut self, interpreter: &Interpreter<'_>) -> eyre::Result<Value> {
+    pub(crate) fn give(&mut self, interpreter: &Interpreter<'_, '_>) -> eyre::Result<Value> {
         let permission = self.permission.give(interpreter)?;
 
         let data = if !self.permission.is_valid() {
@@ -76,21 +76,21 @@ impl Value {
         Ok(Value { permission, data })
     }
 
-    pub(crate) fn into_share(self, interpreter: &Interpreter<'_>) -> eyre::Result<Value> {
+    pub(crate) fn into_share(self, interpreter: &Interpreter<'_, '_>) -> eyre::Result<Value> {
         Ok(Value {
             permission: self.permission.into_share(interpreter)?,
             data: self.data.clone(),
         })
     }
 
-    pub(crate) fn share(&self, interpreter: &Interpreter<'_>) -> eyre::Result<Value> {
+    pub(crate) fn share(&self, interpreter: &Interpreter<'_, '_>) -> eyre::Result<Value> {
         Ok(Value {
             permission: self.permission.share(interpreter)?,
             data: self.data.clone(),
         })
     }
 
-    pub(crate) fn lease(&self, interpreter: &Interpreter<'_>) -> eyre::Result<Value> {
+    pub(crate) fn lease(&self, interpreter: &Interpreter<'_, '_>) -> eyre::Result<Value> {
         Ok(Value {
             permission: self.permission.lease(interpreter)?,
             data: self.data.clone(),

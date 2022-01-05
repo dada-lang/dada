@@ -16,7 +16,7 @@ impl From<Our> for PermissionData {
 }
 
 impl Our {
-    pub(super) fn new(interpreter: &Interpreter<'_>) -> Self {
+    pub(super) fn new(interpreter: &Interpreter<'_, '_>) -> Self {
         Self {
             granted: interpreter.moment_now(),
         }
@@ -25,7 +25,7 @@ impl Our {
     pub(super) fn share(
         &self,
         this: &Permission,
-        _interpreter: &Interpreter<'_>,
+        _interpreter: &Interpreter<'_, '_>,
     ) -> eyre::Result<Permission> {
         Ok(this.duplicate())
     }

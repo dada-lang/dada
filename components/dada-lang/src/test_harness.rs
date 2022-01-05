@@ -17,7 +17,7 @@ pub struct Options {
 }
 
 impl Options {
-    pub fn main(&self, _crate_options: &crate::Options) -> eyre::Result<()> {
+    pub async fn main(&self, _crate_options: &crate::Options) -> eyre::Result<()> {
         let mut total = 0;
         let mut errors = Errors::default();
 
@@ -25,17 +25,18 @@ impl Options {
             eyre::bail!("no test paths given; try --dada-path");
         }
 
-        const REF_EXTENSIONS: &[&str] = &["ref", "lsp", "bir"];
+        const REF_EXTENSIONS: &[&str] = &["ref", "lsp", "bir", "validated", "syntax", "stdout"];
 
         for root in &self.dada_path {
             for entry in walkdir::WalkDir::new(root) {
-                let run_test = || -> eyre::Result<()> {
+                let run_test = async {
                     let entry = entry?;
                     let path = entry.path();
                     if let Some(ext) = path.extension() {
                         if ext == "dada" {
                             total += 1;
                             self.test_dada_file(path)
+                                .await
                                 .with_context(|| format!("testing `{}`", path.display()))?;
                         } else if REF_EXTENSIONS.iter().any(|e| *e == ext) {
                             // ignore ref files
@@ -54,7 +55,7 @@ impl Options {
                     Ok(())
                 };
 
-                errors.push_result(run_test());
+                errors.push_result(run_test.await);
             }
         }
 
@@ -84,15 +85,16 @@ impl Options {
     }
 
     #[tracing::instrument(level = "info", skip(self))]
-    fn test_dada_file(&self, path: &Path) -> eyre::Result<()> {
+    async fn test_dada_file(&self, path: &Path) -> eyre::Result<()> {
         let expected_diagnostics = &expected_diagnostics(path)?;
-        self.test_dada_file_normal(path, expected_diagnostics)?;
+        self.test_dada_file_normal(path, expected_diagnostics)
+            .await?;
         self.test_dada_file_in_ide(path, expected_diagnostics)?;
         Ok(())
     }
 
     #[tracing::instrument(level = "info", skip(self))]
-    fn test_dada_file_normal(
+    async fn test_dada_file_normal(
         &self,
         path: &Path,
         expected_diagnostics: &[ExpectedDiagnostic],
@@ -137,6 +139,8 @@ impl Options {
             &path.with_extension("bir"),
             &mut errors,
         )?;
+        self.check_interpreted(&db, filename, &path.with_extension("stdout"), &mut errors)
+            .await?;
         errors.into_result()
     }
 
@@ -278,6 +282,28 @@ impl Options {
             .collect::<Vec<_>>();
         self.check_output_against_ref_file(format!("{birs:#?}"), bir_path, errors)?;
 
+        Ok(())
+    }
+
+    async fn check_interpreted(
+        &self,
+        db: &dada_db::Db,
+        filename: Filename,
+        ref_path: &PathBuf,
+        errors: &mut Errors,
+    ) -> eyre::Result<()> {
+        let actual_output = match db.function_named(filename, "main") {
+            Some(function) => {
+                let mut output_buf = vec![];
+                let cursor = std::io::Cursor::new(&mut output_buf);
+                dada_execute::interpret(function, db, Box::pin(cursor)).await?;
+                String::from_utf8(output_buf)?
+            }
+            None => {
+                format!("no `main` function in `{}`", filename.as_str(db))
+            }
+        };
+        self.check_output_against_ref_file(actual_output, ref_path, errors)?;
         Ok(())
     }
 }

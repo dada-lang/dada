@@ -27,7 +27,7 @@ impl Options {
                 ide::main(self, command_options)?;
             }
             Command::Check(command_options) => command_options.main(self)?,
-            Command::Test(command_options) => command_options.main(self)?,
+            Command::Test(command_options) => command_options.main(self).await?,
             Command::Run(command_options) => command_options.main(self).await?,
         }
         Ok(())
