@@ -35,6 +35,7 @@ async fn intrinsic_write(
                 let message = message.read(interpreter, |data| data.to_word(interpreter))?;
                 let message_str = message.as_str(interpreter.db());
                 interpreter.print_bytes(message_str.as_bytes()).await?;
+                interpreter.print_bytes("\n".as_bytes()).await?;
                 Ok(Value::unit(interpreter))
             })
         }),
