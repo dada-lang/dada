@@ -103,7 +103,7 @@ impl<'me> Interpreter<'me> {
                 Ok(written) => text = &text[written..],
                 Err(e) => {
                     let span_now = self.span_now();
-                    return Err(error!(span_now, "error printing bytes: {}", e).eyre());
+                    return Err(error!(span_now, "error printing bytes: {}", e).eyre(self.db()));
                 }
             }
         }

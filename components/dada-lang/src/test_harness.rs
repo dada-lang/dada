@@ -112,7 +112,7 @@ impl Options {
             &mut errors,
         )?;
         self.check_output_against_ref_file(
-            crate::format::format_diagnostics(&db, &diagnostics)?,
+            dada_error_format::format_diagnostics(&db, &diagnostics)?,
             &path.with_extension("ref"),
             &mut errors,
         )?;

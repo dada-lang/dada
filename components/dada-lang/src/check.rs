@@ -54,7 +54,7 @@ impl Options {
         }
 
         for diagnostic in all_diagnostics {
-            crate::format::print_diagnostic(&db, &diagnostic)?;
+            dada_error_format::print_diagnostic(&db, &diagnostic)?;
         }
 
         Ok(())

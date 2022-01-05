@@ -248,12 +248,25 @@ version = "0.1.0"
 dependencies = [
  "dada-brew",
  "dada-check",
+ "dada-error-format",
  "dada-execute",
  "dada-ir",
  "dada-lex",
  "dada-manifest",
  "dada-parse",
  "dada-validate",
+ "salsa",
+]
+
+[[package]]
+name = "dada-error-format"
+version = "0.1.0"
+dependencies = [
+ "ariadne",
+ "dada-collections",
+ "dada-ir",
+ "dada-manifest",
+ "eyre",
  "salsa",
 ]
 
@@ -265,6 +278,7 @@ dependencies = [
  "crossbeam",
  "dada-brew",
  "dada-collections",
+ "dada-error-format",
  "dada-id",
  "dada-ir",
  "dada-parse",
@@ -298,9 +312,9 @@ dependencies = [
 name = "dada-lang"
 version = "0.1.0"
 dependencies = [
- "ariadne",
  "dada-collections",
  "dada-db",
+ "dada-error-format",
  "dada-execute",
  "dada-ir",
  "dada-lex",

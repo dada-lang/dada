@@ -14,6 +14,7 @@ use salsa::DebugWithDb;
 #[salsa::db(
     dada_brew::Jar,
     dada_check::Jar,
+    dada_error_format::Jar,
     dada_execute::Jar,
     dada_ir::Jar,
     dada_lex::Jar,

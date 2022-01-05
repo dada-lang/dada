@@ -106,11 +106,11 @@ impl StackFrame<'_> {
                 }
                 dada_ir::code::bir::TerminatorData::Error => {
                     let span = self.span_from_bir(basic_block_data.terminator);
-                    return Err(error!(span, "compilation error").eyre());
+                    return Err(error!(span, "compilation error").eyre(self.interpreter.db()));
                 }
                 dada_ir::code::bir::TerminatorData::Panic => {
                     let span = self.span_from_bir(basic_block_data.terminator);
-                    return Err(error!(span, "panic").eyre());
+                    return Err(error!(span, "panic").eyre(self.interpreter.db()));
                 }
             }
         }
@@ -137,7 +137,7 @@ impl StackFrame<'_> {
             bir::ExprData::Op(_lhs, _op, _rhs) => todo!(),
             bir::ExprData::Error => {
                 let span = self.span_from_bir(expr);
-                Err(error!(span, "compilation error").eyre())
+                Err(error!(span, "compilation error").eyre(self.interpreter.db()))
             }
         }
     }
@@ -174,7 +174,7 @@ impl StackFrame<'_> {
                         name_span,
                         &format!("`{}` is a function, declared here", name),
                     )
-                    .eyre())
+                    .eyre(self.interpreter.db()))
             }
             bir::PlaceData::Class(class) => {
                 let span_now = self.interpreter.span_now();
@@ -182,12 +182,12 @@ impl StackFrame<'_> {
                 let name_span = class.name_span(self.db());
                 Err(error!(span_now, "cannot assign to `{}`", name)
                     .secondary_label(name_span, &format!("`{}` is a class, declared here", name))
-                    .eyre())
+                    .eyre(self.interpreter.db()))
             }
             bir::PlaceData::Intrinsic(intrinsic) => {
                 let span_now = self.interpreter.span_now();
                 let name = intrinsic.as_str(self.db());
-                Err(error!(span_now, "cannot assign to `{}`", name).eyre())
+                Err(error!(span_now, "cannot assign to `{}`", name).eyre(self.interpreter.db()))
             }
             bir::PlaceData::Dot(owner_place, field_name) => {
                 self.with_place(*owner_place, |owner_value, interpreter| {

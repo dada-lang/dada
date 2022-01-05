@@ -4,14 +4,14 @@ use ariadne::{Label, Report, ReportKind, Source};
 use dada_ir::filename::Filename;
 
 pub fn print_diagnostic(
-    db: &dada_db::Db,
+    db: &dyn crate::Db,
     diagnostic: &dada_ir::diagnostic::Diagnostic,
 ) -> eyre::Result<()> {
     Ok(ariadne_diagnostic(db, diagnostic)?.print(SourceCache::new(db))?)
 }
 
 pub fn format_diagnostics(
-    db: &dada_db::Db,
+    db: &dyn crate::Db,
     diagnostics: &[dada_ir::diagnostic::Diagnostic],
 ) -> eyre::Result<String> {
     let mut output = Vec::new();
@@ -25,7 +25,7 @@ pub fn format_diagnostics(
 }
 
 fn ariadne_diagnostic(
-    _db: &dada_db::Db,
+    _db: &dyn crate::Db,
     diagnostic: &dada_ir::diagnostic::Diagnostic,
 ) -> eyre::Result<ariadne::Report<ASpan>> {
     let mut builder = Report::<ASpan>::build(
@@ -43,12 +43,12 @@ fn ariadne_diagnostic(
 }
 
 struct SourceCache<'me> {
-    db: &'me dada_db::Db,
+    db: &'me dyn crate::Db,
     map: dada_collections::Map<Filename, Source>,
 }
 
 impl<'me> SourceCache<'me> {
-    pub fn new(db: &'me dada_db::Db) -> Self {
+    pub fn new(db: &'me dyn crate::Db) -> Self {
         Self {
             db,
             map: Default::default(),

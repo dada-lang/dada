@@ -47,7 +47,7 @@ impl Shared {
         let span_then = interpreter.span(self.granted);
         Err(error!(span_now, "shared permission does not permit writes")
             .secondary_label(span_then, "permission granted here")
-            .eyre())
+            .eyre(interpreter.db()))
     }
 
     pub(crate) fn check_await(&self, interpreter: &Interpreter) -> eyre::Result<()> {
@@ -55,7 +55,7 @@ impl Shared {
         let span_then = interpreter.span(self.granted);
         Err(error!(span_now, "shared permission does not permit await")
             .secondary_label(span_then, "permission granted here")
-            .eyre())
+            .eyre(interpreter.db()))
     }
 
     pub(crate) fn is_valid(&self) -> bool {

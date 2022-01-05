@@ -1,24 +1,28 @@
-use dada_ir::diagnostic::{Diagnostic, DiagnosticBuilder};
+use dada_ir::diagnostic::DiagnosticBuilder;
 
 #[extension_trait::extension_trait]
 pub impl DiagnosticBuilderExt for DiagnosticBuilder {
-    fn eyre(self) -> eyre::Report {
-        eyre::Report::new(DiagnosticError {
-            diagnostic: Box::new(self.finish()),
-        })
+    fn eyre(self, db: &dyn crate::Db) -> eyre::Report {
+        let diagnostic = self.finish();
+        match dada_error_format::format_diagnostics(db, &[diagnostic]) {
+            Ok(string) => eyre::Report::new(DiagnosticError { string }),
+            Err(report) => {
+                // FIXME: should give causal information
+                report
+            }
+        }
     }
 }
 
 #[derive(Debug)]
 pub struct DiagnosticError {
-    #[allow(dead_code)]
-    diagnostic: Box<Diagnostic>,
+    string: String,
 }
 
 impl std::error::Error for DiagnosticError {}
 
 impl std::fmt::Display for DiagnosticError {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
-        write!(f, "{self:?}") // FIXME
+        write!(f, "{}", self.string)
     }
 }

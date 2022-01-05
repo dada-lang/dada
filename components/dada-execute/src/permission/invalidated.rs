@@ -22,7 +22,7 @@ impl Invalidated {
             let span_then = interpreter.span(previous_moment);
             return Err(error!(span_now, "permission already given")
                 .secondary_label(span_then, "permission given here")
-                .eyre());
+                .eyre(interpreter.db()));
         }
         Ok(())
     }

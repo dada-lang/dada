@@ -5,9 +5,15 @@
 #[salsa::jar(Db)]
 pub struct Jar();
 
-pub trait Db: salsa::DbWithJar<Jar> + dada_ir::Db + dada_parse::Db + dada_brew::Db {}
+pub trait Db:
+    salsa::DbWithJar<Jar> + dada_ir::Db + dada_parse::Db + dada_brew::Db + dada_error_format::Db
+{
+}
 
-impl<T> Db for T where T: salsa::DbWithJar<Jar> + dada_ir::Db + dada_parse::Db + dada_brew::Db {}
+impl<T> Db for T where
+    T: salsa::DbWithJar<Jar> + dada_ir::Db + dada_parse::Db + dada_brew::Db + dada_error_format::Db
+{
+}
 
 mod data;
 mod error;

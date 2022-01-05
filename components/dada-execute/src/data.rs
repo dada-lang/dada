@@ -79,7 +79,7 @@ impl Data {
             what,
             self.kind_str(interpreter)
         )
-        .eyre()
+        .eyre(interpreter.db())
     }
 
     fn no_such_field(interpreter: &Interpreter<'_>, class: Class, name: Word) -> eyre::Report {
@@ -96,7 +96,7 @@ impl Data {
             class_span,
             &format!("the class `{}` is declared here", class_name),
         )
-        .eyre()
+        .eyre(interpreter.db())
     }
 
     pub(crate) fn field_mut(
@@ -182,7 +182,7 @@ impl Data {
                     "expected something callable, found {}",
                     self.kind_str(interpreter)
                 )
-                .eyre())
+                .eyre(interpreter.db()))
             }
         }
     }
@@ -209,7 +209,7 @@ fn match_values(
                 "expected to find an argument named `{}`, but didn't",
                 name.as_str(db)
             )
-            .eyre());
+            .eyre(interpreter.db()));
         }
     }
 
@@ -223,7 +223,7 @@ fn match_values(
             .map(|(name, _)| name.as_str(db))
             .collect();
         let extra_str = extra_vec.join(", ");
-        return Err(error!(span_now, "did not expect argument(s) named `{}`", extra_str).eyre());
+        return Err(error!(span_now, "did not expect argument(s) named `{}`", extra_str).eyre(db));
     }
 }
 

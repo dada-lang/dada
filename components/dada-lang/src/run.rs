@@ -17,7 +17,7 @@ impl Options {
         db.update_file(filename, contents);
 
         for diagnostic in db.diagnostics(filename) {
-            crate::format::print_diagnostic(&db, &diagnostic)?;
+            dada_error_format::print_diagnostic(&db, &diagnostic)?;
         }
 
         // Find the "main" function
