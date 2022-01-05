@@ -204,6 +204,7 @@ dependencies = [
  "dada-lang",
  "eyre",
  "structopt",
+ "tokio",
  "tracing-subscriber",
 ]
 
@@ -247,6 +248,7 @@ version = "0.1.0"
 dependencies = [
  "dada-brew",
  "dada-check",
+ "dada-execute",
  "dada-ir",
  "dada-lex",
  "dada-manifest",
@@ -313,6 +315,7 @@ dependencies = [
  "serde_json",
  "similar",
  "structopt",
+ "tokio",
  "tracing",
  "walkdir",
 ]

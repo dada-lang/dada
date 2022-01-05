@@ -23,5 +23,6 @@ serde_json = "1.0.72"
 similar = "2.1.0"
 salsa = { path = "../salsa" }
 structopt = "0.3"
+tokio = { version = "1", features = ["full"] }
 tracing = "0.1.29"
 walkdir = "2.3.2"

@@ -2,8 +2,10 @@ use dada_brew::prelude::MaybeBrewExt;
 use dada_ir::{
     diagnostic::Diagnostic,
     filename::Filename,
+    func::Function,
     item::Item,
     span::{FileSpan, LineColumn, Offset},
+    word::Word,
 };
 use dada_parse::prelude::*;
 use dada_validate::prelude::*;
@@ -12,6 +14,7 @@ use salsa::DebugWithDb;
 #[salsa::db(
     dada_brew::Jar,
     dada_check::Jar,
+    dada_execute::Jar,
     dada_ir::Jar,
     dada_lex::Jar,
     dada_manifest::Jar,
@@ -45,6 +48,20 @@ impl Db {
     /// Checks `filename` for compilation errors and returns all relevant diagnostics.
     pub fn diagnostics(&self, filename: Filename) -> Vec<Diagnostic> {
         dada_check::check_filename::accumulated::<dada_ir::diagnostic::Diagnostics>(self, filename)
+    }
+
+    /// Checks `filename` for a "main" function
+    pub fn function_named(&self, filename: Filename, name: &str) -> Option<Function> {
+        let name = Word::from(self, name);
+        for item in filename.items(self) {
+            if let Item::Function(function) = item {
+                let function_name = function.name(self);
+                if name == function_name {
+                    return Some(*function);
+                }
+            }
+        }
+        None
     }
 
     /// Parses `filename` and returns a lits of the items within.

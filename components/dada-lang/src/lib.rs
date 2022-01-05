@@ -5,6 +5,7 @@ use structopt::StructOpt;
 mod check;
 mod format;
 mod ide;
+mod run;
 mod test_harness;
 
 #[derive(StructOpt)]
@@ -21,13 +22,14 @@ impl Options {
         }
     }
 
-    pub fn main(&self) -> eyre::Result<()> {
+    pub async fn main(&self) -> eyre::Result<()> {
         match &self.cmd {
             Command::Ide(command_options) => {
                 ide::main(self, command_options)?;
             }
             Command::Check(command_options) => command_options.main(self)?,
             Command::Test(command_options) => command_options.main(self)?,
+            Command::Run(command_options) => command_options.main(self).await?,
         }
         Ok(())
     }
@@ -39,4 +41,5 @@ pub enum Command {
     Ide(ide::Options),
     Check(check::Options),
     Test(test_harness::Options),
+    Run(run::Options),
 }
