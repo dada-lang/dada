@@ -1,6 +1,6 @@
 use dada_ir::{intrinsic::Intrinsic, word::Word};
 
-use crate::{data::DadaFuture, interpreter::Interpreter, value::Value};
+use crate::{data::DadaFuture, interpreter::Interpreter, thunk::Thunk, value::Value};
 
 pub(crate) type IntrinsicClosure =
     Box<dyn for<'i> Fn(&'i Interpreter<'_>, Vec<Value>) -> DadaFuture<'i>>;
@@ -27,9 +27,16 @@ async fn intrinsic_write(
     interpreter: &Interpreter<'_>,
     mut values: Vec<Value>,
 ) -> eyre::Result<Value> {
-    let message = values.pop().unwrap();
-    let message = message.read(interpreter, |data| data.to_word(interpreter))?;
-    let message_str = message.as_str(interpreter.db());
-    interpreter.print_bytes(message_str.as_bytes()).await?;
-    Ok(Value::unit(interpreter))
+    Ok(Value::new(
+        interpreter,
+        Thunk::new(move |interpreter| {
+            Box::pin(async move {
+                let message = values.pop().unwrap();
+                let message = message.read(interpreter, |data| data.to_word(interpreter))?;
+                let message_str = message.as_str(interpreter.db());
+                interpreter.print_bytes(message_str.as_bytes()).await?;
+                Ok(Value::unit(interpreter))
+            })
+        }),
+    ))
 }

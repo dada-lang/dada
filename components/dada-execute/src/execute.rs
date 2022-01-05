@@ -260,7 +260,7 @@ impl StackFrame<'_> {
                 let value = self.give_place(*place)?;
                 let data = value.prepare_for_await(self.interpreter)?;
                 let thunk = data.into_thunk(self.interpreter)?;
-                thunk.future.invoke(self.interpreter).await
+                thunk.invoke(self.interpreter).await
             }
             bir::TerminatorExpr::Call(function_place, argument_places) => {
                 let function_value = self.give_place(*function_place)?;

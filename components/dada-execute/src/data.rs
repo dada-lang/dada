@@ -15,7 +15,7 @@ pub(crate) enum Data {
     Class(Class),
     Function(Function),
     Intrinsic(Intrinsic),
-    Thunk(BoxedThunk),
+    Thunk(Thunk),
     Tuple(Tuple),
     Bool(bool),
     Uint(u64),
@@ -42,7 +42,7 @@ data_from_impl! {
     Class(Class),
     Function(Function),
     Intrinsic(Intrinsic),
-    Thunk(BoxedThunk),
+    Thunk(Thunk),
     Tuple(Tuple),
     Bool(bool),
     Uint(u64),
@@ -149,7 +149,7 @@ impl Data {
         }
     }
 
-    pub(crate) fn into_thunk(self, interpreter: &Interpreter<'_>) -> eyre::Result<BoxedThunk> {
+    pub(crate) fn into_thunk(self, interpreter: &Interpreter<'_>) -> eyre::Result<Thunk> {
         match self {
             Data::Thunk(v) => Ok(v),
             _ => Err(self.expected(interpreter, "an async thunk")),
@@ -237,9 +237,4 @@ pub(crate) struct Instance {
 pub(crate) struct Tuple {
     #[allow(dead_code)]
     pub(crate) fields: Vec<Value>,
-}
-
-#[derive(Debug)]
-pub(crate) struct BoxedThunk {
-    pub(crate) future: Pin<Box<dyn Thunk>>,
 }
