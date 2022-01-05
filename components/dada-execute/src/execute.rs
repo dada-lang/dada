@@ -1,16 +1,32 @@
 use std::{future::Future, pin::Pin};
 
+use dada_brew::prelude::*;
 use dada_collections::Map;
 use dada_id::prelude::*;
+use dada_ir::func::Function;
 use dada_ir::{
-    code::{bir, syntax},
-    diagnostic::Fallible,
+    code::{
+        bir::{self, NamedPlaceData},
+        syntax,
+    },
     error,
     origin_table::HasOriginIn,
     span::FileSpan,
 };
 
-use crate::{data::Tuple, interpreter::Interpreter, value::Value};
+use crate::{data::Tuple, error::DiagnosticBuilderExt, interpreter::Interpreter, value::Value};
+
+pub async fn interpret(
+    function: Function,
+    db: &dyn crate::Db,
+    stdout: Pin<Box<dyn tokio::io::AsyncWrite>>,
+) -> eyre::Result<()> {
+    let initial_span = function.name_span(db);
+    let interpreter = &Interpreter::new(db, stdout, initial_span);
+    let bir = function.brew(db);
+    let value = interpreter.execute_bir(bir).await?;
+    value.read(interpreter, |data| data.to_unit(interpreter))
+}
 
 struct StackFrame<'me> {
     interpreter: &'me Interpreter<'me>,
@@ -23,7 +39,7 @@ impl Interpreter<'_> {
     pub(crate) fn execute_bir<'me>(
         &'me self,
         bir: bir::Bir,
-    ) -> Pin<Box<dyn Future<Output = Fallible<Value>> + 'me>> {
+    ) -> Pin<Box<dyn Future<Output = eyre::Result<Value>> + 'me>> {
         let bir::BirData {
             tables,
             start_basic_block,
@@ -43,19 +59,20 @@ impl StackFrame<'_> {
         self.interpreter.db()
     }
 
-    async fn execute(mut self, mut basic_block: bir::BasicBlock) -> Fallible<Value> {
-        let interpreter = self.interpreter;
+    async fn execute(mut self, mut basic_block: bir::BasicBlock) -> eyre::Result<Value> {
         loop {
             let basic_block_data = basic_block.data(self.tables);
             for statement in &basic_block_data.statements {
+                self.tick_clock(*statement);
                 match statement.data(self.tables) {
                     dada_ir::code::bir::StatementData::Assign(place, expr) => {
                         let expr_value = self.evaluate_bir_expr(*expr)?;
-                        self.assign_place(*place, expr_value).await;
+                        self.assign_place(*place, expr_value)?;
                     }
                 }
             }
 
+            self.tick_clock(basic_block_data.terminator);
             match basic_block_data.terminator.data(self.tables) {
                 dada_ir::code::bir::TerminatorData::Goto(next_block) => {
                     basic_block = *next_block;
@@ -78,22 +95,22 @@ impl StackFrame<'_> {
                 }
                 dada_ir::code::bir::TerminatorData::Assign(place, expr, next) => {
                     let value = self.evaluate_terminator_expr(expr).await?;
-                    self.assign_place(*place, value);
+                    self.assign_place(*place, value)?;
                     basic_block = *next;
                 }
                 dada_ir::code::bir::TerminatorData::Error => {
                     let span = self.span_from_bir(basic_block_data.terminator);
-                    return Err(error!(span, "compilation error").emit(self.db()));
+                    return Err(error!(span, "compilation error").eyre());
                 }
                 dada_ir::code::bir::TerminatorData::Panic => {
                     let span = self.span_from_bir(basic_block_data.terminator);
-                    return Err(error!(span, "panic").emit(self.db()));
+                    return Err(error!(span, "panic").eyre());
                 }
             }
         }
     }
 
-    fn evaluate_bir_expr(&mut self, expr: bir::Expr) -> Fallible<Value> {
+    fn evaluate_bir_expr(&mut self, expr: bir::Expr) -> eyre::Result<Value> {
         match expr.data(self.tables) {
             bir::ExprData::BooleanLiteral(value) => Ok(Value::new(self.interpreter, *value)),
             bir::ExprData::IntegerLiteral(value) => Ok(Value::new(self.interpreter, *value)),
@@ -108,19 +125,23 @@ impl StackFrame<'_> {
                 let fields = places
                     .iter()
                     .map(|place| self.give_place(*place))
-                    .collect::<Fallible<Vec<_>>>()?;
+                    .collect::<eyre::Result<Vec<_>>>()?;
                 Ok(Value::new(self.interpreter, Tuple { fields }))
             }
-            bir::ExprData::Op(lhs, op, rhs) => todo!(),
+            bir::ExprData::Op(_lhs, _op, _rhs) => todo!(),
             bir::ExprData::Error => {
                 let span = self.span_from_bir(expr);
-                Err(error!(span, "compilation error").emit(self.db()))
+                Err(error!(span, "compilation error").eyre())
             }
         }
     }
 
-    fn give_place<'s>(&'s mut self, place: bir::Place) -> Fallible<Value> {
+    fn give_place<'s>(&'s mut self, place: bir::Place) -> eyre::Result<Value> {
         self.with_place(place, Value::give)
+    }
+
+    fn tick_clock(&self, expr: impl HasOriginIn<bir::Origins, Origin = syntax::Expr>) {
+        self.interpreter.tick_clock(self.span_from_bir(expr));
     }
 
     fn span_from_bir(
@@ -130,7 +151,7 @@ impl StackFrame<'_> {
         self.interpreter.span_from_bir(self.bir, expr)
     }
 
-    async fn assign_place(&mut self, place: bir::Place, value: Value) -> Fallible<()> {
+    fn assign_place(&mut self, place: bir::Place, value: Value) -> eyre::Result<()> {
         match place.data(self.tables) {
             bir::PlaceData::LocalVariable(local_variable) => {
                 // FIXME: Presently infallible, but think about atomic etc eventually. =)
@@ -147,7 +168,7 @@ impl StackFrame<'_> {
                         name_span,
                         &format!("`{}` is a function, declared here", name),
                     )
-                    .emit(self.db()))
+                    .eyre())
             }
             bir::PlaceData::Class(class) => {
                 let span_now = self.interpreter.span_now();
@@ -155,16 +176,18 @@ impl StackFrame<'_> {
                 let name_span = class.name_span(self.db());
                 Err(error!(span_now, "cannot assign to `{}`", name)
                     .secondary_label(name_span, &format!("`{}` is a class, declared here", name))
-                    .emit(self.db()))
+                    .eyre())
             }
             bir::PlaceData::Intrinsic(intrinsic) => {
                 let span_now = self.interpreter.span_now();
                 let name = intrinsic.as_str(self.db());
-                Err(error!(span_now, "cannot assign to `{}`", name).emit(self.db()))
+                Err(error!(span_now, "cannot assign to `{}`", name).eyre())
             }
             bir::PlaceData::Dot(owner_place, field_name) => {
                 self.with_place(*owner_place, |owner_value, interpreter| {
-                    owner_value.write(interpreter, |data| data.assign_field(*field_name, value))
+                    owner_value.write(interpreter, |data| {
+                        data.assign_field(interpreter, *field_name, value)
+                    })
                 })
             }
         }
@@ -173,8 +196,8 @@ impl StackFrame<'_> {
     fn with_place<R>(
         &mut self,
         place: bir::Place,
-        op: impl FnOnce(&Value, &Interpreter) -> Fallible<R>,
-    ) -> Fallible<R> {
+        op: impl FnOnce(&Value, &Interpreter) -> eyre::Result<R>,
+    ) -> eyre::Result<R> {
         match place.data(self.tables) {
             bir::PlaceData::LocalVariable(local_variable) => op(
                 self.local_variables.get(local_variable).unwrap(),
@@ -195,13 +218,38 @@ impl StackFrame<'_> {
         }
     }
 
-    fn eval_place_to_bool(&mut self, place: bir::Place) -> Fallible<bool> {
+    fn eval_place_to_bool(&mut self, place: bir::Place) -> eyre::Result<bool> {
         self.with_place(place, |value, interpreter| {
             value.read(interpreter, |data| data.to_bool(interpreter))
         })
     }
 
-    async fn evaluate_terminator_expr(&self, expr: &bir::TerminatorExpr) -> Fallible<Value> {
-        todo!()
+    async fn evaluate_terminator_expr(
+        &mut self,
+        expr: &bir::TerminatorExpr,
+    ) -> eyre::Result<Value> {
+        match expr {
+            bir::TerminatorExpr::Await(place) => {
+                let value = self.give_place(*place)?;
+                let data = value.prepare_for_await(self.interpreter)?;
+                let thunk = data.into_thunk(self.interpreter)?;
+                thunk.future.invoke(self.interpreter).await
+            }
+            bir::TerminatorExpr::Call(function_place, argument_places) => {
+                let function_value = self.give_place(*function_place)?;
+                let argument_named_values = argument_places
+                    .iter()
+                    .map(|named_place| {
+                        let NamedPlaceData { name, place } = named_place.data(self.tables);
+                        let value = self.give_place(*place)?;
+                        Ok((*name, value))
+                    })
+                    .collect::<eyre::Result<Vec<_>>>()?;
+                let future = function_value.read(self.interpreter, |data| {
+                    data.call(self.interpreter, argument_named_values)
+                })?;
+                future.await
+            }
+        }
     }
 }

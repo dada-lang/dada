@@ -1,7 +1,5 @@
 use std::sync::Arc;
 
-use dada_ir::diagnostic::Fallible;
-
 mod invalidated;
 mod leased;
 mod my;
@@ -54,46 +52,44 @@ impl Permission {
     }
 
     /// Checks that this permission permits reading of a field.
-    pub(crate) fn check_read(&self, interpreter: &Interpreter<'_>) -> Fallible<()> {
-        self.data.check_read(interpreter)
+    pub(crate) fn perform_read(&self, interpreter: &Interpreter<'_>) -> eyre::Result<()> {
+        self.data.perform_read(interpreter)
     }
 
     /// Checks that this permission permits writing to a field.
-    pub(crate) fn check_write(&self, interpreter: &Interpreter<'_>) -> Fallible<()> {
-        self.data.check_write(interpreter)
+    pub(crate) fn perform_write(&self, interpreter: &Interpreter<'_>) -> eyre::Result<()> {
+        self.data.perform_write(interpreter)
+    }
+
+    /// Checks that this permission permits awaiting the object.
+    pub(crate) fn perform_await(&self, interpreter: &Interpreter<'_>) -> eyre::Result<()> {
+        self.data.perform_await(interpreter)
     }
 
     /// Given `var q = p.give`, what permission does `q` get?
     ///
     /// May also affect the permissions of `p`!
-    pub(crate) fn give(&self, interpreter: &Interpreter<'_>) -> Fallible<Permission> {
+    pub(crate) fn give(&self, interpreter: &Interpreter<'_>) -> eyre::Result<Permission> {
         self.data.give(self, interpreter)
     }
 
     /// Given `var q = p.lease`, what permission does `q` get?
     ///
     /// May also affect the permissions of `p`!
-    pub(crate) fn lease(&self, interpreter: &Interpreter<'_>) -> Fallible<Permission> {
+    pub(crate) fn lease(&self, interpreter: &Interpreter<'_>) -> eyre::Result<Permission> {
         self.data.lease(self, interpreter)
     }
 
     /// Given `var q = p.give.share`, what permission does `q` get?
-    pub(crate) fn into_share(self, interpreter: &Interpreter<'_>) -> Fallible<Permission> {
+    pub(crate) fn into_share(self, interpreter: &Interpreter<'_>) -> eyre::Result<Permission> {
         self.data.into_share(interpreter)
     }
 
     /// Given `var q = p.share`, what permission does `q` get?
     ///
     /// May also affect the permissions of `p`!
-    pub(crate) fn share(&self, interpreter: &Interpreter<'_>) -> Fallible<Permission> {
+    pub(crate) fn share(&self, interpreter: &Interpreter<'_>) -> eyre::Result<Permission> {
         self.data.share(self, interpreter)
-    }
-
-    /// Invoked when the lessor wishes to cancel a lease.
-    ///
-    /// Not possible for owned leases.
-    pub(crate) fn cancel(&self, interpreter: &Interpreter<'_>) -> Fallible<()> {
-        self.data.cancel(interpreter)
     }
 }
 
@@ -117,7 +113,7 @@ impl PermissionData {
     }
 
     /// See [`Permission::give`]
-    fn give(&self, this: &Permission, interpreter: &Interpreter<'_>) -> Fallible<Permission> {
+    fn give(&self, this: &Permission, interpreter: &Interpreter<'_>) -> eyre::Result<Permission> {
         match self {
             PermissionData::My(p) => p.give(interpreter),
 
@@ -131,7 +127,7 @@ impl PermissionData {
     }
 
     /// See [`Permission::lease`]
-    fn lease(&self, this: &Permission, interpreter: &Interpreter<'_>) -> Fallible<Permission> {
+    fn lease(&self, this: &Permission, interpreter: &Interpreter<'_>) -> eyre::Result<Permission> {
         match self {
             PermissionData::My(p) => p.lease(interpreter),
             PermissionData::Leased(p) => p.lease(interpreter),
@@ -143,7 +139,7 @@ impl PermissionData {
     }
 
     /// See [`Permission::share`]
-    fn into_share(self: Arc<Self>, interpreter: &Interpreter<'_>) -> Fallible<Permission> {
+    fn into_share(self: Arc<Self>, interpreter: &Interpreter<'_>) -> eyre::Result<Permission> {
         match &*self {
             PermissionData::My(_) => Ok(Permission::our(interpreter)),
             PermissionData::Leased(p) => p.share(interpreter),
@@ -152,7 +148,7 @@ impl PermissionData {
     }
 
     /// See [`Permission::share`]
-    fn share(&self, this: &Permission, interpreter: &Interpreter<'_>) -> Fallible<Permission> {
+    fn share(&self, this: &Permission, interpreter: &Interpreter<'_>) -> eyre::Result<Permission> {
         match self {
             PermissionData::My(p) => p.share(interpreter),
             PermissionData::Leased(p) => p.share(interpreter),
@@ -162,7 +158,7 @@ impl PermissionData {
     }
 
     /// See [`Permission::cancel`]
-    fn cancel(&self, interpreter: &Interpreter<'_>) -> Fallible<()> {
+    fn cancel(&self, interpreter: &Interpreter<'_>) -> eyre::Result<()> {
         match self {
             PermissionData::Leased(p) => p.cancel(interpreter),
             PermissionData::Shared(p) => p.cancel(interpreter),
@@ -173,7 +169,7 @@ impl PermissionData {
     }
 
     /// See [`Permission::check_read`]
-    fn check_read(&self, interpreter: &Interpreter<'_>) -> Fallible<()> {
+    fn perform_read(&self, interpreter: &Interpreter<'_>) -> eyre::Result<()> {
         match self {
             PermissionData::My(p) => p.check_read(interpreter),
             PermissionData::Leased(p) => p.check_read(interpreter),
@@ -183,12 +179,22 @@ impl PermissionData {
     }
 
     /// See [`Permission::check_write`]
-    fn check_write(&self, interpreter: &Interpreter<'_>) -> Fallible<()> {
+    fn perform_write(&self, interpreter: &Interpreter<'_>) -> eyre::Result<()> {
         match self {
             PermissionData::My(p) => p.check_write(interpreter),
             PermissionData::Leased(p) => p.check_write(interpreter),
             PermissionData::Shared(p) => p.check_write(interpreter),
             PermissionData::Our(p) => p.check_write(interpreter),
+        }
+    }
+
+    /// See [`Permission::check_write`]
+    fn perform_await(&self, interpreter: &Interpreter<'_>) -> eyre::Result<()> {
+        match self {
+            PermissionData::My(p) => p.check_await(interpreter),
+            PermissionData::Leased(p) => p.check_await(interpreter),
+            PermissionData::Shared(p) => p.check_await(interpreter),
+            PermissionData::Our(p) => p.check_await(interpreter),
         }
     }
 }

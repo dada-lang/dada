@@ -1,17 +1,23 @@
+use std::pin::Pin;
+
 use crossbeam::atomic::AtomicCell;
 use dada_collections::IndexVec;
 use dada_ir::{
     code::{bir, syntax},
+    error,
     origin_table::HasOriginIn,
     span::FileSpan,
 };
 use dada_parse::prelude::*;
 use parking_lot::Mutex;
+use tokio::io::AsyncWriteExt;
 
-use crate::moment::Moment;
+use crate::{error::DiagnosticBuilderExt, moment::Moment};
 
-pub struct Interpreter<'me> {
+pub(crate) struct Interpreter<'me> {
     db: &'me dyn crate::Db,
+
+    stdout: tokio::sync::Mutex<Pin<Box<dyn tokio::io::AsyncWrite>>>,
 
     /// clock tick: increases monotonically
     clock: AtomicCell<u64>,
@@ -25,10 +31,22 @@ pub struct Interpreter<'me> {
     moments: Mutex<IndexVec<Moment, MomentData>>,
 }
 
-pub struct StackFrameClock(u64);
+impl<'me> Interpreter<'me> {
+    pub(crate) fn new(
+        db: &'me dyn crate::Db,
+        stdout: Pin<Box<dyn tokio::io::AsyncWrite>>,
+        start_span: FileSpan,
+    ) -> Self {
+        Self {
+            db,
+            stdout: tokio::sync::Mutex::new(Box::pin(stdout)),
+            clock: Default::default(),
+            span: AtomicCell::new(start_span),
+            moments: Default::default(),
+        }
+    }
 
-impl Interpreter<'_> {
-    pub fn db(&self) -> &dyn crate::Db {
+    pub(crate) fn db(&self) -> &dyn crate::Db {
         self.db
     }
 
@@ -77,6 +95,19 @@ impl Interpreter<'_> {
         let syntax_expr = bir.origins(self.db())[expr];
         let syntax_tree = code.syntax_tree(self.db());
         syntax_tree.spans(self.db())[syntax_expr].in_file(filename)
+    }
+
+    pub(crate) async fn print_bytes(&self, mut text: &[u8]) -> eyre::Result<()> {
+        while !text.is_empty() {
+            match self.stdout.lock().await.write(text).await {
+                Ok(written) => text = &text[written..],
+                Err(e) => {
+                    let span_now = self.span_now();
+                    return Err(error!(span_now, "error printing bytes: {}", e).eyre());
+                }
+            }
+        }
+        return Ok(());
     }
 }
 

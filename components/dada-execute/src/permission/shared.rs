@@ -1,6 +1,6 @@
-use dada_ir::{diagnostic::Fallible, error};
+use dada_ir::error;
 
-use crate::{interpreter::Interpreter, moment::Moment};
+use crate::{error::DiagnosticBuilderExt, interpreter::Interpreter, moment::Moment};
 
 use super::{invalidated::Invalidated, Permission, PermissionData};
 
@@ -24,7 +24,7 @@ impl Shared {
         }
     }
 
-    pub(super) fn cancel(&self, interpreter: &Interpreter<'_>) -> Fallible<()> {
+    pub(super) fn cancel(&self, interpreter: &Interpreter<'_>) -> eyre::Result<()> {
         self.canceled.invalidate(interpreter)?;
         Ok(())
     }
@@ -33,20 +33,28 @@ impl Shared {
         &self,
         this: &Permission,
         interpreter: &Interpreter<'_>,
-    ) -> Fallible<Permission> {
+    ) -> eyre::Result<Permission> {
         self.canceled.check_still_valid(interpreter)?;
         Ok(this.duplicate())
     }
 
-    pub(super) fn check_read(&self, interpreter: &Interpreter) -> Fallible<()> {
+    pub(super) fn check_read(&self, interpreter: &Interpreter) -> eyre::Result<()> {
         self.canceled.check_still_valid(interpreter)
     }
 
-    pub(super) fn check_write(&self, interpreter: &Interpreter) -> Fallible<()> {
+    pub(super) fn check_write(&self, interpreter: &Interpreter) -> eyre::Result<()> {
         let span_now = interpreter.span_now();
         let span_then = interpreter.span(self.granted);
         Err(error!(span_now, "shared permission does not permit writes")
             .secondary_label(span_then, "permission granted here")
-            .emit(interpreter.db()))
+            .eyre())
+    }
+
+    pub(crate) fn check_await(&self, interpreter: &Interpreter) -> eyre::Result<()> {
+        let span_now = interpreter.span_now();
+        let span_then = interpreter.span(self.granted);
+        Err(error!(span_now, "shared permission does not permit await")
+            .secondary_label(span_then, "permission granted here")
+            .eyre())
     }
 }

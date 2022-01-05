@@ -8,8 +8,6 @@ use crate::{
 #[derive(Debug)]
 pub struct ErrorReported;
 
-pub type Fallible<T> = Result<T, ErrorReported>;
-
 #[derive(Clone, PartialEq, Eq, Hash, Debug)]
 #[non_exhaustive]
 pub struct Diagnostic {
@@ -194,6 +192,8 @@ impl DiagnosticBuilder {
         self.finish().emit(db)
     }
 }
+
+impl std::error::Error for Diagnostic {}
 
 pub trait IntoFileSpan {
     fn maybe_in_file(self, default_file: Filename) -> FileSpan;
