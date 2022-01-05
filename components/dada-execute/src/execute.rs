@@ -126,7 +126,7 @@ impl StackFrame<'_> {
             }
             bir::ExprData::Share(place) => self.with_place(*place, Value::share),
             bir::ExprData::Lease(place) => self.with_place(*place, Value::lease),
-            bir::ExprData::Give(place) => self.with_place(*place, Value::give),
+            bir::ExprData::Give(place) => self.with_place_mut(*place, Value::give),
             bir::ExprData::Tuple(places) => {
                 let fields = places
                     .iter()
@@ -143,7 +143,7 @@ impl StackFrame<'_> {
     }
 
     fn give_place<'s>(&'s mut self, place: bir::Place) -> eyre::Result<Value> {
-        self.with_place(place, Value::give)
+        self.with_place_mut(place, Value::give)
     }
 
     fn tick_clock(&self, expr: impl HasOriginIn<bir::Origins, Origin = syntax::Expr>) {
@@ -198,42 +198,51 @@ impl StackFrame<'_> {
             }
         }
     }
-
     fn with_place<R>(
         &mut self,
         place: bir::Place,
         op: impl FnOnce(&Value, &Interpreter) -> eyre::Result<R>,
     ) -> eyre::Result<R> {
+        self.with_place_mut(place, |value, interpreter| op(&*value, interpreter))
+    }
+
+    fn with_place_mut<R>(
+        &mut self,
+        place: bir::Place,
+        op: impl FnOnce(&mut Value, &Interpreter) -> eyre::Result<R>,
+    ) -> eyre::Result<R> {
         match place.data(self.tables) {
             bir::PlaceData::LocalVariable(local_variable) => op(
-                self.local_variables.get(local_variable).unwrap(),
+                self.local_variables.get_mut(local_variable).unwrap(),
                 self.interpreter,
             ),
-            bir::PlaceData::Function(function) => {
-                op(&Value::new(self.interpreter, *function), self.interpreter)
-            }
+            bir::PlaceData::Function(function) => op(
+                &mut Value::our(self.interpreter, *function),
+                self.interpreter,
+            ),
             bir::PlaceData::Class(class) => {
-                op(&Value::new(self.interpreter, *class), self.interpreter)
+                op(&mut Value::our(self.interpreter, *class), self.interpreter)
             }
-            bir::PlaceData::Intrinsic(intrinsic) => {
-                op(&Value::new(self.interpreter, *intrinsic), self.interpreter)
-            }
+            bir::PlaceData::Intrinsic(intrinsic) => op(
+                &mut Value::our(self.interpreter, *intrinsic),
+                self.interpreter,
+            ),
             bir::PlaceData::Dot(place, word) => self
-                .with_place_box(*place, |value, interpreter| {
-                    value.field(interpreter, *word, |v| op(v, interpreter))
+                .with_place_mut_box(*place, |value, interpreter| {
+                    value.field_mut(interpreter, *word, |v| op(v, interpreter))
                 }),
         }
     }
 
     /// Hack that invokes `with_place` after boxing and using dyn trait;
     /// without this, we get infinite monomorphic expansion for `PlaceData::Dot`.
-    fn with_place_box<R>(
+    fn with_place_mut_box<R>(
         &mut self,
         place: bir::Place,
-        op: impl FnOnce(&Value, &Interpreter) -> eyre::Result<R>,
+        op: impl FnOnce(&mut Value, &Interpreter) -> eyre::Result<R>,
     ) -> eyre::Result<R> {
-        let op: Box<dyn FnOnce(&Value, &Interpreter) -> eyre::Result<R>> = Box::new(op);
-        self.with_place(place, op)
+        let op: Box<dyn FnOnce(&mut Value, &Interpreter) -> eyre::Result<R>> = Box::new(op);
+        self.with_place_mut(place, op)
     }
 
     fn eval_place_to_bool(&mut self, place: bir::Place) -> eyre::Result<bool> {

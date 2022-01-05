@@ -18,6 +18,12 @@ impl Value {
             data: Arc::new(Mutex::new(value.into())),
         }
     }
+    pub(crate) fn our(interpreter: &Interpreter<'_>, value: impl Into<Data>) -> Value {
+        Value {
+            permission: Permission::our(interpreter),
+            data: Arc::new(Mutex::new(value.into())),
+        }
+    }
 
     pub(crate) fn unit(interpreter: &Interpreter<'_>) -> Value {
         Value::new(interpreter, ())
@@ -47,21 +53,27 @@ impl Value {
         op(&mut self.data.lock())
     }
 
-    pub(crate) fn field<R>(
+    pub(crate) fn field_mut<R>(
         &self,
         interpreter: &Interpreter<'_>,
         word: Word,
-        op: impl FnOnce(&Value) -> eyre::Result<R>,
+        op: impl FnOnce(&mut Value) -> eyre::Result<R>,
     ) -> eyre::Result<R> {
         self.permission.perform_read(interpreter)?;
-        op(self.data.lock().field(interpreter, word)?)
+        op(self.data.lock().field_mut(interpreter, word)?)
     }
 
-    pub(crate) fn give(&self, interpreter: &Interpreter<'_>) -> eyre::Result<Value> {
-        Ok(Value {
-            permission: self.permission.give(interpreter)?,
-            data: self.data.clone(),
-        })
+    pub(crate) fn give(&mut self, interpreter: &Interpreter<'_>) -> eyre::Result<Value> {
+        let permission = self.permission.give(interpreter)?;
+
+        let data = if !self.permission.is_valid() {
+            // If we gave away our permission, have to give away our data too
+            std::mem::replace(&mut self.data, Arc::new(Mutex::new(Data::from(()))))
+        } else {
+            self.data.clone()
+        };
+
+        Ok(Value { permission, data })
     }
 
     pub(crate) fn into_share(self, interpreter: &Interpreter<'_>) -> eyre::Result<Value> {

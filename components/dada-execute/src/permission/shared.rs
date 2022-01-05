@@ -57,4 +57,8 @@ impl Shared {
             .secondary_label(span_then, "permission granted here")
             .eyre())
     }
+
+    pub(crate) fn is_valid(&self) -> bool {
+        self.canceled.is_valid()
+    }
 }

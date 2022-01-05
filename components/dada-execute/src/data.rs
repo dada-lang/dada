@@ -99,9 +99,13 @@ impl Data {
         .eyre()
     }
 
-    pub(crate) fn field(&self, interpreter: &Interpreter<'_>, name: Word) -> eyre::Result<&Value> {
+    pub(crate) fn field_mut(
+        &mut self,
+        interpreter: &Interpreter<'_>,
+        name: Word,
+    ) -> eyre::Result<&mut Value> {
         match self {
-            Data::Instance(i) => match i.fields.get(&name) {
+            Data::Instance(i) => match i.fields.get_mut(&name) {
                 Some(value) => Ok(value),
                 None => Err(Self::no_such_field(interpreter, i.class, name)),
             },

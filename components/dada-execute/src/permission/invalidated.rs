@@ -26,4 +26,8 @@ impl Invalidated {
         }
         Ok(())
     }
+
+    pub(crate) fn is_valid(&self) -> bool {
+        self.invalidated.load().is_none()
+    }
 }

@@ -61,4 +61,8 @@ impl My {
         self.tenant.cancel_tenant(interpreter);
         Ok(())
     }
+
+    pub(crate) fn is_valid(&self) -> bool {
+        self.given.is_valid()
+    }
 }

@@ -35,7 +35,7 @@ impl Permission {
         Self::allocate(shared::Shared::new(interpreter))
     }
 
-    fn our(interpreter: &Interpreter<'_>) -> Self {
+    pub(crate) fn our(interpreter: &Interpreter<'_>) -> Self {
         Self::allocate(our::Our::new(interpreter))
     }
 
@@ -49,6 +49,14 @@ impl Permission {
         Permission {
             data: self.data.clone(),
         }
+    }
+
+    /// True if data with this permission can be used in any way. This test does not indicate that any action
+    /// has been taken by the user and hence does not alter any permissions. Actually using data
+    /// requires invoking a method like [`perform_read`] which may have side-effects on other permissions;
+    /// this function however indicates whether those method will succeed or return an error.
+    pub(crate) fn is_valid(&self) -> bool {
+        self.data.is_valid()
     }
 
     /// Checks that this permission permits reading of a field.
@@ -81,6 +89,8 @@ impl Permission {
     }
 
     /// Given `var q = p.give.share`, what permission does `q` get?
+    ///
+    /// May also affect the permissions of `p`!
     pub(crate) fn into_share(self, interpreter: &Interpreter<'_>) -> eyre::Result<Permission> {
         self.data.into_share(interpreter)
     }
@@ -112,17 +122,24 @@ impl PermissionData {
         }
     }
 
+    /// See [`Permission::is_valid`]
+    fn is_valid(&self) -> bool {
+        match self {
+            PermissionData::My(p) => p.is_valid(),
+            PermissionData::Leased(p) => p.is_valid(),
+            PermissionData::Our(p) => p.is_valid(),
+            PermissionData::Shared(p) => p.is_valid(),
+        }
+    }
+
     /// See [`Permission::give`]
     fn give(&self, this: &Permission, interpreter: &Interpreter<'_>) -> eyre::Result<Permission> {
         match self {
             PermissionData::My(p) => p.give(interpreter),
 
-            // For exclusive, leased permissions, giving is the same as subleasing:
-            PermissionData::Leased(p) => p.lease(interpreter),
-
-            // For non-exclusive permisions, giving is the same as sharing:
-            PermissionData::Shared(p) => p.share(this, interpreter),
-            PermissionData::Our(p) => p.share(this, interpreter),
+            // For things that are not `my` -- i.e., either not exclusive or not owned -- then
+            // giving is the same as subleasing.
+            _ => self.lease(this, interpreter),
         }
     }
 
@@ -133,8 +150,7 @@ impl PermissionData {
             PermissionData::Leased(p) => p.lease(interpreter),
 
             // For non-exclusive permisions, leasing is the same as sharing:
-            PermissionData::Shared(p) => p.share(this, interpreter),
-            PermissionData::Our(p) => p.share(this, interpreter),
+            PermissionData::Shared(_) | PermissionData::Our(_) => self.share(this, interpreter),
         }
     }
 
