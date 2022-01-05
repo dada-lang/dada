@@ -193,8 +193,6 @@ impl DiagnosticBuilder {
     }
 }
 
-impl std::error::Error for Diagnostic {}
-
 pub trait IntoFileSpan {
     fn maybe_in_file(self, default_file: Filename) -> FileSpan;
 }

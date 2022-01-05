@@ -40,17 +40,23 @@ impl Interpreter<'_> {
         &'me self,
         bir: bir::Bir,
     ) -> Pin<Box<dyn Future<Output = eyre::Result<Value>> + 'me>> {
-        let bir::BirData {
-            tables,
-            start_basic_block,
-        } = bir.data(self.db());
+        let bir_data = bir.data(self.db());
+
+        // Give each local variable an expired value with no permissions to start.
+        let local_variables: Map<bir::LocalVariable, Value> = bir_data
+            .max_local_variable()
+            .iter()
+            .map(|lv| (lv, Value::unit(self).give(self).unwrap()))
+            .collect();
+
         let stack_frame = StackFrame {
             interpreter: self,
             bir,
-            tables,
-            local_variables: Map::default(),
+            tables: &bir_data.tables,
+            local_variables,
         };
-        Box::pin(stack_frame.execute(*start_basic_block))
+
+        Box::pin(stack_frame.execute(bir_data.start_basic_block))
     }
 }
 
@@ -212,10 +218,22 @@ impl StackFrame<'_> {
             bir::PlaceData::Intrinsic(intrinsic) => {
                 op(&Value::new(self.interpreter, *intrinsic), self.interpreter)
             }
-            bir::PlaceData::Dot(place, word) => self.with_place(*place, |value, interpreter| {
-                value.field(interpreter, *word, |v| op(v, interpreter))
-            }),
+            bir::PlaceData::Dot(place, word) => self
+                .with_place_box(*place, |value, interpreter| {
+                    value.field(interpreter, *word, |v| op(v, interpreter))
+                }),
         }
+    }
+
+    /// Hack that invokes `with_place` after boxing and using dyn trait;
+    /// without this, we get infinite monomorphic expansion for `PlaceData::Dot`.
+    fn with_place_box<R>(
+        &mut self,
+        place: bir::Place,
+        op: impl FnOnce(&Value, &Interpreter) -> eyre::Result<R>,
+    ) -> eyre::Result<R> {
+        let op: Box<dyn FnOnce(&Value, &Interpreter) -> eyre::Result<R>> = Box::new(op);
+        self.with_place(place, op)
     }
 
     fn eval_place_to_bool(&mut self, place: bir::Place) -> eyre::Result<bool> {
