@@ -91,7 +91,6 @@ tables! {
         terminators: alloc Terminator => TerminatorData,
         exprs: alloc Expr => ExprData,
         places: alloc Place => PlaceData,
-        named_exprs: alloc NamedPlace => NamedPlaceData,
     }
 }
 
@@ -111,7 +110,6 @@ origin_table! {
         terminator: Terminator => syntax::Expr,
         expr: Expr => syntax::Expr,
         place: Place => syntax::Expr,
-        named_expr: NamedPlace => syntax::NamedExpr,
     }
 }
 
@@ -237,17 +235,29 @@ impl DebugWithDb<InIrDb<'_, Tables>> for TerminatorData {
 #[derive(PartialEq, Eq, Clone, Hash, Debug)]
 pub enum TerminatorExpr {
     Await(Place),
-    Call(Place, Vec<NamedPlace>),
+
+    /// Call `function(arguments...)`. The `labels` for each
+    /// argument are present as well.
+    Call {
+        function: Place,
+        arguments: Vec<Place>,
+        labels: Vec<SpannedWord>,
+    },
 }
 
 impl DebugWithDb<InIrDb<'_, Tables>> for TerminatorExpr {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>, db: &InIrDb<'_, Tables>) -> std::fmt::Result {
         match self {
             TerminatorExpr::Await(place) => f.debug_tuple("Await").field(&place.debug(db)).finish(),
-            TerminatorExpr::Call(func, args) => f
+            TerminatorExpr::Call {
+                function,
+                arguments,
+                labels,
+            } => f
                 .debug_tuple("Call")
-                .field(&func.debug(db))
-                .field(&args.debug(db))
+                .field(&function.debug(db))
+                .field(&arguments.debug(db))
+                .field(&labels.debug(db.db()))
                 .finish(),
         }
     }
@@ -354,30 +364,5 @@ impl DebugWithDb<InIrDb<'_, Tables>> for PlaceData {
             PlaceData::Intrinsic(intrinsic) => write!(f, "{:?}", intrinsic),
             PlaceData::Dot(p, id) => write!(f, "{:?}.{}", p.debug(db), id.as_str(db.db())),
         }
-    }
-}
-
-id!(pub struct NamedPlace);
-
-impl DebugWithDb<InIrDb<'_, Tables>> for NamedPlace {
-    fn fmt(&self, f: &mut std::fmt::Formatter<'_>, db: &InIrDb<'_, Tables>) -> std::fmt::Result {
-        DebugWithDb::fmt(&self.data(db), f, db)
-    }
-}
-
-#[derive(PartialEq, Eq, PartialOrd, Ord, Clone, Hash, Debug)]
-pub struct NamedPlaceData {
-    pub name: SpannedWord,
-    pub place: Place,
-}
-
-impl DebugWithDb<InIrDb<'_, Tables>> for NamedPlaceData {
-    fn fmt(&self, f: &mut std::fmt::Formatter<'_>, db: &InIrDb<'_, Tables>) -> std::fmt::Result {
-        write!(
-            f,
-            "{}: {:?}",
-            self.name.as_str(db.db()),
-            self.place.data(db).debug(db),
-        )
     }
 }

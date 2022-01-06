@@ -5,10 +5,7 @@ use dada_collections::Map;
 use dada_id::prelude::*;
 use dada_ir::func::Function;
 use dada_ir::{
-    code::{
-        bir::{self, NamedPlaceData},
-        syntax,
-    },
+    code::{bir, syntax},
     error,
     origin_table::HasOriginIn,
     span::FileSpan,
@@ -262,14 +259,18 @@ impl StackFrame<'_, '_> {
                 let thunk = data.into_thunk(self.interpreter)?;
                 thunk.invoke(self.interpreter).await
             }
-            bir::TerminatorExpr::Call(function_place, argument_places) => {
+            bir::TerminatorExpr::Call {
+                function: function_place,
+                arguments: argument_places,
+                labels: argument_labels,
+            } => {
                 let function_value = self.give_place(*function_place)?;
                 let argument_named_values = argument_places
                     .iter()
-                    .map(|named_place| {
-                        let NamedPlaceData { name, place } = named_place.data(self.tables);
-                        let value = self.give_place(*place)?;
-                        Ok((*name, value))
+                    .zip(argument_labels)
+                    .map(|(argument_place, argument_label)| {
+                        let value = self.give_place(*argument_place)?;
+                        Ok((*argument_label, value))
                     })
                     .collect::<eyre::Result<Vec<_>>>()?;
                 let future = function_value.read(self.interpreter, |data| {

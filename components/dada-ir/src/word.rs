@@ -75,6 +75,12 @@ impl SpannedWord {
     }
 }
 
+impl<Db: ?Sized + crate::Db> salsa::DebugWithDb<Db> for SpannedWord {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>, db: &Db) -> std::fmt::Result {
+        std::fmt::Debug::fmt(&self.as_str(db.as_dyn_ir_db()), f)
+    }
+}
+
 salsa::entity2! {
     /// An optional SpannedOptionalWord is an identifier that may not be persent; it still carries
     /// a span for where the label *would have gone* had it been present (as compared to
@@ -88,5 +94,11 @@ salsa::entity2! {
 impl SpannedOptionalWord {
     pub fn as_str(self, db: &dyn crate::Db) -> Option<&str> {
         Some(self.word(db)?.as_str(db))
+    }
+}
+
+impl<Db: ?Sized + crate::Db> salsa::DebugWithDb<Db> for SpannedOptionalWord {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>, db: &Db) -> std::fmt::Result {
+        std::fmt::Debug::fmt(&self.as_str(db.as_dyn_ir_db()), f)
     }
 }

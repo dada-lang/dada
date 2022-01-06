@@ -289,18 +289,25 @@ impl Cursor {
 
             validated::ExprData::Call(func, args) => {
                 if let Some(func_place) = self.brew_expr_to_place(brewery, *func) {
-                    if let Some(bir_args) = args
-                        .iter()
-                        .map(|arg| self.brew_named_expr(brewery, *arg))
-                        .collect::<Option<Vec<_>>>()
-                    {
-                        assert_eq!(bir_args.len(), args.len());
+                    let mut places = vec![];
+                    let mut names = vec![];
+                    for arg in args {
+                        if let Some((place, name)) = self.brew_named_expr(brewery, *arg) {
+                            places.push(place);
+                            names.push(name);
+                        }
+                    }
+                    if places.len() == args.len() {
                         self.terminate_and_continue(
                             brewery,
                             |next_block| {
                                 bir::TerminatorData::Assign(
                                     target,
-                                    bir::TerminatorExpr::Call(func_place, bir_args),
+                                    bir::TerminatorExpr::Call {
+                                        function: func_place,
+                                        arguments: places,
+                                        labels: names,
+                                    },
                                     next_block,
                                 )
                             },
