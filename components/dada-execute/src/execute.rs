@@ -11,28 +11,29 @@ use dada_ir::{
     span::FileSpan,
 };
 
+use crate::kernel::Kernel;
 use crate::{data::Tuple, error::DiagnosticBuilderExt, interpreter::Interpreter, value::Value};
 
 pub async fn interpret(
     function: Function,
     db: &dyn crate::Db,
-    stdout: Pin<Box<dyn tokio::io::AsyncWrite + '_>>,
+    kernel: Box<dyn Kernel>,
 ) -> eyre::Result<()> {
     let initial_span = function.name_span(db);
-    let interpreter = &Interpreter::new(db, stdout, initial_span);
+    let interpreter = &Interpreter::new(db, kernel, initial_span);
     let bir = function.brew(db);
     let value = interpreter.execute_bir(bir).await?;
     value.read(interpreter, |data| data.to_unit(interpreter))
 }
 
-struct StackFrame<'me, 'out> {
-    interpreter: &'me Interpreter<'me, 'out>,
+struct StackFrame<'me> {
+    interpreter: &'me Interpreter<'me>,
     bir: bir::Bir,
     tables: &'me bir::Tables,
     local_variables: Map<bir::LocalVariable, Value>,
 }
 
-impl Interpreter<'_, '_> {
+impl Interpreter<'_> {
     pub(crate) fn execute_bir<'me>(
         &'me self,
         bir: bir::Bir,
@@ -57,7 +58,7 @@ impl Interpreter<'_, '_> {
     }
 }
 
-impl StackFrame<'_, '_> {
+impl StackFrame<'_> {
     fn db(&self) -> &dyn crate::Db {
         self.interpreter.db()
     }

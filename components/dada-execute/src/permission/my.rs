@@ -18,25 +18,25 @@ impl From<My> for PermissionData {
 }
 
 impl My {
-    pub(super) fn new(_interpreter: &Interpreter<'_, '_>) -> Self {
+    pub(super) fn new(_interpreter: &Interpreter<'_>) -> Self {
         Self {
             given: Invalidated::default(),
             tenant: Tenant::default(),
         }
     }
 
-    pub(super) fn give(&self, interpreter: &Interpreter<'_, '_>) -> eyre::Result<Permission> {
+    pub(super) fn give(&self, interpreter: &Interpreter<'_>) -> eyre::Result<Permission> {
         self.check_owned(interpreter)?;
         let permission = Permission::my(interpreter);
         Ok(permission)
     }
 
-    pub(super) fn lease(&self, interpreter: &Interpreter<'_, '_>) -> eyre::Result<Permission> {
+    pub(super) fn lease(&self, interpreter: &Interpreter<'_>) -> eyre::Result<Permission> {
         self.given.check_still_valid(interpreter)?;
         Ok(self.tenant.lease(interpreter))
     }
 
-    pub(super) fn share(&self, interpreter: &Interpreter<'_, '_>) -> eyre::Result<Permission> {
+    pub(super) fn share(&self, interpreter: &Interpreter<'_>) -> eyre::Result<Permission> {
         self.given.check_still_valid(interpreter)?;
         Ok(self.tenant.share(interpreter))
     }

@@ -20,6 +20,7 @@ mod error;
 mod execute;
 mod interpreter;
 mod intrinsic;
+pub mod kernel;
 mod moment;
 mod permission;
 mod thunk;

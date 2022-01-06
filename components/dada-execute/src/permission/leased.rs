@@ -22,7 +22,7 @@ impl From<Leased> for PermissionData {
 }
 
 impl Leased {
-    pub(super) fn new(interpreter: &Interpreter<'_, '_>) -> Self {
+    pub(super) fn new(interpreter: &Interpreter<'_>) -> Self {
         Self {
             granted: interpreter.moment_now(),
             canceled: Invalidated::default(),
@@ -30,17 +30,17 @@ impl Leased {
         }
     }
 
-    pub(super) fn cancel(&self, interpreter: &Interpreter<'_, '_>) -> eyre::Result<()> {
+    pub(super) fn cancel(&self, interpreter: &Interpreter<'_>) -> eyre::Result<()> {
         self.canceled.check_still_valid(interpreter)?;
         Ok(self.tenant.cancel_tenant(interpreter))
     }
 
-    pub(super) fn lease(&self, interpreter: &Interpreter<'_, '_>) -> eyre::Result<Permission> {
+    pub(super) fn lease(&self, interpreter: &Interpreter<'_>) -> eyre::Result<Permission> {
         self.canceled.check_still_valid(interpreter)?;
         Ok(self.tenant.lease(interpreter))
     }
 
-    pub(super) fn share(&self, interpreter: &Interpreter<'_, '_>) -> eyre::Result<Permission> {
+    pub(super) fn share(&self, interpreter: &Interpreter<'_>) -> eyre::Result<Permission> {
         self.canceled.check_still_valid(interpreter)?;
         Ok(self.tenant.share(interpreter))
     }

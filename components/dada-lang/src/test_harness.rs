@@ -1,7 +1,8 @@
 use std::env;
-use std::io::prelude::*;
 use std::path::{Path, PathBuf};
+use std::sync::{Arc, Mutex};
 
+use dada_execute::kernel::Kernel;
 use dada_ir::{filename::Filename, item::Item};
 use eyre::Context;
 use lsp_types::Diagnostic;
@@ -297,22 +298,43 @@ impl Options {
     ) -> eyre::Result<()> {
         let actual_output = match db.function_named(filename, "main") {
             Some(function) => {
-                let mut output_buf = vec![];
-                let cursor = &mut std::io::Cursor::new(&mut output_buf);
-                let result = dada_execute::interpret(function, db, Box::pin(&mut *cursor)).await;
+                let kernel = CaptureKernel::new();
+                let buffer = kernel.buffer.clone();
+                let result = dada_execute::interpret(function, db, kernel).await;
+                let mut output = buffer.lock().unwrap().clone();
                 match result {
-                    Ok(()) => {}
+                    Ok(()) => (),
                     Err(e) => {
-                        write!(cursor, "{}", e)?;
+                        output.push_str(&e.to_string());
                     }
                 }
-                String::from_utf8(output_buf).unwrap()
+                output
             }
             None => {
                 format!("no `main` function in `{}`", filename.as_str(db))
             }
         };
         self.check_output_against_ref_file(actual_output, ref_path, errors)?;
+        Ok(())
+    }
+}
+
+struct CaptureKernel {
+    buffer: Arc<Mutex<String>>,
+}
+
+impl<'me> CaptureKernel {
+    fn new() -> Box<Self> {
+        Box::new(Self {
+            buffer: Default::default(),
+        })
+    }
+}
+
+#[async_trait::async_trait]
+impl Kernel for CaptureKernel {
+    async fn print(&self, message: &str) -> eyre::Result<()> {
+        self.buffer.lock().unwrap().push_str(message);
         Ok(())
     }
 }

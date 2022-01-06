@@ -1,23 +1,19 @@
-use std::pin::Pin;
-
 use crossbeam::atomic::AtomicCell;
 use dada_collections::IndexVec;
 use dada_ir::{
     code::{bir, syntax},
-    error,
     origin_table::HasOriginIn,
     span::FileSpan,
 };
 use dada_parse::prelude::*;
 use parking_lot::Mutex;
-use tokio::io::AsyncWriteExt;
 
-use crate::{error::DiagnosticBuilderExt, moment::Moment};
+use crate::{kernel::Kernel, moment::Moment};
 
-pub(crate) struct Interpreter<'me, 'out> {
+pub(crate) struct Interpreter<'me> {
     db: &'me dyn crate::Db,
 
-    stdout: tokio::sync::Mutex<Pin<Box<dyn tokio::io::AsyncWrite + 'out>>>,
+    kernel: Box<dyn Kernel + 'me>,
 
     /// clock tick: increases monotonically
     clock: AtomicCell<u64>,
@@ -31,15 +27,15 @@ pub(crate) struct Interpreter<'me, 'out> {
     moments: Mutex<IndexVec<Moment, MomentData>>,
 }
 
-impl<'me, 'out> Interpreter<'me, 'out> {
+impl<'me> Interpreter<'me> {
     pub(crate) fn new(
         db: &'me dyn crate::Db,
-        stdout: Pin<Box<dyn tokio::io::AsyncWrite + 'out>>,
+        kernel: Box<dyn Kernel>,
         start_span: FileSpan,
     ) -> Self {
         Self {
             db,
-            stdout: tokio::sync::Mutex::new(Box::pin(stdout)),
+            kernel,
             clock: Default::default(),
             span: AtomicCell::new(start_span),
             moments: Default::default(),
@@ -97,17 +93,8 @@ impl<'me, 'out> Interpreter<'me, 'out> {
         syntax_tree.spans(self.db())[syntax_expr].in_file(filename)
     }
 
-    pub(crate) async fn print_bytes(&self, mut text: &[u8]) -> eyre::Result<()> {
-        while !text.is_empty() {
-            match self.stdout.lock().await.write(text).await {
-                Ok(written) => text = &text[written..],
-                Err(e) => {
-                    let span_now = self.span_now();
-                    return Err(error!(span_now, "error printing bytes: {}", e).eyre(self.db()));
-                }
-            }
-        }
-        return Ok(());
+    pub(crate) fn kernel(&self) -> &dyn Kernel {
+        &*self.kernel
     }
 }
 

@@ -10,13 +10,13 @@ pub(super) struct Invalidated {
 }
 
 impl Invalidated {
-    pub(super) fn invalidate(&self, interpreter: &Interpreter<'_, '_>) -> eyre::Result<()> {
+    pub(super) fn invalidate(&self, interpreter: &Interpreter<'_>) -> eyre::Result<()> {
         self.check_still_valid(interpreter)?;
         self.invalidated.store(Some(interpreter.moment_now()));
         Ok(())
     }
 
-    pub(super) fn check_still_valid(&self, interpreter: &Interpreter<'_, '_>) -> eyre::Result<()> {
+    pub(super) fn check_still_valid(&self, interpreter: &Interpreter<'_>) -> eyre::Result<()> {
         if let Some(previous_moment) = self.invalidated.load() {
             let span_now = interpreter.span_now();
             let span_then = interpreter.span(previous_moment);

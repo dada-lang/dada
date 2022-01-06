@@ -1,6 +1,7 @@
 use std::path::PathBuf;
 
 use eyre::Context;
+use tokio::io::AsyncWriteExt;
 
 #[derive(structopt::StructOpt)]
 pub struct Options {
@@ -23,8 +24,7 @@ impl Options {
         // Find the "main" function
         match db.function_named(filename, "main") {
             Some(function) => {
-                let stdout = Box::pin(tokio::io::stdout());
-                dada_execute::interpret(function, &db, stdout).await?;
+                dada_execute::interpret(function, &db, Kernel::new()).await?;
             }
             None => {
                 return Err(eyre::eyre!(
@@ -35,5 +35,26 @@ impl Options {
         }
 
         Ok(())
+    }
+}
+
+struct Kernel {}
+
+impl Kernel {
+    pub fn new() -> Box<Self> {
+        Box::new(Self {})
+    }
+}
+
+#[async_trait::async_trait]
+impl dada_execute::kernel::Kernel for Kernel {
+    async fn print(&self, text: &str) -> eyre::Result<()> {
+        let mut stdout = tokio::io::stdout();
+        let mut text = text.as_bytes();
+        while !text.is_empty() {
+            let written = stdout.write(text).await?;
+            text = &text[written..];
+        }
+        return Ok(());
     }
 }

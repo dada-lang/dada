@@ -7,6 +7,7 @@ edition = "2021"
 
 [dependencies]
 arc-swap = "1.5.0"
+async-trait = "0.1.52"
 crossbeam = "0.8.1"
 dada-brew = { path = "../dada-brew" }
 dada-collections = { path = "../dada-collections" }
@@ -17,6 +18,5 @@ dada-parse = { path = "../dada-parse" }
 eyre = "0.6.5"
 extension-trait = "1.0.0"
 salsa = { path = "../salsa" }
-tokio = { version = "1", features = ["full"] }
 triomphe = "0.1.5"
 parking_lot = "0.11.2"

@@ -6,6 +6,7 @@ edition = "2021"
 # See more keys and their definitions at https://doc.rust-lang.org/cargo/reference/manifest.html
 
 [dependencies]
+async-trait = "0.1.52"
 dada-db = { path = "../dada-db" }
 dada-collections = { path = "../dada-collections" }
 dada-ir = { path = "../dada-ir" }
