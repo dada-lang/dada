@@ -1,4 +1,5 @@
 use std::env;
+use std::io::prelude::*;
 use std::path::{Path, PathBuf};
 
 use dada_ir::{filename::Filename, item::Item};
@@ -297,9 +298,15 @@ impl Options {
         let actual_output = match db.function_named(filename, "main") {
             Some(function) => {
                 let mut output_buf = vec![];
-                let cursor = std::io::Cursor::new(&mut output_buf);
-                dada_execute::interpret(function, db, Box::pin(cursor)).await?;
-                String::from_utf8(output_buf)?
+                let cursor = &mut std::io::Cursor::new(&mut output_buf);
+                let result = dada_execute::interpret(function, db, Box::pin(&mut *cursor)).await;
+                match result {
+                    Ok(()) => {}
+                    Err(e) => {
+                        write!(cursor, "{}", e)?;
+                    }
+                }
+                String::from_utf8(output_buf).unwrap()
             }
             None => {
                 format!("no `main` function in `{}`", filename.as_str(db))
