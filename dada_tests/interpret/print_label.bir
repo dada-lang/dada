@@ -16,7 +16,9 @@
                         temp{2},
                     ],
                     [
-                        None,
+                        Some(
+                            "message",
+                        ),
                     ],
                 ),
                 BasicBlock(1),

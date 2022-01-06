@@ -7,7 +7,9 @@
                         Print,
                         [
                             (
-                                None,
+                                Some(
+                                    "message",
+                                ),
                                 "Hello, world",
                             ),
                         ],
