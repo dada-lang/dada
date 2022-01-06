@@ -10,7 +10,7 @@ use crate::{
     op::Op,
     prelude::InIrDbExt,
     storage_mode::StorageMode,
-    word::{SpannedWord, Word},
+    word::{SpannedOptionalWord, Word},
 };
 use dada_id::{id, prelude::*, tables};
 use salsa::DebugWithDb;
@@ -306,13 +306,14 @@ impl DebugWithDb<InIrDb<'_, Tables>> for NamedExpr {
 
 #[derive(PartialEq, Eq, Clone, Hash, Debug)]
 pub struct NamedExprData {
-    pub name: SpannedWord,
+    pub name: SpannedOptionalWord,
     pub expr: Expr,
 }
 
 impl DebugWithDb<InIrDb<'_, Tables>> for NamedExprData {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>, db: &InIrDb<'_, Tables>) -> std::fmt::Result {
-        f.debug_tuple(self.name.as_str(db.db()))
+        f.debug_tuple("")
+            .field(&self.name.debug(db.db()))
             .field(&self.expr.debug(db))
             .finish()
     }

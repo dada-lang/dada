@@ -16,7 +16,7 @@ use dada_ir::{
     span::Span,
     token::Token,
     token_tree::TokenTree,
-    word::SpannedWord,
+    word::SpannedOptionalWord,
 };
 use salsa::AsId;
 
@@ -99,9 +99,7 @@ impl CodeParser<'_, '_> {
 
     ///
     pub(crate) fn parse_named_expr(&mut self) -> Option<NamedExpr> {
-        let (label_span, label) = self
-            .parse_label()
-            .or_report_error(self, || "expected name for argument")?;
+        let (label_span, label) = self.parse_label();
 
         let expr = self
             .parse_expr()
@@ -115,14 +113,21 @@ impl CodeParser<'_, '_> {
     }
 
     /// Parse an (optional) `foo:` label.
-    pub(crate) fn parse_label(&mut self) -> Option<(Span, SpannedWord)> {
+    pub(crate) fn parse_label(&mut self) -> (Span, SpannedOptionalWord) {
         self.lookahead(|this| {
             let (name_span, name) = this.eat(Identifier)?;
             let _colon_span = this.eat_op(Op::Colon)?;
             Some((
                 name_span,
-                SpannedWord::new(this.db, name, name_span.in_file(this.filename)),
+                SpannedOptionalWord::new(this.db, Some(name), name_span.in_file(this.filename)),
             ))
+        })
+        .unwrap_or_else(|| {
+            let span = self.tokens.peek_span().span_at_start();
+            (
+                span,
+                SpannedOptionalWord::new(self.db, None, span.in_file(self.filename)),
+            )
         })
     }
 

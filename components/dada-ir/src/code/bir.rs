@@ -9,7 +9,7 @@ use crate::{
     op::Op,
     prelude::InIrDbExt,
     storage_mode::StorageMode,
-    word::{SpannedWord, Word},
+    word::{SpannedOptionalWord, Word},
 };
 use dada_id::{id, prelude::*, tables};
 use salsa::DebugWithDb;
@@ -241,7 +241,7 @@ pub enum TerminatorExpr {
     Call {
         function: Place,
         arguments: Vec<Place>,
-        labels: Vec<SpannedWord>,
+        labels: Vec<SpannedOptionalWord>,
     },
 }
 

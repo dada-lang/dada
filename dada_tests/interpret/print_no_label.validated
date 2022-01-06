@@ -5,7 +5,12 @@
                 Await(
                     Call(
                         Print,
-                        [],
+                        [
+                            (
+                                None,
+                                "Hello, world",
+                            ),
+                        ],
                     ),
                 ),
             ],

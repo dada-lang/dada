@@ -6,7 +6,10 @@
                     Call(
                         Print,
                         [
-                            message(
+                            (
+                                Some(
+                                    "message",
+                                ),
                                 "Hello, world",
                             ),
                         ],

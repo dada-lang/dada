@@ -16,7 +16,9 @@
                         temp{2},
                     ],
                     [
-                        "greeting",
+                        Some(
+                            "greeting",
+                        ),
                     ],
                 ),
                 BasicBlock(1),

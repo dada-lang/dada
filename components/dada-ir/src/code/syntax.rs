@@ -2,7 +2,7 @@ use crate::{
     op::Op,
     span::Span,
     storage_mode::StorageMode,
-    word::{SpannedWord, Word},
+    word::{SpannedOptionalWord, Word},
 };
 use dada_id::{id, tables};
 use salsa::DebugWithDb;
@@ -159,6 +159,6 @@ id!(pub struct NamedExpr);
 
 #[derive(PartialEq, Eq, PartialOrd, Ord, Clone, Hash, Debug)]
 pub struct NamedExprData {
-    pub name: SpannedWord,
+    pub name: SpannedOptionalWord,
     pub expr: Expr,
 }

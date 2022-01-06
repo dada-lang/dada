@@ -5,7 +5,7 @@ use crate::intrinsic::IntrinsicDefinition;
 use crate::{interpreter::Interpreter, thunk::Thunk, value::Value};
 use dada_brew::prelude::*;
 use dada_collections::Map;
-use dada_ir::word::SpannedWord;
+use dada_ir::word::SpannedOptionalWord;
 use dada_ir::{class::Class, error, func::Function, intrinsic::Intrinsic, word::Word};
 
 pub(crate) type DadaFuture<'i> = Pin<Box<dyn Future<Output = eyre::Result<Value>> + 'i>>;
@@ -161,7 +161,7 @@ impl Data {
         &self,
         interpreter: &'i Interpreter<'_, '_>,
         arguments: Vec<Value>,
-        labels: &[SpannedWord],
+        labels: &[SpannedOptionalWord],
     ) -> eyre::Result<DadaFuture<'i>> {
         assert_eq!(arguments.len(), labels.len());
         match self {
@@ -193,20 +193,22 @@ impl Data {
 
 fn match_labels(
     interpreter: &Interpreter<'_, '_>,
-    actual_labels: &[SpannedWord],
+    actual_labels: &[SpannedOptionalWord],
     expected_names: &[Word],
 ) -> eyre::Result<()> {
     let db = interpreter.db();
 
     for (actual_label, expected_name) in actual_labels.iter().zip(expected_names) {
-        if actual_label.word(db) != *expected_name {
-            return Err(error!(
-                actual_label.span(db),
-                "expected to find an argument named `{}`, but found the name `{}`",
-                expected_name.as_str(db),
-                actual_label.word(db).as_str(db),
-            )
-            .eyre(db));
+        if let Some(actual_word) = actual_label.word(db) {
+            if actual_word != *expected_name {
+                return Err(error!(
+                    actual_label.span(db),
+                    "expected to find an argument named `{}`, but found the name `{}`",
+                    expected_name.as_str(db),
+                    actual_word.as_str(db),
+                )
+                .eyre(db));
+            }
         }
     }
 
