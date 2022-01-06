@@ -3,14 +3,7 @@ use dada_execute::kernel::BufferKernel;
 use dada_ir::filename::Filename;
 use wasm_bindgen::prelude::*;
 
-// Import the `window.alert` function from the Web.
-#[wasm_bindgen]
-extern "C" {
-    fn alert(s: &str);
-}
-
-// Export a `greet` function from Rust to JavaScript, that alerts a
-// hello message.
+/// Execute the dada code and generate output (plus compiler diagnostics).
 #[wasm_bindgen]
 pub async fn execute(code: String) -> String {
     let mut db = dada_db::Db::default();
@@ -18,7 +11,6 @@ pub async fn execute(code: String) -> String {
     db.update_file(filename, code);
 
     let diagnostics = db.diagnostics(filename);
-    let diagnostics = format_diagnostics(&db, &diagnostics).unwrap();
 
     let output = match db.function_named(filename, "main") {
         Some(function) => {
@@ -31,5 +23,10 @@ pub async fn execute(code: String) -> String {
         }
     };
 
-    format!("{}{}", diagnostics, output)
+    if !diagnostics.is_empty() {
+        let diagnostics = format_diagnostics(&db, &diagnostics).unwrap();
+        format!("{}\n{}", diagnostics, output)
+    } else {
+        output
+    }
 }
