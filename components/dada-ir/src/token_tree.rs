@@ -22,6 +22,7 @@ impl<Db: ?Sized + crate::Db> salsa::DebugWithDb<Db> for TokenTree {
 }
 
 impl TokenTree {
+    #[allow(clippy::len_without_is_empty)]
     pub fn len(self, db: &dyn crate::Db) -> u32 {
         self.span(db).len()
     }

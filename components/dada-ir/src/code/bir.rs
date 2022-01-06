@@ -76,7 +76,7 @@ impl BirData {
         BasicBlock::max_key(&self.tables)
     }
     pub fn all_basic_blocks(&self) -> impl Iterator<Item = BasicBlock> {
-        (0..usize::from(self.max_basic_block())).map(|i| BasicBlock::from(i))
+        (0..usize::from(self.max_basic_block())).map(BasicBlock::from)
     }
 }
 
@@ -324,7 +324,7 @@ impl DebugWithDb<InIrDb<'_, Tables>> for ExprData {
 
 fn write_parenthesized_places(
     f: &mut std::fmt::Formatter<'_>,
-    vars: &Vec<Place>,
+    vars: &[Place],
     db: &InIrDb<'_, Tables>,
 ) -> std::fmt::Result {
     write!(f, "(")?;

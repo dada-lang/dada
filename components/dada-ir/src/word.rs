@@ -20,6 +20,7 @@ impl Word {
         &self.data(db).string
     }
 
+    #[allow(clippy::len_without_is_empty)]
     pub fn len(self, db: &dyn crate::Db) -> u32 {
         self.as_str(db).len() as u32
     }

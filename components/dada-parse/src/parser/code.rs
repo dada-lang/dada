@@ -52,13 +52,13 @@ impl<'db> std::ops::Deref for CodeParser<'_, 'db> {
     type Target = Parser<'db>;
 
     fn deref(&self) -> &Self::Target {
-        &self.parser
+        self.parser
     }
 }
 
 impl<'db> std::ops::DerefMut for CodeParser<'_, 'db> {
     fn deref_mut(&mut self) -> &mut Self::Target {
-        &mut self.parser
+        self.parser
     }
 }
 
@@ -186,7 +186,7 @@ impl CodeParser<'_, '_> {
         let mut expr = self.parse_expr_0()?;
 
         loop {
-            if let Some(_) = self.eat_op(Op::Dot) {
+            if self.eat_op(Op::Dot).is_some() {
                 if let Some((id_span, id)) = self.eat(Identifier) {
                     let span = self.spans[expr].to(id_span);
                     expr = self.add(ExprData::Dot(expr, id), span);
@@ -305,7 +305,7 @@ impl CodeParser<'_, '_> {
         mut parse_rhs: impl FnMut(&mut Self) -> Option<Expr>,
     ) -> Option<Expr> {
         for &op in ops {
-            if let Some(_) = self.eat_op(op) {
+            if self.eat_op(op).is_some() {
                 let rhs = parse_rhs(self)
                     .or_report_error(self, || format!("expected expression after {op}"))
                     .or_dummy_expr(self);
@@ -324,8 +324,8 @@ impl CodeParser<'_, '_> {
         let mut parser = Parser::new(self.db, token_tree);
         let mut sub_parser = CodeParser {
             parser: &mut parser,
-            tables: &mut self.tables,
-            spans: &mut self.spans,
+            tables: self.tables,
+            spans: self.spans,
         };
         stacker::maybe_grow(32 * 1024, 1024 * 1024, || op(&mut sub_parser))
     }

@@ -90,7 +90,7 @@ impl Cursor {
         value: bir::ExprData,
         origin: syntax::Expr,
     ) {
-        if let Some(_) = self.end_block {
+        if self.end_block.is_some() {
             let value = brewery.add(value, origin);
             let statement = brewery.add(bir::StatementData::Assign(target, value), origin);
             self.push_statement(brewery, statement);

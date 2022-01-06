@@ -29,10 +29,8 @@ impl<'db> Parser<'db> {
     fn parse_item(&mut self) -> Option<Item> {
         if let Some(class) = self.parse_class() {
             Some(Item::Class(class))
-        } else if let Some(function) = self.parse_function() {
-            Some(Item::Function(function))
         } else {
-            None
+            self.parse_function().map(Item::Function)
         }
     }
 
@@ -60,16 +58,16 @@ impl<'db> Parser<'db> {
             Effect::None
         };
         self.eat(Keyword::Fn)
-            .or_report_error(self, || format!("expected `fn`"))?;
+            .or_report_error(self, || "expected `fn`".to_string())?;
         let (func_name_span, func_name) = self
             .eat(Identifier)
-            .or_report_error(self, || format!("expected function name"))?;
+            .or_report_error(self, || "expected function name".to_string())?;
         let (_, parameter_tokens) = self
             .delimited('(')
-            .or_report_error(self, || format!("expected function parameters"))?;
+            .or_report_error(self, || "expected function parameters".to_string())?;
         let (_, body_tokens) = self
             .delimited('{')
-            .or_report_error(self, || format!("expected function body"))?;
+            .or_report_error(self, || "expected function body".to_string())?;
         let code = Code::new(body_tokens);
         Some(Function::new(
             self.db,

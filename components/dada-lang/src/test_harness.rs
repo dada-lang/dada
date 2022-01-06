@@ -179,7 +179,7 @@ impl Options {
         errors: &mut Errors,
     ) -> eyre::Result<()> {
         let sanitized_output = sanitize_output(actual_output)?;
-        self.maybe_bless_file(&ref_path, &sanitized_output)?;
+        self.maybe_bless_file(ref_path, &sanitized_output)?;
         let ref_contents = std::fs::read_to_string(&ref_path)
             .with_context(|| format!("reading `{}`", ref_path.display()))?;
         if ref_contents != sanitized_output {
@@ -292,7 +292,7 @@ impl Options {
         &self,
         db: &dada_db::Db,
         filename: Filename,
-        ref_path: &PathBuf,
+        ref_path: &Path,
         errors: &mut Errors,
     ) -> eyre::Result<()> {
         let actual_output = match db.function_named(filename, "main") {
@@ -570,7 +570,7 @@ impl ActualDiagnostic for Diagnostic {
         if let Some(s) = self.severity {
             format!("{s:?}").to_uppercase()
         } else {
-            format!("(none)")
+            "(none)".to_string()
         }
     }
 

@@ -52,7 +52,7 @@ impl<'me> Parser<'me> {
     fn lookahead<R>(&mut self, op: impl FnOnce(&mut Self) -> Option<R>) -> Option<R> {
         let tokens = self.tokens;
         if let Some(r) = op(self) {
-            return Some(r);
+            Some(r)
         } else {
             self.tokens = tokens;
             None
@@ -102,7 +102,7 @@ impl<'me> Parser<'me> {
         }
 
         // ...if not, we've got a match!
-        return Some((span, tokens));
+        Some((span, tokens))
     }
 
     /// If the next tokens match the given operator, consume it and
@@ -210,10 +210,8 @@ trait ParseList {
             // List items can always be separated by a newline...
             if !self.skipped_newline() {
                 // ...otherwise, they *may* require a separator
-                if comma_separated {
-                    if !self.eat_comma() {
-                        break;
-                    }
+                if comma_separated && !self.eat_comma() {
+                    break;
                 }
             }
         }

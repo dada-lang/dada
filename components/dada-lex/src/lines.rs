@@ -36,6 +36,7 @@ pub fn line_column(db: &dyn crate::Db, filename: Filename, position: Offset) -> 
 }
 
 #[salsa::memoized(in crate::Jar ref)]
+#[allow(clippy::needless_lifetimes)]
 fn line_table(db: &dyn crate::Db, filename: Filename) -> LineTable {
     let source_text = dada_manifest::source_text(db, filename);
     let mut p: usize = 0;

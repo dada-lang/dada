@@ -79,7 +79,7 @@ impl Value {
     pub(crate) fn into_share(self, interpreter: &Interpreter<'_>) -> eyre::Result<Value> {
         Ok(Value {
             permission: self.permission.into_share(interpreter)?,
-            data: self.data.clone(),
+            data: self.data,
         })
     }
 

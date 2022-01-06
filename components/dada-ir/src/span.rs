@@ -76,6 +76,7 @@ impl Span {
     }
 
     /// Returns a 0-length span at the start of this span
+    #[must_use]
     pub fn span_at_start(self) -> Span {
         Span {
             start: self.start,
@@ -94,6 +95,11 @@ impl Span {
         self.end - self.start
     }
 
+    pub fn is_empty(self) -> bool {
+        self.len() == 0
+    }
+
+    #[must_use]
     pub fn to(self, other: Span) -> Span {
         assert!(self == other || self.end <= other.start);
         Span {
@@ -141,14 +147,14 @@ impl From<u32> for Offset {
     }
 }
 
-impl Into<u32> for Offset {
-    fn into(self) -> u32 {
-        self.0
+impl From<Offset> for u32 {
+    fn from(offset: Offset) -> Self {
+        offset.0
     }
 }
 
-impl Into<usize> for Offset {
-    fn into(self) -> usize {
-        self.0 as usize
+impl From<Offset> for usize {
+    fn from(offset: Offset) -> Self {
+        offset.0 as usize
     }
 }

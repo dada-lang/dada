@@ -40,7 +40,7 @@ pub struct Diagnostics(Diagnostic);
 #[macro_export]
 macro_rules! diag {
     ($severity:expr, $span:expr, $($message:tt)*) => {
-        $crate::diagnostic::Diagnostic::new($severity, $span, format!($($message)*))
+        $crate::diagnostic::Diagnostic::builder($severity, $span, format!($($message)*))
     }
 }
 
@@ -48,7 +48,7 @@ macro_rules! diag {
 #[macro_export]
 macro_rules! error {
     ($span:expr, $($message:tt)*) => {
-        $crate::diagnostic::Diagnostic::new($crate::diagnostic::Severity::Error, $span, format!($($message)*))
+        $crate::diagnostic::Diagnostic::builder($crate::diagnostic::Severity::Error, $span, format!($($message)*))
     }
 }
 
@@ -56,7 +56,7 @@ macro_rules! error {
 #[macro_export]
 macro_rules! warning {
     ($span:expr, $($message:tt)*) => {
-        $crate::diagnostic::Diagnostic::new($crate::diagnostic::Severity::Warning, $span, format!($($message)*))
+        $crate::diagnostic::Diagnostic::builder($crate::diagnostic::Severity::Warning, $span, format!($($message)*))
     }
 }
 
@@ -64,7 +64,7 @@ macro_rules! warning {
 #[macro_export]
 macro_rules! note {
     ($span:expr, $($message:tt)*) => {
-        $crate::diagnostic::Diagnostic::new($crate::diagnostic::Severity::Note, $span, format!($($message)*))
+        $crate::diagnostic::Diagnostic::builder($crate::diagnostic::Severity::Note, $span, format!($($message)*))
     }
 }
 
@@ -72,14 +72,14 @@ macro_rules! note {
 #[macro_export]
 macro_rules! help {
     ($span:expr, $($message:tt)*) => {
-        $crate::diagnostic::Diagnostic::new($crate::diagnostic::Severity::Help, $span, format!($($message)*))
+        $crate::diagnostic::Diagnostic::builder($crate::diagnostic::Severity::Help, $span, format!($($message)*))
     }
 }
 
 impl Diagnostic {
-    /// Create a new diagnostic with the given "main message" at the
+    /// Create a new diagnostic builder with the given "main message" at the
     /// given span.
-    pub fn new(severity: Severity, span: FileSpan, message: String) -> DiagnosticBuilder {
+    pub fn builder(severity: Severity, span: FileSpan, message: String) -> DiagnosticBuilder {
         DiagnosticBuilder::new(severity, span, message)
     }
 

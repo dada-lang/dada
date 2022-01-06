@@ -63,6 +63,7 @@ define_keywords! {
 }
 
 #[salsa::memoized(in crate::Jar ref)]
+#[allow(clippy::needless_lifetimes)]
 pub fn keywords(db: &dyn crate::Db) -> Map<Word, Keyword> {
     Keyword::all().map(|kw| (kw.word(db), kw)).collect()
 }
