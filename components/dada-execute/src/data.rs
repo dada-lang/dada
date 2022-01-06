@@ -5,6 +5,7 @@ use crate::intrinsic::IntrinsicDefinition;
 use crate::{interpreter::Interpreter, thunk::Thunk, value::Value};
 use dada_brew::prelude::*;
 use dada_collections::Map;
+use dada_ir::word::SpannedWord;
 use dada_ir::{class::Class, error, func::Function, intrinsic::Intrinsic, word::Word};
 
 pub(crate) type DadaFuture<'i> = Pin<Box<dyn Future<Output = eyre::Result<Value>> + 'i>>;
@@ -159,7 +160,7 @@ impl Data {
     pub(crate) fn call<'i>(
         &self,
         interpreter: &'i Interpreter<'_, '_>,
-        named_values: Vec<(Word, Value)>,
+        named_values: Vec<(SpannedWord, Value)>,
     ) -> eyre::Result<DadaFuture<'i>> {
         match self {
             Data::Class(_c) => {
@@ -190,26 +191,26 @@ impl Data {
 
 fn match_values(
     interpreter: &Interpreter<'_, '_>,
-    mut named_values: Vec<(Word, Value)>,
+    mut named_values: Vec<(SpannedWord, Value)>,
     names: &[Word],
 ) -> eyre::Result<Vec<Value>> {
+    let db = interpreter.db();
     let mut values = vec![];
     for name in names {
         if let Some(i) = named_values
             .iter()
-            .position(|named_value| named_value.0 == *name)
+            .position(|named_value| named_value.0.word(db) == *name)
         {
             let (_, value) = named_values.remove(i);
             values.push(value);
         } else {
-            let db = interpreter.db();
             let span_now = interpreter.span_now();
             return Err(error!(
                 span_now,
                 "expected to find an argument named `{}`, but didn't",
                 name.as_str(db)
             )
-            .eyre(interpreter.db()));
+            .eyre(db));
         }
     }
 

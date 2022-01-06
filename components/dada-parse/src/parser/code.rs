@@ -6,17 +6,17 @@ use crate::{
 use dada_id::InternValue;
 use dada_ir::{
     code::{
-        syntax::{
-            Expr, ExprData, NamedExpr, NamedExprData, NamedExprSpan, Spans, Tables, Tree, TreeData,
-        },
+        syntax::{Expr, ExprData, NamedExpr, NamedExprData, Spans, Tables, Tree, TreeData},
         Code,
     },
     format_string::FormatStringSectionData,
     kw::Keyword,
     op::Op,
     origin_table::PushOriginIn,
+    span::Span,
     token::Token,
     token_tree::TokenTree,
+    word::SpannedWord,
 };
 use salsa::AsId;
 
@@ -99,12 +99,9 @@ impl CodeParser<'_, '_> {
 
     ///
     pub(crate) fn parse_named_expr(&mut self) -> Option<NamedExpr> {
-        let (id_span, id) = self
-            .eat(Identifier)
+        let (label_span, label) = self
+            .parse_label()
             .or_report_error(self, || "expected name for argument")?;
-
-        self.eat_op(Op::Colon)
-            .or_report_error(self, || "expected `:` after argument name");
 
         let expr = self
             .parse_expr()
@@ -112,12 +109,21 @@ impl CodeParser<'_, '_> {
             .or_dummy_expr(self);
 
         Some(self.add(
-            NamedExprData { name: id, expr },
-            NamedExprSpan {
-                span: self.span_consumed_since(id_span),
-                name_span: id_span,
-            },
+            NamedExprData { name: label, expr },
+            self.span_consumed_since(label_span),
         ))
+    }
+
+    /// Parse an (optional) `foo:` label.
+    pub(crate) fn parse_label(&mut self) -> Option<(Span, SpannedWord)> {
+        self.lookahead(|this| {
+            let (name_span, name) = this.eat(Identifier)?;
+            let _colon_span = this.eat_op(Op::Colon)?;
+            Some((
+                name_span,
+                SpannedWord::new(this.db, name, name_span.in_file(this.filename)),
+            ))
+        })
     }
 
     /// ```

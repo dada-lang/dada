@@ -1,4 +1,9 @@
-use crate::{op::Op, span::Span, storage_mode::StorageMode, word::Word};
+use crate::{
+    op::Op,
+    span::Span,
+    storage_mode::StorageMode,
+    word::{SpannedWord, Word},
+};
 use dada_id::{id, tables};
 use salsa::DebugWithDb;
 
@@ -58,7 +63,7 @@ origin_table! {
     #[derive(Clone, Debug, Default, PartialEq, Eq, Hash)]
     pub struct Spans {
         expr_spans: Expr => Span,
-        named_expr_spans: NamedExpr => NamedExprSpan,
+        named_expr_spans: NamedExpr => Span,
         local_variable_decl_spans: LocalVariableDecl => LocalVariableDeclSpan,
     }
 }
@@ -154,12 +159,6 @@ id!(pub struct NamedExpr);
 
 #[derive(PartialEq, Eq, PartialOrd, Ord, Clone, Hash, Debug)]
 pub struct NamedExprData {
-    pub name: Word,
+    pub name: SpannedWord,
     pub expr: Expr,
-}
-
-#[derive(Clone, Copy, PartialEq, Eq, Hash, Debug)]
-pub struct NamedExprSpan {
-    pub span: Span,
-    pub name_span: Span,
 }

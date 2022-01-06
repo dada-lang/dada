@@ -1,3 +1,5 @@
+use crate::span::FileSpan;
+
 use super::{Db, Jar};
 
 #[salsa::interned(Word in Jar)]
@@ -54,5 +56,37 @@ impl ToString for &std::path::Path {
 impl ToString for &std::path::PathBuf {
     fn to_string(self) -> String {
         self.display().to_string()
+    }
+}
+
+salsa::entity2! {
+    /// A "spanned word" is a `Word` that also carries a span. Useful for things like
+    /// argument names etc where we want to carry the span through many phases
+    /// of compilation.
+    entity SpannedWord in crate::Jar {
+        #[id] word: Word,
+        span: FileSpan,
+    }
+}
+
+impl SpannedWord {
+    pub fn as_str(self, db: &dyn crate::Db) -> &str {
+        self.word(db).as_str(db)
+    }
+}
+
+salsa::entity2! {
+    /// An optional SpannedOptionalWord is an identifier that may not be persent; it still carries
+    /// a span for where the label *would have gone* had it been present (as compared to
+    /// an `Option<Label>`).
+    entity SpannedOptionalWord in crate::Jar {
+        #[id] word: Option<Word>,
+        span: FileSpan,
+    }
+}
+
+impl SpannedOptionalWord {
+    pub fn as_str(self, db: &dyn crate::Db) -> Option<&str> {
+        Some(self.word(db)?.as_str(db))
     }
 }

@@ -2,8 +2,14 @@
 //! for interpretation.
 
 use crate::{
-    class::Class, func::Function, in_ir_db::InIrDb, intrinsic::Intrinsic, op::Op,
-    prelude::InIrDbExt, storage_mode::StorageMode, word::Word,
+    class::Class,
+    func::Function,
+    in_ir_db::InIrDb,
+    intrinsic::Intrinsic,
+    op::Op,
+    prelude::InIrDbExt,
+    storage_mode::StorageMode,
+    word::{SpannedWord, Word},
 };
 use dada_id::{id, prelude::*, tables};
 use salsa::DebugWithDb;
@@ -361,7 +367,7 @@ impl DebugWithDb<InIrDb<'_, Tables>> for NamedPlace {
 
 #[derive(PartialEq, Eq, PartialOrd, Ord, Clone, Hash, Debug)]
 pub struct NamedPlaceData {
-    pub name: Word,
+    pub name: SpannedWord,
     pub place: Place,
 }
 

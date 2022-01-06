@@ -98,6 +98,12 @@ impl<'me> Tokens<'me> {
 
     /// Next pending token, if any.
     pub(crate) fn peek(&self) -> Option<Token> {
-        self.tokens.get(0).copied()
+        self.peek_n(0)
+    }
+
+    /// Peek `n` tokens ahead (0 == next token, 1 == token after that, etc)
+    pub(crate) fn peek_n(&self, n: usize) -> Option<Token> {
+        assert!(n <= 1); // max lookahead we currently require
+        self.tokens.get(n).copied()
     }
 }
