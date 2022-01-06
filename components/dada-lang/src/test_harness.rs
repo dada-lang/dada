@@ -1,3 +1,4 @@
+use std::env;
 use std::path::{Path, PathBuf};
 
 use dada_ir::{filename::Filename, item::Item};
@@ -176,14 +177,15 @@ impl Options {
         ref_path: &Path,
         errors: &mut Errors,
     ) -> eyre::Result<()> {
-        self.maybe_bless_file(&ref_path, &actual_output)?;
+        let sanitized_output = sanitize_output(actual_output)?;
+        self.maybe_bless_file(&ref_path, &sanitized_output)?;
         let ref_contents = std::fs::read_to_string(&ref_path)
             .with_context(|| format!("reading `{}`", ref_path.display()))?;
-        if ref_contents != actual_output {
+        if ref_contents != sanitized_output {
             errors.push(RefOutputDoesNotMatch {
                 ref_path: ref_path.to_owned(),
                 expected: ref_contents,
-                actual: actual_output,
+                actual: sanitized_output,
             });
         }
         Ok(())
@@ -591,4 +593,11 @@ impl ExpectedDiagnostic {
             self.start_line, self.severity, self.message
         )
     }
+}
+
+/// Remove system-specific absolute paths from output strings.
+fn sanitize_output(output: String) -> eyre::Result<String> {
+    let local_file_prefix = format!(r#""{}"#, env::var("CARGO_MANIFEST_DIR")?);
+    let replacement = r#""(local-file-prefix)"#;
+    Ok(output.replace(&local_file_prefix, replacement))
 }
