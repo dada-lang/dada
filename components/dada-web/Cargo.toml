@@ -1,0 +1,40 @@
+[package]
+edition = "2021"
+name = "dada-web"
+version = "0.1.0"
+[dependencies]
+async-trait = "0.1.52"
+eyre = "0.6.5"
+parking_lot = "0.11.2"
+wasm-bindgen = "0.2.78"
+wasm-bindgen-futures = "*"
+
+[dependencies.dada-collections]
+path = "../dada-collections"
+
+[dependencies.dada-db]
+path = "../dada-db"
+
+[dependencies.dada-error-format]
+path = "../dada-error-format"
+
+[dependencies.dada-execute]
+path = "../dada-execute"
+
+[dependencies.dada-ir]
+path = "../dada-ir"
+
+[dependencies.dada-lex]
+path = "../dada-lex"
+
+[dependencies.dada-lsp]
+path = "../dada-lsp"
+
+[dependencies.dada-manifest]
+path = "../dada-manifest"
+
+[dependencies.salsa]
+path = "../salsa"
+
+[lib]
+crate-type = ["cdylib"]

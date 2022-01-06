@@ -13,7 +13,7 @@ use crate::{kernel::Kernel, moment::Moment};
 pub(crate) struct Interpreter<'me> {
     db: &'me dyn crate::Db,
 
-    kernel: Box<dyn Kernel + 'me>,
+    kernel: &'me dyn Kernel,
 
     /// clock tick: increases monotonically
     clock: AtomicCell<u64>,
@@ -30,7 +30,7 @@ pub(crate) struct Interpreter<'me> {
 impl<'me> Interpreter<'me> {
     pub(crate) fn new(
         db: &'me dyn crate::Db,
-        kernel: Box<dyn Kernel>,
+        kernel: &'me dyn Kernel,
         start_span: FileSpan,
     ) -> Self {
         Self {

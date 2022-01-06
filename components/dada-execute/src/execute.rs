@@ -17,7 +17,7 @@ use crate::{data::Tuple, error::DiagnosticBuilderExt, interpreter::Interpreter, 
 pub async fn interpret(
     function: Function,
     db: &dyn crate::Db,
-    kernel: Box<dyn Kernel>,
+    kernel: &dyn Kernel,
 ) -> eyre::Result<()> {
     let initial_span = function.name_span(db);
     let interpreter = &Interpreter::new(db, kernel, initial_span);

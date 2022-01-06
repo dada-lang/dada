@@ -24,7 +24,7 @@ impl Options {
         // Find the "main" function
         match db.function_named(filename, "main") {
             Some(function) => {
-                dada_execute::interpret(function, &db, Kernel::new()).await?;
+                dada_execute::interpret(function, &db, &Kernel::new()).await?;
             }
             None => {
                 return Err(eyre::eyre!(
@@ -41,8 +41,8 @@ impl Options {
 struct Kernel {}
 
 impl Kernel {
-    pub fn new() -> Box<Self> {
-        Box::new(Self {})
+    pub fn new() -> Self {
+        Self {}
     }
 }
 
