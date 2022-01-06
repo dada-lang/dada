@@ -160,21 +160,23 @@ impl Data {
     pub(crate) fn call<'i>(
         &self,
         interpreter: &'i Interpreter<'_, '_>,
-        named_values: Vec<(SpannedWord, Value)>,
+        arguments: Vec<Value>,
+        labels: &[SpannedWord],
     ) -> eyre::Result<DadaFuture<'i>> {
+        assert_eq!(arguments.len(), labels.len());
         match self {
             Data::Class(_c) => {
                 todo!()
             }
             Data::Function(f) => {
-                assert!(named_values.is_empty(), "func argments not yet implemented");
+                assert!(arguments.is_empty(), "func argments not yet implemented");
                 let bir = f.brew(interpreter.db());
                 Ok(interpreter.execute_bir(bir))
             }
             Data::Intrinsic(intrinsic) => {
                 let definition = IntrinsicDefinition::for_intrinsic(interpreter.db(), *intrinsic);
-                let values = match_values(interpreter, named_values, &definition.argument_names)?;
-                Ok((definition.closure)(interpreter, values))
+                match_labels(interpreter, &labels, &definition.argument_names)?;
+                Ok((definition.closure)(interpreter, arguments))
             }
             _ => {
                 let span = interpreter.span_now();
@@ -189,43 +191,36 @@ impl Data {
     }
 }
 
-fn match_values(
+fn match_labels(
     interpreter: &Interpreter<'_, '_>,
-    mut named_values: Vec<(SpannedWord, Value)>,
-    names: &[Word],
-) -> eyre::Result<Vec<Value>> {
+    actual_labels: &[SpannedWord],
+    expected_names: &[Word],
+) -> eyre::Result<()> {
     let db = interpreter.db();
-    let mut values = vec![];
-    for name in names {
-        if let Some(i) = named_values
-            .iter()
-            .position(|named_value| named_value.0.word(db) == *name)
-        {
-            let (_, value) = named_values.remove(i);
-            values.push(value);
-        } else {
-            let span_now = interpreter.span_now();
+
+    for (actual_label, expected_name) in actual_labels.iter().zip(expected_names) {
+        if actual_label.word(db) != *expected_name {
             return Err(error!(
-                span_now,
-                "expected to find an argument named `{}`, but didn't",
-                name.as_str(db)
+                actual_label.span(db),
+                "expected to find an argument named `{}`, but found the name `{}`",
+                expected_name.as_str(db),
+                actual_label.word(db).as_str(db),
             )
             .eyre(db));
         }
     }
 
-    if named_values.is_empty() {
-        Ok(values)
-    } else {
-        let db = interpreter.db();
-        let span_now = interpreter.span_now();
-        let extra_vec: Vec<&str> = named_values
-            .iter()
-            .map(|(name, _)| name.as_str(db))
-            .collect();
-        let extra_str = extra_vec.join(", ");
-        return Err(error!(span_now, "did not expect argument(s) named `{}`", extra_str).eyre(db));
+    if actual_labels.len() != expected_names.len() {
+        return Err(error!(
+            interpreter.span_now(),
+            "expected to find {} arguments, but found {}",
+            expected_names.len(),
+            actual_labels.len(),
+        )
+        .eyre(db));
     }
+
+    Ok(())
 }
 
 #[derive(Debug)]

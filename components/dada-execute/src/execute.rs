@@ -265,16 +265,12 @@ impl StackFrame<'_, '_> {
                 labels: argument_labels,
             } => {
                 let function_value = self.give_place(*function_place)?;
-                let argument_named_values = argument_places
+                let argument_values = argument_places
                     .iter()
-                    .zip(argument_labels)
-                    .map(|(argument_place, argument_label)| {
-                        let value = self.give_place(*argument_place)?;
-                        Ok((*argument_label, value))
-                    })
+                    .map(|argument_place| self.give_place(*argument_place))
                     .collect::<eyre::Result<Vec<_>>>()?;
                 let future = function_value.read(self.interpreter, |data| {
-                    data.call(self.interpreter, argument_named_values)
+                    data.call(self.interpreter, argument_values, argument_labels)
                 })?;
                 future.await
             }

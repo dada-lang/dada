@@ -13,7 +13,10 @@
                 Call(
                     Print,
                     [
-                        message: temp{2},
+                        temp{2},
+                    ],
+                    [
+                        "message",
                     ],
                 ),
                 BasicBlock(1),
