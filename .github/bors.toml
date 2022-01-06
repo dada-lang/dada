@@ -1,0 +1,8 @@
+status = [
+  "Check (nightly)",
+  "Test (nightly)",
+  "Rustfmt",
+  "Clippy (nightly)",
+  "Deploy"
+]
+delete_merged_branches = true

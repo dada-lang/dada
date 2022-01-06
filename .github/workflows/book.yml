@@ -1,0 +1,29 @@
+name: Book
+
+on:
+  push:
+    branches:
+      - main
+      - staging
+      - trying
+  pull_request:
+
+env:
+  MDBOOK: "0.4.15"
+
+jobs:
+  deploy:
+    name: Deploy
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v2
+      - name: Install mdbook
+        run: curl -L https://github.com/rust-lang/mdBook/releases/download/v$MDBOOK/mdbook-v$MDBOOK-x86_64-unknown-linux-gnu.tar.gz | tar xz -C ~/.cargo/bin
+      - name: Build
+        run: mdbook build
+        working-directory: book
+      - uses: peaceiris/actions-gh-pages@v3
+        if: github.event_name == 'push' && github.ref == 'refs/heads/main'
+        with:
+          github_token: ${{ secrets.GITHUB_TOKEN }}
+          publish_dir: book/book/html

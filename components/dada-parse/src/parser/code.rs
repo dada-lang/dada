@@ -131,7 +131,7 @@ impl CodeParser<'_, '_> {
         })
     }
 
-    /// ```
+    /// ```ignore
     /// Expr := Id
     ///       | UnaryOp Expr
     ///       | `if` Expr Block [`else` Block]

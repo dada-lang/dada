@@ -114,7 +114,7 @@ macro_rules! id {
 ///
 /// Example:
 ///
-/// ```rust
+/// ```ignore
 /// tables! {
 ///     pub struct Foo {
 ///         exprs: alloc Expr => ExprData,

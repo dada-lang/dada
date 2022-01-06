@@ -1,3 +1,7 @@
+[workspace]
+members = [".", "components/*"]
+default-members = [".", "components/*"]
+
 [package]
 name = "dada"
 version = "0.1.0"
