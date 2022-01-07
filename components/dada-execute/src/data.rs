@@ -157,6 +157,11 @@ impl Data {
         }
     }
 
+    /// This is a bit subtle and probably needs to change. Despite its name,
+    /// `call` doesn't actually *call* the value, but rather returns a future
+    /// which (when awaited) will perform the call. This is because `call` is
+    /// invoked inside of a closure which can't await (which itself maybe should
+    /// change!).
     pub(crate) fn call<'i>(
         &self,
         interpreter: &'i Interpreter<'_>,
