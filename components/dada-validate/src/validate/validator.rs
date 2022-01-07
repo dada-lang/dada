@@ -87,7 +87,9 @@ impl<'me> Validator<'me> {
         self.add(validated::ExprData::Tuple(vec![]), origin)
     }
 
+    #[tracing::instrument(level = "debug", skip(self, expr))]
     pub(crate) fn validate_expr(&mut self, expr: syntax::Expr) -> validated::Expr {
+        tracing::trace!("expr.data = {:?}", expr.data(self.syntax_tables()));
         match expr.data(self.syntax_tables()) {
             syntax::ExprData::Dot(..) | syntax::ExprData::Id(_) => {
                 let place = self.validate_expr_as_place(expr);

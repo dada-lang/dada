@@ -597,7 +597,13 @@ impl ExpectedDiagnostic {
 
 /// Remove system-specific absolute paths from output strings.
 fn sanitize_output(output: String) -> eyre::Result<String> {
-    let local_file_prefix = format!(r#""{}"#, env::var("CARGO_MANIFEST_DIR")?);
+    let local_file_prefix = format!(
+        r#""{}"#,
+        match env::var("CARGO_MANIFEST_DIR") {
+            Ok(v) => v,
+            Err(_) => env::current_dir()?.display().to_string(),
+        }
+    );
     let replacement = r#""(local-file-prefix)"#;
     Ok(output.replace(&local_file_prefix, replacement))
 }

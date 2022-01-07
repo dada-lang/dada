@@ -27,4 +27,6 @@ salsa = { path = "../salsa" }
 structopt = "0.3"
 tokio = { version = "1", features = ["full"] }
 tracing = "0.1.29"
+tracing-tree = "0.2.0"
+tracing-subscriber = { version = "0.3.3", default-features = false, features = ["fmt", "env-filter", "smallvec", "parking_lot", "ansi"] }
 walkdir = "2.3.2"

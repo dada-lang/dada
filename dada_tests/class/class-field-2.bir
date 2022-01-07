@@ -1,0 +1,90 @@
+[
+    validated::Tree {
+        start_basic_block: BasicBlock(0),
+        BasicBlock(0): BasicBlockData(
+            [
+                Assign(
+                    temp{2},
+                    "foo",
+                ),
+                Assign(
+                    temp{3},
+                    "bar",
+                ),
+            ],
+            Assign(
+                t{0},
+                Call(
+                    Class(Id { value: 1 }),
+                    [
+                        temp{2},
+                        temp{3},
+                    ],
+                    [
+                        None,
+                        None,
+                    ],
+                ),
+                BasicBlock(1),
+            ),
+        ),
+        BasicBlock(1): BasicBlockData(
+            [],
+            Assign(
+                temp{5},
+                Call(
+                    Print,
+                    [
+                        t{0}.a,
+                    ],
+                    [
+                        None,
+                    ],
+                ),
+                BasicBlock(2),
+            ),
+        ),
+        BasicBlock(2): BasicBlockData(
+            [],
+            Assign(
+                temp{4},
+                Await(
+                    temp{5},
+                ),
+                BasicBlock(3),
+            ),
+        ),
+        BasicBlock(3): BasicBlockData(
+            [],
+            Assign(
+                temp{6},
+                Call(
+                    Print,
+                    [
+                        t{0}.b,
+                    ],
+                    [
+                        None,
+                    ],
+                ),
+                BasicBlock(4),
+            ),
+        ),
+        BasicBlock(4): BasicBlockData(
+            [],
+            Assign(
+                temp{1},
+                Await(
+                    temp{6},
+                ),
+                BasicBlock(5),
+            ),
+        ),
+        BasicBlock(5): BasicBlockData(
+            [],
+            Return(
+                temp{1},
+            ),
+        ),
+    },
+]

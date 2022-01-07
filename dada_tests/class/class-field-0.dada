@@ -1,0 +1,6 @@
+class Test()
+
+async fn main() {
+    t = Test()
+    print("Done").await
+}

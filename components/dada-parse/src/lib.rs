@@ -14,7 +14,6 @@ pub struct Jar(
     code_parser::parse_code,
     file_parser::parse_file,
     parameter_parser::parse_parameters,
-    parameter_parser::parse_parameter_names,
 );
 
 pub trait Db: salsa::DbWithJar<Jar> + dada_lex::Db + dada_ir::Db {}

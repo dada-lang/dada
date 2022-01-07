@@ -1,0 +1,5 @@
+[
+    syntax::Tree {
+        origin: Tokens(dada_tests/class/class-field-0.dada@(31..71)),
+    },
+]

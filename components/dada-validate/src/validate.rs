@@ -10,6 +10,7 @@ mod validator;
 
 /// Computes a validated tree for the given code (may produce errors).
 #[salsa::memoized(in crate::Jar)]
+#[tracing::instrument(level = "debug", skip(db))]
 pub fn validate_code(db: &dyn crate::Db, code: Code) -> validated::Tree {
     let syntax_tree = code.syntax_tree(db);
     let mut tables = validated::Tables::default();

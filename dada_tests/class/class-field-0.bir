@@ -1,0 +1,54 @@
+[
+    validated::Tree {
+        start_basic_block: BasicBlock(0),
+        BasicBlock(0): BasicBlockData(
+            [],
+            Assign(
+                t{0},
+                Call(
+                    Class(Id { value: 1 }),
+                    [],
+                    [],
+                ),
+                BasicBlock(1),
+            ),
+        ),
+        BasicBlock(1): BasicBlockData(
+            [
+                Assign(
+                    temp{3},
+                    "Done",
+                ),
+            ],
+            Assign(
+                temp{2},
+                Call(
+                    Print,
+                    [
+                        temp{3},
+                    ],
+                    [
+                        None,
+                    ],
+                ),
+                BasicBlock(2),
+            ),
+        ),
+        BasicBlock(2): BasicBlockData(
+            [],
+            Assign(
+                temp{1},
+                Await(
+                    temp{2},
+                ),
+                BasicBlock(3),
+            ),
+        ),
+        BasicBlock(3): BasicBlockData(
+            [],
+            Return(
+                temp{1},
+            ),
+        ),
+    },
+]

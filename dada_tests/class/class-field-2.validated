@@ -1,0 +1,56 @@
+[
+    validated::Tree {
+        root_expr: Seq(
+            [
+                Assign(
+                    t{0},
+                    Call(
+                        Class(
+                            Id {
+                                value: 1,
+                            },
+                        ),
+                        [
+                            (
+                                None,
+                                "foo",
+                            ),
+                            (
+                                None,
+                                "bar",
+                            ),
+                        ],
+                    ),
+                ),
+                Await(
+                    Call(
+                        Print,
+                        [
+                            (
+                                None,
+                                Dot(
+                                    t{0},
+                                    "a",
+                                ),
+                            ),
+                        ],
+                    ),
+                ),
+                Await(
+                    Call(
+                        Print,
+                        [
+                            (
+                                None,
+                                Dot(
+                                    t{0},
+                                    "b",
+                                ),
+                            ),
+                        ],
+                    ),
+                ),
+            ],
+        ),
+    },
+]
