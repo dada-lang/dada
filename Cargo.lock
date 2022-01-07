@@ -397,6 +397,7 @@ dependencies = [
  "dada-ir",
  "dada-lex",
  "dada-manifest",
+ "extension-trait",
  "im",
  "salsa",
  "stacker",

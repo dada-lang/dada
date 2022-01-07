@@ -5,36 +5,26 @@ use dada_ir::{
     func::Function,
     item::Item,
     parameter::Parameter,
+    word::Word,
 };
 
-pub trait DadaParseItemExt {
-    fn syntax_tree(self, db: &dyn crate::Db) -> Option<syntax::Tree>;
-}
-
-impl DadaParseItemExt for Item {
+#[extension_trait::extension_trait]
+pub impl DadaParseItemExt for Item {
     fn syntax_tree(self, db: &dyn crate::Db) -> Option<syntax::Tree> {
         Some(self.code(db)?.syntax_tree(db))
     }
 }
 
-pub trait DadaParseCodeExt {
-    /// Returns the Ast for a function.
-    fn syntax_tree(self, db: &dyn crate::Db) -> syntax::Tree;
-}
-
-impl DadaParseCodeExt for Code {
+#[extension_trait::extension_trait]
+pub impl DadaParseCodeExt for Code {
     fn syntax_tree(self, db: &dyn crate::Db) -> syntax::Tree {
         crate::code_parser::parse_code(db, self)
     }
 }
 
-pub trait DadaParseFunctionExt {
+#[extension_trait::extension_trait]
+pub impl DadaParseFunctionExt for Function {
     /// Returns the Ast for a function.
-    fn syntax_tree(self, db: &dyn crate::Db) -> syntax::Tree;
-    fn parameters(self, db: &dyn crate::Db) -> &Vec<Parameter>;
-}
-
-impl DadaParseFunctionExt for Function {
     fn syntax_tree(self, db: &dyn crate::Db) -> syntax::Tree {
         self.code(db).syntax_tree(db)
     }
@@ -44,21 +34,19 @@ impl DadaParseFunctionExt for Function {
     }
 }
 
-pub trait DadaParseClassExt {
-    fn fields(self, db: &dyn crate::Db) -> &Vec<Parameter>;
-}
-
-impl DadaParseClassExt for Class {
+#[extension_trait::extension_trait]
+pub impl DadaParseClassExt for Class {
     fn fields(self, db: &dyn crate::Db) -> &Vec<Parameter> {
         crate::parameter_parser::parse_parameters(db, self.unparsed_parameters(db))
     }
+
+    fn field_names(self, db: &dyn crate::Db) -> &Vec<Word> {
+        crate::parameter_parser::parse_parameter_names(db, self.unparsed_parameters(db))
+    }
 }
 
-pub trait DadaParseFilenameExt {
-    fn items(self, db: &dyn crate::Db) -> &Vec<Item>;
-}
-
-impl DadaParseFilenameExt for Filename {
+#[extension_trait::extension_trait]
+pub impl DadaParseFilenameExt for Filename {
     fn items(self, db: &dyn crate::Db) -> &Vec<Item> {
         crate::file_parser::parse_file(db, self)
     }
