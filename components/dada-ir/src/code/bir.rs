@@ -293,7 +293,10 @@ pub enum ExprData {
     /// `expr.give`
     Give(Place),
 
-    /// `()` or `(a, b, ...)` (i.e., expr seq cannot have length 1)
+    /// `()`
+    Unit,
+
+    /// `(a, b, ...)` (i.e., at least 2)
     Tuple(Vec<Place>),
 
     /// `a + b`
@@ -313,6 +316,7 @@ impl DebugWithDb<InIrDb<'_, Tables>> for ExprData {
             ExprData::ShareValue(e) => write!(f, "{:?}.share", e.debug(db)),
             ExprData::Lease(p) => write!(f, "{:?}.lease", p.debug(db)),
             ExprData::Give(p) => write!(f, "{:?}.give", p.debug(db)),
+            ExprData::Unit => write!(f, "()"),
             ExprData::Tuple(vars) => write_parenthesized_places(f, vars, db),
             ExprData::Op(lhs, op, rhs) => {
                 write!(f, "{:?} {} {:?}", lhs.debug(db), op.str(), rhs.debug(db))

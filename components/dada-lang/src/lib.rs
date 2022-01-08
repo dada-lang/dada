@@ -7,9 +7,11 @@ mod ide;
 mod run;
 mod test_harness;
 
+const DEFAULT_LOG: &str = "info";
+
 #[derive(StructOpt)]
 pub struct Options {
-    #[structopt(long, default_value = "warn")]
+    #[structopt(long, default_value = DEFAULT_LOG)]
     log: String,
 
     #[structopt(subcommand)] // Note that we mark a field as a subcommand
@@ -20,7 +22,7 @@ impl Options {
     /// Returns the options to run the default test harness.
     pub fn test_harness() -> Self {
         Options {
-            log: "warn".to_string(),
+            log: DEFAULT_LOG.to_string(),
             cmd: Command::Test(test_harness::Options::from_args()),
         }
     }

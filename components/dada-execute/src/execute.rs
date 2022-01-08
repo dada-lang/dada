@@ -137,6 +137,7 @@ impl StackFrame<'_> {
                 let span = self.span_from_bir(expr);
                 Err(error!(span, "compilation error").eyre(self.interpreter.db()))
             }
+            bir::ExprData::Unit => Ok(Value::new(self.interpreter, ())),
         }
     }
 

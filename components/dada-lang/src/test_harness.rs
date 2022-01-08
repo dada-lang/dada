@@ -34,27 +34,30 @@ impl Options {
                 let run_test = async {
                     let entry = entry?;
                     let path = entry.path();
+
+                    if path.is_dir() {
+                        return Ok(());
+                    }
+
                     if let Some(ext) = path.extension() {
                         if ext == "dada" {
                             total += 1;
                             self.test_dada_file(path)
                                 .await
                                 .with_context(|| format!("testing `{}`", path.display()))?;
+                            tracing::info!("test `{}` passed", path.display());
+                            return Ok(());
                         } else if REF_EXTENSIONS.iter().any(|e| *e == ext) {
                             // ignore ref files
-                        } else {
-                            // Error out for random files -- I've frequently accidentally made
-                            // tests with the extension `dad`, for example.
-                            //
-                            // FIXME: we should probably consider gitignore here
-                            eyre::bail!(
-                                "file `{}` has unrecognized extension `{}`",
-                                path.display(),
-                                ext.to_string_lossy(),
-                            )
+                            return Ok(());
                         }
                     }
-                    Ok(())
+
+                    // Error out for random files -- I've frequently accidentally made
+                    // tests with the extension `dad`, for example.
+                    //
+                    // FIXME: we should probably consider gitignore here
+                    eyre::bail!("file `{}` has unrecognized extension", path.display())
                 };
 
                 errors.push_result(run_test.await);
@@ -86,7 +89,7 @@ impl Options {
         }
     }
 
-    #[tracing::instrument(level = "info", skip(self))]
+    #[tracing::instrument(level = "debug", skip(self))]
     async fn test_dada_file(&self, path: &Path) -> eyre::Result<()> {
         let expected_diagnostics = &expected_diagnostics(path)?;
         self.test_dada_file_normal(path, expected_diagnostics)
@@ -95,7 +98,7 @@ impl Options {
         Ok(())
     }
 
-    #[tracing::instrument(level = "info", skip(self))]
+    #[tracing::instrument(level = "debug", skip(self))]
     async fn test_dada_file_normal(
         &self,
         path: &Path,
@@ -146,7 +149,7 @@ impl Options {
         errors.into_result()
     }
 
-    #[tracing::instrument(level = "info", skip(self))]
+    #[tracing::instrument(level = "debug", skip(self))]
     fn test_dada_file_in_ide(
         &self,
         path: &Path,
