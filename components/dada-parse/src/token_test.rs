@@ -4,7 +4,7 @@ use dada_ir::{
 
 /// Represents some kind of "condition test" that can be applied to a single token
 /// (e.g., is an identifier or is a keyword).
-pub(crate) trait TokenTest {
+pub(crate) trait TokenTest: std::fmt::Debug {
     /// When the test is successful, we return the token back but (potentially)
     /// with a narrower, more specific type -- this is that type.
     type Narrow;
@@ -31,6 +31,7 @@ impl TokenTest for Keyword {
 }
 
 /// A keyword like `class` or `async`
+#[derive(Debug)]
 pub(crate) struct AnyKeyword;
 impl TokenTest for AnyKeyword {
     type Narrow = Keyword;
@@ -42,6 +43,7 @@ impl TokenTest for AnyKeyword {
 }
 
 /// An `Alphabetic` that is not a keyword
+#[derive(Debug)]
 pub(crate) struct Identifier;
 impl TokenTest for Identifier {
     type Narrow = Word;
@@ -56,6 +58,7 @@ impl TokenTest for Identifier {
     }
 }
 
+#[derive(Debug)]
 pub(crate) struct FormatStringLiteral;
 impl TokenTest for FormatStringLiteral {
     type Narrow = FormatString;
@@ -81,6 +84,7 @@ impl TokenTest for Token {
 }
 
 /// Any token at all
+#[derive(Debug)]
 pub(crate) struct Any;
 impl TokenTest for Any {
     type Narrow = Token;
@@ -91,6 +95,7 @@ impl TokenTest for Any {
 }
 
 /// Any token at all
+#[derive(Debug)]
 pub(crate) struct AnyTree;
 impl TokenTest for AnyTree {
     type Narrow = TokenTree;

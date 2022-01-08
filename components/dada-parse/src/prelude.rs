@@ -5,7 +5,6 @@ use dada_ir::{
     func::Function,
     item::Item,
     parameter::Parameter,
-    word::Word,
 };
 
 #[extension_trait::extension_trait]
@@ -38,10 +37,6 @@ pub impl DadaParseFunctionExt for Function {
 pub impl DadaParseClassExt for Class {
     fn fields(self, db: &dyn crate::Db) -> &Vec<Parameter> {
         crate::parameter_parser::parse_parameters(db, self.unparsed_parameters(db))
-    }
-
-    fn field_names(self, db: &dyn crate::Db) -> &Vec<Word> {
-        crate::parameter_parser::parse_parameter_names(db, self.unparsed_parameters(db))
     }
 }
 

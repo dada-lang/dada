@@ -1,0 +1,30 @@
+[
+    validated::Tree {
+        root_expr: Seq(
+            [
+                Assign(
+                    t{0},
+                    Call(
+                        Class(
+                            Id {
+                                value: 1,
+                            },
+                        ),
+                        [],
+                    ),
+                ),
+                Await(
+                    Call(
+                        Print,
+                        [
+                            (
+                                None,
+                                "Done",
+                            ),
+                        ],
+                    ),
+                ),
+            ],
+        ),
+    },
+]

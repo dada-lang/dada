@@ -1,10 +1,10 @@
 use std::{future::Future, pin::Pin};
 
 use crate::error::DiagnosticBuilderExt;
+use crate::ext::*;
 use crate::intrinsic::IntrinsicDefinition;
 use crate::{interpreter::Interpreter, thunk::Thunk, value::Value};
 use dada_brew::prelude::*;
-use dada_collections::Map;
 use dada_ir::word::SpannedOptionalWord;
 use dada_ir::{class::Class, error, func::Function, intrinsic::Intrinsic, word::Word};
 
@@ -105,9 +105,10 @@ impl Data {
         interpreter: &Interpreter<'_>,
         name: Word,
     ) -> eyre::Result<&mut Value> {
+        let db = interpreter.db();
         match self {
-            Data::Instance(i) => match i.fields.get_mut(&name) {
-                Some(value) => Ok(value),
+            Data::Instance(i) => match i.class.field_index(db, name) {
+                Some(index) => Ok(&mut i.fields[index]),
                 None => Err(Self::no_such_field(interpreter, i.class, name)),
             },
             _ => Err(self.expected(interpreter, "something with fields")),
@@ -120,16 +121,9 @@ impl Data {
         name: Word,
         value: Value,
     ) -> eyre::Result<()> {
-        match self {
-            Data::Instance(i) => match i.fields.get_mut(&name) {
-                Some(field_value) => {
-                    *field_value = value;
-                    Ok(())
-                }
-                None => Err(Self::no_such_field(interpreter, i.class, name)),
-            },
-            _ => Err(self.expected(interpreter, "something with fields")),
-        }
+        let r = self.field_mut(interpreter, name)?;
+        *r = value;
+        Ok(())
     }
 
     pub(crate) fn to_bool(&self, interpreter: &Interpreter<'_>) -> eyre::Result<bool> {
@@ -172,9 +166,17 @@ impl Data {
         labels: &[SpannedOptionalWord],
     ) -> eyre::Result<DadaFuture<'i>> {
         assert_eq!(arguments.len(), labels.len());
+        let db = interpreter.db();
         match self {
-            Data::Class(_c) => {
-                todo!()
+            Data::Class(c) => {
+                let field_names = c.field_names(db);
+                match_labels(interpreter, labels, field_names)?;
+                let instance = Instance {
+                    class: *c,
+                    fields: arguments,
+                };
+                let value = Value::new(interpreter, instance);
+                Ok(Box::pin(async move { Ok(value) }))
             }
             Data::Function(f) => {
                 assert!(arguments.is_empty(), "func argments not yet implemented");
@@ -236,7 +238,7 @@ fn match_labels(
 #[derive(Debug)]
 pub(crate) struct Instance {
     pub(crate) class: Class,
-    pub(crate) fields: Map<Word, Value>,
+    pub(crate) fields: Vec<Value>,
 }
 
 #[derive(Debug)]

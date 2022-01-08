@@ -14,15 +14,14 @@ pub trait Kernel: Send + Sync {
     }
 }
 
+#[derive(Default)]
 pub struct BufferKernel {
     buffer: Mutex<String>,
 }
 
 impl BufferKernel {
     pub fn new() -> Self {
-        Self {
-            buffer: Default::default(),
-        }
+        Self::default()
     }
 
     pub async fn interpret(&self, db: &dyn crate::Db, function: Function) -> eyre::Result<()> {

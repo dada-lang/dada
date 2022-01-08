@@ -133,6 +133,7 @@ impl DiagnosticBuilder {
     /// Replaces the "primary label", which is always placed on the source
     /// of the diagnostic. The default primary label, if nothing else is given,
     /// is just "here".
+    #[must_use = "you have not emitted the diagnostic"]
     pub fn primary_label(mut self, message: impl ToString) -> Self {
         self.labels.push(Label {
             span: self.span,
@@ -142,6 +143,7 @@ impl DiagnosticBuilder {
     }
 
     /// Avoids adding any primary label at all.
+    #[must_use = "you have not emitted the diagnostic"]
     pub fn skip_primary_label(mut self) -> Self {
         self.add_primary_label = false;
         self
@@ -151,6 +153,7 @@ impl DiagnosticBuilder {
     /// give auxiliary information and can be located at any span.
     /// (if you supply a [`Span`] and not a [`FileSpan`], the [`Span`]
     /// is assumed to be in the same file as the primary location).
+    #[must_use = "you have not emitted the diagnostic"]
     pub fn secondary_label(mut self, span: impl IntoFileSpan, message: impl ToString) -> Self {
         let span = span.maybe_in_file(self.span.filename);
         self.labels.push(Label {
@@ -162,6 +165,7 @@ impl DiagnosticBuilder {
 
     /// Add a child diagnostic. Our severity is raised to at least
     /// the child's level.
+    #[must_use = "you have not emitted the diagnostic"]
     pub fn child(mut self, diagnostic: Diagnostic) -> Self {
         // Raise our severity to the child's level. Note sure if this
         // is important, it just seems weird to have a "note" with

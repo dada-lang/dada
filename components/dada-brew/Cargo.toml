@@ -12,3 +12,4 @@ dada-ir = { path = "../dada-ir" }
 dada-validate = { path = "../dada-validate" }
 dada-parse = { path = "../dada-parse" }
 salsa = { path = "../salsa" }
+tracing = "0.1.29"

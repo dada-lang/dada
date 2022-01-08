@@ -198,6 +198,7 @@ trait ParseList {
     /// The following is not accepted:
     ///
     /// * `foo bar`
+    #[tracing::instrument(level = "debug", skip(self, parse_item))]
     fn parse_list<T>(
         &mut self,
         comma_separated: bool,

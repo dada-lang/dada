@@ -6,7 +6,10 @@ use crate::{
 use dada_id::InternValue;
 use dada_ir::{
     code::{
-        syntax::{Expr, ExprData, NamedExpr, NamedExprData, Spans, Tables, Tree, TreeData},
+        syntax::{
+            Expr, ExprData, LocalVariableDeclData, LocalVariableDeclSpan, NamedExpr, NamedExprData,
+            Spans, Tables, Tree, TreeData,
+        },
         Code,
     },
     format_string::FormatStringSectionData,
@@ -14,6 +17,7 @@ use dada_ir::{
     op::Op,
     origin_table::PushOriginIn,
     span::Span,
+    storage_mode::StorageMode,
     token::Token,
     token_tree::TokenTree,
     word::SpannedOptionalWord,
@@ -64,8 +68,11 @@ impl<'db> std::ops::DerefMut for CodeParser<'_, 'db> {
 
 impl CodeParser<'_, '_> {
     /// Parses a series of expressions; expects to consume all available tokens (and errors if there are extra).
+    #[tracing::instrument(level = "debug", skip(self))]
     pub(crate) fn parse_only_expr_seq(&mut self) -> Vec<Expr> {
-        let exprs = self.parse_list(false, CodeParser::parse_expr);
+        tracing::debug!("parse_only_expr_seq");
+        let exprs = self.parse_list(true, CodeParser::parse_expr);
+        tracing::debug!("exprs = {:?}", exprs);
         self.emit_error_if_more_tokens("extra tokens after end of expression");
         exprs
     }
@@ -99,12 +106,20 @@ impl CodeParser<'_, '_> {
 
     ///
     pub(crate) fn parse_named_expr(&mut self) -> Option<NamedExpr> {
-        let (label_span, label) = self.parse_label();
+        let (label_span, label, expr);
 
-        let expr = self
-            .parse_expr()
-            .or_report_error(self, || "expected expression")
-            .or_dummy_expr(self);
+        if let Some(spanned_label) = self.parse_label() {
+            // If they provided `foo: ` then the expression is mandatory
+            (label_span, label) = spanned_label;
+            expr = self
+                .parse_expr()
+                .or_report_error(self, || "expected expression")
+                .or_dummy_expr(self);
+        } else {
+            label_span = self.tokens.peek_span().span_at_start();
+            expr = self.parse_expr()?;
+            label = SpannedOptionalWord::new(self.db, None, label_span.in_file(self.filename));
+        };
 
         Some(self.add(
             NamedExprData { name: label, expr },
@@ -112,8 +127,8 @@ impl CodeParser<'_, '_> {
         ))
     }
 
-    /// Parse an (optional) `foo:` label.
-    pub(crate) fn parse_label(&mut self) -> (Span, SpannedOptionalWord) {
+    /// Parse a `foo:` label.
+    pub(crate) fn parse_label(&mut self) -> Option<(Span, SpannedOptionalWord)> {
         self.lookahead(|this| {
             let (name_span, name) = this.eat(Identifier)?;
             let _colon_span = this.eat_op(Op::Colon)?;
@@ -121,13 +136,6 @@ impl CodeParser<'_, '_> {
                 name_span,
                 SpannedOptionalWord::new(this.db, Some(name), name_span.in_file(this.filename)),
             ))
-        })
-        .unwrap_or_else(|| {
-            let span = self.tokens.peek_span().span_at_start();
-            (
-                span,
-                SpannedOptionalWord::new(self.db, None, span.in_file(self.filename)),
-            )
         })
     }
 
@@ -144,8 +152,15 @@ impl CodeParser<'_, '_> {
     ///       | Expr . Ident
     ///       | Expr BinaryOp Expr
     ///       | Expr ( args )
+    ///       | SharingMode? Id = Expr
     /// ```
+    #[tracing::instrument(level = "debug", skip(self))]
     pub(crate) fn parse_expr(&mut self) -> Option<Expr> {
+        tracing::debug!("parse_expr");
+        if let Some(expr) = self.parse_local_variable_decl() {
+            return Some(expr);
+        }
+
         self.parse_expr_3()
     }
 
@@ -268,6 +283,47 @@ impl CodeParser<'_, '_> {
         } else {
             None
         }
+    }
+
+    /// Parses `[shared|var|atomic] x = expr`
+    #[tracing::instrument(level = "debug", skip_all)]
+    fn parse_local_variable_decl(&mut self) -> Option<Expr> {
+        // A storage mode like `shared` or `var` *could* be a variable declaration,
+        // but if we see `atomic` it might not be, so check for the `x = ` next.
+        let (mode_span, mode) = if let Some(pair) = self.parse_storage_mode() {
+            pair
+        } else {
+            (self.tokens.peek_span(), StorageMode::Shared)
+        };
+
+        // Look for `x = `. If we see that, we are committed to this
+        // being a local variable declaration.
+        let (name_span, name) = self.lookahead(|this| {
+            let pair = this.eat(Identifier)?;
+            this.eat_op(Op::Equal)?;
+            Some(pair)
+        })?;
+
+        let local_variable_decl = self.add(
+            LocalVariableDeclData {
+                mode: Some(mode),
+                name,
+            },
+            LocalVariableDeclSpan {
+                mode_span,
+                name_span,
+            },
+        );
+
+        let value = self
+            .parse_expr()
+            .or_report_error(self, || "expected value for local variable".to_string())
+            .or_dummy_expr(self);
+
+        Some(self.add(
+            ExprData::Var(local_variable_decl, value),
+            self.span_consumed_since(mode_span),
+        ))
     }
 
     fn parse_required_block_expr(&mut self, after: impl std::fmt::Display) -> Expr {

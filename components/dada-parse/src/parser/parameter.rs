@@ -63,7 +63,7 @@ impl<'db> Parser<'db> {
         }
     }
 
-    fn parse_storage_mode(&mut self) -> Option<(Span, StorageMode)> {
+    pub(crate) fn parse_storage_mode(&mut self) -> Option<(Span, StorageMode)> {
         if let Some((span, _)) = self.eat(Keyword::Shared) {
             Some((span, StorageMode::Shared))
         } else if let Some((span, _)) = self.eat(Keyword::Var) {

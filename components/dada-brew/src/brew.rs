@@ -38,11 +38,13 @@ pub fn brew(db: &dyn crate::Db, validated_tree: validated::Tree) -> bir::Bir {
 }
 
 impl Cursor {
+    #[tracing::instrument(level = "debug", skip_all)]
     pub(crate) fn brew_expr_for_side_effects(
         &mut self,
         brewery: &mut Brewery<'_>,
         expr: validated::Expr,
     ) {
+        tracing::debug!("expr = {:?}", expr.data(brewery.validated_tables()));
         let origin = brewery.origin(expr);
         match expr.data(brewery.validated_tables()) {
             validated::ExprData::Break {
@@ -73,13 +75,17 @@ impl Cursor {
                 self.terminate_and_diverge(brewery, bir::TerminatorData::Error, origin)
             }
 
+            validated::ExprData::Assign(place, expr) => {
+                let place = self.brew_place(brewery, *place);
+                self.brew_expr_and_assign_to(brewery, place, *expr);
+            }
+
             validated::ExprData::Place(_)
             | validated::ExprData::Await(_)
             | validated::ExprData::If(_, _, _)
             | validated::ExprData::Loop(_)
             | validated::ExprData::Seq(_)
             | validated::ExprData::Op(_, _, _)
-            | validated::ExprData::Assign(_, _)
             | validated::ExprData::BooleanLiteral(_)
             | validated::ExprData::IntegerLiteral(_)
             | validated::ExprData::StringLiteral(_)

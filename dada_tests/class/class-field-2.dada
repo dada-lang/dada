@@ -1,0 +1,10 @@
+class Test(
+    a
+    b
+)
+
+async fn main() {
+    var t = Test("foo", "bar")
+    print(t.a).await
+    print(t.b).await
+}
