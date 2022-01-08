@@ -189,7 +189,7 @@ where
                     );
                     dada_ir::error!(
                         Span {
-                            start: Offset::from(ch_offset),
+                            start: ch_offset,
                             end,
                         }
                         .in_file(self.filename),
@@ -242,7 +242,7 @@ impl<'me> StringFormatBuffer<'me> {
     }
 
     fn flush_text(&mut self) {
-        let text = std::mem::replace(&mut self.text, String::new());
+        let text = std::mem::take(&mut self.text);
         if !text.is_empty() {
             let word = Word::from(self.db, text);
             let section = FormatStringSectionData::Text(word).intern(self.db);

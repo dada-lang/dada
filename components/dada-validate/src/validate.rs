@@ -27,6 +27,7 @@ pub fn validate_code(db: &dyn crate::Db, code: Code) -> validated::Tree {
 /// save effort but rather because it may generate errors and we don't want to issue those
 /// errors multiple times.
 #[salsa::memoized(in crate::Jar ref)]
+#[allow(clippy::needless_lifetimes)]
 pub fn root_definitions(db: &dyn crate::Db, filename: Filename) -> name_lookup::RootDefinitions {
     name_lookup::RootDefinitions::new(db, filename)
 }

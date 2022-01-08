@@ -74,6 +74,7 @@ impl Op {
 
 /// Returns a table mapping binary operators like `+` to their `+=` form.
 #[salsa::memoized(in crate::Jar ref)]
+#[allow(clippy::needless_lifetimes)]
 pub fn binary_ops(_db: &dyn crate::Db) -> Vec<BinaryOp> {
     vec![
         BinaryOp {

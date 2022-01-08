@@ -71,7 +71,7 @@ impl<'me> Interpreter<'me> {
 
         let span = self.span.load();
         moments.push(MomentData { clock, span });
-        return moments.last_key().unwrap();
+        moments.last_key().unwrap()
     }
 
     /// Return the span for a recorded moment.

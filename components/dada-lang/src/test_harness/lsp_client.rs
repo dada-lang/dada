@@ -65,10 +65,9 @@ impl ChildSession {
     fn send_any(&mut self, msg: impl Serialize) -> eyre::Result<()> {
         let msg_raw = serde_json::to_string(&msg)?;
 
-        let child_stdin = self.child.stdin.as_mut().ok_or(std::io::Error::new(
-            std::io::ErrorKind::BrokenPipe,
-            "can connect to child stdin",
-        ))?;
+        let child_stdin = self.child.stdin.as_mut().ok_or_else(|| {
+            std::io::Error::new(std::io::ErrorKind::BrokenPipe, "can connect to child stdin")
+        })?;
 
         child_stdin
             .write_all(format!("Content-Length: {}\r\n\r\n", msg_raw.len()).as_bytes())
@@ -90,25 +89,27 @@ impl ChildSession {
     }
 
     fn receive<T: for<'de> Deserialize<'de>>(&mut self) -> eyre::Result<T> {
-        let child_stdout = self.child.stdout.as_mut().ok_or(std::io::Error::new(
-            std::io::ErrorKind::BrokenPipe,
-            "can connect to child stdout",
-        ))?;
+        let child_stdout = self.child.stdout.as_mut().ok_or_else(|| {
+            std::io::Error::new(
+                std::io::ErrorKind::BrokenPipe,
+                "can connect to child stdout",
+            )
+        })?;
 
         let mut buffer = [0; 16];
-        child_stdout.read(&mut buffer[..])?;
+        child_stdout.read_exact(&mut buffer[..])?;
 
         let mut digits = String::new();
         let mut digit = [0; 1];
         loop {
-            child_stdout.read(&mut digit[..])?;
+            child_stdout.read_exact(&mut digit[..])?;
             let char_digit = digit[0] as char;
 
             if char_digit.is_digit(10) {
                 digits.push(char_digit);
             } else {
                 let mut whitespace = [0; 3];
-                child_stdout.read(&mut whitespace[..])?;
+                child_stdout.read_exact(&mut whitespace[..])?;
                 break;
             }
         }
@@ -153,22 +154,21 @@ impl ChildSession {
     pub fn send_open(&mut self, filepath: &Path) -> eyre::Result<()> {
         let contents = std::fs::read_to_string(filepath)?;
         let path = std::path::Path::new(filepath).canonicalize()?;
-        Ok(
-            self.send_notification::<DidOpenTextDocument>(DidOpenTextDocumentParams {
-                text_document: TextDocumentItem {
-                    uri: Url::parse(&format!(
-                        "file:///{}",
-                        path.to_str().ok_or(std::io::Error::new(
-                            std::io::ErrorKind::InvalidData,
-                            "Bad filepath"
-                        ))?
-                    ))?,
-                    language_id: "dada".into(),
-                    version: 1,
-                    text: contents,
-                },
-            })?,
-        )
+
+        self.send_notification::<DidOpenTextDocument>(DidOpenTextDocumentParams {
+            text_document: TextDocumentItem {
+                uri: Url::parse(&format!(
+                    "file:///{}",
+                    path.to_str().ok_or_else(|| std::io::Error::new(
+                        std::io::ErrorKind::InvalidData,
+                        "Bad filepath"
+                    ))?
+                ))?,
+                language_id: "dada".into(),
+                version: 1,
+                text: contents,
+            },
+        })
     }
 
     pub fn receive_errors(&mut self) -> eyre::Result<Vec<Diagnostic>> {
@@ -185,7 +185,7 @@ impl ChildSession {
 pub enum LspCommand {
     initialize {
         id: usize,
-        params: lsp_types::InitializeParams,
+        params: Box<lsp_types::InitializeParams>,
     },
     initialized,
     #[serde(rename = "textDocument/didOpen")]

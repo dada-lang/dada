@@ -58,17 +58,17 @@ impl Data {
         let db = interpreter.db();
         match self {
             Data::Instance(i) => format!("an instance of `{}`", i.class.name(db).as_str(db)),
-            Data::Class(_) => format!("a class"),
-            Data::Function(_) => format!("a function"),
-            Data::Intrinsic(_) => format!("a function"),
-            Data::Thunk(_) => format!("a thunk"),
-            Data::Tuple(_) => format!("a tuple"),
-            Data::Bool(_) => format!("a boolean"),
-            Data::Uint(_) => format!("an unsigned integer"),
-            Data::Int(_) => format!("an integer"),
-            Data::Float(_) => format!("a float"),
-            Data::String(_) => format!("a string"),
-            Data::Unit(()) => format!("nothing"),
+            Data::Class(_) => "a class".to_string(),
+            Data::Function(_) => "a function".to_string(),
+            Data::Intrinsic(_) => "a function".to_string(),
+            Data::Thunk(_) => "a thunk".to_string(),
+            Data::Tuple(_) => "a tuple".to_string(),
+            Data::Bool(_) => "a boolean".to_string(),
+            Data::Uint(_) => "an unsigned integer".to_string(),
+            Data::Int(_) => "an integer".to_string(),
+            Data::Float(_) => "a float".to_string(),
+            Data::String(_) => "a string".to_string(),
+            Data::Unit(()) => "nothing".to_string(),
         }
     }
 
@@ -122,7 +122,10 @@ impl Data {
     ) -> eyre::Result<()> {
         match self {
             Data::Instance(i) => match i.fields.get_mut(&name) {
-                Some(field_value) => Ok(*field_value = value),
+                Some(field_value) => {
+                    *field_value = value;
+                    Ok(())
+                }
                 None => Err(Self::no_such_field(interpreter, i.class, name)),
             },
             _ => Err(self.expected(interpreter, "something with fields")),
@@ -180,7 +183,7 @@ impl Data {
             }
             Data::Intrinsic(intrinsic) => {
                 let definition = IntrinsicDefinition::for_intrinsic(interpreter.db(), *intrinsic);
-                match_labels(interpreter, &labels, &definition.argument_names)?;
+                match_labels(interpreter, labels, &definition.argument_names)?;
                 Ok((definition.closure)(interpreter, arguments))
             }
             _ => {

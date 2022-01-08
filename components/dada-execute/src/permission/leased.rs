@@ -32,7 +32,8 @@ impl Leased {
 
     pub(super) fn cancel(&self, interpreter: &Interpreter<'_>) -> eyre::Result<()> {
         self.canceled.check_still_valid(interpreter)?;
-        Ok(self.tenant.cancel_tenant(interpreter))
+        self.tenant.cancel_tenant(interpreter);
+        Ok(())
     }
 
     pub(super) fn lease(&self, interpreter: &Interpreter<'_>) -> eyre::Result<Permission> {
@@ -47,12 +48,14 @@ impl Leased {
 
     pub(super) fn check_read(&self, interpreter: &Interpreter) -> eyre::Result<()> {
         self.canceled.check_still_valid(interpreter)?;
-        Ok(self.tenant.cancel_tenant_if_exclusive(interpreter))
+        self.tenant.cancel_tenant_if_exclusive(interpreter);
+        Ok(())
     }
 
     pub(super) fn check_write(&self, interpreter: &Interpreter) -> eyre::Result<()> {
         self.canceled.check_still_valid(interpreter)?;
-        Ok(self.tenant.cancel_tenant(interpreter))
+        self.tenant.cancel_tenant(interpreter);
+        Ok(())
     }
 
     pub(crate) fn check_await(&self, interpreter: &Interpreter) -> eyre::Result<()> {

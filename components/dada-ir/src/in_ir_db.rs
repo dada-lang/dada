@@ -13,7 +13,7 @@ impl<'me, T: ?Sized> std::ops::Deref for InIrDb<'me, T> {
     type Target = T;
 
     fn deref(&self) -> &Self::Target {
-        &self.this
+        self.this
     }
 }
 

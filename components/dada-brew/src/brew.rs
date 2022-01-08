@@ -356,14 +356,13 @@ impl Cursor {
 }
 
 fn add_temporary(brewery: &mut Brewery, origin: syntax::Expr) -> bir::LocalVariable {
-    let temp = brewery.add(
+    brewery.add(
         bir::LocalVariableData {
             name: None,
             storage_mode: StorageMode::Var,
         },
         origin,
-    );
-    temp
+    )
 }
 
 fn add_temporary_place(brewery: &mut Brewery, origin: syntax::Expr) -> bir::Place {

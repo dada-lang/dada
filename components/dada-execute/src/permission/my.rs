@@ -43,12 +43,14 @@ impl My {
 
     pub(super) fn check_read(&self, interpreter: &Interpreter) -> eyre::Result<()> {
         self.given.check_still_valid(interpreter)?;
-        Ok(self.tenant.cancel_tenant_if_exclusive(interpreter))
+        self.tenant.cancel_tenant_if_exclusive(interpreter);
+        Ok(())
     }
 
     pub(super) fn check_write(&self, interpreter: &Interpreter) -> eyre::Result<()> {
         self.given.check_still_valid(interpreter)?;
-        Ok(self.tenant.cancel_tenant(interpreter))
+        self.tenant.cancel_tenant(interpreter);
+        Ok(())
     }
 
     pub(crate) fn check_await(&self, interpreter: &Interpreter) -> eyre::Result<()> {

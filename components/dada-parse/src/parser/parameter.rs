@@ -25,8 +25,8 @@ impl<'db> Parser<'db> {
                 let opt_ty = self.parse_ty();
 
                 if opt_ty.is_none() {
-                    self.error_at_current_token(&format!("expected type after `:`"))
-                        .secondary_label(colon_span, format!("`:` is here"))
+                    self.error_at_current_token(&"expected type after `:`".to_string())
+                        .secondary_label(colon_span, "`:` is here".to_string())
                         .emit(self.db);
                 }
 

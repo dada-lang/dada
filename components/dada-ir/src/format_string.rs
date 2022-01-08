@@ -14,6 +14,7 @@ pub struct FormatStringData {
 }
 
 impl FormatString {
+    #[allow(clippy::len_without_is_empty)]
     pub fn len(&self, db: &dyn crate::Db) -> u32 {
         self.data(db).len
     }
@@ -30,6 +31,7 @@ pub enum FormatStringSectionData {
 }
 
 impl FormatStringSection {
+    #[allow(clippy::len_without_is_empty)]
     pub fn len(&self, db: &dyn crate::Db) -> u32 {
         match self.data(db) {
             FormatStringSectionData::Text(w) => w.len(db),

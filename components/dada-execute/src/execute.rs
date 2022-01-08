@@ -140,7 +140,7 @@ impl StackFrame<'_> {
         }
     }
 
-    fn give_place<'s>(&'s mut self, place: bir::Place) -> eyre::Result<Value> {
+    fn give_place(&mut self, place: bir::Place) -> eyre::Result<Value> {
         self.with_place_mut(place, Value::give)
     }
 
