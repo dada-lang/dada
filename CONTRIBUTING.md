@@ -1,6 +1,6 @@
 Dada is pretty young and informal, but we welcome contributions! 
 
-Note that, as BDFL, nikomatsakis is currently driving the language direction, syntax, and semantics during this early, experimental period.
+Keep in mind that Dada is my "spare time, relaxation and exploration" project. Responses may be slow and I am driving the language direction, syntax, and semantics. Naturally I would absolutely love to hear what people think, but I am acting as BDFL and final decision maker for the time being. --nikomatsakis
 
 ## Finding an issue
 
