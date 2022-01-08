@@ -20,7 +20,7 @@ Naturally one should only approve PRs if you have thorough knowledge of the rele
 
 The dadaists team consists of recognized contributors. For the time being, since we are so young, anyone with a merged PR will be offered membership, but you should only accept if you are expecting to continue contributing.  As the project grows, we will revisit the criteria for membership.
 
-Membership in the dadaists team gives the ability
+Membership in the dadaists team gives the ability to approve PRs, adjust labels, and so forth.
 
 ## BDFL and decision making
 
