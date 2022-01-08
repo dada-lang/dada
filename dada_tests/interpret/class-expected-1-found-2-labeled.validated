@@ -1,0 +1,32 @@
+[
+    validated::Tree {
+        root_expr: Seq(
+            [
+                Assign(
+                    x{0},
+                    Call(
+                        Class(
+                            Id {
+                                value: 1,
+                            },
+                        ),
+                        [
+                            (
+                                Some(
+                                    "arg",
+                                ),
+                                10,
+                            ),
+                            (
+                                Some(
+                                    "arg2",
+                                ),
+                                22,
+                            ),
+                        ],
+                    ),
+                ),
+            ],
+        ),
+    },
+]

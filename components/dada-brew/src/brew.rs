@@ -260,7 +260,12 @@ impl Cursor {
                     .collect::<Option<Vec<_>>>()
                 {
                     assert_eq!(values.len(), exprs.len());
-                    self.push_assignment(brewery, target, bir::ExprData::Tuple(values), origin);
+                    if values.is_empty() {
+                        self.push_assignment(brewery, target, bir::ExprData::Unit, origin);
+                    } else {
+                        assert_ne!(values.len(), 1);
+                        self.push_assignment(brewery, target, bir::ExprData::Tuple(values), origin);
+                    }
                 }
             }
 
@@ -284,13 +289,13 @@ impl Cursor {
                     }
                     self.brew_expr_and_assign_to(brewery, target, *last_expr);
                 } else {
-                    self.push_assignment(brewery, target, bir::ExprData::Tuple(vec![]), origin);
+                    self.push_assignment(brewery, target, bir::ExprData::Unit, origin);
                 }
             }
 
             validated::ExprData::Assign(_, _) => {
                 self.brew_expr_for_side_effects(brewery, expr);
-                self.push_assignment(brewery, target, bir::ExprData::Tuple(vec![]), origin);
+                self.push_assignment(brewery, target, bir::ExprData::Unit, origin);
             }
 
             validated::ExprData::Call(func, args) => {

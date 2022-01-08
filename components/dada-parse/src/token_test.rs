@@ -58,6 +58,23 @@ impl TokenTest for Identifier {
     }
 }
 
+/// A number like `22` or `22_000`.
+///
+/// Note that `.` is not accepted.
+/// Floating point literals can be parsed by combining multiple tokens.
+#[derive(Debug)]
+pub(crate) struct Number;
+impl TokenTest for Number {
+    type Narrow = Word;
+
+    fn test(self, _db: &dyn crate::Db, token: Token) -> Option<Word> {
+        match token {
+            Token::Number(w) => Some(w),
+            _ => None,
+        }
+    }
+}
+
 #[derive(Debug)]
 pub(crate) struct FormatStringLiteral;
 impl TokenTest for FormatStringLiteral {

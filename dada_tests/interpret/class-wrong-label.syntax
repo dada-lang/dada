@@ -1,0 +1,5 @@
+[
+    syntax::Tree {
+        origin: Tokens(dada_tests/interpret/class-wrong-label.dada@(33..56)),
+    },
+]

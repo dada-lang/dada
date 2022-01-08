@@ -1,0 +1,5 @@
+[
+    syntax::Tree {
+        origin: Tokens(dada_tests/interpret/class-expected-1-found-2-unlabeled.dada@(33..54)),
+    },
+]
