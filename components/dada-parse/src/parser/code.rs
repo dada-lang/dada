@@ -317,7 +317,7 @@ impl CodeParser<'_, '_> {
 
         let value = self
             .parse_expr()
-            .or_report_error(self, || format!("expected value for local variable"))
+            .or_report_error(self, || "expected value for local variable".to_string())
             .or_dummy_expr(self);
 
         Some(self.add(

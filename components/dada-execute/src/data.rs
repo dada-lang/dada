@@ -122,7 +122,8 @@ impl Data {
         value: Value,
     ) -> eyre::Result<()> {
         let r = self.field_mut(interpreter, name)?;
-        Ok(*r = value)
+        *r = value;
+        Ok(())
     }
 
     pub(crate) fn to_bool(&self, interpreter: &Interpreter<'_>) -> eyre::Result<bool> {
@@ -169,7 +170,7 @@ impl Data {
         match self {
             Data::Class(c) => {
                 let field_names = c.field_names(db);
-                match_labels(interpreter, &labels, field_names)?;
+                match_labels(interpreter, labels, field_names)?;
                 let instance = Instance {
                     class: *c,
                     fields: arguments,
