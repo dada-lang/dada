@@ -40,14 +40,18 @@ impl<'db> Parser<'db> {
                 None => (name_span, None),
             };
 
-            let decl = LocalVariableDeclData { mode, name };
+            let decl = LocalVariableDeclData {
+                mode,
+                name,
+                ty: opt_ty,
+            };
 
-            let spans = LocalVariableDeclSpan {
+            let decl_span = LocalVariableDeclSpan {
                 mode_span,
                 name_span,
             };
 
-            Some(Parameter::new(self.db, name, decl, spans, opt_ty))
+            Some(Parameter::new(self.db, name, decl, decl_span))
         } else {
             // No identifier == no parameter; if there's a storage mode,
             // that's an error.

@@ -1,7 +1,7 @@
 use std::rc::Rc;
 
 use dada_collections::Map;
-use dada_id::InternKey;
+use dada_id::prelude::*;
 use dada_ir::{
     code::{bir, syntax, validated},
     origin_table::{HasOriginIn, PushOriginIn},

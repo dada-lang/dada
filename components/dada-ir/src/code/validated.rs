@@ -39,6 +39,9 @@ pub struct TreeData {
     /// Interning tables for expressions and the like.
     pub tables: Tables,
 
+    /// Number of parameters; these will be local variables 0..N
+    pub num_parameters: usize,
+
     /// The root
     pub root_expr: Expr,
 }
@@ -47,6 +50,7 @@ impl<Db: ?Sized + crate::Db> DebugWithDb<Db> for TreeData {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>, db: &Db) -> std::fmt::Result {
         let in_db = self.tables.in_ir_db(db.as_dyn_ir_db());
         f.debug_struct("validated::Tree")
+            .field("num_parameters", &self.num_parameters)
             .field("root_expr", &self.root_expr.debug(&in_db))
             .finish()?;
         Ok(())
@@ -54,8 +58,16 @@ impl<Db: ?Sized + crate::Db> DebugWithDb<Db> for TreeData {
 }
 
 impl TreeData {
-    pub fn new(tables: Tables, root_expr: Expr) -> Self {
-        Self { tables, root_expr }
+    pub fn new(tables: Tables, num_parameters: usize, root_expr: Expr) -> Self {
+        Self {
+            tables,
+            root_expr,
+            num_parameters,
+        }
+    }
+
+    pub fn parameters(&self) -> impl Iterator<Item = LocalVariable> {
+        LocalVariable::range(0, self.num_parameters)
     }
 
     pub fn max_local_variable(&self) -> LocalVariable {
@@ -86,7 +98,7 @@ origin_table! {
         expr_spans: Expr => syntax::Expr,
         place_spans: Place => syntax::Expr,
         named_exprs: NamedExpr => syntax::NamedExpr,
-        local_variables: LocalVariable => syntax::Expr,
+        local_variables: LocalVariable => LocalVariableOrigin,
     }
 }
 
@@ -108,6 +120,13 @@ pub struct LocalVariableData {
     /// introduced by the compiler.
     pub name: Option<Word>,
     pub storage_mode: StorageMode,
+}
+
+#[derive(PartialEq, Eq, Copy, Clone, Hash, Debug)]
+pub enum LocalVariableOrigin {
+    Temporary(syntax::Expr),
+    LocalVariable(syntax::LocalVariableDecl),
+    Parameter(syntax::LocalVariableDecl),
 }
 
 id!(pub struct Expr);

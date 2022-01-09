@@ -1,5 +1,6 @@
 use dada_id::prelude::*;
 use dada_ir::code::syntax;
+use dada_ir::code::syntax::LocalVariableDecl;
 use dada_ir::code::validated;
 use dada_ir::code::Code;
 use dada_ir::diagnostic::ErrorReported;
@@ -61,6 +62,10 @@ impl<'me> Validator<'me> {
         &self.syntax_tree.tables
     }
 
+    pub(crate) fn num_local_variables(&self) -> usize {
+        usize::from(validated::LocalVariable::max_key(self.tables))
+    }
+
     fn add<V, O>(&mut self, data: V, origin: O) -> V::Key
     where
         V: dada_id::InternValue<Table = validated::Tables>,
@@ -87,7 +92,20 @@ impl<'me> Validator<'me> {
         self.add(validated::ExprData::Tuple(vec![]), origin)
     }
 
-    #[tracing::instrument(level = "debug", skip(self, expr))]
+    #[tracing::instrument(level = "debug", skip_all)]
+    pub(crate) fn validate_parameter(&mut self, decl: LocalVariableDecl) {
+        let decl_data = decl.data(self.syntax_tables());
+        let local_variable = self.add(
+            validated::LocalVariableData {
+                name: Some(decl_data.name),
+                storage_mode: decl_data.mode.unwrap_or(StorageMode::Shared),
+            },
+            validated::LocalVariableOrigin::Parameter(decl),
+        );
+        self.scope.insert(decl_data.name, local_variable);
+    }
+
+    #[tracing::instrument(level = "debug", skip_all)]
     pub(crate) fn validate_expr(&mut self, expr: syntax::Expr) -> validated::Expr {
         tracing::trace!("expr.data = {:?}", expr.data(self.syntax_tables()));
         match expr.data(self.syntax_tables()) {
@@ -155,7 +173,7 @@ impl<'me> Validator<'me> {
                         name: Some(decl_data.name),
                         storage_mode: decl_data.mode.unwrap_or(StorageMode::Shared),
                     },
-                    expr,
+                    validated::LocalVariableOrigin::LocalVariable(*decl),
                 );
                 let place = self.add(validated::PlaceData::LocalVariable(local_variable), expr);
                 let validated_initializer_expr = self.validate_expr(*initializer_expr);
@@ -412,7 +430,7 @@ impl<'me> Validator<'me> {
                 name: None,
                 storage_mode: StorageMode::Var,
             },
-            expr,
+            validated::LocalVariableOrigin::Temporary(expr),
         );
 
         let validated_place = self.add(validated::PlaceData::LocalVariable(local_variable), expr);

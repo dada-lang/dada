@@ -5,8 +5,10 @@ use crate::ext::*;
 use crate::intrinsic::IntrinsicDefinition;
 use crate::{interpreter::Interpreter, thunk::Thunk, value::Value};
 use dada_brew::prelude::*;
+use dada_ir::parameter::Parameter;
 use dada_ir::word::SpannedOptionalWord;
 use dada_ir::{class::Class, error, func::Function, intrinsic::Intrinsic, word::Word};
+use dada_parse::prelude::*;
 
 pub(crate) type DadaFuture<'i> = Pin<Box<dyn Future<Output = eyre::Result<Value>> + 'i>>;
 
@@ -179,9 +181,10 @@ impl Data {
                 Ok(Box::pin(async move { Ok(value) }))
             }
             Data::Function(f) => {
-                assert!(arguments.is_empty(), "func argments not yet implemented");
                 let bir = f.brew(interpreter.db());
-                Ok(interpreter.execute_bir(bir))
+                let parameters = f.parameters(db);
+                match_labels(interpreter, labels, parameters)?;
+                Ok(interpreter.execute_bir(bir, arguments))
             }
             Data::Intrinsic(intrinsic) => {
                 let definition = IntrinsicDefinition::for_intrinsic(interpreter.db(), *intrinsic);
@@ -204,13 +207,14 @@ impl Data {
 fn match_labels(
     interpreter: &Interpreter<'_>,
     actual_labels: &[SpannedOptionalWord],
-    expected_names: &[Word],
+    expected_names: &[impl ExpectedName],
 ) -> eyre::Result<()> {
     let db = interpreter.db();
 
     for (actual_label, expected_name) in actual_labels.iter().zip(expected_names) {
+        let expected_name = expected_name.as_word(db);
         if let Some(actual_word) = actual_label.word(db) {
-            if actual_word != *expected_name {
+            if expected_name == actual_word {
                 return Err(error!(
                     actual_label.span(db),
                     "expected to find an argument named `{}`, but found the name `{}`",
@@ -233,6 +237,22 @@ fn match_labels(
     }
 
     Ok(())
+}
+
+trait ExpectedName {
+    fn as_word(&self, db: &dyn crate::Db) -> Word;
+}
+
+impl ExpectedName for Word {
+    fn as_word(&self, _db: &dyn crate::Db) -> Word {
+        *self
+    }
+}
+
+impl ExpectedName for Parameter {
+    fn as_word(&self, db: &dyn crate::Db) -> Word {
+        self.name(db)
+    }
 }
 
 #[derive(Debug)]

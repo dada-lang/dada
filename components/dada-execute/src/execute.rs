@@ -3,6 +3,7 @@ use std::{future::Future, pin::Pin};
 use dada_brew::prelude::*;
 use dada_collections::Map;
 use dada_id::prelude::*;
+use dada_ir::code::bir::LocalVariable;
 use dada_ir::func::Function;
 use dada_ir::{
     code::{bir, syntax},
@@ -18,11 +19,12 @@ pub async fn interpret(
     function: Function,
     db: &dyn crate::Db,
     kernel: &dyn Kernel,
+    arguments: Vec<Value>,
 ) -> eyre::Result<()> {
     let initial_span = function.name_span(db);
     let interpreter = &Interpreter::new(db, kernel, initial_span);
     let bir = function.brew(db);
-    let value = interpreter.execute_bir(bir).await?;
+    let value = interpreter.execute_bir(bir, arguments).await?;
     value.read(interpreter, |data| data.to_unit(interpreter))
 }
 
@@ -37,15 +39,26 @@ impl Interpreter<'_> {
     pub(crate) fn execute_bir<'me>(
         &'me self,
         bir: bir::Bir,
+        arguments: Vec<Value>,
     ) -> Pin<Box<dyn Future<Output = eyre::Result<Value>> + 'me>> {
         let bir_data = bir.data(self.db());
 
         // Give each local variable an expired value with no permissions to start.
-        let local_variables: Map<bir::LocalVariable, Value> = bir_data
+        let mut local_variables: Map<bir::LocalVariable, Value> = bir_data
             .max_local_variable()
             .iter()
             .map(|lv| (lv, Value::unit(self).give(self).unwrap()))
             .collect();
+
+        let num_parameters = bir_data.num_parameters;
+        assert_eq!(
+            num_parameters,
+            arguments.len(),
+            "wrong number of parameters provided"
+        );
+        for (local_variable, argument) in LocalVariable::range(0, num_parameters).zip(arguments) {
+            local_variables.insert(local_variable, argument);
+        }
 
         let stack_frame = StackFrame {
             interpreter: self,

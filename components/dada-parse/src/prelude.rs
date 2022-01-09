@@ -16,6 +16,14 @@ pub impl DadaParseItemExt for Item {
 
 #[extension_trait::extension_trait]
 pub impl DadaParseCodeExt for Code {
+    fn parameters(self, db: &dyn crate::Db) -> &[Parameter] {
+        if let Some(parameter_tokens) = self.parameter_tokens() {
+            crate::parameter_parser::parse_parameters(db, parameter_tokens)
+        } else {
+            &[]
+        }
+    }
+
     fn syntax_tree(self, db: &dyn crate::Db) -> syntax::Tree {
         crate::code_parser::parse_code(db, self)
     }
@@ -28,15 +36,15 @@ pub impl DadaParseFunctionExt for Function {
         self.code(db).syntax_tree(db)
     }
 
-    fn parameters(self, db: &dyn crate::Db) -> &Vec<Parameter> {
-        crate::parameter_parser::parse_parameters(db, self.unparsed_parameters(db))
+    fn parameters(self, db: &dyn crate::Db) -> &[Parameter] {
+        self.code(db).parameters(db)
     }
 }
 
 #[extension_trait::extension_trait]
 pub impl DadaParseClassExt for Class {
     fn fields(self, db: &dyn crate::Db) -> &Vec<Parameter> {
-        crate::parameter_parser::parse_parameters(db, self.unparsed_parameters(db))
+        crate::parameter_parser::parse_parameters(db, self.field_tokens(db))
     }
 }
 

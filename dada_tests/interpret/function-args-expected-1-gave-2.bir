@@ -1,0 +1,73 @@
+[
+    validated::Tree {
+        start_basic_block: BasicBlock(0),
+        BasicBlock(0): BasicBlockData(
+            [],
+            Assign(
+                temp{2},
+                Call(
+                    Print,
+                    [
+                        name{0},
+                    ],
+                    [
+                        None,
+                    ],
+                ),
+                BasicBlock(1),
+            ),
+        ),
+        BasicBlock(1): BasicBlockData(
+            [],
+            Assign(
+                temp{1},
+                Await(
+                    temp{2},
+                ),
+                BasicBlock(2),
+            ),
+        ),
+        BasicBlock(2): BasicBlockData(
+            [],
+            Return(
+                temp{1},
+            ),
+        ),
+    },
+    validated::Tree {
+        start_basic_block: BasicBlock(0),
+        BasicBlock(0): BasicBlockData(
+            [
+                Assign(
+                    temp{1},
+                    "Plush",
+                ),
+                Assign(
+                    temp{2},
+                    "plush",
+                ),
+            ],
+            Assign(
+                temp{0},
+                Call(
+                    greet,
+                    [
+                        temp{1},
+                        temp{2},
+                    ],
+                    [
+                        None,
+                        None,
+                    ],
+                ),
+                BasicBlock(1),
+            ),
+        ),
+        BasicBlock(1): BasicBlockData(
+            [],
+            Return(
+                temp{0},
+            ),
+        ),
+    },
+]

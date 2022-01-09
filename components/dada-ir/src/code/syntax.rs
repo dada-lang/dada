@@ -31,6 +31,9 @@ pub struct TreeData {
     /// Interning tables for expressions and the like.
     pub tables: Tables,
 
+    /// Parameter declarations
+    pub parameter_decls: Vec<LocalVariableDecl>,
+
     /// The root
     pub root_expr: Expr,
 }
@@ -147,6 +150,7 @@ id!(pub struct LocalVariableDecl);
 pub struct LocalVariableDeclData {
     pub mode: Option<StorageMode>,
     pub name: Word,
+    pub ty: Option<crate::ty::Ty>,
 }
 
 #[derive(PartialEq, Eq, Clone, Hash, Debug)]

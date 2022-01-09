@@ -14,7 +14,7 @@ use crate::{
 use dada_id::{id, prelude::*, tables};
 use salsa::DebugWithDb;
 
-use super::{syntax, Code};
+use super::{syntax, validated, Code};
 
 salsa::entity2! {
     entity Bir in crate::Jar {
@@ -29,6 +29,9 @@ salsa::entity2! {
 pub struct BirData {
     /// Interning tables for expressions and the like.
     pub tables: Tables,
+
+    /// First N local variables are the parameters.
+    pub num_parameters: usize,
 
     /// The starting block
     pub start_basic_block: BasicBlock,
@@ -53,9 +56,10 @@ impl<Db: ?Sized + crate::Db> DebugWithDb<Db> for BirData {
 }
 
 impl BirData {
-    pub fn new(tables: Tables, start_basic_block: BasicBlock) -> Self {
+    pub fn new(tables: Tables, num_parameters: usize, start_basic_block: BasicBlock) -> Self {
         Self {
             tables,
+            num_parameters,
             start_basic_block,
         }
     }
@@ -64,8 +68,12 @@ impl BirData {
         &self.tables
     }
 
-    pub fn start_basic_block(&self) -> BasicBlock {
-        self.start_basic_block
+    pub fn num_parameters(&self) -> usize {
+        self.num_parameters
+    }
+
+    pub fn parameters(&self) -> impl Iterator<Item = LocalVariable> {
+        LocalVariable::range(0, self.num_parameters)
     }
 
     pub fn max_local_variable(&self) -> LocalVariable {
@@ -75,8 +83,9 @@ impl BirData {
     pub fn max_basic_block(&self) -> BasicBlock {
         BasicBlock::max_key(&self.tables)
     }
+
     pub fn all_basic_blocks(&self) -> impl Iterator<Item = BasicBlock> {
-        (0..usize::from(self.max_basic_block())).map(BasicBlock::from)
+        self.max_basic_block().iter()
     }
 }
 
@@ -102,9 +111,7 @@ origin_table! {
     /// method in the `dada_parse` prelude.
     #[derive(Clone, Debug, Default, PartialEq, Eq, Hash)]
     pub struct Origins {
-        /// Maps to either the declaration of the variable (if this is a named variable)
-        /// or the expression this is a temporary for.
-        local_variables: LocalVariable => syntax::Expr,
+        local_variables: LocalVariable => validated::LocalVariableOrigin,
         basic_blocks: BasicBlock => syntax::Expr,
         statements: Statement => syntax::Expr,
         terminator: Terminator => syntax::Expr,

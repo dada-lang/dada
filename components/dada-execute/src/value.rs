@@ -6,7 +6,7 @@ use parking_lot::Mutex;
 use crate::{data::Data, interpreter::Interpreter, permission::Permission};
 
 #[derive(Debug)]
-pub(crate) struct Value {
+pub struct Value {
     permission: Permission,
     data: Arc<Mutex<Data>>,
 }

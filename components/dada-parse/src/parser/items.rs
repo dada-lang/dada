@@ -6,7 +6,6 @@ use dada_ir::{
     func::{Effect, Function},
     item::Item,
     kw::Keyword,
-    parameter::UnparsedParameters,
 };
 
 use super::OrReportError;
@@ -46,7 +45,7 @@ impl<'db> Parser<'db> {
             self.db,
             class_name,
             class_name_span.in_file(self.filename),
-            UnparsedParameters(field_tokens),
+            field_tokens,
         ))
     }
 
@@ -68,13 +67,12 @@ impl<'db> Parser<'db> {
         let (_, body_tokens) = self
             .delimited('{')
             .or_report_error(self, || "expected function body".to_string())?;
-        let code = Code::new(body_tokens);
+        let code = Code::new(Some(parameter_tokens), body_tokens);
         Some(Function::new(
             self.db,
             func_name,
             func_name_span.in_file(self.filename),
             effect,
-            UnparsedParameters(parameter_tokens),
             code,
         ))
     }

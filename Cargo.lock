@@ -402,6 +402,7 @@ dependencies = [
  "dada-id",
  "dada-ir",
  "dada-parse",
+ "extension-trait",
  "salsa",
  "tracing",
 ]

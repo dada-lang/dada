@@ -1,0 +1,18 @@
+[
+    syntax::Tree {
+        origin: Code(
+            Some(
+                Tokens(dada_tests/interpret/function-args-2.dada@(10..22)),
+            ),
+            Tokens(dada_tests/interpret/function-args-2.dada@(25..98)),
+        ),
+    },
+    syntax::Tree {
+        origin: Code(
+            Some(
+                Tokens(dada_tests/interpret/function-args-2.dada@(109..109)),
+            ),
+            Tokens(dada_tests/interpret/function-args-2.dada@(112..144)),
+        ),
+    },
+]

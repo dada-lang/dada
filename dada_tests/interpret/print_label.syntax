@@ -1,5 +1,10 @@
 [
     syntax::Tree {
-        origin: Tokens(dada_tests/interpret/print_label.dada@(17..59)),
+        origin: Code(
+            Some(
+                Tokens(dada_tests/interpret/print_label.dada@(14..14)),
+            ),
+            Tokens(dada_tests/interpret/print_label.dada@(17..59)),
+        ),
     },
 ]

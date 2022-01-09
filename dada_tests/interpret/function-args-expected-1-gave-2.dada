@@ -1,0 +1,7 @@
+fn greet(name) {
+    print(name).await
+}
+
+fn main() {
+    greet("Plush", "plush")
+}

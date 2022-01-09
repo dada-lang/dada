@@ -1,5 +1,6 @@
 use crate::{
     parser::Parser,
+    prelude::*,
     token_test::{FormatStringLiteral, Identifier, Number},
 };
 
@@ -27,7 +28,8 @@ use salsa::AsId;
 use super::{OrReportError, ParseList};
 
 impl Parser<'_> {
-    pub(crate) fn parse_syntax_tree(&mut self, origin: Code) -> Tree {
+    pub(crate) fn parse_code_body(&mut self, origin: Code) -> Tree {
+        let db = self.db;
         let mut tables = Tables::default();
         let mut spans = Spans::default();
 
@@ -37,11 +39,21 @@ impl Parser<'_> {
             spans: &mut spans,
         };
 
+        let parameter_decls = origin
+            .parameters(db)
+            .iter()
+            .map(|parameter| code_parser.add(parameter.decl(db), parameter.decl_span(db)))
+            .collect::<Vec<_>>();
+
         let start = code_parser.tokens.last_span();
         let block = code_parser.parse_only_expr_seq();
         let span = code_parser.span_consumed_since(start);
         let root_expr = code_parser.add(ExprData::Seq(block), span);
-        let tree_data = TreeData { tables, root_expr };
+        let tree_data = TreeData {
+            tables,
+            parameter_decls,
+            root_expr,
+        };
         Tree::new(self.db, origin, tree_data, spans)
     }
 }
@@ -310,6 +322,7 @@ impl CodeParser<'_, '_> {
             LocalVariableDeclData {
                 mode: Some(mode),
                 name,
+                ty: None, // FIXME-- should permit `ty: Ty = ...`
             },
             LocalVariableDeclSpan {
                 mode_span,

@@ -1,0 +1,8 @@
+fn greet(name) {
+    print("Hello ").await
+    print(name).await
+}
+
+fn main() {
+    greet("Pluschplusch")
+}
