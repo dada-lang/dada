@@ -63,7 +63,7 @@ impl<'me> Validator<'me> {
     }
 
     pub(crate) fn num_local_variables(&self) -> usize {
-        usize::from(validated::LocalVariable::max_key(&self.tables))
+        usize::from(validated::LocalVariable::max_key(self.tables))
     }
 
     fn add<V, O>(&mut self, data: V, origin: O) -> V::Key
