@@ -306,8 +306,8 @@ version = "0.1.0"
 dependencies = [
  "dada-collections",
  "dada-id",
- "im",
  "salsa",
+ "tracing",
 ]
 
 [[package]]
@@ -345,7 +345,9 @@ version = "0.1.0"
 dependencies = [
  "dada-collections",
  "dada-ir",
+ "extension-trait",
  "salsa",
+ "tracing",
 ]
 
 [[package]]
@@ -386,6 +388,7 @@ dependencies = [
  "dada-collections",
  "dada-id",
  "dada-ir",
+ "dada-lex",
  "dada-parse",
  "extension-trait",
  "salsa",

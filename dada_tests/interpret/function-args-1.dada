@@ -1,4 +1,4 @@
-fn greet(name) {
+async fn greet(name) {
     print("Hello ").await
     print(name).await
 }

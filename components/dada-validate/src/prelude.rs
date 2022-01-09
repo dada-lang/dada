@@ -1,9 +1,4 @@
-use dada_ir::{
-    code::{validated, Code},
-    filename::Filename,
-    function::Function,
-    item::Item,
-};
+use dada_ir::{code::validated, filename::Filename, function::Function, item::Item};
 
 #[extension_trait::extension_trait]
 pub impl DadaValidateFilenameExt for Filename {
@@ -15,14 +10,7 @@ pub impl DadaValidateFilenameExt for Filename {
 #[extension_trait::extension_trait]
 pub impl DadaValidateFunctionExt for Function {
     fn validated_tree(self, db: &dyn crate::Db) -> validated::Tree {
-        self.code(db).validated_tree(db)
-    }
-}
-
-#[extension_trait::extension_trait]
-pub impl DadaValidateCodeExt for Code {
-    fn validated_tree(self, db: &dyn crate::Db) -> validated::Tree {
-        crate::validate::validate_code(db, self)
+        crate::validate::validate_function(db, self)
     }
 }
 

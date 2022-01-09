@@ -4,6 +4,7 @@ pub mod origin_table;
 pub mod class;
 pub mod code;
 pub mod diagnostic;
+pub mod effect;
 pub mod filename;
 pub mod format_string;
 pub mod function;

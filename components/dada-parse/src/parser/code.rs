@@ -258,7 +258,9 @@ impl CodeParser<'_, '_> {
     }
 
     pub(crate) fn parse_expr_0(&mut self) -> Option<Expr> {
+        tracing::debug!("parse_expr_0: peek = {:?}", self.tokens.peek());
         if let Some((id_span, id)) = self.eat(Identifier) {
+            tracing::debug!("identifier");
             Some(self.add(ExprData::Id(id), id_span))
         } else if let Some((word_span, word)) = self.eat(Number) {
             Some(self.add(ExprData::IntegerLiteral(word), word_span))
@@ -267,6 +269,11 @@ impl CodeParser<'_, '_> {
         } else if let Some(expr) = self.parse_block_expr() {
             // { ... }
             Some(expr)
+        } else if let Some((kw_span, _)) = self.eat(Keyword::Atomic) {
+            let body_expr = self.parse_required_block_expr(Keyword::Atomic);
+            let span = self.span_consumed_since(kw_span);
+            tracing::debug!("atomic");
+            Some(self.add(ExprData::Atomic(body_expr), span))
         } else if let Some((if_span, _)) = self.eat(Keyword::If) {
             if let Some(condition) = self.parse_condition() {
                 let then_expr = self.parse_required_block_expr(Keyword::If);
@@ -302,20 +309,22 @@ impl CodeParser<'_, '_> {
     /// Parses `[shared|var|atomic] x = expr`
     #[tracing::instrument(level = "debug", skip_all)]
     fn parse_local_variable_decl(&mut self) -> Option<Expr> {
-        // A storage mode like `shared` or `var` *could* be a variable declaration,
-        // but if we see `atomic` it might not be, so check for the `x = ` next.
-        let (mode_span, mode) = if let Some(pair) = self.parse_storage_mode() {
-            pair
-        } else {
-            (self.tokens.peek_span(), StorageMode::Shared)
-        };
+        // Look for `[mode] x = `. If we see that, we are committed to this
+        // being a local variable declaration. Otherwise, we roll fully back.
+        let (mode_span, mode, name_span, name) = self.lookahead(|this| {
+            // A storage mode like `shared` or `var` *could* be a variable declaration,
+            // but if we see `atomic` it might not be, so check for the `x = ` next.
+            let (mode_span, mode) = if let Some(pair) = this.parse_storage_mode() {
+                pair
+            } else {
+                (this.tokens.peek_span(), StorageMode::Shared)
+            };
 
-        // Look for `x = `. If we see that, we are committed to this
-        // being a local variable declaration.
-        let (name_span, name) = self.lookahead(|this| {
-            let pair = this.eat(Identifier)?;
+            let (name_span, name) = this.eat(Identifier)?;
+
             this.eat_op(Op::Equal)?;
-            Some(pair)
+
+            Some((mode_span, mode, name_span, name))
         })?;
 
         let local_variable_decl = self.add(

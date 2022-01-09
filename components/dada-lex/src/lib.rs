@@ -2,6 +2,7 @@
 #![allow(incomplete_features)]
 
 mod lex;
+pub mod prelude;
 
 #[salsa::jar(Db)]
 pub struct Jar();

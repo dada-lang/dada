@@ -44,6 +44,32 @@
                     },
                     message: "`:` is here",
                 },
+                DiagnosticRelatedInformation {
+                    location: Location {
+                        uri: Url {
+                            scheme: "file",
+                            cannot_be_a_base: false,
+                            username: "",
+                            password: None,
+                            host: None,
+                            port: None,
+                            path: "(local-file-prefix)/dada_tests/parser/param_class.dada",
+                            query: None,
+                            fragment: None,
+                        },
+                        range: Range {
+                            start: Position {
+                                line: 13,
+                                character: 5,
+                            },
+                            end: Position {
+                                line: 13,
+                                character: 11,
+                            },
+                        },
+                    },
+                    message: "here",
+                },
             ],
         ),
         tags: None,

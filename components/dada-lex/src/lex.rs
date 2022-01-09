@@ -2,7 +2,7 @@ use dada_ir::filename::Filename;
 use dada_ir::format_string::{
     FormatString, FormatStringData, FormatStringSection, FormatStringSectionData,
 };
-use dada_ir::span::{Offset, Span};
+use dada_ir::span::{FileSpan, Offset, Span};
 use dada_ir::token::Token;
 use dada_ir::token_tree::TokenTree;
 use dada_ir::word::Word;
@@ -10,12 +10,32 @@ use std::iter::Peekable;
 
 pub fn lex_file(db: &dyn crate::Db, filename: Filename) -> TokenTree {
     let source_text = dada_ir::manifest::source_text(db, filename);
-    let chars = &mut source_text.char_indices().peekable();
+    lex_text(db, filename, source_text, 0)
+}
+
+pub(crate) fn lex_filespan(db: &dyn crate::Db, span: FileSpan) -> TokenTree {
+    let source_text = dada_ir::manifest::source_text(db, span.filename);
+    let start = usize::from(span.start);
+    let end = usize::from(span.end);
+    lex_text(db, span.filename, &source_text[start..end], start)
+}
+
+fn lex_text(
+    db: &dyn crate::Db,
+    filename: Filename,
+    source_text: &str,
+    start_offset: usize,
+) -> TokenTree {
+    let chars = &mut source_text
+        .char_indices()
+        .map(|(offset, ch)| (offset + start_offset, ch))
+        .inspect(|pair| tracing::debug!("lex::next = {pair:?}"))
+        .peekable();
     let mut lexer = Lexer {
         db,
         filename,
         chars,
-        file_len: source_text.len(),
+        file_len: start_offset + source_text.len(),
     };
     lexer.lex_tokens(None)
 }
@@ -50,8 +70,13 @@ impl<'me, I> Lexer<'me, I>
 where
     I: Iterator<Item = (usize, char)>,
 {
+    #[tracing::instrument(level = "debug", skip(self))]
     fn lex_tokens(&mut self, end_ch: Option<char>) -> TokenTree {
         let mut tokens = vec![];
+        let mut push_token = |t: Token| {
+            tracing::debug!("push token: {:?}", t);
+            tokens.push(t);
+        };
         let mut start_pos = self.file_len;
         let mut end_pos = 0;
         while let Some((pos, ch)) = self.chars.peek().cloned() {
@@ -66,12 +91,17 @@ where
 
             match ch {
                 '(' | '[' | '{' => {
-                    tokens.push(Token::Delimiter(ch));
-                    let tree = self.lex_tokens(Some(closing_delimiter(ch)));
-                    tokens.push(Token::Tree(tree));
-                }
-                ')' | ']' | '}' => {
-                    tokens.push(Token::Delimiter(ch));
+                    push_token(Token::Delimiter(ch));
+                    let closing_ch = closing_delimiter(ch);
+                    let tree = self.lex_tokens(Some(closing_ch));
+                    push_token(Token::Tree(tree));
+
+                    if let Some((_, next_ch)) = self.chars.peek() {
+                        if *next_ch == closing_ch {
+                            self.chars.next();
+                            push_token(Token::Delimiter(closing_ch));
+                        }
+                    }
                 }
                 'a'..='z' | 'A'..='Z' | '_' => {
                     let text = self
@@ -86,34 +116,34 @@ where
                         .unwrap_or(false);
 
                     if is_prefix {
-                        tokens.push(Token::Prefix(text));
+                        push_token(Token::Prefix(text));
                     } else {
-                        tokens.push(Token::Alphabetic(text));
+                        push_token(Token::Alphabetic(text));
                     }
                 }
                 '#' => {
                     let s = self.accumulate_string(ch, |c| c != '\n');
                     let len: u32 = s.len().try_into().unwrap();
-                    tokens.push(Token::Comment(len + 1));
+                    push_token(Token::Comment(len + 1));
                 }
                 ',' => {
-                    tokens.push(Token::Comma);
+                    push_token(Token::Comma);
                 }
                 '0'..='9' => {
                     let text = self.accumulate(ch, |c| matches!(c, '0'..='9' | '_'));
-                    tokens.push(Token::Number(text));
+                    push_token(Token::Number(text));
                 }
                 op!() => {
-                    tokens.push(Token::Op(ch));
+                    push_token(Token::Op(ch));
                 }
                 '"' => {
-                    tokens.push(Token::FormatString(self.string_literal(Offset::from(pos))));
+                    push_token(Token::FormatString(self.string_literal(Offset::from(pos))));
                 }
                 _ => {
                     if !ch.is_whitespace() {
-                        tokens.push(Token::Unknown(ch));
+                        push_token(Token::Unknown(ch));
                     } else {
-                        tokens.push(Token::Whitespace(ch));
+                        push_token(Token::Whitespace(ch));
                     }
                 }
             }

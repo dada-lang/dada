@@ -333,7 +333,16 @@ impl Cursor {
                     }
                 }
             }
-            validated::ExprData::Atomic(_) => todo!(),
+
+            validated::ExprData::Atomic(subexpr) => {
+                self.terminate_and_continue(brewery, bir::TerminatorData::StartAtomic, origin);
+
+                // FIXME what if a break exits through an atomic?
+
+                self.brew_expr_and_assign_to(brewery, target, *subexpr);
+
+                self.terminate_and_continue(brewery, bir::TerminatorData::EndAtomic, origin);
+            }
 
             validated::ExprData::Error
             | validated::ExprData::Return(_)
