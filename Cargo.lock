@@ -232,7 +232,6 @@ dependencies = [
  "dada-brew",
  "dada-ir",
  "dada-lex",
- "dada-manifest",
  "dada-parse",
  "dada-validate",
  "salsa",
@@ -257,7 +256,6 @@ dependencies = [
  "dada-execute",
  "dada-ir",
  "dada-lex",
- "dada-manifest",
  "dada-parse",
  "dada-validate",
  "salsa",
@@ -270,7 +268,6 @@ dependencies = [
  "ariadne",
  "dada-collections",
  "dada-ir",
- "dada-manifest",
  "eyre",
  "salsa",
 ]
@@ -325,7 +322,6 @@ dependencies = [
  "dada-ir",
  "dada-lex",
  "dada-lsp",
- "dada-manifest",
  "eyre",
  "lsp-server",
  "lsp-types",
@@ -349,8 +345,6 @@ version = "0.1.0"
 dependencies = [
  "dada-collections",
  "dada-ir",
- "dada-manifest",
- "im",
  "salsa",
 ]
 
@@ -372,21 +366,12 @@ dependencies = [
 ]
 
 [[package]]
-name = "dada-manifest"
-version = "0.1.0"
-dependencies = [
- "dada-ir",
- "salsa",
-]
-
-[[package]]
 name = "dada-parse"
 version = "0.1.0"
 dependencies = [
  "dada-id",
  "dada-ir",
  "dada-lex",
- "dada-manifest",
  "extension-trait",
  "im",
  "salsa",
@@ -419,7 +404,6 @@ dependencies = [
  "dada-ir",
  "dada-lex",
  "dada-lsp",
- "dada-manifest",
  "eyre",
  "parking_lot",
  "salsa",

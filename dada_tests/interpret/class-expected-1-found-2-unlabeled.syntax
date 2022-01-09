@@ -2,9 +2,9 @@
     syntax::Tree {
         origin: Code(
             Some(
-                Tokens(dada_tests/interpret/class-expected-1-found-2-unlabeled.dada@(30..30)),
+                Tokens(dada_tests/interpret/class-expected-1-found-2-unlabeled.dada:3:15:3:15),
             ),
-            Tokens(dada_tests/interpret/class-expected-1-found-2-unlabeled.dada@(33..54)),
+            Tokens(dada_tests/interpret/class-expected-1-found-2-unlabeled.dada:3:18:5:1),
         ),
     },
 ]

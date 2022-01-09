@@ -30,9 +30,6 @@ path = "../dada-lex"
 [dependencies.dada-lsp]
 path = "../dada-lsp"
 
-[dependencies.dada-manifest]
-path = "../dada-manifest"
-
 [dependencies.salsa]
 path = "../salsa"
 

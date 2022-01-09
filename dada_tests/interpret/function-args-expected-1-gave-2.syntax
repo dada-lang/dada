@@ -2,17 +2,17 @@
     syntax::Tree {
         origin: Code(
             Some(
-                Tokens(dada_tests/interpret/function-args-expected-1-gave-2.dada@(9..13)),
+                Tokens(dada_tests/interpret/function-args-expected-1-gave-2.dada:1:10:1:14),
             ),
-            Tokens(dada_tests/interpret/function-args-expected-1-gave-2.dada@(16..39)),
+            Tokens(dada_tests/interpret/function-args-expected-1-gave-2.dada:1:17:3:1),
         ),
     },
     syntax::Tree {
         origin: Code(
             Some(
-                Tokens(dada_tests/interpret/function-args-expected-1-gave-2.dada@(50..50)),
+                Tokens(dada_tests/interpret/function-args-expected-1-gave-2.dada:5:9:5:9),
             ),
-            Tokens(dada_tests/interpret/function-args-expected-1-gave-2.dada@(53..82)),
+            Tokens(dada_tests/interpret/function-args-expected-1-gave-2.dada:5:12:7:1),
         ),
     },
 ]

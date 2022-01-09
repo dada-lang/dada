@@ -11,6 +11,8 @@ pub mod in_ir_db;
 pub mod intrinsic;
 pub mod item;
 pub mod kw;
+pub mod lines;
+pub mod manifest;
 pub mod op;
 pub mod parameter;
 pub mod prelude;
@@ -33,6 +35,8 @@ pub struct Jar(
     function::Function,
     function::Variable,
     kw::keywords,
+    lines::line_table,
+    manifest::source_text,
     op::binary_ops,
     parameter::Parameter,
     token_tree::TokenTree,

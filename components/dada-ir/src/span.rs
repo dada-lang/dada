@@ -10,14 +10,16 @@ pub struct FileSpan {
 impl<Db: ?Sized + crate::Db> salsa::DebugWithDb<Db> for FileSpan {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>, db: &Db) -> std::fmt::Result {
         let db = db.as_dyn_ir_db();
+        let start = crate::lines::line_column(db, self.filename, self.start);
+        let end = crate::lines::line_column(db, self.filename, self.end);
         write!(
             f,
-            "{}@{:?}",
+            "{}:{}:{}:{}:{}",
             self.filename.as_str(db),
-            Span {
-                start: self.start,
-                end: self.end
-            }
+            start.line,
+            start.column,
+            end.line,
+            end.column,
         )
     }
 }

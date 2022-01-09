@@ -11,7 +11,6 @@ im = "15"
 dada-lex = { path = "../dada-lex" }
 dada-ir = { path = "../dada-ir" }
 dada-id = { path = "../dada-id" }
-dada-manifest = { path = "../dada-manifest" }
 extension-trait = "1.0.0"
 stacker = "0.1.14"
 tracing = "0.1.29"

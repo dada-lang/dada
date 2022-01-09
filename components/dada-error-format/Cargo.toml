@@ -9,6 +9,5 @@ edition = "2021"
 ariadne = "0.1.3"
 dada-collections = { path = "../dada-collections" }
 dada-ir = { path = "../dada-ir" }
-dada-manifest = { path = "../dada-manifest" }
 eyre = "0.6.5"
 salsa = { path = "../salsa" }

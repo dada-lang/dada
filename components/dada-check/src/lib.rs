@@ -12,7 +12,6 @@ pub trait Db:
     + dada_ir::Db
     + dada_lex::Db
     + dada_parse::Db
-    + dada_manifest::Db
     + dada_validate::Db
 {
 }
@@ -23,7 +22,6 @@ impl<T> Db for T where
         + dada_ir::Db
         + dada_lex::Db
         + dada_parse::Db
-        + dada_manifest::Db
         + dada_validate::Db
 {
 }
