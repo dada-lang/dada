@@ -301,7 +301,7 @@ impl Options {
         let actual_output = match db.function_named(filename, "main") {
             Some(function) => {
                 let kernel = BufferKernel::new();
-                kernel.interpret_and_buffer(db, function).await;
+                kernel.interpret_and_buffer(db, function, vec![]).await;
                 kernel.into_buffer()
             }
             None => {

@@ -1,0 +1,62 @@
+[
+    validated::Tree {
+        num_parameters: 2,
+        root_expr: Seq(
+            [
+                Await(
+                    Call(
+                        Print,
+                        [
+                            (
+                                None,
+                                "Hello ",
+                            ),
+                        ],
+                    ),
+                ),
+                Await(
+                    Call(
+                        Print,
+                        [
+                            (
+                                None,
+                                name1{0},
+                            ),
+                        ],
+                    ),
+                ),
+                Await(
+                    Call(
+                        Print,
+                        [
+                            (
+                                None,
+                                name2{1},
+                            ),
+                        ],
+                    ),
+                ),
+            ],
+        ),
+    },
+    validated::Tree {
+        num_parameters: 0,
+        root_expr: Seq(
+            [
+                Call(
+                    greet2,
+                    [
+                        (
+                            None,
+                            "Plusch",
+                        ),
+                        (
+                            None,
+                            "plusch",
+                        ),
+                    ],
+                ),
+            ],
+        ),
+    },
+]

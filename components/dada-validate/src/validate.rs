@@ -13,14 +13,21 @@ mod validator;
 #[tracing::instrument(level = "debug", skip(db))]
 pub fn validate_code(db: &dyn crate::Db, code: Code) -> validated::Tree {
     let syntax_tree = code.syntax_tree(db);
+
     let mut tables = validated::Tables::default();
     let mut origins = validated::Origins::default();
     let root_definitions = root_definitions(db, code.filename(db));
     let scope = Scope::root(db, root_definitions);
     let mut validator =
         validator::Validator::new(db, code, syntax_tree, &mut tables, &mut origins, scope);
+
+    for parameter in &syntax_tree.data(db).parameter_decls {
+        validator.validate_parameter(*parameter);
+    }
+    let num_parameters = validator.num_local_variables();
+
     let root_expr = validator.validate_expr(syntax_tree.data(db).root_expr);
-    let data = validated::TreeData::new(tables, root_expr);
+    let data = validated::TreeData::new(tables, num_parameters, root_expr);
     validated::Tree::new(db, code, data, origins)
 }
 

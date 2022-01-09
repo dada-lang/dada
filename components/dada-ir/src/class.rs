@@ -1,10 +1,10 @@
-use crate::{parameter::UnparsedParameters, span::FileSpan, word::Word};
+use crate::{span::FileSpan, token_tree::TokenTree, word::Word};
 
 salsa::entity2! {
     entity Class in crate::Jar {
         #[id] name: Word,
         name_span: FileSpan,
-        unparsed_parameters: UnparsedParameters,
+        field_tokens: TokenTree,
     }
 }
 

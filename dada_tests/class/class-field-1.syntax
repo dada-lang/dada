@@ -1,5 +1,10 @@
 [
     syntax::Tree {
-        origin: Tokens(dada_tests/class/class-field-1.dada@(32..74)),
+        origin: Code(
+            Some(
+                Tokens(dada_tests/class/class-field-1.dada@(29..29)),
+            ),
+            Tokens(dada_tests/class/class-field-1.dada@(32..74)),
+        ),
     },
 ]

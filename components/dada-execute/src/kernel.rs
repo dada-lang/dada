@@ -3,6 +3,8 @@
 use dada_ir::func::Function;
 use parking_lot::Mutex;
 
+use crate::value::Value;
+
 #[async_trait::async_trait]
 pub trait Kernel: Send + Sync {
     /// Implementation for the `print` intrinsic, that prints a line of text.
@@ -24,12 +26,22 @@ impl BufferKernel {
         Self::default()
     }
 
-    pub async fn interpret(&self, db: &dyn crate::Db, function: Function) -> eyre::Result<()> {
-        crate::interpret(function, db, self).await
+    pub async fn interpret(
+        &self,
+        db: &dyn crate::Db,
+        function: Function,
+        arguments: Vec<Value>,
+    ) -> eyre::Result<()> {
+        crate::interpret(function, db, self, arguments).await
     }
 
-    pub async fn interpret_and_buffer(&self, db: &dyn crate::Db, function: Function) {
-        match crate::interpret(function, db, self).await {
+    pub async fn interpret_and_buffer(
+        &self,
+        db: &dyn crate::Db,
+        function: Function,
+        arguments: Vec<Value>,
+    ) {
+        match crate::interpret(function, db, self, arguments).await {
             Ok(()) => {}
             Err(e) => {
                 self.buffer.lock().push_str(&e.to_string());

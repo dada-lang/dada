@@ -1,8 +1,18 @@
 [
     syntax::Tree {
-        origin: Tokens(dada_tests/validate/duplicate_func_func.dada@(11..11)),
+        origin: Code(
+            Some(
+                Tokens(dada_tests/validate/duplicate_func_func.dada@(8..8)),
+            ),
+            Tokens(dada_tests/validate/duplicate_func_func.dada@(11..11)),
+        ),
     },
     syntax::Tree {
-        origin: Tokens(dada_tests/validate/duplicate_func_func.dada@(24..24)),
+        origin: Code(
+            Some(
+                Tokens(dada_tests/validate/duplicate_func_func.dada@(21..21)),
+            ),
+            Tokens(dada_tests/validate/duplicate_func_func.dada@(24..24)),
+        ),
     },
 ]

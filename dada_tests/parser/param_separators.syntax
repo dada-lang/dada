@@ -1,29 +1,74 @@
 [
     syntax::Tree {
-        origin: Tokens(dada_tests/parser/param_separators.dada@(14..15)),
+        origin: Code(
+            Some(
+                Tokens(dada_tests/parser/param_separators.dada@(10..11)),
+            ),
+            Tokens(dada_tests/parser/param_separators.dada@(14..15)),
+        ),
     },
     syntax::Tree {
-        origin: Tokens(dada_tests/parser/param_separators.dada@(33..34)),
+        origin: Code(
+            Some(
+                Tokens(dada_tests/parser/param_separators.dada@(28..30)),
+            ),
+            Tokens(dada_tests/parser/param_separators.dada@(33..34)),
+        ),
     },
     syntax::Tree {
-        origin: Tokens(dada_tests/parser/param_separators.dada@(54..55)),
+        origin: Code(
+            Some(
+                Tokens(dada_tests/parser/param_separators.dada@(47..51)),
+            ),
+            Tokens(dada_tests/parser/param_separators.dada@(54..55)),
+        ),
     },
     syntax::Tree {
-        origin: Tokens(dada_tests/parser/param_separators.dada@(76..77)),
+        origin: Code(
+            Some(
+                Tokens(dada_tests/parser/param_separators.dada@(68..73)),
+            ),
+            Tokens(dada_tests/parser/param_separators.dada@(76..77)),
+        ),
     },
     syntax::Tree {
-        origin: Tokens(dada_tests/parser/param_separators.dada@(99..137)),
+        origin: Code(
+            Some(
+                Tokens(dada_tests/parser/param_separators.dada@(90..96)),
+            ),
+            Tokens(dada_tests/parser/param_separators.dada@(99..137)),
+        ),
     },
     syntax::Tree {
-        origin: Tokens(dada_tests/parser/param_separators.dada@(166..167)),
+        origin: Code(
+            Some(
+                Tokens(dada_tests/parser/param_separators.dada@(150..163)),
+            ),
+            Tokens(dada_tests/parser/param_separators.dada@(166..167)),
+        ),
     },
     syntax::Tree {
-        origin: Tokens(dada_tests/parser/param_separators.dada@(190..191)),
+        origin: Code(
+            Some(
+                Tokens(dada_tests/parser/param_separators.dada@(180..187)),
+            ),
+            Tokens(dada_tests/parser/param_separators.dada@(190..191)),
+        ),
     },
     syntax::Tree {
-        origin: Tokens(dada_tests/parser/param_separators.dada@(221..222)),
+        origin: Code(
+            Some(
+                Tokens(dada_tests/parser/param_separators.dada@(204..218)),
+            ),
+            Tokens(dada_tests/parser/param_separators.dada@(221..222)),
+        ),
     },
     syntax::Tree {
-        origin: Tokens(dada_tests/parser/param_separators.dada@(286..287)),
+        origin: Code(
+            Some(
+                Tokens(dada_tests/parser/param_separators.dada@(235..283)),
+            ),
+            Tokens(dada_tests/parser/param_separators.dada@(286..287)),
+        ),
     },
 ]

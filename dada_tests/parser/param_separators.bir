@@ -4,12 +4,12 @@
         BasicBlock(0): BasicBlockData(
             [
                 Assign(
-                    temp{0},
+                    temp{1},
                     (),
                 ),
             ],
             Return(
-                temp{0},
+                temp{1},
             ),
         ),
     },
@@ -18,12 +18,12 @@
         BasicBlock(0): BasicBlockData(
             [
                 Assign(
-                    temp{0},
+                    temp{1},
                     (),
                 ),
             ],
             Return(
-                temp{0},
+                temp{1},
             ),
         ),
     },
@@ -32,12 +32,12 @@
         BasicBlock(0): BasicBlockData(
             [
                 Assign(
-                    temp{0},
+                    temp{2},
                     (),
                 ),
             ],
             Return(
-                temp{0},
+                temp{2},
             ),
         ),
     },
@@ -46,12 +46,12 @@
         BasicBlock(0): BasicBlockData(
             [
                 Assign(
-                    temp{0},
+                    temp{2},
                     (),
                 ),
             ],
             Return(
-                temp{0},
+                temp{2},
             ),
         ),
     },
@@ -60,12 +60,12 @@
         BasicBlock(0): BasicBlockData(
             [
                 Assign(
-                    temp{0},
+                    temp{2},
                     (),
                 ),
             ],
             Return(
-                temp{0},
+                temp{2},
             ),
         ),
     },
@@ -74,12 +74,12 @@
         BasicBlock(0): BasicBlockData(
             [
                 Assign(
-                    temp{0},
+                    temp{2},
                     (),
                 ),
             ],
             Return(
-                temp{0},
+                temp{2},
             ),
         ),
     },
@@ -88,12 +88,12 @@
         BasicBlock(0): BasicBlockData(
             [
                 Assign(
-                    temp{0},
+                    temp{1},
                     (),
                 ),
             ],
             Return(
-                temp{0},
+                temp{1},
             ),
         ),
     },
@@ -102,12 +102,12 @@
         BasicBlock(0): BasicBlockData(
             [
                 Assign(
-                    temp{0},
+                    temp{2},
                     (),
                 ),
             ],
             Return(
-                temp{0},
+                temp{2},
             ),
         ),
     },
@@ -116,12 +116,12 @@
         BasicBlock(0): BasicBlockData(
             [
                 Assign(
-                    temp{0},
+                    temp{2},
                     (),
                 ),
             ],
             Return(
-                temp{0},
+                temp{2},
             ),
         ),
     },

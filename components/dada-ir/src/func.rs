@@ -1,11 +1,10 @@
-use crate::{code::Code, parameter::UnparsedParameters, span::FileSpan, word::Word};
+use crate::{code::Code, filename::Filename, span::FileSpan, word::Word};
 
 salsa::entity2! {
     entity Function in crate::Jar {
         #[id] name: Word,
         name_span: FileSpan,
         effect: Effect,
-        unparsed_parameters: UnparsedParameters,
         code: Code,
     }
 }
@@ -14,6 +13,12 @@ impl<Db: ?Sized + crate::Db> salsa::DebugWithDb<Db> for Function {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>, db: &Db) -> std::fmt::Result {
         let db = db.as_dyn_ir_db();
         write!(f, "{}", self.name(db).as_str(db))
+    }
+}
+
+impl Function {
+    pub fn filename(self, db: &dyn crate::Db) -> Filename {
+        self.code(db).filename(db)
     }
 }
 

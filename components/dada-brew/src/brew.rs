@@ -19,6 +19,7 @@ pub fn brew(db: &dyn crate::Db, validated_tree: validated::Tree) -> bir::Bir {
     let mut tables = bir::Tables::default();
     let mut origins = bir::Origins::default();
     let brewery = &mut Brewery::new(db, validated_tree, &mut tables, &mut origins);
+    let num_parameters = validated_tree.data(db).num_parameters;
 
     // Compile the root expression and -- assuming it doesn't diverse --
     // return the resulting value.
@@ -34,7 +35,12 @@ pub fn brew(db: &dyn crate::Db, validated_tree: validated::Tree) -> bir::Bir {
     }
     let start_basic_block = cursor.complete();
 
-    bir::Bir::new(db, origin, BirData::new(tables, start_basic_block), origins)
+    bir::Bir::new(
+        db,
+        origin,
+        BirData::new(tables, num_parameters, start_basic_block),
+        origins,
+    )
 }
 
 impl Cursor {
@@ -372,7 +378,7 @@ fn add_temporary(brewery: &mut Brewery, origin: syntax::Expr) -> bir::LocalVaria
             name: None,
             storage_mode: StorageMode::Var,
         },
-        origin,
+        validated::LocalVariableOrigin::Temporary(origin),
     )
 }
 

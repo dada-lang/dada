@@ -24,7 +24,7 @@ impl Options {
         // Find the "main" function
         match db.function_named(filename, "main") {
             Some(function) => {
-                dada_execute::interpret(function, &db, &Kernel::new()).await?;
+                dada_execute::interpret(function, &db, &Kernel::new(), vec![]).await?;
             }
             None => {
                 return Err(eyre::eyre!(

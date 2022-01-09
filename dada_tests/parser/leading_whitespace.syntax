@@ -1,5 +1,10 @@
 [
     syntax::Tree {
-        origin: Tokens(dada_tests/parser/leading_whitespace.dada@(19..61)),
+        origin: Code(
+            Some(
+                Tokens(dada_tests/parser/leading_whitespace.dada@(16..16)),
+            ),
+            Tokens(dada_tests/parser/leading_whitespace.dada@(19..61)),
+        ),
     },
 ]

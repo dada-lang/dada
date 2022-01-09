@@ -50,6 +50,11 @@ macro_rules! id {
                 (0_u32 .. u32::from(self))
                 .map(move |i| Self::from(i))
             }
+
+            /// Returns an iterator from `from .. to`.
+            pub fn range(from: usize, to: usize) -> impl Iterator<Item = Self> {
+                (from .. to).map(Self::from)
+            }
         }
 
         impl std::fmt::Debug for $n {
