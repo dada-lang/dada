@@ -1,4 +1,4 @@
-use crate::{class::Class, code::Code, func::Function, span::FileSpan, word::Word};
+use crate::{class::Class, code::Code, function::Function, span::FileSpan, word::Word};
 
 #[derive(Copy, Clone, PartialEq, Eq, PartialOrd, Ord, Debug, Hash)]
 pub enum Item {

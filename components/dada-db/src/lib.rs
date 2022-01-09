@@ -2,7 +2,7 @@ use dada_brew::prelude::MaybeBrewExt;
 use dada_ir::{
     diagnostic::Diagnostic,
     filename::Filename,
-    func::Function,
+    function::Function,
     item::Item,
     span::{FileSpan, LineColumn, Offset},
     word::Word,

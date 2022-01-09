@@ -3,7 +3,7 @@ use crate::{parser::Parser, token_test::Identifier};
 use dada_ir::{
     class::Class,
     code::Code,
-    func::{Effect, Function},
+    function::{Effect, Function},
     item::Item,
     kw::Keyword,
 };

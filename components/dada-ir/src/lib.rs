@@ -6,7 +6,7 @@ pub mod code;
 pub mod diagnostic;
 pub mod filename;
 pub mod format_string;
-pub mod func;
+pub mod function;
 pub mod in_ir_db;
 pub mod intrinsic;
 pub mod item;
@@ -30,8 +30,8 @@ pub struct Jar(
     diagnostic::Diagnostics,
     format_string::FormatString,
     format_string::FormatStringSection,
-    func::Function,
-    func::Variable,
+    function::Function,
+    function::Variable,
     kw::keywords,
     op::binary_ops,
     parameter::Parameter,

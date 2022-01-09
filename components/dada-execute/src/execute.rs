@@ -4,7 +4,7 @@ use dada_brew::prelude::*;
 use dada_collections::Map;
 use dada_id::prelude::*;
 use dada_ir::code::bir::LocalVariable;
-use dada_ir::func::Function;
+use dada_ir::function::Function;
 use dada_ir::{
     code::{bir, syntax},
     error,

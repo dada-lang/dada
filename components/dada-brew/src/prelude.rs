@@ -1,6 +1,6 @@
 use dada_ir::{
     code::{bir, Code},
-    func::Function,
+    function::Function,
     item::Item,
 };
 use dada_validate::prelude::*;

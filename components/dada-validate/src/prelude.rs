@@ -1,7 +1,7 @@
 use dada_ir::{
     code::{validated, Code},
     filename::Filename,
-    func::Function,
+    function::Function,
     item::Item,
 };
 

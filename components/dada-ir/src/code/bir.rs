@@ -3,7 +3,7 @@
 
 use crate::{
     class::Class,
-    func::Function,
+    function::Function,
     in_ir_db::InIrDb,
     intrinsic::Intrinsic,
     op::Op,

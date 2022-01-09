@@ -7,7 +7,7 @@ use crate::{interpreter::Interpreter, thunk::Thunk, value::Value};
 use dada_brew::prelude::*;
 use dada_ir::parameter::Parameter;
 use dada_ir::word::SpannedOptionalWord;
-use dada_ir::{class::Class, error, func::Function, intrinsic::Intrinsic, word::Word};
+use dada_ir::{class::Class, error, function::Function, intrinsic::Intrinsic, word::Word};
 use dada_parse::prelude::*;
 
 pub(crate) type DadaFuture<'i> = Pin<Box<dyn Future<Output = eyre::Result<Value>> + 'i>>;

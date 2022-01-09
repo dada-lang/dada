@@ -1,6 +1,6 @@
 use dada_collections::Map;
 use dada_ir::{
-    class::Class, code::validated, filename::Filename, func::Function, intrinsic::Intrinsic,
+    class::Class, code::validated, filename::Filename, function::Function, intrinsic::Intrinsic,
     item::Item, word::Word,
 };
 use dada_parse::prelude::*;

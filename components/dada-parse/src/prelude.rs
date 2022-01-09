@@ -2,7 +2,7 @@ use dada_ir::{
     class::Class,
     code::{syntax, Code},
     filename::Filename,
-    func::Function,
+    function::Function,
     item::Item,
     parameter::Parameter,
 };
