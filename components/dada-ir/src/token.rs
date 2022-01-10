@@ -70,7 +70,7 @@ impl Token {
         self.alphabetic().map(|i| i.as_str(db))
     }
 
-    /// Returns Some if this is a [`TokenTree::Tree`] variant.
+    /// Returns `Some` if this is a [`Token::Tree`] variant.
     pub fn tree(self) -> Option<token_tree::TokenTree> {
         match self {
             Token::Tree(tree) => Some(tree),

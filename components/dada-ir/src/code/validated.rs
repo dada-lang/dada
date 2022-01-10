@@ -192,7 +192,7 @@ pub enum ExprData {
     /// `break [from expr] [with value]`
     Return(Expr),
 
-    /// expr[0]; expr[1]; ...
+    /// `expr[0]; expr[1]; ...`
     Seq(Vec<Expr>),
 
     /// `a + b`
