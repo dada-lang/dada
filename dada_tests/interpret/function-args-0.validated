@@ -21,9 +21,11 @@
         num_parameters: 0,
         root_expr: Seq(
             [
-                Call(
-                    greet0,
-                    [],
+                Await(
+                    Call(
+                        greet0,
+                        [],
+                    ),
                 ),
             ],
         ),

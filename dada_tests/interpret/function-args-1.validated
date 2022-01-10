@@ -32,14 +32,16 @@
         num_parameters: 0,
         root_expr: Seq(
             [
-                Call(
-                    greet,
-                    [
-                        (
-                            None,
-                            "Pluschplusch",
-                        ),
-                    ],
+                Await(
+                    Call(
+                        greet,
+                        [
+                            (
+                                None,
+                                "Pluschplusch",
+                            ),
+                        ],
+                    ),
                 ),
             ],
         ),

@@ -3,6 +3,6 @@ async fn greet(name) {
     print(name).await
 }
 
-fn main() {
-    greet("Pluschplusch")
+async fn main() {
+    greet("Pluschplusch").await
 }

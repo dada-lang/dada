@@ -44,7 +44,7 @@
         BasicBlock(0): BasicBlockData(
             [],
             Assign(
-                temp{0},
+                temp{1},
                 Call(
                     greet0,
                     [],
@@ -54,6 +54,16 @@
             ),
         ),
         BasicBlock(1): BasicBlockData(
+            [],
+            Assign(
+                temp{0},
+                Await(
+                    temp{1},
+                ),
+                BasicBlock(2),
+            ),
+        ),
+        BasicBlock(2): BasicBlockData(
             [],
             Return(
                 temp{0},

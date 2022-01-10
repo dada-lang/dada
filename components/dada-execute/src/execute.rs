@@ -4,6 +4,7 @@ use dada_brew::prelude::*;
 use dada_collections::Map;
 use dada_id::prelude::*;
 use dada_ir::code::bir::LocalVariable;
+use dada_ir::effect::Effect;
 use dada_ir::function::Function;
 use dada_ir::{
     code::{bir, syntax},
@@ -13,6 +14,7 @@ use dada_ir::{
 };
 
 use crate::kernel::Kernel;
+use crate::thunk::Thunk;
 use crate::{data::Tuple, error::DiagnosticBuilderExt, interpreter::Interpreter, value::Value};
 
 pub async fn interpret(
@@ -36,6 +38,34 @@ struct StackFrame<'me> {
 }
 
 impl Interpreter<'_> {
+    /// Executes the function on the given arguments. If function is an async
+    /// function, this will simply return a thunk that, when awaited, runs the code.
+    /// Otherwise it runs the function.
+    pub(crate) fn execute_function<'me>(
+        &'me self,
+        function: Function,
+        arguments: Vec<Value>,
+    ) -> Pin<Box<dyn Future<Output = eyre::Result<Value>> + 'me>> {
+        if let Effect::Async = function.code(self.db()).effect {
+            let thunk = Thunk::new(move |interpreter| {
+                Box::pin(async move {
+                    let bir = function.brew(interpreter.db());
+                    interpreter.execute_bir(bir, arguments).await
+                })
+            });
+            let value = Value::new(self, thunk);
+            Box::pin(async move { Ok(value) })
+        } else {
+            let bir = function.brew(self.db());
+            self.execute_bir(bir, arguments)
+        }
+    }
+
+    /// Call and execute the code in the bir.
+    ///
+    /// Note that, if this bir comes from an async
+    /// function, it will still just execute and doesn't return a thunk.
+    /// This is convenient when calling `main`.
     pub(crate) fn execute_bir<'me>(
         &'me self,
         bir: bir::Bir,
@@ -66,7 +96,6 @@ impl Interpreter<'_> {
             tables: &bir_data.tables,
             local_variables,
         };
-
         Box::pin(stack_frame.execute(bir_data.start_basic_block))
     }
 }

@@ -7,7 +7,6 @@ edition = "2021"
 
 [dependencies]
 salsa = { path = "../salsa" }
-im = "15"
 dada-lex = { path = "../dada-lex" }
 dada-ir = { path = "../dada-ir" }
 dada-id = { path = "../dada-id" }

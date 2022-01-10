@@ -4,6 +4,6 @@ async fn greet2(name1, name2) {
     print(name2).await
 }
 
-fn main() {
-    greet2("Plusch", "plusch")
+async fn main() {
+    greet2("Plusch", "plusch").await
 }
