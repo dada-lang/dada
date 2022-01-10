@@ -14,7 +14,7 @@ Anyone is welcome to review using the github review tool. Best practice is to ge
 
 Naturally one should only approve PRs if you have thorough knowledge of the relevant code and are confident the code is correct.
 
-**Furthermore, anything which changes the syntax/semantics of Dada is some notable way needs approval from the BDFL.**
+**Furthermore, anything which changes the syntax/semantics of Dada in some notable way needs approval from the BDFL.**
 
 ## The dadaists team
 
@@ -24,6 +24,8 @@ Membership in the dadaists team gives the ability to approve PRs, adjust labels,
 
 ## BDFL and decision making
 
-Decision making strives to be by consensus. Please voice your opinion, keeping in mind the code-of-conduct
+Decision making strives to be by consensus. Please voice your opinion, keeping in mind the [code-of-conduct].
+
+[code-of-conduct]: CODE_OF_CONDUCT.md
 
 For the time being, nikomatsakis is BDFL and has final say whenever anything gets controversial.

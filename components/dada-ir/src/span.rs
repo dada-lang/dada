@@ -37,7 +37,7 @@ impl std::fmt::Debug for Span {
 }
 
 #[derive(Copy, Clone, Debug, PartialEq, Eq, PartialOrd, Ord, Hash)]
-/// 0-based byte offset with=in a file.
+/// 0-based byte offset within a file.
 pub struct Offset(u32);
 
 #[derive(Copy, Clone, Debug, PartialEq, Eq, Hash)]
