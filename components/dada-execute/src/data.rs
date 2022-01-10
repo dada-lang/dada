@@ -4,10 +4,9 @@ use crate::error::DiagnosticBuilderExt;
 use crate::ext::*;
 use crate::intrinsic::IntrinsicDefinition;
 use crate::{interpreter::Interpreter, thunk::Thunk, value::Value};
-use dada_brew::prelude::*;
 use dada_ir::parameter::Parameter;
 use dada_ir::word::SpannedOptionalWord;
-use dada_ir::{class::Class, error, func::Function, intrinsic::Intrinsic, word::Word};
+use dada_ir::{class::Class, error, function::Function, intrinsic::Intrinsic, word::Word};
 use dada_parse::prelude::*;
 
 pub(crate) type DadaFuture<'i> = Pin<Box<dyn Future<Output = eyre::Result<Value>> + 'i>>;
@@ -180,11 +179,10 @@ impl Data {
                 let value = Value::new(interpreter, instance);
                 Ok(Box::pin(async move { Ok(value) }))
             }
-            Data::Function(f) => {
-                let bir = f.brew(interpreter.db());
-                let parameters = f.parameters(db);
+            Data::Function(function) => {
+                let parameters = function.parameters(db);
                 match_labels(interpreter, labels, parameters)?;
-                Ok(interpreter.execute_bir(bir, arguments))
+                Ok(interpreter.execute_function(*function, arguments))
             }
             Data::Intrinsic(intrinsic) => {
                 let definition = IntrinsicDefinition::for_intrinsic(interpreter.db(), *intrinsic);

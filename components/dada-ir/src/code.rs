@@ -1,4 +1,4 @@
-use crate::{filename::Filename, token_tree::TokenTree};
+use crate::{effect::Effect, filename::Filename, token_tree::TokenTree};
 
 /// "Code" represents a block of code attached to a method.
 /// After parsing, it just contains a token tree, but you can...
@@ -7,28 +7,26 @@ use crate::{filename::Filename, token_tree::TokenTree};
 ///   parse it into an `Ast`.
 #[derive(Copy, Clone, PartialEq, Eq, Hash, Debug)]
 pub struct Code {
-    parameter_tokens: Option<TokenTree>,
-    body_tokens: TokenTree,
+    pub effect: Effect,
+    pub parameter_tokens: Option<TokenTree>,
+    pub body_tokens: TokenTree,
 }
 
 impl Code {
-    pub fn new(parameter_tokens: Option<TokenTree>, body_tokens: TokenTree) -> Self {
+    pub fn new(
+        effect: Effect,
+        parameter_tokens: Option<TokenTree>,
+        body_tokens: TokenTree,
+    ) -> Self {
         Self {
+            effect,
             parameter_tokens,
             body_tokens,
         }
     }
 
-    pub fn parameter_tokens(self) -> Option<TokenTree> {
-        self.parameter_tokens
-    }
-
-    pub fn body_tokens(self) -> TokenTree {
-        self.body_tokens
-    }
-
     pub fn filename(self, db: &dyn crate::Db) -> Filename {
-        self.body_tokens().filename(db)
+        self.body_tokens.filename(db)
     }
 }
 

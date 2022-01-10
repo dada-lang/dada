@@ -4,12 +4,16 @@ use dada_ir::code::syntax::LocalVariableDecl;
 use dada_ir::code::validated;
 use dada_ir::code::Code;
 use dada_ir::diagnostic::ErrorReported;
+use dada_ir::effect::Effect;
+use dada_ir::kw::Keyword;
 use dada_ir::origin_table::HasOriginIn;
 use dada_ir::origin_table::PushOriginIn;
 use dada_ir::span::FileSpan;
 use dada_ir::span::Span;
 use dada_ir::storage_mode::StorageMode;
+use dada_lex::prelude::*;
 use dada_parse::prelude::*;
+use std::rc::Rc;
 use std::str::FromStr;
 
 use super::name_lookup::Definition;
@@ -23,6 +27,8 @@ pub(crate) struct Validator<'me> {
     origins: &'me mut validated::Origins,
     loop_stack: Vec<validated::Expr>,
     scope: Scope<'me>,
+    effect: Effect,
+    effect_span: Rc<dyn Fn(&Validator<'_>) -> FileSpan + 'me>,
 }
 
 impl<'me> Validator<'me> {
@@ -33,6 +39,7 @@ impl<'me> Validator<'me> {
         tables: &'me mut validated::Tables,
         origins: &'me mut validated::Origins,
         scope: Scope<'me>,
+        effect_span: impl Fn(&Validator<'_>) -> FileSpan + 'me,
     ) -> Self {
         let syntax_tree = syntax_tree.data(db);
         Self {
@@ -43,6 +50,8 @@ impl<'me> Validator<'me> {
             origins,
             loop_stack: vec![],
             scope,
+            effect: code.effect,
+            effect_span: Rc::new(effect_span),
         }
     }
 
@@ -55,7 +64,23 @@ impl<'me> Validator<'me> {
             origins: self.origins,
             loop_stack: self.loop_stack.clone(),
             scope: self.scope.subscope(),
+            effect: self.effect,
+            effect_span: self.effect_span.clone(),
         }
+    }
+
+    fn effect_span(&self) -> FileSpan {
+        (self.effect_span)(self)
+    }
+
+    pub(crate) fn with_effect(
+        mut self,
+        effect: Effect,
+        effect_span: impl Fn(&Validator<'_>) -> FileSpan + 'me,
+    ) -> Self {
+        self.effect = effect;
+        self.effect_span = Rc::new(effect_span);
+        self
     }
 
     pub(crate) fn syntax_tables(&self) -> &'me syntax::Tables {
@@ -141,6 +166,33 @@ impl<'me> Validator<'me> {
             }
 
             syntax::ExprData::Await(future_expr) => {
+                if !self.effect.permits_await() {
+                    let await_span = self.span(expr).trailing_keyword(self.db, Keyword::Await);
+                    match self.effect {
+                        Effect::Atomic => {
+                            dada_ir::error!(
+                                await_span,
+                                "await is not permitted inside atomic sections",
+                            )
+                            .primary_label("await is here")
+                            .secondary_label(self.effect_span(), "atomic section entered here")
+                            .emit(self.db);
+                        }
+                        Effect::Default => {
+                            dada_ir::error!(
+                                await_span,
+                                "await is not permitted outside of async functions",
+                            )
+                            .primary_label("await is here")
+                            .secondary_label(self.effect_span(), "fn not declared `async`")
+                            .emit(self.db);
+                        }
+                        Effect::Async => {
+                            unreachable!();
+                        }
+                    }
+                }
+
                 let validated_future_expr = self.validate_expr(*future_expr);
                 self.add(validated::ExprData::Await(validated_future_expr), expr)
             }
@@ -214,7 +266,11 @@ impl<'me> Validator<'me> {
             }
 
             syntax::ExprData::Atomic(atomic_expr) => {
-                let validated_atomic_expr = self.validate_expr(*atomic_expr);
+                let mut subscope = self.subscope().with_effect(Effect::Atomic, |this| {
+                    this.span(expr).leading_keyword(this.db, Keyword::Atomic)
+                });
+                let validated_atomic_expr = subscope.validate_expr(*atomic_expr);
+                std::mem::drop(subscope);
                 self.add(validated::ExprData::Atomic(validated_atomic_expr), expr)
             }
 
@@ -226,6 +282,7 @@ impl<'me> Validator<'me> {
                 let mut subscope = self.subscope();
                 subscope.loop_stack.push(loop_expr);
                 let validated_body_expr = subscope.validate_expr(*body_expr);
+                std::mem::drop(subscope);
 
                 self.tables[loop_expr] = validated::ExprData::Loop(validated_body_expr);
 
@@ -248,6 +305,7 @@ impl<'me> Validator<'me> {
                 let mut subscope = self.subscope();
                 subscope.loop_stack.push(loop_expr);
                 let validated_body_expr = subscope.validate_expr(*body_expr);
+                drop(subscope);
 
                 let if_break_expr = {
                     // break

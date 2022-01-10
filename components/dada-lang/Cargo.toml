@@ -14,7 +14,6 @@ dada-error-format = { path = "../dada-error-format" }
 dada-execute = { path = "../dada-execute" }
 dada-lex = { path = "../dada-lex" }
 dada-lsp = { path = "../dada-lsp" }
-dada-manifest = { path = "../dada-manifest" }
 lsp-server = "0.5.2"
 lsp-types = "0.83.1"
 eyre = "0.6.5"

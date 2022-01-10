@@ -59,7 +59,7 @@ impl<'me> SourceCache<'me> {
 impl ariadne::Cache<Filename> for SourceCache<'_> {
     fn fetch(&mut self, id: &Filename) -> Result<&Source, Box<dyn std::fmt::Debug + '_>> {
         Ok(self.map.entry(*id).or_insert_with(|| {
-            let source_text = dada_manifest::source_text(self.db, *id);
+            let source_text = dada_ir::manifest::source_text(self.db, *id);
             Source::from(source_text)
         }))
     }

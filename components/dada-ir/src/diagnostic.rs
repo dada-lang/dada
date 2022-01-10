@@ -1,3 +1,5 @@
+use salsa::DebugWithDb;
+
 use crate::{
     filename::Filename,
     span::{FileSpan, Span},
@@ -87,6 +89,7 @@ impl Diagnostic {
     /// You can fetch the diagnostics produced by a query (and its
     /// dependencies) by invoking `query::accumulated::<Diagnostics>(..)`.
     pub fn emit(self, db: &dyn crate::Db) -> ErrorReported {
+        tracing::debug!("emitting error {self:#?} at {:?}", self.span.debug(db));
         Diagnostics::push(db, self);
         ErrorReported
     }
@@ -126,7 +129,7 @@ impl DiagnosticBuilder {
             message: message.to_string(),
             labels: vec![],
             children: vec![],
-            add_primary_label: false,
+            add_primary_label: true,
         }
     }
 

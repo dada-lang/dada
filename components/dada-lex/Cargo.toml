@@ -6,8 +6,8 @@ edition = "2021"
 # See more keys and their definitions at https://doc.rust-lang.org/cargo/reference/manifest.html
 
 [dependencies]
-salsa = { path = "../salsa" }
-im = "15"
-dada-manifest = { path = "../dada-manifest" }
 dada-ir = { path = "../dada-ir" }
 dada-collections = { path = "../dada-collections" }
+extension-trait = "1"
+salsa = { path = "../salsa" }
+tracing = "0.1.29"

@@ -70,16 +70,16 @@
         BasicBlock(0): BasicBlockData(
             [
                 Assign(
-                    temp{1},
+                    temp{2},
                     "Pluschplusch",
                 ),
             ],
             Assign(
-                temp{0},
+                temp{1},
                 Call(
                     greet,
                     [
-                        temp{1},
+                        temp{2},
                     ],
                     [
                         None,
@@ -89,6 +89,16 @@
             ),
         ),
         BasicBlock(1): BasicBlockData(
+            [],
+            Assign(
+                temp{0},
+                Await(
+                    temp{1},
+                ),
+                BasicBlock(2),
+            ),
+        ),
+        BasicBlock(2): BasicBlockData(
             [],
             Return(
                 temp{0},

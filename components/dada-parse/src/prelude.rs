@@ -2,7 +2,7 @@ use dada_ir::{
     class::Class,
     code::{syntax, Code},
     filename::Filename,
-    func::Function,
+    function::Function,
     item::Item,
     parameter::Parameter,
 };
@@ -17,7 +17,7 @@ pub impl DadaParseItemExt for Item {
 #[extension_trait::extension_trait]
 pub impl DadaParseCodeExt for Code {
     fn parameters(self, db: &dyn crate::Db) -> &[Parameter] {
-        if let Some(parameter_tokens) = self.parameter_tokens() {
+        if let Some(parameter_tokens) = self.parameter_tokens {
             crate::parameter_parser::parse_parameters(db, parameter_tokens)
         } else {
             &[]

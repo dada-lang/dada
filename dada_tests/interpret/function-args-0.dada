@@ -1,7 +1,7 @@
-fn greet0() {
+async fn greet0() {
     print("Hello you").await
 }
 
-fn main() {
-    greet0()
+async fn main() {
+    greet0().await
 }

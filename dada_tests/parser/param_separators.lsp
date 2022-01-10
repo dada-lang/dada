@@ -44,6 +44,32 @@
                     },
                     message: "`:` is here",
                 },
+                DiagnosticRelatedInformation {
+                    location: Location {
+                        uri: Url {
+                            scheme: "file",
+                            cannot_be_a_base: false,
+                            username: "",
+                            password: None,
+                            host: None,
+                            port: None,
+                            path: "(local-file-prefix)/dada_tests/parser/param_separators.dada",
+                            query: None,
+                            fragment: None,
+                        },
+                        range: Range {
+                            start: Position {
+                                line: 35,
+                                character: 7,
+                            },
+                            end: Position {
+                                line: 35,
+                                character: 8,
+                            },
+                        },
+                    },
+                    message: "here",
+                },
             ],
         ),
         tags: None,
@@ -92,6 +118,32 @@
                         },
                     },
                     message: "`:` is here",
+                },
+                DiagnosticRelatedInformation {
+                    location: Location {
+                        uri: Url {
+                            scheme: "file",
+                            cannot_be_a_base: false,
+                            username: "",
+                            password: None,
+                            host: None,
+                            port: None,
+                            path: "(local-file-prefix)/dada_tests/parser/param_separators.dada",
+                            query: None,
+                            fragment: None,
+                        },
+                        range: Range {
+                            start: Position {
+                                line: 13,
+                                character: 13,
+                            },
+                            end: Position {
+                                line: 13,
+                                character: 14,
+                            },
+                        },
+                    },
+                    message: "here",
                 },
             ],
         ),

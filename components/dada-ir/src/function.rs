@@ -4,8 +4,11 @@ salsa::entity2! {
     entity Function in crate::Jar {
         #[id] name: Word,
         name_span: FileSpan,
-        effect: Effect,
         code: Code,
+
+        /// If this func has a declared effect, this is the span of that keyword (e.g., `async`)
+        /// Otherwise, it is the span of the `fn` keyword.
+        effect_span: FileSpan,
     }
 }
 
@@ -20,12 +23,6 @@ impl Function {
     pub fn filename(self, db: &dyn crate::Db) -> Filename {
         self.code(db).filename(db)
     }
-}
-
-#[derive(Copy, Clone, PartialEq, Eq, Debug, Hash)]
-pub enum Effect {
-    None,
-    Async,
 }
 
 salsa::entity2! {

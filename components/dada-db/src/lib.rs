@@ -2,7 +2,7 @@ use dada_brew::prelude::MaybeBrewExt;
 use dada_ir::{
     diagnostic::Diagnostic,
     filename::Filename,
-    func::Function,
+    function::Function,
     item::Item,
     span::{FileSpan, LineColumn, Offset},
     word::Word,
@@ -18,7 +18,6 @@ use salsa::DebugWithDb;
     dada_execute::Jar,
     dada_ir::Jar,
     dada_lex::Jar,
-    dada_manifest::Jar,
     dada_parse::Jar,
     dada_validate::Jar
 )]
@@ -43,7 +42,7 @@ impl salsa::ParallelDatabase for Db {
 
 impl Db {
     pub fn update_file(&mut self, filename: Filename, source_text: String) {
-        dada_manifest::source_text::set(self, filename, source_text)
+        dada_ir::manifest::source_text::set(self, filename, source_text)
     }
 
     /// Checks `filename` for compilation errors and returns all relevant diagnostics.
@@ -87,7 +86,7 @@ impl Db {
 
     /// Converts a given offset in a given file into line/column information.
     pub fn line_column(&self, filename: Filename, offset: Offset) -> LineColumn {
-        dada_lex::line_column(self, filename, offset)
+        dada_ir::lines::line_column(self, filename, offset)
     }
 
     /// Converts a `FileSpan` into its constituent parts.

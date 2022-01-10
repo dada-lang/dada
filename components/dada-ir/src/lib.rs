@@ -4,13 +4,16 @@ pub mod origin_table;
 pub mod class;
 pub mod code;
 pub mod diagnostic;
+pub mod effect;
 pub mod filename;
 pub mod format_string;
-pub mod func;
+pub mod function;
 pub mod in_ir_db;
 pub mod intrinsic;
 pub mod item;
 pub mod kw;
+pub mod lines;
+pub mod manifest;
 pub mod op;
 pub mod parameter;
 pub mod prelude;
@@ -30,9 +33,11 @@ pub struct Jar(
     diagnostic::Diagnostics,
     format_string::FormatString,
     format_string::FormatStringSection,
-    func::Function,
-    func::Variable,
+    function::Function,
+    function::Variable,
     kw::keywords,
+    lines::line_table,
+    manifest::source_text,
     op::binary_ops,
     parameter::Parameter,
     token_tree::TokenTree,

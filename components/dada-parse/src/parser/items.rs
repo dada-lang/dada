@@ -1,11 +1,7 @@
 use crate::{parser::Parser, token_test::Identifier};
 
 use dada_ir::{
-    class::Class,
-    code::Code,
-    func::{Effect, Function},
-    item::Item,
-    kw::Keyword,
+    class::Class, code::Code, effect::Effect, function::Function, item::Item, kw::Keyword,
 };
 
 use super::OrReportError;
@@ -50,13 +46,13 @@ impl<'db> Parser<'db> {
     }
 
     fn parse_function(&mut self) -> Option<Function> {
-        let async_kw = self.eat(Keyword::Async);
-        let effect = if async_kw.is_some() {
-            Effect::Async
+        let (effect_span, effect) = if let Some((span, _)) = self.eat(Keyword::Async) {
+            (Some(span), Effect::Async)
         } else {
-            Effect::None
+            (None, Effect::Default)
         };
-        self.eat(Keyword::Fn)
+        let (fn_span, _) = self
+            .eat(Keyword::Fn)
             .or_report_error(self, || "expected `fn`".to_string())?;
         let (func_name_span, func_name) = self
             .eat(Identifier)
@@ -67,13 +63,13 @@ impl<'db> Parser<'db> {
         let (_, body_tokens) = self
             .delimited('{')
             .or_report_error(self, || "expected function body".to_string())?;
-        let code = Code::new(Some(parameter_tokens), body_tokens);
+        let code = Code::new(effect, Some(parameter_tokens), body_tokens);
         Some(Function::new(
             self.db,
             func_name,
             func_name_span.in_file(self.filename),
-            effect,
             code,
+            effect_span.unwrap_or(fn_span).in_file(self.filename),
         ))
     }
 }

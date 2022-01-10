@@ -4,16 +4,16 @@
         BasicBlock(0): BasicBlockData(
             [
                 Assign(
-                    temp{5},
-                    "Hello ",
+                    temp{2},
+                    "Hello, world",
                 ),
             ],
             Assign(
-                temp{4},
+                temp{1},
                 Call(
                     Print,
                     [
-                        temp{5},
+                        temp{2},
                     ],
                     [
                         None,
@@ -25,9 +25,45 @@
         BasicBlock(1): BasicBlockData(
             [],
             Assign(
-                temp{3},
+                temp{0},
                 Await(
-                    temp{4},
+                    temp{1},
+                ),
+                BasicBlock(2),
+            ),
+        ),
+        BasicBlock(2): BasicBlockData(
+            [],
+            Return(
+                temp{0},
+            ),
+        ),
+    },
+    validated::Tree {
+        start_basic_block: BasicBlock(0),
+        BasicBlock(0): BasicBlockData(
+            [],
+            StartAomic(
+                BasicBlock(1),
+            ),
+        ),
+        BasicBlock(1): BasicBlockData(
+            [
+                Assign(
+                    temp{2},
+                    "Hello, world",
+                ),
+            ],
+            Assign(
+                temp{1},
+                Call(
+                    Print,
+                    [
+                        temp{2},
+                    ],
+                    [
+                        None,
+                    ],
                 ),
                 BasicBlock(2),
             ),
@@ -35,59 +71,75 @@
         BasicBlock(2): BasicBlockData(
             [],
             Assign(
-                temp{7},
-                Call(
-                    Print,
-                    [
-                        name1{0},
-                    ],
-                    [
-                        None,
-                    ],
+                temp{0},
+                Await(
+                    temp{1},
                 ),
                 BasicBlock(3),
             ),
         ),
         BasicBlock(3): BasicBlockData(
             [],
-            Assign(
-                temp{6},
-                Await(
-                    temp{7},
-                ),
+            EndAtomic(
                 BasicBlock(4),
             ),
         ),
         BasicBlock(4): BasicBlockData(
             [],
+            Return(
+                temp{0},
+            ),
+        ),
+    },
+    validated::Tree {
+        start_basic_block: BasicBlock(0),
+        BasicBlock(0): BasicBlockData(
+            [],
+            StartAomic(
+                BasicBlock(1),
+            ),
+        ),
+        BasicBlock(1): BasicBlockData(
+            [
+                Assign(
+                    temp{2},
+                    "Hello, world",
+                ),
+            ],
             Assign(
-                temp{8},
+                temp{1},
                 Call(
                     Print,
                     [
-                        name2{1},
+                        temp{2},
                     ],
                     [
                         None,
                     ],
                 ),
-                BasicBlock(5),
+                BasicBlock(2),
             ),
         ),
-        BasicBlock(5): BasicBlockData(
+        BasicBlock(2): BasicBlockData(
             [],
             Assign(
-                temp{2},
+                temp{0},
                 Await(
-                    temp{8},
+                    temp{1},
                 ),
-                BasicBlock(6),
+                BasicBlock(3),
             ),
         ),
-        BasicBlock(6): BasicBlockData(
+        BasicBlock(3): BasicBlockData(
+            [],
+            EndAtomic(
+                BasicBlock(4),
+            ),
+        ),
+        BasicBlock(4): BasicBlockData(
             [],
             Return(
-                temp{2},
+                temp{0},
             ),
         ),
     },
@@ -97,23 +149,17 @@
             [
                 Assign(
                     temp{2},
-                    "Plusch",
-                ),
-                Assign(
-                    temp{3},
-                    "plusch",
+                    "Hello, world",
                 ),
             ],
             Assign(
                 temp{1},
                 Call(
-                    greet2,
+                    Print,
                     [
                         temp{2},
-                        temp{3},
                     ],
                     [
-                        None,
                         None,
                     ],
                 ),

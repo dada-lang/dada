@@ -87,15 +87,6 @@ source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "bef38d45163c2f1dde094a7dfd33ccf595c92905c8f8f4fdc18d06fb1037718a"
 
 [[package]]
-name = "bitmaps"
-version = "2.1.0"
-source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "031043d04099746d8db04daf1fa424b2bc8bd69d92b25962dcde24da39ab64a2"
-dependencies = [
- "typenum",
-]
-
-[[package]]
 name = "bumpalo"
 version = "3.9.1"
 source = "registry+https://github.com/rust-lang/crates.io-index"
@@ -232,7 +223,6 @@ dependencies = [
  "dada-brew",
  "dada-ir",
  "dada-lex",
- "dada-manifest",
  "dada-parse",
  "dada-validate",
  "salsa",
@@ -257,7 +247,6 @@ dependencies = [
  "dada-execute",
  "dada-ir",
  "dada-lex",
- "dada-manifest",
  "dada-parse",
  "dada-validate",
  "salsa",
@@ -270,7 +259,6 @@ dependencies = [
  "ariadne",
  "dada-collections",
  "dada-ir",
- "dada-manifest",
  "eyre",
  "salsa",
 ]
@@ -309,8 +297,8 @@ version = "0.1.0"
 dependencies = [
  "dada-collections",
  "dada-id",
- "im",
  "salsa",
+ "tracing",
 ]
 
 [[package]]
@@ -325,7 +313,6 @@ dependencies = [
  "dada-ir",
  "dada-lex",
  "dada-lsp",
- "dada-manifest",
  "eyre",
  "lsp-server",
  "lsp-types",
@@ -349,9 +336,9 @@ version = "0.1.0"
 dependencies = [
  "dada-collections",
  "dada-ir",
- "dada-manifest",
- "im",
+ "extension-trait",
  "salsa",
+ "tracing",
 ]
 
 [[package]]
@@ -372,23 +359,13 @@ dependencies = [
 ]
 
 [[package]]
-name = "dada-manifest"
-version = "0.1.0"
-dependencies = [
- "dada-ir",
- "salsa",
-]
-
-[[package]]
 name = "dada-parse"
 version = "0.1.0"
 dependencies = [
  "dada-id",
  "dada-ir",
  "dada-lex",
- "dada-manifest",
  "extension-trait",
- "im",
  "salsa",
  "stacker",
  "tracing",
@@ -401,6 +378,7 @@ dependencies = [
  "dada-collections",
  "dada-id",
  "dada-ir",
+ "dada-lex",
  "dada-parse",
  "extension-trait",
  "salsa",
@@ -419,7 +397,6 @@ dependencies = [
  "dada-ir",
  "dada-lex",
  "dada-lsp",
- "dada-manifest",
  "eyre",
  "parking_lot",
  "salsa",
@@ -524,20 +501,6 @@ dependencies = [
  "matches",
  "unicode-bidi",
  "unicode-normalization",
-]
-
-[[package]]
-name = "im"
-version = "15.0.0"
-source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "111c1983f3c5bb72732df25cddacee9b546d08325fb584b5ebd38148be7b0246"
-dependencies = [
- "bitmaps",
- "rand_core",
- "rand_xoshiro",
- "sized-chunks",
- "typenum",
- "version_check",
 ]
 
 [[package]]
@@ -802,21 +765,6 @@ dependencies = [
 ]
 
 [[package]]
-name = "rand_core"
-version = "0.5.1"
-source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "90bde5296fc891b0cef12a6d03ddccc162ce7b2aff54160af9338f8d40df6d19"
-
-[[package]]
-name = "rand_xoshiro"
-version = "0.4.0"
-source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "a9fcdd2e881d02f1d9390ae47ad8e5696a9e4be7b547a1da2afbc61973217004"
-dependencies = [
- "rand_core",
-]
-
-[[package]]
 name = "redox_syscall"
 version = "0.2.10"
 source = "registry+https://github.com/rust-lang/crates.io-index"
@@ -980,16 +928,6 @@ name = "similar"
 version = "2.1.0"
 source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "2e24979f63a11545f5f2c60141afe249d4f19f84581ea2138065e400941d83d3"
-
-[[package]]
-name = "sized-chunks"
-version = "0.6.5"
-source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "16d69225bde7a69b235da73377861095455d298f2b970996eec25ddbb42b3d1e"
-dependencies = [
- "bitmaps",
- "typenum",
-]
 
 [[package]]
 name = "smallvec"
@@ -1219,12 +1157,6 @@ name = "typed-index-collections"
 version = "3.0.3"
 source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "ed2198514940bb6574216fde5d5c349c3f578fa719b225352f0eaaf45983c930"
-
-[[package]]
-name = "typenum"
-version = "1.15.0"
-source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "dcf81ac59edc17cc8697ff311e8f5ef2d99fcbd9817b34cec66f90b6c3dfd987"
 
 [[package]]
 name = "unicode-bidi"

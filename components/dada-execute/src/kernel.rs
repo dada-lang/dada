@@ -1,6 +1,6 @@
 //! The "kernel" is the interface from the interpreter to the outside world.
 
-use dada_ir::func::Function;
+use dada_ir::function::Function;
 use parking_lot::Mutex;
 
 use crate::value::Value;

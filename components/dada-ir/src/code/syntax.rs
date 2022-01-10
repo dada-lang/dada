@@ -1,10 +1,12 @@
 use crate::{
+    in_ir_db::InIrDb,
+    in_ir_db::InIrDbExt,
     op::Op,
     span::Span,
     storage_mode::StorageMode,
     word::{SpannedOptionalWord, Word},
 };
-use dada_id::{id, tables};
+use dada_id::{id, prelude::*, tables};
 use salsa::DebugWithDb;
 
 use super::Code;
@@ -38,10 +40,13 @@ pub struct TreeData {
     pub root_expr: Expr,
 }
 
-impl<Db: ?Sized + crate::Db> DebugWithDb<Db> for TreeData {
-    fn fmt(&self, f: &mut std::fmt::Formatter<'_>, _db: &Db) -> std::fmt::Result {
+impl DebugWithDb<dyn crate::Db> for TreeData {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>, db: &dyn crate::Db) -> std::fmt::Result {
         f.debug_struct("syntax::Tree")
-            .field("root_expr", &self.root_expr) // FIXME
+            .field(
+                "root_expr",
+                &self.root_expr.debug(&self.tables.in_ir_db(db)),
+            ) // FIXME
             .finish()
     }
 }
@@ -72,6 +77,16 @@ origin_table! {
 }
 
 id!(pub struct Expr);
+
+impl DebugWithDb<InIrDb<'_, Tables>> for Expr {
+    fn fmt(
+        &self,
+        f: &mut std::fmt::Formatter<'_>,
+        tables: &InIrDb<'_, Tables>,
+    ) -> std::fmt::Result {
+        std::fmt::Debug::fmt(self.data(tables), f)
+    }
+}
 
 #[derive(PartialEq, Eq, PartialOrd, Ord, Clone, Hash, Debug)]
 pub enum ExprData {

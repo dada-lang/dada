@@ -2,17 +2,17 @@
 #![allow(incomplete_features)]
 
 mod lex;
-mod lines;
+pub mod prelude;
 
 #[salsa::jar(Db)]
-pub struct Jar(lines::line_table);
+pub struct Jar();
 
-pub trait Db: salsa::DbWithJar<Jar> + dada_manifest::Db + dada_ir::Db {
+pub trait Db: salsa::DbWithJar<Jar> + dada_ir::Db {
     fn lex(&self) -> &dyn Db;
 }
 impl<T> Db for T
 where
-    T: salsa::DbWithJar<Jar> + dada_manifest::Db + dada_ir::Db,
+    T: salsa::DbWithJar<Jar> + dada_ir::Db,
 {
     fn lex(&self) -> &dyn Db {
         self
@@ -21,4 +21,3 @@ where
 
 pub use lex::closing_delimiter;
 pub use lex::lex_file;
-pub use lines::line_column;
