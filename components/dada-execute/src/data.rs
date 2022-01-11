@@ -212,7 +212,7 @@ fn match_labels(
     for (actual_label, expected_name) in actual_labels.iter().zip(expected_names) {
         let expected_name = expected_name.as_word(db);
         if let Some(actual_word) = actual_label.word(db) {
-            if expected_name == actual_word {
+            if expected_name != actual_word {
                 return Err(error!(
                     actual_label.span(db),
                     "expected to find an argument named `{}`, but found the name `{}`",
