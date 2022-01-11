@@ -1,4 +1,4 @@
-use std::env;
+use std::{env, fs};
 use std::path::{Path, PathBuf};
 
 use dada_execute::kernel::BufferKernel;
@@ -92,9 +92,11 @@ impl Options {
     #[tracing::instrument(level = "debug", skip(self))]
     async fn test_dada_file(&self, path: &Path) -> eyre::Result<()> {
         let expected_diagnostics = &expected_diagnostics(path)?;
-        self.test_dada_file_normal(path, expected_diagnostics)
+        let path_without_extention = path.with_extension("");
+        fs::create_dir_all(&path_without_extention)?;
+        self.test_dada_file_normal(&path_without_extention, expected_diagnostics)
             .await?;
-        self.test_dada_file_in_ide(path, expected_diagnostics)?;
+        self.test_dada_file_in_ide(&path_without_extention, expected_diagnostics)?;
         Ok(())
     }
 
@@ -105,9 +107,10 @@ impl Options {
         expected_diagnostics: &[ExpectedDiagnostic],
     ) -> eyre::Result<()> {
         let mut db = dada_db::Db::default();
-        let contents = std::fs::read_to_string(path)
-            .with_context(|| format!("reading `{}`", path.display()))?;
-        let filename = dada_ir::filename::Filename::from(&db, path);
+        let source_path = path.with_extension("dada");
+        let contents = std::fs::read_to_string(&source_path)
+            .with_context(|| format!("reading `{}`", &source_path.display()))?;
+        let filename = dada_ir::filename::Filename::from(&db, &source_path);
         db.update_file(filename, contents);
         let diagnostics = db.diagnostics(filename);
 
@@ -120,31 +123,31 @@ impl Options {
         )?;
         self.check_output_against_ref_file(
             dada_error_format::format_diagnostics(&db, &diagnostics)?,
-            &path.with_extension("ref"),
+            &path.join("ref.ref"),
             &mut errors,
         )?;
         self.check_compiled(
             &db,
             &[filename],
             |item| db.debug_syntax_tree(item),
-            &path.with_extension("syntax"),
+            &path.join("syntax.ref"),
             &mut errors,
         )?;
         self.check_compiled(
             &db,
             &[filename],
             |item| db.debug_validated_tree(item),
-            &path.with_extension("validated"),
+            &path.join("validated.ref"),
             &mut errors,
         )?;
         self.check_compiled(
             &db,
             &[filename],
             |item| db.debug_bir(item),
-            &path.with_extension("bir"),
+            &path.join("bir.ref"),
             &mut errors,
         )?;
-        self.check_interpreted(&db, filename, &path.with_extension("stdout"), &mut errors)
+        self.check_interpreted(&db, filename, &path.join("stdout.ref"), &mut errors)
             .await?;
         errors.into_result()
     }
@@ -157,7 +160,7 @@ impl Options {
     ) -> eyre::Result<()> {
         let mut c = lsp_client::ChildSession::spawn();
         c.send_init()?;
-        c.send_open(path)?;
+        c.send_open(&path.with_extension("dada"))?;
         let diagnostics = c.receive_errors()?;
 
         let mut errors = Errors::default();
@@ -169,7 +172,7 @@ impl Options {
         )?;
         self.check_output_against_ref_file(
             format!("{:#?}", diagnostics),
-            &path.with_extension("lsp"),
+            &path.join("lsp.ref"),
             &mut errors,
         )?;
         errors.into_result()
