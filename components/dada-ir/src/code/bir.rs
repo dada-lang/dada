@@ -41,7 +41,7 @@ impl<Db: ?Sized + crate::Db> DebugWithDb<Db> for BirData {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>, db: &Db) -> std::fmt::Result {
         let this = &self.tables.in_ir_db(db.as_dyn_ir_db());
 
-        let mut dbg = f.debug_struct("validated::Tree");
+        let mut dbg = f.debug_struct("bir::Bir");
         dbg.field("start_basic_block", &self.start_basic_block);
 
         for basic_block in self.all_basic_blocks() {

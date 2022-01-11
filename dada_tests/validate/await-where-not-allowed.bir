@@ -1,5 +1,5 @@
 [
-    validated::Tree {
+    bir::Bir {
         start_basic_block: BasicBlock(0),
         BasicBlock(0): BasicBlockData(
             [
@@ -39,59 +39,7 @@
             ),
         ),
     },
-    validated::Tree {
-        start_basic_block: BasicBlock(0),
-        BasicBlock(0): BasicBlockData(
-            [],
-            StartAomic(
-                BasicBlock(1),
-            ),
-        ),
-        BasicBlock(1): BasicBlockData(
-            [
-                Assign(
-                    temp{2},
-                    "Hello, world",
-                ),
-            ],
-            Assign(
-                temp{1},
-                Call(
-                    Print,
-                    [
-                        temp{2},
-                    ],
-                    [
-                        None,
-                    ],
-                ),
-                BasicBlock(2),
-            ),
-        ),
-        BasicBlock(2): BasicBlockData(
-            [],
-            Assign(
-                temp{0},
-                Await(
-                    temp{1},
-                ),
-                BasicBlock(3),
-            ),
-        ),
-        BasicBlock(3): BasicBlockData(
-            [],
-            EndAtomic(
-                BasicBlock(4),
-            ),
-        ),
-        BasicBlock(4): BasicBlockData(
-            [],
-            Return(
-                temp{0},
-            ),
-        ),
-    },
-    validated::Tree {
+    bir::Bir {
         start_basic_block: BasicBlock(0),
         BasicBlock(0): BasicBlockData(
             [],
@@ -143,7 +91,59 @@
             ),
         ),
     },
-    validated::Tree {
+    bir::Bir {
+        start_basic_block: BasicBlock(0),
+        BasicBlock(0): BasicBlockData(
+            [],
+            StartAomic(
+                BasicBlock(1),
+            ),
+        ),
+        BasicBlock(1): BasicBlockData(
+            [
+                Assign(
+                    temp{2},
+                    "Hello, world",
+                ),
+            ],
+            Assign(
+                temp{1},
+                Call(
+                    Print,
+                    [
+                        temp{2},
+                    ],
+                    [
+                        None,
+                    ],
+                ),
+                BasicBlock(2),
+            ),
+        ),
+        BasicBlock(2): BasicBlockData(
+            [],
+            Assign(
+                temp{0},
+                Await(
+                    temp{1},
+                ),
+                BasicBlock(3),
+            ),
+        ),
+        BasicBlock(3): BasicBlockData(
+            [],
+            EndAtomic(
+                BasicBlock(4),
+            ),
+        ),
+        BasicBlock(4): BasicBlockData(
+            [],
+            Return(
+                temp{0},
+            ),
+        ),
+    },
+    bir::Bir {
         start_basic_block: BasicBlock(0),
         BasicBlock(0): BasicBlockData(
             [
