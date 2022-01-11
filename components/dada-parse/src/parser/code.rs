@@ -173,14 +173,31 @@ impl CodeParser<'_, '_> {
             return Some(expr);
         }
 
-        self.parse_expr_3()
+        self.parse_expr_4()
+    }
+
+    pub(crate) fn parse_expr_4(&mut self) -> Option<Expr> {
+        let mut expr = self.parse_expr_3()?;
+
+        loop {
+            if let Some(expr1) = self.parse_binop(expr, &[Op::Plus, Op::Minus], Self::parse_expr_3)
+            {
+                expr = expr1;
+                continue;
+            }
+
+            break;
+        }
+
+        Some(expr)
     }
 
     pub(crate) fn parse_expr_3(&mut self) -> Option<Expr> {
         let mut expr = self.parse_expr_2()?;
 
         loop {
-            if let Some(expr1) = self.parse_binop(expr, &[Op::Plus, Op::Minus], Self::parse_expr_2)
+            if let Some(expr1) =
+                self.parse_binop(expr, &[Op::DividedBy, Op::Times], Self::parse_expr_2)
             {
                 expr = expr1;
                 continue;
@@ -196,9 +213,11 @@ impl CodeParser<'_, '_> {
         let mut expr = self.parse_expr_1()?;
 
         loop {
-            if let Some(expr1) =
-                self.parse_binop(expr, &[Op::DividedBy, Op::Times], Self::parse_expr_1)
-            {
+            if let Some(expr1) = self.parse_binop(
+                expr,
+                &[Op::EqualEqual, Op::LessThan, Op::GreaterThan],
+                Self::parse_expr_1,
+            ) {
                 expr = expr1;
                 continue;
             }
