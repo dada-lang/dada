@@ -108,7 +108,7 @@ where
                         .accumulate(ch, |c| matches!(c, 'a'..='z' | 'A'..='Z' | '_' | '0'..='9'));
 
                     // Check what comes next to decide if this is
-                    // a "prefix" like `r'foo"` or an identifier `r`.
+                    // a "prefix" like `r"foo"` or an identifier `r`.
                     let is_prefix = self
                         .chars
                         .peek()
