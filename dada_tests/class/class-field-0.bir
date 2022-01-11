@@ -1,5 +1,5 @@
 [
-    validated::Tree {
+    bir::Bir {
         start_basic_block: BasicBlock(0),
         BasicBlock(0): BasicBlockData(
             [],
