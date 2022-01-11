@@ -259,7 +259,11 @@ impl CodeParser<'_, '_> {
 
     pub(crate) fn parse_expr_0(&mut self) -> Option<Expr> {
         tracing::debug!("parse_expr_0: peek = {:?}", self.tokens.peek());
-        if let Some((id_span, id)) = self.eat(Identifier) {
+        if let Some((true_span, _)) = self.eat(Keyword::True) {
+            Some(self.add(ExprData::BooleanLiteral(true), true_span))
+        } else if let Some((false_span, _)) = self.eat(Keyword::False) {
+            Some(self.add(ExprData::BooleanLiteral(false), false_span))
+        } else if let Some((id_span, id)) = self.eat(Identifier) {
             tracing::debug!("identifier");
             Some(self.add(ExprData::Id(id), id_span))
         } else if let Some((word_span, word)) = self.eat(Number) {
