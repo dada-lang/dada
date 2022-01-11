@@ -29,7 +29,7 @@ impl<'me> Parser<'me> {
         }
     }
 
-    /// Returns Some if the next pending token matches `is`, along
+    /// Returns `Some` if the next pending token matches `is`, along
     /// with the narrowed view of the next token.
     fn peek<TT: TokenTest>(&mut self, test: TT) -> Option<TT::Narrow> {
         test.test(self.db, self.tokens.peek()?)
