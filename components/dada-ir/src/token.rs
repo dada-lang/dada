@@ -78,3 +78,20 @@ impl Token {
         }
     }
 }
+
+impl<Db: ?Sized + crate::Db> salsa::DebugWithDb<Db> for Token {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>, db: &Db) -> std::fmt::Result {
+        match self {
+            Token::Alphabetic(word) => f.debug_tuple("Alphabetic").field(&word.debug(db)).finish(),
+            Token::Number(word) => f.debug_tuple("Number").field(&word.debug(db)).finish(),
+            Token::Prefix(word) => f.debug_tuple("Prefix").field(&word.debug(db)).finish(),
+            Token::Tree(tree) => f.debug_tuple("Tree").field(&tree.debug(db)).finish(),
+            Token::FormatString(format_string) => f
+                .debug_tuple("FormatString")
+                .field(&format_string.debug(db))
+                .finish(),
+            Token::Comment(_) => write!(f, "Comment"),
+            _ => std::fmt::Debug::fmt(self, f),
+        }
+    }
+}
