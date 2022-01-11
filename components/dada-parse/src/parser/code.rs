@@ -287,6 +287,10 @@ impl CodeParser<'_, '_> {
                     .emit(self.db);
                 None
             }
+        } else if let Some((loop_span, _)) = self.eat(Keyword::Loop) {
+            let body = self.parse_required_block_expr(Keyword::Loop);
+            let span = self.span_consumed_since(loop_span);
+            Some(self.add(ExprData::Loop(body), span))
         } else if let Some((while_span, _)) = self.eat(Keyword::While) {
             if let Some(condition) = self.parse_condition() {
                 let body = self.parse_required_block_expr(Keyword::While);
