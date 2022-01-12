@@ -10,7 +10,6 @@ body {
     display: flex;
     flex-direction: column;
     min-width: 40ch;
-    padding: 10px;
 }
 
 #editor {
@@ -21,6 +20,11 @@ body {
 #output {
     font-family: 'Source Code Pro', monospace;
     white-space: pre-wrap;
+}
+
+#editor, #output {
+    border: 1px solid black;
+    height: 100%;
 }
 
 .options {
