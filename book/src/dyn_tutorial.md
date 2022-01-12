@@ -12,6 +12,6 @@ Dada is a **gradual, ownership-based** language. Let's unpack those two things:
 
 This tutorial covers the dynamic flavor of Dada and use that to introduce the concepts of ownership and the like. Once you've gotten familiar to that, the [Typed Dada](./typed_tutorial.md) introduces Dada's type system and shows how you can use it to check that your Dada code is free of permission-related errors.
 
-## Ready to read!
+## Ready to read?
 
 OK, turn to [Hello, Dada!](./dyn_tutorial/hello.md) to begin!

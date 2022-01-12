@@ -4,7 +4,7 @@ These are the things Dada is trying for.
 
 ## Easy to learn, but not dumbed down
 
-Dada is meant to a language that experts want to use. It should be easy to learn, but it doesn't achieve that by hiding important concepts like ownership and borrowing. Rather, it brings them to the fore, but in a packaging that is (hopefully) easy to learn.
+Dada is meant to be a language that experts want to use. It should be easy to learn, but it doesn't achieve that by hiding important concepts like ownership and borrowing. Rather, it brings them to the fore, but in a packaging that is (hopefully) easy to learn.
 
 ## Does the right thing, not everything
 

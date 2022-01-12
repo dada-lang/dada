@@ -6,7 +6,7 @@
 
 ## What the heck is Dada?
 
-Dada is a thought experiment. What if we were making a language like Rust, but one that was meant to feel more like Java or JavaScript, and less like C++? One didn't aspire to being used in kernels or tiny embedded devices and was willing to require a minimal runtime. What might that look like?
+Dada is a thought experiment. What if we were making a language like Rust, but one that was meant to feel more like Java or JavaScript, and less like C++? One that didn't aspire to being used in kernels or tiny embedded devices and was willing to require a minimal runtime. What might that look like?
 
 ## What is the state of Dada?
 
