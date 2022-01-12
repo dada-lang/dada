@@ -2,7 +2,6 @@ use std::path::Path;
 
 use mdbook::MDBook;
 use structopt::StructOpt;
-use wasm_pack;
 
 #[derive(StructOpt)]
 pub struct Deploy {}
