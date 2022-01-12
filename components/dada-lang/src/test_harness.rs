@@ -1,5 +1,5 @@
-use std::{env, fs};
 use std::path::{Path, PathBuf};
+use std::{env, fs};
 
 use dada_execute::kernel::BufferKernel;
 use dada_ir::{filename::Filename, item::Item};
@@ -49,6 +49,16 @@ impl Options {
                             return Ok(());
                         } else if REF_EXTENSIONS.iter().any(|e| *e == ext) {
                             // ignore ref files
+                            if let Some(parent) = path.parent() {
+                                let expected_dada_file = parent.with_extension("dada");
+                                if !expected_dada_file.exists() {
+                                    tracing::warn!(
+                                        "found {:?}, but {:?} does not exist",
+                                        path,
+                                        expected_dada_file
+                                    );
+                                }
+                            }
                             return Ok(());
                         }
                     }
