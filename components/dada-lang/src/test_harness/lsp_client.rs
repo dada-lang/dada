@@ -20,7 +20,6 @@ impl ChildSession {
     pub fn spawn() -> ChildSession {
         let child = Command::new("cargo")
             .arg("dada")
-            .arg("--")
             .arg("ide")
             .stdin(Stdio::piped())
             .stdout(Stdio::piped())
