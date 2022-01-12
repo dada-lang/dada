@@ -3,6 +3,9 @@ init()
     .then(async () => {
         var editor = ace.edit("editor");
         editor.setTheme("ace/theme/twilight");
+        editor.setOptions({
+            fontSize: "18px"
+        });
         editor.session.on('change', async function (delta) {
             // delta.start, delta.end, delta.lines, delta.action
             try {
