@@ -205,12 +205,10 @@ impl<'me> Validator<'me> {
                     let name = named_expr.data(self.tables).name;
                     if name.word(self.db).is_some() {
                         name_required = true;
-                    } else {
-                        if name_required {
-                            dada_ir::error!(name.span(self.db), "parameter name required",)
-                                .primary_label("parameter name required here")
-                                .emit(self.db);
-                        }
+                    } else if name_required {
+                        dada_ir::error!(name.span(self.db), "parameter name required",)
+                            .primary_label("parameter name required here")
+                            .emit(self.db);
                     }
                 }
 
