@@ -18,6 +18,7 @@ body {
 #output {
     font-family: 'Source Code Pro', monospace;
     font-size: 1em;
+    white-space: pre-wrap;
 }
 
 .options {
