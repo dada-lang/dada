@@ -173,7 +173,26 @@ impl CodeParser<'_, '_> {
             return Some(expr);
         }
 
-        self.parse_expr_3()
+        self.parse_expr_4()
+    }
+
+    pub(crate) fn parse_expr_4(&mut self) -> Option<Expr> {
+        let mut expr = self.parse_expr_3()?;
+
+        loop {
+            if let Some(expr1) = self.parse_binop(
+                expr,
+                &[Op::EqualEqual, Op::LessThan, Op::GreaterThan],
+                Self::parse_expr_3,
+            ) {
+                expr = expr1;
+                continue;
+            }
+
+            break;
+        }
+
+        Some(expr)
     }
 
     pub(crate) fn parse_expr_3(&mut self) -> Option<Expr> {
@@ -259,7 +278,11 @@ impl CodeParser<'_, '_> {
 
     pub(crate) fn parse_expr_0(&mut self) -> Option<Expr> {
         tracing::debug!("parse_expr_0: peek = {:?}", self.tokens.peek());
-        if let Some((id_span, id)) = self.eat(Identifier) {
+        if let Some((true_span, _)) = self.eat(Keyword::True) {
+            Some(self.add(ExprData::BooleanLiteral(true), true_span))
+        } else if let Some((false_span, _)) = self.eat(Keyword::False) {
+            Some(self.add(ExprData::BooleanLiteral(false), false_span))
+        } else if let Some((id_span, id)) = self.eat(Identifier) {
             tracing::debug!("identifier");
             Some(self.add(ExprData::Id(id), id_span))
         } else if let Some((word_span, word)) = self.eat(Number) {
@@ -287,6 +310,10 @@ impl CodeParser<'_, '_> {
                     .emit(self.db);
                 None
             }
+        } else if let Some((loop_span, _)) = self.eat(Keyword::Loop) {
+            let body = self.parse_required_block_expr(Keyword::Loop);
+            let span = self.span_consumed_since(loop_span);
+            Some(self.add(ExprData::Loop(body), span))
         } else if let Some((while_span, _)) = self.eat(Keyword::While) {
             if let Some(condition) = self.parse_condition() {
                 let body = self.parse_required_block_expr(Keyword::While);
