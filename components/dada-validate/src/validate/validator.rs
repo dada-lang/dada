@@ -200,6 +200,20 @@ impl<'me> Validator<'me> {
             syntax::ExprData::Call(func_expr, named_exprs) => {
                 let validated_func_expr = self.validate_expr(*func_expr);
                 let validated_named_exprs = self.validate_named_exprs(named_exprs);
+                let mut name_required = false;
+                for named_expr in &validated_named_exprs {
+                    let name = named_expr.data(self.tables).name;
+                    if name.word(self.db).is_some() {
+                        name_required = true;
+                    } else {
+                        if name_required {
+                            dada_ir::error!(name.span(self.db), "parameter name required",)
+                                .primary_label("parameter name required here")
+                                .emit(self.db);
+                        }
+                    }
+                }
+
                 self.add(
                     validated::ExprData::Call(validated_func_expr, validated_named_exprs),
                     expr,
