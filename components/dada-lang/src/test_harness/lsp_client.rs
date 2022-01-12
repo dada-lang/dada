@@ -19,9 +19,7 @@ impl Drop for ChildSession {
 impl ChildSession {
     pub fn spawn() -> ChildSession {
         let child = Command::new("cargo")
-            .arg("run")
-            .arg("-q")
-            .arg("--")
+            .arg("dada")
             .arg("ide")
             .stdin(Stdio::piped())
             .stdout(Stdio::piped())
