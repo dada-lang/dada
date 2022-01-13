@@ -14,7 +14,7 @@ At the moment, Dada doesn't really exist. Everything you read on this site is im
 
 [PLT Redex]: https://redex.racket-lang.org/why-redex.html
 
-OK, from here on out I'm going to start pretend that Dada really exists.
+OK, from here on out I'm going to pretend that Dada really exists.
 
 ## Dada in a nutshell
 
