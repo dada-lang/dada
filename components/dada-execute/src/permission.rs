@@ -53,7 +53,7 @@ impl Permission {
 
     /// True if data with this permission can be used in any way. This test does not indicate that any action
     /// has been taken by the user and hence does not alter any permissions. Actually using data
-    /// requires invoking a method like [`perform_read`] which may have side-effects on other permissions;
+    /// requires invoking a method like [`Self::perform_read`] which may have side-effects on other permissions;
     /// this function however indicates whether those method will succeed or return an error.
     pub(crate) fn is_valid(&self) -> bool {
         self.data.is_valid()
