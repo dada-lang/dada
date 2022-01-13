@@ -187,7 +187,7 @@ impl Cursor {
                         origin,
                     );
 
-                    let mut if_true_cursor = self.with_end_block(if_false_block);
+                    let mut if_true_cursor = self.with_end_block(if_true_block);
                     if_true_cursor.brew_expr_and_assign_to(brewery, target, *if_true);
                     if_true_cursor.terminate_and_goto(brewery, join_block, origin);
 

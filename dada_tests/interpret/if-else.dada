@@ -1,0 +1,21 @@
+async fn main() {
+    if true {
+        print("1").await
+    }
+
+    if false {
+        print("2").await
+    }
+
+    if true {
+        print("3").await
+    } else {
+        print("4").await
+    }
+
+    if false {
+        print("5").await
+    } else {
+        print("6").await
+    }
+}
