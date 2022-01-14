@@ -29,7 +29,6 @@ pub struct Jar(
     code::syntax::Tree,
     code::syntax::op::binary_ops,
     code::validated::Tree,
-    code::validated::op::binary_ops,
     class::Class,
     diagnostic::Diagnostics,
     format_string::FormatString,
