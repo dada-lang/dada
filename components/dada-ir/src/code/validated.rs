@@ -4,7 +4,7 @@
 
 use crate::{
     class::Class,
-    code::syntax::op::Op,
+    code::validated::op::Op,
     function::Function,
     in_ir_db::InIrDb,
     intrinsic::Intrinsic,
