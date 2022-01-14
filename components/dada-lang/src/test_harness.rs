@@ -30,7 +30,7 @@ impl Options {
         const REF_EXTENSIONS: &[&str] = &["ref", "lsp", "bir", "validated", "syntax", "stdout"];
 
         for root in &self.dada_path {
-            for entry in walkdir::WalkDir::new(root) {
+            for entry in ignore::Walk::new(root) {
                 let run_test = async {
                     let entry = entry?;
                     let path = entry.path();
@@ -64,9 +64,10 @@ impl Options {
                     }
 
                     // Error out for random files -- I've frequently accidentally made
-                    // tests with the extension `dad`, for example.
-                    //
-                    // FIXME: we should probably consider gitignore here
+                    // tests with the extension `dad`, for example; but note that the
+                    // directory walk obeys gitignore files, so things like emacs
+                    // backup files will be skipped if the environment is configured
+                    // appropriately.
                     eyre::bail!("file `{}` has unrecognized extension", path.display())
                 };
 
