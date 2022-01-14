@@ -55,7 +55,7 @@ data_from_impl! {
 }
 
 impl Data {
-    fn kind_str(&self, interpreter: &Interpreter<'_>) -> String {
+    pub(crate) fn kind_str(&self, interpreter: &Interpreter<'_>) -> String {
         let db = interpreter.db();
         match self {
             Data::Instance(i) => format!("an instance of `{}`", i.class.name(db).as_str(db)),
