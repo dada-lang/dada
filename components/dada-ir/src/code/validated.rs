@@ -337,3 +337,5 @@ impl DebugWithDb<InIrDb<'_, Tables>> for NamedExprData {
             .finish()
     }
 }
+
+pub mod op;
