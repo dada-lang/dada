@@ -2,8 +2,7 @@ use dada_ir::{error, intrinsic::Intrinsic, word::Word};
 use eyre::Context;
 
 use crate::{
-    data::DadaFuture, error::DiagnosticBuilderExt, interpreter::Interpreter, thunk::Thunk,
-    value::Value,
+    data::DadaFuture, error::DiagnosticBuilderExt, interpreter::Interpreter, value::Value,
 };
 
 pub(crate) type IntrinsicClosure =
@@ -33,22 +32,20 @@ async fn intrinsic_write(
 ) -> eyre::Result<Value> {
     Ok(Value::new(
         interpreter,
-        Thunk::new(move |interpreter| {
-            Box::pin(async move {
-                let message = values.pop().unwrap();
-                let message = message.read(interpreter, |data| data.to_word(interpreter))?;
-                let message_str = message.as_str(interpreter.db());
-                async {
-                    interpreter.kernel().print(message_str).await?;
-                    interpreter.kernel().print_newline().await
-                }
-                .await
-                .with_context(|| {
-                    let span_now = interpreter.span_now();
-                    error!(span_now, "error printing `{:?}`", message_str).eyre(interpreter.db())
-                })?;
-                Ok(Value::unit(interpreter))
-            })
+        thunk!(async move |interpreter| {
+            let message = values.pop().unwrap();
+            let message = message.read(interpreter, |data| data.to_word(interpreter))?;
+            let message_str = message.as_str(interpreter.db());
+            async {
+                interpreter.kernel().print(message_str).await?;
+                interpreter.kernel().print_newline().await
+            }
+            .await
+            .with_context(|| {
+                let span_now = interpreter.span_now();
+                error!(span_now, "error printing `{:?}`", message_str).eyre(interpreter.db())
+            })?;
+            Ok(Value::unit(interpreter))
         }),
     ))
 }

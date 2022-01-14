@@ -14,7 +14,6 @@ use dada_ir::{
 };
 
 use crate::kernel::Kernel;
-use crate::thunk::Thunk;
 use crate::{data::Tuple, error::DiagnosticBuilderExt, interpreter::Interpreter, value::Value};
 
 pub async fn interpret(
@@ -47,11 +46,9 @@ impl Interpreter<'_> {
         arguments: Vec<Value>,
     ) -> Pin<Box<dyn Future<Output = eyre::Result<Value>> + 'me>> {
         if let Effect::Async = function.code(self.db()).effect {
-            let thunk = Thunk::new(move |interpreter| {
-                Box::pin(async move {
-                    let bir = function.brew(interpreter.db());
-                    interpreter.execute_bir(bir, arguments).await
-                })
+            let thunk = thunk!(async move |interpreter| {
+                let bir = function.brew(interpreter.db());
+                interpreter.execute_bir(bir, arguments).await
             });
             let value = Value::new(self, thunk);
             Box::pin(async move { Ok(value) })
