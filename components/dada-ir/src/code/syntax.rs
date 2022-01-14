@@ -1,7 +1,7 @@
 use crate::{
+    code::syntax::op::Op,
     in_ir_db::InIrDb,
     in_ir_db::InIrDbExt,
-    op::Op,
     span::Span,
     storage_mode::StorageMode,
     word::{SpannedOptionalWord, Word},
@@ -181,3 +181,5 @@ pub struct NamedExprData {
     pub name: SpannedOptionalWord,
     pub expr: Expr,
 }
+
+pub mod op;

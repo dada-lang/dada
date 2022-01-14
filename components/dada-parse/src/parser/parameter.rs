@@ -1,9 +1,9 @@
 use crate::{parser::Parser, token_test::Identifier};
 
 use dada_ir::{
+    code::syntax::op::Op,
     code::syntax::{LocalVariableDeclData, LocalVariableDeclSpan},
     kw::Keyword,
-    op::Op,
     parameter::Parameter,
     span::Span,
     storage_mode::StorageMode,
