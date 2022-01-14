@@ -11,6 +11,7 @@ use dada_ir::origin_table::PushOriginIn;
 use dada_ir::span::FileSpan;
 use dada_ir::span::Span;
 use dada_ir::storage_mode::StorageMode;
+use dada_ir::word::Word;
 use dada_lex::prelude::*;
 use dada_parse::prelude::*;
 use std::rc::Rc;
@@ -162,7 +163,10 @@ impl<'me> Validator<'me> {
             }
 
             syntax::ExprData::StringLiteral(w) => {
-                self.add(validated::ExprData::StringLiteral(*w), expr)
+                let word_str = w.as_str(self.db);
+                let dada_string = convert_to_dada_string(word_str);
+                let word = Word::from(self.db, dada_string);
+                self.add(validated::ExprData::StringLiteral(word), expr)
             }
 
             syntax::ExprData::Await(future_expr) => {
@@ -534,4 +538,30 @@ impl<'me> Validator<'me> {
             named_expr,
         )
     }
+}
+
+fn convert_to_dada_string(s: &str) -> String {
+    let non_empty_lines = s
+        .lines()
+        .filter(|&line| !line.trim().is_empty())
+        .collect::<Vec<&str>>();
+
+    let indent = non_empty_lines
+        .iter()
+        .map(|line| line.chars().into_iter().take_while(|c| *c == ' ').count())
+        .min()
+        .unwrap_or(0);
+
+    let mut buf = vec![];
+    for (i, line) in s.lines().enumerate() {
+        if i > 0 {
+            buf.push('\n');
+        }
+        if line.trim().is_empty() {
+            buf.extend(line.chars());
+        } else {
+            buf.extend(line[indent..].chars());
+        }
+    }
+    buf.into_iter().collect::<String>().trim().to_string()
 }

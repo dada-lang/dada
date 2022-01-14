@@ -1,0 +1,11 @@
+async fn main() {
+    print("
+        Foo
+            Bar
+    ").await
+
+    print("
+    \t    Foo
+        \tBar
+    ").await
+}
