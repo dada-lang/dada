@@ -25,6 +25,28 @@
                         ],
                     ),
                 ),
+                Await(
+                    Call(
+                        Print,
+                        [
+                            (
+                                None,
+                                "    Foo",
+                            ),
+                        ],
+                    ),
+                ),
+                Await(
+                    Call(
+                        Print,
+                        [
+                            (
+                                None,
+                                "I have forced myself to contradict myself\nin order to avoid conforming to my own taste.\n  -- Marcel Duchamp",
+                            ),
+                        ],
+                    ),
+                ),
             ],
         ),
     },
