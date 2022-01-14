@@ -8,4 +8,6 @@ async fn main() {
     \t    Foo
         \tBar
     ").await
+
+    print("    Foo").await
 }

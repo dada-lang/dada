@@ -541,6 +541,9 @@ impl<'me> Validator<'me> {
 }
 
 fn convert_to_dada_string(s: &str) -> String {
+    if s.lines().count() == 1 {
+        return s.to_string();
+    }
     let non_empty_lines = s
         .lines()
         .filter(|&line| !line.trim().is_empty())
