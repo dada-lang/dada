@@ -1,6 +1,4 @@
-use std::path::Path;
-
-use mdbook::MDBook;
+use std::path::{Path, PathBuf};
 use structopt::StructOpt;
 
 #[derive(StructOpt)]
@@ -8,13 +6,20 @@ pub struct Deploy {}
 
 impl Deploy {
     pub fn main(&self) -> eyre::Result<()> {
-        let book_dir = xshell::cwd()?.join("book");
+        let xtask_dir = cargo_path("CARGO_MANIFEST_DIR")?;
+        let manifest_dir = xtask_dir.parent().unwrap().parent().unwrap();
+        tracing::debug!("manifest directory: {manifest_dir:?}");
+        let book_dir = manifest_dir.join("book");
+        let dada_downloads = manifest_dir.join("target").join("dada-downloads");
+        xshell::mkdir_p(&dada_downloads)?;
+        tracing::debug!("dada download directory: {dada_downloads:?}");
+
+        let mdbook_path = download_mdbook(&dada_downloads)?;
+        //let wasm_pack_path = download_wasm_pack(&dada_downloads);
 
         {
             let _book = xshell::pushd(&book_dir)?;
-            // FIXME: I can't use `?` here because how to convert between anyhow/eyre
-            let md = MDBook::load(&book_dir).expect("mdbook failed to load");
-            md.build().expect("mdbook failed to build");
+            xshell::Cmd::new(mdbook_path).arg("build").run()?;
         }
 
         let playground_dir = book_dir.join("book/playground");
@@ -42,6 +47,37 @@ impl Deploy {
         xshell::cp(dada_web_dir.join("index.css"), &playground_dir)?;
         xshell::cp(dada_web_dir.join("index.js"), &playground_dir)?;
         Ok(())
+    }
+}
+
+fn download_mdbook(dada_downloads: &PathBuf) -> eyre::Result<PathBuf> {
+    let version = "v0.4.15";
+    let url = format!("https://github.com/rust-lang/mdBook/releases/download/{version}/mdbook-v0.4.15-x86_64-unknown-linux-gnu.tar.gz");
+    let filename = format!("mdbook-{version}.tar.gz");
+    download_and_untar(dada_downloads, &url, &filename)?;
+    Ok(dada_downloads.join("mdbook"))
+}
+
+fn download_and_untar(dada_downloads: &Path, url: &str, file: &str) -> eyre::Result<()> {
+    tracing::debug!("download_and_untar(url={url}, file={file})");
+    let _pushd = xshell::pushd(dada_downloads);
+    let file = Path::new(file);
+    if !file.exists() {
+        xshell::cmd!("curl -L -o {file} {url}").run()?;
+        xshell::cmd!("tar zxf {file}").run()?;
+    } else {
+        tracing::debug!("file already exists");
+    }
+    Ok(())
+}
+
+fn cargo_path(env_var: &str) -> eyre::Result<PathBuf> {
+    match std::env::var(env_var) {
+        Ok(s) => {
+            tracing::debug!("cargo_path({env_var}) = {s}");
+            Ok(PathBuf::from(s))
+        }
+        Err(_) => eyre::bail!("`{}` not set", env_var),
     }
 }
 
