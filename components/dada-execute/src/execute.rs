@@ -374,7 +374,15 @@ impl StackFrame<'_> {
                 Op::Times => Ok(Value::new(self.interpreter, lhs.wrapping_mul(*rhs))),
                 Op::DividedBy => match lhs.checked_div(*rhs) {
                     Some(value) => Ok(Value::new(self.interpreter, value)),
-                    None => div_zero_error(),
+                    None => {
+                        if *rhs != -1 {
+                            div_zero_error()
+                        } else {
+                            let span = self.span_from_bir(expr);
+                            Err(error!(span, "signed division overflow")
+                                .eyre(self.interpreter.db()))
+                        }
+                    }
                 },
                 Op::LessThan => Ok(Value::new(self.interpreter, lhs < rhs)),
                 Op::GreaterThan => Ok(Value::new(self.interpreter, lhs > rhs)),
