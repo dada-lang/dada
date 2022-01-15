@@ -53,7 +53,7 @@ impl Deploy {
     }
 }
 
-fn download_mdbook(dada_downloads: &PathBuf) -> eyre::Result<PathBuf> {
+fn download_mdbook(dada_downloads: &Path) -> eyre::Result<PathBuf> {
     let version = "v0.4.15";
     let url = format!("https://github.com/rust-lang/mdBook/releases/download/{version}/mdbook-{version}-x86_64-unknown-linux-gnu.tar.gz");
     let filename = format!("mdbook-{version}.tar.gz");
@@ -61,7 +61,7 @@ fn download_mdbook(dada_downloads: &PathBuf) -> eyre::Result<PathBuf> {
     Ok(dada_downloads.join("mdbook"))
 }
 
-fn download_wasm_pack(dada_downloads: &PathBuf) -> eyre::Result<PathBuf> {
+fn download_wasm_pack(dada_downloads: &Path) -> eyre::Result<PathBuf> {
     let version = "v0.10.2";
     let prefix = format!("wasm-pack-{version}-x86_64-unknown-linux-musl");
     let filename = format!("{prefix}.tar.gz");
