@@ -540,6 +540,7 @@ impl<'me> Validator<'me> {
     }
 }
 
+// Remove leading, trailing whitespace and common indentation from multiline strings.
 fn convert_to_dada_string(s: &str) -> String {
     if s.lines().count() == 1 {
         return s.to_string();
