@@ -3,10 +3,6 @@
         num_parameters: 0,
         root_expr: Seq(
             [
-                Assign(
-                    uint_max{0},
-                    18446744073709551615,
-                ),
                 If(
                     Op(
                         Op(
@@ -26,33 +22,6 @@
                                         (
                                             None,
                                             "1 + 1 == 2",
-                                        ),
-                                    ],
-                                ),
-                            ),
-                        ],
-                    ),
-                    ,
-                ),
-                If(
-                    Op(
-                        Op(
-                            uint_max{0},
-                            Plus,
-                            2,
-                        ),
-                        EqualEqual,
-                        1,
-                    ),
-                    Seq(
-                        [
-                            Await(
-                                Call(
-                                    Print,
-                                    [
-                                        (
-                                            None,
-                                            "uint_max + 2 == 1",
                                         ),
                                     ],
                                 ),
@@ -91,33 +60,6 @@
                 If(
                     Op(
                         Op(
-                            1,
-                            Minus,
-                            2,
-                        ),
-                        EqualEqual,
-                        uint_max{0},
-                    ),
-                    Seq(
-                        [
-                            Await(
-                                Call(
-                                    Print,
-                                    [
-                                        (
-                                            None,
-                                            "1 - 2 == uint_max",
-                                        ),
-                                    ],
-                                ),
-                            ),
-                        ],
-                    ),
-                    ,
-                ),
-                If(
-                    Op(
-                        Op(
                             10,
                             Times,
                             10,
@@ -134,45 +76,6 @@
                                         (
                                             None,
                                             "10 * 10 == 100",
-                                        ),
-                                    ],
-                                ),
-                            ),
-                        ],
-                    ),
-                    ,
-                ),
-                Assign(
-                    fx15{1},
-                    1152921504606846975,
-                ),
-                Assign(
-                    fx15_plus_1{2},
-                    Op(
-                        fx15{1},
-                        Plus,
-                        1,
-                    ),
-                ),
-                If(
-                    Op(
-                        Op(
-                            fx15_plus_1{2},
-                            Times,
-                            16,
-                        ),
-                        EqualEqual,
-                        0,
-                    ),
-                    Seq(
-                        [
-                            Await(
-                                Call(
-                                    Print,
-                                    [
-                                        (
-                                            None,
-                                            "fx15_plus_1 * 16 == 0",
                                         ),
                                     ],
                                 ),

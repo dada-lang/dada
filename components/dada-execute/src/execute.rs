@@ -350,6 +350,10 @@ impl StackFrame<'_> {
             let span = self.span_from_bir(expr);
             Err(error!(span, "divide by zero").eyre(self.interpreter.db()))
         };
+        let overflow_error = || {
+            let span = self.span_from_bir(expr);
+            Err(error!(span, "overflow").eyre(self.interpreter.db()))
+        };
         match (lhs, rhs) {
             (Data::Bool(lhs), Data::Bool(rhs)) => match op {
                 Op::EqualEqual => Ok(Value::new(self.interpreter, lhs == rhs)),
@@ -357,9 +361,18 @@ impl StackFrame<'_> {
             },
             (Data::Uint(lhs), Data::Uint(rhs)) => match op {
                 Op::EqualEqual => Ok(Value::new(self.interpreter, lhs == rhs)),
-                Op::Plus => Ok(Value::new(self.interpreter, lhs.wrapping_add(*rhs))),
-                Op::Minus => Ok(Value::new(self.interpreter, lhs.wrapping_sub(*rhs))),
-                Op::Times => Ok(Value::new(self.interpreter, lhs.wrapping_mul(*rhs))),
+                Op::Plus => match lhs.checked_add(*rhs) {
+                    Some(value) => Ok(Value::new(self.interpreter, value)),
+                    None => overflow_error(),
+                },
+                Op::Minus => match lhs.checked_sub(*rhs) {
+                    Some(value) => Ok(Value::new(self.interpreter, value)),
+                    None => overflow_error(),
+                },
+                Op::Times => match lhs.checked_mul(*rhs) {
+                    Some(value) => Ok(Value::new(self.interpreter, value)),
+                    None => overflow_error(),
+                },
                 Op::DividedBy => match lhs.checked_div(*rhs) {
                     Some(value) => Ok(Value::new(self.interpreter, value)),
                     None => div_zero_error(),
@@ -369,9 +382,18 @@ impl StackFrame<'_> {
             },
             (Data::Int(lhs), Data::Int(rhs)) => match op {
                 Op::EqualEqual => Ok(Value::new(self.interpreter, lhs == rhs)),
-                Op::Plus => Ok(Value::new(self.interpreter, lhs.wrapping_add(*rhs))),
-                Op::Minus => Ok(Value::new(self.interpreter, lhs.wrapping_sub(*rhs))),
-                Op::Times => Ok(Value::new(self.interpreter, lhs.wrapping_mul(*rhs))),
+                Op::Plus => match lhs.checked_add(*rhs) {
+                    Some(value) => Ok(Value::new(self.interpreter, value)),
+                    None => overflow_error(),
+                },
+                Op::Minus => match lhs.checked_sub(*rhs) {
+                    Some(value) => Ok(Value::new(self.interpreter, value)),
+                    None => overflow_error(),
+                },
+                Op::Times => match lhs.checked_mul(*rhs) {
+                    Some(value) => Ok(Value::new(self.interpreter, value)),
+                    None => overflow_error(),
+                },
                 Op::DividedBy => match lhs.checked_div(*rhs) {
                     Some(value) => Ok(Value::new(self.interpreter, value)),
                     None => {

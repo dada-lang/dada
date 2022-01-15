@@ -4,32 +4,28 @@
         BasicBlock(0): BasicBlockData(
             [
                 Assign(
-                    uint_max{0},
-                    18446744073709551615,
-                ),
-                Assign(
-                    temp{7},
+                    temp{4},
                     1,
-                ),
-                Assign(
-                    temp{8},
-                    1,
-                ),
-                Assign(
-                    temp{6},
-                    temp{7} + temp{8},
-                ),
-                Assign(
-                    temp{9},
-                    2,
                 ),
                 Assign(
                     temp{5},
-                    temp{6} == temp{9},
+                    1,
+                ),
+                Assign(
+                    temp{3},
+                    temp{4} + temp{5},
+                ),
+                Assign(
+                    temp{6},
+                    2,
+                ),
+                Assign(
+                    temp{2},
+                    temp{3} == temp{6},
                 ),
             ],
             If(
-                temp{5},
+                temp{2},
                 BasicBlock(1),
                 BasicBlock(2),
             ),
@@ -37,16 +33,16 @@
         BasicBlock(1): BasicBlockData(
             [
                 Assign(
-                    temp{11},
+                    temp{8},
                     "1 + 1 == 2",
                 ),
             ],
             Assign(
-                temp{10},
+                temp{7},
                 Call(
                     Print,
                     [
-                        temp{11},
+                        temp{8},
                     ],
                     [
                         None,
@@ -58,7 +54,7 @@
         BasicBlock(2): BasicBlockData(
             [
                 Assign(
-                    temp{4},
+                    temp{1},
                     (),
                 ),
             ],
@@ -69,24 +65,28 @@
         BasicBlock(3): BasicBlockData(
             [
                 Assign(
-                    temp{15},
-                    2,
-                ),
-                Assign(
-                    temp{14},
-                    uint_max{0} + temp{15},
-                ),
-                Assign(
-                    temp{16},
+                    temp{12},
                     1,
                 ),
                 Assign(
                     temp{13},
-                    temp{14} == temp{16},
+                    1,
+                ),
+                Assign(
+                    temp{11},
+                    temp{12} - temp{13},
+                ),
+                Assign(
+                    temp{14},
+                    0,
+                ),
+                Assign(
+                    temp{10},
+                    temp{11} == temp{14},
                 ),
             ],
             If(
-                temp{13},
+                temp{10},
                 BasicBlock(6),
                 BasicBlock(7),
             ),
@@ -94,9 +94,9 @@
         BasicBlock(4): BasicBlockData(
             [],
             Assign(
-                temp{4},
+                temp{1},
                 Await(
-                    temp{10},
+                    temp{7},
                 ),
                 BasicBlock(5),
             ),
@@ -110,16 +110,16 @@
         BasicBlock(6): BasicBlockData(
             [
                 Assign(
-                    temp{18},
-                    "uint_max + 2 == 1",
+                    temp{16},
+                    "1 - 1 == 0",
                 ),
             ],
             Assign(
-                temp{17},
+                temp{15},
                 Call(
                     Print,
                     [
-                        temp{18},
+                        temp{16},
                     ],
                     [
                         None,
@@ -131,7 +131,7 @@
         BasicBlock(7): BasicBlockData(
             [
                 Assign(
-                    temp{12},
+                    temp{9},
                     (),
                 ),
             ],
@@ -142,28 +142,28 @@
         BasicBlock(8): BasicBlockData(
             [
                 Assign(
-                    temp{22},
-                    1,
-                ),
-                Assign(
-                    temp{23},
-                    1,
+                    temp{20},
+                    10,
                 ),
                 Assign(
                     temp{21},
-                    temp{22} - temp{23},
+                    10,
                 ),
                 Assign(
-                    temp{24},
-                    0,
+                    temp{19},
+                    temp{20} * temp{21},
                 ),
                 Assign(
-                    temp{20},
-                    temp{21} == temp{24},
+                    temp{22},
+                    100,
+                ),
+                Assign(
+                    temp{18},
+                    temp{19} == temp{22},
                 ),
             ],
             If(
-                temp{20},
+                temp{18},
                 BasicBlock(11),
                 BasicBlock(12),
             ),
@@ -171,9 +171,9 @@
         BasicBlock(9): BasicBlockData(
             [],
             Assign(
-                temp{12},
+                temp{9},
                 Await(
-                    temp{17},
+                    temp{15},
                 ),
                 BasicBlock(10),
             ),
@@ -187,16 +187,16 @@
         BasicBlock(11): BasicBlockData(
             [
                 Assign(
-                    temp{26},
-                    "1 - 1 == 0",
+                    temp{24},
+                    "10 * 10 == 100",
                 ),
             ],
             Assign(
-                temp{25},
+                temp{23},
                 Call(
                     Print,
                     [
-                        temp{26},
+                        temp{24},
                     ],
                     [
                         None,
@@ -208,7 +208,7 @@
         BasicBlock(12): BasicBlockData(
             [
                 Assign(
-                    temp{19},
+                    temp{17},
                     (),
                 ),
             ],
@@ -219,24 +219,28 @@
         BasicBlock(13): BasicBlockData(
             [
                 Assign(
-                    temp{30},
-                    1,
-                ),
-                Assign(
-                    temp{31},
-                    2,
+                    temp{28},
+                    10,
                 ),
                 Assign(
                     temp{29},
-                    temp{30} - temp{31},
+                    5,
                 ),
                 Assign(
-                    temp{28},
-                    temp{29} == uint_max{0},
+                    temp{27},
+                    temp{28} / temp{29},
+                ),
+                Assign(
+                    temp{30},
+                    2,
+                ),
+                Assign(
+                    temp{26},
+                    temp{27} == temp{30},
                 ),
             ],
             If(
-                temp{28},
+                temp{26},
                 BasicBlock(16),
                 BasicBlock(17),
             ),
@@ -244,9 +248,9 @@
         BasicBlock(14): BasicBlockData(
             [],
             Assign(
-                temp{19},
+                temp{17},
                 Await(
-                    temp{25},
+                    temp{23},
                 ),
                 BasicBlock(15),
             ),
@@ -260,16 +264,16 @@
         BasicBlock(16): BasicBlockData(
             [
                 Assign(
-                    temp{33},
-                    "1 - 2 == uint_max",
+                    temp{32},
+                    "10 / 5 == 2",
                 ),
             ],
             Assign(
-                temp{32},
+                temp{31},
                 Call(
                     Print,
                     [
-                        temp{33},
+                        temp{32},
                     ],
                     [
                         None,
@@ -281,7 +285,7 @@
         BasicBlock(17): BasicBlockData(
             [
                 Assign(
-                    temp{27},
+                    temp{25},
                     (),
                 ),
             ],
@@ -292,28 +296,28 @@
         BasicBlock(18): BasicBlockData(
             [
                 Assign(
-                    temp{37},
-                    10,
-                ),
-                Assign(
-                    temp{38},
-                    10,
-                ),
-                Assign(
                     temp{36},
-                    temp{37} * temp{38},
+                    11,
                 ),
                 Assign(
-                    temp{39},
-                    100,
+                    temp{37},
+                    5,
                 ),
                 Assign(
                     temp{35},
-                    temp{36} == temp{39},
+                    temp{36} / temp{37},
+                ),
+                Assign(
+                    temp{38},
+                    2,
+                ),
+                Assign(
+                    temp{34},
+                    temp{35} == temp{38},
                 ),
             ],
             If(
-                temp{35},
+                temp{34},
                 BasicBlock(21),
                 BasicBlock(22),
             ),
@@ -321,9 +325,9 @@
         BasicBlock(19): BasicBlockData(
             [],
             Assign(
-                temp{27},
+                temp{25},
                 Await(
-                    temp{32},
+                    temp{31},
                 ),
                 BasicBlock(20),
             ),
@@ -337,16 +341,16 @@
         BasicBlock(21): BasicBlockData(
             [
                 Assign(
-                    temp{41},
-                    "10 * 10 == 100",
+                    temp{40},
+                    "11 / 5 == 2",
                 ),
             ],
             Assign(
-                temp{40},
+                temp{39},
                 Call(
                     Print,
                     [
-                        temp{41},
+                        temp{40},
                     ],
                     [
                         None,
@@ -358,7 +362,7 @@
         BasicBlock(22): BasicBlockData(
             [
                 Assign(
-                    temp{34},
+                    temp{33},
                     (),
                 ),
             ],
@@ -369,36 +373,20 @@
         BasicBlock(23): BasicBlockData(
             [
                 Assign(
-                    fx15{1},
-                    1152921504606846975,
-                ),
-                Assign(
-                    temp{42},
+                    temp{43},
                     1,
                 ),
                 Assign(
-                    fx15_plus_1{2},
-                    fx15{1} + temp{42},
-                ),
-                Assign(
-                    temp{46},
-                    16,
-                ),
-                Assign(
-                    temp{45},
-                    fx15_plus_1{2} * temp{46},
-                ),
-                Assign(
-                    temp{47},
-                    0,
-                ),
-                Assign(
                     temp{44},
-                    temp{45} == temp{47},
+                    2,
+                ),
+                Assign(
+                    temp{42},
+                    temp{43} < temp{44},
                 ),
             ],
             If(
-                temp{44},
+                temp{42},
                 BasicBlock(26),
                 BasicBlock(27),
             ),
@@ -406,9 +394,9 @@
         BasicBlock(24): BasicBlockData(
             [],
             Assign(
-                temp{34},
+                temp{33},
                 Await(
-                    temp{40},
+                    temp{39},
                 ),
                 BasicBlock(25),
             ),
@@ -422,16 +410,16 @@
         BasicBlock(26): BasicBlockData(
             [
                 Assign(
-                    temp{49},
-                    "fx15_plus_1 * 16 == 0",
+                    temp{46},
+                    "1 < 2",
                 ),
             ],
             Assign(
-                temp{48},
+                temp{45},
                 Call(
                     Print,
                     [
-                        temp{49},
+                        temp{46},
                     ],
                     [
                         None,
@@ -443,7 +431,7 @@
         BasicBlock(27): BasicBlockData(
             [
                 Assign(
-                    temp{43},
+                    temp{41},
                     (),
                 ),
             ],
@@ -454,28 +442,20 @@
         BasicBlock(28): BasicBlockData(
             [
                 Assign(
-                    temp{53},
-                    10,
-                ),
-                Assign(
-                    temp{54},
-                    5,
-                ),
-                Assign(
-                    temp{52},
-                    temp{53} / temp{54},
-                ),
-                Assign(
-                    temp{55},
+                    temp{49},
                     2,
                 ),
                 Assign(
-                    temp{51},
-                    temp{52} == temp{55},
+                    temp{50},
+                    1,
+                ),
+                Assign(
+                    temp{48},
+                    temp{49} < temp{50},
                 ),
             ],
             If(
-                temp{51},
+                temp{48},
                 BasicBlock(31),
                 BasicBlock(32),
             ),
@@ -483,9 +463,9 @@
         BasicBlock(29): BasicBlockData(
             [],
             Assign(
-                temp{43},
+                temp{41},
                 Await(
-                    temp{48},
+                    temp{45},
                 ),
                 BasicBlock(30),
             ),
@@ -499,16 +479,16 @@
         BasicBlock(31): BasicBlockData(
             [
                 Assign(
-                    temp{57},
-                    "10 / 5 == 2",
+                    temp{52},
+                    "error",
                 ),
             ],
             Assign(
-                temp{56},
+                temp{51},
                 Call(
                     Print,
                     [
-                        temp{57},
+                        temp{52},
                     ],
                     [
                         None,
@@ -520,7 +500,7 @@
         BasicBlock(32): BasicBlockData(
             [
                 Assign(
-                    temp{50},
+                    temp{47},
                     (),
                 ),
             ],
@@ -531,28 +511,20 @@
         BasicBlock(33): BasicBlockData(
             [
                 Assign(
-                    temp{61},
-                    11,
+                    temp{55},
+                    1,
                 ),
                 Assign(
-                    temp{62},
-                    5,
+                    temp{56},
+                    1,
                 ),
                 Assign(
-                    temp{60},
-                    temp{61} / temp{62},
-                ),
-                Assign(
-                    temp{63},
-                    2,
-                ),
-                Assign(
-                    temp{59},
-                    temp{60} == temp{63},
+                    temp{54},
+                    temp{55} < temp{56},
                 ),
             ],
             If(
-                temp{59},
+                temp{54},
                 BasicBlock(36),
                 BasicBlock(37),
             ),
@@ -560,9 +532,9 @@
         BasicBlock(34): BasicBlockData(
             [],
             Assign(
-                temp{50},
+                temp{47},
                 Await(
-                    temp{56},
+                    temp{51},
                 ),
                 BasicBlock(35),
             ),
@@ -576,16 +548,16 @@
         BasicBlock(36): BasicBlockData(
             [
                 Assign(
-                    temp{65},
-                    "11 / 5 == 2",
+                    temp{58},
+                    "error",
                 ),
             ],
             Assign(
-                temp{64},
+                temp{57},
                 Call(
                     Print,
                     [
-                        temp{65},
+                        temp{58},
                     ],
                     [
                         None,
@@ -597,7 +569,7 @@
         BasicBlock(37): BasicBlockData(
             [
                 Assign(
-                    temp{58},
+                    temp{53},
                     (),
                 ),
             ],
@@ -608,20 +580,20 @@
         BasicBlock(38): BasicBlockData(
             [
                 Assign(
-                    temp{68},
+                    temp{61},
                     1,
                 ),
                 Assign(
-                    temp{69},
+                    temp{62},
                     2,
                 ),
                 Assign(
-                    temp{67},
-                    temp{68} < temp{69},
+                    temp{60},
+                    temp{61} > temp{62},
                 ),
             ],
             If(
-                temp{67},
+                temp{60},
                 BasicBlock(41),
                 BasicBlock(42),
             ),
@@ -629,9 +601,9 @@
         BasicBlock(39): BasicBlockData(
             [],
             Assign(
-                temp{58},
+                temp{53},
                 Await(
-                    temp{64},
+                    temp{57},
                 ),
                 BasicBlock(40),
             ),
@@ -645,16 +617,16 @@
         BasicBlock(41): BasicBlockData(
             [
                 Assign(
-                    temp{71},
-                    "1 < 2",
+                    temp{64},
+                    "error",
                 ),
             ],
             Assign(
-                temp{70},
+                temp{63},
                 Call(
                     Print,
                     [
-                        temp{71},
+                        temp{64},
                     ],
                     [
                         None,
@@ -666,7 +638,7 @@
         BasicBlock(42): BasicBlockData(
             [
                 Assign(
-                    temp{66},
+                    temp{59},
                     (),
                 ),
             ],
@@ -677,20 +649,20 @@
         BasicBlock(43): BasicBlockData(
             [
                 Assign(
-                    temp{74},
+                    temp{67},
                     2,
                 ),
                 Assign(
-                    temp{75},
+                    temp{68},
                     1,
                 ),
                 Assign(
-                    temp{73},
-                    temp{74} < temp{75},
+                    temp{66},
+                    temp{67} > temp{68},
                 ),
             ],
             If(
-                temp{73},
+                temp{66},
                 BasicBlock(46),
                 BasicBlock(47),
             ),
@@ -698,9 +670,9 @@
         BasicBlock(44): BasicBlockData(
             [],
             Assign(
-                temp{66},
+                temp{59},
                 Await(
-                    temp{70},
+                    temp{63},
                 ),
                 BasicBlock(45),
             ),
@@ -714,16 +686,16 @@
         BasicBlock(46): BasicBlockData(
             [
                 Assign(
-                    temp{77},
-                    "error",
+                    temp{70},
+                    "2 > 1",
                 ),
             ],
             Assign(
-                temp{76},
+                temp{69},
                 Call(
                     Print,
                     [
-                        temp{77},
+                        temp{70},
                     ],
                     [
                         None,
@@ -735,7 +707,7 @@
         BasicBlock(47): BasicBlockData(
             [
                 Assign(
-                    temp{72},
+                    temp{65},
                     (),
                 ),
             ],
@@ -746,20 +718,20 @@
         BasicBlock(48): BasicBlockData(
             [
                 Assign(
-                    temp{80},
+                    temp{72},
                     1,
                 ),
                 Assign(
-                    temp{81},
+                    temp{73},
                     1,
                 ),
                 Assign(
-                    temp{79},
-                    temp{80} < temp{81},
+                    temp{71},
+                    temp{72} > temp{73},
                 ),
             ],
             If(
-                temp{79},
+                temp{71},
                 BasicBlock(51),
                 BasicBlock(52),
             ),
@@ -767,9 +739,9 @@
         BasicBlock(49): BasicBlockData(
             [],
             Assign(
-                temp{72},
+                temp{65},
                 Await(
-                    temp{76},
+                    temp{69},
                 ),
                 BasicBlock(50),
             ),
@@ -783,16 +755,16 @@
         BasicBlock(51): BasicBlockData(
             [
                 Assign(
-                    temp{83},
+                    temp{75},
                     "error",
                 ),
             ],
             Assign(
-                temp{82},
+                temp{74},
                 Call(
                     Print,
                     [
-                        temp{83},
+                        temp{75},
                     ],
                     [
                         None,
@@ -804,7 +776,7 @@
         BasicBlock(52): BasicBlockData(
             [
                 Assign(
-                    temp{78},
+                    temp{0},
                     (),
                 ),
             ],
@@ -813,32 +785,17 @@
             ),
         ),
         BasicBlock(53): BasicBlockData(
-            [
-                Assign(
-                    temp{86},
-                    1,
-                ),
-                Assign(
-                    temp{87},
-                    2,
-                ),
-                Assign(
-                    temp{85},
-                    temp{86} > temp{87},
-                ),
-            ],
-            If(
-                temp{85},
-                BasicBlock(56),
-                BasicBlock(57),
+            [],
+            Return(
+                temp{0},
             ),
         ),
         BasicBlock(54): BasicBlockData(
             [],
             Assign(
-                temp{78},
+                temp{0},
                 Await(
-                    temp{82},
+                    temp{74},
                 ),
                 BasicBlock(55),
             ),
@@ -847,198 +804,6 @@
             [],
             Goto(
                 BasicBlock(53),
-            ),
-        ),
-        BasicBlock(56): BasicBlockData(
-            [
-                Assign(
-                    temp{89},
-                    "error",
-                ),
-            ],
-            Assign(
-                temp{88},
-                Call(
-                    Print,
-                    [
-                        temp{89},
-                    ],
-                    [
-                        None,
-                    ],
-                ),
-                BasicBlock(59),
-            ),
-        ),
-        BasicBlock(57): BasicBlockData(
-            [
-                Assign(
-                    temp{84},
-                    (),
-                ),
-            ],
-            Goto(
-                BasicBlock(58),
-            ),
-        ),
-        BasicBlock(58): BasicBlockData(
-            [
-                Assign(
-                    temp{92},
-                    2,
-                ),
-                Assign(
-                    temp{93},
-                    1,
-                ),
-                Assign(
-                    temp{91},
-                    temp{92} > temp{93},
-                ),
-            ],
-            If(
-                temp{91},
-                BasicBlock(61),
-                BasicBlock(62),
-            ),
-        ),
-        BasicBlock(59): BasicBlockData(
-            [],
-            Assign(
-                temp{84},
-                Await(
-                    temp{88},
-                ),
-                BasicBlock(60),
-            ),
-        ),
-        BasicBlock(60): BasicBlockData(
-            [],
-            Goto(
-                BasicBlock(58),
-            ),
-        ),
-        BasicBlock(61): BasicBlockData(
-            [
-                Assign(
-                    temp{95},
-                    "2 > 1",
-                ),
-            ],
-            Assign(
-                temp{94},
-                Call(
-                    Print,
-                    [
-                        temp{95},
-                    ],
-                    [
-                        None,
-                    ],
-                ),
-                BasicBlock(64),
-            ),
-        ),
-        BasicBlock(62): BasicBlockData(
-            [
-                Assign(
-                    temp{90},
-                    (),
-                ),
-            ],
-            Goto(
-                BasicBlock(63),
-            ),
-        ),
-        BasicBlock(63): BasicBlockData(
-            [
-                Assign(
-                    temp{97},
-                    1,
-                ),
-                Assign(
-                    temp{98},
-                    1,
-                ),
-                Assign(
-                    temp{96},
-                    temp{97} > temp{98},
-                ),
-            ],
-            If(
-                temp{96},
-                BasicBlock(66),
-                BasicBlock(67),
-            ),
-        ),
-        BasicBlock(64): BasicBlockData(
-            [],
-            Assign(
-                temp{90},
-                Await(
-                    temp{94},
-                ),
-                BasicBlock(65),
-            ),
-        ),
-        BasicBlock(65): BasicBlockData(
-            [],
-            Goto(
-                BasicBlock(63),
-            ),
-        ),
-        BasicBlock(66): BasicBlockData(
-            [
-                Assign(
-                    temp{100},
-                    "error",
-                ),
-            ],
-            Assign(
-                temp{99},
-                Call(
-                    Print,
-                    [
-                        temp{100},
-                    ],
-                    [
-                        None,
-                    ],
-                ),
-                BasicBlock(69),
-            ),
-        ),
-        BasicBlock(67): BasicBlockData(
-            [
-                Assign(
-                    temp{3},
-                    (),
-                ),
-            ],
-            Goto(
-                BasicBlock(68),
-            ),
-        ),
-        BasicBlock(68): BasicBlockData(
-            [],
-            Return(
-                temp{3},
-            ),
-        ),
-        BasicBlock(69): BasicBlockData(
-            [],
-            Assign(
-                temp{3},
-                Await(
-                    temp{99},
-                ),
-                BasicBlock(70),
-            ),
-        ),
-        BasicBlock(70): BasicBlockData(
-            [],
-            Goto(
-                BasicBlock(68),
             ),
         ),
     },

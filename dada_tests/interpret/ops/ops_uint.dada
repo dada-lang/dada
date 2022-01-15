@@ -1,34 +1,14 @@
 async fn main() {
-    var uint_max = 18446744073709551615
-
     if 1 + 1 == 2 {
         print("1 + 1 == 2").await
-    }
-
-    # wrapping overflow
-    if uint_max + 2 == 1 {
-        print("uint_max + 2 == 1").await
     }
 
     if 1 - 1 == 0 {
         print("1 - 1 == 0").await
     }
 
-    # wrapping underflow
-    if 1 - 2 == uint_max {
-        print("1 - 2 == uint_max").await
-    }
-
     if 10 * 10 == 100 {
         print("10 * 10 == 100").await
-    }
-
-    # wrapping multiplication
-    # 0x_0fff_ffff_ffff_ffff
-    var fx15 = 1152921504606846975
-    var fx15_plus_1 = fx15 + 1
-    if fx15_plus_1 * 16 == 0 {
-        print("fx15_plus_1 * 16 == 0").await
     }
 
     if 10 / 5 == 2 {
