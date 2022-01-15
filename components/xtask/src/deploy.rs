@@ -15,7 +15,7 @@ impl Deploy {
         tracing::debug!("dada download directory: {dada_downloads:?}");
 
         let mdbook_path = download_mdbook(&dada_downloads)?;
-        //let wasm_pack_path = download_wasm_pack(&dada_downloads);
+        let wasm_pack_path = download_wasm_pack(&dada_downloads)?;
 
         {
             let _book = xshell::pushd(&book_dir)?;
@@ -29,9 +29,12 @@ impl Deploy {
 
         {
             let _directory = xshell::pushd(&dada_web_dir)?;
-            let args =
-                wasm_pack::Cli::from_iter(vec!["wasm-pack", "build", "--target", "web", "--dev"]);
-            wasm_pack::command::run_wasm_pack(args.cmd).expect("wasm-pack failed");
+            xshell::Cmd::new(wasm_pack_path)
+                .arg("build")
+                .arg("--target")
+                .arg("web")
+                .arg("--dev")
+                .run()?;
         }
 
         //{
@@ -52,10 +55,20 @@ impl Deploy {
 
 fn download_mdbook(dada_downloads: &PathBuf) -> eyre::Result<PathBuf> {
     let version = "v0.4.15";
-    let url = format!("https://github.com/rust-lang/mdBook/releases/download/{version}/mdbook-v0.4.15-x86_64-unknown-linux-gnu.tar.gz");
+    let url = format!("https://github.com/rust-lang/mdBook/releases/download/{version}/mdbook-{version}-x86_64-unknown-linux-gnu.tar.gz");
     let filename = format!("mdbook-{version}.tar.gz");
     download_and_untar(dada_downloads, &url, &filename)?;
     Ok(dada_downloads.join("mdbook"))
+}
+
+fn download_wasm_pack(dada_downloads: &PathBuf) -> eyre::Result<PathBuf> {
+    let version = "v0.10.2";
+    let prefix = format!("wasm-pack-{version}-x86_64-unknown-linux-musl");
+    let filename = format!("{prefix}.tar.gz");
+    let url =
+        format!("https://github.com/rustwasm/wasm-pack/releases/download/{version}/{filename}");
+    download_and_untar(dada_downloads, &url, &filename)?;
+    Ok(dada_downloads.join(&prefix).join("wasm-pack"))
 }
 
 fn download_and_untar(dada_downloads: &Path, url: &str, file: &str) -> eyre::Result<()> {
