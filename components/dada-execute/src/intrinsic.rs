@@ -1,35 +1,27 @@
 use dada_ir::{error, intrinsic::Intrinsic, word::Word};
 use eyre::Context;
 
-use crate::{
-    data::DadaFuture, error::DiagnosticBuilderExt, interpreter::Interpreter, value::Value,
-};
+use crate::{error::DiagnosticBuilderExt, interpreter::Interpreter, value::Value};
 
-pub(crate) type IntrinsicClosure =
-    Box<dyn for<'i> Fn(&'i Interpreter<'_>, Vec<Value>) -> DadaFuture<'i>>;
+pub(crate) type IntrinsicFn = fn(&Interpreter<'_>, Vec<Value>) -> eyre::Result<Value>;
 
 pub(crate) struct IntrinsicDefinition {
     pub(crate) argument_names: Vec<Word>,
-    pub(crate) closure: IntrinsicClosure,
+    pub(crate) function: IntrinsicFn,
 }
 
 impl IntrinsicDefinition {
-    pub(crate) fn for_intrinsic(db: &dyn crate::Db, intrinsic: Intrinsic) -> Self {
+    pub(crate) fn for_intrinsic(db: &dyn crate::Db, intrinsic: Intrinsic) -> IntrinsicDefinition {
         match intrinsic {
             Intrinsic::Print => IntrinsicDefinition {
                 argument_names: vec![Word::from(db, "message")],
-                closure: Box::new(|interpreter, values| {
-                    Box::pin(intrinsic_write(interpreter, values))
-                }),
+                function: intrinsic_write,
             },
         }
     }
 }
 
-async fn intrinsic_write(
-    interpreter: &Interpreter<'_>,
-    mut values: Vec<Value>,
-) -> eyre::Result<Value> {
+fn intrinsic_write(interpreter: &Interpreter<'_>, mut values: Vec<Value>) -> eyre::Result<Value> {
     Ok(Value::new(
         interpreter,
         thunk!(async move |interpreter| {

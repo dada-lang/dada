@@ -27,6 +27,7 @@ mod intrinsic;
 pub mod kernel;
 mod moment;
 mod permission;
+mod poll_once;
 mod thunk;
 mod value;
 

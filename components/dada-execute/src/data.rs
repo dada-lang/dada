@@ -165,7 +165,7 @@ impl Data {
         interpreter: &'i Interpreter<'_>,
         arguments: Vec<Value>,
         labels: &[SpannedOptionalWord],
-    ) -> eyre::Result<DadaFuture<'i>> {
+    ) -> eyre::Result<Value> {
         assert_eq!(arguments.len(), labels.len());
         let db = interpreter.db();
         match self {
@@ -176,18 +176,17 @@ impl Data {
                     class: *c,
                     fields: arguments,
                 };
-                let value = Value::new(interpreter, instance);
-                Ok(Box::pin(async move { Ok(value) }))
+                Ok(Value::new(interpreter, instance))
             }
             Data::Function(function) => {
                 let parameters = function.parameters(db);
                 match_labels(interpreter, labels, parameters)?;
-                Ok(interpreter.execute_function(*function, arguments))
+                interpreter.execute_function(*function, arguments)
             }
             Data::Intrinsic(intrinsic) => {
                 let definition = IntrinsicDefinition::for_intrinsic(interpreter.db(), *intrinsic);
                 match_labels(interpreter, labels, &definition.argument_names)?;
-                Ok((definition.closure)(interpreter, arguments))
+                (definition.function)(interpreter, arguments)
             }
             _ => {
                 let span = interpreter.span_now();
