@@ -7,10 +7,8 @@ edition = "2021"
 
 [dependencies]
 eyre = "0.6.5"
-mdbook = "0.4.15"
 structopt = "0.3"
 tracing = "0.1.29"
 tracing-tree = "0.2.0"
 tracing-subscriber = { version = "0.3.3", default-features = false, features = ["fmt", "env-filter", "smallvec", "parking_lot", "ansi"] }
 xshell = "0.1"
-wasm-pack = "0.10"
