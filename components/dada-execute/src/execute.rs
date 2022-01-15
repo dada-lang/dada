@@ -346,6 +346,10 @@ impl StackFrame<'_> {
             )
             .eyre(self.interpreter.db()))
         };
+        let div_zero_error = || {
+            let span = self.span_from_bir(expr);
+            Err(error!(span, "divide by zero").eyre(self.interpreter.db()))
+        };
         match (lhs, rhs) {
             (Data::Bool(lhs), Data::Bool(rhs)) => match op {
                 Op::EqualEqual => Ok(Value::new(self.interpreter, lhs == rhs)),
@@ -358,7 +362,7 @@ impl StackFrame<'_> {
                 Op::Times => Ok(Value::new(self.interpreter, lhs.wrapping_mul(*rhs))),
                 Op::DividedBy => match lhs.checked_div(*rhs) {
                     Some(value) => Ok(Value::new(self.interpreter, value)),
-                    None => todo!("divide by zero"),
+                    None => div_zero_error(),
                 },
                 Op::LessThan => Ok(Value::new(self.interpreter, lhs < rhs)),
                 Op::GreaterThan => Ok(Value::new(self.interpreter, lhs > rhs)),
@@ -370,7 +374,7 @@ impl StackFrame<'_> {
                 Op::Times => Ok(Value::new(self.interpreter, lhs.wrapping_mul(*rhs))),
                 Op::DividedBy => match lhs.checked_div(*rhs) {
                     Some(value) => Ok(Value::new(self.interpreter, value)),
-                    None => todo!("divide by zero"),
+                    None => div_zero_error(),
                 },
                 Op::LessThan => Ok(Value::new(self.interpreter, lhs < rhs)),
                 Op::GreaterThan => Ok(Value::new(self.interpreter, lhs > rhs)),
