@@ -15,6 +15,9 @@ impl<T> Db for T where
 {
 }
 
+#[macro_use]
+mod macros;
+
 mod data;
 mod error;
 mod execute;
@@ -24,6 +27,7 @@ mod intrinsic;
 pub mod kernel;
 mod moment;
 mod permission;
+mod poll_once;
 mod thunk;
 mod value;
 

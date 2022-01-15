@@ -14,7 +14,6 @@ use dada_ir::{
 };
 
 use crate::kernel::Kernel;
-use crate::thunk::Thunk;
 use crate::{data::Tuple, error::DiagnosticBuilderExt, interpreter::Interpreter, value::Value};
 
 pub async fn interpret(
@@ -41,23 +40,26 @@ impl Interpreter<'_> {
     /// Executes the function on the given arguments. If function is an async
     /// function, this will simply return a thunk that, when awaited, runs the code.
     /// Otherwise it runs the function.
-    pub(crate) fn execute_function<'me>(
-        &'me self,
+    pub(crate) fn execute_function(
+        &self,
         function: Function,
         arguments: Vec<Value>,
-    ) -> Pin<Box<dyn Future<Output = eyre::Result<Value>> + 'me>> {
+    ) -> eyre::Result<Value> {
         if let Effect::Async = function.code(self.db()).effect {
-            let thunk = Thunk::new(move |interpreter| {
-                Box::pin(async move {
-                    let bir = function.brew(interpreter.db());
-                    interpreter.execute_bir(bir, arguments).await
-                })
+            let thunk = thunk!(async move |interpreter| {
+                let bir = function.brew(interpreter.db());
+                interpreter.execute_bir(bir, arguments).await
             });
-            let value = Value::new(self, thunk);
-            Box::pin(async move { Ok(value) })
+            Ok(Value::new(self, thunk))
         } else {
             let bir = function.brew(self.db());
-            self.execute_bir(bir, arguments)
+            let future = self.execute_bir(bir, arguments);
+
+            // This is interesting. `execute_bir` is async in *Rust* because it is
+            // for both `fn` and `async fn` in Dada -- but in the case that we are
+            // executing a Dada `fn`, we know that it will never await anything.
+            // Therefore we can just poll it a single time.
+            crate::poll_once::poll_once(future)
         }
     }
 
@@ -313,10 +315,9 @@ impl StackFrame<'_> {
                     .iter()
                     .map(|argument_place| self.give_place(*argument_place))
                     .collect::<eyre::Result<Vec<_>>>()?;
-                let future = function_value.read(self.interpreter, |data| {
+                function_value.read(self.interpreter, |data| {
                     data.call(self.interpreter, argument_values, argument_labels)
-                })?;
-                future.await
+                })
             }
         }
     }

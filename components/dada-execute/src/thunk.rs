@@ -1,9 +1,7 @@
 use crate::{data::DadaFuture, interpreter::Interpreter, value::Value};
 
-pub(crate) type ThunkClosure = Box<dyn for<'i> FnOnce(&'i Interpreter<'_>) -> DadaFuture<'i>>;
-
 pub(crate) struct Thunk {
-    object: ThunkClosure,
+    object: Box<dyn ThunkTrait>,
 }
 
 impl Thunk {
@@ -16,12 +14,27 @@ impl Thunk {
     }
 
     pub(crate) async fn invoke(self, interpreter: &Interpreter<'_>) -> eyre::Result<Value> {
-        (self.object)(interpreter).await
+        self.object.invoke(interpreter).await
     }
 }
 
 impl std::fmt::Debug for Thunk {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
         f.debug_tuple("Thunk").field(&"...").finish()
+    }
+}
+
+#[async_trait::async_trait(?Send)]
+trait ThunkTrait {
+    async fn invoke(self: Box<Self>, interpreter: &Interpreter<'_>) -> eyre::Result<Value>;
+}
+
+#[async_trait::async_trait(?Send)]
+impl<T> ThunkTrait for T
+where
+    T: for<'i> FnOnce(&'i Interpreter<'_>) -> DadaFuture<'i>,
+{
+    async fn invoke(self: Box<Self>, interpreter: &Interpreter<'_>) -> eyre::Result<Value> {
+        self(interpreter).await
     }
 }
