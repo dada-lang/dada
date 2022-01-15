@@ -29,7 +29,6 @@ Model:
     * Parse the file "just enough" to get the list of functions or other items
         * but not any more than I need to
 * How to represent a token tree
-    * 
     * not interned, entity has persistent id between executions
 
 
@@ -98,8 +97,6 @@ fn item_names(db, filename: Filename) -> Set<Name> {
         let name = item.name(db);
     }
 }
-```
-
 ```
 
 ```
