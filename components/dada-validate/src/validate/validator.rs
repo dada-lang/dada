@@ -564,7 +564,7 @@ fn convert_to_dada_string(s: &str) -> String {
 
     if common_indentation != 0 {
         let first_prefix = whitespace_prefix_iter.next().unwrap_or_default();
-        while let Some(prefix) = whitespace_prefix_iter.next() {
+        for prefix in whitespace_prefix_iter {
             let common_prefix_len = first_prefix[..common_indentation]
                 .as_bytes()
                 .iter()
