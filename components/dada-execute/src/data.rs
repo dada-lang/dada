@@ -1,6 +1,7 @@
 use std::{future::Future, pin::Pin};
 
 use crate::error::DiagnosticBuilderExt;
+use crate::execute::StackFrame;
 use crate::ext::*;
 use crate::intrinsic::IntrinsicDefinition;
 use crate::{interpreter::Interpreter, thunk::Thunk, value::Value};
@@ -160,11 +161,12 @@ impl Data {
     /// which (when awaited) will perform the call. This is because `call` is
     /// invoked inside of a closure which can't await (which itself maybe should
     /// change!).
-    pub(crate) fn call<'i>(
+    pub(crate) fn call(
         &self,
-        interpreter: &'i Interpreter<'_>,
+        interpreter: &Interpreter<'_>,
         arguments: Vec<Value>,
         labels: &[SpannedOptionalWord],
+        parent_stack_frame: Option<&StackFrame<'_>>,
     ) -> eyre::Result<Value> {
         assert_eq!(arguments.len(), labels.len());
         let db = interpreter.db();
@@ -181,7 +183,7 @@ impl Data {
             Data::Function(function) => {
                 let parameters = function.parameters(db);
                 match_labels(interpreter, labels, parameters)?;
-                interpreter.execute_function(*function, arguments)
+                interpreter.execute_function(*function, arguments, parent_stack_frame)
             }
             Data::Intrinsic(intrinsic) => {
                 let definition = IntrinsicDefinition::for_intrinsic(interpreter.db(), *intrinsic);

@@ -24,7 +24,7 @@ impl IntrinsicDefinition {
 fn intrinsic_write(interpreter: &Interpreter<'_>, mut values: Vec<Value>) -> eyre::Result<Value> {
     Ok(Value::new(
         interpreter,
-        thunk!(async move |interpreter| {
+        thunk!(async move |interpreter, _parent_stack_frame| {
             let message = values.pop().unwrap();
             let message = message.read(interpreter, |data| data.to_word(interpreter))?;
             let message_str = message.as_str(interpreter.db());

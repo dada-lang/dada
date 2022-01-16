@@ -22,6 +22,7 @@ use crate::{
     value::Value,
 };
 
+/// Interprets a given function with the given kernel. Assumes this is the top stack frame.
 pub async fn interpret(
     function: Function,
     db: &dyn crate::Db,
@@ -31,11 +32,13 @@ pub async fn interpret(
     let initial_span = function.name_span(db);
     let interpreter = &Interpreter::new(db, kernel, initial_span);
     let bir = function.brew(db);
-    let value = interpreter.execute_bir(bir, arguments).await?;
+    let value = interpreter.execute_bir(bir, arguments, None).await?;
     value.read(interpreter, |data| data.to_unit(interpreter))
 }
 
-struct StackFrame<'me> {
+pub(crate) struct StackFrame<'me> {
+    #[allow(dead_code)] // FIXME -- remove by end of PR
+    parent_stack_frame: Option<&'me StackFrame<'me>>,
     interpreter: &'me Interpreter<'me>,
     bir: bir::Bir,
     tables: &'me bir::Tables,
@@ -50,16 +53,19 @@ impl Interpreter<'_> {
         &self,
         function: Function,
         arguments: Vec<Value>,
+        parent_stack_frame: Option<&StackFrame<'_>>,
     ) -> eyre::Result<Value> {
         if let Effect::Async = function.code(self.db()).effect {
-            let thunk = thunk!(async move |interpreter| {
+            let thunk = thunk!(async move |interpreter, parent_stack_frame_from_await| {
                 let bir = function.brew(interpreter.db());
-                interpreter.execute_bir(bir, arguments).await
+                interpreter
+                    .execute_bir(bir, arguments, parent_stack_frame_from_await)
+                    .await
             });
             Ok(Value::new(self, thunk))
         } else {
             let bir = function.brew(self.db());
-            let future = self.execute_bir(bir, arguments);
+            let future = self.execute_bir(bir, arguments, parent_stack_frame);
 
             // This is interesting. `execute_bir` is async in *Rust* because it is
             // for both `fn` and `async fn` in Dada -- but in the case that we are
@@ -78,6 +84,7 @@ impl Interpreter<'_> {
         &'me self,
         bir: bir::Bir,
         arguments: Vec<Value>,
+        parent_stack_frame: Option<&'me StackFrame<'_>>,
     ) -> Pin<Box<dyn Future<Output = eyre::Result<Value>> + 'me>> {
         let bir_data = bir.data(self.db());
 
@@ -103,6 +110,7 @@ impl Interpreter<'_> {
             bir,
             tables: &bir_data.tables,
             local_variables,
+            parent_stack_frame,
         };
         Box::pin(stack_frame.execute(bir_data.start_basic_block))
     }
@@ -315,7 +323,7 @@ impl StackFrame<'_> {
                 let value = self.give_place(*place)?;
                 let data = value.prepare_for_await(self.interpreter)?;
                 let thunk = data.into_thunk(self.interpreter)?;
-                thunk.invoke(self.interpreter).await
+                thunk.invoke(self.interpreter, Some(self)).await
             }
             bir::TerminatorExpr::Call {
                 function: function_place,
@@ -328,7 +336,12 @@ impl StackFrame<'_> {
                     .map(|argument_place| self.give_place(*argument_place))
                     .collect::<eyre::Result<Vec<_>>>()?;
                 function_value.read(self.interpreter, |data| {
-                    data.call(self.interpreter, argument_values, argument_labels)
+                    data.call(
+                        self.interpreter,
+                        argument_values,
+                        argument_labels,
+                        Some(self),
+                    )
                 })
             }
         }
