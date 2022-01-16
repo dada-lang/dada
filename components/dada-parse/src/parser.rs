@@ -3,8 +3,8 @@ use std::string::ToString;
 use crate::{token_test::*, tokens::Tokens};
 
 use dada_ir::{
-    diagnostic::DiagnosticBuilder, filename::Filename, op::Op, span::Span, token::Token,
-    token_tree::TokenTree,
+    code::syntax::op::Op, diagnostic::DiagnosticBuilder, filename::Filename, span::Span,
+    token::Token, token_tree::TokenTree,
 };
 
 mod code;

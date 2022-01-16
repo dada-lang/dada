@@ -3,10 +3,10 @@
 
 use crate::{
     class::Class,
+    code::validated::op::Op,
     function::Function,
     in_ir_db::InIrDb,
     intrinsic::Intrinsic,
-    op::Op,
     prelude::InIrDbExt,
     storage_mode::StorageMode,
     word::{SpannedOptionalWord, Word},

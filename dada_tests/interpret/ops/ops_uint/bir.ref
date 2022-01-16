@@ -1,0 +1,810 @@
+[
+    bir::Bir {
+        start_basic_block: BasicBlock(0),
+        BasicBlock(0): BasicBlockData(
+            [
+                Assign(
+                    temp{4},
+                    1,
+                ),
+                Assign(
+                    temp{5},
+                    1,
+                ),
+                Assign(
+                    temp{3},
+                    temp{4} + temp{5},
+                ),
+                Assign(
+                    temp{6},
+                    2,
+                ),
+                Assign(
+                    temp{2},
+                    temp{3} == temp{6},
+                ),
+            ],
+            If(
+                temp{2},
+                BasicBlock(1),
+                BasicBlock(2),
+            ),
+        ),
+        BasicBlock(1): BasicBlockData(
+            [
+                Assign(
+                    temp{8},
+                    "1 + 1 == 2",
+                ),
+            ],
+            Assign(
+                temp{7},
+                Call(
+                    Print,
+                    [
+                        temp{8},
+                    ],
+                    [
+                        None,
+                    ],
+                ),
+                BasicBlock(4),
+            ),
+        ),
+        BasicBlock(2): BasicBlockData(
+            [
+                Assign(
+                    temp{1},
+                    (),
+                ),
+            ],
+            Goto(
+                BasicBlock(3),
+            ),
+        ),
+        BasicBlock(3): BasicBlockData(
+            [
+                Assign(
+                    temp{12},
+                    1,
+                ),
+                Assign(
+                    temp{13},
+                    1,
+                ),
+                Assign(
+                    temp{11},
+                    temp{12} - temp{13},
+                ),
+                Assign(
+                    temp{14},
+                    0,
+                ),
+                Assign(
+                    temp{10},
+                    temp{11} == temp{14},
+                ),
+            ],
+            If(
+                temp{10},
+                BasicBlock(6),
+                BasicBlock(7),
+            ),
+        ),
+        BasicBlock(4): BasicBlockData(
+            [],
+            Assign(
+                temp{1},
+                Await(
+                    temp{7},
+                ),
+                BasicBlock(5),
+            ),
+        ),
+        BasicBlock(5): BasicBlockData(
+            [],
+            Goto(
+                BasicBlock(3),
+            ),
+        ),
+        BasicBlock(6): BasicBlockData(
+            [
+                Assign(
+                    temp{16},
+                    "1 - 1 == 0",
+                ),
+            ],
+            Assign(
+                temp{15},
+                Call(
+                    Print,
+                    [
+                        temp{16},
+                    ],
+                    [
+                        None,
+                    ],
+                ),
+                BasicBlock(9),
+            ),
+        ),
+        BasicBlock(7): BasicBlockData(
+            [
+                Assign(
+                    temp{9},
+                    (),
+                ),
+            ],
+            Goto(
+                BasicBlock(8),
+            ),
+        ),
+        BasicBlock(8): BasicBlockData(
+            [
+                Assign(
+                    temp{20},
+                    10,
+                ),
+                Assign(
+                    temp{21},
+                    10,
+                ),
+                Assign(
+                    temp{19},
+                    temp{20} * temp{21},
+                ),
+                Assign(
+                    temp{22},
+                    100,
+                ),
+                Assign(
+                    temp{18},
+                    temp{19} == temp{22},
+                ),
+            ],
+            If(
+                temp{18},
+                BasicBlock(11),
+                BasicBlock(12),
+            ),
+        ),
+        BasicBlock(9): BasicBlockData(
+            [],
+            Assign(
+                temp{9},
+                Await(
+                    temp{15},
+                ),
+                BasicBlock(10),
+            ),
+        ),
+        BasicBlock(10): BasicBlockData(
+            [],
+            Goto(
+                BasicBlock(8),
+            ),
+        ),
+        BasicBlock(11): BasicBlockData(
+            [
+                Assign(
+                    temp{24},
+                    "10 * 10 == 100",
+                ),
+            ],
+            Assign(
+                temp{23},
+                Call(
+                    Print,
+                    [
+                        temp{24},
+                    ],
+                    [
+                        None,
+                    ],
+                ),
+                BasicBlock(14),
+            ),
+        ),
+        BasicBlock(12): BasicBlockData(
+            [
+                Assign(
+                    temp{17},
+                    (),
+                ),
+            ],
+            Goto(
+                BasicBlock(13),
+            ),
+        ),
+        BasicBlock(13): BasicBlockData(
+            [
+                Assign(
+                    temp{28},
+                    10,
+                ),
+                Assign(
+                    temp{29},
+                    5,
+                ),
+                Assign(
+                    temp{27},
+                    temp{28} / temp{29},
+                ),
+                Assign(
+                    temp{30},
+                    2,
+                ),
+                Assign(
+                    temp{26},
+                    temp{27} == temp{30},
+                ),
+            ],
+            If(
+                temp{26},
+                BasicBlock(16),
+                BasicBlock(17),
+            ),
+        ),
+        BasicBlock(14): BasicBlockData(
+            [],
+            Assign(
+                temp{17},
+                Await(
+                    temp{23},
+                ),
+                BasicBlock(15),
+            ),
+        ),
+        BasicBlock(15): BasicBlockData(
+            [],
+            Goto(
+                BasicBlock(13),
+            ),
+        ),
+        BasicBlock(16): BasicBlockData(
+            [
+                Assign(
+                    temp{32},
+                    "10 / 5 == 2",
+                ),
+            ],
+            Assign(
+                temp{31},
+                Call(
+                    Print,
+                    [
+                        temp{32},
+                    ],
+                    [
+                        None,
+                    ],
+                ),
+                BasicBlock(19),
+            ),
+        ),
+        BasicBlock(17): BasicBlockData(
+            [
+                Assign(
+                    temp{25},
+                    (),
+                ),
+            ],
+            Goto(
+                BasicBlock(18),
+            ),
+        ),
+        BasicBlock(18): BasicBlockData(
+            [
+                Assign(
+                    temp{36},
+                    11,
+                ),
+                Assign(
+                    temp{37},
+                    5,
+                ),
+                Assign(
+                    temp{35},
+                    temp{36} / temp{37},
+                ),
+                Assign(
+                    temp{38},
+                    2,
+                ),
+                Assign(
+                    temp{34},
+                    temp{35} == temp{38},
+                ),
+            ],
+            If(
+                temp{34},
+                BasicBlock(21),
+                BasicBlock(22),
+            ),
+        ),
+        BasicBlock(19): BasicBlockData(
+            [],
+            Assign(
+                temp{25},
+                Await(
+                    temp{31},
+                ),
+                BasicBlock(20),
+            ),
+        ),
+        BasicBlock(20): BasicBlockData(
+            [],
+            Goto(
+                BasicBlock(18),
+            ),
+        ),
+        BasicBlock(21): BasicBlockData(
+            [
+                Assign(
+                    temp{40},
+                    "11 / 5 == 2",
+                ),
+            ],
+            Assign(
+                temp{39},
+                Call(
+                    Print,
+                    [
+                        temp{40},
+                    ],
+                    [
+                        None,
+                    ],
+                ),
+                BasicBlock(24),
+            ),
+        ),
+        BasicBlock(22): BasicBlockData(
+            [
+                Assign(
+                    temp{33},
+                    (),
+                ),
+            ],
+            Goto(
+                BasicBlock(23),
+            ),
+        ),
+        BasicBlock(23): BasicBlockData(
+            [
+                Assign(
+                    temp{43},
+                    1,
+                ),
+                Assign(
+                    temp{44},
+                    2,
+                ),
+                Assign(
+                    temp{42},
+                    temp{43} < temp{44},
+                ),
+            ],
+            If(
+                temp{42},
+                BasicBlock(26),
+                BasicBlock(27),
+            ),
+        ),
+        BasicBlock(24): BasicBlockData(
+            [],
+            Assign(
+                temp{33},
+                Await(
+                    temp{39},
+                ),
+                BasicBlock(25),
+            ),
+        ),
+        BasicBlock(25): BasicBlockData(
+            [],
+            Goto(
+                BasicBlock(23),
+            ),
+        ),
+        BasicBlock(26): BasicBlockData(
+            [
+                Assign(
+                    temp{46},
+                    "1 < 2",
+                ),
+            ],
+            Assign(
+                temp{45},
+                Call(
+                    Print,
+                    [
+                        temp{46},
+                    ],
+                    [
+                        None,
+                    ],
+                ),
+                BasicBlock(29),
+            ),
+        ),
+        BasicBlock(27): BasicBlockData(
+            [
+                Assign(
+                    temp{41},
+                    (),
+                ),
+            ],
+            Goto(
+                BasicBlock(28),
+            ),
+        ),
+        BasicBlock(28): BasicBlockData(
+            [
+                Assign(
+                    temp{49},
+                    2,
+                ),
+                Assign(
+                    temp{50},
+                    1,
+                ),
+                Assign(
+                    temp{48},
+                    temp{49} < temp{50},
+                ),
+            ],
+            If(
+                temp{48},
+                BasicBlock(31),
+                BasicBlock(32),
+            ),
+        ),
+        BasicBlock(29): BasicBlockData(
+            [],
+            Assign(
+                temp{41},
+                Await(
+                    temp{45},
+                ),
+                BasicBlock(30),
+            ),
+        ),
+        BasicBlock(30): BasicBlockData(
+            [],
+            Goto(
+                BasicBlock(28),
+            ),
+        ),
+        BasicBlock(31): BasicBlockData(
+            [
+                Assign(
+                    temp{52},
+                    "error",
+                ),
+            ],
+            Assign(
+                temp{51},
+                Call(
+                    Print,
+                    [
+                        temp{52},
+                    ],
+                    [
+                        None,
+                    ],
+                ),
+                BasicBlock(34),
+            ),
+        ),
+        BasicBlock(32): BasicBlockData(
+            [
+                Assign(
+                    temp{47},
+                    (),
+                ),
+            ],
+            Goto(
+                BasicBlock(33),
+            ),
+        ),
+        BasicBlock(33): BasicBlockData(
+            [
+                Assign(
+                    temp{55},
+                    1,
+                ),
+                Assign(
+                    temp{56},
+                    1,
+                ),
+                Assign(
+                    temp{54},
+                    temp{55} < temp{56},
+                ),
+            ],
+            If(
+                temp{54},
+                BasicBlock(36),
+                BasicBlock(37),
+            ),
+        ),
+        BasicBlock(34): BasicBlockData(
+            [],
+            Assign(
+                temp{47},
+                Await(
+                    temp{51},
+                ),
+                BasicBlock(35),
+            ),
+        ),
+        BasicBlock(35): BasicBlockData(
+            [],
+            Goto(
+                BasicBlock(33),
+            ),
+        ),
+        BasicBlock(36): BasicBlockData(
+            [
+                Assign(
+                    temp{58},
+                    "error",
+                ),
+            ],
+            Assign(
+                temp{57},
+                Call(
+                    Print,
+                    [
+                        temp{58},
+                    ],
+                    [
+                        None,
+                    ],
+                ),
+                BasicBlock(39),
+            ),
+        ),
+        BasicBlock(37): BasicBlockData(
+            [
+                Assign(
+                    temp{53},
+                    (),
+                ),
+            ],
+            Goto(
+                BasicBlock(38),
+            ),
+        ),
+        BasicBlock(38): BasicBlockData(
+            [
+                Assign(
+                    temp{61},
+                    1,
+                ),
+                Assign(
+                    temp{62},
+                    2,
+                ),
+                Assign(
+                    temp{60},
+                    temp{61} > temp{62},
+                ),
+            ],
+            If(
+                temp{60},
+                BasicBlock(41),
+                BasicBlock(42),
+            ),
+        ),
+        BasicBlock(39): BasicBlockData(
+            [],
+            Assign(
+                temp{53},
+                Await(
+                    temp{57},
+                ),
+                BasicBlock(40),
+            ),
+        ),
+        BasicBlock(40): BasicBlockData(
+            [],
+            Goto(
+                BasicBlock(38),
+            ),
+        ),
+        BasicBlock(41): BasicBlockData(
+            [
+                Assign(
+                    temp{64},
+                    "error",
+                ),
+            ],
+            Assign(
+                temp{63},
+                Call(
+                    Print,
+                    [
+                        temp{64},
+                    ],
+                    [
+                        None,
+                    ],
+                ),
+                BasicBlock(44),
+            ),
+        ),
+        BasicBlock(42): BasicBlockData(
+            [
+                Assign(
+                    temp{59},
+                    (),
+                ),
+            ],
+            Goto(
+                BasicBlock(43),
+            ),
+        ),
+        BasicBlock(43): BasicBlockData(
+            [
+                Assign(
+                    temp{67},
+                    2,
+                ),
+                Assign(
+                    temp{68},
+                    1,
+                ),
+                Assign(
+                    temp{66},
+                    temp{67} > temp{68},
+                ),
+            ],
+            If(
+                temp{66},
+                BasicBlock(46),
+                BasicBlock(47),
+            ),
+        ),
+        BasicBlock(44): BasicBlockData(
+            [],
+            Assign(
+                temp{59},
+                Await(
+                    temp{63},
+                ),
+                BasicBlock(45),
+            ),
+        ),
+        BasicBlock(45): BasicBlockData(
+            [],
+            Goto(
+                BasicBlock(43),
+            ),
+        ),
+        BasicBlock(46): BasicBlockData(
+            [
+                Assign(
+                    temp{70},
+                    "2 > 1",
+                ),
+            ],
+            Assign(
+                temp{69},
+                Call(
+                    Print,
+                    [
+                        temp{70},
+                    ],
+                    [
+                        None,
+                    ],
+                ),
+                BasicBlock(49),
+            ),
+        ),
+        BasicBlock(47): BasicBlockData(
+            [
+                Assign(
+                    temp{65},
+                    (),
+                ),
+            ],
+            Goto(
+                BasicBlock(48),
+            ),
+        ),
+        BasicBlock(48): BasicBlockData(
+            [
+                Assign(
+                    temp{72},
+                    1,
+                ),
+                Assign(
+                    temp{73},
+                    1,
+                ),
+                Assign(
+                    temp{71},
+                    temp{72} > temp{73},
+                ),
+            ],
+            If(
+                temp{71},
+                BasicBlock(51),
+                BasicBlock(52),
+            ),
+        ),
+        BasicBlock(49): BasicBlockData(
+            [],
+            Assign(
+                temp{65},
+                Await(
+                    temp{69},
+                ),
+                BasicBlock(50),
+            ),
+        ),
+        BasicBlock(50): BasicBlockData(
+            [],
+            Goto(
+                BasicBlock(48),
+            ),
+        ),
+        BasicBlock(51): BasicBlockData(
+            [
+                Assign(
+                    temp{75},
+                    "error",
+                ),
+            ],
+            Assign(
+                temp{74},
+                Call(
+                    Print,
+                    [
+                        temp{75},
+                    ],
+                    [
+                        None,
+                    ],
+                ),
+                BasicBlock(54),
+            ),
+        ),
+        BasicBlock(52): BasicBlockData(
+            [
+                Assign(
+                    temp{0},
+                    (),
+                ),
+            ],
+            Goto(
+                BasicBlock(53),
+            ),
+        ),
+        BasicBlock(53): BasicBlockData(
+            [],
+            Return(
+                temp{0},
+            ),
+        ),
+        BasicBlock(54): BasicBlockData(
+            [],
+            Assign(
+                temp{0},
+                Await(
+                    temp{74},
+                ),
+                BasicBlock(55),
+            ),
+        ),
+        BasicBlock(55): BasicBlockData(
+            [],
+            Goto(
+                BasicBlock(53),
+            ),
+        ),
+    },
+]

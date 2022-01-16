@@ -14,7 +14,6 @@ pub mod item;
 pub mod kw;
 pub mod lines;
 pub mod manifest;
-pub mod op;
 pub mod parameter;
 pub mod prelude;
 pub mod span;
@@ -28,6 +27,7 @@ pub mod word;
 pub struct Jar(
     code::bir::Bir,
     code::syntax::Tree,
+    code::syntax::op::binary_ops,
     code::validated::Tree,
     class::Class,
     diagnostic::Diagnostics,
@@ -38,7 +38,6 @@ pub struct Jar(
     kw::keywords,
     lines::line_table,
     manifest::source_text,
-    op::binary_ops,
     parameter::Parameter,
     token_tree::TokenTree,
     ty::Ty,

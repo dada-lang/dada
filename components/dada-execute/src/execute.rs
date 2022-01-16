@@ -4,6 +4,7 @@ use dada_brew::prelude::*;
 use dada_collections::Map;
 use dada_id::prelude::*;
 use dada_ir::code::bir::LocalVariable;
+use dada_ir::code::validated::op::Op;
 use dada_ir::effect::Effect;
 use dada_ir::function::Function;
 use dada_ir::{
@@ -14,7 +15,12 @@ use dada_ir::{
 };
 
 use crate::kernel::Kernel;
-use crate::{data::Tuple, error::DiagnosticBuilderExt, interpreter::Interpreter, value::Value};
+use crate::{
+    data::{Data, Tuple},
+    error::DiagnosticBuilderExt,
+    interpreter::Interpreter,
+    value::Value,
+};
 
 pub async fn interpret(
     function: Function,
@@ -176,7 +182,13 @@ impl StackFrame<'_> {
                     .collect::<eyre::Result<Vec<_>>>()?;
                 Ok(Value::new(self.interpreter, Tuple { fields }))
             }
-            bir::ExprData::Op(_lhs, _op, _rhs) => todo!(),
+            bir::ExprData::Op(lhs, op, rhs) => {
+                let lhs = self.with_place(*lhs, Value::share)?;
+                let rhs = self.with_place(*rhs, Value::share)?;
+                lhs.read(self.interpreter, |lhs| {
+                    rhs.read(self.interpreter, |rhs| self.apply_op(expr, lhs, *op, rhs))
+                })
+            }
             bir::ExprData::Error => {
                 let span = self.span_from_bir(expr);
                 Err(error!(span, "compilation error").eyre(self.interpreter.db()))
@@ -319,6 +331,93 @@ impl StackFrame<'_> {
                     data.call(self.interpreter, argument_values, argument_labels)
                 })
             }
+        }
+    }
+
+    fn apply_op(&self, expr: bir::Expr, lhs: &Data, op: Op, rhs: &Data) -> eyre::Result<Value> {
+        let op_error = || {
+            let span = self.span_from_bir(expr);
+            Err(error!(
+                span,
+                "cannot apply operator {} to {} and {}",
+                op,
+                lhs.kind_str(self.interpreter),
+                rhs.kind_str(self.interpreter)
+            )
+            .eyre(self.interpreter.db()))
+        };
+        let div_zero_error = || {
+            let span = self.span_from_bir(expr);
+            Err(error!(span, "divide by zero").eyre(self.interpreter.db()))
+        };
+        let overflow_error = || {
+            let span = self.span_from_bir(expr);
+            Err(error!(span, "overflow").eyre(self.interpreter.db()))
+        };
+        match (lhs, rhs) {
+            (Data::Bool(lhs), Data::Bool(rhs)) => match op {
+                Op::EqualEqual => Ok(Value::new(self.interpreter, lhs == rhs)),
+                _ => op_error(),
+            },
+            (Data::Uint(lhs), Data::Uint(rhs)) => match op {
+                Op::EqualEqual => Ok(Value::new(self.interpreter, lhs == rhs)),
+                Op::Plus => match lhs.checked_add(*rhs) {
+                    Some(value) => Ok(Value::new(self.interpreter, value)),
+                    None => overflow_error(),
+                },
+                Op::Minus => match lhs.checked_sub(*rhs) {
+                    Some(value) => Ok(Value::new(self.interpreter, value)),
+                    None => overflow_error(),
+                },
+                Op::Times => match lhs.checked_mul(*rhs) {
+                    Some(value) => Ok(Value::new(self.interpreter, value)),
+                    None => overflow_error(),
+                },
+                Op::DividedBy => match lhs.checked_div(*rhs) {
+                    Some(value) => Ok(Value::new(self.interpreter, value)),
+                    None => div_zero_error(),
+                },
+                Op::LessThan => Ok(Value::new(self.interpreter, lhs < rhs)),
+                Op::GreaterThan => Ok(Value::new(self.interpreter, lhs > rhs)),
+            },
+            (Data::Int(lhs), Data::Int(rhs)) => match op {
+                Op::EqualEqual => Ok(Value::new(self.interpreter, lhs == rhs)),
+                Op::Plus => match lhs.checked_add(*rhs) {
+                    Some(value) => Ok(Value::new(self.interpreter, value)),
+                    None => overflow_error(),
+                },
+                Op::Minus => match lhs.checked_sub(*rhs) {
+                    Some(value) => Ok(Value::new(self.interpreter, value)),
+                    None => overflow_error(),
+                },
+                Op::Times => match lhs.checked_mul(*rhs) {
+                    Some(value) => Ok(Value::new(self.interpreter, value)),
+                    None => overflow_error(),
+                },
+                Op::DividedBy => match lhs.checked_div(*rhs) {
+                    Some(value) => Ok(Value::new(self.interpreter, value)),
+                    None => {
+                        if *rhs != -1 {
+                            div_zero_error()
+                        } else {
+                            let span = self.span_from_bir(expr);
+                            Err(error!(span, "signed division overflow")
+                                .eyre(self.interpreter.db()))
+                        }
+                    }
+                },
+                Op::LessThan => Ok(Value::new(self.interpreter, lhs < rhs)),
+                Op::GreaterThan => Ok(Value::new(self.interpreter, lhs > rhs)),
+            },
+            (Data::String(lhs), Data::String(rhs)) => match op {
+                Op::EqualEqual => Ok(Value::new(self.interpreter, lhs == rhs)),
+                _ => op_error(),
+            },
+            (Data::Unit(lhs), Data::Unit(rhs)) => match op {
+                Op::EqualEqual => Ok(Value::new(self.interpreter, lhs == rhs)),
+                _ => op_error(),
+            },
+            _ => op_error(),
         }
     }
 }

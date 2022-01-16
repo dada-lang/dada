@@ -7,6 +7,7 @@ use crate::{
 use dada_id::InternValue;
 use dada_ir::{
     code::{
+        syntax::op::Op,
         syntax::{
             Expr, ExprData, LocalVariableDeclData, LocalVariableDeclSpan, NamedExpr, NamedExprData,
             Spans, Tables, Tree, TreeData,
@@ -15,7 +16,6 @@ use dada_ir::{
     },
     format_string::FormatStringSectionData,
     kw::Keyword,
-    op::Op,
     origin_table::PushOriginIn,
     span::Span,
     storage_mode::StorageMode,

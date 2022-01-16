@@ -354,8 +354,9 @@ impl<'me> Validator<'me> {
             syntax::ExprData::Op(lhs_expr, op, rhs_expr) => {
                 let validated_lhs_expr = self.validate_expr(*lhs_expr);
                 let validated_rhs_expr = self.validate_expr(*rhs_expr);
+                let validated_op = self.validated_op(*op);
                 self.add(
-                    validated::ExprData::Op(validated_lhs_expr, *op, validated_rhs_expr),
+                    validated::ExprData::Op(validated_lhs_expr, validated_op, validated_rhs_expr),
                     expr,
                 )
             }
@@ -367,8 +368,13 @@ impl<'me> Validator<'me> {
                     let validated_lhs_expr =
                         self.add(validated::ExprData::Place(validated_lhs_place), expr);
                     let validated_rhs_expr = self.validate_expr(*rhs_expr);
+                    let validated_op = self.validated_op(*op);
                     let validated_op_expr = self.add(
-                        validated::ExprData::Op(validated_lhs_expr, *op, validated_rhs_expr),
+                        validated::ExprData::Op(
+                            validated_lhs_expr,
+                            validated_op,
+                            validated_rhs_expr,
+                        ),
                         expr,
                     );
                     let assign_expr = self.add(
@@ -537,6 +543,37 @@ impl<'me> Validator<'me> {
             },
             named_expr,
         )
+    }
+
+    fn validated_op(&self, op: syntax::op::Op) -> validated::op::Op {
+        match op {
+            // Compound binops become a binop + assignment
+            syntax::op::Op::PlusEqual => validated::op::Op::Plus,
+            syntax::op::Op::MinusEqual => validated::op::Op::Minus,
+            syntax::op::Op::TimesEqual => validated::op::Op::Times,
+            syntax::op::Op::DividedByEqual => validated::op::Op::DividedBy,
+
+            // Binops
+            syntax::op::Op::EqualEqual => validated::op::Op::EqualEqual,
+            syntax::op::Op::Plus => validated::op::Op::Plus,
+            syntax::op::Op::Minus => validated::op::Op::Minus,
+            syntax::op::Op::Times => validated::op::Op::Times,
+            syntax::op::Op::DividedBy => validated::op::Op::DividedBy,
+            syntax::op::Op::LessThan => validated::op::Op::LessThan,
+            syntax::op::Op::GreaterThan => validated::op::Op::GreaterThan,
+
+            // These are parsed into other syntax elements and should not appear
+            // at this stage of compilation.
+            syntax::op::Op::ColonEqual
+            | syntax::op::Op::Colon
+            | syntax::op::Op::SemiColon
+            | syntax::op::Op::LeftAngle
+            | syntax::op::Op::RightAngle
+            | syntax::op::Op::Dot
+            | syntax::op::Op::Equal => {
+                unreachable!("unexpected op")
+            }
+        }
     }
 }
 
