@@ -14,6 +14,7 @@ use dada_ir::storage_mode::StorageMode;
 use dada_ir::word::Word;
 use dada_lex::prelude::*;
 use dada_parse::prelude::*;
+use std::cmp::min;
 use std::rc::Rc;
 use std::str::FromStr;
 
@@ -545,16 +546,37 @@ fn convert_to_dada_string(s: &str) -> String {
     if s.lines().count() == 1 {
         return s.to_string();
     }
-    let non_empty_lines = s
-        .lines()
-        .filter(|&line| !line.trim().is_empty())
-        .collect::<Vec<&str>>();
 
-    let indent = non_empty_lines
-        .iter()
-        .map(|line| line.chars().into_iter().take_while(|c| *c == ' ').count())
+    let non_empty_line_iter = s.lines().filter(|&line| !line.trim().is_empty());
+
+    let mut whitespace_prefix_iter = non_empty_line_iter.map(|line| {
+        line.chars()
+            .into_iter()
+            .take_while(|c| c.is_whitespace())
+            .collect::<String>()
+    });
+
+    let mut common_indentation = whitespace_prefix_iter
+        .clone()
+        .map(|prefix| prefix.len())
         .min()
         .unwrap_or(0);
+
+    if common_indentation != 0 {
+        let first_prefix = whitespace_prefix_iter.next().unwrap_or_default();
+        while let Some(prefix) = whitespace_prefix_iter.next() {
+            let common_prefix_len = first_prefix[..common_indentation]
+                .as_bytes()
+                .iter()
+                .zip(prefix.as_bytes())
+                .take_while(|(a, b)| a == b)
+                .count();
+            common_indentation = min(common_indentation, common_prefix_len);
+            if common_indentation == 0 {
+                break;
+            }
+        }
+    }
 
     let mut buf = vec![];
     for (i, line) in s.lines().enumerate() {
@@ -564,7 +586,7 @@ fn convert_to_dada_string(s: &str) -> String {
         if line.trim().is_empty() {
             buf.extend(line.chars());
         } else {
-            buf.extend(line[indent..].chars());
+            buf.extend(line[common_indentation..].chars());
         }
     }
     buf.into_iter().collect::<String>().trim().to_string()
