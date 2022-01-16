@@ -14,7 +14,6 @@ use dada_ir::storage_mode::StorageMode;
 use dada_ir::word::Word;
 use dada_lex::prelude::*;
 use dada_parse::prelude::*;
-use std::cmp::min;
 use std::rc::Rc;
 use std::str::FromStr;
 
@@ -541,6 +540,10 @@ impl<'me> Validator<'me> {
     }
 }
 
+fn count_bytes_in_common(s1: &[u8], s2: &[u8]) -> usize {
+    s1.iter().zip(s2).take_while(|(c1, c2)| c1 == c2).count()
+}
+
 // Remove leading, trailing whitespace and common indent from multiline strings.
 fn convert_to_dada_string(s: &str) -> String {
     // If the string has only one line, leave it and return immediately.
@@ -549,53 +552,35 @@ fn convert_to_dada_string(s: &str) -> String {
     }
 
     // Split string into lines and filter out empty lines.
-    let non_empty_line_iter = s.lines().filter(|&line| !line.trim().is_empty());
+    let mut non_empty_line_iter = s.lines().filter(|&line| !line.trim().is_empty());
 
-    // Find whitespace prefix of all the non-empty lines.
-    let mut whitespace_prefix_iter = non_empty_line_iter.map(|line| {
-        line.chars()
+    if let Some(first_line) = non_empty_line_iter.next() {
+        let prefix = first_line
+            .chars()
             .into_iter()
             .take_while(|c| c.is_whitespace())
-            .collect::<String>()
-    });
+            .collect::<String>();
+        let common_indent = non_empty_line_iter
+            .map(|s| count_bytes_in_common(prefix.as_bytes(), s.as_bytes()))
+            .min()
+            .unwrap_or(0);
 
-    // Find the common prefix of these whitespace prefixes, the common indent
-    // is the length of the common prefix.
-    let mut common_indent = whitespace_prefix_iter
-        .clone()
-        .map(|prefix| prefix.len())
-        .min()
-        .unwrap_or(0);
-    if common_indent != 0 {
-        let first_prefix = whitespace_prefix_iter.next().unwrap_or_default();
-        for prefix in whitespace_prefix_iter {
-            let common_prefix_len = first_prefix[..common_indent]
-                .as_bytes()
-                .iter()
-                .zip(prefix.as_bytes())
-                .take_while(|(a, b)| a == b)
-                .count();
-            common_indent = min(common_indent, common_prefix_len);
-            if common_indent == 0 {
-                break;
+        // Remove the common indent from every line in the original string,
+        // apart from empty lines, which remain as empty.
+        let mut buf = vec![];
+        for (i, line) in s.lines().enumerate() {
+            if i > 0 {
+                buf.push('\n');
+            }
+            if line.trim().is_empty() {
+                buf.extend(line.chars());
+            } else {
+                buf.extend(line[common_indent..].chars());
             }
         }
-    }
 
-    // Remove the common indent from every line in the original string,
-    // apart from empty lines, which remain as empty.
-    let mut buf = vec![];
-    for (i, line) in s.lines().enumerate() {
-        if i > 0 {
-            buf.push('\n');
-        }
-        if line.trim().is_empty() {
-            buf.extend(line.chars());
-        } else {
-            buf.extend(line[common_indent..].chars());
-        }
+        // Strip leading/trailing whitespace.
+        return buf.into_iter().collect::<String>().trim().to_string();
     }
-
-    // Strip leading/trailing whitespace.
-    buf.into_iter().collect::<String>().trim().to_string()
+    String::new()
 }
