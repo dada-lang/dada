@@ -15,6 +15,7 @@ use dada_ir::{
 };
 
 use crate::kernel::Kernel;
+use crate::thunk::Thunk;
 use crate::{
     data::{Data, Tuple},
     error::DiagnosticBuilderExt,
@@ -56,12 +57,7 @@ impl Interpreter<'_> {
         parent_stack_frame: Option<&StackFrame<'_>>,
     ) -> eyre::Result<Value> {
         if let Effect::Async = function.code(self.db()).effect {
-            let thunk = thunk!(async move |interpreter, parent_stack_frame_from_await| {
-                let bir = function.brew(interpreter.db());
-                interpreter
-                    .execute_bir(bir, arguments, parent_stack_frame_from_await)
-                    .await
-            });
+            let thunk = Thunk::for_function(function, arguments);
             Ok(Value::new(self, thunk))
         } else {
             let bir = function.brew(self.db());
