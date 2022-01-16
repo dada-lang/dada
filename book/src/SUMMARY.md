@@ -22,6 +22,10 @@
 
 - [Calculus](./calculus.md)
 
+# Development Guide
+
+- [Building Dada and running tests](./build_and_run.md)
+
 # Older, outdated content
 
 - [Tutorial](./old_tutorial.md)
