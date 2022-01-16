@@ -3,7 +3,7 @@ use std::{future::Future, pin::Pin};
 use dada_brew::prelude::*;
 use dada_collections::IndexVec;
 use dada_id::prelude::*;
-use dada_ir::code::bir::LocalVariable;
+use dada_ir::code::bir::{BasicBlock, Expr, LocalVariable, Statement, Terminator};
 use dada_ir::code::validated::op::Op;
 use dada_ir::effect::Effect;
 use dada_ir::function::Function;
@@ -43,6 +43,15 @@ pub(crate) struct StackFrame<'me> {
     bir: bir::Bir,
     tables: &'me bir::Tables,
     local_variables: IndexVec<bir::LocalVariable, Value>,
+    basic_block: bir::BasicBlock,
+    location: StackFrameLocation,
+}
+
+pub(crate) enum StackFrameLocation {
+    Block(BasicBlock),
+    Expr(Expr),
+    Statement(Statement),
+    Terminator(Terminator),
 }
 
 impl Interpreter<'_> {
@@ -105,20 +114,29 @@ impl Interpreter<'_> {
             tables: &bir_data.tables,
             local_variables,
             parent_stack_frame,
+            basic_block: bir_data.start_basic_block,
+            location: StackFrameLocation::Block(bir_data.start_basic_block),
         };
-        Box::pin(stack_frame.execute(self, bir_data.start_basic_block))
+        Box::pin(stack_frame.execute(self))
     }
 }
 
 impl StackFrame<'_> {
-    async fn execute(
-        mut self,
-        interpreter: &Interpreter<'_>,
-        mut basic_block: bir::BasicBlock,
-    ) -> eyre::Result<Value> {
+    #[allow(dead_code)] // FIXME by end of PR
+    pub(crate) fn current_span(&self, interpreter: &Interpreter<'_>) -> FileSpan {
+        match self.location {
+            StackFrameLocation::Block(b) => self.span_from_bir(interpreter, b),
+            StackFrameLocation::Expr(b) => self.span_from_bir(interpreter, b),
+            StackFrameLocation::Statement(b) => self.span_from_bir(interpreter, b),
+            StackFrameLocation::Terminator(b) => self.span_from_bir(interpreter, b),
+        }
+    }
+
+    async fn execute(mut self, interpreter: &Interpreter<'_>) -> eyre::Result<Value> {
         loop {
-            let basic_block_data = basic_block.data(self.tables);
+            let basic_block_data = self.basic_block.data(self.tables);
             for statement in &basic_block_data.statements {
+                self.location = StackFrameLocation::Statement(*statement);
                 self.tick_clock(interpreter, *statement);
                 match statement.data(self.tables) {
                     dada_ir::code::bir::StatementData::Assign(place, expr) => {
@@ -129,22 +147,23 @@ impl StackFrame<'_> {
             }
 
             self.tick_clock(interpreter, basic_block_data.terminator);
+            self.location = StackFrameLocation::Terminator(basic_block_data.terminator);
             match basic_block_data.terminator.data(self.tables) {
                 dada_ir::code::bir::TerminatorData::Goto(next_block) => {
-                    basic_block = *next_block;
+                    self.basic_block = *next_block;
                 }
                 dada_ir::code::bir::TerminatorData::If(place, if_true, if_false) => {
                     if self.eval_place_to_bool(interpreter, *place)? {
-                        basic_block = *if_true;
+                        self.basic_block = *if_true;
                     } else {
-                        basic_block = *if_false;
+                        self.basic_block = *if_false;
                     }
                 }
                 dada_ir::code::bir::TerminatorData::StartAtomic(next_block) => {
-                    basic_block = *next_block;
+                    self.basic_block = *next_block;
                 }
                 dada_ir::code::bir::TerminatorData::EndAtomic(next_block) => {
-                    basic_block = *next_block;
+                    self.basic_block = *next_block;
                 }
                 dada_ir::code::bir::TerminatorData::Return(place) => {
                     return self.give_place(interpreter, *place);
@@ -152,7 +171,7 @@ impl StackFrame<'_> {
                 dada_ir::code::bir::TerminatorData::Assign(place, expr, next) => {
                     let value = self.evaluate_terminator_expr(interpreter, expr).await?;
                     self.assign_place(interpreter, *place, value)?;
-                    basic_block = *next;
+                    self.basic_block = *next;
                 }
                 dada_ir::code::bir::TerminatorData::Error => {
                     let span = self.span_from_bir(interpreter, basic_block_data.terminator);
@@ -171,6 +190,7 @@ impl StackFrame<'_> {
         interpreter: &Interpreter<'_>,
         expr: bir::Expr,
     ) -> eyre::Result<Value> {
+        self.location = StackFrameLocation::Expr(expr);
         match expr.data(self.tables) {
             bir::ExprData::BooleanLiteral(value) => Ok(Value::new(interpreter, *value)),
             bir::ExprData::IntegerLiteral(value) => Ok(Value::new(interpreter, *value)),
