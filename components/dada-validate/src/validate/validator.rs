@@ -541,14 +541,17 @@ impl<'me> Validator<'me> {
     }
 }
 
-// Remove leading, trailing whitespace and common indentation from multiline strings.
+// Remove leading, trailing whitespace and common indent from multiline strings.
 fn convert_to_dada_string(s: &str) -> String {
+    // If the string has only one line, leave it and return immediately.
     if s.lines().count() == 1 {
         return s.to_string();
     }
 
+    // Split string into lines and filter out empty lines.
     let non_empty_line_iter = s.lines().filter(|&line| !line.trim().is_empty());
 
+    // Find whitespace prefix of all the non-empty lines.
     let mut whitespace_prefix_iter = non_empty_line_iter.map(|line| {
         line.chars()
             .into_iter()
@@ -556,28 +559,31 @@ fn convert_to_dada_string(s: &str) -> String {
             .collect::<String>()
     });
 
-    let mut common_indentation = whitespace_prefix_iter
+    // Find the common prefix of these whitespace prefixes, the common indent
+    // is the length of the common prefix.
+    let mut common_indent = whitespace_prefix_iter
         .clone()
         .map(|prefix| prefix.len())
         .min()
         .unwrap_or(0);
-
-    if common_indentation != 0 {
+    if common_indent != 0 {
         let first_prefix = whitespace_prefix_iter.next().unwrap_or_default();
         for prefix in whitespace_prefix_iter {
-            let common_prefix_len = first_prefix[..common_indentation]
+            let common_prefix_len = first_prefix[..common_indent]
                 .as_bytes()
                 .iter()
                 .zip(prefix.as_bytes())
                 .take_while(|(a, b)| a == b)
                 .count();
-            common_indentation = min(common_indentation, common_prefix_len);
-            if common_indentation == 0 {
+            common_indent = min(common_indent, common_prefix_len);
+            if common_indent == 0 {
                 break;
             }
         }
     }
 
+    // Remove the common indent from every line in the original string,
+    // apart from empty lines, which remain as empty.
     let mut buf = vec![];
     for (i, line) in s.lines().enumerate() {
         if i > 0 {
@@ -586,8 +592,10 @@ fn convert_to_dada_string(s: &str) -> String {
         if line.trim().is_empty() {
             buf.extend(line.chars());
         } else {
-            buf.extend(line[common_indentation..].chars());
+            buf.extend(line[common_indent..].chars());
         }
     }
+
+    // Strip leading/trailing whitespace.
     buf.into_iter().collect::<String>().trim().to_string()
 }
