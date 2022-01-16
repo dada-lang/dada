@@ -1,7 +1,7 @@
 use std::{future::Future, pin::Pin};
 
 use dada_brew::prelude::*;
-use dada_collections::Map;
+use dada_collections::IndexVec;
 use dada_id::prelude::*;
 use dada_ir::code::bir::LocalVariable;
 use dada_ir::code::validated::op::Op;
@@ -43,7 +43,7 @@ pub(crate) struct StackFrame<'me> {
     interpreter: &'me Interpreter<'me>,
     bir: bir::Bir,
     tables: &'me bir::Tables,
-    local_variables: Map<bir::LocalVariable, Value>,
+    local_variables: IndexVec<bir::LocalVariable, Value>,
 }
 
 impl Interpreter<'_> {
@@ -85,10 +85,10 @@ impl Interpreter<'_> {
         let bir_data = bir.data(self.db());
 
         // Give each local variable an expired value with no permissions to start.
-        let mut local_variables: Map<bir::LocalVariable, Value> = bir_data
+        let mut local_variables: IndexVec<bir::LocalVariable, Value> = bir_data
             .max_local_variable()
             .iter()
-            .map(|lv| (lv, Value::unit(self).give(self).unwrap()))
+            .map(|_| Value::unit(self).give(self).unwrap())
             .collect();
 
         let num_parameters = bir_data.num_parameters;
@@ -220,7 +220,7 @@ impl StackFrame<'_> {
         match place.data(self.tables) {
             bir::PlaceData::LocalVariable(local_variable) => {
                 // FIXME: Presently infallible, but think about atomic etc eventually. =)
-                let slot = self.local_variables.get_mut(local_variable).unwrap();
+                let slot = &mut self.local_variables[*local_variable];
                 *slot = value;
                 Ok(())
             }
@@ -271,10 +271,9 @@ impl StackFrame<'_> {
         op: impl FnOnce(&mut Value, &Interpreter) -> eyre::Result<R>,
     ) -> eyre::Result<R> {
         match place.data(self.tables) {
-            bir::PlaceData::LocalVariable(local_variable) => op(
-                self.local_variables.get_mut(local_variable).unwrap(),
-                self.interpreter,
-            ),
+            bir::PlaceData::LocalVariable(local_variable) => {
+                op(&mut self.local_variables[*local_variable], self.interpreter)
+            }
             bir::PlaceData::Function(function) => op(
                 &mut Value::our(self.interpreter, *function),
                 self.interpreter,
