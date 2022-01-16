@@ -20,6 +20,37 @@
                         [
                             (
                                 None,
+                                "Foo\n\n    Bar",
+                            ),
+                        ],
+                    ),
+                ),
+                Await(
+                    Call(
+                        Print,
+                        [
+                            (
+                                None,
+                                "Foo\nBar",
+                            ),
+                        ],
+                    ),
+                ),
+                Call(
+                    Print,
+                    [
+                        (
+                            None,
+                            "",
+                        ),
+                    ],
+                ),
+                Await(
+                    Call(
+                        Print,
+                        [
+                            (
+                                None,
                                 "\\t    Foo\n    \\tBar",
                             ),
                         ],

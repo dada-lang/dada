@@ -1,5 +1,10 @@
 Foo
     Bar
+Foo
+
+    Bar
+Foo
+Bar
 \t    Foo
     \tBar
     Foo

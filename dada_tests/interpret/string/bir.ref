@@ -36,7 +36,7 @@
             [
                 Assign(
                     temp{6},
-                    "\\t    Foo\n    \\tBar",
+                    "Foo\n\n    Bar",
                 ),
             ],
             Assign(
@@ -67,7 +67,7 @@
             [
                 Assign(
                     temp{9},
-                    "    Foo",
+                    "Foo\nBar",
                 ),
             ],
             Assign(
@@ -98,7 +98,7 @@
             [
                 Assign(
                     temp{11},
-                    "I have forced myself to contradict myself\nin order to avoid conforming to my own taste.\n  -- Marcel Duchamp",
+                    "",
                 ),
             ],
             Assign(
@@ -116,16 +116,99 @@
             ),
         ),
         BasicBlock(7): BasicBlockData(
-            [],
+            [
+                Assign(
+                    temp{14},
+                    "\\t    Foo\n    \\tBar",
+                ),
+            ],
             Assign(
-                temp{0},
-                Await(
-                    temp{10},
+                temp{13},
+                Call(
+                    Print,
+                    [
+                        temp{14},
+                    ],
+                    [
+                        None,
+                    ],
                 ),
                 BasicBlock(8),
             ),
         ),
         BasicBlock(8): BasicBlockData(
+            [],
+            Assign(
+                temp{12},
+                Await(
+                    temp{13},
+                ),
+                BasicBlock(9),
+            ),
+        ),
+        BasicBlock(9): BasicBlockData(
+            [
+                Assign(
+                    temp{17},
+                    "    Foo",
+                ),
+            ],
+            Assign(
+                temp{16},
+                Call(
+                    Print,
+                    [
+                        temp{17},
+                    ],
+                    [
+                        None,
+                    ],
+                ),
+                BasicBlock(10),
+            ),
+        ),
+        BasicBlock(10): BasicBlockData(
+            [],
+            Assign(
+                temp{15},
+                Await(
+                    temp{16},
+                ),
+                BasicBlock(11),
+            ),
+        ),
+        BasicBlock(11): BasicBlockData(
+            [
+                Assign(
+                    temp{19},
+                    "I have forced myself to contradict myself\nin order to avoid conforming to my own taste.\n  -- Marcel Duchamp",
+                ),
+            ],
+            Assign(
+                temp{18},
+                Call(
+                    Print,
+                    [
+                        temp{19},
+                    ],
+                    [
+                        None,
+                    ],
+                ),
+                BasicBlock(12),
+            ),
+        ),
+        BasicBlock(12): BasicBlockData(
+            [],
+            Assign(
+                temp{0},
+                Await(
+                    temp{18},
+                ),
+                BasicBlock(13),
+            ),
+        ),
+        BasicBlock(13): BasicBlockData(
             [],
             Return(
                 temp{0},
