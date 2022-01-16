@@ -577,32 +577,47 @@ impl<'me> Validator<'me> {
     }
 }
 
-// Remove leading, trailing whitespace and common indentation from multiline strings.
+fn count_bytes_in_common(s1: &[u8], s2: &[u8]) -> usize {
+    s1.iter().zip(s2).take_while(|(c1, c2)| c1 == c2).count()
+}
+
+// Remove leading, trailing whitespace and common indent from multiline strings.
 fn convert_to_dada_string(s: &str) -> String {
+    // If the string has only one line, leave it and return immediately.
     if s.lines().count() == 1 {
         return s.to_string();
     }
-    let non_empty_lines = s
-        .lines()
-        .filter(|&line| !line.trim().is_empty())
-        .collect::<Vec<&str>>();
 
-    let indent = non_empty_lines
-        .iter()
-        .map(|line| line.chars().into_iter().take_while(|c| *c == ' ').count())
-        .min()
-        .unwrap_or(0);
+    // Split string into lines and filter out empty lines.
+    let mut non_empty_line_iter = s.lines().filter(|&line| !line.trim().is_empty());
 
-    let mut buf = vec![];
-    for (i, line) in s.lines().enumerate() {
-        if i > 0 {
-            buf.push('\n');
+    if let Some(first_line) = non_empty_line_iter.next() {
+        let prefix = first_line
+            .chars()
+            .into_iter()
+            .take_while(|c| c.is_whitespace())
+            .collect::<String>();
+        let common_indent = non_empty_line_iter
+            .map(|s| count_bytes_in_common(prefix.as_bytes(), s.as_bytes()))
+            .min()
+            .unwrap_or(0);
+
+        // Remove the common indent from every line in the original string,
+        // apart from empty lines, which remain as empty.
+        let mut buf = vec![];
+        for (i, line) in s.lines().enumerate() {
+            if i > 0 {
+                buf.push('\n');
+            }
+            if line.trim().is_empty() {
+                buf.extend(line.chars());
+            } else {
+                buf.extend(line[common_indent..].chars());
+            }
         }
-        if line.trim().is_empty() {
-            buf.extend(line.chars());
-        } else {
-            buf.extend(line[indent..].chars());
-        }
+
+        // Strip leading/trailing whitespace.
+        return buf.into_iter().collect::<String>().trim().to_string();
     }
-    buf.into_iter().collect::<String>().trim().to_string()
+    String::new()
 }

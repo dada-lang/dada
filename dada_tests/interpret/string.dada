@@ -5,11 +5,29 @@ async fn main() {
     ").await
 
     print("
-    \t    Foo
-        \tBar
+        Foo
+
+            Bar
+    ").await
+
+    print("
+Foo
+Bar
+    ").await
+
+    print("
+    
+    
+    
+    ")
+
+    print("
+        \t    Foo
+            \tBar
     ").await
 
     print("    Foo").await
+
 
     print("
         I have forced myself to contradict myself

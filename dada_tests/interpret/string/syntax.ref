@@ -4,7 +4,7 @@
             Some(
                 Tokens(dada_tests/interpret/string.dada:1:15:1:15),
             ),
-            Tokens(dada_tests/interpret/string.dada:1:18:19:1),
+            Tokens(dada_tests/interpret/string.dada:1:18:37:1),
         ),
     },
 ]
