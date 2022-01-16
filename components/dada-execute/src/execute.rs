@@ -38,11 +38,10 @@ pub async fn interpret(
 }
 
 pub(crate) struct StackFrame<'me> {
-    #[allow(dead_code)] // FIXME -- remove by end of PR
-    parent_stack_frame: Option<&'me StackFrame<'me>>,
-    bir: bir::Bir,
+    pub(crate) parent_stack_frame: Option<&'me StackFrame<'me>>,
+    pub(crate) bir: bir::Bir,
+    pub(crate) local_variables: IndexVec<bir::LocalVariable, Value>,
     tables: &'me bir::Tables,
-    local_variables: IndexVec<bir::LocalVariable, Value>,
     basic_block: bir::BasicBlock,
     location: StackFrameLocation,
 }
@@ -122,7 +121,6 @@ impl Interpreter<'_> {
 }
 
 impl StackFrame<'_> {
-    #[allow(dead_code)] // FIXME by end of PR
     pub(crate) fn current_span(&self, interpreter: &Interpreter<'_>) -> FileSpan {
         match self.location {
             StackFrameLocation::Block(b) => self.span_from_bir(interpreter, b),

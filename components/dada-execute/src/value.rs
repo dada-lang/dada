@@ -18,6 +18,13 @@ impl Value {
             data: Arc::new(Mutex::new(value.into())),
         }
     }
+
+    /// Gives access to the internal data without accounting for permissions.
+    /// Used for debugging etc.
+    pub(crate) fn peek<R>(&self, op: impl FnOnce(&Permission, &Data) -> R) -> R {
+        op(&self.permission, &self.data.lock())
+    }
+
     pub(crate) fn our(interpreter: &Interpreter<'_>, value: impl Into<Data>) -> Value {
         Value {
             permission: Permission::our(interpreter),
