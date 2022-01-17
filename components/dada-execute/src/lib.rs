@@ -33,3 +33,4 @@ mod thunk;
 mod value;
 
 pub use execute::interpret;
+pub use execute::StackFrame;

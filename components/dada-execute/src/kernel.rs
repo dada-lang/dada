@@ -1,9 +1,9 @@
 //! The "kernel" is the interface from the interpreter to the outside world.
 
-use dada_ir::function::Function;
+use dada_ir::{code::syntax, function::Function};
 use parking_lot::Mutex;
 
-use crate::value::Value;
+use crate::{execute::StackFrame, value::Value};
 
 #[async_trait::async_trait]
 pub trait Kernel: Send + Sync {
@@ -14,6 +14,15 @@ pub trait Kernel: Send + Sync {
     async fn print_newline(&self) -> eyre::Result<()> {
         self.print("\n").await
     }
+
+    /// Indicates that `stack_frame` is on the cusp of completing `expr`.
+    /// This gives the kernel a chance to capture the state.
+    fn on_cusp(
+        &self,
+        db: &dyn crate::Db,
+        stack_frame: &StackFrame<'_>,
+        expr: syntax::Expr,
+    ) -> eyre::Result<()>;
 }
 
 #[derive(Default)]
@@ -58,6 +67,15 @@ impl BufferKernel {
 impl Kernel for BufferKernel {
     async fn print(&self, message: &str) -> eyre::Result<()> {
         self.buffer.lock().push_str(message);
+        Ok(())
+    }
+
+    fn on_cusp(
+        &self,
+        _db: &dyn crate::Db,
+        _stack_frame: &StackFrame<'_>,
+        _expr: syntax::Expr,
+    ) -> eyre::Result<()> {
         Ok(())
     }
 }

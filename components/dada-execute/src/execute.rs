@@ -5,6 +5,7 @@ use dada_collections::IndexVec;
 use dada_id::prelude::*;
 use dada_ir::code::bir::{BasicBlock, Expr, LocalVariable, Statement, Terminator};
 use dada_ir::code::validated::op::Op;
+use dada_ir::code::Code;
 use dada_ir::effect::Effect;
 use dada_ir::function::Function;
 use dada_ir::{
@@ -37,11 +38,12 @@ pub async fn interpret(
     value.read(interpreter, |data| data.to_unit(interpreter))
 }
 
-pub(crate) struct StackFrame<'me> {
+pub struct StackFrame<'me> {
     pub(crate) parent_stack_frame: Option<&'me StackFrame<'me>>,
     pub(crate) bir: bir::Bir,
     pub(crate) local_variables: IndexVec<bir::LocalVariable, Value>,
     tables: &'me bir::Tables,
+    origins: &'me bir::Origins,
     basic_block: bir::BasicBlock,
     location: StackFrameLocation,
 }
@@ -111,6 +113,7 @@ impl Interpreter<'_> {
         let stack_frame = StackFrame {
             bir,
             tables: &bir_data.tables,
+            origins: bir.origins(self.db()),
             local_variables,
             parent_stack_frame,
             basic_block: bir_data.start_basic_block,
@@ -121,6 +124,11 @@ impl Interpreter<'_> {
 }
 
 impl StackFrame<'_> {
+    /// The [`Code`] we are currently executing.
+    pub fn code(&self, db: &dyn crate::Db) -> Code {
+        self.bir.origin(db)
+    }
+
     pub(crate) fn current_span(&self, interpreter: &Interpreter<'_>) -> FileSpan {
         match self.location {
             StackFrameLocation::Block(b) => self.span_from_bir(interpreter, b),
@@ -140,6 +148,12 @@ impl StackFrame<'_> {
                     dada_ir::code::bir::StatementData::Assign(place, expr) => {
                         let expr_value = self.evaluate_bir_expr(interpreter, *expr)?;
                         self.assign_place(interpreter, *place, expr_value)?;
+                    }
+                    dada_ir::code::bir::StatementData::Cusp => {
+                        let syntax_expr = self.origins[*statement];
+                        interpreter
+                            .kernel()
+                            .on_cusp(interpreter.db(), &self, syntax_expr)?;
                     }
                 }
             }

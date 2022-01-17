@@ -7,6 +7,7 @@
                     temp{1},
                     (),
                 ),
+                Cusp,
             ],
             Return(
                 temp{1},
@@ -21,6 +22,7 @@
                     temp{1},
                     (),
                 ),
+                Cusp,
             ],
             Return(
                 temp{1},
@@ -35,6 +37,7 @@
                     temp{2},
                     (),
                 ),
+                Cusp,
             ],
             Return(
                 temp{2},
@@ -49,6 +52,7 @@
                     temp{2},
                     (),
                 ),
+                Cusp,
             ],
             Return(
                 temp{2},
@@ -63,6 +67,7 @@
                     temp{2},
                     (),
                 ),
+                Cusp,
             ],
             Return(
                 temp{2},
@@ -77,6 +82,7 @@
                     temp{2},
                     (),
                 ),
+                Cusp,
             ],
             Return(
                 temp{2},
@@ -91,6 +97,7 @@
                     temp{1},
                     (),
                 ),
+                Cusp,
             ],
             Return(
                 temp{1},
@@ -105,6 +112,7 @@
                     temp{2},
                     (),
                 ),
+                Cusp,
             ],
             Return(
                 temp{2},
@@ -119,6 +127,7 @@
                     temp{2},
                     (),
                 ),
+                Cusp,
             ],
             Return(
                 temp{2},

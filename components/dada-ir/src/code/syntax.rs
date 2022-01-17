@@ -15,7 +15,7 @@ salsa::entity2! {
     entity Tree in crate::Jar {
         origin: Code,
         #[value ref] data: TreeData,
-        spans: Spans,
+        #[value ref] spans: Spans,
     }
 }
 

@@ -3,10 +3,13 @@
         start_basic_block: BasicBlock(0),
         BasicBlock(0): BasicBlockData(
             [
+                Cusp,
                 Assign(
                     temp{3},
                     "Foo\n    Bar",
                 ),
+                Cusp,
+                Cusp,
             ],
             Assign(
                 temp{2},
@@ -34,10 +37,14 @@
         ),
         BasicBlock(2): BasicBlockData(
             [
+                Cusp,
+                Cusp,
                 Assign(
                     temp{6},
                     "Foo\n\n    Bar",
                 ),
+                Cusp,
+                Cusp,
             ],
             Assign(
                 temp{5},
@@ -65,10 +72,14 @@
         ),
         BasicBlock(4): BasicBlockData(
             [
+                Cusp,
+                Cusp,
                 Assign(
                     temp{9},
                     "Foo\nBar",
                 ),
+                Cusp,
+                Cusp,
             ],
             Assign(
                 temp{8},
@@ -96,10 +107,14 @@
         ),
         BasicBlock(6): BasicBlockData(
             [
+                Cusp,
+                Cusp,
                 Assign(
                     temp{11},
                     "",
                 ),
+                Cusp,
+                Cusp,
             ],
             Assign(
                 temp{10},
@@ -117,10 +132,13 @@
         ),
         BasicBlock(7): BasicBlockData(
             [
+                Cusp,
                 Assign(
                     temp{14},
                     "    Foo",
                 ),
+                Cusp,
+                Cusp,
             ],
             Assign(
                 temp{13},
@@ -148,10 +166,14 @@
         ),
         BasicBlock(9): BasicBlockData(
             [
+                Cusp,
+                Cusp,
                 Assign(
                     temp{16},
                     "I have forced myself to contradict myself\nin order to avoid conforming to my own taste.\n  -- Marcel Duchamp",
                 ),
+                Cusp,
+                Cusp,
             ],
             Assign(
                 temp{15},
@@ -178,7 +200,10 @@
             ),
         ),
         BasicBlock(11): BasicBlockData(
-            [],
+            [
+                Cusp,
+                Cusp,
+            ],
             Return(
                 temp{0},
             ),

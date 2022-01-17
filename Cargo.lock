@@ -322,6 +322,7 @@ dependencies = [
  "dada-ir",
  "dada-lex",
  "dada-lsp",
+ "dada-parse",
  "eyre",
  "ignore",
  "lsp-server",

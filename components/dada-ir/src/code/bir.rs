@@ -7,6 +7,7 @@ use crate::{
     function::Function,
     in_ir_db::InIrDb,
     intrinsic::Intrinsic,
+    origin_table::HasOriginIn,
     prelude::InIrDbExt,
     storage_mode::StorageMode,
     word::{SpannedOptionalWord, Word},
@@ -171,9 +172,32 @@ impl DebugWithDb<InIrDb<'_, Tables>> for Statement {
     }
 }
 
+impl DebugWithDb<InIrDb<'_, Bir>> for Statement {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>, bir: &InIrDb<'_, Bir>) -> std::fmt::Result {
+        let db = bir.db();
+        let origin = self.origin_in(bir.origins(db));
+        let tables = &bir.data(db).tables;
+        let tables_in_db = tables.in_ir_db(db);
+        let result = f
+            .debug_tuple("")
+            .field(&self.data(tables).debug(&tables_in_db))
+            .field(&origin)
+            .finish();
+        result
+    }
+}
+
 #[derive(PartialEq, Eq, Clone, Hash, Debug)]
 pub enum StatementData {
     Assign(Place, Expr),
+
+    /// In terms of the semantics, this is a no-op.
+    /// It is used by the time traveling debugger.
+    /// It indicates the moment when a syntax expression
+    /// is on the "cusp" of completion -- that is,
+    /// it has almost completely taken effect, except that
+    /// control flow has not yet transferred to its successor.
+    Cusp,
 }
 
 impl DebugWithDb<InIrDb<'_, Tables>> for StatementData {
@@ -184,6 +208,8 @@ impl DebugWithDb<InIrDb<'_, Tables>> for StatementData {
                 .field(&place.debug(db))
                 .field(&expr.debug(db))
                 .finish(),
+
+            StatementData::Cusp => f.debug_tuple("Cusp").finish(),
         }
     }
 }

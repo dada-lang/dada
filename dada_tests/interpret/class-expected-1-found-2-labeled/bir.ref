@@ -3,14 +3,19 @@
         start_basic_block: BasicBlock(0),
         BasicBlock(0): BasicBlockData(
             [
+                Cusp,
+                Cusp,
                 Assign(
                     temp{2},
                     10,
                 ),
+                Cusp,
                 Assign(
                     temp{3},
                     22,
                 ),
+                Cusp,
+                Cusp,
             ],
             Assign(
                 x{0},
@@ -34,10 +39,12 @@
         ),
         BasicBlock(1): BasicBlockData(
             [
+                Cusp,
                 Assign(
                     temp{1},
                     (),
                 ),
+                Cusp,
             ],
             Return(
                 temp{1},

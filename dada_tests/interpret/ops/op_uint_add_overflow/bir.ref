@@ -3,18 +3,25 @@
         start_basic_block: BasicBlock(0),
         BasicBlock(0): BasicBlockData(
             [
+                Cusp,
                 Assign(
                     uint_max{0},
                     18446744073709551615,
                 ),
+                Cusp,
+                Cusp,
+                Cusp,
                 Assign(
                     temp{2},
                     1,
                 ),
+                Cusp,
                 Assign(
                     temp{1},
                     uint_max{0} + temp{2},
                 ),
+                Cusp,
+                Cusp,
             ],
             Return(
                 temp{1},

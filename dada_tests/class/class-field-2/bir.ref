@@ -3,14 +3,19 @@
         start_basic_block: BasicBlock(0),
         BasicBlock(0): BasicBlockData(
             [
+                Cusp,
+                Cusp,
                 Assign(
                     temp{2},
                     "foo",
                 ),
+                Cusp,
                 Assign(
                     temp{3},
                     "bar",
                 ),
+                Cusp,
+                Cusp,
             ],
             Assign(
                 t{0},
@@ -29,7 +34,13 @@
             ),
         ),
         BasicBlock(1): BasicBlockData(
-            [],
+            [
+                Cusp,
+                Cusp,
+                Cusp,
+                Cusp,
+                Cusp,
+            ],
             Assign(
                 temp{5},
                 Call(
@@ -55,7 +66,13 @@
             ),
         ),
         BasicBlock(3): BasicBlockData(
-            [],
+            [
+                Cusp,
+                Cusp,
+                Cusp,
+                Cusp,
+                Cusp,
+            ],
             Assign(
                 temp{6},
                 Call(
@@ -81,7 +98,10 @@
             ),
         ),
         BasicBlock(5): BasicBlockData(
-            [],
+            [
+                Cusp,
+                Cusp,
+            ],
             Return(
                 temp{1},
             ),

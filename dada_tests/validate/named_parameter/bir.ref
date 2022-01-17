@@ -7,6 +7,7 @@
                     temp{2},
                     (),
                 ),
+                Cusp,
             ],
             Return(
                 temp{2},
@@ -17,14 +18,18 @@
         start_basic_block: BasicBlock(0),
         BasicBlock(0): BasicBlockData(
             [
+                Cusp,
                 Assign(
                     temp{2},
                     "a",
                 ),
+                Cusp,
                 Assign(
                     temp{3},
                     "b",
                 ),
+                Cusp,
+                Cusp,
             ],
             Assign(
                 temp{1},
@@ -44,14 +49,18 @@
         ),
         BasicBlock(1): BasicBlockData(
             [
+                Cusp,
                 Assign(
                     temp{5},
                     "a",
                 ),
+                Cusp,
                 Assign(
                     temp{6},
                     "b",
                 ),
+                Cusp,
+                Cusp,
             ],
             Assign(
                 temp{4},
@@ -73,14 +82,18 @@
         ),
         BasicBlock(2): BasicBlockData(
             [
+                Cusp,
                 Assign(
                     temp{8},
                     "a",
                 ),
+                Cusp,
                 Assign(
                     temp{9},
                     "b",
                 ),
+                Cusp,
+                Cusp,
             ],
             Assign(
                 temp{7},
@@ -102,14 +115,18 @@
         ),
         BasicBlock(3): BasicBlockData(
             [
+                Cusp,
                 Assign(
                     temp{10},
                     "a",
                 ),
+                Cusp,
                 Assign(
                     temp{11},
                     "b",
                 ),
+                Cusp,
+                Cusp,
             ],
             Assign(
                 temp{0},
@@ -132,7 +149,9 @@
             ),
         ),
         BasicBlock(4): BasicBlockData(
-            [],
+            [
+                Cusp,
+            ],
             Return(
                 temp{0},
             ),

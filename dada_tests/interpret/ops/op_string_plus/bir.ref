@@ -7,14 +7,18 @@
                     temp{1},
                     "a",
                 ),
+                Cusp,
                 Assign(
                     temp{2},
                     "b",
                 ),
+                Cusp,
                 Assign(
                     temp{0},
                     temp{1} + temp{2},
                 ),
+                Cusp,
+                Cusp,
             ],
             Return(
                 temp{0},

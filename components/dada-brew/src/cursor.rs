@@ -97,6 +97,16 @@ impl Cursor {
         }
     }
 
+    /// Push a "cusp" statement onto the current basic block.
+    /// These statements indicate the end of the given origin node
+    /// in the BIR.
+    pub(crate) fn push_cusp(&mut self, brewery: &mut Brewery<'_>, origin: syntax::Expr) {
+        if self.end_block.is_some() {
+            let statement = brewery.add(bir::StatementData::Cusp, origin);
+            self.push_statement(brewery, statement);
+        }
+    }
+
     pub(crate) fn terminate_and_goto(
         &mut self,
         brewery: &mut Brewery<'_>,

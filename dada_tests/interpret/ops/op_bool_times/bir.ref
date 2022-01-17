@@ -7,14 +7,18 @@
                     temp{1},
                     true,
                 ),
+                Cusp,
                 Assign(
                     temp{2},
                     false,
                 ),
+                Cusp,
                 Assign(
                     temp{0},
                     temp{1} * temp{2},
                 ),
+                Cusp,
+                Cusp,
             ],
             Return(
                 temp{0},
