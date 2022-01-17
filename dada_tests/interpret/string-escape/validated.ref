@@ -9,49 +9,18 @@
                         [
                             (
                                 None,
-                                "Foo\n    Bar",
-                            ),
-                        ],
-                    ),
-                ),
-                Await(
-                    Call(
-                        Print,
-                        [
-                            (
-                                None,
-                                "Foo\n\n    Bar",
-                            ),
-                        ],
-                    ),
-                ),
-                Await(
-                    Call(
-                        Print,
-                        [
-                            (
-                                None,
                                 "Foo\nBar",
                             ),
                         ],
                     ),
                 ),
-                Call(
-                    Print,
-                    [
-                        (
-                            None,
-                            "",
-                        ),
-                    ],
-                ),
                 Await(
                     Call(
                         Print,
                         [
                             (
                                 None,
-                                "    Foo",
+                                "Foo\tBar",
                             ),
                         ],
                     ),
@@ -62,7 +31,62 @@
                         [
                             (
                                 None,
-                                "I have forced myself to contradict myself\nin order to avoid conforming to my own taste.\n  -- Marcel Duchamp",
+                                "Foo\r\nBar",
+                            ),
+                        ],
+                    ),
+                ),
+                Await(
+                    Call(
+                        Print,
+                        [
+                            (
+                                None,
+                                "Foo \\ Bar",
+                            ),
+                        ],
+                    ),
+                ),
+                Await(
+                    Call(
+                        Print,
+                        [
+                            (
+                                None,
+                                "\t    Foo\n    \tBar",
+                            ),
+                        ],
+                    ),
+                ),
+                Await(
+                    Call(
+                        Print,
+                        [
+                            (
+                                None,
+                                "\nFoo\n",
+                            ),
+                        ],
+                    ),
+                ),
+                Await(
+                    Call(
+                        Print,
+                        [
+                            (
+                                None,
+                                "\tFoo\t",
+                            ),
+                        ],
+                    ),
+                ),
+                Await(
+                    Call(
+                        Print,
+                        [
+                            (
+                                None,
+                                "\tFoo\n\tBar",
                             ),
                         ],
                     ),

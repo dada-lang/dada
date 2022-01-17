@@ -5,7 +5,7 @@
             [
                 Assign(
                     temp{3},
-                    "Foo\n    Bar",
+                    "Foo\nBar",
                 ),
             ],
             Assign(
@@ -36,7 +36,7 @@
             [
                 Assign(
                     temp{6},
-                    "Foo\n\n    Bar",
+                    "Foo\tBar",
                 ),
             ],
             Assign(
@@ -67,7 +67,7 @@
             [
                 Assign(
                     temp{9},
-                    "Foo\nBar",
+                    "Foo\r\nBar",
                 ),
             ],
             Assign(
@@ -97,16 +97,16 @@
         BasicBlock(6): BasicBlockData(
             [
                 Assign(
-                    temp{11},
-                    "",
+                    temp{12},
+                    "Foo \\ Bar",
                 ),
             ],
             Assign(
-                temp{10},
+                temp{11},
                 Call(
                     Print,
                     [
-                        temp{11},
+                        temp{12},
                     ],
                     [
                         None,
@@ -116,68 +116,140 @@
             ),
         ),
         BasicBlock(7): BasicBlockData(
-            [
-                Assign(
-                    temp{14},
-                    "    Foo",
-                ),
-            ],
+            [],
             Assign(
-                temp{13},
-                Call(
-                    Print,
-                    [
-                        temp{14},
-                    ],
-                    [
-                        None,
-                    ],
+                temp{10},
+                Await(
+                    temp{11},
                 ),
                 BasicBlock(8),
             ),
         ),
         BasicBlock(8): BasicBlockData(
-            [],
-            Assign(
-                temp{12},
-                Await(
-                    temp{13},
-                ),
-                BasicBlock(9),
-            ),
-        ),
-        BasicBlock(9): BasicBlockData(
             [
                 Assign(
-                    temp{16},
-                    "I have forced myself to contradict myself\nin order to avoid conforming to my own taste.\n  -- Marcel Duchamp",
+                    temp{15},
+                    "\t    Foo\n    \tBar",
                 ),
             ],
             Assign(
-                temp{15},
+                temp{14},
                 Call(
                     Print,
                     [
-                        temp{16},
+                        temp{15},
                     ],
                     [
                         None,
                     ],
                 ),
+                BasicBlock(9),
+            ),
+        ),
+        BasicBlock(9): BasicBlockData(
+            [],
+            Assign(
+                temp{13},
+                Await(
+                    temp{14},
+                ),
                 BasicBlock(10),
             ),
         ),
         BasicBlock(10): BasicBlockData(
-            [],
+            [
+                Assign(
+                    temp{18},
+                    "\nFoo\n",
+                ),
+            ],
             Assign(
-                temp{0},
-                Await(
-                    temp{15},
+                temp{17},
+                Call(
+                    Print,
+                    [
+                        temp{18},
+                    ],
+                    [
+                        None,
+                    ],
                 ),
                 BasicBlock(11),
             ),
         ),
         BasicBlock(11): BasicBlockData(
+            [],
+            Assign(
+                temp{16},
+                Await(
+                    temp{17},
+                ),
+                BasicBlock(12),
+            ),
+        ),
+        BasicBlock(12): BasicBlockData(
+            [
+                Assign(
+                    temp{21},
+                    "\tFoo\t",
+                ),
+            ],
+            Assign(
+                temp{20},
+                Call(
+                    Print,
+                    [
+                        temp{21},
+                    ],
+                    [
+                        None,
+                    ],
+                ),
+                BasicBlock(13),
+            ),
+        ),
+        BasicBlock(13): BasicBlockData(
+            [],
+            Assign(
+                temp{19},
+                Await(
+                    temp{20},
+                ),
+                BasicBlock(14),
+            ),
+        ),
+        BasicBlock(14): BasicBlockData(
+            [
+                Assign(
+                    temp{23},
+                    "\tFoo\n\tBar",
+                ),
+            ],
+            Assign(
+                temp{22},
+                Call(
+                    Print,
+                    [
+                        temp{23},
+                    ],
+                    [
+                        None,
+                    ],
+                ),
+                BasicBlock(15),
+            ),
+        ),
+        BasicBlock(15): BasicBlockData(
+            [],
+            Assign(
+                temp{0},
+                Await(
+                    temp{22},
+                ),
+                BasicBlock(16),
+            ),
+        ),
+        BasicBlock(16): BasicBlockData(
             [],
             Return(
                 temp{0},

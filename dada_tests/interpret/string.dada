@@ -21,13 +21,7 @@ Bar
     
     ")
 
-    print("
-        \t    Foo
-            \tBar
-    ").await
-
     print("    Foo").await
-
 
     print("
         I have forced myself to contradict myself
