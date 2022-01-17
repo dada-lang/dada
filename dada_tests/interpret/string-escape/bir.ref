@@ -67,7 +67,7 @@
             [
                 Assign(
                     temp{9},
-                    "Foo\nBar",
+                    "Foo\r\nBar",
                 ),
             ],
             Assign(
@@ -129,7 +129,7 @@
             [
                 Assign(
                     temp{15},
-                    "Foo \" Bar",
+                    "\t    Foo\n    \tBar",
                 ),
             ],
             Assign(
@@ -160,7 +160,7 @@
             [
                 Assign(
                     temp{18},
-                    "Foo\nBar",
+                    "\nFoo\n",
                 ),
             ],
             Assign(
@@ -190,16 +190,16 @@
         BasicBlock(12): BasicBlockData(
             [
                 Assign(
-                    temp{20},
-                    "Foo\n    \tBar",
+                    temp{21},
+                    "\tFoo\t",
                 ),
             ],
             Assign(
-                temp{19},
+                temp{20},
                 Call(
                     Print,
                     [
-                        temp{20},
+                        temp{21},
                     ],
                     [
                         None,
@@ -211,14 +211,45 @@
         BasicBlock(13): BasicBlockData(
             [],
             Assign(
-                temp{0},
+                temp{19},
                 Await(
-                    temp{19},
+                    temp{20},
                 ),
                 BasicBlock(14),
             ),
         ),
         BasicBlock(14): BasicBlockData(
+            [
+                Assign(
+                    temp{23},
+                    "\tFoo\n\tBar",
+                ),
+            ],
+            Assign(
+                temp{22},
+                Call(
+                    Print,
+                    [
+                        temp{23},
+                    ],
+                    [
+                        None,
+                    ],
+                ),
+                BasicBlock(15),
+            ),
+        ),
+        BasicBlock(15): BasicBlockData(
+            [],
+            Assign(
+                temp{0},
+                Await(
+                    temp{22},
+                ),
+                BasicBlock(16),
+            ),
+        ),
+        BasicBlock(16): BasicBlockData(
             [],
             Return(
                 temp{0},

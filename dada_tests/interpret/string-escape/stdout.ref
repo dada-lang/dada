@@ -4,8 +4,11 @@ Foo	Bar
 Foo
 Bar
 Foo \ Bar
-Foo " Bar
-Foo
-Bar
-Foo
+	    Foo
     	Bar
+
+Foo
+
+	Foo	
+	Foo
+	Bar

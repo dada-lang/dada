@@ -31,7 +31,7 @@
                         [
                             (
                                 None,
-                                "Foo\nBar",
+                                "Foo\r\nBar",
                             ),
                         ],
                     ),
@@ -53,7 +53,7 @@
                         [
                             (
                                 None,
-                                "Foo \" Bar",
+                                "\t    Foo\n    \tBar",
                             ),
                         ],
                     ),
@@ -64,7 +64,7 @@
                         [
                             (
                                 None,
-                                "Foo\nBar",
+                                "\nFoo\n",
                             ),
                         ],
                     ),
@@ -75,7 +75,18 @@
                         [
                             (
                                 None,
-                                "Foo\n    \tBar",
+                                "\tFoo\t",
+                            ),
+                        ],
+                    ),
+                ),
+                Await(
+                    Call(
+                        Print,
+                        [
+                            (
+                                None,
+                                "\tFoo\n\tBar",
                             ),
                         ],
                     ),

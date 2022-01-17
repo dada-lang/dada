@@ -50,18 +50,6 @@ pub fn closing_delimiter(ch: char) -> char {
     }
 }
 
-#[track_caller]
-pub fn escape(ch: char) -> char {
-    match ch {
-        'n' => '\n',
-        't' => '\t',
-        'r' => '\r',
-        '\\' => '\\',
-        '"' => '\"',
-        _ => panic!("not a escape: {:?}", ch),
-    }
-}
-
 macro_rules! op {
     () => {
         '+' | '-' | '/' | '*' | '>' | '<' | '&' | '|' | '.' | ':' | ';' | '='
@@ -213,19 +201,6 @@ where
 
             if ch == '"' {
                 break;
-            }
-
-            if ch == '\\' {
-                if let Some(&(_, c)) = self.chars.peek() {
-                    match c {
-                        'n' | 'r' | 't' | '\\' | '"' => {
-                            buffer.push_char(escape(c));
-                            self.chars.next();
-                            continue;
-                        }
-                        _ => {}
-                    }
-                }
             }
 
             if ch == '{' {

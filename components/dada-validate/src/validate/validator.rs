@@ -581,11 +581,44 @@ fn count_bytes_in_common(s1: &[u8], s2: &[u8]) -> usize {
     s1.iter().zip(s2).take_while(|(c1, c2)| c1 == c2).count()
 }
 
+#[track_caller]
+pub fn escape(ch: char) -> char {
+    match ch {
+        'n' => '\n',
+        't' => '\t',
+        'r' => '\r',
+        '\\' => '\\',
+        '"' => '\"',
+        _ => panic!("not a escape: {:?}", ch),
+    }
+}
+
+fn support_escape(s: &str) -> String {
+    let mut buffer = String::new();
+    let mut chars = s.chars().peekable();
+    while let Some(ch) = chars.next() {
+        if ch == '\\' {
+            if let Some(c) = chars.peek() {
+                match c {
+                    'n' | 'r' | 't' | '"' | '\\' => {
+                        buffer.push(escape(*c));
+                        chars.next();
+                        continue;
+                    }
+                    _ => {}
+                }
+            }
+        }
+        buffer.push(ch);
+    }
+    buffer
+}
+
 // Remove leading, trailing whitespace and common indent from multiline strings.
 fn convert_to_dada_string(s: &str) -> String {
     // If the string has only one line, leave it and return immediately.
     if s.lines().count() == 1 {
-        return s.to_string();
+        return support_escape(s);
     }
 
     // Split string into lines and filter out empty lines.
@@ -604,20 +637,20 @@ fn convert_to_dada_string(s: &str) -> String {
 
         // Remove the common indent from every line in the original string,
         // apart from empty lines, which remain as empty.
-        let mut buf = vec![];
+        let mut buf = String::new();
         for (i, line) in s.lines().enumerate() {
             if i > 0 {
                 buf.push('\n');
             }
             if line.trim().is_empty() {
-                buf.extend(line.chars());
+                buf.push_str(line);
             } else {
-                buf.extend(line[common_indent..].chars());
+                buf.push_str(&line[common_indent..]);
             }
         }
 
         // Strip leading/trailing whitespace.
-        return buf.into_iter().collect::<String>().trim().to_string();
+        return support_escape(buf.trim());
     }
     String::new()
 }
