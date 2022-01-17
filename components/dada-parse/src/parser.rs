@@ -141,7 +141,31 @@ impl<'me> Parser<'me> {
     /// Returns the span that starts at `span` and ends with the
     /// last consumed token.
     fn span_consumed_since(&self, span: Span) -> Span {
-        span.to(self.tokens.last_span())
+        self.tighten_span(span.to(self.tokens.last_span()))
+    }
+
+    fn tighten_span(&self, mut span: Span) -> Span {
+        let strip_from_start = span
+            .snippet(self.db, self.filename)
+            .char_indices()
+            .take_while(|(_, ch)| ch.is_whitespace())
+            .map(|(offset, _)| offset)
+            .last()
+            .unwrap_or(0);
+        span.start = span.start + strip_from_start;
+
+        if let Some(new_len) = span
+            .snippet(self.db, self.filename)
+            .char_indices()
+            .rev()
+            .take_while(|(_, ch)| ch.is_whitespace())
+            .map(|(offset, _)| offset)
+            .last()
+        {
+            span.end = span.start + new_len;
+        }
+
+        span
     }
 
     fn emit_error_if_more_tokens(&self, message: impl ToString) {

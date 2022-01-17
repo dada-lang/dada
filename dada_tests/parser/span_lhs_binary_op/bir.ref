@@ -1,0 +1,36 @@
+[
+    bir::Bir {
+        start_basic_block: BasicBlock(0),
+        BasicBlock(0): BasicBlockData(
+            [
+                Assign(
+                    x{0},
+                    "foo",
+                ),
+                Assign(
+                    temp{4},
+                    44,
+                ),
+                Assign(
+                    temp{3},
+                    x{0} + temp{4},
+                ),
+                Assign(
+                    temp{5},
+                    66,
+                ),
+                Assign(
+                    y{1},
+                    temp{3} + temp{5},
+                ),
+                Assign(
+                    temp{2},
+                    (),
+                ),
+            ],
+            Return(
+                temp{2},
+            ),
+        ),
+    },
+]

@@ -1,0 +1,4 @@
+async fn main() {
+    var x = "foo"
+    var y = x + 44 + 66
+}

@@ -7,6 +7,13 @@ pub struct FileSpan {
     pub end: Offset,
 }
 
+impl FileSpan {
+    pub fn snippet<'db>(&self, db: &'db dyn crate::Db) -> &'db str {
+        &crate::manifest::source_text(db, self.filename)
+            [usize::from(self.start)..usize::from(self.end)]
+    }
+}
+
 impl<Db: ?Sized + crate::Db> salsa::DebugWithDb<Db> for FileSpan {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>, db: &Db) -> std::fmt::Result {
         let db = db.as_dyn_ir_db();
@@ -75,6 +82,10 @@ impl Span {
             start: self.start,
             end: self.end,
         }
+    }
+
+    pub fn snippet<'db>(&self, db: &'db dyn crate::Db, filename: Filename) -> &'db str {
+        self.in_file(filename).snippet(db)
     }
 
     /// Returns a 0-length span at the start of this span
