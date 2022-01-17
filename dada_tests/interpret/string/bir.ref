@@ -119,7 +119,7 @@
             [
                 Assign(
                     temp{14},
-                    "\\t    Foo\n    \\tBar",
+                    "    Foo",
                 ),
             ],
             Assign(
@@ -149,16 +149,16 @@
         BasicBlock(9): BasicBlockData(
             [
                 Assign(
-                    temp{17},
-                    "    Foo",
+                    temp{16},
+                    "I have forced myself to contradict myself\nin order to avoid conforming to my own taste.\n  -- Marcel Duchamp",
                 ),
             ],
             Assign(
-                temp{16},
+                temp{15},
                 Call(
                     Print,
                     [
-                        temp{17},
+                        temp{16},
                     ],
                     [
                         None,
@@ -170,45 +170,14 @@
         BasicBlock(10): BasicBlockData(
             [],
             Assign(
-                temp{15},
+                temp{0},
                 Await(
-                    temp{16},
+                    temp{15},
                 ),
                 BasicBlock(11),
             ),
         ),
         BasicBlock(11): BasicBlockData(
-            [
-                Assign(
-                    temp{19},
-                    "I have forced myself to contradict myself\nin order to avoid conforming to my own taste.\n  -- Marcel Duchamp",
-                ),
-            ],
-            Assign(
-                temp{18},
-                Call(
-                    Print,
-                    [
-                        temp{19},
-                    ],
-                    [
-                        None,
-                    ],
-                ),
-                BasicBlock(12),
-            ),
-        ),
-        BasicBlock(12): BasicBlockData(
-            [],
-            Assign(
-                temp{0},
-                Await(
-                    temp{18},
-                ),
-                BasicBlock(13),
-            ),
-        ),
-        BasicBlock(13): BasicBlockData(
             [],
             Return(
                 temp{0},

@@ -51,17 +51,6 @@
                         [
                             (
                                 None,
-                                "\\t    Foo\n    \\tBar",
-                            ),
-                        ],
-                    ),
-                ),
-                Await(
-                    Call(
-                        Print,
-                        [
-                            (
-                                None,
                                 "    Foo",
                             ),
                         ],

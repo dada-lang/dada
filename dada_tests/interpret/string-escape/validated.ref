@@ -58,6 +58,28 @@
                         ],
                     ),
                 ),
+                Await(
+                    Call(
+                        Print,
+                        [
+                            (
+                                None,
+                                "Foo\nBar",
+                            ),
+                        ],
+                    ),
+                ),
+                Await(
+                    Call(
+                        Print,
+                        [
+                            (
+                                None,
+                                "Foo\n    \tBar",
+                            ),
+                        ],
+                    ),
+                ),
             ],
         ),
     },
