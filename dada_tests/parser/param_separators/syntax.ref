@@ -2,73 +2,387 @@
     syntax::Tree {
         origin: Code(
             Some(
-                Tokens(dada_tests/parser/param_separators.dada:1:11:1:12),
+                [
+                    Alphabetic(
+                        Word(
+                            Id {
+                                value: 4,
+                            },
+                        ),
+                    ),
+                ],
             ),
-            Tokens(dada_tests/parser/param_separators.dada:1:15:2:1),
+            [
+                Whitespace(
+                    '\n',
+                ),
+            ],
         ),
     },
     syntax::Tree {
         origin: Code(
             Some(
-                Tokens(dada_tests/parser/param_separators.dada:4:11:4:13),
+                [
+                    Alphabetic(
+                        Word(
+                            Id {
+                                value: 4,
+                            },
+                        ),
+                    ),
+                    Comma,
+                ],
             ),
-            Tokens(dada_tests/parser/param_separators.dada:4:16:5:1),
+            [
+                Whitespace(
+                    '\n',
+                ),
+            ],
         ),
     },
     syntax::Tree {
         origin: Code(
             Some(
-                Tokens(dada_tests/parser/param_separators.dada:7:11:7:15),
+                [
+                    Alphabetic(
+                        Word(
+                            Id {
+                                value: 4,
+                            },
+                        ),
+                    ),
+                    Comma,
+                    Whitespace(
+                        ' ',
+                    ),
+                    Alphabetic(
+                        Word(
+                            Id {
+                                value: 7,
+                            },
+                        ),
+                    ),
+                ],
             ),
-            Tokens(dada_tests/parser/param_separators.dada:7:18:8:1),
+            [
+                Whitespace(
+                    '\n',
+                ),
+            ],
         ),
     },
     syntax::Tree {
         origin: Code(
             Some(
-                Tokens(dada_tests/parser/param_separators.dada:10:11:10:16),
+                [
+                    Alphabetic(
+                        Word(
+                            Id {
+                                value: 4,
+                            },
+                        ),
+                    ),
+                    Comma,
+                    Whitespace(
+                        ' ',
+                    ),
+                    Alphabetic(
+                        Word(
+                            Id {
+                                value: 7,
+                            },
+                        ),
+                    ),
+                    Comma,
+                ],
             ),
-            Tokens(dada_tests/parser/param_separators.dada:10:19:11:1),
+            [
+                Whitespace(
+                    '\n',
+                ),
+            ],
         ),
     },
     syntax::Tree {
         origin: Code(
             Some(
-                Tokens(dada_tests/parser/param_separators.dada:13:11:13:17),
+                [
+                    Alphabetic(
+                        Word(
+                            Id {
+                                value: 4,
+                            },
+                        ),
+                    ),
+                    Op(
+                        ':',
+                    ),
+                    Comma,
+                    Whitespace(
+                        ' ',
+                    ),
+                    Alphabetic(
+                        Word(
+                            Id {
+                                value: 7,
+                            },
+                        ),
+                    ),
+                    Comma,
+                ],
             ),
-            Tokens(dada_tests/parser/param_separators.dada:13:20:15:1),
+            [
+                Whitespace(
+                    '\n',
+                ),
+                Whitespace(
+                    ' ',
+                ),
+                Whitespace(
+                    ' ',
+                ),
+                Whitespace(
+                    ' ',
+                ),
+                Whitespace(
+                    ' ',
+                ),
+                Comment(
+                    33,
+                ),
+                Whitespace(
+                    '\n',
+                ),
+            ],
         ),
     },
     syntax::Tree {
         origin: Code(
             Some(
-                Tokens(dada_tests/parser/param_separators.dada:17:11:20:1),
+                [
+                    Whitespace(
+                        '\n',
+                    ),
+                    Whitespace(
+                        ' ',
+                    ),
+                    Whitespace(
+                        ' ',
+                    ),
+                    Whitespace(
+                        ' ',
+                    ),
+                    Whitespace(
+                        ' ',
+                    ),
+                    Alphabetic(
+                        Word(
+                            Id {
+                                value: 4,
+                            },
+                        ),
+                    ),
+                    Whitespace(
+                        '\n',
+                    ),
+                    Whitespace(
+                        ' ',
+                    ),
+                    Whitespace(
+                        ' ',
+                    ),
+                    Whitespace(
+                        ' ',
+                    ),
+                    Whitespace(
+                        ' ',
+                    ),
+                    Alphabetic(
+                        Word(
+                            Id {
+                                value: 7,
+                            },
+                        ),
+                    ),
+                    Whitespace(
+                        '\n',
+                    ),
+                ],
             ),
-            Tokens(dada_tests/parser/param_separators.dada:20:4:21:1),
+            [
+                Whitespace(
+                    '\n',
+                ),
+            ],
         ),
     },
     syntax::Tree {
         origin: Code(
             Some(
-                Tokens(dada_tests/parser/param_separators.dada:23:11:25:1),
+                [
+                    Whitespace(
+                        '\n',
+                    ),
+                    Whitespace(
+                        ' ',
+                    ),
+                    Whitespace(
+                        ' ',
+                    ),
+                    Whitespace(
+                        ' ',
+                    ),
+                    Whitespace(
+                        ' ',
+                    ),
+                    Alphabetic(
+                        Word(
+                            Id {
+                                value: 4,
+                            },
+                        ),
+                    ),
+                    Whitespace(
+                        '\n',
+                    ),
+                ],
             ),
-            Tokens(dada_tests/parser/param_separators.dada:25:4:26:1),
+            [
+                Whitespace(
+                    '\n',
+                ),
+            ],
         ),
     },
     syntax::Tree {
         origin: Code(
             Some(
-                Tokens(dada_tests/parser/param_separators.dada:28:11:31:1),
+                [
+                    Whitespace(
+                        '\n',
+                    ),
+                    Whitespace(
+                        ' ',
+                    ),
+                    Whitespace(
+                        ' ',
+                    ),
+                    Whitespace(
+                        ' ',
+                    ),
+                    Whitespace(
+                        ' ',
+                    ),
+                    Alphabetic(
+                        Word(
+                            Id {
+                                value: 4,
+                            },
+                        ),
+                    ),
+                    Comma,
+                    Whitespace(
+                        '\n',
+                    ),
+                    Whitespace(
+                        ' ',
+                    ),
+                    Whitespace(
+                        ' ',
+                    ),
+                    Whitespace(
+                        ' ',
+                    ),
+                    Whitespace(
+                        ' ',
+                    ),
+                    Alphabetic(
+                        Word(
+                            Id {
+                                value: 7,
+                            },
+                        ),
+                    ),
+                    Whitespace(
+                        '\n',
+                    ),
+                ],
             ),
-            Tokens(dada_tests/parser/param_separators.dada:31:4:32:1),
+            [
+                Whitespace(
+                    '\n',
+                ),
+            ],
         ),
     },
     syntax::Tree {
         origin: Code(
             Some(
-                Tokens(dada_tests/parser/param_separators.dada:34:11:37:1),
+                [
+                    Whitespace(
+                        '\n',
+                    ),
+                    Whitespace(
+                        ' ',
+                    ),
+                    Whitespace(
+                        ' ',
+                    ),
+                    Whitespace(
+                        ' ',
+                    ),
+                    Whitespace(
+                        ' ',
+                    ),
+                    Alphabetic(
+                        Word(
+                            Id {
+                                value: 4,
+                            },
+                        ),
+                    ),
+                    Op(
+                        ':',
+                    ),
+                    Comma,
+                    Whitespace(
+                        ' ',
+                    ),
+                    Comment(
+                        33,
+                    ),
+                    Whitespace(
+                        '\n',
+                    ),
+                    Whitespace(
+                        ' ',
+                    ),
+                    Whitespace(
+                        ' ',
+                    ),
+                    Whitespace(
+                        ' ',
+                    ),
+                    Whitespace(
+                        ' ',
+                    ),
+                    Alphabetic(
+                        Word(
+                            Id {
+                                value: 7,
+                            },
+                        ),
+                    ),
+                    Whitespace(
+                        '\n',
+                    ),
+                ],
             ),
-            Tokens(dada_tests/parser/param_separators.dada:37:4:38:1),
+            [
+                Whitespace(
+                    '\n',
+                ),
+            ],
         ),
     },
 ]

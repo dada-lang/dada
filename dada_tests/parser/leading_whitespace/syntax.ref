@@ -2,9 +2,58 @@
     syntax::Tree {
         origin: Code(
             Some(
-                Tokens(dada_tests/parser/leading_whitespace.dada:3:15:3:15),
+                [],
             ),
-            Tokens(dada_tests/parser/leading_whitespace.dada:3:18:5:1),
+            [
+                Whitespace(
+                    '\n',
+                ),
+                Whitespace(
+                    ' ',
+                ),
+                Whitespace(
+                    ' ',
+                ),
+                Whitespace(
+                    ' ',
+                ),
+                Whitespace(
+                    ' ',
+                ),
+                Alphabetic(
+                    Word(
+                        Id {
+                            value: 5,
+                        },
+                    ),
+                ),
+                Delimiter(
+                    '(',
+                ),
+                Tree(
+                    TokenTree(
+                        Id {
+                            value: 2,
+                        },
+                    ),
+                ),
+                Delimiter(
+                    ')',
+                ),
+                Op(
+                    '.',
+                ),
+                Alphabetic(
+                    Word(
+                        Id {
+                            value: 8,
+                        },
+                    ),
+                ),
+                Whitespace(
+                    '\n',
+                ),
+            ],
         ),
     },
 ]

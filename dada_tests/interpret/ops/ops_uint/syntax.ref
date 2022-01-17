@@ -2,9 +2,860 @@
     syntax::Tree {
         origin: Code(
             Some(
-                Tokens(dada_tests/interpret/ops/ops_uint.dada:1:15:1:15),
+                [],
             ),
-            Tokens(dada_tests/interpret/ops/ops_uint.dada:1:18:46:1),
+            [
+                Whitespace(
+                    '\n',
+                ),
+                Whitespace(
+                    ' ',
+                ),
+                Whitespace(
+                    ' ',
+                ),
+                Whitespace(
+                    ' ',
+                ),
+                Whitespace(
+                    ' ',
+                ),
+                Alphabetic(
+                    Word(
+                        Id {
+                            value: 5,
+                        },
+                    ),
+                ),
+                Whitespace(
+                    ' ',
+                ),
+                Number(
+                    Word(
+                        Id {
+                            value: 6,
+                        },
+                    ),
+                ),
+                Whitespace(
+                    ' ',
+                ),
+                Op(
+                    '+',
+                ),
+                Whitespace(
+                    ' ',
+                ),
+                Number(
+                    Word(
+                        Id {
+                            value: 6,
+                        },
+                    ),
+                ),
+                Whitespace(
+                    ' ',
+                ),
+                Op(
+                    '=',
+                ),
+                Op(
+                    '=',
+                ),
+                Whitespace(
+                    ' ',
+                ),
+                Number(
+                    Word(
+                        Id {
+                            value: 7,
+                        },
+                    ),
+                ),
+                Whitespace(
+                    ' ',
+                ),
+                Delimiter(
+                    '{',
+                ),
+                Tree(
+                    TokenTree(
+                        Id {
+                            value: 3,
+                        },
+                    ),
+                ),
+                Delimiter(
+                    '}',
+                ),
+                Whitespace(
+                    '\n',
+                ),
+                Whitespace(
+                    '\n',
+                ),
+                Whitespace(
+                    ' ',
+                ),
+                Whitespace(
+                    ' ',
+                ),
+                Whitespace(
+                    ' ',
+                ),
+                Whitespace(
+                    ' ',
+                ),
+                Alphabetic(
+                    Word(
+                        Id {
+                            value: 5,
+                        },
+                    ),
+                ),
+                Whitespace(
+                    ' ',
+                ),
+                Number(
+                    Word(
+                        Id {
+                            value: 6,
+                        },
+                    ),
+                ),
+                Whitespace(
+                    ' ',
+                ),
+                Op(
+                    '-',
+                ),
+                Whitespace(
+                    ' ',
+                ),
+                Number(
+                    Word(
+                        Id {
+                            value: 6,
+                        },
+                    ),
+                ),
+                Whitespace(
+                    ' ',
+                ),
+                Op(
+                    '=',
+                ),
+                Op(
+                    '=',
+                ),
+                Whitespace(
+                    ' ',
+                ),
+                Number(
+                    Word(
+                        Id {
+                            value: 11,
+                        },
+                    ),
+                ),
+                Whitespace(
+                    ' ',
+                ),
+                Delimiter(
+                    '{',
+                ),
+                Tree(
+                    TokenTree(
+                        Id {
+                            value: 5,
+                        },
+                    ),
+                ),
+                Delimiter(
+                    '}',
+                ),
+                Whitespace(
+                    '\n',
+                ),
+                Whitespace(
+                    '\n',
+                ),
+                Whitespace(
+                    ' ',
+                ),
+                Whitespace(
+                    ' ',
+                ),
+                Whitespace(
+                    ' ',
+                ),
+                Whitespace(
+                    ' ',
+                ),
+                Alphabetic(
+                    Word(
+                        Id {
+                            value: 5,
+                        },
+                    ),
+                ),
+                Whitespace(
+                    ' ',
+                ),
+                Number(
+                    Word(
+                        Id {
+                            value: 13,
+                        },
+                    ),
+                ),
+                Whitespace(
+                    ' ',
+                ),
+                Op(
+                    '*',
+                ),
+                Whitespace(
+                    ' ',
+                ),
+                Number(
+                    Word(
+                        Id {
+                            value: 13,
+                        },
+                    ),
+                ),
+                Whitespace(
+                    ' ',
+                ),
+                Op(
+                    '=',
+                ),
+                Op(
+                    '=',
+                ),
+                Whitespace(
+                    ' ',
+                ),
+                Number(
+                    Word(
+                        Id {
+                            value: 14,
+                        },
+                    ),
+                ),
+                Whitespace(
+                    ' ',
+                ),
+                Delimiter(
+                    '{',
+                ),
+                Tree(
+                    TokenTree(
+                        Id {
+                            value: 7,
+                        },
+                    ),
+                ),
+                Delimiter(
+                    '}',
+                ),
+                Whitespace(
+                    '\n',
+                ),
+                Whitespace(
+                    '\n',
+                ),
+                Whitespace(
+                    ' ',
+                ),
+                Whitespace(
+                    ' ',
+                ),
+                Whitespace(
+                    ' ',
+                ),
+                Whitespace(
+                    ' ',
+                ),
+                Alphabetic(
+                    Word(
+                        Id {
+                            value: 5,
+                        },
+                    ),
+                ),
+                Whitespace(
+                    ' ',
+                ),
+                Number(
+                    Word(
+                        Id {
+                            value: 13,
+                        },
+                    ),
+                ),
+                Whitespace(
+                    ' ',
+                ),
+                Op(
+                    '/',
+                ),
+                Whitespace(
+                    ' ',
+                ),
+                Number(
+                    Word(
+                        Id {
+                            value: 16,
+                        },
+                    ),
+                ),
+                Whitespace(
+                    ' ',
+                ),
+                Op(
+                    '=',
+                ),
+                Op(
+                    '=',
+                ),
+                Whitespace(
+                    ' ',
+                ),
+                Number(
+                    Word(
+                        Id {
+                            value: 7,
+                        },
+                    ),
+                ),
+                Whitespace(
+                    ' ',
+                ),
+                Delimiter(
+                    '{',
+                ),
+                Tree(
+                    TokenTree(
+                        Id {
+                            value: 9,
+                        },
+                    ),
+                ),
+                Delimiter(
+                    '}',
+                ),
+                Whitespace(
+                    '\n',
+                ),
+                Whitespace(
+                    '\n',
+                ),
+                Whitespace(
+                    ' ',
+                ),
+                Whitespace(
+                    ' ',
+                ),
+                Whitespace(
+                    ' ',
+                ),
+                Whitespace(
+                    ' ',
+                ),
+                Comment(
+                    17,
+                ),
+                Whitespace(
+                    '\n',
+                ),
+                Whitespace(
+                    ' ',
+                ),
+                Whitespace(
+                    ' ',
+                ),
+                Whitespace(
+                    ' ',
+                ),
+                Whitespace(
+                    ' ',
+                ),
+                Alphabetic(
+                    Word(
+                        Id {
+                            value: 5,
+                        },
+                    ),
+                ),
+                Whitespace(
+                    ' ',
+                ),
+                Number(
+                    Word(
+                        Id {
+                            value: 18,
+                        },
+                    ),
+                ),
+                Whitespace(
+                    ' ',
+                ),
+                Op(
+                    '/',
+                ),
+                Whitespace(
+                    ' ',
+                ),
+                Number(
+                    Word(
+                        Id {
+                            value: 16,
+                        },
+                    ),
+                ),
+                Whitespace(
+                    ' ',
+                ),
+                Op(
+                    '=',
+                ),
+                Op(
+                    '=',
+                ),
+                Whitespace(
+                    ' ',
+                ),
+                Number(
+                    Word(
+                        Id {
+                            value: 7,
+                        },
+                    ),
+                ),
+                Whitespace(
+                    ' ',
+                ),
+                Delimiter(
+                    '{',
+                ),
+                Tree(
+                    TokenTree(
+                        Id {
+                            value: 11,
+                        },
+                    ),
+                ),
+                Delimiter(
+                    '}',
+                ),
+                Whitespace(
+                    '\n',
+                ),
+                Whitespace(
+                    '\n',
+                ),
+                Whitespace(
+                    ' ',
+                ),
+                Whitespace(
+                    ' ',
+                ),
+                Whitespace(
+                    ' ',
+                ),
+                Whitespace(
+                    ' ',
+                ),
+                Alphabetic(
+                    Word(
+                        Id {
+                            value: 5,
+                        },
+                    ),
+                ),
+                Whitespace(
+                    ' ',
+                ),
+                Number(
+                    Word(
+                        Id {
+                            value: 6,
+                        },
+                    ),
+                ),
+                Whitespace(
+                    ' ',
+                ),
+                Op(
+                    '<',
+                ),
+                Whitespace(
+                    ' ',
+                ),
+                Number(
+                    Word(
+                        Id {
+                            value: 7,
+                        },
+                    ),
+                ),
+                Whitespace(
+                    ' ',
+                ),
+                Delimiter(
+                    '{',
+                ),
+                Tree(
+                    TokenTree(
+                        Id {
+                            value: 13,
+                        },
+                    ),
+                ),
+                Delimiter(
+                    '}',
+                ),
+                Whitespace(
+                    '\n',
+                ),
+                Whitespace(
+                    '\n',
+                ),
+                Whitespace(
+                    ' ',
+                ),
+                Whitespace(
+                    ' ',
+                ),
+                Whitespace(
+                    ' ',
+                ),
+                Whitespace(
+                    ' ',
+                ),
+                Alphabetic(
+                    Word(
+                        Id {
+                            value: 5,
+                        },
+                    ),
+                ),
+                Whitespace(
+                    ' ',
+                ),
+                Number(
+                    Word(
+                        Id {
+                            value: 7,
+                        },
+                    ),
+                ),
+                Whitespace(
+                    ' ',
+                ),
+                Op(
+                    '<',
+                ),
+                Whitespace(
+                    ' ',
+                ),
+                Number(
+                    Word(
+                        Id {
+                            value: 6,
+                        },
+                    ),
+                ),
+                Whitespace(
+                    ' ',
+                ),
+                Delimiter(
+                    '{',
+                ),
+                Tree(
+                    TokenTree(
+                        Id {
+                            value: 15,
+                        },
+                    ),
+                ),
+                Delimiter(
+                    '}',
+                ),
+                Whitespace(
+                    '\n',
+                ),
+                Whitespace(
+                    '\n',
+                ),
+                Whitespace(
+                    ' ',
+                ),
+                Whitespace(
+                    ' ',
+                ),
+                Whitespace(
+                    ' ',
+                ),
+                Whitespace(
+                    ' ',
+                ),
+                Alphabetic(
+                    Word(
+                        Id {
+                            value: 5,
+                        },
+                    ),
+                ),
+                Whitespace(
+                    ' ',
+                ),
+                Number(
+                    Word(
+                        Id {
+                            value: 6,
+                        },
+                    ),
+                ),
+                Whitespace(
+                    ' ',
+                ),
+                Op(
+                    '<',
+                ),
+                Whitespace(
+                    ' ',
+                ),
+                Number(
+                    Word(
+                        Id {
+                            value: 6,
+                        },
+                    ),
+                ),
+                Whitespace(
+                    ' ',
+                ),
+                Delimiter(
+                    '{',
+                ),
+                Tree(
+                    TokenTree(
+                        Id {
+                            value: 17,
+                        },
+                    ),
+                ),
+                Delimiter(
+                    '}',
+                ),
+                Whitespace(
+                    '\n',
+                ),
+                Whitespace(
+                    '\n',
+                ),
+                Whitespace(
+                    ' ',
+                ),
+                Whitespace(
+                    ' ',
+                ),
+                Whitespace(
+                    ' ',
+                ),
+                Whitespace(
+                    ' ',
+                ),
+                Alphabetic(
+                    Word(
+                        Id {
+                            value: 5,
+                        },
+                    ),
+                ),
+                Whitespace(
+                    ' ',
+                ),
+                Number(
+                    Word(
+                        Id {
+                            value: 6,
+                        },
+                    ),
+                ),
+                Whitespace(
+                    ' ',
+                ),
+                Op(
+                    '>',
+                ),
+                Whitespace(
+                    ' ',
+                ),
+                Number(
+                    Word(
+                        Id {
+                            value: 7,
+                        },
+                    ),
+                ),
+                Whitespace(
+                    ' ',
+                ),
+                Delimiter(
+                    '{',
+                ),
+                Tree(
+                    TokenTree(
+                        Id {
+                            value: 19,
+                        },
+                    ),
+                ),
+                Delimiter(
+                    '}',
+                ),
+                Whitespace(
+                    '\n',
+                ),
+                Whitespace(
+                    '\n',
+                ),
+                Whitespace(
+                    ' ',
+                ),
+                Whitespace(
+                    ' ',
+                ),
+                Whitespace(
+                    ' ',
+                ),
+                Whitespace(
+                    ' ',
+                ),
+                Alphabetic(
+                    Word(
+                        Id {
+                            value: 5,
+                        },
+                    ),
+                ),
+                Whitespace(
+                    ' ',
+                ),
+                Number(
+                    Word(
+                        Id {
+                            value: 7,
+                        },
+                    ),
+                ),
+                Whitespace(
+                    ' ',
+                ),
+                Op(
+                    '>',
+                ),
+                Whitespace(
+                    ' ',
+                ),
+                Number(
+                    Word(
+                        Id {
+                            value: 6,
+                        },
+                    ),
+                ),
+                Whitespace(
+                    ' ',
+                ),
+                Delimiter(
+                    '{',
+                ),
+                Tree(
+                    TokenTree(
+                        Id {
+                            value: 21,
+                        },
+                    ),
+                ),
+                Delimiter(
+                    '}',
+                ),
+                Whitespace(
+                    '\n',
+                ),
+                Whitespace(
+                    '\n',
+                ),
+                Whitespace(
+                    ' ',
+                ),
+                Whitespace(
+                    ' ',
+                ),
+                Whitespace(
+                    ' ',
+                ),
+                Whitespace(
+                    ' ',
+                ),
+                Alphabetic(
+                    Word(
+                        Id {
+                            value: 5,
+                        },
+                    ),
+                ),
+                Whitespace(
+                    ' ',
+                ),
+                Number(
+                    Word(
+                        Id {
+                            value: 6,
+                        },
+                    ),
+                ),
+                Whitespace(
+                    ' ',
+                ),
+                Op(
+                    '>',
+                ),
+                Whitespace(
+                    ' ',
+                ),
+                Number(
+                    Word(
+                        Id {
+                            value: 6,
+                        },
+                    ),
+                ),
+                Whitespace(
+                    ' ',
+                ),
+                Delimiter(
+                    '{',
+                ),
+                Tree(
+                    TokenTree(
+                        Id {
+                            value: 23,
+                        },
+                    ),
+                ),
+                Delimiter(
+                    '}',
+                ),
+                Whitespace(
+                    '\n',
+                ),
+            ],
         ),
     },
 ]

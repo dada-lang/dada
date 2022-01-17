@@ -2,9 +2,266 @@
     syntax::Tree {
         origin: Code(
             Some(
-                Tokens(dada_tests/interpret/if-else.dada:1:15:1:15),
+                [],
             ),
-            Tokens(dada_tests/interpret/if-else.dada:1:18:21:1),
+            [
+                Whitespace(
+                    '\n',
+                ),
+                Whitespace(
+                    ' ',
+                ),
+                Whitespace(
+                    ' ',
+                ),
+                Whitespace(
+                    ' ',
+                ),
+                Whitespace(
+                    ' ',
+                ),
+                Alphabetic(
+                    Word(
+                        Id {
+                            value: 5,
+                        },
+                    ),
+                ),
+                Whitespace(
+                    ' ',
+                ),
+                Alphabetic(
+                    Word(
+                        Id {
+                            value: 6,
+                        },
+                    ),
+                ),
+                Whitespace(
+                    ' ',
+                ),
+                Delimiter(
+                    '{',
+                ),
+                Tree(
+                    TokenTree(
+                        Id {
+                            value: 3,
+                        },
+                    ),
+                ),
+                Delimiter(
+                    '}',
+                ),
+                Whitespace(
+                    '\n',
+                ),
+                Whitespace(
+                    '\n',
+                ),
+                Whitespace(
+                    ' ',
+                ),
+                Whitespace(
+                    ' ',
+                ),
+                Whitespace(
+                    ' ',
+                ),
+                Whitespace(
+                    ' ',
+                ),
+                Alphabetic(
+                    Word(
+                        Id {
+                            value: 5,
+                        },
+                    ),
+                ),
+                Whitespace(
+                    ' ',
+                ),
+                Alphabetic(
+                    Word(
+                        Id {
+                            value: 10,
+                        },
+                    ),
+                ),
+                Whitespace(
+                    ' ',
+                ),
+                Delimiter(
+                    '{',
+                ),
+                Tree(
+                    TokenTree(
+                        Id {
+                            value: 5,
+                        },
+                    ),
+                ),
+                Delimiter(
+                    '}',
+                ),
+                Whitespace(
+                    '\n',
+                ),
+                Whitespace(
+                    '\n',
+                ),
+                Whitespace(
+                    ' ',
+                ),
+                Whitespace(
+                    ' ',
+                ),
+                Whitespace(
+                    ' ',
+                ),
+                Whitespace(
+                    ' ',
+                ),
+                Alphabetic(
+                    Word(
+                        Id {
+                            value: 5,
+                        },
+                    ),
+                ),
+                Whitespace(
+                    ' ',
+                ),
+                Alphabetic(
+                    Word(
+                        Id {
+                            value: 6,
+                        },
+                    ),
+                ),
+                Whitespace(
+                    ' ',
+                ),
+                Delimiter(
+                    '{',
+                ),
+                Tree(
+                    TokenTree(
+                        Id {
+                            value: 7,
+                        },
+                    ),
+                ),
+                Delimiter(
+                    '}',
+                ),
+                Whitespace(
+                    ' ',
+                ),
+                Alphabetic(
+                    Word(
+                        Id {
+                            value: 13,
+                        },
+                    ),
+                ),
+                Whitespace(
+                    ' ',
+                ),
+                Delimiter(
+                    '{',
+                ),
+                Tree(
+                    TokenTree(
+                        Id {
+                            value: 9,
+                        },
+                    ),
+                ),
+                Delimiter(
+                    '}',
+                ),
+                Whitespace(
+                    '\n',
+                ),
+                Whitespace(
+                    '\n',
+                ),
+                Whitespace(
+                    ' ',
+                ),
+                Whitespace(
+                    ' ',
+                ),
+                Whitespace(
+                    ' ',
+                ),
+                Whitespace(
+                    ' ',
+                ),
+                Alphabetic(
+                    Word(
+                        Id {
+                            value: 5,
+                        },
+                    ),
+                ),
+                Whitespace(
+                    ' ',
+                ),
+                Alphabetic(
+                    Word(
+                        Id {
+                            value: 10,
+                        },
+                    ),
+                ),
+                Whitespace(
+                    ' ',
+                ),
+                Delimiter(
+                    '{',
+                ),
+                Tree(
+                    TokenTree(
+                        Id {
+                            value: 11,
+                        },
+                    ),
+                ),
+                Delimiter(
+                    '}',
+                ),
+                Whitespace(
+                    ' ',
+                ),
+                Alphabetic(
+                    Word(
+                        Id {
+                            value: 13,
+                        },
+                    ),
+                ),
+                Whitespace(
+                    ' ',
+                ),
+                Delimiter(
+                    '{',
+                ),
+                Tree(
+                    TokenTree(
+                        Id {
+                            value: 13,
+                        },
+                    ),
+                ),
+                Delimiter(
+                    '}',
+                ),
+                Whitespace(
+                    '\n',
+                ),
+            ],
         ),
     },
 ]

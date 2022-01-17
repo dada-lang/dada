@@ -2,33 +2,233 @@
     syntax::Tree {
         origin: Code(
             Some(
-                Tokens(dada_tests/validate/await-where-not-allowed.dada:1:14:1:14),
+                [],
             ),
-            Tokens(dada_tests/validate/await-where-not-allowed.dada:1:17:4:1),
+            [
+                Whitespace(
+                    '\n',
+                ),
+                Whitespace(
+                    ' ',
+                ),
+                Whitespace(
+                    ' ',
+                ),
+                Whitespace(
+                    ' ',
+                ),
+                Whitespace(
+                    ' ',
+                ),
+                Alphabetic(
+                    Word(
+                        Id {
+                            value: 4,
+                        },
+                    ),
+                ),
+                Delimiter(
+                    '(',
+                ),
+                Tree(
+                    TokenTree(
+                        Id {
+                            value: 2,
+                        },
+                    ),
+                ),
+                Delimiter(
+                    ')',
+                ),
+                Op(
+                    '.',
+                ),
+                Alphabetic(
+                    Word(
+                        Id {
+                            value: 6,
+                        },
+                    ),
+                ),
+                Whitespace(
+                    '\n',
+                ),
+                Whitespace(
+                    ' ',
+                ),
+                Whitespace(
+                    ' ',
+                ),
+                Whitespace(
+                    ' ',
+                ),
+                Whitespace(
+                    ' ',
+                ),
+                Comment(
+                    59,
+                ),
+                Whitespace(
+                    '\n',
+                ),
+            ],
         ),
     },
     syntax::Tree {
         origin: Code(
             Some(
-                Tokens(dada_tests/validate/await-where-not-allowed.dada:6:27:6:27),
+                [],
             ),
-            Tokens(dada_tests/validate/await-where-not-allowed.dada:6:30:11:1),
+            [
+                Whitespace(
+                    '\n',
+                ),
+                Whitespace(
+                    ' ',
+                ),
+                Whitespace(
+                    ' ',
+                ),
+                Whitespace(
+                    ' ',
+                ),
+                Whitespace(
+                    ' ',
+                ),
+                Alphabetic(
+                    Word(
+                        Id {
+                            value: 8,
+                        },
+                    ),
+                ),
+                Whitespace(
+                    ' ',
+                ),
+                Delimiter(
+                    '{',
+                ),
+                Tree(
+                    TokenTree(
+                        Id {
+                            value: 6,
+                        },
+                    ),
+                ),
+                Delimiter(
+                    '}',
+                ),
+                Whitespace(
+                    '\n',
+                ),
+            ],
         ),
     },
     syntax::Tree {
         origin: Code(
             Some(
-                Tokens(dada_tests/validate/await-where-not-allowed.dada:13:29:13:29),
+                [],
             ),
-            Tokens(dada_tests/validate/await-where-not-allowed.dada:13:32:18:1),
+            [
+                Whitespace(
+                    '\n',
+                ),
+                Whitespace(
+                    ' ',
+                ),
+                Whitespace(
+                    ' ',
+                ),
+                Whitespace(
+                    ' ',
+                ),
+                Whitespace(
+                    ' ',
+                ),
+                Alphabetic(
+                    Word(
+                        Id {
+                            value: 8,
+                        },
+                    ),
+                ),
+                Whitespace(
+                    ' ',
+                ),
+                Delimiter(
+                    '{',
+                ),
+                Tree(
+                    TokenTree(
+                        Id {
+                            value: 10,
+                        },
+                    ),
+                ),
+                Delimiter(
+                    '}',
+                ),
+                Whitespace(
+                    '\n',
+                ),
+            ],
         ),
     },
     syntax::Tree {
         origin: Code(
             Some(
-                Tokens(dada_tests/validate/await-where-not-allowed.dada:20:15:20:15),
+                [],
             ),
-            Tokens(dada_tests/validate/await-where-not-allowed.dada:20:18:22:1),
+            [
+                Whitespace(
+                    '\n',
+                ),
+                Whitespace(
+                    ' ',
+                ),
+                Whitespace(
+                    ' ',
+                ),
+                Whitespace(
+                    ' ',
+                ),
+                Whitespace(
+                    ' ',
+                ),
+                Alphabetic(
+                    Word(
+                        Id {
+                            value: 4,
+                        },
+                    ),
+                ),
+                Delimiter(
+                    '(',
+                ),
+                Tree(
+                    TokenTree(
+                        Id {
+                            value: 13,
+                        },
+                    ),
+                ),
+                Delimiter(
+                    ')',
+                ),
+                Op(
+                    '.',
+                ),
+                Alphabetic(
+                    Word(
+                        Id {
+                            value: 6,
+                        },
+                    ),
+                ),
+                Whitespace(
+                    '\n',
+                ),
+            ],
         ),
     },
 ]

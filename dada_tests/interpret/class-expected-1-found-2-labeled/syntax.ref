@@ -2,9 +2,64 @@
     syntax::Tree {
         origin: Code(
             Some(
-                Tokens(dada_tests/interpret/class-expected-1-found-2-labeled.dada:3:15:3:15),
+                [],
             ),
-            Tokens(dada_tests/interpret/class-expected-1-found-2-labeled.dada:3:18:5:1),
+            [
+                Whitespace(
+                    '\n',
+                ),
+                Whitespace(
+                    ' ',
+                ),
+                Whitespace(
+                    ' ',
+                ),
+                Whitespace(
+                    ' ',
+                ),
+                Whitespace(
+                    ' ',
+                ),
+                Alphabetic(
+                    Word(
+                        Id {
+                            value: 8,
+                        },
+                    ),
+                ),
+                Whitespace(
+                    ' ',
+                ),
+                Op(
+                    '=',
+                ),
+                Whitespace(
+                    ' ',
+                ),
+                Alphabetic(
+                    Word(
+                        Id {
+                            value: 3,
+                        },
+                    ),
+                ),
+                Delimiter(
+                    '(',
+                ),
+                Tree(
+                    TokenTree(
+                        Id {
+                            value: 3,
+                        },
+                    ),
+                ),
+                Delimiter(
+                    ')',
+                ),
+                Whitespace(
+                    '\n',
+                ),
+            ],
         ),
     },
 ]

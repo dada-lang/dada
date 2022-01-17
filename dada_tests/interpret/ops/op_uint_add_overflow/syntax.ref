@@ -2,9 +2,99 @@
     syntax::Tree {
         origin: Code(
             Some(
-                Tokens(dada_tests/interpret/ops/op_uint_add_overflow.dada:1:9:1:9),
+                [],
             ),
-            Tokens(dada_tests/interpret/ops/op_uint_add_overflow.dada:1:12:4:1),
+            [
+                Whitespace(
+                    '\n',
+                ),
+                Whitespace(
+                    ' ',
+                ),
+                Whitespace(
+                    ' ',
+                ),
+                Whitespace(
+                    ' ',
+                ),
+                Whitespace(
+                    ' ',
+                ),
+                Alphabetic(
+                    Word(
+                        Id {
+                            value: 4,
+                        },
+                    ),
+                ),
+                Whitespace(
+                    ' ',
+                ),
+                Alphabetic(
+                    Word(
+                        Id {
+                            value: 5,
+                        },
+                    ),
+                ),
+                Whitespace(
+                    ' ',
+                ),
+                Op(
+                    '=',
+                ),
+                Whitespace(
+                    ' ',
+                ),
+                Number(
+                    Word(
+                        Id {
+                            value: 6,
+                        },
+                    ),
+                ),
+                Whitespace(
+                    '\n',
+                ),
+                Whitespace(
+                    ' ',
+                ),
+                Whitespace(
+                    ' ',
+                ),
+                Whitespace(
+                    ' ',
+                ),
+                Whitespace(
+                    ' ',
+                ),
+                Alphabetic(
+                    Word(
+                        Id {
+                            value: 5,
+                        },
+                    ),
+                ),
+                Whitespace(
+                    ' ',
+                ),
+                Op(
+                    '+',
+                ),
+                Whitespace(
+                    ' ',
+                ),
+                Number(
+                    Word(
+                        Id {
+                            value: 7,
+                        },
+                    ),
+                ),
+                Whitespace(
+                    '\n',
+                ),
+            ],
         ),
     },
 ]

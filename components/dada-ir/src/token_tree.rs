@@ -1,9 +1,4 @@
-use crate::{
-    filename::Filename,
-    span::{FileSpan, Span},
-    token::Token,
-    Jar,
-};
+use crate::{filename::Filename, span::Span, token::Token, Jar};
 
 salsa::entity2! {
     entity TokenTree in Jar {
@@ -16,8 +11,11 @@ salsa::entity2! {
 impl<Db: ?Sized + crate::Db> salsa::DebugWithDb<Db> for TokenTree {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>, db: &Db) -> std::fmt::Result {
         let db = db.as_dyn_ir_db();
-        let file_span: FileSpan = self.span(db).in_file(self.filename(db));
-        write!(f, "Tokens({:?})", file_span.into_debug(db))
+        if !f.alternate() {
+            write!(f, "{:?}", self.tokens(db))
+        } else {
+            write!(f, "{:#?}", self.tokens(db))
+        }
     }
 }
 
