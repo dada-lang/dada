@@ -1,0 +1,11 @@
+async fn main() {
+    print("Foo\nBar").await
+
+    print("Foo\tBar").await
+
+    print("Foo\r\nBar").await
+
+    print("Foo \\ Bar").await
+
+    print("Foo \" Bar").await
+}
