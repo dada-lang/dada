@@ -7,6 +7,10 @@ async fn main() {
 
     print("Foo \\ Bar").await
 
+    print("Foo \" Bar").await
+
+    print("Foo \\").await
+    
     print("
 \t    Foo
     \tBar
