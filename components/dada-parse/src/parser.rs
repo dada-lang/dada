@@ -101,6 +101,12 @@ impl<'me> Parser<'me> {
             return Some((span, tokens));
         }
 
+        // Only return Some if this is the complete operator
+        // (i.e., the operator `=` cannot match against a prefix of the input `==`)
+        if let Some(Token::Op(_)) = tokens.peek() {
+            return None;
+        }
+
         // ...if not, we've got a match!
         Some((span, tokens))
     }
