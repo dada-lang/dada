@@ -196,11 +196,18 @@ where
     /// Invoked after consuming a `"`
     fn string_literal(&mut self, start: Offset) -> FormatString {
         let mut buffer = StringFormatBuffer::new(self.db);
+        let mut is_backslash_previous = false;
         while let Some((ch_offset, ch)) = self.chars.next() {
             let ch_offset = Offset::from(ch_offset);
 
-            if ch == '"' {
+            if ch == '"' && !is_backslash_previous {
                 break;
+            }
+
+            if ch == '\\' {
+                is_backslash_previous = !is_backslash_previous;
+            } else {
+                is_backslash_previous = false;
             }
 
             if ch == '{' {
