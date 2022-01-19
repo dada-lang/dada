@@ -14,6 +14,7 @@ use dada_ir::{
     origin_table::HasOriginIn,
     span::FileSpan,
 };
+use dada_parse::prelude::*;
 
 use crate::kernel::Kernel;
 use crate::thunk::Thunk;
@@ -129,12 +130,13 @@ impl StackFrame<'_> {
         self.bir.origin(db)
     }
 
-    pub(crate) fn current_span(&self, interpreter: &Interpreter<'_>) -> FileSpan {
+    /// Current moment in time.
+    pub fn current_span(&self, db: &dyn crate::Db) -> FileSpan {
         match self.location {
-            StackFrameLocation::Block(b) => self.span_from_bir(interpreter, b),
-            StackFrameLocation::Expr(b) => self.span_from_bir(interpreter, b),
-            StackFrameLocation::Statement(b) => self.span_from_bir(interpreter, b),
-            StackFrameLocation::Terminator(b) => self.span_from_bir(interpreter, b),
+            StackFrameLocation::Block(b) => self.span_from_bir(db, b),
+            StackFrameLocation::Expr(b) => self.span_from_bir(db, b),
+            StackFrameLocation::Statement(b) => self.span_from_bir(db, b),
+            StackFrameLocation::Terminator(b) => self.span_from_bir(db, b),
         }
     }
 
@@ -186,11 +188,11 @@ impl StackFrame<'_> {
                     self.basic_block = *next;
                 }
                 dada_ir::code::bir::TerminatorData::Error => {
-                    let span = self.span_from_bir(interpreter, basic_block_data.terminator);
+                    let span = self.span_from_bir(interpreter.db(), basic_block_data.terminator);
                     return Err(error!(span, "compilation error").eyre(interpreter.db()));
                 }
                 dada_ir::code::bir::TerminatorData::Panic => {
-                    let span = self.span_from_bir(interpreter, basic_block_data.terminator);
+                    let span = self.span_from_bir(interpreter.db(), basic_block_data.terminator);
                     return Err(error!(span, "panic").eyre(interpreter.db()));
                 }
             }
@@ -230,7 +232,7 @@ impl StackFrame<'_> {
                 })
             }
             bir::ExprData::Error => {
-                let span = self.span_from_bir(interpreter, expr);
+                let span = self.span_from_bir(interpreter.db(), expr);
                 Err(error!(span, "compilation error").eyre(interpreter.db()))
             }
             bir::ExprData::Unit => Ok(Value::new(interpreter, ())),
@@ -250,15 +252,19 @@ impl StackFrame<'_> {
         interpreter: &Interpreter<'_>,
         expr: impl HasOriginIn<bir::Origins, Origin = syntax::Expr>,
     ) {
-        interpreter.tick_clock(self.span_from_bir(interpreter, expr));
+        interpreter.tick_clock(self.span_from_bir(interpreter.db(), expr));
     }
 
     fn span_from_bir(
         &self,
-        interpreter: &Interpreter<'_>,
+        db: &dyn crate::Db,
         expr: impl HasOriginIn<bir::Origins, Origin = syntax::Expr>,
     ) -> FileSpan {
-        interpreter.span_from_bir(self.bir, expr)
+        let code = self.code(db);
+        let filename = code.filename(db);
+        let syntax_expr = self.origins[expr];
+        let syntax_tree = code.syntax_tree(db);
+        syntax_tree.spans(db)[syntax_expr].in_file(filename)
     }
 
     fn assign_place(
@@ -404,7 +410,7 @@ impl StackFrame<'_> {
         rhs: &Data,
     ) -> eyre::Result<Value> {
         let op_error = || {
-            let span = self.span_from_bir(interpreter, expr);
+            let span = self.span_from_bir(interpreter.db(), expr);
             Err(error!(
                 span,
                 "cannot apply operator {} to {} and {}",
@@ -415,11 +421,11 @@ impl StackFrame<'_> {
             .eyre(interpreter.db()))
         };
         let div_zero_error = || {
-            let span = self.span_from_bir(interpreter, expr);
+            let span = self.span_from_bir(interpreter.db(), expr);
             Err(error!(span, "divide by zero").eyre(interpreter.db()))
         };
         let overflow_error = || {
-            let span = self.span_from_bir(interpreter, expr);
+            let span = self.span_from_bir(interpreter.db(), expr);
             Err(error!(span, "overflow").eyre(interpreter.db()))
         };
         match (lhs, rhs) {
@@ -468,7 +474,7 @@ impl StackFrame<'_> {
                         if *rhs != -1 {
                             div_zero_error()
                         } else {
-                            let span = self.span_from_bir(interpreter, expr);
+                            let span = self.span_from_bir(interpreter.db(), expr);
                             Err(error!(span, "signed division overflow").eyre(interpreter.db()))
                         }
                     }
