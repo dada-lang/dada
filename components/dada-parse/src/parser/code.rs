@@ -173,7 +173,31 @@ impl CodeParser<'_, '_> {
             return Some(expr);
         }
 
-        self.parse_expr_4()
+        self.parse_expr_5()
+    }
+
+    pub(crate) fn parse_expr_5(&mut self) -> Option<Expr> {
+        let mut expr = self.parse_expr_4()?;
+
+        loop {
+            if let Some(expr1) = self.parse_binop(
+                expr,
+                &[
+                    Op::PlusEqual,
+                    Op::MinusEqual,
+                    Op::DividedByEqual,
+                    Op::TimesEqual,
+                ],
+                Self::parse_expr_3,
+            ) {
+                expr = expr1;
+                continue;
+            }
+
+            break;
+        }
+
+        Some(expr)
     }
 
     pub(crate) fn parse_expr_4(&mut self) -> Option<Expr> {
@@ -417,7 +441,12 @@ impl CodeParser<'_, '_> {
                     .or_report_error(self, || format!("expected expression after {op}"))
                     .or_dummy_expr(self);
                 let span = self.spans[base].to(self.spans[rhs]);
-                return Some(self.add(ExprData::Op(base, op, rhs), span));
+                match op {
+                    Op::PlusEqual | Op::MinusEqual | Op::DividedByEqual | Op::TimesEqual => {
+                        return Some(self.add(ExprData::OpEq(base, op, rhs), span))
+                    }
+                    _ => return Some(self.add(ExprData::Op(base, op, rhs), span)),
+                }
             }
         }
         None
