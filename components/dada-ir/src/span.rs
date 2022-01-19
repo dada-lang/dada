@@ -12,6 +12,11 @@ impl FileSpan {
         &crate::manifest::source_text(db, self.filename)
             [usize::from(self.start)..usize::from(self.end)]
     }
+
+    /// True if the given character falls within this span.
+    pub fn contains(&self, offset: Offset) -> bool {
+        self.start <= offset && offset < self.end
+    }
 }
 
 impl<Db: ?Sized + crate::Db> salsa::DebugWithDb<Db> for FileSpan {

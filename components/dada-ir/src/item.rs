@@ -7,6 +7,13 @@ pub enum Item {
 }
 
 impl Item {
+    pub fn span(self, db: &dyn crate::Db) -> FileSpan {
+        match self {
+            Item::Function(f) => f.span(db),
+            Item::Class(c) => c.span(db),
+        }
+    }
+
     pub fn name(self, db: &dyn crate::Db) -> Word {
         match self {
             Item::Function(f) => f.name(db),

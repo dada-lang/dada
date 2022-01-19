@@ -12,6 +12,7 @@ use dada_validate::prelude::*;
 use salsa::DebugWithDb;
 
 #[salsa::db(
+    dada_breakpoint::Jar,
     dada_brew::Jar,
     dada_check::Jar,
     dada_error_format::Jar,

@@ -35,6 +35,17 @@ pub fn line_column(db: &dyn crate::Db, filename: Filename, position: Offset) -> 
     }
 }
 
+/// Given a (1-based) line/column tuple, returns a character index.
+pub fn offset(db: &dyn crate::Db, filename: Filename, position: LineColumn) -> Offset {
+    let table = line_table(db, filename);
+    if position.line == 0 {
+        return Offset::from(position.column - 1);
+    }
+
+    let start = table.line_endings[usize::try_from(position.line).unwrap() - 1];
+    start + (position.column - 1)
+}
+
 #[salsa::memoized(in crate::Jar ref)]
 #[allow(clippy::needless_lifetimes)]
 fn line_table(db: &dyn crate::Db, filename: Filename) -> LineTable {

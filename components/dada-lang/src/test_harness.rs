@@ -7,6 +7,7 @@ use eyre::Context;
 use lsp_types::Diagnostic;
 use regex::Regex;
 
+mod heap_graph_query;
 mod lsp_client;
 
 #[derive(structopt::StructOpt)]
@@ -102,11 +103,16 @@ impl Options {
 
     #[tracing::instrument(level = "debug", skip(self))]
     async fn test_dada_file(&self, path: &Path) -> eyre::Result<()> {
+        let expected_queries = &expected_queries(path)?;
         let expected_diagnostics = &expected_diagnostics(path)?;
         let path_without_extention = path.with_extension("");
         fs::create_dir_all(&path_without_extention)?;
-        self.test_dada_file_normal(&path_without_extention, expected_diagnostics)
-            .await?;
+        self.test_dada_file_normal(
+            &path_without_extention,
+            expected_diagnostics,
+            expected_queries,
+        )
+        .await?;
         self.test_dada_file_in_ide(&path_without_extention, expected_diagnostics)?;
         Ok(())
     }
@@ -116,6 +122,7 @@ impl Options {
         &self,
         path: &Path,
         expected_diagnostics: &[ExpectedDiagnostic],
+        expected_queries: &[Query],
     ) -> eyre::Result<()> {
         let mut db = dada_db::Db::default();
         let source_path = path.with_extension("dada");
@@ -160,6 +167,12 @@ impl Options {
         )?;
         self.check_interpreted(&db, filename, &path.join("stdout.ref"), &mut errors)
             .await?;
+
+        for (query, query_index) in expected_queries.iter().zip(0..) {
+            self.perform_query_on_db(&db, path, filename, query, query_index, &mut errors)
+                .await?;
+        }
+
         errors.into_result()
     }
 
@@ -187,6 +200,23 @@ impl Options {
             &mut errors,
         )?;
         errors.into_result()
+    }
+
+    async fn perform_query_on_db(
+        &self,
+        db: &dada_db::Db,
+        path: &Path,
+        filename: Filename,
+        query: &Query,
+        query_index: usize,
+        errors: &mut Errors,
+    ) -> eyre::Result<()> {
+        match query.kind {
+            QueryKind::HeapGraph => self
+                .perform_heap_graph_query_on_db(db, path, query_index, filename, query, errors)
+                .await
+                .with_context(|| format!("heap query from line `{}`", query.line)),
+        }
     }
 
     fn check_output_against_ref_file(
@@ -438,13 +468,48 @@ impl std::fmt::Display for RefOutputDoesNotMatch {
     }
 }
 
+/// Test files have `#!` lines embedded in them indicating the
+/// errors, warnings, and other diganostics we expect the compiler
+/// to emit. Every diagnostic emitted by the compiler must have
+/// a line like this or the test will fail.
 #[derive(Clone, Debug)]
 struct ExpectedDiagnostic {
+    /// Line where the error is expected to start.
     start_line: u32,
+
+    /// Start column, if given by the user (FIXME#84).
     start_column: Option<u32>,
+
+    /// End position, if given by the user (FIXME#84).
     end_line_column: Option<(u32, u32)>,
+
+    /// Expected severity ("ERROR", "WARNING", etc) of the diagnostic.
     severity: String,
+
+    /// A regular expression given by the user that must match
+    /// against the diagnostic.
     message: Regex,
+}
+
+/// A query is indicated by a `#?   ^ QK` annotation. It means that,
+/// on the preceding line, we should do some sort of interactive
+/// query (specified by the `QK` string, see [`QueryKind`]) at the column
+/// indicated by `^`. This could be a compilation
+/// or runtime query. The results will be dumped into a file
+/// but may also be queried with the regex in `message`.
+#[derive(Clone, Debug)]
+struct Query {
+    line: u32,
+    column: u32,
+    kind: QueryKind,
+    message: Regex,
+}
+
+/// Kinds of queries we can perform (see [`Query`])
+#[derive(Clone, Debug)]
+enum QueryKind {
+    /// Interpret the code to this point and dump the heap-graph.
+    HeapGraph,
 }
 
 /// Returns the diagnostics that we expect to see in the file, sorted by line number.
@@ -476,6 +541,44 @@ fn expected_diagnostics(path: &Path) -> eyre::Result<Vec<ExpectedDiagnostic>> {
                 message: Regex::new(&c["msg"])?,
             });
         } else {
+            last_code_line = line_number;
+        }
+    }
+    Ok(result)
+}
+
+/// Searches for a `#?` annotation, which indicates that we want to do a
+/// query at a particular point.
+fn expected_queries(path: &Path) -> eyre::Result<Vec<Query>> {
+    let file_contents = std::fs::read_to_string(path)?;
+
+    let query_re =
+        regex::Regex::new(r"^[^#]*#\?\s*(?P<pointer>\^)\s*(?P<kind>[^\s]*)\s*(?P<msg>.*)").unwrap();
+
+    let comment_line_re = regex::Regex::new(r"^\s*#").unwrap();
+
+    let mut last_code_line = 1;
+    let mut result = vec![];
+    for (line, line_number) in file_contents.lines().zip(1..) {
+        if let Some(c) = query_re.captures(line) {
+            // The column comes from the position of the `^`.
+            let column = u32::try_from(c.name("pointer").unwrap().start() + 1).unwrap();
+
+            let query_kind = match &c["kind"] {
+                "HeapGraph" => QueryKind::HeapGraph,
+                k => eyre::bail!("unexpected query kind `{}` on line {}", k, line_number),
+            };
+
+            result.push(Query {
+                line: last_code_line,
+                column,
+                kind: query_kind,
+                message: Regex::new(&c["msg"])?,
+            });
+            tracing::debug!("query {:?} found", result.last());
+        }
+
+        if !comment_line_re.is_match(line) {
             last_code_line = line_number;
         }
     }
