@@ -188,7 +188,7 @@ impl CodeParser<'_, '_> {
                     Op::DividedByEqual,
                     Op::TimesEqual,
                 ],
-                Self::parse_expr_3,
+                Self::parse_expr_4,
             ) {
                 expr = expr1;
                 continue;
