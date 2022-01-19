@@ -4,7 +4,6 @@ use dada_ir::{
         bir::{self, BirData},
         syntax, validated,
     },
-    origin_table::HasOriginIn,
     storage_mode::StorageMode,
 };
 
@@ -24,7 +23,7 @@ pub fn brew(db: &dyn crate::Db, validated_tree: validated::Tree) -> bir::Bir {
     // Compile the root expression and -- assuming it doesn't diverse --
     // return the resulting value.
     let root_expr = validated_tree.data(db).root_expr;
-    let root_expr_origin = *root_expr.origin_in(validated_tree.origins(db));
+    let root_expr_origin = validated_tree.origins(db)[root_expr];
     let mut cursor = Cursor::new(brewery, root_expr_origin);
     if let Some(place) = cursor.brew_expr_to_place(brewery, root_expr) {
         cursor.terminate_and_diverge(
