@@ -53,7 +53,7 @@ impl BufferKernel {
         match crate::interpret(function, db, self, arguments).await {
             Ok(()) => {}
             Err(e) => {
-                self.buffer.lock().push_str(&e.to_string());
+                self.append(&e.to_string());
             }
         }
     }
@@ -61,12 +61,16 @@ impl BufferKernel {
     pub fn into_buffer(self) -> String {
         Mutex::into_inner(self.buffer)
     }
+
+    pub fn append(&self, s: &str) {
+        self.buffer.lock().push_str(s);
+    }
 }
 
 #[async_trait::async_trait]
 impl Kernel for BufferKernel {
     async fn print(&self, message: &str) -> eyre::Result<()> {
-        self.buffer.lock().push_str(message);
+        self.append(message);
         Ok(())
     }
 

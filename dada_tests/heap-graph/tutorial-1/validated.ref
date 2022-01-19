@@ -1,0 +1,44 @@
+[
+    validated::Tree {
+        num_parameters: 0,
+        root_expr: Seq(
+            [
+                Assign(
+                    p{0},
+                    Call(
+                        Class(
+                            Id {
+                                value: 1,
+                            },
+                        ),
+                        [
+                            (
+                                Some(
+                                    "x",
+                                ),
+                                22,
+                            ),
+                            (
+                                Some(
+                                    "y",
+                                ),
+                                44,
+                            ),
+                        ],
+                    ),
+                ),
+                Await(
+                    Call(
+                        Print,
+                        [
+                            (
+                                None,
+                                "The point is FIXME",
+                            ),
+                        ],
+                    ),
+                ),
+            ],
+        ),
+    },
+]

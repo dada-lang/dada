@@ -35,12 +35,15 @@ pub async fn interpret(
     let initial_span = function.name_span(db);
     let interpreter = &Interpreter::new(db, kernel, initial_span);
     let bir = function.brew(db);
-    let value = interpreter.execute_bir(bir, arguments, None).await?;
+    let value = interpreter
+        .execute_bir(function, bir, arguments, None)
+        .await?;
     value.read(interpreter, |data| data.to_unit(interpreter))
 }
 
 pub struct StackFrame<'me> {
     pub(crate) parent_stack_frame: Option<&'me StackFrame<'me>>,
+    pub(crate) function: Function,
     pub(crate) bir: bir::Bir,
     pub(crate) local_variables: IndexVec<bir::LocalVariable, Value>,
     tables: &'me bir::Tables,
@@ -71,7 +74,7 @@ impl Interpreter<'_> {
             Ok(Value::new(self, thunk))
         } else {
             let bir = function.brew(self.db());
-            let future = self.execute_bir(bir, arguments, parent_stack_frame);
+            let future = self.execute_bir(function, bir, arguments, parent_stack_frame);
 
             // This is interesting. `execute_bir` is async in *Rust* because it is
             // for both `fn` and `async fn` in Dada -- but in the case that we are
@@ -88,6 +91,7 @@ impl Interpreter<'_> {
     /// This is convenient when calling `main`.
     pub(crate) fn execute_bir<'me>(
         &'me self,
+        function: Function,
         bir: bir::Bir,
         arguments: Vec<Value>,
         parent_stack_frame: Option<&'me StackFrame<'_>>,
@@ -113,6 +117,7 @@ impl Interpreter<'_> {
 
         let stack_frame = StackFrame {
             bir,
+            function,
             tables: &bir_data.tables,
             origins: bir.origins(self.db()),
             local_variables,

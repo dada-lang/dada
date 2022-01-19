@@ -6,23 +6,29 @@
 use std::fmt::Debug;
 
 use dada_id::{id, tables};
-use dada_ir::{class::Class, function::Function, span::FileSpan, word::Word};
+use dada_ir::{
+    class::Class, code::bir::LocalVariable, function::Function, span::FileSpan, word::Word,
+};
 
-use crate::moment::Moment;
+use crate::{moment::Moment, StackFrame};
 
 mod capture;
+mod graphviz;
 
-pub(crate) struct HeapGraph {
+pub struct HeapGraph {
     // 0 is the bottom of the stack, length is the top of the stack.
     stack: Vec<StackFrameNode>,
     tables: Tables,
 }
 
-impl std::ops::Deref for HeapGraph {
-    type Target = Tables;
-
-    fn deref(&self) -> &Tables {
-        &self.tables
+impl HeapGraph {
+    pub fn new(db: &dyn crate::Db, top: &StackFrame<'_>) -> Self {
+        let mut this = Self {
+            stack: vec![],
+            tables: Default::default(),
+        };
+        this.capture_from(db, top);
+        this
     }
 }
 
@@ -40,11 +46,13 @@ id!(pub(crate) struct StackFrameNode);
 #[derive(Debug)]
 pub(crate) struct StackFrameNodeData {
     span: FileSpan,
-    variables: Vec<NamedValueEdge>,
+    function: Function,
+    variables: Vec<LocalVariableEdge>,
 }
 
 #[derive(Debug)]
-pub(crate) struct NamedValueEdge {
+pub(crate) struct LocalVariableEdge {
+    pub(crate) id: LocalVariable,
     pub(crate) name: Option<Word>,
     pub(crate) value: ValueEdge,
 }
@@ -57,7 +65,7 @@ pub(crate) struct ObjectNodeData {
     fields: Vec<ValueEdge>,
 }
 
-#[derive(Debug)]
+#[derive(Copy, Clone, Debug, Hash, PartialEq, Eq)]
 #[allow(clippy::enum_variant_names)]
 pub(crate) enum ValueEdge {
     ToObject(ObjectNode),

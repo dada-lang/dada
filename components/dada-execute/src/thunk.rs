@@ -78,7 +78,7 @@ impl ThunkTrait for FunctionThunk {
     ) -> eyre::Result<Value> {
         let bir = self.function.brew(interpreter.db());
         interpreter
-            .execute_bir(bir, self.arguments, parent_stack_frame)
+            .execute_bir(self.function, bir, self.arguments, parent_stack_frame)
             .await
     }
 }

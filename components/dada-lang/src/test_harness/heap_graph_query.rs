@@ -109,11 +109,13 @@ impl Kernel for HeapGraphKernel {
 
     fn on_cusp(
         &self,
-        _db: &dyn dada_execute::Db,
-        _stack_frame: &dada_execute::StackFrame<'_>,
+        db: &dyn dada_execute::Db,
+        stack_frame: &dada_execute::StackFrame<'_>,
         expr: syntax::Expr,
     ) -> eyre::Result<()> {
         if expr == self.cusp_expr {
+            let heap_graph = dada_execute::heap_graph::HeapGraph::new(db, stack_frame);
+            self.buffer.append(&heap_graph.graphviz(db, true));
             Err(eyre::eyre!(BreakpointExpressionEncountered))
         } else {
             Ok(())

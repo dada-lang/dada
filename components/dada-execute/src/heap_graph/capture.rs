@@ -5,13 +5,13 @@ use dada_id::InternKey;
 use crate::{data::Instance, execute::StackFrame, value::Value};
 
 use super::{
-    DataNodeData, HeapGraph, NamedValueEdge, ObjectNode, ObjectNodeData, StackFrameNodeData,
+    DataNodeData, HeapGraph, LocalVariableEdge, ObjectNode, ObjectNodeData, StackFrameNodeData,
     ValueEdge,
 };
 
 impl HeapGraph {
     ///
-    pub fn capture_from(&mut self, db: &dyn crate::Db, top: &StackFrame<'_>) {
+    pub(super) fn capture_from(&mut self, db: &dyn crate::Db, top: &StackFrame<'_>) {
         if let Some(parent) = top.parent_stack_frame {
             self.capture_from(db, parent);
         }
@@ -25,14 +25,19 @@ impl HeapGraph {
             .map(|(local_variable, value)| {
                 let local_variable_data = local_variable.data(&bir_data.tables);
                 let value_node = self.value_node(db, value);
-                NamedValueEdge {
+                LocalVariableEdge {
+                    id: local_variable,
                     name: local_variable_data.name,
                     value: value_node,
                 }
             })
             .collect::<Vec<_>>();
 
-        let data = StackFrameNodeData { span, variables };
+        let data = StackFrameNodeData {
+            function: top.function,
+            span,
+            variables,
+        };
         let stack_frame = self.tables.add(data);
         self.stack.push(stack_frame);
     }
