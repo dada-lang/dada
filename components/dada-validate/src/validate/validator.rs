@@ -133,6 +133,16 @@ impl<'me> Validator<'me> {
 
     #[tracing::instrument(level = "debug", skip_all)]
     pub(crate) fn validate_expr(&mut self, expr: syntax::Expr) -> validated::Expr {
+        let result = self.validate_expr1(expr);
+
+        // Check that the validated expression always has the same
+        // origin as the expression we started with.
+        assert_eq!(*result.origin_in(self.origins), expr);
+
+        result
+    }
+
+    fn validate_expr1(&mut self, expr: syntax::Expr) -> validated::Expr {
         tracing::trace!("expr.data = {:?}", expr.data(self.syntax_tables()));
         match expr.data(self.syntax_tables()) {
             syntax::ExprData::Dot(..) | syntax::ExprData::Id(_) => {
