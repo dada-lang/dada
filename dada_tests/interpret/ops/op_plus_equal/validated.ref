@@ -1,0 +1,44 @@
+[
+    validated::Tree {
+        num_parameters: 0,
+        root_expr: Seq(
+            [
+                Assign(
+                    x{0},
+                    2,
+                ),
+                Assign(
+                    x{0},
+                    Op(
+                        x{0},
+                        Plus,
+                        4,
+                    ),
+                ),
+                If(
+                    Op(
+                        x{0},
+                        EqualEqual,
+                        6,
+                    ),
+                    Seq(
+                        [
+                            Await(
+                                Call(
+                                    Print,
+                                    [
+                                        (
+                                            None,
+                                            "Huzzah",
+                                        ),
+                                    ],
+                                ),
+                            ),
+                        ],
+                    ),
+                    ,
+                ),
+            ],
+        ),
+    },
+]
