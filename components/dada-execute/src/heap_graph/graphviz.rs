@@ -2,7 +2,7 @@ use dada_collections::IndexSet;
 use dada_id::InternKey;
 use dada_parse::prelude::*;
 
-use super::{HeapGraph, ValueEdge};
+use super::{DataNode, HeapGraph, ValueEdge};
 
 impl HeapGraph {
     pub fn graphviz(&self, db: &dyn crate::Db, include_temporaries: bool) -> String {
@@ -144,9 +144,8 @@ impl HeapGraph {
                 w.println(format!(r#"label = <<b>{name}()</b>>"#))?;
             }
             ValueEdge::ToData(d) => {
-                let data = d.data(&self.tables);
-                let text = format!("{:?}", data.debug);
-                w.println(format!(r#"label = {text:?}"#))?;
+                let data_str = self.data_str(d);
+                w.println(format!(r#"label = {data_str:?}"#))?;
             }
         }
         w.undent(r#"];"#)?;
@@ -161,12 +160,31 @@ impl HeapGraph {
         edges: impl IntoIterator<Item = &'me ValueEdge>,
     ) -> eyre::Result<()> {
         for ((edge, name), index) in edges.into_iter().zip(names).zip(0..) {
+            let edge: &ValueEdge = edge;
             if let Some(name) = name {
-                w.println(format!(r#"<tr><td port="{index}">{name}</td></tr>"#))?;
-                w.push_edge(source, index, edge);
+                if let ValueEdge::ToData(d) = edge {
+                    let data_str = self.data_str(*d);
+                    w.println(format!(
+                        r#"<tr><td port="{index}">{name}: {data_str}</td></tr>"#,
+                    ))?;
+                } else {
+                    w.println(format!(r#"<tr><td port="{index}">{name}</td></tr>"#))?;
+                    w.push_edge(source, index, edge);
+                }
             }
         }
         Ok(())
+    }
+
+    fn data_str(&self, d: DataNode) -> String {
+        let data_str = format!("{:?}", d.data(&self.tables).debug);
+        let data = html_escape::encode_text(&data_str).to_string();
+        if data.len() < 40 {
+            data
+        } else {
+            let len = data.len() - 20;
+            format!("{}[...]{}", &data[0..20], &data[len..])
+        }
     }
 
     fn print_edge(
