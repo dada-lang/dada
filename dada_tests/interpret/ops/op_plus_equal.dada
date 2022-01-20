@@ -1,0 +1,7 @@
+async fn main() {
+    var x = 2
+    x += 4
+    if x == 6 {
+        print("Huzzah").await
+    }
+}

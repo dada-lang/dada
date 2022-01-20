@@ -1,0 +1,88 @@
+[
+    bir::Bir {
+        start_basic_block: BasicBlock(0),
+        BasicBlock(0): BasicBlockData(
+            [
+                Assign(
+                    x{0},
+                    4,
+                ),
+                Assign(
+                    temp{2},
+                    2,
+                ),
+                Assign(
+                    x{0},
+                    x{0} * temp{2},
+                ),
+                Assign(
+                    temp{4},
+                    8,
+                ),
+                Assign(
+                    temp{3},
+                    x{0} == temp{4},
+                ),
+            ],
+            If(
+                temp{3},
+                BasicBlock(1),
+                BasicBlock(2),
+            ),
+        ),
+        BasicBlock(1): BasicBlockData(
+            [
+                Assign(
+                    temp{6},
+                    "Huzzah",
+                ),
+            ],
+            Assign(
+                temp{5},
+                Call(
+                    Print,
+                    [
+                        temp{6},
+                    ],
+                    [
+                        None,
+                    ],
+                ),
+                BasicBlock(4),
+            ),
+        ),
+        BasicBlock(2): BasicBlockData(
+            [
+                Assign(
+                    temp{1},
+                    (),
+                ),
+            ],
+            Goto(
+                BasicBlock(3),
+            ),
+        ),
+        BasicBlock(3): BasicBlockData(
+            [],
+            Return(
+                temp{1},
+            ),
+        ),
+        BasicBlock(4): BasicBlockData(
+            [],
+            Assign(
+                temp{1},
+                Await(
+                    temp{5},
+                ),
+                BasicBlock(5),
+            ),
+        ),
+        BasicBlock(5): BasicBlockData(
+            [],
+            Goto(
+                BasicBlock(3),
+            ),
+        ),
+    },
+]

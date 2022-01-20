@@ -1,0 +1,10 @@
+[
+    syntax::Tree {
+        origin: Code(
+            Some(
+                Tokens(dada_tests/interpret/ops/op_minus_equal.dada:1:15:1:15),
+            ),
+            Tokens(dada_tests/interpret/ops/op_minus_equal.dada:1:18:7:1),
+        ),
+    },
+]
