@@ -46,7 +46,8 @@ impl ExecutionResult {
     }
 
     #[wasm_bindgen(getter)]
-    pub fn heap_capture(&self) -> String {
+    #[allow(non_snake_case)]
+    pub fn heapCapture(&self) -> String {
         self.heap_capture.clone()
     }
 }

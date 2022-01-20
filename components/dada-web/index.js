@@ -1,4 +1,8 @@
 import init, { execute, execute_until } from "./pkg/dada_web.js";
+
+const workerURL = 'ace/viz.render.js';
+let viz = new Viz({ workerURL });
+
 init()
     .then(async () => {
         var editor = ace.edit("editor");
@@ -28,10 +32,26 @@ async function updateOutput(editor, cursor) {
         } else {
             result = await execute_until(editor.getValue(), cursor.row + 1, cursor.column + 1);
         }
+
         console.log("executed until cursor: ", JSON.stringify(cursor));
         var ansi_up = new AnsiUp;
         var html = ansi_up.ansi_to_html(result.fullOutput);
         var cdiv = document.getElementById("output");
         cdiv.innerHTML = html;
+
+        let heapCapture = result.heapCapture;
+        if (heapCapture != "") {
+            try {
+                let element = await viz.renderSVGElement(heapCapture);
+                var gdiv = document.getElementById("graph");
+                while (gdiv.firstChild != null) {
+                    gdiv.removeChild(gdiv.firstChild);
+                }
+                gdiv.appendChild(element);
+            } catch (error) {
+                viz = new Viz({ workerURL });
+                console.log("rendering error", error);
+            }
+        }
     } catch (e) { }
 }
