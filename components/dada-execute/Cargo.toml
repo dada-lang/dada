@@ -17,6 +17,7 @@ dada-ir = { path = "../dada-ir" }
 dada-parse = { path = "../dada-parse" }
 eyre = "0.6.5"
 extension-trait = "1.0.0"
+html-escape = "0.2.9"
 salsa = { path = "../salsa" }
 triomphe = "0.1.5"
 parking_lot = "0.11.2"

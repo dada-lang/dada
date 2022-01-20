@@ -552,15 +552,25 @@ fn expected_diagnostics(path: &Path) -> eyre::Result<Vec<ExpectedDiagnostic>> {
 fn expected_queries(path: &Path) -> eyre::Result<Vec<Query>> {
     let file_contents = std::fs::read_to_string(path)?;
 
-    let query_re =
+    // The notation #?    ^ indicates the line/column pictorially
+    let query_at_re =
         regex::Regex::new(r"^[^#]*#\?\s*(?P<pointer>\^)\s*(?P<kind>[^\s]*)\s*(?P<msg>.*)").unwrap();
+
+    // The notation #? @ 1:1 indicates the line/column by number
+    let query_lc_re = regex::Regex::new(
+        r"^[^#]*#\?\s*@\s*(?P<line>\d+):(?P<column>\d+)\s*(?P<kind>[^\s]*)\s*(?P<msg>.*)",
+    )
+    .unwrap();
+
+    // The notation #? @ 1:1 indicates the line/column by number
+    let query_any_re = regex::Regex::new(r"^[^#]*#\?").unwrap();
 
     let comment_line_re = regex::Regex::new(r"^\s*#").unwrap();
 
     let mut last_code_line = 1;
     let mut result = vec![];
     for (line, line_number) in file_contents.lines().zip(1..) {
-        if let Some(c) = query_re.captures(line) {
+        if let Some(c) = query_at_re.captures(line) {
             // The column comes from the position of the `^`.
             let column = u32::try_from(c.name("pointer").unwrap().start() + 1).unwrap();
 
@@ -576,6 +586,30 @@ fn expected_queries(path: &Path) -> eyre::Result<Vec<Query>> {
                 message: Regex::new(&c["msg"])?,
             });
             tracing::debug!("query {:?} found", result.last());
+        } else if let Some(c) = query_lc_re.captures(line) {
+            // The column comes from the position of the `^`.
+            let given_line_number: u32 = str::parse(&c["line"])
+                .with_context(|| format!("in query on line {}", line_number))?;
+            let given_column_number: u32 = str::parse(&c["column"])
+                .with_context(|| format!("in query on line {}", line_number))?;
+
+            let query_kind = match &c["kind"] {
+                "HeapGraph" => QueryKind::HeapGraph,
+                k => eyre::bail!("unexpected query kind `{}` on line {}", k, line_number),
+            };
+
+            result.push(Query {
+                line: given_line_number,
+                column: given_column_number,
+                kind: query_kind,
+                message: Regex::new(&c["msg"])?,
+            });
+            tracing::debug!("query {:?} found", result.last());
+        } else if query_any_re.is_match(line) {
+            eyre::bail!(
+                "query `#?` on line {} doesn't match any known template",
+                line_number
+            );
         }
 
         if !comment_line_re.is_match(line) {
