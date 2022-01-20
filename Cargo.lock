@@ -414,6 +414,7 @@ name = "dada-web"
 version = "0.1.0"
 dependencies = [
  "async-trait",
+ "dada-breakpoint",
  "dada-collections",
  "dada-db",
  "dada-error-format",
@@ -424,6 +425,7 @@ dependencies = [
  "eyre",
  "parking_lot",
  "salsa",
+ "thiserror",
  "wasm-bindgen",
  "wasm-bindgen-futures",
 ]

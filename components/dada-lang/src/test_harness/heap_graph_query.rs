@@ -1,9 +1,9 @@
 use std::path::Path;
 
 use dada_execute::kernel::{BufferKernel, Kernel};
+use dada_ir::code::Code;
 use dada_ir::span::LineColumn;
 use dada_ir::{code::syntax, filename::Filename};
-use dada_parse::prelude::DadaParseItemExt;
 use eyre::Context;
 use thiserror::Error;
 
@@ -23,37 +23,21 @@ impl super::Options {
     ) -> eyre::Result<()> {
         assert!(matches!(query.kind, QueryKind::HeapGraph));
 
-        let offset = dada_ir::lines::offset(
+        let (code, cusp_expr) = match dada_breakpoint::breakpoint::find(
             db,
             filename,
             LineColumn {
                 line: query.line,
                 column: query.column,
             },
-        );
-
-        let item = match dada_breakpoint::breakpoint::find_item(db, filename, offset) {
-            Some(item) => item,
-            None => eyre::bail!("query point is not within any item"),
-        };
-
-        let syntax_tree = match item.syntax_tree(db) {
-            Some(syntax_tree) => syntax_tree,
-            None => eyre::bail!(
-                "item `{}` has no associated syntax tree",
-                item.name(db).as_str(db)
-            ),
-        };
-
-        let cusp_expr = match dada_breakpoint::breakpoint::find_syntax_expr(db, syntax_tree, offset)
-        {
-            Some(cusp_expr) => cusp_expr,
+        ) {
+            Some(pair) => pair,
             None => eyre::bail!("could not identify the expression at this breakpoint"),
         };
 
         let actual_output = match db.function_named(filename, "main") {
             Some(function) => {
-                let kernel = HeapGraphKernel::new(cusp_expr);
+                let kernel = HeapGraphKernel::new(code, cusp_expr);
 
                 // Execute the function and check that we encounter the breakpoint.
                 // If we did, then the heap-graph should be contained in the output.
@@ -85,13 +69,15 @@ impl super::Options {
 
 struct HeapGraphKernel {
     buffer: BufferKernel,
+    code: Code,
     cusp_expr: syntax::Expr,
 }
 
 impl HeapGraphKernel {
-    fn new(cusp_expr: syntax::Expr) -> Self {
+    fn new(code: Code, cusp_expr: syntax::Expr) -> Self {
         Self {
             buffer: BufferKernel::new(),
+            code,
             cusp_expr,
         }
     }
@@ -113,7 +99,7 @@ impl Kernel for HeapGraphKernel {
         stack_frame: &dada_execute::StackFrame<'_>,
         expr: syntax::Expr,
     ) -> eyre::Result<()> {
-        if expr == self.cusp_expr {
+        if expr == self.cusp_expr && self.code == stack_frame.code(db) {
             let heap_graph = dada_execute::heap_graph::HeapGraph::new(db, stack_frame);
             self.buffer.append(&heap_graph.graphviz(db, true));
             Err(eyre::eyre!(BreakpointExpressionEncountered))

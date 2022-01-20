@@ -1,8 +1,26 @@
 use dada_id::prelude::*;
 use dada_ir::{
-    code::syntax, filename::Filename, item::Item, origin_table::HasOriginIn, span::Offset,
+    code::{syntax, Code},
+    filename::Filename,
+    item::Item,
+    origin_table::HasOriginIn,
+    span::{LineColumn, Offset},
 };
 use dada_parse::prelude::*;
+
+pub fn find(
+    db: &dyn crate::Db,
+    filename: Filename,
+    position: LineColumn,
+) -> Option<(Code, syntax::Expr)> {
+    let offset = dada_ir::lines::offset(db, filename, position);
+
+    let item = find_item(db, filename, offset)?;
+    let code = item.code(db)?;
+    let syntax_tree = code.syntax_tree(db);
+    let cusp_expr = find_syntax_expr(db, syntax_tree, offset)?;
+    Some((code, cusp_expr))
+}
 
 pub fn find_item(db: &dyn crate::Db, filename: Filename, offset: Offset) -> Option<Item> {
     filename
