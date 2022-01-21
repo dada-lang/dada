@@ -344,9 +344,9 @@ impl Options {
     ) -> eyre::Result<()> {
         let actual_output = match db.function_named(filename, "main") {
             Some(function) => {
-                let kernel = BufferKernel::new();
+                let mut kernel = BufferKernel::new();
                 kernel.interpret_and_buffer(db, function, vec![]).await;
-                kernel.into_buffer()
+                kernel.take_buffer()
             }
             None => {
                 format!("no `main` function in `{}`", filename.as_str(db))
@@ -638,18 +638,18 @@ impl ActualDiagnostic for dada_ir::diagnostic::Diagnostic {
     fn matches(&self, db: &Self::Db, expected: &ExpectedDiagnostic) -> bool {
         let (_, start, end) = db.line_columns(self.span);
 
-        if start.line != expected.start_line {
+        if start.line1() != expected.start_line {
             return false;
         }
 
         if let Some(start_column) = expected.start_column {
-            if start.column != start_column {
+            if start.column1() != start_column {
                 return false;
             }
         }
 
         if let Some((end_line, end_column)) = expected.end_line_column {
-            if end_line != end.line || end_column != end.column {
+            if end_line != end.line1() || end_column != end.column1() {
                 return false;
             }
         }
@@ -664,7 +664,7 @@ impl ActualDiagnostic for dada_ir::diagnostic::Diagnostic {
 
     fn start(&self, db: &Self::Db) -> (u32, u32) {
         let (_, start, _) = db.line_columns(self.span);
-        (start.line, start.column)
+        (start.line1(), start.column1())
     }
 
     fn summary(&self, db: &Self::Db) -> String {
@@ -672,10 +672,10 @@ impl ActualDiagnostic for dada_ir::diagnostic::Diagnostic {
         format!(
             " {}:{}:{}:{}:{}: {} {} [from db]",
             filename.as_str(db),
-            start.line,
-            start.column,
-            end.line,
-            end.column,
+            start.line1(),
+            start.column1(),
+            end.line1(),
+            end.column1(),
             self.severity(db),
             self.message
         )

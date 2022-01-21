@@ -1,12 +1,6 @@
 use dada_error_format::format_diagnostics;
-use dada_execute::kernel::{BufferKernel, Kernel};
-use dada_ir::{
-    code::{syntax, Code},
-    filename::Filename,
-    span::LineColumn,
-};
-use parking_lot::Mutex;
-use thiserror::Error;
+use dada_execute::kernel::BufferKernel;
+use dada_ir::{filename::Filename, span::LineColumn};
 use wasm_bindgen::prelude::*;
 
 #[wasm_bindgen]
@@ -63,9 +57,9 @@ pub async fn execute(code: String) -> ExecutionResult {
 
     let output = match db.function_named(filename, "main") {
         Some(function) => {
-            let kernel = BufferKernel::new();
+            let mut kernel = BufferKernel::new();
             kernel.interpret_and_buffer(&db, function, vec![]).await;
-            kernel.into_buffer()
+            kernel.take_buffer()
         }
         None => {
             format!("no `main` function in `{}`", filename.as_str(&db))
@@ -85,32 +79,31 @@ pub async fn execute(code: String) -> ExecutionResult {
     }
 }
 
-/// Execute the dada code up until the (1-based) line/column.
+/// Execute the dada code up until the (0-based) line/column.
 #[wasm_bindgen]
-pub async fn execute_until(code: String, line: u32, column: u32) -> ExecutionResult {
+pub async fn execute_until(code: String, line0: u32, column0: u32) -> ExecutionResult {
     let mut db = dada_db::Db::default();
     let filename = Filename::from(&db, "input.dada");
     db.update_file(filename, code);
 
     let diagnostics = db.diagnostics(filename);
 
-    let breakpoint = dada_breakpoint::breakpoint::find(&db, filename, LineColumn { line, column });
-    let kernel = WebKernel::new(breakpoint);
-    let output = match db.function_named(filename, "main") {
+    let breakpoint =
+        dada_breakpoint::breakpoint::find(&db, filename, LineColumn::new0(line0, column0));
+    let mut kernel = BufferKernel::new()
+        .breakpoint(breakpoint)
+        .stop_at_breakpoint(true);
+    match db.function_named(filename, "main") {
         Some(function) => {
-            match dada_execute::interpret(function, &db, &kernel, vec![]).await {
-                Ok(()) => {}
-                Err(e) => match e.downcast() {
-                    Ok(BreakpointExpressionEncountered) => {}
-                    Err(e) => kernel.buffer.append(&e.to_string()),
-                },
-            }
-            kernel.buffer.into_buffer()
+            kernel.interpret_and_buffer(&db, function, vec![]).await;
         }
         None => {
-            format!("no `main` function in `{}`", filename.as_str(&db))
+            kernel.append(&format!("no `main` function in `{}`", filename.as_str(&db)));
         }
     };
+
+    let output = kernel.take_buffer();
+    let heap_graphs = kernel.take_heap_graphs();
 
     let diagnostics = if diagnostics.is_empty() {
         String::new()
@@ -118,56 +111,14 @@ pub async fn execute_until(code: String, line: u32, column: u32) -> ExecutionRes
         format_diagnostics(&db, &diagnostics).unwrap()
     };
 
-    let heap_capture: String = kernel.heap_graphs.into_inner().into_iter().collect();
+    let heap_capture: String = heap_graphs
+        .into_iter()
+        .map(|hg| hg.graphviz(&db, false))
+        .collect();
 
     ExecutionResult {
         diagnostics,
         output,
         heap_capture,
-    }
-}
-
-struct WebKernel {
-    buffer: BufferKernel,
-    breakpoint: Option<(Code, syntax::Expr)>,
-    heap_graphs: Mutex<Vec<String>>,
-}
-
-impl WebKernel {
-    fn new(breakpoint: Option<(Code, syntax::Expr)>) -> Self {
-        Self {
-            buffer: BufferKernel::new(),
-            breakpoint,
-            heap_graphs: Default::default(),
-        }
-    }
-}
-
-#[derive(Error, Debug)]
-#[error("breakpoint expression encountered")]
-struct BreakpointExpressionEncountered;
-
-#[async_trait::async_trait]
-impl Kernel for WebKernel {
-    async fn print(&self, text: &str) -> eyre::Result<()> {
-        self.buffer.print(text).await
-    }
-
-    fn on_cusp(
-        &self,
-        db: &dyn dada_execute::Db,
-        stack_frame: &dada_execute::StackFrame<'_>,
-        current_expr: syntax::Expr,
-    ) -> eyre::Result<()> {
-        match self.breakpoint {
-            Some((code, cusp_expr))
-                if cusp_expr == current_expr && code == stack_frame.code(db) =>
-            {
-                let heap_graph = dada_execute::heap_graph::HeapGraph::new(db, stack_frame);
-                self.heap_graphs.lock().push(heap_graph.graphviz(db, true));
-                Err(BreakpointExpressionEncountered.into())
-            }
-            _ => Ok(()),
-        }
     }
 }

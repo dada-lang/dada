@@ -9,28 +9,34 @@ pub struct LineTable {
     /// So `0..line_endings[0]` represents the range of characters for the first line
     /// and so forth.
     line_endings: Vec<Offset>,
+    end_offset: Offset,
 }
 
 impl LineTable {
-    fn line_start(&self, line: usize) -> Offset {
-        if line == 0 {
+    /// Given a (1-based) line number, find the start of the line.
+    ///
+    /// If `line` is out of range, panics.
+    fn line_start(&self, line0: usize) -> Offset {
+        if line0 == 0 {
             Offset::from(0_u32)
         } else {
-            self.line_endings[line - 1] + 1_u32
+            let previous_line0 = line0 - 1;
+            self.line_endings[previous_line0] + 1_u32
         }
+    }
+
+    fn num_lines(&self) -> usize {
+        self.line_endings.len() + 1
     }
 }
 
-/// Converts a character index `position` into a (1-based) line and column tuple.
+/// Converts a character index `position` into a line and column tuple.
 pub fn line_column(db: &dyn crate::Db, filename: Filename, position: Offset) -> LineColumn {
     let table = line_table(db, filename);
     match table.line_endings.binary_search(&position) {
-        Ok(line) | Err(line) => {
-            let line_start = table.line_start(line);
-            LineColumn {
-                line: line as u32 + 1,
-                column: position - line_start + 1,
-            }
+        Ok(line0) | Err(line0) => {
+            let line_start = table.line_start(line0);
+            LineColumn::new0(line0, position - line_start + 1)
         }
     }
 }
@@ -38,12 +44,12 @@ pub fn line_column(db: &dyn crate::Db, filename: Filename, position: Offset) -> 
 /// Given a (1-based) line/column tuple, returns a character index.
 pub fn offset(db: &dyn crate::Db, filename: Filename, position: LineColumn) -> Offset {
     let table = line_table(db, filename);
-    if position.line == 0 {
-        return Offset::from(position.column - 1);
-    }
 
-    let start = table.line_endings[usize::try_from(position.line).unwrap() - 1];
-    start + (position.column - 1)
+    if position.line0_usize() >= table.num_lines() {
+        return table.end_offset;
+    }
+    let line_start = table.line_start(position.line0_usize());
+    (line_start + position.column0()).min(table.end_offset)
 }
 
 #[salsa::memoized(in crate::Jar ref)]
@@ -53,6 +59,7 @@ fn line_table(db: &dyn crate::Db, filename: Filename) -> LineTable {
     let mut p: usize = 0;
     let mut table = LineTable {
         line_endings: vec![],
+        end_offset: Offset::from(source_text.len()),
     };
     for line in source_text.lines() {
         p += line.len();

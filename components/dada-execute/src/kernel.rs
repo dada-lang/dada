@@ -1,9 +1,12 @@
 //! The "kernel" is the interface from the interpreter to the outside world.
 
-use dada_ir::{code::syntax, function::Function};
+use dada_ir::{
+    code::{syntax, Code},
+    function::Function,
+};
 use parking_lot::Mutex;
 
-use crate::{execute::StackFrame, value::Value};
+use crate::{execute::StackFrame, heap_graph::HeapGraph, value::Value};
 
 #[async_trait::async_trait]
 pub trait Kernel: Send + Sync {
@@ -28,11 +31,45 @@ pub trait Kernel: Send + Sync {
 #[derive(Default)]
 pub struct BufferKernel {
     buffer: Mutex<String>,
+    breakpoint: Option<(Code, syntax::Expr)>,
+    stop_at_breakpoint: bool,
+    dump_breakpoint: bool,
+    heap_graphs: Mutex<Vec<HeapGraph>>,
 }
 
 impl BufferKernel {
     pub fn new() -> Self {
         Self::default()
+    }
+
+    /// Buiilder method: if breakpoint is Some, then whenever the breakpoint is
+    /// encountered we will capture a heap-graph.
+    ///
+    /// See the `dada-breakpoint` crate for code to find a breakpoint.
+    pub fn breakpoint(self, breakpoint: Option<(Code, syntax::Expr)>) -> Self {
+        assert!(self.breakpoint.is_none());
+        Self { breakpoint, ..self }
+    }
+
+    /// Builder method: if `stop_at_breakpoint` is true, then when a breakpoint
+    /// is encountered we will stop with the error [`BreakpointExpressionEncountered`].
+    /// If false, execution will continue (and the breakpoint may be hit more than
+    /// once).
+    pub fn stop_at_breakpoint(self, stop_at_breakpoint: bool) -> Self {
+        Self {
+            stop_at_breakpoint,
+            ..self
+        }
+    }
+
+    /// Builder method: if `dump_breakpoint` is true, prints graphviz
+    /// for heap at each breakpoint into the buffer instead of accumulating
+    /// into the internal vector for later inspection.
+    pub fn dump_breakpoint(self, dump_breakpoint: bool) -> Self {
+        Self {
+            dump_breakpoint,
+            ..self
+        }
     }
 
     pub async fn interpret(
@@ -58,14 +95,25 @@ impl BufferKernel {
         }
     }
 
-    pub fn into_buffer(self) -> String {
-        Mutex::into_inner(self.buffer)
+    /// Take the heap graphs from the mutex
+    pub fn take_heap_graphs(&mut self) -> Vec<HeapGraph> {
+        std::mem::take(self.heap_graphs.get_mut())
     }
 
+    /// Convert the buffer into the output
+    pub fn take_buffer(&mut self) -> String {
+        std::mem::take(self.buffer.get_mut())
+    }
+
+    /// Append text into the output buffer
     pub fn append(&self, s: &str) {
         self.buffer.lock().push_str(s);
     }
 }
+
+#[derive(thiserror::Error, Debug)]
+#[error("breakpoint expression encountered")]
+pub struct BreakpointExpressionEncountered;
 
 #[async_trait::async_trait]
 impl Kernel for BufferKernel {
@@ -76,10 +124,26 @@ impl Kernel for BufferKernel {
 
     fn on_cusp(
         &self,
-        _db: &dyn crate::Db,
-        _stack_frame: &StackFrame<'_>,
-        _expr: syntax::Expr,
+        db: &dyn crate::Db,
+        stack_frame: &StackFrame<'_>,
+        expr: syntax::Expr,
     ) -> eyre::Result<()> {
+        if let Some((breakpoint_code, breakpoint_expr)) = self.breakpoint {
+            if breakpoint_expr == expr && breakpoint_code == stack_frame.code(db) {
+                let heap_graph = HeapGraph::new(db, stack_frame);
+
+                if self.dump_breakpoint {
+                    self.append(&heap_graph.graphviz(db, true));
+                } else {
+                    self.heap_graphs.lock().push(heap_graph);
+                }
+
+                if self.stop_at_breakpoint {
+                    return Err(BreakpointExpressionEncountered.into());
+                }
+            }
+        }
+
         Ok(())
     }
 }

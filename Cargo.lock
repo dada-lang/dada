@@ -302,6 +302,7 @@ dependencies = [
  "html-escape",
  "parking_lot",
  "salsa",
+ "thiserror",
  "triomphe",
 ]
 
@@ -348,7 +349,6 @@ dependencies = [
  "serde_json",
  "similar",
  "structopt",
- "thiserror",
  "tokio",
  "tracing",
  "tracing-subscriber",
@@ -426,7 +426,6 @@ dependencies = [
  "eyre",
  "parking_lot",
  "salsa",
- "thiserror",
  "wasm-bindgen",
  "wasm-bindgen-futures",
 ]

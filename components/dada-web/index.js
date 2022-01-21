@@ -21,7 +21,7 @@ init()
         });
         // editor.session.setMode("ace/mode/javascript");
 
-        await updateOutput(editor);
+        await updateOutput(editor, null);
     });
 
 async function updateOutput(editor, cursor) {
@@ -30,7 +30,7 @@ async function updateOutput(editor, cursor) {
         if (cursor == null) {
             result = await execute(editor.getValue());
         } else {
-            result = await execute_until(editor.getValue(), cursor.row + 1, cursor.column + 1);
+            result = await execute_until(editor.getValue(), cursor.row, cursor.column);
         }
 
         console.log("executed until cursor: ", JSON.stringify(cursor));

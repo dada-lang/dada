@@ -7,7 +7,6 @@ async-trait = "0.1.52"
 dada-breakpoint = { path = "../dada-breakpoint" }
 eyre = "0.6.5"
 parking_lot = { version = "0.11.2", features = ["wasm-bindgen"] }
-thiserror = "1.0"
 wasm-bindgen = "0.2.78"
 wasm-bindgen-futures = "*"
 

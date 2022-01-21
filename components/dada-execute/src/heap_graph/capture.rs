@@ -62,7 +62,7 @@ impl HeapGraph {
     fn data_edge(
         &mut self,
         _db: &dyn crate::Db,
-        d: &(impl std::fmt::Debug + Clone + 'static),
+        d: &(impl std::fmt::Debug + Send + Sync + Clone + 'static),
     ) -> ValueEdge {
         let b = DataNodeData {
             debug: Box::new(d.clone()),

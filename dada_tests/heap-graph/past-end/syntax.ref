@@ -1,0 +1,10 @@
+[
+    syntax::Tree {
+        origin: Code(
+            Some(
+                Tokens(dada_tests/heap-graph/past-end.dada:2:16:2:16),
+            ),
+            Tokens(dada_tests/heap-graph/past-end.dada:2:19:8:2),
+        ),
+    },
+]

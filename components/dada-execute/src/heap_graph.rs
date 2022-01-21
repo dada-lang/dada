@@ -78,7 +78,7 @@ id!(pub(crate) struct DataNode);
 
 #[derive(Debug)]
 pub(crate) struct DataNodeData {
-    debug: Box<dyn Debug>,
+    debug: Box<dyn Debug + Send + Sync>,
 }
 
 id!(pub(crate) struct PermissionNode);
