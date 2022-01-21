@@ -1,75 +1,141 @@
 [
-    validated::Tree {
-        num_parameters: 2,
-        root_expr: Seq(
+    (
+        Expr(0),
+        Seq(
             [],
         ),
-    },
-    validated::Tree {
-        num_parameters: 0,
-        root_expr: Seq(
+        Expr(0),
+    ),
+    (
+        Expr(16),
+        Seq(
             [
-                Call(
-                    foo,
-                    [
+                (
+                    Expr(3),
+                    Call(
                         (
-                            None,
-                            "a",
+                            Expr(0),
+                            foo,
+                            Expr(0),
                         ),
-                        (
-                            None,
-                            "b",
-                        ),
-                    ],
+                        [
+                            (
+                                None,
+                                (
+                                    Expr(1),
+                                    "a",
+                                    Expr(1),
+                                ),
+                            ),
+                            (
+                                None,
+                                (
+                                    Expr(2),
+                                    "b",
+                                    Expr(2),
+                                ),
+                            ),
+                        ],
+                    ),
+                    Expr(3),
                 ),
-                Call(
-                    foo,
-                    [
+                (
+                    Expr(7),
+                    Call(
                         (
-                            Some(
-                                "a",
+                            Expr(4),
+                            foo,
+                            Expr(4),
+                        ),
+                        [
+                            (
+                                Some(
+                                    "a",
+                                ),
+                                (
+                                    Expr(5),
+                                    "a",
+                                    Expr(5),
+                                ),
                             ),
-                            "a",
-                        ),
-                        (
-                            None,
-                            "b",
-                        ),
-                    ],
+                            (
+                                None,
+                                (
+                                    Expr(6),
+                                    "b",
+                                    Expr(6),
+                                ),
+                            ),
+                        ],
+                    ),
+                    Expr(7),
                 ),
-                Call(
-                    foo,
-                    [
+                (
+                    Expr(11),
+                    Call(
                         (
-                            None,
-                            "a",
+                            Expr(8),
+                            foo,
+                            Expr(8),
                         ),
-                        (
-                            Some(
-                                "b",
+                        [
+                            (
+                                None,
+                                (
+                                    Expr(9),
+                                    "a",
+                                    Expr(9),
+                                ),
                             ),
-                            "b",
-                        ),
-                    ],
+                            (
+                                Some(
+                                    "b",
+                                ),
+                                (
+                                    Expr(10),
+                                    "b",
+                                    Expr(10),
+                                ),
+                            ),
+                        ],
+                    ),
+                    Expr(11),
                 ),
-                Call(
-                    foo,
-                    [
+                (
+                    Expr(15),
+                    Call(
                         (
-                            Some(
-                                "a",
-                            ),
-                            "a",
+                            Expr(12),
+                            foo,
+                            Expr(12),
                         ),
-                        (
-                            Some(
-                                "b",
+                        [
+                            (
+                                Some(
+                                    "a",
+                                ),
+                                (
+                                    Expr(13),
+                                    "a",
+                                    Expr(13),
+                                ),
                             ),
-                            "b",
-                        ),
-                    ],
+                            (
+                                Some(
+                                    "b",
+                                ),
+                                (
+                                    Expr(14),
+                                    "b",
+                                    Expr(14),
+                                ),
+                            ),
+                        ],
+                    ),
+                    Expr(15),
                 ),
             ],
         ),
-    },
+        Expr(16),
+    ),
 ]

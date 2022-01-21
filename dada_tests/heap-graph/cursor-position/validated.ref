@@ -1,60 +1,117 @@
 [
-    validated::Tree {
-        num_parameters: 0,
-        root_expr: Seq(
+    (
+        Expr(14),
+        Seq(
             [
-                Assign(
-                    p{0},
-                    Call(
-                        Class(
-                            Id {
-                                value: 1,
-                            },
+                (
+                    Expr(4),
+                    Assign(
+                        p{0},
+                        (
+                            Expr(3),
+                            Call(
+                                (
+                                    Expr(0),
+                                    Class(
+                                        Id {
+                                            value: 1,
+                                        },
+                                    ),
+                                    Expr(0),
+                                ),
+                                [
+                                    (
+                                        None,
+                                        (
+                                            Expr(1),
+                                            22,
+                                            Expr(1),
+                                        ),
+                                    ),
+                                    (
+                                        None,
+                                        (
+                                            Expr(2),
+                                            44,
+                                            Expr(2),
+                                        ),
+                                    ),
+                                ],
+                            ),
+                            Expr(3),
                         ),
-                        [
-                            (
-                                None,
-                                22,
-                            ),
-                            (
-                                None,
-                                44,
-                            ),
-                        ],
                     ),
+                    Expr(4),
                 ),
-                Assign(
-                    q{1},
-                    Call(
-                        Class(
-                            Id {
-                                value: 1,
-                            },
+                (
+                    Expr(9),
+                    Assign(
+                        q{1},
+                        (
+                            Expr(8),
+                            Call(
+                                (
+                                    Expr(5),
+                                    Class(
+                                        Id {
+                                            value: 1,
+                                        },
+                                    ),
+                                    Expr(5),
+                                ),
+                                [
+                                    (
+                                        None,
+                                        (
+                                            Expr(6),
+                                            p{0},
+                                            Expr(6),
+                                        ),
+                                    ),
+                                    (
+                                        None,
+                                        (
+                                            Expr(7),
+                                            66,
+                                            Expr(7),
+                                        ),
+                                    ),
+                                ],
+                            ),
+                            Expr(8),
                         ),
-                        [
-                            (
-                                None,
-                                p{0},
-                            ),
-                            (
-                                None,
-                                66,
-                            ),
-                        ],
                     ),
+                    Expr(9),
                 ),
-                Await(
-                    Call(
-                        Print,
-                        [
-                            (
-                                None,
-                                "Hi",
+                (
+                    Expr(13),
+                    Await(
+                        (
+                            Expr(12),
+                            Call(
+                                (
+                                    Expr(10),
+                                    Print,
+                                    Expr(10),
+                                ),
+                                [
+                                    (
+                                        None,
+                                        (
+                                            Expr(11),
+                                            "Hi",
+                                            Expr(11),
+                                        ),
+                                    ),
+                                ],
                             ),
-                        ],
+                            Expr(12),
+                        ),
                     ),
+                    Expr(13),
                 ),
             ],
         ),
-    },
+        Expr(14),
+    ),
 ]

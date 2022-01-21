@@ -1,119 +1,280 @@
 [
-    validated::Tree {
-        num_parameters: 0,
-        root_expr: Seq(
+    (
+        Expr(40),
+        Seq(
             [
-                Await(
-                    Call(
-                        Print,
-                        [
-                            (
-                                None,
-                                "Foo\nBar",
+                (
+                    Expr(3),
+                    Await(
+                        (
+                            Expr(2),
+                            Call(
+                                (
+                                    Expr(0),
+                                    Print,
+                                    Expr(0),
+                                ),
+                                [
+                                    (
+                                        None,
+                                        (
+                                            Expr(1),
+                                            "Foo\nBar",
+                                            Expr(1),
+                                        ),
+                                    ),
+                                ],
                             ),
-                        ],
+                            Expr(2),
+                        ),
                     ),
+                    Expr(3),
                 ),
-                Await(
-                    Call(
-                        Print,
-                        [
-                            (
-                                None,
-                                "Foo\tBar",
+                (
+                    Expr(7),
+                    Await(
+                        (
+                            Expr(6),
+                            Call(
+                                (
+                                    Expr(4),
+                                    Print,
+                                    Expr(4),
+                                ),
+                                [
+                                    (
+                                        None,
+                                        (
+                                            Expr(5),
+                                            "Foo\tBar",
+                                            Expr(5),
+                                        ),
+                                    ),
+                                ],
                             ),
-                        ],
+                            Expr(6),
+                        ),
                     ),
+                    Expr(7),
                 ),
-                Await(
-                    Call(
-                        Print,
-                        [
-                            (
-                                None,
-                                "Foo\r\nBar",
+                (
+                    Expr(11),
+                    Await(
+                        (
+                            Expr(10),
+                            Call(
+                                (
+                                    Expr(8),
+                                    Print,
+                                    Expr(8),
+                                ),
+                                [
+                                    (
+                                        None,
+                                        (
+                                            Expr(9),
+                                            "Foo\r\nBar",
+                                            Expr(9),
+                                        ),
+                                    ),
+                                ],
                             ),
-                        ],
+                            Expr(10),
+                        ),
                     ),
+                    Expr(11),
                 ),
-                Await(
-                    Call(
-                        Print,
-                        [
-                            (
-                                None,
-                                "Foo \\ Bar",
+                (
+                    Expr(15),
+                    Await(
+                        (
+                            Expr(14),
+                            Call(
+                                (
+                                    Expr(12),
+                                    Print,
+                                    Expr(12),
+                                ),
+                                [
+                                    (
+                                        None,
+                                        (
+                                            Expr(13),
+                                            "Foo \\ Bar",
+                                            Expr(13),
+                                        ),
+                                    ),
+                                ],
                             ),
-                        ],
+                            Expr(14),
+                        ),
                     ),
+                    Expr(15),
                 ),
-                Await(
-                    Call(
-                        Print,
-                        [
-                            (
-                                None,
-                                "Foo \" Bar",
+                (
+                    Expr(19),
+                    Await(
+                        (
+                            Expr(18),
+                            Call(
+                                (
+                                    Expr(16),
+                                    Print,
+                                    Expr(16),
+                                ),
+                                [
+                                    (
+                                        None,
+                                        (
+                                            Expr(17),
+                                            "Foo \" Bar",
+                                            Expr(17),
+                                        ),
+                                    ),
+                                ],
                             ),
-                        ],
+                            Expr(18),
+                        ),
                     ),
+                    Expr(19),
                 ),
-                Await(
-                    Call(
-                        Print,
-                        [
-                            (
-                                None,
-                                "Foo \\",
+                (
+                    Expr(23),
+                    Await(
+                        (
+                            Expr(22),
+                            Call(
+                                (
+                                    Expr(20),
+                                    Print,
+                                    Expr(20),
+                                ),
+                                [
+                                    (
+                                        None,
+                                        (
+                                            Expr(21),
+                                            "Foo \\",
+                                            Expr(21),
+                                        ),
+                                    ),
+                                ],
                             ),
-                        ],
+                            Expr(22),
+                        ),
                     ),
+                    Expr(23),
                 ),
-                Await(
-                    Call(
-                        Print,
-                        [
-                            (
-                                None,
-                                "\t    Foo\n    \tBar",
+                (
+                    Expr(27),
+                    Await(
+                        (
+                            Expr(26),
+                            Call(
+                                (
+                                    Expr(24),
+                                    Print,
+                                    Expr(24),
+                                ),
+                                [
+                                    (
+                                        None,
+                                        (
+                                            Expr(25),
+                                            "\t    Foo\n    \tBar",
+                                            Expr(25),
+                                        ),
+                                    ),
+                                ],
                             ),
-                        ],
+                            Expr(26),
+                        ),
                     ),
+                    Expr(27),
                 ),
-                Await(
-                    Call(
-                        Print,
-                        [
-                            (
-                                None,
-                                "\nFoo\n",
+                (
+                    Expr(31),
+                    Await(
+                        (
+                            Expr(30),
+                            Call(
+                                (
+                                    Expr(28),
+                                    Print,
+                                    Expr(28),
+                                ),
+                                [
+                                    (
+                                        None,
+                                        (
+                                            Expr(29),
+                                            "\nFoo\n",
+                                            Expr(29),
+                                        ),
+                                    ),
+                                ],
                             ),
-                        ],
+                            Expr(30),
+                        ),
                     ),
+                    Expr(31),
                 ),
-                Await(
-                    Call(
-                        Print,
-                        [
-                            (
-                                None,
-                                "\tFoo\t",
+                (
+                    Expr(35),
+                    Await(
+                        (
+                            Expr(34),
+                            Call(
+                                (
+                                    Expr(32),
+                                    Print,
+                                    Expr(32),
+                                ),
+                                [
+                                    (
+                                        None,
+                                        (
+                                            Expr(33),
+                                            "\tFoo\t",
+                                            Expr(33),
+                                        ),
+                                    ),
+                                ],
                             ),
-                        ],
+                            Expr(34),
+                        ),
                     ),
+                    Expr(35),
                 ),
-                Await(
-                    Call(
-                        Print,
-                        [
-                            (
-                                None,
-                                "\tFoo\n\tBar",
+                (
+                    Expr(39),
+                    Await(
+                        (
+                            Expr(38),
+                            Call(
+                                (
+                                    Expr(36),
+                                    Print,
+                                    Expr(36),
+                                ),
+                                [
+                                    (
+                                        None,
+                                        (
+                                            Expr(37),
+                                            "\tFoo\n\tBar",
+                                            Expr(37),
+                                        ),
+                                    ),
+                                ],
                             ),
-                        ],
+                            Expr(38),
+                        ),
                     ),
+                    Expr(39),
                 ),
             ],
         ),
-    },
+        Expr(40),
+    ),
 ]

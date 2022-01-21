@@ -3,11 +3,17 @@
         start_basic_block: BasicBlock(0),
         BasicBlock(0): BasicBlockData(
             [
-                Assign(
-                    temp{2},
-                    true,
+                (
+                    Assign(
+                        temp{2},
+                        true,
+                    ),
+                    Expr(0),
                 ),
-                Cusp,
+                (
+                    Cusp,
+                    Expr(0),
+                ),
             ],
             If(
                 temp{2},
@@ -17,13 +23,25 @@
         ),
         BasicBlock(1): BasicBlockData(
             [
-                Cusp,
-                Assign(
-                    temp{4},
-                    "1",
+                (
+                    Cusp,
+                    Expr(1),
                 ),
-                Cusp,
-                Cusp,
+                (
+                    Assign(
+                        temp{4},
+                        "1",
+                    ),
+                    Expr(2),
+                ),
+                (
+                    Cusp,
+                    Expr(2),
+                ),
+                (
+                    Cusp,
+                    Expr(3),
+                ),
             ],
             Assign(
                 temp{3},
@@ -41,11 +59,17 @@
         ),
         BasicBlock(2): BasicBlockData(
             [
-                Assign(
-                    temp{1},
-                    (),
+                (
+                    Assign(
+                        temp{1},
+                        (),
+                    ),
+                    Expr(6),
                 ),
-                Cusp,
+                (
+                    Cusp,
+                    Expr(6),
+                ),
             ],
             Goto(
                 BasicBlock(3),
@@ -53,12 +77,21 @@
         ),
         BasicBlock(3): BasicBlockData(
             [
-                Cusp,
-                Assign(
-                    temp{6},
-                    false,
+                (
+                    Cusp,
+                    Expr(6),
                 ),
-                Cusp,
+                (
+                    Assign(
+                        temp{6},
+                        false,
+                    ),
+                    Expr(7),
+                ),
+                (
+                    Cusp,
+                    Expr(7),
+                ),
             ],
             If(
                 temp{6},
@@ -78,8 +111,14 @@
         ),
         BasicBlock(5): BasicBlockData(
             [
-                Cusp,
-                Cusp,
+                (
+                    Cusp,
+                    Expr(4),
+                ),
+                (
+                    Cusp,
+                    Expr(5),
+                ),
             ],
             Goto(
                 BasicBlock(3),
@@ -87,13 +126,25 @@
         ),
         BasicBlock(6): BasicBlockData(
             [
-                Cusp,
-                Assign(
-                    temp{8},
-                    "2",
+                (
+                    Cusp,
+                    Expr(8),
                 ),
-                Cusp,
-                Cusp,
+                (
+                    Assign(
+                        temp{8},
+                        "2",
+                    ),
+                    Expr(9),
+                ),
+                (
+                    Cusp,
+                    Expr(9),
+                ),
+                (
+                    Cusp,
+                    Expr(10),
+                ),
             ],
             Assign(
                 temp{7},
@@ -111,11 +162,17 @@
         ),
         BasicBlock(7): BasicBlockData(
             [
-                Assign(
-                    temp{5},
-                    (),
+                (
+                    Assign(
+                        temp{5},
+                        (),
+                    ),
+                    Expr(13),
                 ),
-                Cusp,
+                (
+                    Cusp,
+                    Expr(13),
+                ),
             ],
             Goto(
                 BasicBlock(8),
@@ -123,12 +180,21 @@
         ),
         BasicBlock(8): BasicBlockData(
             [
-                Cusp,
-                Assign(
-                    temp{10},
-                    true,
+                (
+                    Cusp,
+                    Expr(13),
                 ),
-                Cusp,
+                (
+                    Assign(
+                        temp{10},
+                        true,
+                    ),
+                    Expr(14),
+                ),
+                (
+                    Cusp,
+                    Expr(14),
+                ),
             ],
             If(
                 temp{10},
@@ -148,8 +214,14 @@
         ),
         BasicBlock(10): BasicBlockData(
             [
-                Cusp,
-                Cusp,
+                (
+                    Cusp,
+                    Expr(11),
+                ),
+                (
+                    Cusp,
+                    Expr(12),
+                ),
             ],
             Goto(
                 BasicBlock(8),
@@ -157,13 +229,25 @@
         ),
         BasicBlock(11): BasicBlockData(
             [
-                Cusp,
-                Assign(
-                    temp{12},
-                    "3",
+                (
+                    Cusp,
+                    Expr(15),
                 ),
-                Cusp,
-                Cusp,
+                (
+                    Assign(
+                        temp{12},
+                        "3",
+                    ),
+                    Expr(16),
+                ),
+                (
+                    Cusp,
+                    Expr(16),
+                ),
+                (
+                    Cusp,
+                    Expr(17),
+                ),
             ],
             Assign(
                 temp{11},
@@ -181,13 +265,25 @@
         ),
         BasicBlock(12): BasicBlockData(
             [
-                Cusp,
-                Assign(
-                    temp{14},
-                    "4",
+                (
+                    Cusp,
+                    Expr(20),
                 ),
-                Cusp,
-                Cusp,
+                (
+                    Assign(
+                        temp{14},
+                        "4",
+                    ),
+                    Expr(21),
+                ),
+                (
+                    Cusp,
+                    Expr(21),
+                ),
+                (
+                    Cusp,
+                    Expr(22),
+                ),
             ],
             Assign(
                 temp{13},
@@ -205,12 +301,21 @@
         ),
         BasicBlock(13): BasicBlockData(
             [
-                Cusp,
-                Assign(
-                    temp{15},
-                    false,
+                (
+                    Cusp,
+                    Expr(25),
                 ),
-                Cusp,
+                (
+                    Assign(
+                        temp{15},
+                        false,
+                    ),
+                    Expr(26),
+                ),
+                (
+                    Cusp,
+                    Expr(26),
+                ),
             ],
             If(
                 temp{15},
@@ -230,8 +335,14 @@
         ),
         BasicBlock(15): BasicBlockData(
             [
-                Cusp,
-                Cusp,
+                (
+                    Cusp,
+                    Expr(18),
+                ),
+                (
+                    Cusp,
+                    Expr(19),
+                ),
             ],
             Goto(
                 BasicBlock(13),
@@ -249,8 +360,14 @@
         ),
         BasicBlock(17): BasicBlockData(
             [
-                Cusp,
-                Cusp,
+                (
+                    Cusp,
+                    Expr(23),
+                ),
+                (
+                    Cusp,
+                    Expr(24),
+                ),
             ],
             Goto(
                 BasicBlock(13),
@@ -258,13 +375,25 @@
         ),
         BasicBlock(18): BasicBlockData(
             [
-                Cusp,
-                Assign(
-                    temp{17},
-                    "5",
+                (
+                    Cusp,
+                    Expr(27),
                 ),
-                Cusp,
-                Cusp,
+                (
+                    Assign(
+                        temp{17},
+                        "5",
+                    ),
+                    Expr(28),
+                ),
+                (
+                    Cusp,
+                    Expr(28),
+                ),
+                (
+                    Cusp,
+                    Expr(29),
+                ),
             ],
             Assign(
                 temp{16},
@@ -282,13 +411,25 @@
         ),
         BasicBlock(19): BasicBlockData(
             [
-                Cusp,
-                Assign(
-                    temp{19},
-                    "6",
+                (
+                    Cusp,
+                    Expr(32),
                 ),
-                Cusp,
-                Cusp,
+                (
+                    Assign(
+                        temp{19},
+                        "6",
+                    ),
+                    Expr(33),
+                ),
+                (
+                    Cusp,
+                    Expr(33),
+                ),
+                (
+                    Cusp,
+                    Expr(34),
+                ),
             ],
             Assign(
                 temp{18},
@@ -306,8 +447,14 @@
         ),
         BasicBlock(20): BasicBlockData(
             [
-                Cusp,
-                Cusp,
+                (
+                    Cusp,
+                    Expr(37),
+                ),
+                (
+                    Cusp,
+                    Expr(38),
+                ),
             ],
             Return(
                 temp{0},
@@ -325,8 +472,14 @@
         ),
         BasicBlock(22): BasicBlockData(
             [
-                Cusp,
-                Cusp,
+                (
+                    Cusp,
+                    Expr(30),
+                ),
+                (
+                    Cusp,
+                    Expr(31),
+                ),
             ],
             Goto(
                 BasicBlock(20),
@@ -344,8 +497,14 @@
         ),
         BasicBlock(24): BasicBlockData(
             [
-                Cusp,
-                Cusp,
+                (
+                    Cusp,
+                    Expr(35),
+                ),
+                (
+                    Cusp,
+                    Expr(36),
+                ),
             ],
             Goto(
                 BasicBlock(20),

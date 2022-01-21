@@ -1,44 +1,109 @@
 [
-    validated::Tree {
-        num_parameters: 0,
-        root_expr: Seq(
+    (
+        Expr(16),
+        Seq(
             [
-                Assign(
-                    x{0},
-                    4,
-                ),
-                Assign(
-                    x{0},
-                    Op(
+                (
+                    Expr(1),
+                    Assign(
                         x{0},
-                        DividedBy,
-                        2,
+                        (
+                            Expr(0),
+                            4,
+                            Expr(0),
+                        ),
                     ),
+                    Expr(1),
                 ),
-                If(
-                    Op(
+                (
+                    Expr(5),
+                    Assign(
                         x{0},
-                        EqualEqual,
-                        2,
-                    ),
-                    Seq(
-                        [
-                            Await(
-                                Call(
-                                    Print,
-                                    [
-                                        (
-                                            None,
-                                            "Huzzah",
-                                        ),
-                                    ],
+                        (
+                            Expr(4),
+                            Op(
+                                (
+                                    Expr(2),
+                                    x{0},
+                                    Expr(4),
+                                ),
+                                DividedBy,
+                                (
+                                    Expr(3),
+                                    2,
+                                    Expr(3),
                                 ),
                             ),
-                        ],
+                            Expr(4),
+                        ),
                     ),
-                    ,
+                    Expr(4),
+                ),
+                (
+                    Expr(15),
+                    If(
+                        (
+                            Expr(8),
+                            Op(
+                                (
+                                    Expr(6),
+                                    x{0},
+                                    Expr(5),
+                                ),
+                                EqualEqual,
+                                (
+                                    Expr(7),
+                                    2,
+                                    Expr(6),
+                                ),
+                            ),
+                            Expr(7),
+                        ),
+                        (
+                            Expr(13),
+                            Seq(
+                                [
+                                    (
+                                        Expr(12),
+                                        Await(
+                                            (
+                                                Expr(11),
+                                                Call(
+                                                    (
+                                                        Expr(9),
+                                                        Print,
+                                                        Expr(8),
+                                                    ),
+                                                    [
+                                                        (
+                                                            None,
+                                                            (
+                                                                Expr(10),
+                                                                "Huzzah",
+                                                                Expr(9),
+                                                            ),
+                                                        ),
+                                                    ],
+                                                ),
+                                                Expr(10),
+                                            ),
+                                        ),
+                                        Expr(11),
+                                    ),
+                                ],
+                            ),
+                            Expr(12),
+                        ),
+                        (
+                            Expr(14),
+                            ,
+                            Expr(13),
+                        ),
+                    ),
+                    Expr(13),
                 ),
             ],
         ),
-    },
+        Expr(14),
+    ),
 ]

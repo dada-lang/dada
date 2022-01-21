@@ -124,6 +124,8 @@ impl Kernel for BufferKernel {
         stack_frame: &StackFrame<'_>,
         expr: syntax::Expr,
     ) -> eyre::Result<()> {
+        tracing::debug!("on_cusp: expr={:?} breakpoint={:?}", expr, self.breakpoint);
+
         if let Some(breakpoint) = self.breakpoint {
             if breakpoint.expr == expr && breakpoint.code == stack_frame.code(db) {
                 let heap_graph = HeapGraph::new(db, stack_frame);

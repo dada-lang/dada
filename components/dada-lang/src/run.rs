@@ -69,11 +69,9 @@ impl dada_execute::kernel::Kernel for Kernel {
     ) -> eyre::Result<()> {
         let code = stack_frame.code(db);
         let syntax_tree = code.syntax_tree(db);
-        let syntax_tree_data = syntax_tree.data(db);
-        let tables_in_ir_db = &syntax_tree_data.tables.in_ir_db(db);
         tracing::debug!(
             "on the cusp of completing {:?}",
-            expr.debug(tables_in_ir_db)
+            expr.debug(&syntax_tree.in_ir_db(db))
         );
         Ok(())
     }

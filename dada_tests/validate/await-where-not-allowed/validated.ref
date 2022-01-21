@@ -1,86 +1,170 @@
 [
-    validated::Tree {
-        num_parameters: 0,
-        root_expr: Seq(
+    (
+        Expr(4),
+        Seq(
             [
-                Await(
-                    Call(
-                        Print,
-                        [
-                            (
-                                None,
-                                "Hello, world",
-                            ),
-                        ],
-                    ),
-                ),
-            ],
-        ),
-    },
-    validated::Tree {
-        num_parameters: 0,
-        root_expr: Seq(
-            [
-                Atomic(
-                    Seq(
-                        [
-                            Await(
-                                Call(
+                (
+                    Expr(3),
+                    Await(
+                        (
+                            Expr(2),
+                            Call(
+                                (
+                                    Expr(0),
                                     Print,
-                                    [
-                                        (
-                                            None,
-                                            "Hello, world",
-                                        ),
-                                    ],
+                                    Expr(0),
                                 ),
+                                [
+                                    (
+                                        None,
+                                        (
+                                            Expr(1),
+                                            "Hello, world",
+                                            Expr(1),
+                                        ),
+                                    ),
+                                ],
                             ),
-                        ],
+                            Expr(2),
+                        ),
                     ),
+                    Expr(3),
                 ),
             ],
         ),
-    },
-    validated::Tree {
-        num_parameters: 0,
-        root_expr: Seq(
+        Expr(4),
+    ),
+    (
+        Expr(6),
+        Seq(
             [
-                Atomic(
-                    Seq(
-                        [
-                            Await(
-                                Call(
+                (
+                    Expr(5),
+                    Atomic(
+                        (
+                            Expr(4),
+                            Seq(
+                                [
+                                    (
+                                        Expr(3),
+                                        Await(
+                                            (
+                                                Expr(2),
+                                                Call(
+                                                    (
+                                                        Expr(0),
+                                                        Print,
+                                                        Expr(0),
+                                                    ),
+                                                    [
+                                                        (
+                                                            None,
+                                                            (
+                                                                Expr(1),
+                                                                "Hello, world",
+                                                                Expr(1),
+                                                            ),
+                                                        ),
+                                                    ],
+                                                ),
+                                                Expr(2),
+                                            ),
+                                        ),
+                                        Expr(3),
+                                    ),
+                                ],
+                            ),
+                            Expr(4),
+                        ),
+                    ),
+                    Expr(5),
+                ),
+            ],
+        ),
+        Expr(6),
+    ),
+    (
+        Expr(6),
+        Seq(
+            [
+                (
+                    Expr(5),
+                    Atomic(
+                        (
+                            Expr(4),
+                            Seq(
+                                [
+                                    (
+                                        Expr(3),
+                                        Await(
+                                            (
+                                                Expr(2),
+                                                Call(
+                                                    (
+                                                        Expr(0),
+                                                        Print,
+                                                        Expr(0),
+                                                    ),
+                                                    [
+                                                        (
+                                                            None,
+                                                            (
+                                                                Expr(1),
+                                                                "Hello, world",
+                                                                Expr(1),
+                                                            ),
+                                                        ),
+                                                    ],
+                                                ),
+                                                Expr(2),
+                                            ),
+                                        ),
+                                        Expr(3),
+                                    ),
+                                ],
+                            ),
+                            Expr(4),
+                        ),
+                    ),
+                    Expr(5),
+                ),
+            ],
+        ),
+        Expr(6),
+    ),
+    (
+        Expr(4),
+        Seq(
+            [
+                (
+                    Expr(3),
+                    Await(
+                        (
+                            Expr(2),
+                            Call(
+                                (
+                                    Expr(0),
                                     Print,
-                                    [
-                                        (
-                                            None,
-                                            "Hello, world",
-                                        ),
-                                    ],
+                                    Expr(0),
                                 ),
+                                [
+                                    (
+                                        None,
+                                        (
+                                            Expr(1),
+                                            "Hello, world",
+                                            Expr(1),
+                                        ),
+                                    ),
+                                ],
                             ),
-                        ],
+                            Expr(2),
+                        ),
                     ),
+                    Expr(3),
                 ),
             ],
         ),
-    },
-    validated::Tree {
-        num_parameters: 0,
-        root_expr: Seq(
-            [
-                Await(
-                    Call(
-                        Print,
-                        [
-                            (
-                                None,
-                                "Hello, world",
-                            ),
-                        ],
-                    ),
-                ),
-            ],
-        ),
-    },
+        Expr(4),
+    ),
 ]

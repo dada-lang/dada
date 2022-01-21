@@ -1,44 +1,81 @@
 [
-    validated::Tree {
-        num_parameters: 0,
-        root_expr: Seq(
+    (
+        Expr(9),
+        Seq(
             [
-                Assign(
-                    p{0},
-                    Call(
-                        Class(
-                            Id {
-                                value: 1,
-                            },
+                (
+                    Expr(4),
+                    Assign(
+                        p{0},
+                        (
+                            Expr(3),
+                            Call(
+                                (
+                                    Expr(0),
+                                    Class(
+                                        Id {
+                                            value: 1,
+                                        },
+                                    ),
+                                    Expr(0),
+                                ),
+                                [
+                                    (
+                                        Some(
+                                            "x",
+                                        ),
+                                        (
+                                            Expr(1),
+                                            22,
+                                            Expr(1),
+                                        ),
+                                    ),
+                                    (
+                                        Some(
+                                            "y",
+                                        ),
+                                        (
+                                            Expr(2),
+                                            44,
+                                            Expr(2),
+                                        ),
+                                    ),
+                                ],
+                            ),
+                            Expr(3),
                         ),
-                        [
-                            (
-                                Some(
-                                    "x",
-                                ),
-                                22,
-                            ),
-                            (
-                                Some(
-                                    "y",
-                                ),
-                                44,
-                            ),
-                        ],
                     ),
+                    Expr(4),
                 ),
-                Await(
-                    Call(
-                        Print,
-                        [
-                            (
-                                None,
-                                "The point is FIXME",
+                (
+                    Expr(8),
+                    Await(
+                        (
+                            Expr(7),
+                            Call(
+                                (
+                                    Expr(5),
+                                    Print,
+                                    Expr(5),
+                                ),
+                                [
+                                    (
+                                        None,
+                                        (
+                                            Expr(6),
+                                            "The point is FIXME",
+                                            Expr(6),
+                                        ),
+                                    ),
+                                ],
                             ),
-                        ],
+                            Expr(7),
+                        ),
                     ),
+                    Expr(8),
                 ),
             ],
         ),
-    },
+        Expr(9),
+    ),
 ]

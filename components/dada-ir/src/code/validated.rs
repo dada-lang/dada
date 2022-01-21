@@ -25,11 +25,10 @@ salsa::entity2! {
     }
 }
 
-impl<Db: ?Sized + crate::Db> DebugWithDb<Db> for Tree {
-    fn fmt(&self, f: &mut std::fmt::Formatter<'_>, db: &Db) -> std::fmt::Result {
-        f.debug_struct("validated::Tree")
-            .field("origin", &self.origin(db.as_dyn_ir_db()).debug(db)) // FIXME
-            .finish()
+impl DebugWithDb<dyn crate::Db + '_> for Tree {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>, db: &dyn crate::Db) -> std::fmt::Result {
+        let in_db = &self.in_ir_db(db);
+        DebugWithDb::fmt(self.data(db), f, in_db)
     }
 }
 
@@ -46,14 +45,20 @@ pub struct TreeData {
     pub root_expr: Expr,
 }
 
-impl<Db: ?Sized + crate::Db> DebugWithDb<Db> for TreeData {
-    fn fmt(&self, f: &mut std::fmt::Formatter<'_>, db: &Db) -> std::fmt::Result {
-        let in_db = self.tables.in_ir_db(db.as_dyn_ir_db());
-        f.debug_struct("validated::Tree")
-            .field("num_parameters", &self.num_parameters)
-            .field("root_expr", &self.root_expr.debug(&in_db))
-            .finish()?;
-        Ok(())
+impl DebugWithDb<InIrDb<'_, Tree>> for TreeData {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>, db: &InIrDb<'_, Tree>) -> std::fmt::Result {
+        DebugWithDb::fmt(&self.root_expr, f, db)
+    }
+}
+
+impl InIrDb<'_, Tree> {
+    fn tables(&self) -> &Tables {
+        &self.data(self.db()).tables
+    }
+
+    fn origins(&self) -> &Origins {
+        let tree: Tree = **self;
+        tree.origins(self.db())
     }
 }
 
@@ -104,10 +109,10 @@ origin_table! {
 
 id!(pub struct LocalVariable);
 
-impl DebugWithDb<InIrDb<'_, Tables>> for LocalVariable {
-    fn fmt(&self, f: &mut std::fmt::Formatter<'_>, db: &InIrDb<'_, Tables>) -> std::fmt::Result {
+impl DebugWithDb<InIrDb<'_, Tree>> for LocalVariable {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>, db: &InIrDb<'_, Tree>) -> std::fmt::Result {
         let id = u32::from(*self);
-        let data = self.data(db);
+        let data = self.data(db.tables());
         let name = data.name.map(|n| n.as_str(db.db())).unwrap_or("temp");
         write!(f, "{name}{{{id}}}")
     }
@@ -131,9 +136,13 @@ pub enum LocalVariableOrigin {
 
 id!(pub struct Expr);
 
-impl DebugWithDb<InIrDb<'_, Tables>> for Expr {
-    fn fmt(&self, f: &mut std::fmt::Formatter<'_>, db: &InIrDb<'_, Tables>) -> std::fmt::Result {
-        self.data(db).pretty_print(Some(*self), f, db)
+impl DebugWithDb<InIrDb<'_, Tree>> for Expr {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>, db: &InIrDb<'_, Tree>) -> std::fmt::Result {
+        f.debug_tuple("")
+            .field(&self)
+            .field(&self.data(db.tables()).debug(db))
+            .field(&db.origins()[*self])
+            .finish()
     }
 }
 
@@ -205,8 +214,8 @@ pub enum ExprData {
     Error,
 }
 
-impl DebugWithDb<InIrDb<'_, Tables>> for ExprData {
-    fn fmt(&self, f: &mut std::fmt::Formatter<'_>, db: &InIrDb<'_, Tables>) -> std::fmt::Result {
+impl DebugWithDb<InIrDb<'_, Tree>> for ExprData {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>, db: &InIrDb<'_, Tree>) -> std::fmt::Result {
         self.pretty_print(None, f, db)
     }
 }
@@ -216,7 +225,7 @@ impl ExprData {
         &self,
         id: Option<Expr>,
         f: &mut std::fmt::Formatter<'_>,
-        db: &InIrDb<'_, Tables>,
+        db: &InIrDb<'_, Tree>,
     ) -> std::fmt::Result {
         let id = id.map(u32::from);
         match self {
@@ -284,9 +293,9 @@ impl ExprData {
 
 id!(pub struct Place);
 
-impl DebugWithDb<InIrDb<'_, Tables>> for Place {
-    fn fmt(&self, f: &mut std::fmt::Formatter<'_>, db: &InIrDb<'_, Tables>) -> std::fmt::Result {
-        DebugWithDb::fmt(&self.data(db), f, db)
+impl DebugWithDb<InIrDb<'_, Tree>> for Place {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>, db: &InIrDb<'_, Tree>) -> std::fmt::Result {
+        DebugWithDb::fmt(&self.data(db.tables()), f, db)
     }
 }
 
@@ -299,8 +308,8 @@ pub enum PlaceData {
     Dot(Place, Word),
 }
 
-impl DebugWithDb<InIrDb<'_, Tables>> for PlaceData {
-    fn fmt(&self, f: &mut std::fmt::Formatter<'_>, db: &InIrDb<'_, Tables>) -> std::fmt::Result {
+impl DebugWithDb<InIrDb<'_, Tree>> for PlaceData {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>, db: &InIrDb<'_, Tree>) -> std::fmt::Result {
         match self {
             PlaceData::LocalVariable(lv) => DebugWithDb::fmt(lv, f, db),
             PlaceData::Function(function) => DebugWithDb::fmt(function, f, db.db()),
@@ -317,9 +326,9 @@ impl DebugWithDb<InIrDb<'_, Tables>> for PlaceData {
 
 id!(pub struct NamedExpr);
 
-impl DebugWithDb<InIrDb<'_, Tables>> for NamedExpr {
-    fn fmt(&self, f: &mut std::fmt::Formatter<'_>, db: &InIrDb<'_, Tables>) -> std::fmt::Result {
-        DebugWithDb::fmt(&self.data(db), f, db)
+impl DebugWithDb<InIrDb<'_, Tree>> for NamedExpr {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>, db: &InIrDb<'_, Tree>) -> std::fmt::Result {
+        DebugWithDb::fmt(&self.data(db.tables()), f, db)
     }
 }
 
@@ -329,8 +338,8 @@ pub struct NamedExprData {
     pub expr: Expr,
 }
 
-impl DebugWithDb<InIrDb<'_, Tables>> for NamedExprData {
-    fn fmt(&self, f: &mut std::fmt::Formatter<'_>, db: &InIrDb<'_, Tables>) -> std::fmt::Result {
+impl DebugWithDb<InIrDb<'_, Tree>> for NamedExprData {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>, db: &InIrDb<'_, Tree>) -> std::fmt::Result {
         f.debug_tuple("")
             .field(&self.name.debug(db.db()))
             .field(&self.expr.debug(db))

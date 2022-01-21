@@ -304,6 +304,7 @@ dependencies = [
  "parking_lot",
  "salsa",
  "thiserror",
+ "tracing",
  "triomphe",
 ]
 

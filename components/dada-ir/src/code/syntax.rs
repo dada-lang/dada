@@ -19,11 +19,18 @@ salsa::entity2! {
     }
 }
 
-impl<Db: ?Sized + crate::Db> DebugWithDb<Db> for Tree {
-    fn fmt(&self, f: &mut std::fmt::Formatter<'_>, db: &Db) -> std::fmt::Result {
+impl DebugWithDb<dyn crate::Db> for Tree {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>, db: &dyn crate::Db) -> std::fmt::Result {
         f.debug_struct("syntax::Tree")
-            .field("origin", &self.origin(db.as_dyn_ir_db()).debug(db)) // FIXME
+            .field("origin", &self.origin(db).debug(db))
+            .field("data", &self.data(db).debug(&self.in_ir_db(db)))
             .finish()
+    }
+}
+
+impl InIrDb<'_, Tree> {
+    fn tables(&self) -> &Tables {
+        &self.data(self.db()).tables
     }
 }
 
@@ -40,13 +47,10 @@ pub struct TreeData {
     pub root_expr: Expr,
 }
 
-impl DebugWithDb<dyn crate::Db> for TreeData {
-    fn fmt(&self, f: &mut std::fmt::Formatter<'_>, db: &dyn crate::Db) -> std::fmt::Result {
+impl DebugWithDb<InIrDb<'_, Tree>> for TreeData {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>, db: &InIrDb<'_, Tree>) -> std::fmt::Result {
         f.debug_struct("syntax::Tree")
-            .field(
-                "root_expr",
-                &self.root_expr.debug(&self.tables.in_ir_db(db)),
-            ) // FIXME
+            .field("root_expr", &self.root_expr.debug(db)) // FIXME
             .finish()
     }
 }
@@ -78,13 +82,12 @@ origin_table! {
 
 id!(pub struct Expr);
 
-impl DebugWithDb<InIrDb<'_, Tables>> for Expr {
-    fn fmt(
-        &self,
-        f: &mut std::fmt::Formatter<'_>,
-        tables: &InIrDb<'_, Tables>,
-    ) -> std::fmt::Result {
-        std::fmt::Debug::fmt(self.data(tables), f)
+impl DebugWithDb<InIrDb<'_, Tree>> for Expr {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>, db: &InIrDb<'_, Tree>) -> std::fmt::Result {
+        f.debug_tuple("")
+            .field(self)
+            .field(&self.data(db.tables()).debug(db))
+            .finish()
     }
 }
 
@@ -159,13 +162,94 @@ pub enum ExprData {
     Error,
 }
 
+impl DebugWithDb<InIrDb<'_, Tree>> for ExprData {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>, db: &InIrDb<'_, Tree>) -> std::fmt::Result {
+        match self {
+            ExprData::Id(w) => f.debug_tuple("Id").field(&w.debug(db.db())).finish(),
+            ExprData::BooleanLiteral(v) => f.debug_tuple("Boolean").field(&v).finish(),
+            ExprData::IntegerLiteral(v) => {
+                f.debug_tuple("Integer").field(&v.debug(db.db())).finish()
+            }
+            ExprData::StringLiteral(v) => f.debug_tuple("String").field(&v.debug(db.db())).finish(),
+            ExprData::Dot(lhs, rhs) => f
+                .debug_tuple("Dot")
+                .field(&lhs.debug(db))
+                .field(&rhs.debug(db.db()))
+                .finish(),
+            ExprData::Await(e) => f.debug_tuple("Await").field(&e.debug(db)).finish(),
+            ExprData::Call(func, args) => f
+                .debug_tuple("Call")
+                .field(&func.debug(db))
+                .field(&args.debug(db))
+                .finish(),
+            ExprData::Share(e) => f.debug_tuple("Share").field(&e.debug(db)).finish(),
+            ExprData::Lease(e) => f.debug_tuple("Lease").field(&e.debug(db)).finish(),
+            ExprData::Give(e) => f.debug_tuple("Give").field(&e.debug(db)).finish(),
+            ExprData::Var(v, e) => f
+                .debug_tuple("Var")
+                .field(&v.debug(db))
+                .field(&e.debug(db))
+                .finish(),
+            ExprData::Parenthesized(e) => f.debug_tuple("Share").field(&e.debug(db)).finish(),
+            ExprData::Tuple(e) => f.debug_tuple("Tuple").field(&e.debug(db)).finish(),
+            ExprData::If(c, t, e) => f
+                .debug_tuple("If")
+                .field(&c.debug(db))
+                .field(&t.debug(db))
+                .field(&e.debug(db))
+                .finish(),
+            ExprData::Atomic(e) => f.debug_tuple("Atomic").field(&e.debug(db)).finish(),
+            ExprData::Loop(e) => f.debug_tuple("Loop").field(&e.debug(db)).finish(),
+            ExprData::While(c, e) => f
+                .debug_tuple("While")
+                .field(&c.debug(db))
+                .field(&e.debug(db))
+                .finish(),
+            ExprData::Seq(e) => f.debug_tuple("Seq").field(&e.debug(db)).finish(),
+            ExprData::Op(l, o, r) => f
+                .debug_tuple("Op")
+                .field(&l.debug(db))
+                .field(&o)
+                .field(&r.debug(db))
+                .finish(),
+            ExprData::OpEq(l, o, r) => f
+                .debug_tuple("OpEq")
+                .field(&l.debug(db))
+                .field(&o)
+                .field(&r.debug(db))
+                .finish(),
+            ExprData::Assign(l, r) => f
+                .debug_tuple("Assign")
+                .field(&l.debug(db))
+                .field(&r.debug(db))
+                .finish(),
+            ExprData::Error => f.debug_tuple("Error").finish(),
+        }
+    }
+}
+
 id!(pub struct LocalVariableDecl);
+
+impl DebugWithDb<InIrDb<'_, Tree>> for LocalVariableDecl {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>, db: &InIrDb<'_, Tree>) -> std::fmt::Result {
+        DebugWithDb::fmt(self.data(db.tables()), f, db)
+    }
+}
 
 #[derive(PartialEq, Eq, PartialOrd, Ord, Clone, Hash, Debug)]
 pub struct LocalVariableDeclData {
     pub mode: Option<StorageMode>,
     pub name: Word,
     pub ty: Option<crate::ty::Ty>,
+}
+
+impl DebugWithDb<InIrDb<'_, Tree>> for LocalVariableDeclData {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>, db: &InIrDb<'_, Tree>) -> std::fmt::Result {
+        f.debug_tuple("")
+            .field(&self.name.debug(db.db()))
+            .field(&self.ty.debug(db.db()))
+            .finish()
+    }
 }
 
 #[derive(PartialEq, Eq, Clone, Hash, Debug)]
@@ -176,10 +260,25 @@ pub struct LocalVariableDeclSpan {
 
 id!(pub struct NamedExpr);
 
+impl DebugWithDb<InIrDb<'_, Tree>> for NamedExpr {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>, db: &InIrDb<'_, Tree>) -> std::fmt::Result {
+        DebugWithDb::fmt(self.data(db.tables()), f, db)
+    }
+}
+
 #[derive(PartialEq, Eq, PartialOrd, Ord, Clone, Hash, Debug)]
 pub struct NamedExprData {
     pub name: SpannedOptionalWord,
     pub expr: Expr,
+}
+
+impl DebugWithDb<InIrDb<'_, Tree>> for NamedExprData {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>, db: &InIrDb<'_, Tree>) -> std::fmt::Result {
+        f.debug_tuple("")
+            .field(&self.name.word(db.db()).debug(db.db()))
+            .field(&self.expr.debug(db))
+            .finish()
+    }
 }
 
 pub mod op;

@@ -3,13 +3,25 @@
         start_basic_block: BasicBlock(0),
         BasicBlock(0): BasicBlockData(
             [
-                Cusp,
-                Assign(
-                    temp{3},
-                    "Foo\n    Bar",
+                (
+                    Cusp,
+                    Expr(0),
                 ),
-                Cusp,
-                Cusp,
+                (
+                    Assign(
+                        temp{3},
+                        "Foo\n    Bar",
+                    ),
+                    Expr(1),
+                ),
+                (
+                    Cusp,
+                    Expr(1),
+                ),
+                (
+                    Cusp,
+                    Expr(2),
+                ),
             ],
             Assign(
                 temp{2},
@@ -37,14 +49,29 @@
         ),
         BasicBlock(2): BasicBlockData(
             [
-                Cusp,
-                Cusp,
-                Assign(
-                    temp{6},
-                    "Foo\n\n    Bar",
+                (
+                    Cusp,
+                    Expr(3),
                 ),
-                Cusp,
-                Cusp,
+                (
+                    Cusp,
+                    Expr(4),
+                ),
+                (
+                    Assign(
+                        temp{6},
+                        "Foo\n\n    Bar",
+                    ),
+                    Expr(5),
+                ),
+                (
+                    Cusp,
+                    Expr(5),
+                ),
+                (
+                    Cusp,
+                    Expr(6),
+                ),
             ],
             Assign(
                 temp{5},
@@ -72,14 +99,29 @@
         ),
         BasicBlock(4): BasicBlockData(
             [
-                Cusp,
-                Cusp,
-                Assign(
-                    temp{9},
-                    "Foo\nBar",
+                (
+                    Cusp,
+                    Expr(7),
                 ),
-                Cusp,
-                Cusp,
+                (
+                    Cusp,
+                    Expr(8),
+                ),
+                (
+                    Assign(
+                        temp{9},
+                        "Foo\nBar",
+                    ),
+                    Expr(9),
+                ),
+                (
+                    Cusp,
+                    Expr(9),
+                ),
+                (
+                    Cusp,
+                    Expr(10),
+                ),
             ],
             Assign(
                 temp{8},
@@ -107,14 +149,29 @@
         ),
         BasicBlock(6): BasicBlockData(
             [
-                Cusp,
-                Cusp,
-                Assign(
-                    temp{11},
-                    "",
+                (
+                    Cusp,
+                    Expr(11),
                 ),
-                Cusp,
-                Cusp,
+                (
+                    Cusp,
+                    Expr(12),
+                ),
+                (
+                    Assign(
+                        temp{11},
+                        "",
+                    ),
+                    Expr(13),
+                ),
+                (
+                    Cusp,
+                    Expr(13),
+                ),
+                (
+                    Cusp,
+                    Expr(14),
+                ),
             ],
             Assign(
                 temp{10},
@@ -132,13 +189,25 @@
         ),
         BasicBlock(7): BasicBlockData(
             [
-                Cusp,
-                Assign(
-                    temp{14},
-                    "    Foo",
+                (
+                    Cusp,
+                    Expr(15),
                 ),
-                Cusp,
-                Cusp,
+                (
+                    Assign(
+                        temp{14},
+                        "    Foo",
+                    ),
+                    Expr(16),
+                ),
+                (
+                    Cusp,
+                    Expr(16),
+                ),
+                (
+                    Cusp,
+                    Expr(17),
+                ),
             ],
             Assign(
                 temp{13},
@@ -166,14 +235,29 @@
         ),
         BasicBlock(9): BasicBlockData(
             [
-                Cusp,
-                Cusp,
-                Assign(
-                    temp{16},
-                    "I have forced myself to contradict myself\nin order to avoid conforming to my own taste.\n  -- Marcel Duchamp",
+                (
+                    Cusp,
+                    Expr(18),
                 ),
-                Cusp,
-                Cusp,
+                (
+                    Cusp,
+                    Expr(19),
+                ),
+                (
+                    Assign(
+                        temp{16},
+                        "I have forced myself to contradict myself\nin order to avoid conforming to my own taste.\n  -- Marcel Duchamp",
+                    ),
+                    Expr(20),
+                ),
+                (
+                    Cusp,
+                    Expr(20),
+                ),
+                (
+                    Cusp,
+                    Expr(21),
+                ),
             ],
             Assign(
                 temp{15},
@@ -201,8 +285,14 @@
         ),
         BasicBlock(11): BasicBlockData(
             [
-                Cusp,
-                Cusp,
+                (
+                    Cusp,
+                    Expr(22),
+                ),
+                (
+                    Cusp,
+                    Expr(23),
+                ),
             ],
             Return(
                 temp{0},

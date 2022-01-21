@@ -6,5 +6,41 @@
             ),
             Tokens(dada_tests/heap-graph/past-end.dada:2:19:8:2),
         ),
+        data: syntax::Tree {
+            root_expr: (
+                Expr(4),
+                Seq(
+                    [
+                        (
+                            Expr(3),
+                            Await(
+                                (
+                                    Expr(2),
+                                    Call(
+                                        (
+                                            Expr(0),
+                                            Id(
+                                                "print",
+                                            ),
+                                        ),
+                                        [
+                                            (
+                                                None,
+                                                (
+                                                    Expr(1),
+                                                    String(
+                                                        "\n        I have forced myself to contradict myself\n        in order to avoid conforming to my own taste.\n          -- Marcel Duchamp\n    ",
+                                                    ),
+                                                ),
+                                            ),
+                                        ],
+                                    ),
+                                ),
+                            ),
+                        ),
+                    ],
+                ),
+            ),
+        },
     },
 ]

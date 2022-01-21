@@ -1,49 +1,99 @@
 [
-    validated::Tree {
-        num_parameters: 1,
-        root_expr: Seq(
+    (
+        Expr(8),
+        Seq(
             [
-                Await(
-                    Call(
-                        Print,
-                        [
-                            (
-                                None,
-                                "Hello ",
+                (
+                    Expr(3),
+                    Await(
+                        (
+                            Expr(2),
+                            Call(
+                                (
+                                    Expr(0),
+                                    Print,
+                                    Expr(0),
+                                ),
+                                [
+                                    (
+                                        None,
+                                        (
+                                            Expr(1),
+                                            "Hello ",
+                                            Expr(1),
+                                        ),
+                                    ),
+                                ],
                             ),
-                        ],
+                            Expr(2),
+                        ),
                     ),
+                    Expr(3),
                 ),
-                Await(
-                    Call(
-                        Print,
-                        [
-                            (
-                                None,
-                                name{0},
+                (
+                    Expr(7),
+                    Await(
+                        (
+                            Expr(6),
+                            Call(
+                                (
+                                    Expr(4),
+                                    Print,
+                                    Expr(4),
+                                ),
+                                [
+                                    (
+                                        None,
+                                        (
+                                            Expr(5),
+                                            name{0},
+                                            Expr(5),
+                                        ),
+                                    ),
+                                ],
                             ),
-                        ],
+                            Expr(6),
+                        ),
                     ),
+                    Expr(7),
                 ),
             ],
         ),
-    },
-    validated::Tree {
-        num_parameters: 0,
-        root_expr: Seq(
+        Expr(8),
+    ),
+    (
+        Expr(4),
+        Seq(
             [
-                Await(
-                    Call(
-                        greet,
-                        [
-                            (
-                                None,
-                                "Pluschplusch",
+                (
+                    Expr(3),
+                    Await(
+                        (
+                            Expr(2),
+                            Call(
+                                (
+                                    Expr(0),
+                                    greet,
+                                    Expr(0),
+                                ),
+                                [
+                                    (
+                                        None,
+                                        (
+                                            Expr(1),
+                                            "Pluschplusch",
+                                            Expr(1),
+                                        ),
+                                    ),
+                                ],
                             ),
-                        ],
+                            Expr(2),
+                        ),
                     ),
+                    Expr(3),
                 ),
             ],
         ),
-    },
+        Expr(4),
+    ),
 ]

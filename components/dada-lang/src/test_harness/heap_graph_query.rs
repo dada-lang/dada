@@ -27,11 +27,15 @@ impl super::Options {
             LineColumn::new1(query.line, query.column),
         );
 
-        let mut kernel = BufferKernel::new().breakpoint(breakpoint);
+        let mut kernel = BufferKernel::new()
+            .breakpoint(breakpoint)
+            .dump_breakpoint(true)
+            .stop_at_breakpoint(true);
 
         if let Some(breakpoint) = breakpoint {
             kernel.append(&format!(
-                "# Breakpoint: {:?}\n",
+                "# Breakpoint: {:?} at {:?}\n",
+                breakpoint.expr,
                 breakpoint.span(db).debug(db),
             ));
         }

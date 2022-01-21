@@ -2,73 +2,145 @@
     syntax::Tree {
         origin: Code(
             Some(
-                Tokens(dada_tests/parser/param_separators.dada:1:11:1:12),
+                Tokens(dada_tests/parser/param_separators.dada:1:12:1:13),
             ),
-            Tokens(dada_tests/parser/param_separators.dada:1:15:2:1),
+            Tokens(dada_tests/parser/param_separators.dada:1:16:2:2),
         ),
+        data: syntax::Tree {
+            root_expr: (
+                Expr(0),
+                Seq(
+                    [],
+                ),
+            ),
+        },
     },
     syntax::Tree {
         origin: Code(
             Some(
-                Tokens(dada_tests/parser/param_separators.dada:4:11:4:13),
+                Tokens(dada_tests/parser/param_separators.dada:4:12:4:14),
             ),
-            Tokens(dada_tests/parser/param_separators.dada:4:16:5:1),
+            Tokens(dada_tests/parser/param_separators.dada:4:17:5:2),
         ),
+        data: syntax::Tree {
+            root_expr: (
+                Expr(0),
+                Seq(
+                    [],
+                ),
+            ),
+        },
     },
     syntax::Tree {
         origin: Code(
             Some(
-                Tokens(dada_tests/parser/param_separators.dada:7:11:7:15),
+                Tokens(dada_tests/parser/param_separators.dada:7:12:7:16),
             ),
-            Tokens(dada_tests/parser/param_separators.dada:7:18:8:1),
+            Tokens(dada_tests/parser/param_separators.dada:7:19:8:2),
         ),
+        data: syntax::Tree {
+            root_expr: (
+                Expr(0),
+                Seq(
+                    [],
+                ),
+            ),
+        },
     },
     syntax::Tree {
         origin: Code(
             Some(
-                Tokens(dada_tests/parser/param_separators.dada:10:11:10:16),
+                Tokens(dada_tests/parser/param_separators.dada:10:12:10:17),
             ),
-            Tokens(dada_tests/parser/param_separators.dada:10:19:11:1),
+            Tokens(dada_tests/parser/param_separators.dada:10:20:11:2),
         ),
+        data: syntax::Tree {
+            root_expr: (
+                Expr(0),
+                Seq(
+                    [],
+                ),
+            ),
+        },
     },
     syntax::Tree {
         origin: Code(
             Some(
-                Tokens(dada_tests/parser/param_separators.dada:13:11:13:17),
+                Tokens(dada_tests/parser/param_separators.dada:13:12:13:18),
             ),
-            Tokens(dada_tests/parser/param_separators.dada:13:20:15:1),
+            Tokens(dada_tests/parser/param_separators.dada:13:21:15:2),
         ),
+        data: syntax::Tree {
+            root_expr: (
+                Expr(0),
+                Seq(
+                    [],
+                ),
+            ),
+        },
     },
     syntax::Tree {
         origin: Code(
             Some(
-                Tokens(dada_tests/parser/param_separators.dada:17:11:20:1),
+                Tokens(dada_tests/parser/param_separators.dada:17:12:20:2),
             ),
-            Tokens(dada_tests/parser/param_separators.dada:20:4:21:1),
+            Tokens(dada_tests/parser/param_separators.dada:20:5:21:2),
         ),
+        data: syntax::Tree {
+            root_expr: (
+                Expr(0),
+                Seq(
+                    [],
+                ),
+            ),
+        },
     },
     syntax::Tree {
         origin: Code(
             Some(
-                Tokens(dada_tests/parser/param_separators.dada:23:11:25:1),
+                Tokens(dada_tests/parser/param_separators.dada:23:12:25:2),
             ),
-            Tokens(dada_tests/parser/param_separators.dada:25:4:26:1),
+            Tokens(dada_tests/parser/param_separators.dada:25:5:26:2),
         ),
+        data: syntax::Tree {
+            root_expr: (
+                Expr(0),
+                Seq(
+                    [],
+                ),
+            ),
+        },
     },
     syntax::Tree {
         origin: Code(
             Some(
-                Tokens(dada_tests/parser/param_separators.dada:28:11:31:1),
+                Tokens(dada_tests/parser/param_separators.dada:28:12:31:2),
             ),
-            Tokens(dada_tests/parser/param_separators.dada:31:4:32:1),
+            Tokens(dada_tests/parser/param_separators.dada:31:5:32:2),
         ),
+        data: syntax::Tree {
+            root_expr: (
+                Expr(0),
+                Seq(
+                    [],
+                ),
+            ),
+        },
     },
     syntax::Tree {
         origin: Code(
             Some(
-                Tokens(dada_tests/parser/param_separators.dada:34:11:37:1),
+                Tokens(dada_tests/parser/param_separators.dada:34:12:37:2),
             ),
-            Tokens(dada_tests/parser/param_separators.dada:37:4:38:1),
+            Tokens(dada_tests/parser/param_separators.dada:37:5:38:2),
         ),
+        data: syntax::Tree {
+            root_expr: (
+                Expr(0),
+                Seq(
+                    [],
+                ),
+            ),
+        },
     },
 ]

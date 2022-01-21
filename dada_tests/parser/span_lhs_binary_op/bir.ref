@@ -3,41 +3,92 @@
         start_basic_block: BasicBlock(0),
         BasicBlock(0): BasicBlockData(
             [
-                Cusp,
-                Assign(
-                    x{0},
-                    "foo",
+                (
+                    Cusp,
+                    Expr(1),
                 ),
-                Cusp,
-                Cusp,
-                Cusp,
-                Cusp,
-                Assign(
-                    temp{4},
-                    44,
+                (
+                    Assign(
+                        x{0},
+                        "foo",
+                    ),
+                    Expr(0),
                 ),
-                Cusp,
-                Assign(
-                    temp{3},
-                    x{0} + temp{4},
+                (
+                    Cusp,
+                    Expr(0),
                 ),
-                Cusp,
-                Assign(
-                    temp{5},
-                    66,
+                (
+                    Cusp,
+                    Expr(1),
                 ),
-                Cusp,
-                Assign(
-                    y{1},
-                    temp{3} + temp{5},
+                (
+                    Cusp,
+                    Expr(7),
                 ),
-                Cusp,
-                Cusp,
-                Assign(
-                    temp{2},
-                    (),
+                (
+                    Cusp,
+                    Expr(2),
                 ),
-                Cusp,
+                (
+                    Assign(
+                        temp{4},
+                        44,
+                    ),
+                    Expr(3),
+                ),
+                (
+                    Cusp,
+                    Expr(3),
+                ),
+                (
+                    Assign(
+                        temp{3},
+                        x{0} + temp{4},
+                    ),
+                    Expr(4),
+                ),
+                (
+                    Cusp,
+                    Expr(4),
+                ),
+                (
+                    Assign(
+                        temp{5},
+                        66,
+                    ),
+                    Expr(5),
+                ),
+                (
+                    Cusp,
+                    Expr(5),
+                ),
+                (
+                    Assign(
+                        y{1},
+                        temp{3} + temp{5},
+                    ),
+                    Expr(6),
+                ),
+                (
+                    Cusp,
+                    Expr(6),
+                ),
+                (
+                    Cusp,
+                    Expr(7),
+                ),
+                (
+                    Assign(
+                        temp{2},
+                        (),
+                    ),
+                    Expr(7),
+                ),
+                (
+                    Cusp,
+                    Expr(8),
+                ),
             ],
             Return(
                 temp{2},

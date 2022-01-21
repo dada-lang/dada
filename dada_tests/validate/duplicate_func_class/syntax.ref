@@ -2,9 +2,17 @@
     syntax::Tree {
         origin: Code(
             Some(
-                Tokens(dada_tests/validate/duplicate_func_class.dada:1:9:1:9),
+                Tokens(dada_tests/validate/duplicate_func_class.dada:1:10:1:10),
             ),
-            Tokens(dada_tests/validate/duplicate_func_class.dada:1:12:1:12),
+            Tokens(dada_tests/validate/duplicate_func_class.dada:1:13:1:13),
         ),
+        data: syntax::Tree {
+            root_expr: (
+                Expr(0),
+                Seq(
+                    [],
+                ),
+            ),
+        },
     },
 ]

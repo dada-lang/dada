@@ -1,25 +1,58 @@
 [
-    validated::Tree {
-        num_parameters: 0,
-        root_expr: Seq(
+    (
+        Expr(8),
+        Seq(
             [
-                Assign(
-                    x{0},
-                    "foo",
-                ),
-                Assign(
-                    y{1},
-                    Op(
-                        Op(
-                            x{0},
-                            Plus,
-                            44,
+                (
+                    Expr(1),
+                    Assign(
+                        x{0},
+                        (
+                            Expr(0),
+                            "foo",
+                            Expr(0),
                         ),
-                        Plus,
-                        66,
                     ),
+                    Expr(1),
+                ),
+                (
+                    Expr(7),
+                    Assign(
+                        y{1},
+                        (
+                            Expr(6),
+                            Op(
+                                (
+                                    Expr(4),
+                                    Op(
+                                        (
+                                            Expr(2),
+                                            x{0},
+                                            Expr(2),
+                                        ),
+                                        Plus,
+                                        (
+                                            Expr(3),
+                                            44,
+                                            Expr(3),
+                                        ),
+                                    ),
+                                    Expr(4),
+                                ),
+                                Plus,
+                                (
+                                    Expr(5),
+                                    66,
+                                    Expr(5),
+                                ),
+                            ),
+                            Expr(6),
+                        ),
+                    ),
+                    Expr(7),
                 ),
             ],
         ),
-    },
+        Expr(8),
+    ),
 ]
