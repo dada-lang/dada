@@ -339,7 +339,6 @@ impl Cursor {
                         }
                     }
                     if places.len() == args.len() {
-                        self.push_cusp(brewery, origin);
                         self.terminate_and_continue(
                             brewery,
                             |next_block| {
@@ -355,6 +354,7 @@ impl Cursor {
                             },
                             origin,
                         );
+                        self.push_cusp(brewery, origin);
                     }
                 }
             }
