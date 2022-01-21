@@ -3,6 +3,7 @@ use std::path::Path;
 use dada_execute::kernel::BufferKernel;
 use dada_ir::filename::Filename;
 use dada_ir::span::LineColumn;
+use salsa::DebugWithDb;
 
 use crate::test_harness::QueryKind;
 
@@ -26,16 +27,28 @@ impl super::Options {
             LineColumn::new1(query.line, query.column),
         );
 
-        let actual_output = match db.function_named(filename, "main") {
+        let mut kernel = BufferKernel::new().breakpoint(breakpoint);
+
+        if let Some(breakpoint) = breakpoint {
+            kernel.append(&format!(
+                "# Breakpoint: {:?}\n",
+                breakpoint.span(db).debug(db),
+            ));
+        }
+
+        match db.function_named(filename, "main") {
             Some(function) => {
-                let mut kernel = BufferKernel::new().breakpoint(breakpoint);
                 kernel.interpret_and_buffer(db, function, vec![]).await;
-                kernel.take_buffer()
             }
             None => {
-                format!("no `main` function in `{}`", filename.as_str(db))
+                kernel.append(&format!(
+                    "no `main` function in `{}`\n",
+                    filename.as_str(db)
+                ));
             }
-        };
+        }
+
+        let actual_output = kernel.take_buffer();
 
         let output_matched = query.message.is_match(&actual_output);
 

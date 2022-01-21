@@ -4,7 +4,7 @@ use dada_ir::{
     filename::Filename,
     item::Item,
     origin_table::HasOriginIn,
-    span::{LineColumn, Offset},
+    span::{FileSpan, LineColumn, Offset},
 };
 use dada_parse::prelude::*;
 
@@ -15,6 +15,16 @@ use dada_parse::prelude::*;
 pub struct Breakpoint {
     pub code: Code,
     pub expr: syntax::Expr,
+}
+
+impl Breakpoint {
+    /// Returns the file-span of the breakpoint expression.
+    pub fn span(self, db: &dyn crate::Db) -> FileSpan {
+        let tree = self.code.syntax_tree(db);
+        let expr_span = tree.spans(db)[self.expr];
+        let filename = self.code.filename(db);
+        expr_span.in_file(filename)
+    }
 }
 
 /// Given a cursor position, finds the breakpoint associated with that cursor

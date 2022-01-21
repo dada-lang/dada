@@ -82,7 +82,7 @@ impl Db {
 
     /// Returns the validated tree for `item`.
     pub fn debug_bir(&self, item: Item) -> Option<impl std::fmt::Debug + '_> {
-        Some(item.maybe_brew(self)?.data(self).into_debug(self))
+        Some(item.maybe_brew(self)?.into_debug(self))
     }
 
     /// Converts a given offset in a given file into line/column information.

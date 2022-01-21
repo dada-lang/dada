@@ -25,6 +25,19 @@ salsa::entity2! {
     }
 }
 
+impl DebugWithDb<dyn crate::Db> for Bir {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>, db: &dyn crate::Db) -> std::fmt::Result {
+        let self_in_ir_db = &self.in_ir_db(db.as_dyn_ir_db());
+        DebugWithDb::fmt(self.data(db), f, self_in_ir_db)
+    }
+}
+
+impl InIrDb<'_, Bir> {
+    fn tables(&self) -> &Tables {
+        &self.data(self.db()).tables
+    }
+}
+
 /// Stores the ast for a function.
 #[derive(Clone, Debug, PartialEq, Eq)]
 pub struct BirData {
@@ -38,17 +51,15 @@ pub struct BirData {
     pub start_basic_block: BasicBlock,
 }
 
-impl<Db: ?Sized + crate::Db> DebugWithDb<Db> for BirData {
-    fn fmt(&self, f: &mut std::fmt::Formatter<'_>, db: &Db) -> std::fmt::Result {
-        let this = &self.tables.in_ir_db(db.as_dyn_ir_db());
-
+impl DebugWithDb<InIrDb<'_, Bir>> for BirData {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>, db: &InIrDb<'_, Bir>) -> std::fmt::Result {
         let mut dbg = f.debug_struct("bir::Bir");
         dbg.field("start_basic_block", &self.start_basic_block);
 
         for basic_block in self.all_basic_blocks() {
             dbg.field(
                 &format!("{basic_block:?}"),
-                &basic_block.data(this).debug(this),
+                &basic_block.data(db.tables()).debug(db),
             );
         }
 
@@ -123,10 +134,10 @@ origin_table! {
 
 id!(pub struct LocalVariable);
 
-impl DebugWithDb<InIrDb<'_, Tables>> for LocalVariable {
-    fn fmt(&self, f: &mut std::fmt::Formatter<'_>, db: &InIrDb<'_, Tables>) -> std::fmt::Result {
+impl DebugWithDb<InIrDb<'_, Bir>> for LocalVariable {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>, db: &InIrDb<'_, Bir>) -> std::fmt::Result {
         let id = u32::from(*self);
-        let data = self.data(db);
+        let data = self.data(db.tables());
         let name = data.name.map(|n| n.as_str(db.db())).unwrap_or("temp");
         write!(f, "{name}{{{id}}}")
     }
@@ -155,8 +166,8 @@ pub struct BasicBlockData {
     pub terminator: Terminator,
 }
 
-impl DebugWithDb<InIrDb<'_, Tables>> for BasicBlockData {
-    fn fmt(&self, f: &mut std::fmt::Formatter<'_>, db: &InIrDb<'_, Tables>) -> std::fmt::Result {
+impl DebugWithDb<InIrDb<'_, Bir>> for BasicBlockData {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>, db: &InIrDb<'_, Bir>) -> std::fmt::Result {
         f.debug_tuple("BasicBlockData")
             .field(&self.statements.debug(db))
             .field(&self.terminator.debug(db))
@@ -166,21 +177,12 @@ impl DebugWithDb<InIrDb<'_, Tables>> for BasicBlockData {
 
 id!(pub struct Statement);
 
-impl DebugWithDb<InIrDb<'_, Tables>> for Statement {
-    fn fmt(&self, f: &mut std::fmt::Formatter<'_>, db: &InIrDb<'_, Tables>) -> std::fmt::Result {
-        DebugWithDb::fmt(&self.data(db), f, db)
-    }
-}
-
 impl DebugWithDb<InIrDb<'_, Bir>> for Statement {
-    fn fmt(&self, f: &mut std::fmt::Formatter<'_>, bir: &InIrDb<'_, Bir>) -> std::fmt::Result {
-        let db = bir.db();
-        let origin = self.origin_in(bir.origins(db));
-        let tables = &bir.data(db).tables;
-        let tables_in_db = tables.in_ir_db(db);
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>, db: &InIrDb<'_, Bir>) -> std::fmt::Result {
+        let origin = self.origin_in(db.origins(db.db()));
         let result = f
             .debug_tuple("")
-            .field(&self.data(tables).debug(&tables_in_db))
+            .field(&self.data(db.tables()).debug(db))
             .field(&origin)
             .finish();
         result
@@ -200,8 +202,8 @@ pub enum StatementData {
     Cusp,
 }
 
-impl DebugWithDb<InIrDb<'_, Tables>> for StatementData {
-    fn fmt(&self, f: &mut std::fmt::Formatter<'_>, db: &InIrDb<'_, Tables>) -> std::fmt::Result {
+impl DebugWithDb<InIrDb<'_, Bir>> for StatementData {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>, db: &InIrDb<'_, Bir>) -> std::fmt::Result {
         match self {
             StatementData::Assign(place, expr) => f
                 .debug_tuple("Assign")
@@ -216,9 +218,9 @@ impl DebugWithDb<InIrDb<'_, Tables>> for StatementData {
 
 id!(pub struct Terminator);
 
-impl DebugWithDb<InIrDb<'_, Tables>> for Terminator {
-    fn fmt(&self, f: &mut std::fmt::Formatter<'_>, db: &InIrDb<'_, Tables>) -> std::fmt::Result {
-        DebugWithDb::fmt(self.data(db), f, db)
+impl DebugWithDb<InIrDb<'_, Bir>> for Terminator {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>, db: &InIrDb<'_, Bir>) -> std::fmt::Result {
+        DebugWithDb::fmt(self.data(db.tables()), f, db)
     }
 }
 
@@ -234,8 +236,8 @@ pub enum TerminatorData {
     Panic,
 }
 
-impl DebugWithDb<InIrDb<'_, Tables>> for TerminatorData {
-    fn fmt(&self, f: &mut std::fmt::Formatter<'_>, db: &InIrDb<'_, Tables>) -> std::fmt::Result {
+impl DebugWithDb<InIrDb<'_, Bir>> for TerminatorData {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>, db: &InIrDb<'_, Bir>) -> std::fmt::Result {
         match self {
             TerminatorData::Goto(block) => f.debug_tuple("Goto").field(block).finish(),
             TerminatorData::If(condition, if_true, if_false) => f
@@ -278,8 +280,8 @@ pub enum TerminatorExpr {
     },
 }
 
-impl DebugWithDb<InIrDb<'_, Tables>> for TerminatorExpr {
-    fn fmt(&self, f: &mut std::fmt::Formatter<'_>, db: &InIrDb<'_, Tables>) -> std::fmt::Result {
+impl DebugWithDb<InIrDb<'_, Bir>> for TerminatorExpr {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>, db: &InIrDb<'_, Bir>) -> std::fmt::Result {
         match self {
             TerminatorExpr::Await(place) => f.debug_tuple("Await").field(&place.debug(db)).finish(),
             TerminatorExpr::Call {
@@ -298,9 +300,9 @@ impl DebugWithDb<InIrDb<'_, Tables>> for TerminatorExpr {
 
 id!(pub struct Expr);
 
-impl DebugWithDb<InIrDb<'_, Tables>> for Expr {
-    fn fmt(&self, f: &mut std::fmt::Formatter<'_>, db: &InIrDb<'_, Tables>) -> std::fmt::Result {
-        write!(f, "{:?}", self.data(db).debug(db))
+impl DebugWithDb<InIrDb<'_, Bir>> for Expr {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>, db: &InIrDb<'_, Bir>) -> std::fmt::Result {
+        write!(f, "{:?}", self.data(db.tables()).debug(db))
     }
 }
 #[derive(PartialEq, Eq, Clone, Hash, Debug)]
@@ -339,8 +341,8 @@ pub enum ExprData {
     Error,
 }
 
-impl DebugWithDb<InIrDb<'_, Tables>> for ExprData {
-    fn fmt(&self, f: &mut std::fmt::Formatter<'_>, db: &InIrDb<'_, Tables>) -> std::fmt::Result {
+impl DebugWithDb<InIrDb<'_, Bir>> for ExprData {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>, db: &InIrDb<'_, Bir>) -> std::fmt::Result {
         match self {
             ExprData::BooleanLiteral(b) => write!(f, "{}", b),
             ExprData::IntegerLiteral(w) => write!(f, "{}", w),
@@ -362,7 +364,7 @@ impl DebugWithDb<InIrDb<'_, Tables>> for ExprData {
 fn write_parenthesized_places(
     f: &mut std::fmt::Formatter<'_>,
     vars: &[Place],
-    db: &InIrDb<'_, Tables>,
+    db: &InIrDb<'_, Bir>,
 ) -> std::fmt::Result {
     write!(f, "(")?;
     for (v, i) in vars.iter().zip(0..) {
@@ -377,9 +379,9 @@ fn write_parenthesized_places(
 
 id!(pub struct Place);
 
-impl DebugWithDb<InIrDb<'_, Tables>> for Place {
-    fn fmt(&self, f: &mut std::fmt::Formatter<'_>, db: &InIrDb<'_, Tables>) -> std::fmt::Result {
-        write!(f, "{:?}", self.data(db).debug(db))
+impl DebugWithDb<InIrDb<'_, Bir>> for Place {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>, db: &InIrDb<'_, Bir>) -> std::fmt::Result {
+        write!(f, "{:?}", self.data(db.tables()).debug(db))
     }
 }
 
@@ -392,8 +394,8 @@ pub enum PlaceData {
     Dot(Place, Word),
 }
 
-impl DebugWithDb<InIrDb<'_, Tables>> for PlaceData {
-    fn fmt(&self, f: &mut std::fmt::Formatter<'_>, db: &InIrDb<'_, Tables>) -> std::fmt::Result {
+impl DebugWithDb<InIrDb<'_, Bir>> for PlaceData {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>, db: &InIrDb<'_, Bir>) -> std::fmt::Result {
         match self {
             PlaceData::LocalVariable(v) => write!(f, "{:?}", v.debug(db)),
             PlaceData::Function(func) => write!(f, "{:?}", func.debug(db.db())),
