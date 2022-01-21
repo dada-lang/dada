@@ -8,18 +8,28 @@ use dada_ir::{
 };
 use dada_parse::prelude::*;
 
-pub fn find(
-    db: &dyn crate::Db,
-    filename: Filename,
-    position: LineColumn,
-) -> Option<(Code, syntax::Expr)> {
+/// Identifies a particular expression in the syntax tree.
+///
+/// See [`find`].
+#[derive(Copy, Clone, Debug)]
+pub struct Breakpoint {
+    pub code: Code,
+    pub expr: syntax::Expr,
+}
+
+/// Given a cursor position, finds the breakpoint associated with that cursor
+/// (if any). This is the expression that the cursor is on.
+pub fn find(db: &dyn crate::Db, filename: Filename, position: LineColumn) -> Option<Breakpoint> {
     let offset = dada_ir::lines::offset(db, filename, position);
 
     let item = find_item(db, filename, offset)?;
     let code = item.code(db)?;
     let syntax_tree = code.syntax_tree(db);
     let cusp_expr = find_syntax_expr(db, syntax_tree, offset)?;
-    Some((code, cusp_expr))
+    Some(Breakpoint {
+        code,
+        expr: cusp_expr,
+    })
 }
 
 pub fn find_item(db: &dyn crate::Db, filename: Filename, offset: Offset) -> Option<Item> {

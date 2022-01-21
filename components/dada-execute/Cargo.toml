@@ -9,6 +9,7 @@ edition = "2021"
 arc-swap = "1.5.0"
 async-trait = "0.1.52"
 crossbeam = "0.8.1"
+dada-breakpoint = { path = "../dada-breakpoint" }
 dada-brew = { path = "../dada-brew" }
 dada-collections = { path = "../dada-collections" }
 dada-error-format = { path = "../dada-error-format" }

@@ -291,6 +291,7 @@ dependencies = [
  "arc-swap",
  "async-trait",
  "crossbeam",
+ "dada-breakpoint",
  "dada-brew",
  "dada-collections",
  "dada-error-format",
