@@ -3,9 +3,24 @@
         start_basic_block: BasicBlock(0),
         BasicBlock(0): BasicBlockData(
             [
-                Assign(
-                    temp{2},
-                    "foo",
+                (
+                    Cusp,
+                    Expr(3),
+                ),
+                (
+                    Cusp,
+                    Expr(0),
+                ),
+                (
+                    Assign(
+                        temp{2},
+                        "foo",
+                    ),
+                    Expr(1),
+                ),
+                (
+                    Cusp,
+                    Expr(1),
                 ),
             ],
             Assign(
@@ -23,7 +38,28 @@
             ),
         ),
         BasicBlock(1): BasicBlockData(
-            [],
+            [
+                (
+                    Cusp,
+                    Expr(2),
+                ),
+                (
+                    Cusp,
+                    Expr(3),
+                ),
+                (
+                    Cusp,
+                    Expr(4),
+                ),
+                (
+                    Cusp,
+                    Expr(5),
+                ),
+                (
+                    Cusp,
+                    Expr(6),
+                ),
+            ],
             Assign(
                 temp{3},
                 Call(
@@ -39,7 +75,12 @@
             ),
         ),
         BasicBlock(2): BasicBlockData(
-            [],
+            [
+                (
+                    Cusp,
+                    Expr(7),
+                ),
+            ],
             Assign(
                 temp{1},
                 Await(
@@ -49,7 +90,16 @@
             ),
         ),
         BasicBlock(3): BasicBlockData(
-            [],
+            [
+                (
+                    Cusp,
+                    Expr(8),
+                ),
+                (
+                    Cusp,
+                    Expr(9),
+                ),
+            ],
             Return(
                 temp{1},
             ),

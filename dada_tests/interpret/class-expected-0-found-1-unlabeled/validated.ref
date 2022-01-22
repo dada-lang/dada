@@ -1,25 +1,42 @@
 [
-    validated::Tree {
-        num_parameters: 0,
-        root_expr: Seq(
+    (
+        Expr(4),
+        Seq(
             [
-                Assign(
-                    x{0},
-                    Call(
-                        Class(
-                            Id {
-                                value: 1,
-                            },
-                        ),
-                        [
-                            (
-                                None,
-                                10,
+                (
+                    Expr(3),
+                    Assign(
+                        x{0},
+                        (
+                            Expr(2),
+                            Call(
+                                (
+                                    Expr(0),
+                                    Class(
+                                        Id {
+                                            value: 1,
+                                        },
+                                    ),
+                                    Expr(0),
+                                ),
+                                [
+                                    (
+                                        None,
+                                        (
+                                            Expr(1),
+                                            10,
+                                            Expr(1),
+                                        ),
+                                    ),
+                                ],
                             ),
-                        ],
+                            Expr(2),
+                        ),
                     ),
+                    Expr(3),
                 ),
             ],
         ),
-    },
+        Expr(4),
+    ),
 ]

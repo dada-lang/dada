@@ -3,25 +3,72 @@
         start_basic_block: BasicBlock(0),
         BasicBlock(0): BasicBlockData(
             [
-                Assign(
-                    temp{2},
-                    22,
+                (
+                    Cusp,
+                    Expr(3),
                 ),
-                Assign(
-                    temp{3},
-                    44,
+                (
+                    Assign(
+                        temp{2},
+                        22,
+                    ),
+                    Expr(0),
                 ),
-                Assign(
-                    x{0},
-                    temp{2} + temp{3},
+                (
+                    Cusp,
+                    Expr(0),
                 ),
-                Assign(
-                    temp{5},
-                    66,
+                (
+                    Assign(
+                        temp{3},
+                        44,
+                    ),
+                    Expr(1),
                 ),
-                Assign(
-                    temp{4},
-                    x{0} == temp{5},
+                (
+                    Cusp,
+                    Expr(1),
+                ),
+                (
+                    Assign(
+                        x{0},
+                        temp{2} + temp{3},
+                    ),
+                    Expr(2),
+                ),
+                (
+                    Cusp,
+                    Expr(2),
+                ),
+                (
+                    Cusp,
+                    Expr(3),
+                ),
+                (
+                    Cusp,
+                    Expr(4),
+                ),
+                (
+                    Assign(
+                        temp{5},
+                        66,
+                    ),
+                    Expr(5),
+                ),
+                (
+                    Cusp,
+                    Expr(5),
+                ),
+                (
+                    Assign(
+                        temp{4},
+                        x{0} == temp{5},
+                    ),
+                    Expr(6),
+                ),
+                (
+                    Cusp,
+                    Expr(6),
                 ),
             ],
             If(
@@ -32,9 +79,20 @@
         ),
         BasicBlock(1): BasicBlockData(
             [
-                Assign(
-                    temp{7},
-                    "Huzzah",
+                (
+                    Cusp,
+                    Expr(7),
+                ),
+                (
+                    Assign(
+                        temp{7},
+                        "Huzzah",
+                    ),
+                    Expr(8),
+                ),
+                (
+                    Cusp,
+                    Expr(8),
                 ),
             ],
             Assign(
@@ -53,9 +111,16 @@
         ),
         BasicBlock(2): BasicBlockData(
             [
-                Assign(
-                    temp{1},
-                    (),
+                (
+                    Assign(
+                        temp{1},
+                        (),
+                    ),
+                    Expr(12),
+                ),
+                (
+                    Cusp,
+                    Expr(12),
                 ),
             ],
             Goto(
@@ -63,13 +128,27 @@
             ),
         ),
         BasicBlock(3): BasicBlockData(
-            [],
+            [
+                (
+                    Cusp,
+                    Expr(12),
+                ),
+                (
+                    Cusp,
+                    Expr(13),
+                ),
+            ],
             Return(
                 temp{1},
             ),
         ),
         BasicBlock(4): BasicBlockData(
-            [],
+            [
+                (
+                    Cusp,
+                    Expr(9),
+                ),
+            ],
             Assign(
                 temp{1},
                 Await(
@@ -79,7 +158,16 @@
             ),
         ),
         BasicBlock(5): BasicBlockData(
-            [],
+            [
+                (
+                    Cusp,
+                    Expr(10),
+                ),
+                (
+                    Cusp,
+                    Expr(11),
+                ),
+            ],
             Goto(
                 BasicBlock(3),
             ),

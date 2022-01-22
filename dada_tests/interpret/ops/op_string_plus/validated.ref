@@ -1,14 +1,27 @@
 [
-    validated::Tree {
-        num_parameters: 0,
-        root_expr: Seq(
+    (
+        Expr(3),
+        Seq(
             [
-                Op(
-                    "a",
-                    Plus,
-                    "b",
+                (
+                    Expr(2),
+                    Op(
+                        (
+                            Expr(0),
+                            "a",
+                            Expr(0),
+                        ),
+                        Plus,
+                        (
+                            Expr(1),
+                            "b",
+                            Expr(1),
+                        ),
+                    ),
+                    Expr(2),
                 ),
             ],
         ),
-    },
+        Expr(3),
+    ),
 ]

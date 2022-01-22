@@ -3,13 +3,35 @@
         start_basic_block: BasicBlock(0),
         BasicBlock(0): BasicBlockData(
             [
-                Assign(
-                    temp{2},
-                    10,
+                (
+                    Cusp,
+                    Expr(4),
                 ),
-                Assign(
-                    temp{3},
-                    22,
+                (
+                    Cusp,
+                    Expr(0),
+                ),
+                (
+                    Assign(
+                        temp{2},
+                        10,
+                    ),
+                    Expr(1),
+                ),
+                (
+                    Cusp,
+                    Expr(1),
+                ),
+                (
+                    Assign(
+                        temp{3},
+                        22,
+                    ),
+                    Expr(2),
+                ),
+                (
+                    Cusp,
+                    Expr(2),
                 ),
             ],
             Assign(
@@ -34,9 +56,24 @@
         ),
         BasicBlock(1): BasicBlockData(
             [
-                Assign(
-                    temp{1},
-                    (),
+                (
+                    Cusp,
+                    Expr(3),
+                ),
+                (
+                    Cusp,
+                    Expr(4),
+                ),
+                (
+                    Assign(
+                        temp{1},
+                        (),
+                    ),
+                    Expr(4),
+                ),
+                (
+                    Cusp,
+                    Expr(5),
                 ),
             ],
             Return(

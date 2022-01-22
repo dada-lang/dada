@@ -3,9 +3,20 @@
         start_basic_block: BasicBlock(0),
         BasicBlock(0): BasicBlockData(
             [
-                Assign(
-                    temp{2},
-                    "Hello, world",
+                (
+                    Cusp,
+                    Expr(0),
+                ),
+                (
+                    Assign(
+                        temp{2},
+                        "Hello, world",
+                    ),
+                    Expr(1),
+                ),
+                (
+                    Cusp,
+                    Expr(1),
                 ),
             ],
             Assign(
@@ -23,7 +34,12 @@
             ),
         ),
         BasicBlock(1): BasicBlockData(
-            [],
+            [
+                (
+                    Cusp,
+                    Expr(2),
+                ),
+            ],
             Assign(
                 temp{0},
                 Await(
@@ -33,7 +49,16 @@
             ),
         ),
         BasicBlock(2): BasicBlockData(
-            [],
+            [
+                (
+                    Cusp,
+                    Expr(3),
+                ),
+                (
+                    Cusp,
+                    Expr(4),
+                ),
+            ],
             Return(
                 temp{0},
             ),
@@ -49,9 +74,20 @@
         ),
         BasicBlock(1): BasicBlockData(
             [
-                Assign(
-                    temp{2},
-                    "Hello, world",
+                (
+                    Cusp,
+                    Expr(0),
+                ),
+                (
+                    Assign(
+                        temp{2},
+                        "Hello, world",
+                    ),
+                    Expr(1),
+                ),
+                (
+                    Cusp,
+                    Expr(1),
                 ),
             ],
             Assign(
@@ -69,7 +105,12 @@
             ),
         ),
         BasicBlock(2): BasicBlockData(
-            [],
+            [
+                (
+                    Cusp,
+                    Expr(2),
+                ),
+            ],
             Assign(
                 temp{0},
                 Await(
@@ -79,13 +120,31 @@
             ),
         ),
         BasicBlock(3): BasicBlockData(
-            [],
+            [
+                (
+                    Cusp,
+                    Expr(3),
+                ),
+                (
+                    Cusp,
+                    Expr(4),
+                ),
+            ],
             EndAtomic(
                 BasicBlock(4),
             ),
         ),
         BasicBlock(4): BasicBlockData(
-            [],
+            [
+                (
+                    Cusp,
+                    Expr(5),
+                ),
+                (
+                    Cusp,
+                    Expr(6),
+                ),
+            ],
             Return(
                 temp{0},
             ),
@@ -101,9 +160,20 @@
         ),
         BasicBlock(1): BasicBlockData(
             [
-                Assign(
-                    temp{2},
-                    "Hello, world",
+                (
+                    Cusp,
+                    Expr(0),
+                ),
+                (
+                    Assign(
+                        temp{2},
+                        "Hello, world",
+                    ),
+                    Expr(1),
+                ),
+                (
+                    Cusp,
+                    Expr(1),
                 ),
             ],
             Assign(
@@ -121,7 +191,12 @@
             ),
         ),
         BasicBlock(2): BasicBlockData(
-            [],
+            [
+                (
+                    Cusp,
+                    Expr(2),
+                ),
+            ],
             Assign(
                 temp{0},
                 Await(
@@ -131,13 +206,31 @@
             ),
         ),
         BasicBlock(3): BasicBlockData(
-            [],
+            [
+                (
+                    Cusp,
+                    Expr(3),
+                ),
+                (
+                    Cusp,
+                    Expr(4),
+                ),
+            ],
             EndAtomic(
                 BasicBlock(4),
             ),
         ),
         BasicBlock(4): BasicBlockData(
-            [],
+            [
+                (
+                    Cusp,
+                    Expr(5),
+                ),
+                (
+                    Cusp,
+                    Expr(6),
+                ),
+            ],
             Return(
                 temp{0},
             ),
@@ -147,9 +240,20 @@
         start_basic_block: BasicBlock(0),
         BasicBlock(0): BasicBlockData(
             [
-                Assign(
-                    temp{2},
-                    "Hello, world",
+                (
+                    Cusp,
+                    Expr(0),
+                ),
+                (
+                    Assign(
+                        temp{2},
+                        "Hello, world",
+                    ),
+                    Expr(1),
+                ),
+                (
+                    Cusp,
+                    Expr(1),
                 ),
             ],
             Assign(
@@ -167,7 +271,12 @@
             ),
         ),
         BasicBlock(1): BasicBlockData(
-            [],
+            [
+                (
+                    Cusp,
+                    Expr(2),
+                ),
+            ],
             Assign(
                 temp{0},
                 Await(
@@ -177,7 +286,16 @@
             ),
         ),
         BasicBlock(2): BasicBlockData(
-            [],
+            [
+                (
+                    Cusp,
+                    Expr(3),
+                ),
+                (
+                    Cusp,
+                    Expr(4),
+                ),
+            ],
             Return(
                 temp{0},
             ),

@@ -1,0 +1,37 @@
+[
+    (
+        Expr(4),
+        Seq(
+            [
+                (
+                    Expr(3),
+                    Await(
+                        (
+                            Expr(2),
+                            Call(
+                                (
+                                    Expr(0),
+                                    Print,
+                                    Expr(0),
+                                ),
+                                [
+                                    (
+                                        None,
+                                        (
+                                            Expr(1),
+                                            "I have forced myself to contradict myself\nin order to avoid conforming to my own taste.\n  -- Marcel Duchamp",
+                                            Expr(1),
+                                        ),
+                                    ),
+                                ],
+                            ),
+                            Expr(2),
+                        ),
+                    ),
+                    Expr(3),
+                ),
+            ],
+        ),
+        Expr(4),
+    ),
+]

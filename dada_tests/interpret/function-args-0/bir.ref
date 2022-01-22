@@ -3,9 +3,20 @@
         start_basic_block: BasicBlock(0),
         BasicBlock(0): BasicBlockData(
             [
-                Assign(
-                    temp{2},
-                    "Hello you",
+                (
+                    Cusp,
+                    Expr(0),
+                ),
+                (
+                    Assign(
+                        temp{2},
+                        "Hello you",
+                    ),
+                    Expr(1),
+                ),
+                (
+                    Cusp,
+                    Expr(1),
                 ),
             ],
             Assign(
@@ -23,7 +34,12 @@
             ),
         ),
         BasicBlock(1): BasicBlockData(
-            [],
+            [
+                (
+                    Cusp,
+                    Expr(2),
+                ),
+            ],
             Assign(
                 temp{0},
                 Await(
@@ -33,7 +49,16 @@
             ),
         ),
         BasicBlock(2): BasicBlockData(
-            [],
+            [
+                (
+                    Cusp,
+                    Expr(3),
+                ),
+                (
+                    Cusp,
+                    Expr(4),
+                ),
+            ],
             Return(
                 temp{0},
             ),
@@ -42,7 +67,12 @@
     bir::Bir {
         start_basic_block: BasicBlock(0),
         BasicBlock(0): BasicBlockData(
-            [],
+            [
+                (
+                    Cusp,
+                    Expr(0),
+                ),
+            ],
             Assign(
                 temp{1},
                 Call(
@@ -54,7 +84,12 @@
             ),
         ),
         BasicBlock(1): BasicBlockData(
-            [],
+            [
+                (
+                    Cusp,
+                    Expr(1),
+                ),
+            ],
             Assign(
                 temp{0},
                 Await(
@@ -64,7 +99,16 @@
             ),
         ),
         BasicBlock(2): BasicBlockData(
-            [],
+            [
+                (
+                    Cusp,
+                    Expr(2),
+                ),
+                (
+                    Cusp,
+                    Expr(3),
+                ),
+            ],
             Return(
                 temp{0},
             ),

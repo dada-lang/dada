@@ -30,7 +30,7 @@ impl<'db> Parser<'db> {
     }
 
     fn parse_class(&mut self) -> Option<Class> {
-        self.eat(Keyword::Class)?;
+        let (class_span, _) = self.eat(Keyword::Class)?;
         let (class_name_span, class_name) = self
             .eat(Identifier)
             .or_report_error(self, || "expected a class name")?;
@@ -40,8 +40,9 @@ impl<'db> Parser<'db> {
         Some(Class::new(
             self.db,
             class_name,
-            class_name_span.in_file(self.filename),
             field_tokens,
+            self.span_consumed_since(class_span).in_file(self.filename),
+            class_name_span.in_file(self.filename),
         ))
     }
 
@@ -64,11 +65,13 @@ impl<'db> Parser<'db> {
             .delimited('{')
             .or_report_error(self, || "expected function body".to_string())?;
         let code = Code::new(effect, Some(parameter_tokens), body_tokens);
+        let start_span = effect_span.unwrap_or(fn_span);
         Some(Function::new(
             self.db,
             func_name,
-            func_name_span.in_file(self.filename),
             code,
+            self.span_consumed_since(start_span).in_file(self.filename),
+            func_name_span.in_file(self.filename),
             effect_span.unwrap_or(fn_span).in_file(self.filename),
         ))
     }

@@ -2,7 +2,16 @@
     bir::Bir {
         start_basic_block: BasicBlock(0),
         BasicBlock(0): BasicBlockData(
-            [],
+            [
+                (
+                    Cusp,
+                    Expr(2),
+                ),
+                (
+                    Cusp,
+                    Expr(0),
+                ),
+            ],
             Assign(
                 t{0},
                 Call(
@@ -15,9 +24,28 @@
         ),
         BasicBlock(1): BasicBlockData(
             [
-                Assign(
-                    temp{3},
-                    "Done",
+                (
+                    Cusp,
+                    Expr(1),
+                ),
+                (
+                    Cusp,
+                    Expr(2),
+                ),
+                (
+                    Cusp,
+                    Expr(3),
+                ),
+                (
+                    Assign(
+                        temp{3},
+                        "Done",
+                    ),
+                    Expr(4),
+                ),
+                (
+                    Cusp,
+                    Expr(4),
                 ),
             ],
             Assign(
@@ -35,7 +63,12 @@
             ),
         ),
         BasicBlock(2): BasicBlockData(
-            [],
+            [
+                (
+                    Cusp,
+                    Expr(5),
+                ),
+            ],
             Assign(
                 temp{1},
                 Await(
@@ -45,7 +78,16 @@
             ),
         ),
         BasicBlock(3): BasicBlockData(
-            [],
+            [
+                (
+                    Cusp,
+                    Expr(6),
+                ),
+                (
+                    Cusp,
+                    Expr(7),
+                ),
+            ],
             Return(
                 temp{1},
             ),

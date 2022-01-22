@@ -22,6 +22,7 @@ mod data;
 mod error;
 mod execute;
 mod ext;
+pub mod heap_graph;
 mod interpreter;
 mod intrinsic;
 pub mod kernel;
@@ -32,3 +33,4 @@ mod thunk;
 mod value;
 
 pub use execute::interpret;
+pub use execute::StackFrame;

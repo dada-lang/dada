@@ -1,16 +1,16 @@
-use std::{hash::Hash, marker::PhantomData};
+use std::marker::PhantomData;
 
 use dada_collections::IndexVec;
 
 /// An individual allocating table, where each thing
 /// added to the table gets a unique index.
 #[derive(Clone, Debug, PartialEq, Eq)]
-pub struct AllocTable<K: salsa::AsId, V: Hash + Eq> {
+pub struct AllocTable<K: salsa::AsId, V> {
     vec: IndexVec<salsa::Id, V>,
     phantom: PhantomData<K>,
 }
 
-impl<K: salsa::AsId, V: Hash + Eq> Default for AllocTable<K, V> {
+impl<K: salsa::AsId, V> Default for AllocTable<K, V> {
     fn default() -> Self {
         Self {
             vec: IndexVec::default(),
@@ -18,7 +18,7 @@ impl<K: salsa::AsId, V: Hash + Eq> Default for AllocTable<K, V> {
         }
     }
 }
-impl<K: salsa::AsId, V: Hash + Eq> AllocTable<K, V> {
+impl<K: salsa::AsId, V> AllocTable<K, V> {
     /// Returns the key that will be assigned to the next
     /// item that is added. As keys are assigned continguously,
     /// this also determines the range of valid keys
@@ -49,7 +49,7 @@ impl<K: salsa::AsId, V: Hash + Eq> AllocTable<K, V> {
     }
 }
 
-impl<K: salsa::AsId, V: Hash + Eq> std::ops::Index<K> for AllocTable<K, V> {
+impl<K: salsa::AsId, V> std::ops::Index<K> for AllocTable<K, V> {
     type Output = V;
 
     fn index(&self, key: K) -> &Self::Output {
@@ -57,7 +57,7 @@ impl<K: salsa::AsId, V: Hash + Eq> std::ops::Index<K> for AllocTable<K, V> {
     }
 }
 
-impl<K: salsa::AsId, V: Hash + Eq> std::ops::IndexMut<K> for AllocTable<K, V> {
+impl<K: salsa::AsId, V> std::ops::IndexMut<K> for AllocTable<K, V> {
     fn index_mut(&mut self, key: K) -> &mut Self::Output {
         self.data_mut(key)
     }

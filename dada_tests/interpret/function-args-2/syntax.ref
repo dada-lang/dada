@@ -2,17 +2,152 @@
     syntax::Tree {
         origin: Code(
             Some(
-                Tokens(dada_tests/interpret/function-args-2.dada:1:17:1:29),
+                Tokens(dada_tests/interpret/function-args-2.dada:1:18:1:30),
             ),
-            Tokens(dada_tests/interpret/function-args-2.dada:1:32:5:1),
+            Tokens(dada_tests/interpret/function-args-2.dada:1:33:5:2),
         ),
+        data: syntax::Tree {
+            root_expr: (
+                Expr(12),
+                Seq(
+                    [
+                        (
+                            Expr(3),
+                            Await(
+                                (
+                                    Expr(2),
+                                    Call(
+                                        (
+                                            Expr(0),
+                                            Id(
+                                                "print",
+                                            ),
+                                        ),
+                                        [
+                                            (
+                                                None,
+                                                (
+                                                    Expr(1),
+                                                    String(
+                                                        "Hello ",
+                                                    ),
+                                                ),
+                                            ),
+                                        ],
+                                    ),
+                                ),
+                            ),
+                        ),
+                        (
+                            Expr(7),
+                            Await(
+                                (
+                                    Expr(6),
+                                    Call(
+                                        (
+                                            Expr(4),
+                                            Id(
+                                                "print",
+                                            ),
+                                        ),
+                                        [
+                                            (
+                                                None,
+                                                (
+                                                    Expr(5),
+                                                    Id(
+                                                        "name1",
+                                                    ),
+                                                ),
+                                            ),
+                                        ],
+                                    ),
+                                ),
+                            ),
+                        ),
+                        (
+                            Expr(11),
+                            Await(
+                                (
+                                    Expr(10),
+                                    Call(
+                                        (
+                                            Expr(8),
+                                            Id(
+                                                "print",
+                                            ),
+                                        ),
+                                        [
+                                            (
+                                                None,
+                                                (
+                                                    Expr(9),
+                                                    Id(
+                                                        "name2",
+                                                    ),
+                                                ),
+                                            ),
+                                        ],
+                                    ),
+                                ),
+                            ),
+                        ),
+                    ],
+                ),
+            ),
+        },
     },
     syntax::Tree {
         origin: Code(
             Some(
-                Tokens(dada_tests/interpret/function-args-2.dada:7:15:7:15),
+                Tokens(dada_tests/interpret/function-args-2.dada:7:16:7:16),
             ),
-            Tokens(dada_tests/interpret/function-args-2.dada:7:18:9:1),
+            Tokens(dada_tests/interpret/function-args-2.dada:7:19:9:2),
         ),
+        data: syntax::Tree {
+            root_expr: (
+                Expr(5),
+                Seq(
+                    [
+                        (
+                            Expr(4),
+                            Await(
+                                (
+                                    Expr(3),
+                                    Call(
+                                        (
+                                            Expr(0),
+                                            Id(
+                                                "greet2",
+                                            ),
+                                        ),
+                                        [
+                                            (
+                                                None,
+                                                (
+                                                    Expr(1),
+                                                    String(
+                                                        "Plusch",
+                                                    ),
+                                                ),
+                                            ),
+                                            (
+                                                None,
+                                                (
+                                                    Expr(2),
+                                                    String(
+                                                        "plusch",
+                                                    ),
+                                                ),
+                                            ),
+                                        ],
+                                    ),
+                                ),
+                            ),
+                        ),
+                    ],
+                ),
+            ),
+        },
     },
 ]

@@ -1,6 +1,9 @@
 use std::path::PathBuf;
 
+use dada_ir::in_ir_db::InIrDbExt;
+use dada_parse::prelude::*;
 use eyre::Context;
+use salsa::DebugWithDb;
 use tokio::io::AsyncWriteExt;
 
 #[derive(structopt::StructOpt)]
@@ -56,5 +59,20 @@ impl dada_execute::kernel::Kernel for Kernel {
             text = &text[written..];
         }
         return Ok(());
+    }
+
+    fn on_cusp(
+        &self,
+        db: &dyn dada_execute::Db,
+        stack_frame: &dada_execute::StackFrame<'_>,
+        expr: dada_ir::code::syntax::Expr,
+    ) -> eyre::Result<()> {
+        let code = stack_frame.code(db);
+        let syntax_tree = code.syntax_tree(db);
+        tracing::debug!(
+            "on the cusp of completing {:?}",
+            expr.debug(&syntax_tree.in_ir_db(db))
+        );
+        Ok(())
     }
 }

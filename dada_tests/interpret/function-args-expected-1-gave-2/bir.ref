@@ -2,7 +2,16 @@
     bir::Bir {
         start_basic_block: BasicBlock(0),
         BasicBlock(0): BasicBlockData(
-            [],
+            [
+                (
+                    Cusp,
+                    Expr(0),
+                ),
+                (
+                    Cusp,
+                    Expr(1),
+                ),
+            ],
             Assign(
                 temp{2},
                 Call(
@@ -18,7 +27,12 @@
             ),
         ),
         BasicBlock(1): BasicBlockData(
-            [],
+            [
+                (
+                    Cusp,
+                    Expr(2),
+                ),
+            ],
             Assign(
                 temp{1},
                 Await(
@@ -28,7 +42,16 @@
             ),
         ),
         BasicBlock(2): BasicBlockData(
-            [],
+            [
+                (
+                    Cusp,
+                    Expr(3),
+                ),
+                (
+                    Cusp,
+                    Expr(4),
+                ),
+            ],
             Return(
                 temp{1},
             ),
@@ -38,13 +61,31 @@
         start_basic_block: BasicBlock(0),
         BasicBlock(0): BasicBlockData(
             [
-                Assign(
-                    temp{1},
-                    "Plush",
+                (
+                    Cusp,
+                    Expr(0),
                 ),
-                Assign(
-                    temp{2},
-                    "plush",
+                (
+                    Assign(
+                        temp{1},
+                        "Plush",
+                    ),
+                    Expr(1),
+                ),
+                (
+                    Cusp,
+                    Expr(1),
+                ),
+                (
+                    Assign(
+                        temp{2},
+                        "plush",
+                    ),
+                    Expr(2),
+                ),
+                (
+                    Cusp,
+                    Expr(2),
                 ),
             ],
             Assign(
@@ -64,7 +105,16 @@
             ),
         ),
         BasicBlock(1): BasicBlockData(
-            [],
+            [
+                (
+                    Cusp,
+                    Expr(3),
+                ),
+                (
+                    Cusp,
+                    Expr(4),
+                ),
+            ],
             Return(
                 temp{0},
             ),

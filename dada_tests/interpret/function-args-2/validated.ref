@@ -1,64 +1,134 @@
 [
-    validated::Tree {
-        num_parameters: 2,
-        root_expr: Seq(
+    (
+        Expr(12),
+        Seq(
             [
-                Await(
-                    Call(
-                        Print,
-                        [
-                            (
-                                None,
-                                "Hello ",
+                (
+                    Expr(3),
+                    Await(
+                        (
+                            Expr(2),
+                            Call(
+                                (
+                                    Expr(0),
+                                    Print,
+                                    Expr(0),
+                                ),
+                                [
+                                    (
+                                        None,
+                                        (
+                                            Expr(1),
+                                            "Hello ",
+                                            Expr(1),
+                                        ),
+                                    ),
+                                ],
                             ),
-                        ],
+                            Expr(2),
+                        ),
                     ),
+                    Expr(3),
                 ),
-                Await(
-                    Call(
-                        Print,
-                        [
-                            (
-                                None,
-                                name1{0},
+                (
+                    Expr(7),
+                    Await(
+                        (
+                            Expr(6),
+                            Call(
+                                (
+                                    Expr(4),
+                                    Print,
+                                    Expr(4),
+                                ),
+                                [
+                                    (
+                                        None,
+                                        (
+                                            Expr(5),
+                                            name1{0},
+                                            Expr(5),
+                                        ),
+                                    ),
+                                ],
                             ),
-                        ],
+                            Expr(6),
+                        ),
                     ),
+                    Expr(7),
                 ),
-                Await(
-                    Call(
-                        Print,
-                        [
-                            (
-                                None,
-                                name2{1},
+                (
+                    Expr(11),
+                    Await(
+                        (
+                            Expr(10),
+                            Call(
+                                (
+                                    Expr(8),
+                                    Print,
+                                    Expr(8),
+                                ),
+                                [
+                                    (
+                                        None,
+                                        (
+                                            Expr(9),
+                                            name2{1},
+                                            Expr(9),
+                                        ),
+                                    ),
+                                ],
                             ),
-                        ],
+                            Expr(10),
+                        ),
                     ),
+                    Expr(11),
                 ),
             ],
         ),
-    },
-    validated::Tree {
-        num_parameters: 0,
-        root_expr: Seq(
+        Expr(12),
+    ),
+    (
+        Expr(5),
+        Seq(
             [
-                Await(
-                    Call(
-                        greet2,
-                        [
-                            (
-                                None,
-                                "Plusch",
+                (
+                    Expr(4),
+                    Await(
+                        (
+                            Expr(3),
+                            Call(
+                                (
+                                    Expr(0),
+                                    greet2,
+                                    Expr(0),
+                                ),
+                                [
+                                    (
+                                        None,
+                                        (
+                                            Expr(1),
+                                            "Plusch",
+                                            Expr(1),
+                                        ),
+                                    ),
+                                    (
+                                        None,
+                                        (
+                                            Expr(2),
+                                            "plusch",
+                                            Expr(2),
+                                        ),
+                                    ),
+                                ],
                             ),
-                            (
-                                None,
-                                "plusch",
-                            ),
-                        ],
+                            Expr(3),
+                        ),
                     ),
+                    Expr(4),
                 ),
             ],
         ),
-    },
+        Expr(5),
+    ),
 ]

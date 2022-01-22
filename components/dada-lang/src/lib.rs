@@ -1,3 +1,7 @@
+#![feature(trait_upcasting)]
+#![feature(try_blocks)]
+#![allow(incomplete_features)]
+
 use structopt::StructOpt;
 use tracing_subscriber::prelude::*;
 use tracing_subscriber::EnvFilter;

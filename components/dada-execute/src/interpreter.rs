@@ -1,11 +1,6 @@
 use crossbeam::atomic::AtomicCell;
 use dada_collections::IndexVec;
-use dada_ir::{
-    code::{bir, syntax},
-    origin_table::HasOriginIn,
-    span::FileSpan,
-};
-use dada_parse::prelude::*;
+use dada_ir::span::FileSpan;
 use parking_lot::Mutex;
 
 use crate::{kernel::Kernel, moment::Moment};
@@ -78,19 +73,6 @@ impl<'me> Interpreter<'me> {
     pub(crate) fn span(&self, moment: Moment) -> FileSpan {
         let moments = self.moments.lock();
         moments[moment].span
-    }
-
-    /// Returns the `FileSpan` for a given expression `expr` found in `bir`
-    pub(crate) fn span_from_bir(
-        &self,
-        bir: bir::Bir,
-        expr: impl HasOriginIn<bir::Origins, Origin = syntax::Expr>,
-    ) -> FileSpan {
-        let code = bir.origin(self.db());
-        let filename = code.filename(self.db());
-        let syntax_expr = bir.origins(self.db())[expr];
-        let syntax_tree = code.syntax_tree(self.db());
-        syntax_tree.spans(self.db())[syntax_expr].in_file(filename)
     }
 
     pub(crate) fn kernel(&self) -> &dyn Kernel {

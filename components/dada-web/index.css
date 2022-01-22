@@ -13,6 +13,18 @@ body {
     min-width: 40ch;
 }
 
+.output {
+    flex: 1;
+    display: flex;
+    flex-direction: row;
+}
+
+.graph {
+    flex: 2;
+    display: flex;
+    flex-direction: row;
+}
+
 #editor {
     width: 100%;
     height: 100%;

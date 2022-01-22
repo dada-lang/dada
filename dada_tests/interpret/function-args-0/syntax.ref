@@ -2,17 +2,79 @@
     syntax::Tree {
         origin: Code(
             Some(
-                Tokens(dada_tests/interpret/function-args-0.dada:1:17:1:17),
+                Tokens(dada_tests/interpret/function-args-0.dada:1:18:1:18),
             ),
-            Tokens(dada_tests/interpret/function-args-0.dada:1:20:3:1),
+            Tokens(dada_tests/interpret/function-args-0.dada:1:21:3:2),
         ),
+        data: syntax::Tree {
+            root_expr: (
+                Expr(4),
+                Seq(
+                    [
+                        (
+                            Expr(3),
+                            Await(
+                                (
+                                    Expr(2),
+                                    Call(
+                                        (
+                                            Expr(0),
+                                            Id(
+                                                "print",
+                                            ),
+                                        ),
+                                        [
+                                            (
+                                                None,
+                                                (
+                                                    Expr(1),
+                                                    String(
+                                                        "Hello you",
+                                                    ),
+                                                ),
+                                            ),
+                                        ],
+                                    ),
+                                ),
+                            ),
+                        ),
+                    ],
+                ),
+            ),
+        },
     },
     syntax::Tree {
         origin: Code(
             Some(
-                Tokens(dada_tests/interpret/function-args-0.dada:5:15:5:15),
+                Tokens(dada_tests/interpret/function-args-0.dada:5:16:5:16),
             ),
-            Tokens(dada_tests/interpret/function-args-0.dada:5:18:7:1),
+            Tokens(dada_tests/interpret/function-args-0.dada:5:19:7:2),
         ),
+        data: syntax::Tree {
+            root_expr: (
+                Expr(3),
+                Seq(
+                    [
+                        (
+                            Expr(2),
+                            Await(
+                                (
+                                    Expr(1),
+                                    Call(
+                                        (
+                                            Expr(0),
+                                            Id(
+                                                "greet0",
+                                            ),
+                                        ),
+                                        [],
+                                    ),
+                                ),
+                            ),
+                        ),
+                    ],
+                ),
+            ),
+        },
     },
 ]

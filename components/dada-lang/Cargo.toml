@@ -7,11 +7,13 @@ edition = "2021"
 
 [dependencies]
 async-trait = "0.1.52"
+dada-breakpoint = { path = "../dada-breakpoint" }
 dada-db = { path = "../dada-db" }
 dada-collections = { path = "../dada-collections" }
 dada-ir = { path = "../dada-ir" }
 dada-error-format = { path = "../dada-error-format" }
 dada-execute = { path = "../dada-execute" }
+dada-parse = { path = "../dada-parse" }
 dada-lex = { path = "../dada-lex" }
 dada-lsp = { path = "../dada-lsp" }
 ignore = "0.4.18"

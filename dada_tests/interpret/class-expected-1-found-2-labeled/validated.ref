@@ -1,33 +1,54 @@
 [
-    validated::Tree {
-        num_parameters: 0,
-        root_expr: Seq(
+    (
+        Expr(5),
+        Seq(
             [
-                Assign(
-                    x{0},
-                    Call(
-                        Class(
-                            Id {
-                                value: 1,
-                            },
+                (
+                    Expr(4),
+                    Assign(
+                        x{0},
+                        (
+                            Expr(3),
+                            Call(
+                                (
+                                    Expr(0),
+                                    Class(
+                                        Id {
+                                            value: 1,
+                                        },
+                                    ),
+                                    Expr(0),
+                                ),
+                                [
+                                    (
+                                        Some(
+                                            "arg",
+                                        ),
+                                        (
+                                            Expr(1),
+                                            10,
+                                            Expr(1),
+                                        ),
+                                    ),
+                                    (
+                                        Some(
+                                            "arg2",
+                                        ),
+                                        (
+                                            Expr(2),
+                                            22,
+                                            Expr(2),
+                                        ),
+                                    ),
+                                ],
+                            ),
+                            Expr(3),
                         ),
-                        [
-                            (
-                                Some(
-                                    "arg",
-                                ),
-                                10,
-                            ),
-                            (
-                                Some(
-                                    "arg2",
-                                ),
-                                22,
-                            ),
-                        ],
                     ),
+                    Expr(4),
                 ),
             ],
         ),
-    },
+        Expr(5),
+    ),
 ]

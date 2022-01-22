@@ -16,8 +16,6 @@
 //! * `tables! { .. }` declares a struct housing a set of `Id -> Value` mappings;
 //!   also defines whether those are *allocating* or *interning* mappings.
 
-use std::hash::Hash;
-
 pub mod alloc_table;
 pub mod intern_table;
 pub mod prelude {
@@ -229,7 +227,7 @@ macro_rules! tables {
 
 }
 
-pub trait InternValue: Hash + Eq {
+pub trait InternValue {
     type Table;
     type Key: salsa::AsId;
 
@@ -238,7 +236,7 @@ pub trait InternValue: Hash + Eq {
 
 pub trait InternKey: salsa::AsId + 'static {
     type Table;
-    type Value: Hash + Eq;
+    type Value;
 
     /// Get the data for this key from the given table.
     fn data(self, table: &Self::Table) -> &Self::Value;

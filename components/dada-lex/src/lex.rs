@@ -124,7 +124,7 @@ where
                 '#' => {
                     let s = self.accumulate_string(ch, |c| c != '\n');
                     let len: u32 = s.len().try_into().unwrap();
-                    push_token(Token::Comment(len + 1));
+                    push_token(Token::Comment(len));
                 }
                 ',' => {
                     push_token(Token::Comma);

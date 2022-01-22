@@ -96,13 +96,15 @@ impl CodeParser<'_, '_> {
         exprs
     }
 
-    fn add<D, K>(&mut self, data: D, span: K::Origin) -> K
+    fn add<D, K>(&mut self, data: D, mut span: K::Origin) -> K
     where
         D: std::hash::Hash + Eq + std::fmt::Debug,
         D: InternValue<Table = Tables, Key = K>,
         K: PushOriginIn<Spans> + AsId,
+        K::Origin: TightenSpan,
     {
         let key = self.tables.add(data);
+        span = span.tighten_span(self);
         self.spans.push(key, span);
         key
     }
@@ -484,5 +486,24 @@ impl ParseList for CodeParser<'_, '_> {
 
     fn eat_comma(&mut self) -> bool {
         Parser::eat_comma(self)
+    }
+}
+
+trait TightenSpan {
+    fn tighten_span(self, parser: &Parser<'_>) -> Self;
+}
+
+impl TightenSpan for Span {
+    fn tighten_span(self, parser: &Parser<'_>) -> Self {
+        parser.tighten_span(self)
+    }
+}
+
+impl TightenSpan for LocalVariableDeclSpan {
+    fn tighten_span(self, parser: &Parser<'_>) -> Self {
+        LocalVariableDeclSpan {
+            mode_span: self.mode_span.tighten_span(parser),
+            name_span: self.name_span.tighten_span(parser),
+        }
     }
 }

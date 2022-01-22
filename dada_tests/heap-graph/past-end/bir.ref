@@ -1,0 +1,67 @@
+[
+    bir::Bir {
+        start_basic_block: BasicBlock(0),
+        BasicBlock(0): BasicBlockData(
+            [
+                (
+                    Cusp,
+                    Expr(0),
+                ),
+                (
+                    Assign(
+                        temp{2},
+                        "I have forced myself to contradict myself\nin order to avoid conforming to my own taste.\n  -- Marcel Duchamp",
+                    ),
+                    Expr(1),
+                ),
+                (
+                    Cusp,
+                    Expr(1),
+                ),
+            ],
+            Assign(
+                temp{1},
+                Call(
+                    Print,
+                    [
+                        temp{2},
+                    ],
+                    [
+                        None,
+                    ],
+                ),
+                BasicBlock(1),
+            ),
+        ),
+        BasicBlock(1): BasicBlockData(
+            [
+                (
+                    Cusp,
+                    Expr(2),
+                ),
+            ],
+            Assign(
+                temp{0},
+                Await(
+                    temp{1},
+                ),
+                BasicBlock(2),
+            ),
+        ),
+        BasicBlock(2): BasicBlockData(
+            [
+                (
+                    Cusp,
+                    Expr(3),
+                ),
+                (
+                    Cusp,
+                    Expr(4),
+                ),
+            ],
+            Return(
+                temp{0},
+            ),
+        ),
+    },
+]

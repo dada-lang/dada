@@ -7,6 +7,18 @@ pub struct FileSpan {
     pub end: Offset,
 }
 
+impl FileSpan {
+    pub fn snippet<'db>(&self, db: &'db dyn crate::Db) -> &'db str {
+        &crate::manifest::source_text(db, self.filename)
+            [usize::from(self.start)..usize::from(self.end)]
+    }
+
+    /// True if the given character falls within this span.
+    pub fn contains(&self, offset: Offset) -> bool {
+        self.start <= offset && offset < self.end
+    }
+}
+
 impl<Db: ?Sized + crate::Db> salsa::DebugWithDb<Db> for FileSpan {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>, db: &Db) -> std::fmt::Result {
         let db = db.as_dyn_ir_db();
@@ -16,10 +28,10 @@ impl<Db: ?Sized + crate::Db> salsa::DebugWithDb<Db> for FileSpan {
             f,
             "{}:{}:{}:{}:{}",
             self.filename.as_str(db),
-            start.line,
-            start.column,
-            end.line,
-            end.column,
+            start.line1(),
+            start.column1(),
+            end.line1(),
+            end.column1(),
         )
     }
 }
@@ -42,11 +54,48 @@ pub struct Offset(u32);
 
 #[derive(Copy, Clone, Debug, PartialEq, Eq, Hash)]
 pub struct LineColumn {
-    /// 1-based line number
-    pub line: u32,
+    /// 0-based line number
+    line0: u32,
 
-    /// 1-based column nuimber
-    pub column: u32,
+    /// 0-based column nuimber
+    column0: u32,
+}
+
+impl LineColumn {
+    /// Create from 1-based line/column numbers
+    pub fn new1(line1: u32, column1: u32) -> Self {
+        assert!(line1 > 0);
+        assert!(column1 > 0);
+        Self::new0(line1 - 1, column1 - 1)
+    }
+
+    /// Create from 0-based line/column numbers
+    pub fn new0(line0: impl U32OrUsize, column0: impl U32OrUsize) -> Self {
+        Self {
+            line0: line0.into_u32(),
+            column0: column0.into_u32(),
+        }
+    }
+
+    pub fn line0(&self) -> u32 {
+        self.line0
+    }
+
+    pub fn line1(&self) -> u32 {
+        self.line0 + 1
+    }
+
+    pub fn line0_usize(&self) -> usize {
+        usize::try_from(self.line0).unwrap()
+    }
+
+    pub fn column0(&self) -> u32 {
+        self.column0
+    }
+
+    pub fn column1(&self) -> u32 {
+        self.column0 + 1
+    }
 }
 
 impl From<FileSpan> for Span {
@@ -75,6 +124,10 @@ impl Span {
             start: self.start,
             end: self.end,
         }
+    }
+
+    pub fn snippet<'db>(&self, db: &'db dyn crate::Db, filename: Filename) -> &'db str {
+        self.in_file(filename).snippet(db)
     }
 
     /// Returns a 0-length span at the start of this span
@@ -158,5 +211,48 @@ impl From<Offset> for u32 {
 impl From<Offset> for usize {
     fn from(offset: Offset) -> Self {
         offset.0 as usize
+    }
+}
+
+pub trait U32OrUsize {
+    fn into_u32(self) -> u32;
+    fn from_u32(n: u32) -> Self;
+    fn into_usize(self) -> usize;
+    fn from_usize(n: usize) -> Self;
+}
+
+impl U32OrUsize for u32 {
+    fn into_u32(self) -> u32 {
+        self
+    }
+
+    fn from_u32(n: u32) -> Self {
+        n
+    }
+
+    fn into_usize(self) -> usize {
+        usize::try_from(self).unwrap()
+    }
+
+    fn from_usize(n: usize) -> Self {
+        u32::try_from(n).unwrap()
+    }
+}
+
+impl U32OrUsize for usize {
+    fn into_u32(self) -> u32 {
+        u32::try_from(self).unwrap()
+    }
+
+    fn from_u32(n: u32) -> Self {
+        usize::try_from(n).unwrap()
+    }
+
+    fn into_usize(self) -> usize {
+        self
+    }
+
+    fn from_usize(n: usize) -> Self {
+        n
     }
 }

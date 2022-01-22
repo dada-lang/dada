@@ -1,9 +1,10 @@
 //! The "kernel" is the interface from the interpreter to the outside world.
 
-use dada_ir::function::Function;
+use dada_breakpoint::breakpoint::Breakpoint;
+use dada_ir::{code::syntax, function::Function};
 use parking_lot::Mutex;
 
-use crate::value::Value;
+use crate::{execute::StackFrame, heap_graph::HeapGraph, value::Value};
 
 #[async_trait::async_trait]
 pub trait Kernel: Send + Sync {
@@ -14,16 +15,57 @@ pub trait Kernel: Send + Sync {
     async fn print_newline(&self) -> eyre::Result<()> {
         self.print("\n").await
     }
+
+    /// Indicates that `stack_frame` is on the cusp of completing `expr`.
+    /// This gives the kernel a chance to capture the state.
+    fn on_cusp(
+        &self,
+        db: &dyn crate::Db,
+        stack_frame: &StackFrame<'_>,
+        expr: syntax::Expr,
+    ) -> eyre::Result<()>;
 }
 
 #[derive(Default)]
 pub struct BufferKernel {
     buffer: Mutex<String>,
+    breakpoint: Option<Breakpoint>,
+    stop_at_breakpoint: bool,
+    dump_breakpoint: bool,
+    heap_graphs: Mutex<Vec<HeapGraph>>,
 }
 
 impl BufferKernel {
     pub fn new() -> Self {
         Self::default()
+    }
+
+    /// Buiilder method: if breakpoint is Some, then whenever the breakpoint is
+    /// encountered we will capture a heap-graph.
+    pub fn breakpoint(self, breakpoint: Option<Breakpoint>) -> Self {
+        assert!(self.breakpoint.is_none());
+        Self { breakpoint, ..self }
+    }
+
+    /// Builder method: if `stop_at_breakpoint` is true, then when a breakpoint
+    /// is encountered we will stop with the error [`BreakpointExpressionEncountered`].
+    /// If false, execution will continue (and the breakpoint may be hit more than
+    /// once).
+    pub fn stop_at_breakpoint(self, stop_at_breakpoint: bool) -> Self {
+        Self {
+            stop_at_breakpoint,
+            ..self
+        }
+    }
+
+    /// Builder method: if `dump_breakpoint` is true, prints graphviz
+    /// for heap at each breakpoint into the buffer instead of accumulating
+    /// into the internal vector for later inspection.
+    pub fn dump_breakpoint(self, dump_breakpoint: bool) -> Self {
+        Self {
+            dump_breakpoint,
+            ..self
+        }
     }
 
     pub async fn interpret(
@@ -44,20 +86,62 @@ impl BufferKernel {
         match crate::interpret(function, db, self, arguments).await {
             Ok(()) => {}
             Err(e) => {
-                self.buffer.lock().push_str(&e.to_string());
+                self.append(&e.to_string());
             }
         }
     }
 
-    pub fn into_buffer(self) -> String {
-        Mutex::into_inner(self.buffer)
+    /// Take the heap graphs from the mutex
+    pub fn take_heap_graphs(&mut self) -> Vec<HeapGraph> {
+        std::mem::take(self.heap_graphs.get_mut())
+    }
+
+    /// Convert the buffer into the output
+    pub fn take_buffer(&mut self) -> String {
+        std::mem::take(self.buffer.get_mut())
+    }
+
+    /// Append text into the output buffer
+    pub fn append(&self, s: &str) {
+        self.buffer.lock().push_str(s);
     }
 }
+
+#[derive(thiserror::Error, Debug)]
+#[error("breakpoint expression encountered")]
+pub struct BreakpointExpressionEncountered;
 
 #[async_trait::async_trait]
 impl Kernel for BufferKernel {
     async fn print(&self, message: &str) -> eyre::Result<()> {
-        self.buffer.lock().push_str(message);
+        self.append(message);
+        Ok(())
+    }
+
+    fn on_cusp(
+        &self,
+        db: &dyn crate::Db,
+        stack_frame: &StackFrame<'_>,
+        expr: syntax::Expr,
+    ) -> eyre::Result<()> {
+        tracing::debug!("on_cusp: expr={:?} breakpoint={:?}", expr, self.breakpoint);
+
+        if let Some(breakpoint) = self.breakpoint {
+            if breakpoint.expr == expr && breakpoint.code == stack_frame.code(db) {
+                let heap_graph = HeapGraph::new(db, stack_frame);
+
+                if self.dump_breakpoint {
+                    self.append(&heap_graph.graphviz(db, true));
+                } else {
+                    self.heap_graphs.lock().push(heap_graph);
+                }
+
+                if self.stop_at_breakpoint {
+                    return Err(BreakpointExpressionEncountered.into());
+                }
+            }
+        }
+
         Ok(())
     }
 }

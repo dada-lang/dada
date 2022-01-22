@@ -1,31 +1,60 @@
 [
-    validated::Tree {
-        num_parameters: 0,
-        root_expr: Seq(
+    (
+        Expr(7),
+        Seq(
             [
-                Assign(
-                    t{0},
-                    Call(
-                        Class(
-                            Id {
-                                value: 1,
-                            },
-                        ),
-                        [],
-                    ),
-                ),
-                Await(
-                    Call(
-                        Print,
-                        [
-                            (
-                                None,
-                                "Done",
+                (
+                    Expr(2),
+                    Assign(
+                        t{0},
+                        (
+                            Expr(1),
+                            Call(
+                                (
+                                    Expr(0),
+                                    Class(
+                                        Id {
+                                            value: 1,
+                                        },
+                                    ),
+                                    Expr(0),
+                                ),
+                                [],
                             ),
-                        ],
+                            Expr(1),
+                        ),
                     ),
+                    Expr(2),
+                ),
+                (
+                    Expr(6),
+                    Await(
+                        (
+                            Expr(5),
+                            Call(
+                                (
+                                    Expr(3),
+                                    Print,
+                                    Expr(3),
+                                ),
+                                [
+                                    (
+                                        None,
+                                        (
+                                            Expr(4),
+                                            "Done",
+                                            Expr(4),
+                                        ),
+                                    ),
+                                ],
+                            ),
+                            Expr(5),
+                        ),
+                    ),
+                    Expr(6),
                 ),
             ],
         ),
-    },
+        Expr(7),
+    ),
 ]

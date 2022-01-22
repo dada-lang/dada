@@ -3,9 +3,20 @@
         start_basic_block: BasicBlock(0),
         BasicBlock(0): BasicBlockData(
             [
-                Assign(
-                    temp{3},
-                    "Foo\n    Bar",
+                (
+                    Cusp,
+                    Expr(0),
+                ),
+                (
+                    Assign(
+                        temp{3},
+                        "Foo\n    Bar",
+                    ),
+                    Expr(1),
+                ),
+                (
+                    Cusp,
+                    Expr(1),
                 ),
             ],
             Assign(
@@ -23,7 +34,12 @@
             ),
         ),
         BasicBlock(1): BasicBlockData(
-            [],
+            [
+                (
+                    Cusp,
+                    Expr(2),
+                ),
+            ],
             Assign(
                 temp{1},
                 Await(
@@ -34,9 +50,24 @@
         ),
         BasicBlock(2): BasicBlockData(
             [
-                Assign(
-                    temp{6},
-                    "Foo\n\n    Bar",
+                (
+                    Cusp,
+                    Expr(3),
+                ),
+                (
+                    Cusp,
+                    Expr(4),
+                ),
+                (
+                    Assign(
+                        temp{6},
+                        "Foo\n\n    Bar",
+                    ),
+                    Expr(5),
+                ),
+                (
+                    Cusp,
+                    Expr(5),
                 ),
             ],
             Assign(
@@ -54,7 +85,12 @@
             ),
         ),
         BasicBlock(3): BasicBlockData(
-            [],
+            [
+                (
+                    Cusp,
+                    Expr(6),
+                ),
+            ],
             Assign(
                 temp{4},
                 Await(
@@ -65,9 +101,24 @@
         ),
         BasicBlock(4): BasicBlockData(
             [
-                Assign(
-                    temp{9},
-                    "Foo\nBar",
+                (
+                    Cusp,
+                    Expr(7),
+                ),
+                (
+                    Cusp,
+                    Expr(8),
+                ),
+                (
+                    Assign(
+                        temp{9},
+                        "Foo\nBar",
+                    ),
+                    Expr(9),
+                ),
+                (
+                    Cusp,
+                    Expr(9),
                 ),
             ],
             Assign(
@@ -85,7 +136,12 @@
             ),
         ),
         BasicBlock(5): BasicBlockData(
-            [],
+            [
+                (
+                    Cusp,
+                    Expr(10),
+                ),
+            ],
             Assign(
                 temp{7},
                 Await(
@@ -96,9 +152,24 @@
         ),
         BasicBlock(6): BasicBlockData(
             [
-                Assign(
-                    temp{11},
-                    "",
+                (
+                    Cusp,
+                    Expr(11),
+                ),
+                (
+                    Cusp,
+                    Expr(12),
+                ),
+                (
+                    Assign(
+                        temp{11},
+                        "",
+                    ),
+                    Expr(13),
+                ),
+                (
+                    Cusp,
+                    Expr(13),
                 ),
             ],
             Assign(
@@ -117,9 +188,24 @@
         ),
         BasicBlock(7): BasicBlockData(
             [
-                Assign(
-                    temp{14},
-                    "    Foo",
+                (
+                    Cusp,
+                    Expr(14),
+                ),
+                (
+                    Cusp,
+                    Expr(15),
+                ),
+                (
+                    Assign(
+                        temp{14},
+                        "    Foo",
+                    ),
+                    Expr(16),
+                ),
+                (
+                    Cusp,
+                    Expr(16),
                 ),
             ],
             Assign(
@@ -137,7 +223,12 @@
             ),
         ),
         BasicBlock(8): BasicBlockData(
-            [],
+            [
+                (
+                    Cusp,
+                    Expr(17),
+                ),
+            ],
             Assign(
                 temp{12},
                 Await(
@@ -148,9 +239,24 @@
         ),
         BasicBlock(9): BasicBlockData(
             [
-                Assign(
-                    temp{16},
-                    "I have forced myself to contradict myself\nin order to avoid conforming to my own taste.\n  -- Marcel Duchamp",
+                (
+                    Cusp,
+                    Expr(18),
+                ),
+                (
+                    Cusp,
+                    Expr(19),
+                ),
+                (
+                    Assign(
+                        temp{16},
+                        "I have forced myself to contradict myself\nin order to avoid conforming to my own taste.\n  -- Marcel Duchamp",
+                    ),
+                    Expr(20),
+                ),
+                (
+                    Cusp,
+                    Expr(20),
                 ),
             ],
             Assign(
@@ -168,7 +274,12 @@
             ),
         ),
         BasicBlock(10): BasicBlockData(
-            [],
+            [
+                (
+                    Cusp,
+                    Expr(21),
+                ),
+            ],
             Assign(
                 temp{0},
                 Await(
@@ -178,7 +289,16 @@
             ),
         ),
         BasicBlock(11): BasicBlockData(
-            [],
+            [
+                (
+                    Cusp,
+                    Expr(22),
+                ),
+                (
+                    Cusp,
+                    Expr(23),
+                ),
+            ],
             Return(
                 temp{0},
             ),

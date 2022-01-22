@@ -3,17 +3,54 @@
         start_basic_block: BasicBlock(0),
         BasicBlock(0): BasicBlockData(
             [
-                Assign(
-                    uint_max{0},
-                    18446744073709551615,
+                (
+                    Cusp,
+                    Expr(1),
                 ),
-                Assign(
-                    temp{2},
-                    1,
+                (
+                    Assign(
+                        uint_max{0},
+                        18446744073709551615,
+                    ),
+                    Expr(0),
                 ),
-                Assign(
-                    temp{1},
-                    uint_max{0} + temp{2},
+                (
+                    Cusp,
+                    Expr(0),
+                ),
+                (
+                    Cusp,
+                    Expr(1),
+                ),
+                (
+                    Cusp,
+                    Expr(2),
+                ),
+                (
+                    Assign(
+                        temp{2},
+                        1,
+                    ),
+                    Expr(3),
+                ),
+                (
+                    Cusp,
+                    Expr(3),
+                ),
+                (
+                    Assign(
+                        temp{1},
+                        uint_max{0} + temp{2},
+                    ),
+                    Expr(4),
+                ),
+                (
+                    Cusp,
+                    Expr(4),
+                ),
+                (
+                    Cusp,
+                    Expr(5),
                 ),
             ],
             Return(

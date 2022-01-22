@@ -12,6 +12,7 @@ use dada_validate::prelude::*;
 use salsa::DebugWithDb;
 
 #[salsa::db(
+    dada_breakpoint::Jar,
     dada_brew::Jar,
     dada_check::Jar,
     dada_error_format::Jar,
@@ -76,12 +77,12 @@ impl Db {
 
     /// Returns the validated tree for `item`.
     pub fn debug_validated_tree(&self, item: Item) -> Option<impl std::fmt::Debug + '_> {
-        Some(item.validated_tree(self)?.data(self).into_debug(self))
+        Some(item.validated_tree(self)?.into_debug(self))
     }
 
     /// Returns the validated tree for `item`.
     pub fn debug_bir(&self, item: Item) -> Option<impl std::fmt::Debug + '_> {
-        Some(item.maybe_brew(self)?.data(self).into_debug(self))
+        Some(item.maybe_brew(self)?.into_debug(self))
     }
 
     /// Converts a given offset in a given file into line/column information.
