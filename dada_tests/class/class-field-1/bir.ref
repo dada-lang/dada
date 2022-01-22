@@ -4,25 +4,25 @@
         BasicBlock(0): BasicBlockData(
             [
                 (
-                    Cusp(
-                        Some(
-                            Class(Id { value: 1 }),
-                        ),
-                    ),
-                    Expr(0),
-                ),
-                (
-                    Cusp(
-                        Some(
-                            Class(Id { value: 1 }),
-                        ),
-                    ),
-                    Expr(0),
-                ),
-                (
                     Assign(
                         temp{2},
                         Class(Id { value: 1 }).give,
+                    ),
+                    Expr(0),
+                ),
+                (
+                    Cusp(
+                        Some(
+                            temp{2},
+                        ),
+                    ),
+                    Expr(0),
+                ),
+                (
+                    Cusp(
+                        Some(
+                            temp{2},
+                        ),
                     ),
                     Expr(0),
                 ),
@@ -94,25 +94,25 @@
                     Expr(3),
                 ),
                 (
-                    Cusp(
-                        Some(
-                            Print,
-                        ),
-                    ),
-                    Expr(4),
-                ),
-                (
-                    Cusp(
-                        Some(
-                            Print,
-                        ),
-                    ),
-                    Expr(4),
-                ),
-                (
                     Assign(
                         temp{4},
                         Print.give,
+                    ),
+                    Expr(4),
+                ),
+                (
+                    Cusp(
+                        Some(
+                            temp{4},
+                        ),
+                    ),
+                    Expr(4),
+                ),
+                (
+                    Cusp(
+                        Some(
+                            temp{4},
+                        ),
                     ),
                     Expr(4),
                 ),
@@ -124,9 +124,16 @@
                     Expr(4),
                 ),
                 (
+                    Assign(
+                        temp{5},
+                        t{0}.a.give,
+                    ),
+                    Expr(6),
+                ),
+                (
                     Cusp(
                         Some(
-                            t{0},
+                            temp{5},
                         ),
                     ),
                     Expr(5),
@@ -134,7 +141,7 @@
                 (
                     Cusp(
                         Some(
-                            t{0}.a,
+                            temp{5},
                         ),
                     ),
                     Expr(6),
@@ -142,15 +149,8 @@
                 (
                     Cusp(
                         Some(
-                            t{0}.a,
+                            temp{5},
                         ),
-                    ),
-                    Expr(6),
-                ),
-                (
-                    Assign(
-                        temp{5},
-                        t{0}.a.give,
                     ),
                     Expr(6),
                 ),

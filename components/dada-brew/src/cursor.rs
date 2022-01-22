@@ -100,6 +100,22 @@ impl Cursor {
         }
     }
 
+    /// Push cusp expressions for each origin in `origins`.
+    /// Used when evaluating something like `a.b.c.give`:
+    /// the cusps for `a`, `a.b`, and `a.b.c` are all emitted
+    /// simultaneously with the final value.
+    pub(crate) fn push_cusps(
+        &mut self,
+        brewery: &mut Brewery<'_>,
+        place: Option<bir::Place>,
+        origins: impl IntoIterator<Item = ExprOrigin>,
+        origin: ExprOrigin,
+    ) {
+        for origin in origins.into_iter().chain(Some(origin)) {
+            self.push_cusp(brewery, place, origin);
+        }
+    }
+
     /// Push a "cusp" statement onto the current basic block.
     /// These statements indicate the end of the given origin node
     /// in the BIR.
@@ -130,7 +146,7 @@ impl Cursor {
         arg: validated::NamedExpr,
     ) -> Option<(bir::Place, SpannedOptionalWord)> {
         let validated::NamedExprData { name, expr } = arg.data(brewery.validated_tables());
-        let place = self.brew_expr_to_place(brewery, *expr)?;
+        let place = self.brew_expr_to_temporary(brewery, *expr)?;
         Some((place, *name))
     }
 }

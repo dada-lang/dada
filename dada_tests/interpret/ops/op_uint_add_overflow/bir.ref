@@ -32,19 +32,11 @@
                     Expr(1),
                 ),
                 (
-                    Cusp(
-                        Some(
-                            uint_max{0},
-                        ),
-                    ),
-                    Expr(2),
-                ),
-                (
                     Assign(
                         temp{3},
-                        1,
+                        uint_max{0}.give,
                     ),
-                    Expr(3),
+                    Expr(2),
                 ),
                 (
                     Cusp(
@@ -52,12 +44,35 @@
                             temp{3},
                         ),
                     ),
+                    Expr(2),
+                ),
+                (
+                    Cusp(
+                        Some(
+                            temp{3},
+                        ),
+                    ),
+                    Expr(2),
+                ),
+                (
+                    Assign(
+                        temp{4},
+                        1,
+                    ),
+                    Expr(3),
+                ),
+                (
+                    Cusp(
+                        Some(
+                            temp{4},
+                        ),
+                    ),
                     Expr(3),
                 ),
                 (
                     Assign(
                         temp{2},
-                        uint_max{0} + temp{3},
+                        temp{3} + temp{4},
                     ),
                     Expr(4),
                 ),

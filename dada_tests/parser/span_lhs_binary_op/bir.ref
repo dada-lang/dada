@@ -32,19 +32,11 @@
                     Expr(1),
                 ),
                 (
-                    Cusp(
-                        Some(
-                            x{0},
-                        ),
-                    ),
-                    Expr(2),
-                ),
-                (
                     Assign(
                         temp{6},
-                        44,
+                        x{0}.give,
                     ),
-                    Expr(3),
+                    Expr(2),
                 ),
                 (
                     Cusp(
@@ -52,12 +44,35 @@
                             temp{6},
                         ),
                     ),
+                    Expr(2),
+                ),
+                (
+                    Cusp(
+                        Some(
+                            temp{6},
+                        ),
+                    ),
+                    Expr(2),
+                ),
+                (
+                    Assign(
+                        temp{7},
+                        44,
+                    ),
+                    Expr(3),
+                ),
+                (
+                    Cusp(
+                        Some(
+                            temp{7},
+                        ),
+                    ),
                     Expr(3),
                 ),
                 (
                     Assign(
                         temp{5},
-                        x{0} + temp{6},
+                        temp{6} + temp{7},
                     ),
                     Expr(4),
                 ),
@@ -71,7 +86,7 @@
                 ),
                 (
                     Assign(
-                        temp{7},
+                        temp{8},
                         66,
                     ),
                     Expr(5),
@@ -79,7 +94,7 @@
                 (
                     Cusp(
                         Some(
-                            temp{7},
+                            temp{8},
                         ),
                     ),
                     Expr(5),
@@ -87,7 +102,7 @@
                 (
                     Assign(
                         temp{3},
-                        temp{5} + temp{7},
+                        temp{5} + temp{8},
                     ),
                     Expr(6),
                 ),

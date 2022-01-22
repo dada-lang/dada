@@ -381,7 +381,7 @@ impl<'me> Validator<'me> {
                     let (validated_opt_temp_expr, validated_lhs_place) =
                         self.validate_expr_as_place(*lhs_expr)?;
                     let validated_lhs_expr =
-                        self.add(validated::ExprData::Place(validated_lhs_place), expr);
+                        self.add(validated::ExprData::Give(validated_lhs_place), expr);
                     let validated_rhs_expr = self.validate_expr(*rhs_expr);
                     let validated_op = self.validated_op(*op);
                     let validated_op_expr = self.add(
@@ -444,7 +444,7 @@ impl<'me> Validator<'me> {
     ) -> validated::Expr {
         match data {
             Ok((opt_assign_expr, place)) => {
-                let place_expr = self.add(validated::ExprData::Place(place), origin);
+                let place_expr = self.add(validated::ExprData::Give(place), origin);
                 self.maybe_seq(opt_assign_expr, place_expr, origin)
             }
             Err(ErrorReported) => self.add(validated::ExprData::Error, origin),
@@ -544,7 +544,7 @@ impl<'me> Validator<'me> {
     fn validate_expr_to_value(&mut self, expr: syntax::Expr) -> validated::Expr {
         let (assign_expr, place) = self.validate_expr_in_temporary(expr);
         let place_expr = self.add(
-            validated::ExprData::Place(place),
+            validated::ExprData::Give(place),
             ExprOrigin::synthesized(expr),
         );
         self.add(

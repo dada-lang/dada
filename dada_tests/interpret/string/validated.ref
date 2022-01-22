@@ -26,13 +26,8 @@
                                                     ),
                                                     (
                                                         Expr(0),
-                                                        (
+                                                        Give(
                                                             Place(1),
-                                                            Print,
-                                                            ExprOrigin {
-                                                                syntax_expr: Expr(0),
-                                                                synthesized: false,
-                                                            },
                                                         ),
                                                         ExprOrigin {
                                                             syntax_expr: Expr(0),
@@ -47,13 +42,8 @@
                                             ),
                                             (
                                                 Expr(2),
-                                                (
+                                                Give(
                                                     Place(0),
-                                                    temp{0},
-                                                    ExprOrigin {
-                                                        syntax_expr: Expr(0),
-                                                        synthesized: true,
-                                                    },
                                                 ),
                                                 ExprOrigin {
                                                     syntax_expr: Expr(0),
@@ -101,13 +91,8 @@
                                                     ),
                                                     (
                                                         Expr(6),
-                                                        (
+                                                        Give(
                                                             Place(2),
-                                                            temp{1},
-                                                            ExprOrigin {
-                                                                syntax_expr: Expr(1),
-                                                                synthesized: true,
-                                                            },
                                                         ),
                                                         ExprOrigin {
                                                             syntax_expr: Expr(1),
@@ -158,13 +143,8 @@
                                                     ),
                                                     (
                                                         Expr(10),
-                                                        (
+                                                        Give(
                                                             Place(4),
-                                                            Print,
-                                                            ExprOrigin {
-                                                                syntax_expr: Expr(4),
-                                                                synthesized: false,
-                                                            },
                                                         ),
                                                         ExprOrigin {
                                                             syntax_expr: Expr(4),
@@ -179,13 +159,8 @@
                                             ),
                                             (
                                                 Expr(12),
-                                                (
+                                                Give(
                                                     Place(3),
-                                                    temp{2},
-                                                    ExprOrigin {
-                                                        syntax_expr: Expr(4),
-                                                        synthesized: true,
-                                                    },
                                                 ),
                                                 ExprOrigin {
                                                     syntax_expr: Expr(4),
@@ -233,13 +208,8 @@
                                                     ),
                                                     (
                                                         Expr(16),
-                                                        (
+                                                        Give(
                                                             Place(5),
-                                                            temp{3},
-                                                            ExprOrigin {
-                                                                syntax_expr: Expr(5),
-                                                                synthesized: true,
-                                                            },
                                                         ),
                                                         ExprOrigin {
                                                             syntax_expr: Expr(5),
@@ -290,13 +260,8 @@
                                                     ),
                                                     (
                                                         Expr(20),
-                                                        (
+                                                        Give(
                                                             Place(7),
-                                                            Print,
-                                                            ExprOrigin {
-                                                                syntax_expr: Expr(8),
-                                                                synthesized: false,
-                                                            },
                                                         ),
                                                         ExprOrigin {
                                                             syntax_expr: Expr(8),
@@ -311,13 +276,8 @@
                                             ),
                                             (
                                                 Expr(22),
-                                                (
+                                                Give(
                                                     Place(6),
-                                                    temp{4},
-                                                    ExprOrigin {
-                                                        syntax_expr: Expr(8),
-                                                        synthesized: true,
-                                                    },
                                                 ),
                                                 ExprOrigin {
                                                     syntax_expr: Expr(8),
@@ -365,13 +325,8 @@
                                                     ),
                                                     (
                                                         Expr(26),
-                                                        (
+                                                        Give(
                                                             Place(8),
-                                                            temp{5},
-                                                            ExprOrigin {
-                                                                syntax_expr: Expr(9),
-                                                                synthesized: true,
-                                                            },
                                                         ),
                                                         ExprOrigin {
                                                             syntax_expr: Expr(9),
@@ -419,13 +374,8 @@
                                             ),
                                             (
                                                 Expr(30),
-                                                (
+                                                Give(
                                                     Place(10),
-                                                    Print,
-                                                    ExprOrigin {
-                                                        syntax_expr: Expr(12),
-                                                        synthesized: false,
-                                                    },
                                                 ),
                                                 ExprOrigin {
                                                     syntax_expr: Expr(12),
@@ -440,13 +390,8 @@
                                     ),
                                     (
                                         Expr(32),
-                                        (
+                                        Give(
                                             Place(9),
-                                            temp{6},
-                                            ExprOrigin {
-                                                syntax_expr: Expr(12),
-                                                synthesized: true,
-                                            },
                                         ),
                                         ExprOrigin {
                                             syntax_expr: Expr(12),
@@ -494,13 +439,8 @@
                                             ),
                                             (
                                                 Expr(36),
-                                                (
+                                                Give(
                                                     Place(11),
-                                                    temp{7},
-                                                    ExprOrigin {
-                                                        syntax_expr: Expr(13),
-                                                        synthesized: true,
-                                                    },
                                                 ),
                                                 ExprOrigin {
                                                     syntax_expr: Expr(13),
@@ -545,13 +485,8 @@
                                                     ),
                                                     (
                                                         Expr(39),
-                                                        (
+                                                        Give(
                                                             Place(13),
-                                                            Print,
-                                                            ExprOrigin {
-                                                                syntax_expr: Expr(15),
-                                                                synthesized: false,
-                                                            },
                                                         ),
                                                         ExprOrigin {
                                                             syntax_expr: Expr(15),
@@ -566,13 +501,8 @@
                                             ),
                                             (
                                                 Expr(41),
-                                                (
+                                                Give(
                                                     Place(12),
-                                                    temp{8},
-                                                    ExprOrigin {
-                                                        syntax_expr: Expr(15),
-                                                        synthesized: true,
-                                                    },
                                                 ),
                                                 ExprOrigin {
                                                     syntax_expr: Expr(15),
@@ -620,13 +550,8 @@
                                                     ),
                                                     (
                                                         Expr(45),
-                                                        (
+                                                        Give(
                                                             Place(14),
-                                                            temp{9},
-                                                            ExprOrigin {
-                                                                syntax_expr: Expr(16),
-                                                                synthesized: true,
-                                                            },
                                                         ),
                                                         ExprOrigin {
                                                             syntax_expr: Expr(16),
@@ -677,13 +602,8 @@
                                                     ),
                                                     (
                                                         Expr(49),
-                                                        (
+                                                        Give(
                                                             Place(16),
-                                                            Print,
-                                                            ExprOrigin {
-                                                                syntax_expr: Expr(19),
-                                                                synthesized: false,
-                                                            },
                                                         ),
                                                         ExprOrigin {
                                                             syntax_expr: Expr(19),
@@ -698,13 +618,8 @@
                                             ),
                                             (
                                                 Expr(51),
-                                                (
+                                                Give(
                                                     Place(15),
-                                                    temp{10},
-                                                    ExprOrigin {
-                                                        syntax_expr: Expr(19),
-                                                        synthesized: true,
-                                                    },
                                                 ),
                                                 ExprOrigin {
                                                     syntax_expr: Expr(19),
@@ -752,13 +667,8 @@
                                                     ),
                                                     (
                                                         Expr(55),
-                                                        (
+                                                        Give(
                                                             Place(17),
-                                                            temp{11},
-                                                            ExprOrigin {
-                                                                syntax_expr: Expr(20),
-                                                                synthesized: true,
-                                                            },
                                                         ),
                                                         ExprOrigin {
                                                             syntax_expr: Expr(20),

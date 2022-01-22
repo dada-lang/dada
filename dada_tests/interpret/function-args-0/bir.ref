@@ -4,25 +4,25 @@
         BasicBlock(0): BasicBlockData(
             [
                 (
-                    Cusp(
-                        Some(
-                            Print,
-                        ),
-                    ),
-                    Expr(0),
-                ),
-                (
-                    Cusp(
-                        Some(
-                            Print,
-                        ),
-                    ),
-                    Expr(0),
-                ),
-                (
                     Assign(
                         temp{0},
                         Print.give,
+                    ),
+                    Expr(0),
+                ),
+                (
+                    Cusp(
+                        Some(
+                            temp{0},
+                        ),
+                    ),
+                    Expr(0),
+                ),
+                (
+                    Cusp(
+                        Some(
+                            temp{0},
+                        ),
                     ),
                     Expr(0),
                 ),
@@ -118,25 +118,25 @@
         BasicBlock(0): BasicBlockData(
             [
                 (
-                    Cusp(
-                        Some(
-                            greet0,
-                        ),
-                    ),
-                    Expr(0),
-                ),
-                (
-                    Cusp(
-                        Some(
-                            greet0,
-                        ),
-                    ),
-                    Expr(0),
-                ),
-                (
                     Assign(
                         temp{0},
                         greet0.give,
+                    ),
+                    Expr(0),
+                ),
+                (
+                    Cusp(
+                        Some(
+                            temp{0},
+                        ),
+                    ),
+                    Expr(0),
+                ),
+                (
+                    Cusp(
+                        Some(
+                            temp{0},
+                        ),
                     ),
                     Expr(0),
                 ),

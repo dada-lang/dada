@@ -12,7 +12,7 @@ digraph {
         <tr><td border="1">main</td></tr>
         <tr><td port="0">p: ()</td></tr>
         <tr><td port="1">LocalVariable(1): ()</td></tr>
-        <tr><td port="2">LocalVariable(2): ()</td></tr>
+        <tr><td port="2">LocalVariable(2)</td></tr>
         <tr><td port="3">LocalVariable(3): ()</td></tr>
         <tr><td port="4">LocalVariable(4): ()</td></tr>
         <tr><td port="5">q: ()</td></tr>
@@ -35,6 +35,7 @@ digraph {
   node0 [
     label = <<b>Point</b>>
   ];
+  "stack":2 -> "node0"
   "stack":17 -> "node0"
 }
 breakpoint expression encountered

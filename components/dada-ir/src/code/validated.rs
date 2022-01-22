@@ -185,9 +185,6 @@ impl DebugWithDb<InIrDb<'_, Tree>> for Expr {
 
 #[derive(PartialEq, Eq, Clone, Hash, Debug)]
 pub enum ExprData {
-    /// Reference to a local variable
-    Place(Place),
-
     /// true, false
     BooleanLiteral(bool),
 
@@ -266,7 +263,6 @@ impl ExprData {
     ) -> std::fmt::Result {
         let id = id.map(u32::from);
         match self {
-            ExprData::Place(p) => DebugWithDb::fmt(p, f, db),
             ExprData::BooleanLiteral(v) => std::fmt::Debug::fmt(v, f),
             ExprData::IntegerLiteral(v) => write!(f, "{}", v),
             ExprData::StringLiteral(v) => std::fmt::Debug::fmt(&v.as_str(db.db()), f),

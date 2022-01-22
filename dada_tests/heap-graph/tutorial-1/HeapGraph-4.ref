@@ -15,7 +15,7 @@ digraph {
         <tr><td port="2">LocalVariable(2)</td></tr>
         <tr><td port="3">LocalVariable(3): ()</td></tr>
         <tr><td port="4">LocalVariable(4): ()</td></tr>
-        <tr><td port="5">LocalVariable(5): ()</td></tr>
+        <tr><td port="5">LocalVariable(5): "print"</td></tr>
         <tr><td port="6">LocalVariable(6): ()</td></tr>
         <tr><td port="7">LocalVariable(7): ()</td></tr>
         <tr><td port="8">LocalVariable(8)</td></tr>
