@@ -21,8 +21,22 @@ init()
         });
         // editor.session.setMode("ace/mode/javascript");
 
+        updateFromQueryString(editor);
+
         await updateOutput(editor, null);
     });
+
+// Check if the user accessed `playground?code=foo` and, if so,
+// update the code sample from `code`.
+function updateFromQueryString(editor) {
+    let params = new URLSearchParams(document.location.search);
+    let code = params.get("code"); // is the string "Jonathan"
+    if (code == null) {
+        return;
+    }
+
+    editor.setValue(code);
+}
 
 async function updateOutput(editor, cursor) {
     try {
