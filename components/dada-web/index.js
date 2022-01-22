@@ -1,10 +1,50 @@
-import init, { execute, execute_until } from "./pkg/dada_web.js";
+import init, { compiler } from "./pkg/dada_web.js";
 
 const workerURL = 'ace/viz.render.js';
 let viz = new Viz({ workerURL });
 
+// Wrapper around the raw wasm-bdingen API.
+// Because you can't make async functions with `&mut self`,
+// we tend to pass ownership of the dada compiler back and
+// forth, which then requires a wrapper to track it.
+class DadaCompiler {
+    constructor() {
+        this.dada = compiler();
+    }
+
+    setSourceText(text) {
+        this.dada = this.dada.with_source_text(text)
+    }
+
+    setBreakpoint(cursor) {
+        if (cursor) {
+            this.dada = this.dada.with_breakpoint(cursor.row, cursor.column);
+        } else {
+            this.dada = this.dada.without_breakpoint();
+        }
+    }
+
+    async execute() {
+        this.dada = await this.dada.execute();
+    }
+
+    get output() {
+        return this.dada.output;
+    }
+
+    get diagnostics() {
+        return this.dada.diagnostics;
+    }
+
+    get heap() {
+        return this.dada.heap;
+    }
+}
+
 init()
     .then(async () => {
+        var dada = new DadaCompiler();
+
         var editor = ace.edit("editor");
         editor.setTheme("ace/theme/twilight");
         editor.setOptions({
@@ -13,12 +53,12 @@ init()
         editor.session.on('change', async function (delta) {
             // delta.start, delta.end, delta.lines, delta.action
             setStatusMessage("");
-            await updateOutput(editor, null);
+            await updateOutput(dada, editor, null);
         });
         editor.session.getSelection().on('changeCursor', async function (arg) {
             let cursor = editor.session.getSelection().getCursor();
             console.log("changeCursor", cursor.row, cursor.column);
-            await updateOutput(editor, cursor);
+            await updateOutput(dada, editor, cursor);
         });
         // editor.session.setMode("ace/mode/javascript");
 
@@ -29,7 +69,7 @@ init()
             await copyClipboardUrl(editor);
         }
 
-        await updateOutput(editor, null);
+        await updateOutput(dada, editor, null);
     });
 
 // Check if the user accessed `playground?code=foo` and, if so,
@@ -84,25 +124,36 @@ async function minify(url) {
     }
 }
 
-async function updateOutput(editor, cursor) {
+async function updateOutput(dada, editor, cursor) {
+    console.log("updateOutput: ", dada, cursor);
     try {
-        let result;
-        if (cursor == null) {
-            result = await execute(editor.getValue());
-        } else {
-            result = await execute_until(editor.getValue(), cursor.row, cursor.column);
-        }
+        dada.setSourceText(editor.getValue());
+        dada.setBreakpoint(cursor);
 
-        console.log("executed until cursor: ", JSON.stringify(cursor));
-        var ansi_up = new AnsiUp;
-        var html = ansi_up.ansi_to_html(result.fullOutput);
-        var cdiv = document.getElementById("output");
-        cdiv.innerHTML = html;
+        console.log("executing until cursor: ", JSON.stringify(cursor));
+        await dada.execute();
+        console.log("executed");
+        console.log("diagnostics:", dada.diagnostics);
+        console.log("output:", dada.output);
 
-        let heapCapture = result.heapCapture;
-        if (heapCapture != "") {
+        // Append diagnostics (if any) to stdout.
+        let diagnostics = dada.diagnostics;
+        let output = (diagnostics == "" ? dada.output : diagnostics + "\n" + dada.output);
+
+        // Take the console output, convert it to html, and put it in the
+        // output area.
+        var html = (new AnsiUp).ansi_to_html(output);
+        console.log("html:", html);
+        document.getElementById("output").innerHTML = html;
+
+        // If the result included any heapcapture, it will be encoded
+        // as a graphviz string. Use viz.js to convert that to SVG,
+        // clear out the existing contents from `#graph`,
+        // and then add the SVG nodes there.
+        let heap = dada.heap;
+        if (heap != "") {
             try {
-                let element = await viz.renderSVGElement(heapCapture);
+                let element = await viz.renderSVGElement(heap);
                 var gdiv = document.getElementById("graph");
                 while (gdiv.firstChild != null) {
                     gdiv.removeChild(gdiv.firstChild);
