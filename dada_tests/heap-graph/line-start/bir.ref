@@ -9,6 +9,24 @@
                 ),
                 (
                     Assign(
+                        temp{2},
+                        Class(Id { value: 1 }).give,
+                    ),
+                    Expr(0),
+                ),
+                (
+                    Cusp,
+                    Expr(0),
+                ),
+                (
+                    Assign(
+                        temp{11},
+                        temp{2}.give,
+                    ),
+                    Expr(0),
+                ),
+                (
+                    Assign(
                         temp{3},
                         22,
                     ),
@@ -16,6 +34,13 @@
                 ),
                 (
                     Cusp,
+                    Expr(1),
+                ),
+                (
+                    Assign(
+                        temp{12},
+                        temp{3}.give,
+                    ),
                     Expr(1),
                 ),
                 (
@@ -29,14 +54,21 @@
                     Cusp,
                     Expr(2),
                 ),
+                (
+                    Assign(
+                        temp{13},
+                        temp{4}.give,
+                    ),
+                    Expr(2),
+                ),
             ],
             Assign(
-                p{0},
+                temp{1},
                 Call(
-                    Class(Id { value: 1 }),
+                    temp{11},
                     [
-                        temp{3},
-                        temp{4},
+                        temp{12},
+                        temp{13},
                     ],
                     [
                         None,
@@ -53,6 +85,13 @@
                     Expr(3),
                 ),
                 (
+                    Assign(
+                        p{0},
+                        temp{1}.give,
+                    ),
+                    Expr(3),
+                ),
+                (
                     Cusp,
                     Expr(4),
                 ),
@@ -61,12 +100,48 @@
                     Expr(5),
                 ),
                 (
+                    Assign(
+                        temp{7},
+                        Class(Id { value: 1 }).give,
+                    ),
+                    Expr(5),
+                ),
+                (
+                    Cusp,
+                    Expr(5),
+                ),
+                (
+                    Assign(
+                        temp{14},
+                        temp{7}.give,
+                    ),
+                    Expr(5),
+                ),
+                (
                     Cusp,
                     Expr(6),
                 ),
                 (
                     Assign(
-                        temp{5},
+                        temp{8},
+                        p{0}.give,
+                    ),
+                    Expr(6),
+                ),
+                (
+                    Cusp,
+                    Expr(6),
+                ),
+                (
+                    Assign(
+                        temp{15},
+                        temp{8}.give,
+                    ),
+                    Expr(6),
+                ),
+                (
+                    Assign(
+                        temp{9},
                         66,
                     ),
                     Expr(7),
@@ -75,14 +150,21 @@
                     Cusp,
                     Expr(7),
                 ),
+                (
+                    Assign(
+                        temp{16},
+                        temp{9}.give,
+                    ),
+                    Expr(7),
+                ),
             ],
             Assign(
-                q{1},
+                temp{6},
                 Call(
-                    Class(Id { value: 1 }),
+                    temp{14},
                     [
-                        p{0},
-                        temp{5},
+                        temp{15},
+                        temp{16},
                     ],
                     [
                         None,
@@ -99,12 +181,19 @@
                     Expr(8),
                 ),
                 (
+                    Assign(
+                        q{5},
+                        temp{6}.give,
+                    ),
+                    Expr(8),
+                ),
+                (
                     Cusp,
                     Expr(9),
                 ),
                 (
                     Assign(
-                        temp{2},
+                        temp{10},
                         (),
                     ),
                     Expr(9),
@@ -115,7 +204,7 @@
                 ),
             ],
             Return(
-                temp{2},
+                temp{10},
             ),
         ),
     },

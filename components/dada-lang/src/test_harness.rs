@@ -558,7 +558,7 @@ fn expected_queries(path: &Path) -> eyre::Result<Vec<Query>> {
 
     // The notation #? @ 1:1 indicates the line/column by number
     let query_lc_re = regex::Regex::new(
-        r"^[^#]*#\?\s*@\s*(?P<line>\d+):(?P<column>\d+)\s*(?P<kind>[^\s]*)\s*(?P<msg>.*)",
+        r"^[^#]*#\?\s*@\s*(?P<line>[+-]?\d+):(?P<column>\d+)\s*(?P<kind>[^\s]*)\s*(?P<msg>.*)",
     )
     .unwrap();
 
@@ -588,8 +588,7 @@ fn expected_queries(path: &Path) -> eyre::Result<Vec<Query>> {
             tracing::debug!("query {:?} found", result.last());
         } else if let Some(c) = query_lc_re.captures(line) {
             // The column comes from the position of the `^`.
-            let given_line_number: u32 = str::parse(&c["line"])
-                .with_context(|| format!("in query on line {}", line_number))?;
+            let given_line_number: u32 = parse_line_number(line_number, &c["line"])?;
             let given_column_number: u32 = str::parse(&c["column"])
                 .with_context(|| format!("in query on line {}", line_number))?;
 
@@ -617,6 +616,30 @@ fn expected_queries(path: &Path) -> eyre::Result<Vec<Query>> {
         }
     }
     Ok(result)
+}
+
+fn parse_line_number(current_line_number: u32, line: &str) -> eyre::Result<u32> {
+    let (sign, number) = if let Some(suffix) = line.strip_prefix('+') {
+        // Below current line
+        (1, suffix)
+    } else if let Some(suffix) = line.strip_prefix('-') {
+        // Above current line
+        (-1, suffix)
+    } else {
+        // Absolute
+        (0, line)
+    };
+
+    let parsed: u32 =
+        str::parse(number).with_context(|| format!("in query on line {}", current_line_number))?;
+    #[allow(clippy::comparison_chain)]
+    Ok(if sign == 0 {
+        parsed
+    } else if sign > 0 {
+        current_line_number + parsed
+    } else {
+        current_line_number - parsed
+    })
 }
 
 trait ActualDiagnostic: Clone {

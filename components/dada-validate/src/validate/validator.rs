@@ -213,7 +213,7 @@ impl<'me> Validator<'me> {
             }
 
             syntax::ExprData::Call(func_expr, named_exprs) => {
-                let validated_func_expr = self.validate_expr(*func_expr);
+                let validated_func_expr = self.validate_expr_to_value(*func_expr);
                 let validated_named_exprs = self.validate_named_exprs(named_exprs);
                 let mut name_required = false;
                 for named_expr in &validated_named_exprs {
@@ -258,7 +258,8 @@ impl<'me> Validator<'me> {
                     validated::PlaceData::LocalVariable(local_variable),
                     ExprOrigin::synthesized(expr),
                 );
-                let validated_initializer_expr = self.validate_expr(*initializer_expr);
+
+                let validated_initializer_expr = self.validate_expr_to_value(*initializer_expr);
                 self.scope.insert(decl_data.name, local_variable);
                 self.add(
                     validated::ExprData::Assign(place, validated_initializer_expr),
@@ -540,6 +541,18 @@ impl<'me> Validator<'me> {
         (assign_expr, validated_place)
     }
 
+    fn validate_expr_to_value(&mut self, expr: syntax::Expr) -> validated::Expr {
+        let (assign_expr, place) = self.validate_expr_in_temporary(expr);
+        let place_expr = self.add(
+            validated::ExprData::Place(place),
+            ExprOrigin::synthesized(expr),
+        );
+        self.add(
+            validated::ExprData::Seq(vec![assign_expr, place_expr]),
+            ExprOrigin::synthesized(expr),
+        )
+    }
+
     fn validate_named_exprs(
         &mut self,
         named_exprs: &[syntax::NamedExpr],
@@ -552,7 +565,7 @@ impl<'me> Validator<'me> {
 
     fn validate_named_expr(&mut self, named_expr: syntax::NamedExpr) -> validated::NamedExpr {
         let syntax::NamedExprData { name, expr } = named_expr.data(self.syntax_tables());
-        let validated_expr = self.validate_expr(*expr);
+        let validated_expr = self.validate_expr_to_value(*expr);
         self.add(
             validated::NamedExprData {
                 name: *name,

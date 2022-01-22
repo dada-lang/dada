@@ -9,7 +9,25 @@
                 ),
                 (
                     Assign(
-                        temp{5},
+                        temp{2},
+                        Print.give,
+                    ),
+                    Expr(0),
+                ),
+                (
+                    Cusp,
+                    Expr(0),
+                ),
+                (
+                    Assign(
+                        temp{11},
+                        temp{2}.give,
+                    ),
+                    Expr(0),
+                ),
+                (
+                    Assign(
+                        temp{3},
                         "Hello ",
                     ),
                     Expr(1),
@@ -18,13 +36,20 @@
                     Cusp,
                     Expr(1),
                 ),
+                (
+                    Assign(
+                        temp{12},
+                        temp{3}.give,
+                    ),
+                    Expr(1),
+                ),
             ],
             Assign(
-                temp{4},
+                temp{10},
                 Call(
-                    Print,
+                    temp{11},
                     [
-                        temp{5},
+                        temp{12},
                     ],
                     [
                         None,
@@ -41,9 +66,9 @@
                 ),
             ],
             Assign(
-                temp{3},
+                temp{9},
                 Await(
-                    temp{4},
+                    temp{10},
                 ),
                 BasicBlock(2),
             ),
@@ -59,16 +84,52 @@
                     Expr(4),
                 ),
                 (
+                    Assign(
+                        temp{4},
+                        Print.give,
+                    ),
+                    Expr(4),
+                ),
+                (
                     Cusp,
+                    Expr(4),
+                ),
+                (
+                    Assign(
+                        temp{15},
+                        temp{4}.give,
+                    ),
+                    Expr(4),
+                ),
+                (
+                    Cusp,
+                    Expr(5),
+                ),
+                (
+                    Assign(
+                        temp{5},
+                        name1{0}.give,
+                    ),
+                    Expr(5),
+                ),
+                (
+                    Cusp,
+                    Expr(5),
+                ),
+                (
+                    Assign(
+                        temp{16},
+                        temp{5}.give,
+                    ),
                     Expr(5),
                 ),
             ],
             Assign(
-                temp{7},
+                temp{14},
                 Call(
-                    Print,
+                    temp{15},
                     [
-                        name1{0},
+                        temp{16},
                     ],
                     [
                         None,
@@ -85,9 +146,9 @@
                 ),
             ],
             Assign(
-                temp{6},
+                temp{13},
                 Await(
-                    temp{7},
+                    temp{14},
                 ),
                 BasicBlock(4),
             ),
@@ -103,16 +164,52 @@
                     Expr(8),
                 ),
                 (
+                    Assign(
+                        temp{6},
+                        Print.give,
+                    ),
+                    Expr(8),
+                ),
+                (
                     Cusp,
+                    Expr(8),
+                ),
+                (
+                    Assign(
+                        temp{18},
+                        temp{6}.give,
+                    ),
+                    Expr(8),
+                ),
+                (
+                    Cusp,
+                    Expr(9),
+                ),
+                (
+                    Assign(
+                        temp{7},
+                        name2{1}.give,
+                    ),
+                    Expr(9),
+                ),
+                (
+                    Cusp,
+                    Expr(9),
+                ),
+                (
+                    Assign(
+                        temp{19},
+                        temp{7}.give,
+                    ),
                     Expr(9),
                 ),
             ],
             Assign(
-                temp{8},
+                temp{17},
                 Call(
-                    Print,
+                    temp{18},
                     [
-                        name2{1},
+                        temp{19},
                     ],
                     [
                         None,
@@ -129,9 +226,9 @@
                 ),
             ],
             Assign(
-                temp{2},
+                temp{8},
                 Await(
-                    temp{8},
+                    temp{17},
                 ),
                 BasicBlock(6),
             ),
@@ -148,7 +245,7 @@
                 ),
             ],
             Return(
-                temp{2},
+                temp{8},
             ),
         ),
     },
@@ -162,7 +259,25 @@
                 ),
                 (
                     Assign(
-                        temp{2},
+                        temp{0},
+                        greet2.give,
+                    ),
+                    Expr(0),
+                ),
+                (
+                    Cusp,
+                    Expr(0),
+                ),
+                (
+                    Assign(
+                        temp{5},
+                        temp{0}.give,
+                    ),
+                    Expr(0),
+                ),
+                (
+                    Assign(
+                        temp{1},
                         "Plusch",
                     ),
                     Expr(1),
@@ -173,7 +288,14 @@
                 ),
                 (
                     Assign(
-                        temp{3},
+                        temp{6},
+                        temp{1}.give,
+                    ),
+                    Expr(1),
+                ),
+                (
+                    Assign(
+                        temp{2},
                         "plusch",
                     ),
                     Expr(2),
@@ -182,14 +304,21 @@
                     Cusp,
                     Expr(2),
                 ),
+                (
+                    Assign(
+                        temp{7},
+                        temp{2}.give,
+                    ),
+                    Expr(2),
+                ),
             ],
             Assign(
-                temp{1},
+                temp{4},
                 Call(
-                    greet2,
+                    temp{5},
                     [
-                        temp{2},
-                        temp{3},
+                        temp{6},
+                        temp{7},
                     ],
                     [
                         None,
@@ -207,9 +336,9 @@
                 ),
             ],
             Assign(
-                temp{0},
+                temp{3},
                 Await(
-                    temp{1},
+                    temp{4},
                 ),
                 BasicBlock(2),
             ),
@@ -226,7 +355,7 @@
                 ),
             ],
             Return(
-                temp{0},
+                temp{3},
             ),
         ),
     },

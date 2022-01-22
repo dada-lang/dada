@@ -78,8 +78,6 @@ impl DadaCompiler {
 
     #[wasm_bindgen]
     pub async fn execute(mut self) -> Self {
-        tracing::info!("in Rust: execute");
-
         let filename = self.filename();
         let diagnostics = self.db.diagnostics(filename);
 
@@ -102,6 +100,17 @@ impl DadaCompiler {
 
         self.output = kernel.take_buffer();
         let heap_graphs = kernel.take_heap_graphs();
+
+        tracing::info!(
+            "Execution complete: breakpoint={:?}, \
+            {} bytes of output, \
+            {} heaps captured, \
+            {} diagnostics.",
+            self.breakpoint,
+            self.output.len(),
+            heap_graphs.len(),
+            diagnostics.len(),
+        );
 
         self.diagnostics = if diagnostics.is_empty() {
             String::new()

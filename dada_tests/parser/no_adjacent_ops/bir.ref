@@ -5,7 +5,7 @@
             [
                 (
                     Assign(
-                        temp{2},
+                        temp{5},
                         22,
                     ),
                     Expr(0),
@@ -16,7 +16,7 @@
                 ),
                 (
                     Assign(
-                        temp{3},
+                        temp{6},
                         44,
                     ),
                     Expr(1),
@@ -27,13 +27,20 @@
                 ),
                 (
                     Assign(
-                        x{0},
-                        temp{2} + temp{3},
+                        temp{1},
+                        temp{5} + temp{6},
                     ),
                     Expr(2),
                 ),
                 (
                     Cusp,
+                    Expr(2),
+                ),
+                (
+                    Assign(
+                        x{0},
+                        temp{1}.give,
+                    ),
                     Expr(2),
                 ),
                 (
@@ -46,7 +53,7 @@
                 ),
                 (
                     Assign(
-                        temp{5},
+                        temp{8},
                         66,
                     ),
                     Expr(5),
@@ -57,8 +64,8 @@
                 ),
                 (
                     Assign(
-                        temp{4},
-                        x{0} == temp{5},
+                        temp{7},
+                        x{0} == temp{8},
                     ),
                     Expr(6),
                 ),
@@ -68,7 +75,7 @@
                 ),
             ],
             If(
-                temp{4},
+                temp{7},
                 BasicBlock(1),
                 BasicBlock(2),
             ),
@@ -81,7 +88,25 @@
                 ),
                 (
                     Assign(
-                        temp{7},
+                        temp{2},
+                        Print.give,
+                    ),
+                    Expr(7),
+                ),
+                (
+                    Cusp,
+                    Expr(7),
+                ),
+                (
+                    Assign(
+                        temp{10},
+                        temp{2}.give,
+                    ),
+                    Expr(7),
+                ),
+                (
+                    Assign(
+                        temp{3},
                         "Huzzah",
                     ),
                     Expr(8),
@@ -90,13 +115,20 @@
                     Cusp,
                     Expr(8),
                 ),
+                (
+                    Assign(
+                        temp{11},
+                        temp{3}.give,
+                    ),
+                    Expr(8),
+                ),
             ],
             Assign(
-                temp{6},
+                temp{9},
                 Call(
-                    Print,
+                    temp{10},
                     [
-                        temp{7},
+                        temp{11},
                     ],
                     [
                         None,
@@ -109,7 +141,7 @@
             [
                 (
                     Assign(
-                        temp{1},
+                        temp{4},
                         (),
                     ),
                     Expr(12),
@@ -135,7 +167,7 @@
                 ),
             ],
             Return(
-                temp{1},
+                temp{4},
             ),
         ),
         BasicBlock(4): BasicBlockData(
@@ -146,9 +178,9 @@
                 ),
             ],
             Assign(
-                temp{1},
+                temp{4},
                 Await(
-                    temp{6},
+                    temp{9},
                 ),
                 BasicBlock(5),
             ),

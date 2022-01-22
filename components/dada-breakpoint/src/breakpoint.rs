@@ -35,7 +35,7 @@ pub fn find(db: &dyn crate::Db, filename: Filename, position: LineColumn) -> Opt
     let item = find_item(db, filename, offset)?;
     let code = item.code(db)?;
     let syntax_tree = code.syntax_tree(db);
-    let cusp_expr = find_syntax_expr(db, syntax_tree, offset)?;
+    let cusp_expr = find_syntax_expr(db, syntax_tree, offset);
     Some(Breakpoint {
         code,
         expr: cusp_expr,
@@ -57,12 +57,10 @@ pub fn find_item(db: &dyn crate::Db, filename: Filename, offset: Offset) -> Opti
 /// that is, the moment when all of E's children have been
 /// evaluated, but E has not yet taken effect itself.
 ///
+/// Assumes: the offest is somewhere in this syntax tree.
+///
 /// Returns None if the cursor does not lie in the syntax tree at all.
-pub fn find_syntax_expr(
-    db: &dyn crate::Db,
-    syntax_tree: syntax::Tree,
-    offset: Offset,
-) -> Option<syntax::Expr> {
+fn find_syntax_expr(db: &dyn crate::Db, syntax_tree: syntax::Tree, offset: Offset) -> syntax::Expr {
     let spans = syntax_tree.spans(db);
     let data = syntax_tree.data(db);
     let traversal = TreeTraversal {
@@ -70,7 +68,7 @@ pub fn find_syntax_expr(
         tables: &data.tables,
         offset,
     };
-    traversal.find(data.root_expr)
+    traversal.find(data.root_expr).unwrap_or(data.root_expr)
 }
 
 struct TreeTraversal<'me> {

@@ -6,7 +6,7 @@
                 (
                     Assign(
                         temp{1},
-                        "foo",
+                        22,
                     ),
                     Expr(0),
                 ),
@@ -26,74 +26,37 @@
                     Expr(1),
                 ),
                 (
-                    Cusp,
+                    Assign(
+                        temp{3},
+                        44,
+                    ),
                     Expr(2),
                 ),
                 (
-                    Assign(
-                        temp{6},
-                        44,
-                    ),
-                    Expr(3),
-                ),
-                (
                     Cusp,
-                    Expr(3),
-                ),
-                (
-                    Assign(
-                        temp{5},
-                        x{0} + temp{6},
-                    ),
-                    Expr(4),
-                ),
-                (
-                    Cusp,
-                    Expr(4),
-                ),
-                (
-                    Assign(
-                        temp{7},
-                        66,
-                    ),
-                    Expr(5),
-                ),
-                (
-                    Cusp,
-                    Expr(5),
-                ),
-                (
-                    Assign(
-                        temp{3},
-                        temp{5} + temp{7},
-                    ),
-                    Expr(6),
-                ),
-                (
-                    Cusp,
-                    Expr(6),
+                    Expr(2),
                 ),
                 (
                     Assign(
                         y{2},
                         temp{3}.give,
                     ),
-                    Expr(6),
+                    Expr(2),
                 ),
                 (
                     Cusp,
-                    Expr(7),
+                    Expr(3),
                 ),
                 (
                     Assign(
                         temp{4},
                         (),
                     ),
-                    Expr(7),
+                    Expr(3),
                 ),
                 (
                     Cusp,
-                    Expr(8),
+                    Expr(4),
                 ),
             ],
             Return(
