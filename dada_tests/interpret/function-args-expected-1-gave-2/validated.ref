@@ -11,28 +11,57 @@
                             Call(
                                 (
                                     Expr(0),
-                                    Print,
-                                    Expr(0),
+                                    (
+                                        Place(0),
+                                        Print,
+                                        ExprOrigin {
+                                            syntax_expr: Expr(0),
+                                            synthesized: false,
+                                        },
+                                    ),
+                                    ExprOrigin {
+                                        syntax_expr: Expr(0),
+                                        synthesized: false,
+                                    },
                                 ),
                                 [
                                     (
                                         None,
                                         (
                                             Expr(1),
-                                            name{0},
-                                            Expr(1),
+                                            (
+                                                Place(1),
+                                                name{0},
+                                                ExprOrigin {
+                                                    syntax_expr: Expr(1),
+                                                    synthesized: false,
+                                                },
+                                            ),
+                                            ExprOrigin {
+                                                syntax_expr: Expr(1),
+                                                synthesized: false,
+                                            },
                                         ),
                                     ),
                                 ],
                             ),
-                            Expr(2),
+                            ExprOrigin {
+                                syntax_expr: Expr(2),
+                                synthesized: false,
+                            },
                         ),
                     ),
-                    Expr(3),
+                    ExprOrigin {
+                        syntax_expr: Expr(3),
+                        synthesized: false,
+                    },
                 ),
             ],
         ),
-        Expr(4),
+        ExprOrigin {
+            syntax_expr: Expr(4),
+            synthesized: false,
+        },
     ),
     (
         Expr(4),
@@ -43,8 +72,18 @@
                     Call(
                         (
                             Expr(0),
-                            greet,
-                            Expr(0),
+                            (
+                                Place(0),
+                                greet,
+                                ExprOrigin {
+                                    syntax_expr: Expr(0),
+                                    synthesized: false,
+                                },
+                            ),
+                            ExprOrigin {
+                                syntax_expr: Expr(0),
+                                synthesized: false,
+                            },
                         ),
                         [
                             (
@@ -52,7 +91,10 @@
                                 (
                                     Expr(1),
                                     "Plush",
-                                    Expr(1),
+                                    ExprOrigin {
+                                        syntax_expr: Expr(1),
+                                        synthesized: false,
+                                    },
                                 ),
                             ),
                             (
@@ -60,15 +102,24 @@
                                 (
                                     Expr(2),
                                     "plush",
-                                    Expr(2),
+                                    ExprOrigin {
+                                        syntax_expr: Expr(2),
+                                        synthesized: false,
+                                    },
                                 ),
                             ),
                         ],
                     ),
-                    Expr(3),
+                    ExprOrigin {
+                        syntax_expr: Expr(3),
+                        synthesized: false,
+                    },
                 ),
             ],
         ),
-        Expr(4),
+        ExprOrigin {
+            syntax_expr: Expr(4),
+            synthesized: false,
+        },
     ),
 ]

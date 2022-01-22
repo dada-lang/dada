@@ -9,19 +9,31 @@
                         (
                             Expr(0),
                             "a",
-                            Expr(0),
+                            ExprOrigin {
+                                syntax_expr: Expr(0),
+                                synthesized: false,
+                            },
                         ),
                         Minus,
                         (
                             Expr(1),
                             "b",
-                            Expr(1),
+                            ExprOrigin {
+                                syntax_expr: Expr(1),
+                                synthesized: false,
+                            },
                         ),
                     ),
-                    Expr(2),
+                    ExprOrigin {
+                        syntax_expr: Expr(2),
+                        synthesized: false,
+                    },
                 ),
             ],
         ),
-        Expr(3),
+        ExprOrigin {
+            syntax_expr: Expr(3),
+            synthesized: false,
+        },
     ),
 ]

@@ -2,7 +2,7 @@ use dada_id::prelude::*;
 use dada_ir::{
     code::{
         bir::{self, BirData},
-        syntax, validated,
+        validated::{self, ExprOrigin},
     },
     storage_mode::StorageMode,
 };
@@ -412,17 +412,17 @@ impl Cursor {
     }
 }
 
-fn add_temporary(brewery: &mut Brewery, origin: syntax::Expr) -> bir::LocalVariable {
+fn add_temporary(brewery: &mut Brewery, origin: ExprOrigin) -> bir::LocalVariable {
     brewery.add(
         bir::LocalVariableData {
             name: None,
             storage_mode: StorageMode::Var,
         },
-        validated::LocalVariableOrigin::Temporary(origin),
+        validated::LocalVariableOrigin::Temporary(origin.into()),
     )
 }
 
-fn add_temporary_place(brewery: &mut Brewery, origin: syntax::Expr) -> bir::Place {
+fn add_temporary_place(brewery: &mut Brewery, origin: ExprOrigin) -> bir::Place {
     let temporary_var = add_temporary(brewery, origin);
     brewery.add(bir::PlaceData::LocalVariable(temporary_var), origin)
 }

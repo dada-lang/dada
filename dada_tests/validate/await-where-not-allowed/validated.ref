@@ -11,8 +11,18 @@
                             Call(
                                 (
                                     Expr(0),
-                                    Print,
-                                    Expr(0),
+                                    (
+                                        Place(0),
+                                        Print,
+                                        ExprOrigin {
+                                            syntax_expr: Expr(0),
+                                            synthesized: false,
+                                        },
+                                    ),
+                                    ExprOrigin {
+                                        syntax_expr: Expr(0),
+                                        synthesized: false,
+                                    },
                                 ),
                                 [
                                     (
@@ -20,19 +30,31 @@
                                         (
                                             Expr(1),
                                             "Hello, world",
-                                            Expr(1),
+                                            ExprOrigin {
+                                                syntax_expr: Expr(1),
+                                                synthesized: false,
+                                            },
                                         ),
                                     ),
                                 ],
                             ),
-                            Expr(2),
+                            ExprOrigin {
+                                syntax_expr: Expr(2),
+                                synthesized: false,
+                            },
                         ),
                     ),
-                    Expr(3),
+                    ExprOrigin {
+                        syntax_expr: Expr(3),
+                        synthesized: false,
+                    },
                 ),
             ],
         ),
-        Expr(4),
+        ExprOrigin {
+            syntax_expr: Expr(4),
+            synthesized: false,
+        },
     ),
     (
         Expr(6),
@@ -53,8 +75,18 @@
                                                 Call(
                                                     (
                                                         Expr(0),
-                                                        Print,
-                                                        Expr(0),
+                                                        (
+                                                            Place(0),
+                                                            Print,
+                                                            ExprOrigin {
+                                                                syntax_expr: Expr(0),
+                                                                synthesized: false,
+                                                            },
+                                                        ),
+                                                        ExprOrigin {
+                                                            syntax_expr: Expr(0),
+                                                            synthesized: false,
+                                                        },
                                                     ),
                                                     [
                                                         (
@@ -62,26 +94,44 @@
                                                             (
                                                                 Expr(1),
                                                                 "Hello, world",
-                                                                Expr(1),
+                                                                ExprOrigin {
+                                                                    syntax_expr: Expr(1),
+                                                                    synthesized: false,
+                                                                },
                                                             ),
                                                         ),
                                                     ],
                                                 ),
-                                                Expr(2),
+                                                ExprOrigin {
+                                                    syntax_expr: Expr(2),
+                                                    synthesized: false,
+                                                },
                                             ),
                                         ),
-                                        Expr(3),
+                                        ExprOrigin {
+                                            syntax_expr: Expr(3),
+                                            synthesized: false,
+                                        },
                                     ),
                                 ],
                             ),
-                            Expr(4),
+                            ExprOrigin {
+                                syntax_expr: Expr(4),
+                                synthesized: false,
+                            },
                         ),
                     ),
-                    Expr(5),
+                    ExprOrigin {
+                        syntax_expr: Expr(5),
+                        synthesized: false,
+                    },
                 ),
             ],
         ),
-        Expr(6),
+        ExprOrigin {
+            syntax_expr: Expr(6),
+            synthesized: false,
+        },
     ),
     (
         Expr(6),
@@ -102,8 +152,18 @@
                                                 Call(
                                                     (
                                                         Expr(0),
-                                                        Print,
-                                                        Expr(0),
+                                                        (
+                                                            Place(0),
+                                                            Print,
+                                                            ExprOrigin {
+                                                                syntax_expr: Expr(0),
+                                                                synthesized: false,
+                                                            },
+                                                        ),
+                                                        ExprOrigin {
+                                                            syntax_expr: Expr(0),
+                                                            synthesized: false,
+                                                        },
                                                     ),
                                                     [
                                                         (
@@ -111,26 +171,44 @@
                                                             (
                                                                 Expr(1),
                                                                 "Hello, world",
-                                                                Expr(1),
+                                                                ExprOrigin {
+                                                                    syntax_expr: Expr(1),
+                                                                    synthesized: false,
+                                                                },
                                                             ),
                                                         ),
                                                     ],
                                                 ),
-                                                Expr(2),
+                                                ExprOrigin {
+                                                    syntax_expr: Expr(2),
+                                                    synthesized: false,
+                                                },
                                             ),
                                         ),
-                                        Expr(3),
+                                        ExprOrigin {
+                                            syntax_expr: Expr(3),
+                                            synthesized: false,
+                                        },
                                     ),
                                 ],
                             ),
-                            Expr(4),
+                            ExprOrigin {
+                                syntax_expr: Expr(4),
+                                synthesized: false,
+                            },
                         ),
                     ),
-                    Expr(5),
+                    ExprOrigin {
+                        syntax_expr: Expr(5),
+                        synthesized: false,
+                    },
                 ),
             ],
         ),
-        Expr(6),
+        ExprOrigin {
+            syntax_expr: Expr(6),
+            synthesized: false,
+        },
     ),
     (
         Expr(4),
@@ -144,8 +222,18 @@
                             Call(
                                 (
                                     Expr(0),
-                                    Print,
-                                    Expr(0),
+                                    (
+                                        Place(0),
+                                        Print,
+                                        ExprOrigin {
+                                            syntax_expr: Expr(0),
+                                            synthesized: false,
+                                        },
+                                    ),
+                                    ExprOrigin {
+                                        syntax_expr: Expr(0),
+                                        synthesized: false,
+                                    },
                                 ),
                                 [
                                     (
@@ -153,18 +241,30 @@
                                         (
                                             Expr(1),
                                             "Hello, world",
-                                            Expr(1),
+                                            ExprOrigin {
+                                                syntax_expr: Expr(1),
+                                                synthesized: false,
+                                            },
                                         ),
                                     ),
                                 ],
                             ),
-                            Expr(2),
+                            ExprOrigin {
+                                syntax_expr: Expr(2),
+                                synthesized: false,
+                            },
                         ),
                     ),
-                    Expr(3),
+                    ExprOrigin {
+                        syntax_expr: Expr(3),
+                        synthesized: false,
+                    },
                 ),
             ],
         ),
-        Expr(4),
+        ExprOrigin {
+            syntax_expr: Expr(4),
+            synthesized: false,
+        },
     ),
 ]

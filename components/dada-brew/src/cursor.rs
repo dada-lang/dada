@@ -1,6 +1,9 @@
 use dada_id::prelude::*;
 use dada_ir::{
-    code::{bir, syntax, validated},
+    code::{
+        bir,
+        validated::{self, ExprOrigin},
+    },
     word::SpannedOptionalWord,
 };
 
@@ -17,7 +20,7 @@ pub(crate) struct Cursor {
 }
 
 impl Cursor {
-    pub(crate) fn new(brewery: &mut Brewery<'_>, origin: syntax::Expr) -> Self {
+    pub(crate) fn new(brewery: &mut Brewery<'_>, origin: ExprOrigin) -> Self {
         let block = brewery.dummy_block(origin);
         Cursor {
             start_block: block,
@@ -51,7 +54,7 @@ impl Cursor {
         &mut self,
         brewery: &mut Brewery<'_>,
         terminator_data: bir::TerminatorData,
-        origin: syntax::Expr,
+        origin: ExprOrigin,
         next_block: Option<bir::BasicBlock>,
     ) {
         if let Some(end_block) = self.end_block {
@@ -66,7 +69,7 @@ impl Cursor {
         &mut self,
         brewery: &mut Brewery<'_>,
         terminator_data: bir::TerminatorData,
-        origin: syntax::Expr,
+        origin: ExprOrigin,
     ) {
         self.terminate(brewery, terminator_data, origin, None);
     }
@@ -75,7 +78,7 @@ impl Cursor {
         &mut self,
         brewery: &mut Brewery<'_>,
         terminator_data: impl FnOnce(bir::BasicBlock) -> bir::TerminatorData,
-        origin: syntax::Expr,
+        origin: ExprOrigin,
     ) -> bir::BasicBlock {
         let next_block = brewery.dummy_block(origin);
         let terminator_data = terminator_data(next_block);
@@ -88,7 +91,7 @@ impl Cursor {
         brewery: &mut Brewery<'_>,
         target: bir::Place,
         value: bir::ExprData,
-        origin: syntax::Expr,
+        origin: ExprOrigin,
     ) {
         if self.end_block.is_some() {
             let value = brewery.add(value, origin);
@@ -100,7 +103,7 @@ impl Cursor {
     /// Push a "cusp" statement onto the current basic block.
     /// These statements indicate the end of the given origin node
     /// in the BIR.
-    pub(crate) fn push_cusp(&mut self, brewery: &mut Brewery<'_>, origin: syntax::Expr) {
+    pub(crate) fn push_cusp(&mut self, brewery: &mut Brewery<'_>, origin: ExprOrigin) {
         if self.end_block.is_some() {
             let statement = brewery.add(bir::StatementData::Cusp, origin);
             self.push_statement(brewery, statement);
@@ -111,7 +114,7 @@ impl Cursor {
         &mut self,
         brewery: &mut Brewery<'_>,
         target: bir::BasicBlock,
-        origin: syntax::Expr,
+        origin: ExprOrigin,
     ) {
         self.terminate_and_diverge(brewery, bir::TerminatorData::Goto(target), origin);
     }

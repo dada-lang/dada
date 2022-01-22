@@ -3,7 +3,10 @@ use std::rc::Rc;
 use dada_collections::Map;
 use dada_id::prelude::*;
 use dada_ir::{
-    code::{bir, syntax, validated},
+    code::{
+        bir,
+        validated::{self, ExprOrigin},
+    },
     origin_table::{HasOriginIn, PushOriginIn},
 };
 
@@ -83,7 +86,7 @@ impl<'me> Brewery<'me> {
     /// Returns a new basic block with no statements and a "panic" terminator.
     /// This is meant to be used by `cursor`, which should ensure the terminator
     /// is overwritten.
-    pub fn dummy_block(&mut self, origin: syntax::Expr) -> bir::BasicBlock {
+    pub fn dummy_block(&mut self, origin: ExprOrigin) -> bir::BasicBlock {
         self.add(
             bir::BasicBlockData {
                 statements: vec![],
@@ -93,7 +96,7 @@ impl<'me> Brewery<'me> {
         )
     }
 
-    pub fn add<V, O>(&mut self, data: V, origin: O) -> V::Key
+    pub fn add<V, O>(&mut self, data: V, origin: impl Into<O>) -> V::Key
     where
         V: dada_id::InternValue<Table = bir::Tables>,
         V::Key: PushOriginIn<bir::Origins, Origin = O>,
@@ -151,13 +154,18 @@ fn map_variables(
         .collect()
 }
 
-fn add<V, O>(tables: &mut bir::Tables, origins: &mut bir::Origins, data: V, origin: O) -> V::Key
+fn add<V, O>(
+    tables: &mut bir::Tables,
+    origins: &mut bir::Origins,
+    data: V,
+    origin: impl Into<O>,
+) -> V::Key
 where
     V: dada_id::InternValue<Table = bir::Tables>,
     V::Key: PushOriginIn<bir::Origins, Origin = O>,
 {
     let key = tables.add(data);
-    origins.push(key, origin);
+    origins.push(key, origin.into());
     key
 }
 

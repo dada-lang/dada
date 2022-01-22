@@ -11,8 +11,18 @@
                             Call(
                                 (
                                     Expr(0),
-                                    Print,
-                                    Expr(0),
+                                    (
+                                        Place(0),
+                                        Print,
+                                        ExprOrigin {
+                                            syntax_expr: Expr(0),
+                                            synthesized: false,
+                                        },
+                                    ),
+                                    ExprOrigin {
+                                        syntax_expr: Expr(0),
+                                        synthesized: false,
+                                    },
                                 ),
                                 [
                                     (
@@ -20,15 +30,24 @@
                                         (
                                             Expr(1),
                                             "Foo\nBar",
-                                            Expr(1),
+                                            ExprOrigin {
+                                                syntax_expr: Expr(1),
+                                                synthesized: false,
+                                            },
                                         ),
                                     ),
                                 ],
                             ),
-                            Expr(2),
+                            ExprOrigin {
+                                syntax_expr: Expr(2),
+                                synthesized: false,
+                            },
                         ),
                     ),
-                    Expr(3),
+                    ExprOrigin {
+                        syntax_expr: Expr(3),
+                        synthesized: false,
+                    },
                 ),
                 (
                     Expr(7),
@@ -38,8 +57,18 @@
                             Call(
                                 (
                                     Expr(4),
-                                    Print,
-                                    Expr(4),
+                                    (
+                                        Place(1),
+                                        Print,
+                                        ExprOrigin {
+                                            syntax_expr: Expr(4),
+                                            synthesized: false,
+                                        },
+                                    ),
+                                    ExprOrigin {
+                                        syntax_expr: Expr(4),
+                                        synthesized: false,
+                                    },
                                 ),
                                 [
                                     (
@@ -47,15 +76,24 @@
                                         (
                                             Expr(5),
                                             "Foo\tBar",
-                                            Expr(5),
+                                            ExprOrigin {
+                                                syntax_expr: Expr(5),
+                                                synthesized: false,
+                                            },
                                         ),
                                     ),
                                 ],
                             ),
-                            Expr(6),
+                            ExprOrigin {
+                                syntax_expr: Expr(6),
+                                synthesized: false,
+                            },
                         ),
                     ),
-                    Expr(7),
+                    ExprOrigin {
+                        syntax_expr: Expr(7),
+                        synthesized: false,
+                    },
                 ),
                 (
                     Expr(11),
@@ -65,8 +103,18 @@
                             Call(
                                 (
                                     Expr(8),
-                                    Print,
-                                    Expr(8),
+                                    (
+                                        Place(2),
+                                        Print,
+                                        ExprOrigin {
+                                            syntax_expr: Expr(8),
+                                            synthesized: false,
+                                        },
+                                    ),
+                                    ExprOrigin {
+                                        syntax_expr: Expr(8),
+                                        synthesized: false,
+                                    },
                                 ),
                                 [
                                     (
@@ -74,15 +122,24 @@
                                         (
                                             Expr(9),
                                             "Foo\r\nBar",
-                                            Expr(9),
+                                            ExprOrigin {
+                                                syntax_expr: Expr(9),
+                                                synthesized: false,
+                                            },
                                         ),
                                     ),
                                 ],
                             ),
-                            Expr(10),
+                            ExprOrigin {
+                                syntax_expr: Expr(10),
+                                synthesized: false,
+                            },
                         ),
                     ),
-                    Expr(11),
+                    ExprOrigin {
+                        syntax_expr: Expr(11),
+                        synthesized: false,
+                    },
                 ),
                 (
                     Expr(15),
@@ -92,8 +149,18 @@
                             Call(
                                 (
                                     Expr(12),
-                                    Print,
-                                    Expr(12),
+                                    (
+                                        Place(3),
+                                        Print,
+                                        ExprOrigin {
+                                            syntax_expr: Expr(12),
+                                            synthesized: false,
+                                        },
+                                    ),
+                                    ExprOrigin {
+                                        syntax_expr: Expr(12),
+                                        synthesized: false,
+                                    },
                                 ),
                                 [
                                     (
@@ -101,15 +168,24 @@
                                         (
                                             Expr(13),
                                             "Foo \\ Bar",
-                                            Expr(13),
+                                            ExprOrigin {
+                                                syntax_expr: Expr(13),
+                                                synthesized: false,
+                                            },
                                         ),
                                     ),
                                 ],
                             ),
-                            Expr(14),
+                            ExprOrigin {
+                                syntax_expr: Expr(14),
+                                synthesized: false,
+                            },
                         ),
                     ),
-                    Expr(15),
+                    ExprOrigin {
+                        syntax_expr: Expr(15),
+                        synthesized: false,
+                    },
                 ),
                 (
                     Expr(19),
@@ -119,8 +195,18 @@
                             Call(
                                 (
                                     Expr(16),
-                                    Print,
-                                    Expr(16),
+                                    (
+                                        Place(4),
+                                        Print,
+                                        ExprOrigin {
+                                            syntax_expr: Expr(16),
+                                            synthesized: false,
+                                        },
+                                    ),
+                                    ExprOrigin {
+                                        syntax_expr: Expr(16),
+                                        synthesized: false,
+                                    },
                                 ),
                                 [
                                     (
@@ -128,15 +214,24 @@
                                         (
                                             Expr(17),
                                             "Foo \" Bar",
-                                            Expr(17),
+                                            ExprOrigin {
+                                                syntax_expr: Expr(17),
+                                                synthesized: false,
+                                            },
                                         ),
                                     ),
                                 ],
                             ),
-                            Expr(18),
+                            ExprOrigin {
+                                syntax_expr: Expr(18),
+                                synthesized: false,
+                            },
                         ),
                     ),
-                    Expr(19),
+                    ExprOrigin {
+                        syntax_expr: Expr(19),
+                        synthesized: false,
+                    },
                 ),
                 (
                     Expr(23),
@@ -146,8 +241,18 @@
                             Call(
                                 (
                                     Expr(20),
-                                    Print,
-                                    Expr(20),
+                                    (
+                                        Place(5),
+                                        Print,
+                                        ExprOrigin {
+                                            syntax_expr: Expr(20),
+                                            synthesized: false,
+                                        },
+                                    ),
+                                    ExprOrigin {
+                                        syntax_expr: Expr(20),
+                                        synthesized: false,
+                                    },
                                 ),
                                 [
                                     (
@@ -155,15 +260,24 @@
                                         (
                                             Expr(21),
                                             "Foo \\",
-                                            Expr(21),
+                                            ExprOrigin {
+                                                syntax_expr: Expr(21),
+                                                synthesized: false,
+                                            },
                                         ),
                                     ),
                                 ],
                             ),
-                            Expr(22),
+                            ExprOrigin {
+                                syntax_expr: Expr(22),
+                                synthesized: false,
+                            },
                         ),
                     ),
-                    Expr(23),
+                    ExprOrigin {
+                        syntax_expr: Expr(23),
+                        synthesized: false,
+                    },
                 ),
                 (
                     Expr(27),
@@ -173,8 +287,18 @@
                             Call(
                                 (
                                     Expr(24),
-                                    Print,
-                                    Expr(24),
+                                    (
+                                        Place(6),
+                                        Print,
+                                        ExprOrigin {
+                                            syntax_expr: Expr(24),
+                                            synthesized: false,
+                                        },
+                                    ),
+                                    ExprOrigin {
+                                        syntax_expr: Expr(24),
+                                        synthesized: false,
+                                    },
                                 ),
                                 [
                                     (
@@ -182,15 +306,24 @@
                                         (
                                             Expr(25),
                                             "\t    Foo\n    \tBar",
-                                            Expr(25),
+                                            ExprOrigin {
+                                                syntax_expr: Expr(25),
+                                                synthesized: false,
+                                            },
                                         ),
                                     ),
                                 ],
                             ),
-                            Expr(26),
+                            ExprOrigin {
+                                syntax_expr: Expr(26),
+                                synthesized: false,
+                            },
                         ),
                     ),
-                    Expr(27),
+                    ExprOrigin {
+                        syntax_expr: Expr(27),
+                        synthesized: false,
+                    },
                 ),
                 (
                     Expr(31),
@@ -200,8 +333,18 @@
                             Call(
                                 (
                                     Expr(28),
-                                    Print,
-                                    Expr(28),
+                                    (
+                                        Place(7),
+                                        Print,
+                                        ExprOrigin {
+                                            syntax_expr: Expr(28),
+                                            synthesized: false,
+                                        },
+                                    ),
+                                    ExprOrigin {
+                                        syntax_expr: Expr(28),
+                                        synthesized: false,
+                                    },
                                 ),
                                 [
                                     (
@@ -209,15 +352,24 @@
                                         (
                                             Expr(29),
                                             "\nFoo\n",
-                                            Expr(29),
+                                            ExprOrigin {
+                                                syntax_expr: Expr(29),
+                                                synthesized: false,
+                                            },
                                         ),
                                     ),
                                 ],
                             ),
-                            Expr(30),
+                            ExprOrigin {
+                                syntax_expr: Expr(30),
+                                synthesized: false,
+                            },
                         ),
                     ),
-                    Expr(31),
+                    ExprOrigin {
+                        syntax_expr: Expr(31),
+                        synthesized: false,
+                    },
                 ),
                 (
                     Expr(35),
@@ -227,8 +379,18 @@
                             Call(
                                 (
                                     Expr(32),
-                                    Print,
-                                    Expr(32),
+                                    (
+                                        Place(8),
+                                        Print,
+                                        ExprOrigin {
+                                            syntax_expr: Expr(32),
+                                            synthesized: false,
+                                        },
+                                    ),
+                                    ExprOrigin {
+                                        syntax_expr: Expr(32),
+                                        synthesized: false,
+                                    },
                                 ),
                                 [
                                     (
@@ -236,15 +398,24 @@
                                         (
                                             Expr(33),
                                             "\tFoo\t",
-                                            Expr(33),
+                                            ExprOrigin {
+                                                syntax_expr: Expr(33),
+                                                synthesized: false,
+                                            },
                                         ),
                                     ),
                                 ],
                             ),
-                            Expr(34),
+                            ExprOrigin {
+                                syntax_expr: Expr(34),
+                                synthesized: false,
+                            },
                         ),
                     ),
-                    Expr(35),
+                    ExprOrigin {
+                        syntax_expr: Expr(35),
+                        synthesized: false,
+                    },
                 ),
                 (
                     Expr(39),
@@ -254,8 +425,18 @@
                             Call(
                                 (
                                     Expr(36),
-                                    Print,
-                                    Expr(36),
+                                    (
+                                        Place(9),
+                                        Print,
+                                        ExprOrigin {
+                                            syntax_expr: Expr(36),
+                                            synthesized: false,
+                                        },
+                                    ),
+                                    ExprOrigin {
+                                        syntax_expr: Expr(36),
+                                        synthesized: false,
+                                    },
                                 ),
                                 [
                                     (
@@ -263,18 +444,30 @@
                                         (
                                             Expr(37),
                                             "\tFoo\n\tBar",
-                                            Expr(37),
+                                            ExprOrigin {
+                                                syntax_expr: Expr(37),
+                                                synthesized: false,
+                                            },
                                         ),
                                     ),
                                 ],
                             ),
-                            Expr(38),
+                            ExprOrigin {
+                                syntax_expr: Expr(38),
+                                synthesized: false,
+                            },
                         ),
                     ),
-                    Expr(39),
+                    ExprOrigin {
+                        syntax_expr: Expr(39),
+                        synthesized: false,
+                    },
                 ),
             ],
         ),
-        Expr(40),
+        ExprOrigin {
+            syntax_expr: Expr(40),
+            synthesized: false,
+        },
     ),
 ]

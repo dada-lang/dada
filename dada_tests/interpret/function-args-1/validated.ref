@@ -11,8 +11,18 @@
                             Call(
                                 (
                                     Expr(0),
-                                    Print,
-                                    Expr(0),
+                                    (
+                                        Place(0),
+                                        Print,
+                                        ExprOrigin {
+                                            syntax_expr: Expr(0),
+                                            synthesized: false,
+                                        },
+                                    ),
+                                    ExprOrigin {
+                                        syntax_expr: Expr(0),
+                                        synthesized: false,
+                                    },
                                 ),
                                 [
                                     (
@@ -20,15 +30,24 @@
                                         (
                                             Expr(1),
                                             "Hello ",
-                                            Expr(1),
+                                            ExprOrigin {
+                                                syntax_expr: Expr(1),
+                                                synthesized: false,
+                                            },
                                         ),
                                     ),
                                 ],
                             ),
-                            Expr(2),
+                            ExprOrigin {
+                                syntax_expr: Expr(2),
+                                synthesized: false,
+                            },
                         ),
                     ),
-                    Expr(3),
+                    ExprOrigin {
+                        syntax_expr: Expr(3),
+                        synthesized: false,
+                    },
                 ),
                 (
                     Expr(7),
@@ -38,28 +57,57 @@
                             Call(
                                 (
                                     Expr(4),
-                                    Print,
-                                    Expr(4),
+                                    (
+                                        Place(1),
+                                        Print,
+                                        ExprOrigin {
+                                            syntax_expr: Expr(4),
+                                            synthesized: false,
+                                        },
+                                    ),
+                                    ExprOrigin {
+                                        syntax_expr: Expr(4),
+                                        synthesized: false,
+                                    },
                                 ),
                                 [
                                     (
                                         None,
                                         (
                                             Expr(5),
-                                            name{0},
-                                            Expr(5),
+                                            (
+                                                Place(2),
+                                                name{0},
+                                                ExprOrigin {
+                                                    syntax_expr: Expr(5),
+                                                    synthesized: false,
+                                                },
+                                            ),
+                                            ExprOrigin {
+                                                syntax_expr: Expr(5),
+                                                synthesized: false,
+                                            },
                                         ),
                                     ),
                                 ],
                             ),
-                            Expr(6),
+                            ExprOrigin {
+                                syntax_expr: Expr(6),
+                                synthesized: false,
+                            },
                         ),
                     ),
-                    Expr(7),
+                    ExprOrigin {
+                        syntax_expr: Expr(7),
+                        synthesized: false,
+                    },
                 ),
             ],
         ),
-        Expr(8),
+        ExprOrigin {
+            syntax_expr: Expr(8),
+            synthesized: false,
+        },
     ),
     (
         Expr(4),
@@ -73,8 +121,18 @@
                             Call(
                                 (
                                     Expr(0),
-                                    greet,
-                                    Expr(0),
+                                    (
+                                        Place(0),
+                                        greet,
+                                        ExprOrigin {
+                                            syntax_expr: Expr(0),
+                                            synthesized: false,
+                                        },
+                                    ),
+                                    ExprOrigin {
+                                        syntax_expr: Expr(0),
+                                        synthesized: false,
+                                    },
                                 ),
                                 [
                                     (
@@ -82,18 +140,30 @@
                                         (
                                             Expr(1),
                                             "Pluschplusch",
-                                            Expr(1),
+                                            ExprOrigin {
+                                                syntax_expr: Expr(1),
+                                                synthesized: false,
+                                            },
                                         ),
                                     ),
                                 ],
                             ),
-                            Expr(2),
+                            ExprOrigin {
+                                syntax_expr: Expr(2),
+                                synthesized: false,
+                            },
                         ),
                     ),
-                    Expr(3),
+                    ExprOrigin {
+                        syntax_expr: Expr(3),
+                        synthesized: false,
+                    },
                 ),
             ],
         ),
-        Expr(4),
+        ExprOrigin {
+            syntax_expr: Expr(4),
+            synthesized: false,
+        },
     ),
 ]

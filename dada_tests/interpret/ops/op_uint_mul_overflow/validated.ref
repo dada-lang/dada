@@ -6,34 +6,66 @@
                 (
                     Expr(1),
                     Assign(
-                        uint_max{0},
+                        (
+                            Place(0),
+                            uint_max{0},
+                            ExprOrigin {
+                                syntax_expr: Expr(1),
+                                synthesized: true,
+                            },
+                        ),
                         (
                             Expr(0),
                             18446744073709551615,
-                            Expr(0),
+                            ExprOrigin {
+                                syntax_expr: Expr(0),
+                                synthesized: false,
+                            },
                         ),
                     ),
-                    Expr(1),
+                    ExprOrigin {
+                        syntax_expr: Expr(1),
+                        synthesized: false,
+                    },
                 ),
                 (
                     Expr(4),
                     Op(
                         (
                             Expr(2),
-                            uint_max{0},
-                            Expr(2),
+                            (
+                                Place(1),
+                                uint_max{0},
+                                ExprOrigin {
+                                    syntax_expr: Expr(2),
+                                    synthesized: false,
+                                },
+                            ),
+                            ExprOrigin {
+                                syntax_expr: Expr(2),
+                                synthesized: false,
+                            },
                         ),
                         Times,
                         (
                             Expr(3),
                             2,
-                            Expr(3),
+                            ExprOrigin {
+                                syntax_expr: Expr(3),
+                                synthesized: false,
+                            },
                         ),
                     ),
-                    Expr(4),
+                    ExprOrigin {
+                        syntax_expr: Expr(4),
+                        synthesized: false,
+                    },
                 ),
             ],
         ),
-        Expr(5),
+        ExprOrigin {
+            syntax_expr: Expr(5),
+            synthesized: false,
+        },
     ),
 ]
