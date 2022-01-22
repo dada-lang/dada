@@ -7,10 +7,14 @@ use std::fmt::Debug;
 
 use dada_id::{id, tables};
 use dada_ir::{
-    class::Class, code::bir::LocalVariable, function::Function, span::FileSpan, word::Word,
+    class::Class,
+    code::bir::{LocalVariable, Place},
+    function::Function,
+    span::FileSpan,
+    word::Word,
 };
 
-use crate::{moment::Moment, StackFrame};
+use crate::{interpreter::Interpreter, moment::Moment, StackFrame};
 
 mod capture;
 mod graphviz;
@@ -22,12 +26,16 @@ pub struct HeapGraph {
 }
 
 impl HeapGraph {
-    pub(crate) fn new(db: &dyn crate::Db, top: &StackFrame<'_>) -> Self {
+    pub(crate) fn new(
+        interpreter: &Interpreter<'_>,
+        top: &StackFrame<'_>,
+        place: Option<Place>,
+    ) -> Self {
         let mut this = Self {
             stack: vec![],
             tables: Default::default(),
         };
-        this.capture_from(db, top);
+        this.capture_from(interpreter, top, place);
         this
     }
 }
@@ -48,6 +56,7 @@ pub(crate) struct StackFrameNodeData {
     span: FileSpan,
     function: Function,
     variables: Vec<LocalVariableEdge>,
+    in_flight_value: Option<ValueEdge>,
 }
 
 #[derive(Debug)]

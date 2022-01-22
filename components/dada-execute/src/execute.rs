@@ -163,7 +163,7 @@ impl StackFrame<'_> {
                             interpreter.db(),
                             &self,
                             syntax_expr,
-                            &|| HeapGraph::new(interpreter.db(), &self),
+                            &|| HeapGraph::new(interpreter, &self, *place),
                         )?;
                     }
                 }
@@ -323,15 +323,41 @@ impl StackFrame<'_> {
         }
     }
 
-    fn with_place<R>(
-        &mut self,
+    pub(crate) fn with_place<R>(
+        &self,
         interpreter: &Interpreter<'_>,
         place: bir::Place,
         op: impl FnOnce(&Value, &Interpreter) -> eyre::Result<R>,
     ) -> eyre::Result<R> {
-        self.with_place_mut(interpreter, place, |value, interpreter| {
-            op(&*value, interpreter)
-        })
+        match place.data(self.tables) {
+            bir::PlaceData::LocalVariable(local_variable) => {
+                op(&self.local_variables[*local_variable], interpreter)
+            }
+            bir::PlaceData::Function(function) => {
+                op(&Value::our(interpreter, *function), interpreter)
+            }
+            bir::PlaceData::Class(class) => op(&Value::our(interpreter, *class), interpreter),
+            bir::PlaceData::Intrinsic(intrinsic) => {
+                op(&Value::our(interpreter, *intrinsic), interpreter)
+            }
+            bir::PlaceData::Dot(place, word) => {
+                self.with_place_box(interpreter, *place, |value, interpreter| {
+                    value.field(interpreter, *word, |v| op(v, interpreter))
+                })
+            }
+        }
+    }
+
+    /// Hack that invokes `with_place` after boxing and using dyn trait;
+    /// without this, we get infinite monomorphic expansion for `PlaceData::Dot`.
+    fn with_place_box<R>(
+        &self,
+        interpreter: &Interpreter<'_>,
+        place: bir::Place,
+        op: impl FnOnce(&Value, &Interpreter) -> eyre::Result<R>,
+    ) -> eyre::Result<R> {
+        let op: Box<dyn FnOnce(&Value, &Interpreter) -> eyre::Result<R>> = Box::new(op);
+        self.with_place(interpreter, place, op)
     }
 
     fn with_place_mut<R>(

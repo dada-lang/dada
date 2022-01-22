@@ -1,8 +1,9 @@
 //! Code to capture the state of the db as a HeapGraph.
 
 use dada_id::InternKey;
+use dada_ir::code::bir::Place;
 
-use crate::{data::Instance, execute::StackFrame, value::Value};
+use crate::{data::Instance, execute::StackFrame, interpreter::Interpreter, value::Value};
 
 use super::{
     DataNodeData, HeapGraph, LocalVariableEdge, ObjectNode, ObjectNodeData, StackFrameNodeData,
@@ -11,11 +12,17 @@ use super::{
 
 impl HeapGraph {
     ///
-    pub(super) fn capture_from(&mut self, db: &dyn crate::Db, top: &StackFrame<'_>) {
+    pub(super) fn capture_from(
+        &mut self,
+        interpreter: &Interpreter<'_>,
+        top: &StackFrame<'_>,
+        in_flight_value: Option<Place>,
+    ) {
         if let Some(parent) = top.parent_stack_frame {
-            self.capture_from(db, parent);
+            self.capture_from(interpreter, parent, None);
         }
 
+        let db = interpreter.db();
         let span = top.current_span(db);
         let bir_data = top.bir.data(db);
 
@@ -33,10 +40,16 @@ impl HeapGraph {
             })
             .collect::<Vec<_>>();
 
+        let in_flight_value = in_flight_value.map(|p| {
+            top.with_place(interpreter, p, |value, _| Ok(self.value_node(db, value)))
+                .unwrap()
+        });
+
         let data = StackFrameNodeData {
             function: top.function,
             span,
             variables,
+            in_flight_value,
         };
         let stack_frame = self.tables.add(data);
         self.stack.push(stack_frame);

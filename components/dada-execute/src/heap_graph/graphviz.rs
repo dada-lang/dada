@@ -86,6 +86,7 @@ impl HeapGraph {
         w.println(r#"shape="none";"#)?;
         w.indent(r#"label=<"#)?;
         w.println(r#"<table border="0">"#)?;
+        let mut field_index = 0;
         for stack_frame_node in &self.stack {
             let stack_frame_data = stack_frame_node.data(&self.tables);
             let function_name = stack_frame_data.function.name(w.db).as_str(w.db);
@@ -98,12 +99,24 @@ impl HeapGraph {
                 None => None,
             });
 
-            self.print_fields(
+            field_index = self.print_fields(
                 w,
                 "stack",
                 names,
                 stack_frame_data.variables.iter().map(|v| &v.value),
+                field_index,
             )?;
+
+            if let Some(in_flight_value) = &stack_frame_data.in_flight_value {
+                self.print_field(
+                    w,
+                    in_flight_value,
+                    Some(&"(in-flight)".to_string()),
+                    "stack",
+                    field_index,
+                )?;
+                field_index += 1;
+            }
         }
         w.println(r#"</table>"#)?;
         w.undent(r#">;"#)?;
@@ -132,7 +145,7 @@ impl HeapGraph {
                 w.indent(r#"label = <<table border="0">"#)?;
                 let class_name = data.class.name(w.db).as_str(w.db);
                 w.println(format!(r#"<tr><td border="1">{class_name}</td></tr>"#))?;
-                self.print_fields(w, &name, field_names, &data.fields)?;
+                self.print_fields(w, &name, field_names, &data.fields, 0)?;
                 w.undent(r#"</table>>"#)?;
             }
             ValueEdge::ToClass(c) => {
@@ -158,19 +171,33 @@ impl HeapGraph {
         source: &str,
         names: impl IntoIterator<Item = Option<String>>,
         edges: impl IntoIterator<Item = &'me ValueEdge>,
-    ) -> eyre::Result<()> {
-        for ((edge, name), index) in edges.into_iter().zip(names).zip(0..) {
-            let edge: &ValueEdge = edge;
-            if let Some(name) = name {
-                if let ValueEdge::ToData(d) = edge {
-                    let data_str = self.data_str(*d);
-                    w.println(format!(
-                        r#"<tr><td port="{index}">{name}: {data_str}</td></tr>"#,
-                    ))?;
-                } else {
-                    w.println(format!(r#"<tr><td port="{index}">{name}</td></tr>"#))?;
-                    w.push_edge(source, index, edge);
-                }
+        mut index: usize,
+    ) -> eyre::Result<usize> {
+        for (edge, name) in edges.into_iter().zip(names) {
+            self.print_field(w, edge, name.as_ref(), source, index)?;
+            index += 1;
+        }
+        Ok(index)
+    }
+
+    fn print_field(
+        &self,
+        w: &mut GraphvizWriter,
+        edge: &ValueEdge,
+        name: Option<&String>,
+        source: &str,
+        index: usize,
+    ) -> Result<(), eyre::Error> {
+        let edge: &ValueEdge = edge;
+        if let Some(name) = name {
+            if let ValueEdge::ToData(d) = edge {
+                let data_str = self.data_str(*d);
+                w.println(format!(
+                    r#"<tr><td port="{index}">{name}: {data_str}</td></tr>"#,
+                ))?;
+            } else {
+                w.println(format!(r#"<tr><td port="{index}">{name}</td></tr>"#))?;
+                w.push_edge(source, index, edge);
             }
         }
         Ok(())

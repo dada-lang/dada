@@ -60,6 +60,16 @@ impl Value {
         op(&mut self.data.lock())
     }
 
+    pub(crate) fn field<R>(
+        &self,
+        interpreter: &Interpreter<'_>,
+        word: Word,
+        op: impl FnOnce(&Value) -> eyre::Result<R>,
+    ) -> eyre::Result<R> {
+        self.permission.perform_read(interpreter)?;
+        op(self.data.lock().field(interpreter, word)?)
+    }
+
     pub(crate) fn field_mut<R>(
         &self,
         interpreter: &Interpreter<'_>,

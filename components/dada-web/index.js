@@ -146,18 +146,19 @@ async function updateOutput(dada, editor, cursor) {
         console.log("html:", html);
         document.getElementById("output").innerHTML = html;
 
+        // Clear any previous heap capture nodes.
+        var gdiv = document.getElementById("graph");
+        while (gdiv.firstChild != null) {
+            gdiv.removeChild(gdiv.firstChild);
+        }
+
         // If the result included any heapcapture, it will be encoded
         // as a graphviz string. Use viz.js to convert that to SVG,
-        // clear out the existing contents from `#graph`,
         // and then add the SVG nodes there.
         let heap = dada.heap;
         if (heap != "") {
             try {
                 let element = await viz.renderSVGElement(heap);
-                var gdiv = document.getElementById("graph");
-                while (gdiv.firstChild != null) {
-                    gdiv.removeChild(gdiv.firstChild);
-                }
                 gdiv.appendChild(element);
             } catch (error) {
                 viz = new Viz({ workerURL });

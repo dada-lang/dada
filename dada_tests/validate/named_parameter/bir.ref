@@ -11,7 +11,11 @@
                     Expr(0),
                 ),
                 (
-                    Cusp,
+                    Cusp(
+                        Some(
+                            temp{2},
+                        ),
+                    ),
                     Expr(0),
                 ),
             ],
@@ -25,7 +29,19 @@
         BasicBlock(0): BasicBlockData(
             [
                 (
-                    Cusp,
+                    Cusp(
+                        Some(
+                            foo,
+                        ),
+                    ),
+                    Expr(0),
+                ),
+                (
+                    Cusp(
+                        Some(
+                            foo,
+                        ),
+                    ),
                     Expr(0),
                 ),
                 (
@@ -33,10 +49,6 @@
                         temp{0},
                         foo.give,
                     ),
-                    Expr(0),
-                ),
-                (
-                    Cusp,
                     Expr(0),
                 ),
                 (
@@ -54,7 +66,11 @@
                     Expr(1),
                 ),
                 (
-                    Cusp,
+                    Cusp(
+                        Some(
+                            temp{1},
+                        ),
+                    ),
                     Expr(1),
                 ),
                 (
@@ -72,7 +88,11 @@
                     Expr(2),
                 ),
                 (
-                    Cusp,
+                    Cusp(
+                        Some(
+                            temp{2},
+                        ),
+                    ),
                     Expr(2),
                 ),
                 (
@@ -102,11 +122,27 @@
         BasicBlock(1): BasicBlockData(
             [
                 (
-                    Cusp,
+                    Cusp(
+                        Some(
+                            temp{13},
+                        ),
+                    ),
                     Expr(3),
                 ),
                 (
-                    Cusp,
+                    Cusp(
+                        Some(
+                            foo,
+                        ),
+                    ),
+                    Expr(4),
+                ),
+                (
+                    Cusp(
+                        Some(
+                            foo,
+                        ),
+                    ),
                     Expr(4),
                 ),
                 (
@@ -114,10 +150,6 @@
                         temp{3},
                         foo.give,
                     ),
-                    Expr(4),
-                ),
-                (
-                    Cusp,
                     Expr(4),
                 ),
                 (
@@ -135,7 +167,11 @@
                     Expr(5),
                 ),
                 (
-                    Cusp,
+                    Cusp(
+                        Some(
+                            temp{4},
+                        ),
+                    ),
                     Expr(5),
                 ),
                 (
@@ -153,7 +189,11 @@
                     Expr(6),
                 ),
                 (
-                    Cusp,
+                    Cusp(
+                        Some(
+                            temp{5},
+                        ),
+                    ),
                     Expr(6),
                 ),
                 (
@@ -185,11 +225,27 @@
         BasicBlock(2): BasicBlockData(
             [
                 (
-                    Cusp,
+                    Cusp(
+                        Some(
+                            temp{17},
+                        ),
+                    ),
                     Expr(7),
                 ),
                 (
-                    Cusp,
+                    Cusp(
+                        Some(
+                            foo,
+                        ),
+                    ),
+                    Expr(8),
+                ),
+                (
+                    Cusp(
+                        Some(
+                            foo,
+                        ),
+                    ),
                     Expr(8),
                 ),
                 (
@@ -197,10 +253,6 @@
                         temp{6},
                         foo.give,
                     ),
-                    Expr(8),
-                ),
-                (
-                    Cusp,
                     Expr(8),
                 ),
                 (
@@ -218,7 +270,11 @@
                     Expr(9),
                 ),
                 (
-                    Cusp,
+                    Cusp(
+                        Some(
+                            temp{7},
+                        ),
+                    ),
                     Expr(9),
                 ),
                 (
@@ -236,7 +292,11 @@
                     Expr(10),
                 ),
                 (
-                    Cusp,
+                    Cusp(
+                        Some(
+                            temp{8},
+                        ),
+                    ),
                     Expr(10),
                 ),
                 (
@@ -268,11 +328,27 @@
         BasicBlock(3): BasicBlockData(
             [
                 (
-                    Cusp,
+                    Cusp(
+                        Some(
+                            temp{21},
+                        ),
+                    ),
                     Expr(11),
                 ),
                 (
-                    Cusp,
+                    Cusp(
+                        Some(
+                            foo,
+                        ),
+                    ),
+                    Expr(12),
+                ),
+                (
+                    Cusp(
+                        Some(
+                            foo,
+                        ),
+                    ),
                     Expr(12),
                 ),
                 (
@@ -280,10 +356,6 @@
                         temp{9},
                         foo.give,
                     ),
-                    Expr(12),
-                ),
-                (
-                    Cusp,
                     Expr(12),
                 ),
                 (
@@ -301,7 +373,11 @@
                     Expr(13),
                 ),
                 (
-                    Cusp,
+                    Cusp(
+                        Some(
+                            temp{10},
+                        ),
+                    ),
                     Expr(13),
                 ),
                 (
@@ -319,7 +395,11 @@
                     Expr(14),
                 ),
                 (
-                    Cusp,
+                    Cusp(
+                        Some(
+                            temp{11},
+                        ),
+                    ),
                     Expr(14),
                 ),
                 (
@@ -353,11 +433,19 @@
         BasicBlock(4): BasicBlockData(
             [
                 (
-                    Cusp,
+                    Cusp(
+                        Some(
+                            temp{12},
+                        ),
+                    ),
                     Expr(15),
                 ),
                 (
-                    Cusp,
+                    Cusp(
+                        Some(
+                            temp{12},
+                        ),
+                    ),
                     Expr(16),
                 ),
             ],

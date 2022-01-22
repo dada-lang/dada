@@ -32,10 +32,18 @@ digraph {
         <tr><td port="19">LocalVariable(19): ()</td></tr>
         <tr><td port="20">LocalVariable(20): ()</td></tr>
         <tr><td port="21">LocalVariable(21): ()</td></tr>
+        <tr><td port="22">(in-flight)</td></tr>
         </table>
       >;
     ];
   }
+  node2 [
+    label = <<table border="0">
+      <tr><td border="1">Point</td></tr>
+      <tr><td port="0">x: 22</td></tr>
+      <tr><td port="1">y: 44</td></tr>
+    </table>>
+  ];
   node1 [
     label = <<b>Point</b>>
   ];
@@ -51,5 +59,6 @@ digraph {
   "stack":7 -> "node1"
   "stack":13 -> "node1"
   "stack":16 -> "node1"
+  "stack":22 -> "node2"
 }
 breakpoint expression encountered

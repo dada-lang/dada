@@ -11,7 +11,11 @@
                     Expr(0),
                 ),
                 (
-                    Cusp,
+                    Cusp(
+                        Some(
+                            temp{1},
+                        ),
+                    ),
                     Expr(0),
                 ),
                 (
@@ -22,11 +26,17 @@
                     Expr(0),
                 ),
                 (
-                    Cusp,
+                    Cusp(
+                        None,
+                    ),
                     Expr(1),
                 ),
                 (
-                    Cusp,
+                    Cusp(
+                        Some(
+                            x{0},
+                        ),
+                    ),
                     Expr(2),
                 ),
                 (
@@ -37,7 +47,11 @@
                     Expr(3),
                 ),
                 (
-                    Cusp,
+                    Cusp(
+                        Some(
+                            temp{6},
+                        ),
+                    ),
                     Expr(3),
                 ),
                 (
@@ -48,7 +62,11 @@
                     Expr(4),
                 ),
                 (
-                    Cusp,
+                    Cusp(
+                        Some(
+                            temp{5},
+                        ),
+                    ),
                     Expr(4),
                 ),
                 (
@@ -59,7 +77,11 @@
                     Expr(5),
                 ),
                 (
-                    Cusp,
+                    Cusp(
+                        Some(
+                            temp{7},
+                        ),
+                    ),
                     Expr(5),
                 ),
                 (
@@ -70,7 +92,11 @@
                     Expr(6),
                 ),
                 (
-                    Cusp,
+                    Cusp(
+                        Some(
+                            temp{3},
+                        ),
+                    ),
                     Expr(6),
                 ),
                 (
@@ -81,7 +107,9 @@
                     Expr(6),
                 ),
                 (
-                    Cusp,
+                    Cusp(
+                        None,
+                    ),
                     Expr(7),
                 ),
                 (
@@ -92,7 +120,11 @@
                     Expr(7),
                 ),
                 (
-                    Cusp,
+                    Cusp(
+                        Some(
+                            temp{4},
+                        ),
+                    ),
                     Expr(8),
                 ),
             ],

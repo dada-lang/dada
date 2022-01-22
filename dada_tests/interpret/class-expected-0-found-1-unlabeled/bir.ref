@@ -4,7 +4,19 @@
         BasicBlock(0): BasicBlockData(
             [
                 (
-                    Cusp,
+                    Cusp(
+                        Some(
+                            Class(Id { value: 1 }),
+                        ),
+                    ),
+                    Expr(0),
+                ),
+                (
+                    Cusp(
+                        Some(
+                            Class(Id { value: 1 }),
+                        ),
+                    ),
                     Expr(0),
                 ),
                 (
@@ -12,10 +24,6 @@
                         temp{2},
                         Class(Id { value: 1 }).give,
                     ),
-                    Expr(0),
-                ),
-                (
-                    Cusp,
                     Expr(0),
                 ),
                 (
@@ -33,7 +41,11 @@
                     Expr(1),
                 ),
                 (
-                    Cusp,
+                    Cusp(
+                        Some(
+                            temp{3},
+                        ),
+                    ),
                     Expr(1),
                 ),
                 (
@@ -61,7 +73,11 @@
         BasicBlock(1): BasicBlockData(
             [
                 (
-                    Cusp,
+                    Cusp(
+                        Some(
+                            temp{1},
+                        ),
+                    ),
                     Expr(2),
                 ),
                 (
@@ -72,7 +88,9 @@
                     Expr(2),
                 ),
                 (
-                    Cusp,
+                    Cusp(
+                        None,
+                    ),
                     Expr(3),
                 ),
                 (
@@ -83,7 +101,11 @@
                     Expr(3),
                 ),
                 (
-                    Cusp,
+                    Cusp(
+                        Some(
+                            temp{4},
+                        ),
+                    ),
                     Expr(4),
                 ),
             ],

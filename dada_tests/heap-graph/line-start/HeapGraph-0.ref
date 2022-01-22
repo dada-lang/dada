@@ -27,9 +27,14 @@ digraph {
         <tr><td port="14">LocalVariable(14): ()</td></tr>
         <tr><td port="15">LocalVariable(15): ()</td></tr>
         <tr><td port="16">LocalVariable(16): ()</td></tr>
+        <tr><td port="17">(in-flight)</td></tr>
         </table>
       >;
     ];
   }
+  node0 [
+    label = <<b>Point</b>>
+  ];
+  "stack":17 -> "node0"
 }
 breakpoint expression encountered
