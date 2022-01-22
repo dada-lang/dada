@@ -22,7 +22,7 @@ pub struct HeapGraph {
 }
 
 impl HeapGraph {
-    pub fn new(db: &dyn crate::Db, top: &StackFrame<'_>) -> Self {
+    pub(crate) fn new(db: &dyn crate::Db, top: &StackFrame<'_>) -> Self {
         let mut this = Self {
             stack: vec![],
             tables: Default::default(),

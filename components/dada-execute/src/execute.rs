@@ -16,6 +16,7 @@ use dada_ir::{
 };
 use dada_parse::prelude::*;
 
+use crate::heap_graph::HeapGraph;
 use crate::kernel::Kernel;
 use crate::thunk::Thunk;
 use crate::{
@@ -158,9 +159,12 @@ impl StackFrame<'_> {
                     }
                     dada_ir::code::bir::StatementData::Cusp(place) => {
                         let syntax_expr = self.origins[*statement];
-                        interpreter
-                            .kernel()
-                            .on_cusp(interpreter.db(), &self, syntax_expr)?;
+                        interpreter.kernel().on_cusp(
+                            interpreter.db(),
+                            &self,
+                            syntax_expr,
+                            &|| HeapGraph::new(interpreter.db(), &self),
+                        )?;
                     }
                 }
             }

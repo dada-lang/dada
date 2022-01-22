@@ -1,5 +1,6 @@
 use std::path::PathBuf;
 
+use dada_execute::heap_graph::HeapGraph;
 use dada_ir::in_ir_db::InIrDbExt;
 use dada_parse::prelude::*;
 use eyre::Context;
@@ -66,6 +67,7 @@ impl dada_execute::kernel::Kernel for Kernel {
         db: &dyn dada_execute::Db,
         stack_frame: &dada_execute::StackFrame<'_>,
         expr: dada_ir::code::syntax::Expr,
+        _generate_heap_graph: &dyn Fn() -> HeapGraph,
     ) -> eyre::Result<()> {
         let code = stack_frame.code(db);
         let syntax_tree = code.syntax_tree(db);

@@ -23,6 +23,7 @@ pub trait Kernel: Send + Sync {
         db: &dyn crate::Db,
         stack_frame: &StackFrame<'_>,
         expr: syntax::Expr,
+        generate_heap_graph: &dyn Fn() -> HeapGraph,
     ) -> eyre::Result<()>;
 }
 
@@ -123,12 +124,13 @@ impl Kernel for BufferKernel {
         db: &dyn crate::Db,
         stack_frame: &StackFrame<'_>,
         expr: syntax::Expr,
+        generate_heap_graph: &dyn Fn() -> HeapGraph,
     ) -> eyre::Result<()> {
         tracing::debug!("on_cusp: expr={:?} breakpoint={:?}", expr, self.breakpoint);
 
         if let Some(breakpoint) = self.breakpoint {
             if breakpoint.expr == expr && breakpoint.code == stack_frame.code(db) {
-                let heap_graph = HeapGraph::new(db, stack_frame);
+                let heap_graph = generate_heap_graph();
 
                 if self.dump_breakpoint {
                     self.append(&heap_graph.graphviz(db, true));
