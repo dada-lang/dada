@@ -50,10 +50,6 @@
                     Cusp,
                     Expr(2),
                 ),
-                (
-                    Cusp,
-                    Expr(3),
-                ),
             ],
             Assign(
                 temp{1},
@@ -73,6 +69,10 @@
         ),
         BasicBlock(1): BasicBlockData(
             [
+                (
+                    Cusp,
+                    Expr(3),
+                ),
                 (
                     Cusp,
                     Expr(4),
@@ -99,10 +99,6 @@
                     Cusp,
                     Expr(6),
                 ),
-                (
-                    Cusp,
-                    Expr(7),
-                ),
             ],
             Assign(
                 temp{4},
@@ -124,6 +120,10 @@
         ),
         BasicBlock(2): BasicBlockData(
             [
+                (
+                    Cusp,
+                    Expr(7),
+                ),
                 (
                     Cusp,
                     Expr(8),
@@ -150,10 +150,6 @@
                     Cusp,
                     Expr(10),
                 ),
-                (
-                    Cusp,
-                    Expr(11),
-                ),
             ],
             Assign(
                 temp{7},
@@ -175,6 +171,10 @@
         ),
         BasicBlock(3): BasicBlockData(
             [
+                (
+                    Cusp,
+                    Expr(11),
+                ),
                 (
                     Cusp,
                     Expr(12),
@@ -201,10 +201,6 @@
                     Cusp,
                     Expr(14),
                 ),
-                (
-                    Cusp,
-                    Expr(15),
-                ),
             ],
             Assign(
                 temp{0},
@@ -228,6 +224,10 @@
         ),
         BasicBlock(4): BasicBlockData(
             [
+                (
+                    Cusp,
+                    Expr(15),
+                ),
                 (
                     Cusp,
                     Expr(16),

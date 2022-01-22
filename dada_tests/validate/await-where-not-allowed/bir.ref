@@ -18,10 +18,6 @@
                     Cusp,
                     Expr(1),
                 ),
-                (
-                    Cusp,
-                    Expr(2),
-                ),
             ],
             Assign(
                 temp{1},
@@ -38,7 +34,12 @@
             ),
         ),
         BasicBlock(1): BasicBlockData(
-            [],
+            [
+                (
+                    Cusp,
+                    Expr(2),
+                ),
+            ],
             Assign(
                 temp{0},
                 Await(
@@ -88,10 +89,6 @@
                     Cusp,
                     Expr(1),
                 ),
-                (
-                    Cusp,
-                    Expr(2),
-                ),
             ],
             Assign(
                 temp{1},
@@ -108,7 +105,12 @@
             ),
         ),
         BasicBlock(2): BasicBlockData(
-            [],
+            [
+                (
+                    Cusp,
+                    Expr(2),
+                ),
+            ],
             Assign(
                 temp{0},
                 Await(
@@ -173,10 +175,6 @@
                     Cusp,
                     Expr(1),
                 ),
-                (
-                    Cusp,
-                    Expr(2),
-                ),
             ],
             Assign(
                 temp{1},
@@ -193,7 +191,12 @@
             ),
         ),
         BasicBlock(2): BasicBlockData(
-            [],
+            [
+                (
+                    Cusp,
+                    Expr(2),
+                ),
+            ],
             Assign(
                 temp{0},
                 Await(
@@ -252,10 +255,6 @@
                     Cusp,
                     Expr(1),
                 ),
-                (
-                    Cusp,
-                    Expr(2),
-                ),
             ],
             Assign(
                 temp{1},
@@ -272,7 +271,12 @@
             ),
         ),
         BasicBlock(1): BasicBlockData(
-            [],
+            [
+                (
+                    Cusp,
+                    Expr(2),
+                ),
+            ],
             Assign(
                 temp{0},
                 Await(

@@ -38,10 +38,6 @@
                     Cusp,
                     Expr(2),
                 ),
-                (
-                    Cusp,
-                    Expr(3),
-                ),
             ],
             Assign(
                 temp{3},
@@ -100,7 +96,12 @@
             ),
         ),
         BasicBlock(4): BasicBlockData(
-            [],
+            [
+                (
+                    Cusp,
+                    Expr(3),
+                ),
+            ],
             Assign(
                 temp{1},
                 Await(
@@ -140,10 +141,6 @@
                 (
                     Cusp,
                     Expr(9),
-                ),
-                (
-                    Cusp,
-                    Expr(10),
                 ),
             ],
             Assign(
@@ -203,7 +200,12 @@
             ),
         ),
         BasicBlock(9): BasicBlockData(
-            [],
+            [
+                (
+                    Cusp,
+                    Expr(10),
+                ),
+            ],
             Assign(
                 temp{5},
                 Await(
@@ -244,10 +246,6 @@
                     Cusp,
                     Expr(16),
                 ),
-                (
-                    Cusp,
-                    Expr(17),
-                ),
             ],
             Assign(
                 temp{11},
@@ -279,10 +277,6 @@
                 (
                     Cusp,
                     Expr(21),
-                ),
-                (
-                    Cusp,
-                    Expr(22),
                 ),
             ],
             Assign(
@@ -324,7 +318,12 @@
             ),
         ),
         BasicBlock(14): BasicBlockData(
-            [],
+            [
+                (
+                    Cusp,
+                    Expr(17),
+                ),
+            ],
             Assign(
                 temp{9},
                 Await(
@@ -349,7 +348,12 @@
             ),
         ),
         BasicBlock(16): BasicBlockData(
-            [],
+            [
+                (
+                    Cusp,
+                    Expr(22),
+                ),
+            ],
             Assign(
                 temp{9},
                 Await(
@@ -390,10 +394,6 @@
                     Cusp,
                     Expr(28),
                 ),
-                (
-                    Cusp,
-                    Expr(29),
-                ),
             ],
             Assign(
                 temp{16},
@@ -426,10 +426,6 @@
                     Cusp,
                     Expr(33),
                 ),
-                (
-                    Cusp,
-                    Expr(34),
-                ),
             ],
             Assign(
                 temp{18},
@@ -461,7 +457,12 @@
             ),
         ),
         BasicBlock(21): BasicBlockData(
-            [],
+            [
+                (
+                    Cusp,
+                    Expr(29),
+                ),
+            ],
             Assign(
                 temp{0},
                 Await(
@@ -486,7 +487,12 @@
             ),
         ),
         BasicBlock(23): BasicBlockData(
-            [],
+            [
+                (
+                    Cusp,
+                    Expr(34),
+                ),
+            ],
             Assign(
                 temp{0},
                 Await(

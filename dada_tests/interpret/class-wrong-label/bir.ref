@@ -22,10 +22,6 @@
                     Cusp,
                     Expr(1),
                 ),
-                (
-                    Cusp,
-                    Expr(2),
-                ),
             ],
             Assign(
                 x{0},
@@ -45,6 +41,10 @@
         ),
         BasicBlock(1): BasicBlockData(
             [
+                (
+                    Cusp,
+                    Expr(2),
+                ),
                 (
                     Cusp,
                     Expr(3),

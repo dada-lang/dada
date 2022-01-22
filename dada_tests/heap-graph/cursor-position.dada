@@ -4,5 +4,8 @@ async fn main() {
     p = Point(22, 44)
     #?               ^ HeapGraph
     q = Point(p, 66)
+    #?        ^ HeapGraph
+    #?         ^ HeapGraph
+    #?          ^ HeapGraph
     print("Hi").await
 }

@@ -106,10 +106,6 @@
                     Cusp,
                     Expr(9),
                 ),
-                (
-                    Cusp,
-                    Expr(10),
-                ),
             ],
             Assign(
                 temp{5},
@@ -159,7 +155,12 @@
             ),
         ),
         BasicBlock(4): BasicBlockData(
-            [],
+            [
+                (
+                    Cusp,
+                    Expr(10),
+                ),
+            ],
             Assign(
                 temp{1},
                 Await(

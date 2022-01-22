@@ -4,7 +4,7 @@
             Some(
                 Tokens(dada_tests/heap-graph/cursor-position.dada:3:16:3:16),
             ),
-            Tokens(dada_tests/heap-graph/cursor-position.dada:3:19:8:2),
+            Tokens(dada_tests/heap-graph/cursor-position.dada:3:19:11:2),
         ),
         data: syntax::Tree {
             root_expr: (
