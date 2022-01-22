@@ -156,7 +156,7 @@ impl StackFrame<'_> {
                         let expr_value = self.evaluate_bir_expr(interpreter, *expr)?;
                         self.assign_place(interpreter, *place, expr_value)?;
                     }
-                    dada_ir::code::bir::StatementData::Cusp => {
+                    dada_ir::code::bir::StatementData::Cusp(place) => {
                         let syntax_expr = self.origins[*statement];
                         interpreter
                             .kernel()
