@@ -10,7 +10,7 @@ digraph {
       label=<
         <table border="0">
         <tr><td border="1">main</td></tr>
-        <tr><td port="0">p: ()</td></tr>
+        <tr><td port="0">p</td></tr>
         <tr><td port="1">q: ()</td></tr>
         <tr><td port="2">LocalVariable(2): ()</td></tr>
         <tr><td port="3">LocalVariable(3): ()</td></tr>
@@ -20,5 +20,13 @@ digraph {
       >;
     ];
   }
+  node0 [
+    label = <<table border="0">
+      <tr><td border="1">Point</td></tr>
+      <tr><td port="0">x: 22</td></tr>
+      <tr><td port="1">y: 44</td></tr>
+    </table>>
+  ];
+  "stack":0 -> "node0"
 }
 breakpoint expression encountered

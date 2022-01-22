@@ -4,10 +4,6 @@
         BasicBlock(0): BasicBlockData(
             [
                 (
-                    Cusp,
-                    Expr(3),
-                ),
-                (
                     Assign(
                         temp{2},
                         22,

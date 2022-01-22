@@ -104,7 +104,7 @@ impl Cursor {
     /// These statements indicate the end of the given origin node
     /// in the BIR.
     pub(crate) fn push_cusp(&mut self, brewery: &mut Brewery<'_>, origin: ExprOrigin) {
-        if self.end_block.is_some() {
+        if !origin.synthesized && self.end_block.is_some() {
             let statement = brewery.add(bir::StatementData::Cusp, origin);
             self.push_statement(brewery, statement);
         }

@@ -4,10 +4,6 @@
         BasicBlock(0): BasicBlockData(
             [
                 (
-                    Cusp,
-                    Expr(1),
-                ),
-                (
                     Assign(
                         uint_max{0},
                         18446744073709551615,

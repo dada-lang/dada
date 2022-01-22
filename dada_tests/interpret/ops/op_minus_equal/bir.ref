@@ -4,10 +4,6 @@
         BasicBlock(0): BasicBlockData(
             [
                 (
-                    Cusp,
-                    Expr(1),
-                ),
-                (
                     Assign(
                         x{0},
                         4,

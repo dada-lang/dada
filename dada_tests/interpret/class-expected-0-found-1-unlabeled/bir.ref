@@ -5,10 +5,6 @@
             [
                 (
                     Cusp,
-                    Expr(3),
-                ),
-                (
-                    Cusp,
                     Expr(0),
                 ),
                 (
