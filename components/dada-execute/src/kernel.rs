@@ -32,9 +32,11 @@ pub struct BufferKernel {
     buffer: Mutex<String>,
     breakpoint: Option<Breakpoint>,
     stop_at_breakpoint: bool,
-    breakpoint_callback: Option<Box<dyn Fn(&dyn crate::Db, &Self, &HeapGraph) + Send + Sync>>,
+    breakpoint_callback: Option<BreakpointCallback>,
     heap_graphs: Mutex<Vec<HeapGraph>>,
 }
+
+type BreakpointCallback = Box<dyn Fn(&dyn crate::Db, &BufferKernel, &HeapGraph) + Send + Sync>;
 
 impl BufferKernel {
     pub fn new() -> Self {
