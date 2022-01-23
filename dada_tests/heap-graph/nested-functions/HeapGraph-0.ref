@@ -51,20 +51,6 @@ digraph {
       >;
     ];
   }
-  node3 [
-    label = <<table border="0">
-      <tr><td border="1">Point</td></tr>
-      <tr><td port="0">x</td></tr>
-      <tr><td port="1">y: 66</td></tr>
-    </table>>
-  ];
-  node4 [
-    label = <<table border="0">
-      <tr><td border="1">Point</td></tr>
-      <tr><td port="0">x: 22</td></tr>
-      <tr><td port="1">y: 44</td></tr>
-    </table>>
-  ];
   node2 [
     label = <<table border="0">
       <tr><td border="1">Point</td></tr>
@@ -72,7 +58,7 @@ digraph {
       <tr><td port="1">y: 66</td></tr>
     </table>>
   ];
-  node5 [
+  node3 [
     label = <<table border="0">
       <tr><td border="1">Point</td></tr>
       <tr><td port="0">x: 22</td></tr>
@@ -92,8 +78,7 @@ digraph {
   "stack":25 -> "node1"
   "stack":29 -> "node1"
   "stack":32 -> "node1"
-  "stack":35 -> "node3"
-  "node3":0 -> "node4"
-  "node2":0 -> "node5"
+  "stack":35 -> "node2"
+  "node2":0 -> "node3"
 }
 breakpoint expression encountered

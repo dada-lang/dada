@@ -35,7 +35,8 @@ impl HeapGraph {
             stack: vec![],
             tables: Default::default(),
         };
-        this.capture_from(interpreter, top, place);
+        let cache = &mut capture::Cache::default();
+        this.capture_from(interpreter, cache, top, place);
         this
     }
 }
