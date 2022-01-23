@@ -11,22 +11,7 @@ digraph {
         <table border="0">
         <tr><td border="1">main</td></tr>
         <tr><td port="0">p: ()</td></tr>
-        <tr><td port="1">LocalVariable(1): ()</td></tr>
-        <tr><td port="2">LocalVariable(2)</td></tr>
-        <tr><td port="3">LocalVariable(3): ()</td></tr>
-        <tr><td port="4">LocalVariable(4): ()</td></tr>
         <tr><td port="5">q: ()</td></tr>
-        <tr><td port="6">LocalVariable(6): ()</td></tr>
-        <tr><td port="7">LocalVariable(7): ()</td></tr>
-        <tr><td port="8">LocalVariable(8): ()</td></tr>
-        <tr><td port="9">LocalVariable(9): ()</td></tr>
-        <tr><td port="10">LocalVariable(10): ()</td></tr>
-        <tr><td port="11">LocalVariable(11): ()</td></tr>
-        <tr><td port="12">LocalVariable(12): ()</td></tr>
-        <tr><td port="13">LocalVariable(13): ()</td></tr>
-        <tr><td port="14">LocalVariable(14): ()</td></tr>
-        <tr><td port="15">LocalVariable(15): ()</td></tr>
-        <tr><td port="16">LocalVariable(16): ()</td></tr>
         <tr><td port="17">(in-flight)</td></tr>
         </table>
       >;
@@ -35,7 +20,6 @@ digraph {
   node0 [
     label = <<b>Point</b>>
   ];
-  "stack":2 -> "node0"
   "stack":17 -> "node0"
 }
 breakpoint expression encountered
