@@ -2,7 +2,7 @@ use dada_id::prelude::*;
 use dada_ir::{
     code::{
         bir::{self, BirData},
-        syntax, validated,
+        validated::{self, ExprOrigin},
     },
     storage_mode::StorageMode,
 };
@@ -25,7 +25,7 @@ pub fn brew(db: &dyn crate::Db, validated_tree: validated::Tree) -> bir::Bir {
     let root_expr = validated_tree.data(db).root_expr;
     let root_expr_origin = validated_tree.origins(db)[root_expr];
     let mut cursor = Cursor::new(brewery, root_expr_origin);
-    if let Some(place) = cursor.brew_expr_to_place(brewery, root_expr) {
+    if let Some(place) = cursor.brew_expr_to_temporary(brewery, root_expr) {
         cursor.terminate_and_diverge(
             brewery,
             bir::TerminatorData::Return(place),
@@ -58,19 +58,19 @@ impl Cursor {
             } => {
                 let loop_context = brewery.loop_context(*from_expr);
                 self.brew_expr_and_assign_to(brewery, loop_context.loop_value, *with_value);
-                self.push_cusp(brewery, origin);
+                self.push_cusp(brewery, Some(loop_context.loop_value), origin);
                 self.terminate_and_goto(brewery, loop_context.break_block, origin);
             }
 
             validated::ExprData::Continue(from_expr) => {
                 let loop_context = brewery.loop_context(*from_expr);
-                self.push_cusp(brewery, origin);
+                self.push_cusp(brewery, None, origin);
                 self.terminate_and_goto(brewery, loop_context.continue_block, origin);
             }
 
             validated::ExprData::Return(value_expr) => {
-                if let Some(value_place) = self.brew_expr_to_place(brewery, *value_expr) {
-                    self.push_cusp(brewery, origin);
+                if let Some(value_place) = self.brew_expr_to_temporary(brewery, *value_expr) {
+                    self.push_cusp(brewery, Some(value_place), origin);
                     self.terminate_and_diverge(
                         brewery,
                         bir::TerminatorData::Return(value_place),
@@ -80,18 +80,17 @@ impl Cursor {
             }
 
             validated::ExprData::Error => {
-                self.push_cusp(brewery, origin);
+                self.push_cusp(brewery, None, origin);
                 self.terminate_and_diverge(brewery, bir::TerminatorData::Error, origin)
             }
 
             validated::ExprData::Assign(place, value_expr) => {
-                let place = self.brew_place(brewery, *place);
+                let (place, origins) = self.brew_place(brewery, *place);
                 self.brew_expr_and_assign_to(brewery, place, *value_expr);
-                self.push_cusp(brewery, origin);
+                self.push_cusps(brewery, None, origins, origin)
             }
 
-            validated::ExprData::Place(_)
-            | validated::ExprData::Await(_)
+            validated::ExprData::Await(_)
             | validated::ExprData::If(_, _, _)
             | validated::ExprData::Loop(_)
             | validated::ExprData::Seq(_)
@@ -105,46 +104,21 @@ impl Cursor {
             | validated::ExprData::Give(_)
             | validated::ExprData::Tuple(_)
             | validated::ExprData::Atomic(_) => {
-                let _ = self.brew_expr_to_place(brewery, expr);
+                let _ = self.brew_expr_to_temporary(brewery, expr);
             }
         }
     }
 
-    pub(crate) fn brew_expr_to_place(
+    pub(crate) fn brew_expr_to_temporary(
         &mut self,
         brewery: &mut Brewery<'_>,
         expr: validated::Expr,
     ) -> Option<bir::Place> {
         let origin = brewery.origin(expr);
-        match expr.data(brewery.validated_tables()) {
-            // Place expressions compile to a potentially complex place
-            validated::ExprData::Place(place) => Some(self.brew_place(brewery, *place)),
-
-            // Other expressions spill into a temporary
-            validated::ExprData::BooleanLiteral(_)
-            | validated::ExprData::Loop(_)
-            | validated::ExprData::IntegerLiteral(_)
-            | validated::ExprData::StringLiteral(_)
-            | validated::ExprData::Await(_)
-            | validated::ExprData::Call(_, _)
-            | validated::ExprData::Share(_)
-            | validated::ExprData::Lease(_)
-            | validated::ExprData::Give(_)
-            | validated::ExprData::Tuple(_)
-            | validated::ExprData::If(_, _, _)
-            | validated::ExprData::Atomic(_)
-            | validated::ExprData::Break { .. }
-            | validated::ExprData::Continue(_)
-            | validated::ExprData::Return(_)
-            | validated::ExprData::Seq(_)
-            | validated::ExprData::Op(_, _, _)
-            | validated::ExprData::Assign(_, _)
-            | validated::ExprData::Error => {
-                let temp_place = add_temporary_place(brewery, origin);
-                self.brew_expr_and_assign_to(brewery, temp_place, expr);
-                Some(temp_place)
-            }
-        }
+        // Spill into a temporary
+        let temp_place = add_temporary_place(brewery, origin);
+        self.brew_expr_and_assign_to(brewery, temp_place, expr);
+        Some(temp_place)
     }
 
     /// Compiles an expression down to the value it produces.
@@ -159,15 +133,8 @@ impl Cursor {
     ) {
         let origin = brewery.origin(expr);
         match expr.data(brewery.validated_tables()) {
-            validated::ExprData::Place(_) => {
-                if let Some(place) = self.brew_expr_to_place(brewery, expr) {
-                    self.push_assignment(brewery, target, bir::ExprData::Give(place), origin);
-                    self.push_cusp(brewery, origin);
-                }
-            }
-
             validated::ExprData::Await(future) => {
-                if let Some(place) = self.brew_expr_to_place(brewery, *future) {
+                if let Some(place) = self.brew_expr_to_temporary(brewery, *future) {
                     self.terminate_and_continue(
                         brewery,
                         |next_block| {
@@ -179,12 +146,12 @@ impl Cursor {
                         },
                         origin,
                     );
-                    self.push_cusp(brewery, origin);
+                    self.push_cusp(brewery, Some(target), origin);
                 }
             }
 
             validated::ExprData::If(condition, if_true, if_false) => {
-                if let Some(condition_place) = self.brew_expr_to_place(brewery, *condition) {
+                if let Some(condition_place) = self.brew_expr_to_temporary(brewery, *condition) {
                     let if_true_block = brewery.dummy_block(origin);
                     let if_false_block = brewery.dummy_block(origin);
                     let join_block = self.terminate_and_continue(
@@ -192,7 +159,7 @@ impl Cursor {
                         |_| bir::TerminatorData::If(condition_place, if_true_block, if_false_block),
                         origin,
                     );
-                    self.push_cusp(brewery, origin); // "cusp" of an if is after it completes
+                    self.push_cusp(brewery, Some(target), origin); // "cusp" of an if is after it completes
 
                     let mut if_true_cursor = self.with_end_block(if_true_block);
                     if_true_cursor.brew_expr_and_assign_to(brewery, target, *if_true);
@@ -211,7 +178,7 @@ impl Cursor {
                     |_| bir::TerminatorData::Goto(body_block),
                     origin,
                 );
-                self.push_cusp(brewery, origin); // "cusp" of a loop is after it breaks
+                self.push_cusp(brewery, Some(target), origin); // "cusp" of a loop is after it breaks
 
                 let mut body_brewery = brewery.subbrewery();
                 body_brewery.push_loop_context(
@@ -232,21 +199,21 @@ impl Cursor {
             }
 
             validated::ExprData::Share(place) => {
-                let place = self.brew_place(brewery, *place);
+                let (place, origins) = self.brew_place(brewery, *place);
                 self.push_assignment(brewery, target, bir::ExprData::Share(place), origin);
-                self.push_cusp(brewery, origin);
+                self.push_cusps(brewery, Some(target), origins, origin);
             }
 
             validated::ExprData::Lease(place) => {
-                let place = self.brew_place(brewery, *place);
+                let (place, origins) = self.brew_place(brewery, *place);
                 self.push_assignment(brewery, target, bir::ExprData::Lease(place), origin);
-                self.push_cusp(brewery, origin);
+                self.push_cusps(brewery, Some(target), origins, origin);
             }
 
             validated::ExprData::Give(place) => {
-                let place = self.brew_place(brewery, *place);
+                let (place, origins) = self.brew_place(brewery, *place);
                 self.push_assignment(brewery, target, bir::ExprData::Give(place), origin);
-                self.push_cusp(brewery, origin);
+                self.push_cusps(brewery, Some(target), origins, origin)
             }
 
             validated::ExprData::BooleanLiteral(value) => {
@@ -256,7 +223,7 @@ impl Cursor {
                     bir::ExprData::BooleanLiteral(*value),
                     origin,
                 );
-                self.push_cusp(brewery, origin);
+                self.push_cusp(brewery, Some(target), origin);
             }
 
             validated::ExprData::IntegerLiteral(value) => {
@@ -266,7 +233,7 @@ impl Cursor {
                     bir::ExprData::IntegerLiteral(*value),
                     origin,
                 );
-                self.push_cusp(brewery, origin);
+                self.push_cusp(brewery, Some(target), origin);
             }
 
             validated::ExprData::StringLiteral(value) => {
@@ -276,13 +243,13 @@ impl Cursor {
                     bir::ExprData::StringLiteral(*value),
                     origin,
                 );
-                self.push_cusp(brewery, origin);
+                self.push_cusp(brewery, Some(target), origin);
             }
 
             validated::ExprData::Tuple(exprs) => {
                 if let Some(values) = exprs
                     .iter()
-                    .map(|expr| self.brew_expr_to_place(brewery, *expr))
+                    .map(|expr| self.brew_expr_to_temporary(brewery, *expr))
                     .collect::<Option<Vec<_>>>()
                 {
                     assert_eq!(values.len(), exprs.len());
@@ -292,20 +259,20 @@ impl Cursor {
                         assert_ne!(values.len(), 1);
                         self.push_assignment(brewery, target, bir::ExprData::Tuple(values), origin);
                     }
-                    self.push_cusp(brewery, origin);
+                    self.push_cusp(brewery, Some(target), origin);
                 }
             }
 
             validated::ExprData::Op(lhs, op, rhs) => {
-                if let Some(lhs) = self.brew_expr_to_place(brewery, *lhs) {
-                    if let Some(rhs) = self.brew_expr_to_place(brewery, *rhs) {
+                if let Some(lhs) = self.brew_expr_to_temporary(brewery, *lhs) {
+                    if let Some(rhs) = self.brew_expr_to_temporary(brewery, *rhs) {
                         self.push_assignment(
                             brewery,
                             target,
                             bir::ExprData::Op(lhs, *op, rhs),
                             origin,
                         );
-                        self.push_cusp(brewery, origin);
+                        self.push_cusp(brewery, Some(target), origin);
                     }
                 }
             }
@@ -316,10 +283,10 @@ impl Cursor {
                         self.brew_expr_for_side_effects(brewery, *e);
                     }
                     self.brew_expr_and_assign_to(brewery, target, *last_expr);
-                    self.push_cusp(brewery, origin);
+                    self.push_cusp(brewery, Some(target), origin);
                 } else {
                     self.push_assignment(brewery, target, bir::ExprData::Unit, origin);
-                    self.push_cusp(brewery, origin);
+                    self.push_cusp(brewery, Some(target), origin);
                 }
             }
 
@@ -329,7 +296,7 @@ impl Cursor {
             }
 
             validated::ExprData::Call(func, args) => {
-                if let Some(func_place) = self.brew_expr_to_place(brewery, *func) {
+                if let Some(func_place) = self.brew_expr_to_temporary(brewery, *func) {
                     let mut places = vec![];
                     let mut names = vec![];
                     for arg in args {
@@ -354,7 +321,7 @@ impl Cursor {
                             },
                             origin,
                         );
-                        self.push_cusp(brewery, origin);
+                        self.push_cusp(brewery, Some(target), origin);
                     }
                 }
             }
@@ -367,7 +334,7 @@ impl Cursor {
                 self.brew_expr_and_assign_to(brewery, target, *subexpr);
 
                 self.terminate_and_continue(brewery, bir::TerminatorData::EndAtomic, origin);
-                self.push_cusp(brewery, origin);
+                self.push_cusp(brewery, Some(target), origin);
             }
 
             validated::ExprData::Error
@@ -379,50 +346,62 @@ impl Cursor {
         };
     }
 
+    /// Brews a place to a bir place, returning a vector of the
+    /// syntactical expressions that were evaluated along the way.
+    /// No cusp expressions are emitted, as places are evaluated
+    /// instantaneously and do not represent a moment in time.
+    ///
+    /// Example: if you have `a.b.c`, we will evaluate this to the
+    /// place `a.b.c` and return a vector with `[a, a.b, a.b.c]`.
+    ///
+    /// This vector is used to add cusp operations (they all show the value
+    /// of `a.b.c` in its entirety, though).
+    ///
     pub(crate) fn brew_place(
         &mut self,
         brewery: &mut Brewery<'_>,
         place: validated::Place,
-    ) -> bir::Place {
+    ) -> (bir::Place, Vec<ExprOrigin>) {
         let origin = brewery.origin(place);
         match place.data(brewery.validated_tables()) {
             validated::PlaceData::LocalVariable(validated_var) => {
                 let bir_var = brewery.variable(*validated_var);
-                self.push_cusp(brewery, origin);
-                brewery.add(bir::PlaceData::LocalVariable(bir_var), origin)
+                let place = brewery.add(bir::PlaceData::LocalVariable(bir_var), origin);
+                (place, vec![origin])
             }
             validated::PlaceData::Function(function) => {
-                self.push_cusp(brewery, origin);
-                brewery.add(bir::PlaceData::Function(*function), origin)
+                let place = brewery.add(bir::PlaceData::Function(*function), origin);
+                (place, vec![origin])
             }
             validated::PlaceData::Intrinsic(intrinsic) => {
-                self.push_cusp(brewery, origin);
-                brewery.add(bir::PlaceData::Intrinsic(*intrinsic), origin)
+                let place = brewery.add(bir::PlaceData::Intrinsic(*intrinsic), origin);
+                (place, vec![origin])
             }
             validated::PlaceData::Class(class) => {
-                self.push_cusp(brewery, origin);
-                brewery.add(bir::PlaceData::Class(*class), origin)
+                let place = brewery.add(bir::PlaceData::Class(*class), origin);
+                (place, vec![origin])
             }
             validated::PlaceData::Dot(base, field) => {
-                let base = self.brew_place(brewery, *base);
-                self.push_cusp(brewery, origin);
-                brewery.add(bir::PlaceData::Dot(base, *field), origin)
+                let (base, mut origins) = self.brew_place(brewery, *base);
+                let place = brewery.add(bir::PlaceData::Dot(base, *field), origin);
+                origins.push(origin);
+                (place, origins)
             }
         }
     }
 }
 
-fn add_temporary(brewery: &mut Brewery, origin: syntax::Expr) -> bir::LocalVariable {
+fn add_temporary(brewery: &mut Brewery, origin: ExprOrigin) -> bir::LocalVariable {
     brewery.add(
         bir::LocalVariableData {
             name: None,
             storage_mode: StorageMode::Var,
         },
-        validated::LocalVariableOrigin::Temporary(origin),
+        validated::LocalVariableOrigin::Temporary(origin.into()),
     )
 }
 
-fn add_temporary_place(brewery: &mut Brewery, origin: syntax::Expr) -> bir::Place {
+fn add_temporary_place(brewery: &mut Brewery, origin: ExprOrigin) -> bir::Place {
     let temporary_var = add_temporary(brewery, origin);
     brewery.add(bir::PlaceData::LocalVariable(temporary_var), origin)
 }

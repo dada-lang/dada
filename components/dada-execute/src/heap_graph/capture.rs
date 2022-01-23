@@ -1,21 +1,35 @@
 //! Code to capture the state of the db as a HeapGraph.
 
+use dada_collections::Map;
 use dada_id::InternKey;
+use dada_ir::code::bir::Place;
 
-use crate::{data::Instance, execute::StackFrame, value::Value};
+use crate::{data::Instance, execute::StackFrame, interpreter::Interpreter, value::Value};
 
 use super::{
     DataNodeData, HeapGraph, LocalVariableEdge, ObjectNode, ObjectNodeData, StackFrameNodeData,
     ValueEdge,
 };
 
+#[derive(Default)]
+pub(super) struct Cache {
+    instances: Map<*const Instance, ObjectNode>,
+}
+
 impl HeapGraph {
     ///
-    pub(super) fn capture_from(&mut self, db: &dyn crate::Db, top: &StackFrame<'_>) {
+    pub(super) fn capture_from(
+        &mut self,
+        interpreter: &Interpreter<'_>,
+        cache: &mut Cache,
+        top: &StackFrame<'_>,
+        in_flight_value: Option<Place>,
+    ) {
         if let Some(parent) = top.parent_stack_frame {
-            self.capture_from(db, parent);
+            self.capture_from(interpreter, cache, parent, None);
         }
 
+        let db = interpreter.db();
         let span = top.current_span(db);
         let bir_data = top.bir.data(db);
 
@@ -24,7 +38,7 @@ impl HeapGraph {
             .iter_enumerated()
             .map(|(local_variable, value)| {
                 let local_variable_data = local_variable.data(&bir_data.tables);
-                let value_node = self.value_node(db, value);
+                let value_node = self.value_node(cache, db, value);
                 LocalVariableEdge {
                     id: local_variable,
                     name: local_variable_data.name,
@@ -33,18 +47,26 @@ impl HeapGraph {
             })
             .collect::<Vec<_>>();
 
+        let in_flight_value = in_flight_value.map(|p| {
+            top.with_place(interpreter, p, |value, _| {
+                Ok(self.value_node(cache, db, value))
+            })
+            .unwrap()
+        });
+
         let data = StackFrameNodeData {
             function: top.function,
             span,
             variables,
+            in_flight_value,
         };
         let stack_frame = self.tables.add(data);
         self.stack.push(stack_frame);
     }
 
-    fn value_node(&mut self, db: &dyn crate::Db, value: &Value) -> ValueEdge {
+    fn value_node(&mut self, cache: &mut Cache, db: &dyn crate::Db, value: &Value) -> ValueEdge {
         value.peek(|_permission, data| match data {
-            crate::data::Data::Instance(i) => ValueEdge::ToObject(self.object_node(db, i)),
+            crate::data::Data::Instance(i) => ValueEdge::ToObject(self.object_node(cache, db, i)),
             crate::data::Data::Class(c) => ValueEdge::ToClass(*c),
             crate::data::Data::Function(f) => ValueEdge::ToFunction(*f),
             crate::data::Data::Intrinsic(i) => self.data_edge(db, &i.as_str(db)),
@@ -70,15 +92,35 @@ impl HeapGraph {
         ValueEdge::ToData(self.tables.add(b))
     }
 
-    fn object_node(&mut self, db: &dyn crate::Db, instance: &Instance) -> ObjectNode {
+    fn object_node(
+        &mut self,
+        cache: &mut Cache,
+        db: &dyn crate::Db,
+        instance: &Instance,
+    ) -> ObjectNode {
+        // The `instance` values have a unique location in memory, so
+        // use that to detect cycles and the like.
+        let instance_ptr: *const Instance = instance;
+        if let Some(n) = cache.instances.get(&instance_ptr) {
+            return *n;
+        }
+
+        let node = self.tables.add(ObjectNodeData {
+            class: instance.class,
+            fields: Default::default(),
+        });
+
+        // Insert this into the cache lest evaluating a field leads back here!
+        cache.instances.insert(instance_ptr, node);
+
         let fields = instance
             .fields
             .iter()
-            .map(|field| self.value_node(db, field))
+            .map(|field| self.value_node(cache, db, field))
             .collect::<Vec<_>>();
-        self.tables.add(ObjectNodeData {
-            class: instance.class,
-            fields,
-        })
+
+        self.tables[node].fields = fields;
+
+        node
     }
 }

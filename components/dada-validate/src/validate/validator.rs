@@ -2,6 +2,7 @@ use dada_id::prelude::*;
 use dada_ir::code::syntax;
 use dada_ir::code::syntax::LocalVariableDecl;
 use dada_ir::code::validated;
+use dada_ir::code::validated::ExprOrigin;
 use dada_ir::code::Code;
 use dada_ir::diagnostic::ErrorReported;
 use dada_ir::effect::Effect;
@@ -92,13 +93,13 @@ impl<'me> Validator<'me> {
         usize::from(validated::LocalVariable::max_key(self.tables))
     }
 
-    fn add<V, O>(&mut self, data: V, origin: O) -> V::Key
+    fn add<V, O>(&mut self, data: V, origin: impl Into<O>) -> V::Key
     where
         V: dada_id::InternValue<Table = validated::Tables>,
         V::Key: PushOriginIn<validated::Origins, Origin = O>,
     {
         let key = self.tables.add(data);
-        self.origins.push(key, origin);
+        self.origins.push(key, origin.into());
         key
     }
 
@@ -137,7 +138,7 @@ impl<'me> Validator<'me> {
 
         // Check that the validated expression always has the same
         // origin as the expression we started with.
-        assert_eq!(*result.origin_in(self.origins), expr);
+        assert_eq!(result.origin_in(self.origins).syntax_expr, expr);
 
         result
     }
@@ -212,7 +213,7 @@ impl<'me> Validator<'me> {
             }
 
             syntax::ExprData::Call(func_expr, named_exprs) => {
-                let validated_func_expr = self.validate_expr(*func_expr);
+                let validated_func_expr = self.validate_expr_to_value(*func_expr);
                 let validated_named_exprs = self.validate_named_exprs(named_exprs);
                 let mut name_required = false;
                 for named_expr in &validated_named_exprs {
@@ -253,8 +254,12 @@ impl<'me> Validator<'me> {
                     },
                     validated::LocalVariableOrigin::LocalVariable(*decl),
                 );
-                let place = self.add(validated::PlaceData::LocalVariable(local_variable), expr);
-                let validated_initializer_expr = self.validate_expr(*initializer_expr);
+                let place = self.add(
+                    validated::PlaceData::LocalVariable(local_variable),
+                    ExprOrigin::synthesized(expr),
+                );
+
+                let validated_initializer_expr = self.validate_expr_to_value(*initializer_expr);
                 self.scope.insert(decl_data.name, local_variable);
                 self.add(
                     validated::ExprData::Assign(place, validated_initializer_expr),
@@ -376,7 +381,7 @@ impl<'me> Validator<'me> {
                     let (validated_opt_temp_expr, validated_lhs_place) =
                         self.validate_expr_as_place(*lhs_expr)?;
                     let validated_lhs_expr =
-                        self.add(validated::ExprData::Place(validated_lhs_place), expr);
+                        self.add(validated::ExprData::Give(validated_lhs_place), expr);
                     let validated_rhs_expr = self.validate_expr(*rhs_expr);
                     let validated_op = self.validated_op(*op);
                     let validated_op_expr = self.add(
@@ -439,7 +444,7 @@ impl<'me> Validator<'me> {
     ) -> validated::Expr {
         match data {
             Ok((opt_assign_expr, place)) => {
-                let place_expr = self.add(validated::ExprData::Place(place), origin);
+                let place_expr = self.add(validated::ExprData::Give(place), origin);
                 self.maybe_seq(opt_assign_expr, place_expr, origin)
             }
             Err(ErrorReported) => self.add(validated::ExprData::Error, origin),
@@ -523,14 +528,29 @@ impl<'me> Validator<'me> {
             validated::LocalVariableOrigin::Temporary(expr),
         );
 
-        let validated_place = self.add(validated::PlaceData::LocalVariable(local_variable), expr);
+        let validated_place = self.add(
+            validated::PlaceData::LocalVariable(local_variable),
+            ExprOrigin::synthesized(expr),
+        );
         let validated_expr = self.validate_expr(expr);
 
         let assign_expr = self.add(
             validated::ExprData::Assign(validated_place, validated_expr),
-            expr,
+            ExprOrigin::synthesized(expr),
         );
         (assign_expr, validated_place)
+    }
+
+    fn validate_expr_to_value(&mut self, expr: syntax::Expr) -> validated::Expr {
+        let (assign_expr, place) = self.validate_expr_in_temporary(expr);
+        let place_expr = self.add(
+            validated::ExprData::Give(place),
+            ExprOrigin::synthesized(expr),
+        );
+        self.add(
+            validated::ExprData::Seq(vec![assign_expr, place_expr]),
+            ExprOrigin::synthesized(expr),
+        )
     }
 
     fn validate_named_exprs(
@@ -545,7 +565,7 @@ impl<'me> Validator<'me> {
 
     fn validate_named_expr(&mut self, named_expr: syntax::NamedExpr) -> validated::NamedExpr {
         let syntax::NamedExprData { name, expr } = named_expr.data(self.syntax_tables());
-        let validated_expr = self.validate_expr(*expr);
+        let validated_expr = self.validate_expr_to_value(*expr);
         self.add(
             validated::NamedExprData {
                 name: *name,

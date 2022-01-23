@@ -1,15 +1,38 @@
+#![allow(clippy::unused_unit)] // wasm-bindgen seems to trigger this
+
+use dada_breakpoint::breakpoint::Breakpoint;
 use dada_error_format::format_diagnostics;
 use dada_execute::kernel::BufferKernel;
 use dada_ir::{filename::Filename, span::LineColumn};
+use tracing_wasm::WASMLayerConfigBuilder;
 use wasm_bindgen::prelude::*;
 
+#[wasm_bindgen(start)]
+pub fn start() -> Result<(), JsValue> {
+    console_error_panic_hook::set_once();
+
+    tracing_wasm::set_as_global_default_with_config(
+        WASMLayerConfigBuilder::new()
+            .set_max_level(tracing::Level::INFO)
+            .build(),
+    );
+
+    Ok(())
+}
+
 #[wasm_bindgen]
-pub struct ExecutionResult {
-    /// Any diagnostics emitted by the compiler, formatted
+#[derive(Default)]
+pub struct DadaCompiler {
+    db: dada_db::Db,
+
+    /// Breakpoint set by user, if any.
+    breakpoint: Option<Breakpoint>,
+
+    /// Current diagnostics emitted by the compiler, formatted
     /// as a string.
     diagnostics: String,
 
-    /// Output emitted by the program.
+    /// Current output emitted by the program.
     output: String,
 
     /// If a breakpoint was set, contains graphviz source
@@ -18,15 +41,89 @@ pub struct ExecutionResult {
 }
 
 #[wasm_bindgen]
-impl ExecutionResult {
-    #[wasm_bindgen(getter)]
-    #[allow(non_snake_case)]
-    pub fn fullOutput(&self) -> String {
-        if self.diagnostics.is_empty() {
-            self.output.clone()
+pub fn compiler() -> DadaCompiler {
+    Default::default()
+}
+
+#[wasm_bindgen]
+impl DadaCompiler {
+    fn filename(&self) -> Filename {
+        Filename::from(&self.db, "input.dada")
+    }
+
+    #[wasm_bindgen]
+    pub fn with_source_text(mut self, source: String) -> Self {
+        // FIXME: reset the database for now
+        tracing::debug!("with_source_text: {source:?}");
+        self.db = Default::default();
+        self.db.update_file(self.filename(), source);
+        self
+    }
+
+    #[wasm_bindgen]
+    pub fn with_breakpoint(mut self, line0: u32, column0: u32) -> Self {
+        self.breakpoint = dada_breakpoint::breakpoint::find(
+            &self.db,
+            self.filename(),
+            LineColumn::new0(line0, column0),
+        );
+        self
+    }
+
+    #[wasm_bindgen]
+    pub fn without_breakpoint(mut self) -> Self {
+        self.breakpoint = None;
+        self
+    }
+
+    #[wasm_bindgen]
+    pub async fn execute(mut self) -> Self {
+        let filename = self.filename();
+        let diagnostics = self.db.diagnostics(filename);
+
+        let mut kernel = BufferKernel::new()
+            .breakpoint(self.breakpoint)
+            .stop_at_breakpoint(true);
+        match self.db.function_named(filename, "main") {
+            Some(function) => {
+                kernel
+                    .interpret_and_buffer(&self.db, function, vec![])
+                    .await;
+            }
+            None => {
+                kernel.append(&format!(
+                    "no `main` function in `{}`",
+                    filename.as_str(&self.db)
+                ));
+            }
+        };
+
+        self.output = kernel.take_buffer();
+        let heap_graphs = kernel.take_heap_graphs();
+
+        tracing::info!(
+            "Execution complete: breakpoint={:?}, \
+            {} bytes of output, \
+            {} heaps captured, \
+            {} diagnostics.",
+            self.breakpoint,
+            self.output.len(),
+            heap_graphs.len(),
+            diagnostics.len(),
+        );
+
+        self.diagnostics = if diagnostics.is_empty() {
+            String::new()
         } else {
-            format!("{}\n{}", self.diagnostics, self.output)
-        }
+            format_diagnostics(&self.db, &diagnostics).unwrap()
+        };
+
+        self.heap_capture = heap_graphs
+            .into_iter()
+            .map(|hg| hg.graphviz(&self.db, false))
+            .collect();
+
+        self
     }
 
     #[wasm_bindgen(getter)]
@@ -40,85 +137,7 @@ impl ExecutionResult {
     }
 
     #[wasm_bindgen(getter)]
-    #[allow(non_snake_case)]
-    pub fn heapCapture(&self) -> String {
+    pub fn heap(&self) -> String {
         self.heap_capture.clone()
-    }
-}
-
-/// Execute the dada code and generate output (plus compiler diagnostics).
-#[wasm_bindgen]
-pub async fn execute(code: String) -> ExecutionResult {
-    let mut db = dada_db::Db::default();
-    let filename = Filename::from(&db, "input.dada");
-    db.update_file(filename, code);
-
-    let diagnostics = db.diagnostics(filename);
-
-    let output = match db.function_named(filename, "main") {
-        Some(function) => {
-            let mut kernel = BufferKernel::new();
-            kernel.interpret_and_buffer(&db, function, vec![]).await;
-            kernel.take_buffer()
-        }
-        None => {
-            format!("no `main` function in `{}`", filename.as_str(&db))
-        }
-    };
-
-    let diagnostics = if diagnostics.is_empty() {
-        String::new()
-    } else {
-        format_diagnostics(&db, &diagnostics).unwrap()
-    };
-
-    ExecutionResult {
-        diagnostics,
-        output,
-        heap_capture: String::new(),
-    }
-}
-
-/// Execute the dada code up until the (0-based) line/column.
-#[wasm_bindgen]
-pub async fn execute_until(code: String, line0: u32, column0: u32) -> ExecutionResult {
-    let mut db = dada_db::Db::default();
-    let filename = Filename::from(&db, "input.dada");
-    db.update_file(filename, code);
-
-    let diagnostics = db.diagnostics(filename);
-
-    let breakpoint =
-        dada_breakpoint::breakpoint::find(&db, filename, LineColumn::new0(line0, column0));
-    let mut kernel = BufferKernel::new()
-        .breakpoint(breakpoint)
-        .stop_at_breakpoint(true);
-    match db.function_named(filename, "main") {
-        Some(function) => {
-            kernel.interpret_and_buffer(&db, function, vec![]).await;
-        }
-        None => {
-            kernel.append(&format!("no `main` function in `{}`", filename.as_str(&db)));
-        }
-    };
-
-    let output = kernel.take_buffer();
-    let heap_graphs = kernel.take_heap_graphs();
-
-    let diagnostics = if diagnostics.is_empty() {
-        String::new()
-    } else {
-        format_diagnostics(&db, &diagnostics).unwrap()
-    };
-
-    let heap_capture: String = heap_graphs
-        .into_iter()
-        .map(|hg| hg.graphviz(&db, false))
-        .collect();
-
-    ExecutionResult {
-        diagnostics,
-        output,
-        heap_capture,
     }
 }

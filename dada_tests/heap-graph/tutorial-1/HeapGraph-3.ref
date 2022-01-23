@@ -10,12 +10,8 @@ digraph {
       label=<
         <table border="0">
         <tr><td border="1">main</td></tr>
-        <tr><td port="0">p</td></tr>
-        <tr><td port="1">LocalVariable(1): ()</td></tr>
-        <tr><td port="2">LocalVariable(2): ()</td></tr>
-        <tr><td port="3">LocalVariable(3): ()</td></tr>
-        <tr><td port="4">LocalVariable(4): ()</td></tr>
-        <tr><td port="5">LocalVariable(5): ()</td></tr>
+        <tr><td port="0">p: ()</td></tr>
+        <tr><td port="14">(in-flight)</td></tr>
         </table>
       >;
     ];
@@ -27,6 +23,6 @@ digraph {
       <tr><td port="1">y: 44</td></tr>
     </table>>
   ];
-  "stack":0 -> "node0"
+  "stack":14 -> "node0"
 }
 breakpoint expression encountered

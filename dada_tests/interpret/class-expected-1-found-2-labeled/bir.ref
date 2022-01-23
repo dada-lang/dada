@@ -4,43 +4,87 @@
         BasicBlock(0): BasicBlockData(
             [
                 (
-                    Cusp,
-                    Expr(4),
+                    Assign(
+                        temp{2},
+                        Class(Id { value: 1 }).give,
+                    ),
+                    Expr(0),
                 ),
                 (
-                    Cusp,
+                    Cusp(
+                        Some(
+                            temp{2},
+                        ),
+                    ),
+                    Expr(0),
+                ),
+                (
+                    Cusp(
+                        Some(
+                            temp{2},
+                        ),
+                    ),
                     Expr(0),
                 ),
                 (
                     Assign(
-                        temp{2},
+                        temp{6},
+                        temp{2}.give,
+                    ),
+                    Expr(0),
+                ),
+                (
+                    Assign(
+                        temp{3},
                         10,
                     ),
                     Expr(1),
                 ),
                 (
-                    Cusp,
+                    Cusp(
+                        Some(
+                            temp{3},
+                        ),
+                    ),
                     Expr(1),
                 ),
                 (
                     Assign(
-                        temp{3},
+                        temp{7},
+                        temp{3}.give,
+                    ),
+                    Expr(1),
+                ),
+                (
+                    Assign(
+                        temp{4},
                         22,
                     ),
                     Expr(2),
                 ),
                 (
-                    Cusp,
+                    Cusp(
+                        Some(
+                            temp{4},
+                        ),
+                    ),
+                    Expr(2),
+                ),
+                (
+                    Assign(
+                        temp{8},
+                        temp{4}.give,
+                    ),
                     Expr(2),
                 ),
             ],
             Assign(
-                x{0},
+                temp{1},
                 Call(
-                    Class(Id { value: 1 }),
+                    temp{6},
                     [
-                        temp{2},
-                        temp{3},
+                        temp{7},
+                        temp{8},
                     ],
                     [
                         Some(
@@ -57,27 +101,44 @@
         BasicBlock(1): BasicBlockData(
             [
                 (
-                    Cusp,
+                    Cusp(
+                        Some(
+                            temp{1},
+                        ),
+                    ),
                     Expr(3),
                 ),
                 (
-                    Cusp,
+                    Assign(
+                        x{0},
+                        temp{1}.give,
+                    ),
+                    Expr(3),
+                ),
+                (
+                    Cusp(
+                        None,
+                    ),
                     Expr(4),
                 ),
                 (
                     Assign(
-                        temp{1},
+                        temp{5},
                         (),
                     ),
                     Expr(4),
                 ),
                 (
-                    Cusp,
+                    Cusp(
+                        Some(
+                            temp{5},
+                        ),
+                    ),
                     Expr(5),
                 ),
             ],
             Return(
-                temp{1},
+                temp{5},
             ),
         ),
     },

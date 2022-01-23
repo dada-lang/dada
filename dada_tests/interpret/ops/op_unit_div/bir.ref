@@ -11,7 +11,11 @@
                     Expr(0),
                 ),
                 (
-                    Cusp,
+                    Cusp(
+                        Some(
+                            temp{1},
+                        ),
+                    ),
                     Expr(0),
                 ),
                 (
@@ -22,7 +26,11 @@
                     Expr(1),
                 ),
                 (
-                    Cusp,
+                    Cusp(
+                        Some(
+                            temp{2},
+                        ),
+                    ),
                     Expr(1),
                 ),
                 (
@@ -33,11 +41,19 @@
                     Expr(2),
                 ),
                 (
-                    Cusp,
+                    Cusp(
+                        Some(
+                            temp{0},
+                        ),
+                    ),
                     Expr(2),
                 ),
                 (
-                    Cusp,
+                    Cusp(
+                        Some(
+                            temp{0},
+                        ),
+                    ),
                     Expr(3),
                 ),
             ],

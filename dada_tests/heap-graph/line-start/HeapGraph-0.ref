@@ -1,0 +1,25 @@
+# Breakpoint: Expr(0) at dada_tests/heap-graph/line-start.dada:4:10:4:15
+digraph {
+  node[shape = "note"];
+  rankdir = "LR";
+  subgraph cluster_stack {
+    label=<<b>stack</b>>
+    rank="source";
+    stack[
+      shape="none";
+      label=<
+        <table border="0">
+        <tr><td border="1">main</td></tr>
+        <tr><td port="0">p: ()</td></tr>
+        <tr><td port="5">q: ()</td></tr>
+        <tr><td port="17">(in-flight)</td></tr>
+        </table>
+      >;
+    ];
+  }
+  node0 [
+    label = <<b>Point</b>>
+  ];
+  "stack":17 -> "node0"
+}
+breakpoint expression encountered

@@ -4,31 +4,64 @@
         BasicBlock(0): BasicBlockData(
             [
                 (
-                    Cusp,
-                    Expr(3),
+                    Assign(
+                        temp{2},
+                        Class(Id { value: 1 }).give,
+                    ),
+                    Expr(0),
                 ),
                 (
-                    Cusp,
+                    Cusp(
+                        Some(
+                            temp{2},
+                        ),
+                    ),
+                    Expr(0),
+                ),
+                (
+                    Cusp(
+                        Some(
+                            temp{2},
+                        ),
+                    ),
                     Expr(0),
                 ),
                 (
                     Assign(
-                        temp{2},
+                        temp{7},
+                        temp{2}.give,
+                    ),
+                    Expr(0),
+                ),
+                (
+                    Assign(
+                        temp{3},
                         "foo",
                     ),
                     Expr(1),
                 ),
                 (
-                    Cusp,
+                    Cusp(
+                        Some(
+                            temp{3},
+                        ),
+                    ),
+                    Expr(1),
+                ),
+                (
+                    Assign(
+                        temp{8},
+                        temp{3}.give,
+                    ),
                     Expr(1),
                 ),
             ],
             Assign(
-                t{0},
+                temp{1},
                 Call(
-                    Class(Id { value: 1 }),
+                    temp{7},
                     [
-                        temp{2},
+                        temp{8},
                     ],
                     [
                         None,
@@ -40,32 +73,101 @@
         BasicBlock(1): BasicBlockData(
             [
                 (
-                    Cusp,
+                    Cusp(
+                        Some(
+                            temp{1},
+                        ),
+                    ),
                     Expr(2),
                 ),
                 (
-                    Cusp,
+                    Assign(
+                        t{0},
+                        temp{1}.give,
+                    ),
+                    Expr(2),
+                ),
+                (
+                    Cusp(
+                        None,
+                    ),
                     Expr(3),
                 ),
                 (
-                    Cusp,
+                    Assign(
+                        temp{4},
+                        Print.give,
+                    ),
                     Expr(4),
                 ),
                 (
-                    Cusp,
+                    Cusp(
+                        Some(
+                            temp{4},
+                        ),
+                    ),
+                    Expr(4),
+                ),
+                (
+                    Cusp(
+                        Some(
+                            temp{4},
+                        ),
+                    ),
+                    Expr(4),
+                ),
+                (
+                    Assign(
+                        temp{10},
+                        temp{4}.give,
+                    ),
+                    Expr(4),
+                ),
+                (
+                    Assign(
+                        temp{5},
+                        t{0}.a.give,
+                    ),
+                    Expr(6),
+                ),
+                (
+                    Cusp(
+                        Some(
+                            temp{5},
+                        ),
+                    ),
                     Expr(5),
                 ),
                 (
-                    Cusp,
+                    Cusp(
+                        Some(
+                            temp{5},
+                        ),
+                    ),
+                    Expr(6),
+                ),
+                (
+                    Cusp(
+                        Some(
+                            temp{5},
+                        ),
+                    ),
+                    Expr(6),
+                ),
+                (
+                    Assign(
+                        temp{11},
+                        temp{5}.give,
+                    ),
                     Expr(6),
                 ),
             ],
             Assign(
-                temp{3},
+                temp{9},
                 Call(
-                    Print,
+                    temp{10},
                     [
-                        t{0}.a,
+                        temp{11},
                     ],
                     [
                         None,
@@ -77,14 +179,18 @@
         BasicBlock(2): BasicBlockData(
             [
                 (
-                    Cusp,
+                    Cusp(
+                        Some(
+                            temp{9},
+                        ),
+                    ),
                     Expr(7),
                 ),
             ],
             Assign(
-                temp{1},
+                temp{6},
                 Await(
-                    temp{3},
+                    temp{9},
                 ),
                 BasicBlock(3),
             ),
@@ -92,16 +198,24 @@
         BasicBlock(3): BasicBlockData(
             [
                 (
-                    Cusp,
+                    Cusp(
+                        Some(
+                            temp{6},
+                        ),
+                    ),
                     Expr(8),
                 ),
                 (
-                    Cusp,
+                    Cusp(
+                        Some(
+                            temp{6},
+                        ),
+                    ),
                     Expr(9),
                 ),
             ],
             Return(
-                temp{1},
+                temp{6},
             ),
         ),
     },

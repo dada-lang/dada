@@ -23,6 +23,7 @@ pub trait Kernel: Send + Sync {
         db: &dyn crate::Db,
         stack_frame: &StackFrame<'_>,
         expr: syntax::Expr,
+        generate_heap_graph: &dyn Fn() -> HeapGraph,
     ) -> eyre::Result<()>;
 }
 
@@ -31,9 +32,11 @@ pub struct BufferKernel {
     buffer: Mutex<String>,
     breakpoint: Option<Breakpoint>,
     stop_at_breakpoint: bool,
-    dump_breakpoint: bool,
+    breakpoint_callback: Option<BreakpointCallback>,
     heap_graphs: Mutex<Vec<HeapGraph>>,
 }
+
+type BreakpointCallback = Box<dyn Fn(&dyn crate::Db, &BufferKernel, &HeapGraph) + Send + Sync>;
 
 impl BufferKernel {
     pub fn new() -> Self {
@@ -58,12 +61,14 @@ impl BufferKernel {
         }
     }
 
-    /// Builder method: if `dump_breakpoint` is true, prints graphviz
-    /// for heap at each breakpoint into the buffer instead of accumulating
-    /// into the internal vector for later inspection.
-    pub fn dump_breakpoint(self, dump_breakpoint: bool) -> Self {
+    /// Builder method: invoke the given callback instead of accumulating the
+    /// heap graph.
+    pub fn breakpoint_callback(
+        self,
+        callback: impl Fn(&dyn crate::Db, &Self, &HeapGraph) + Send + Sync + 'static,
+    ) -> Self {
         Self {
-            dump_breakpoint,
+            breakpoint_callback: Some(Box::new(callback)),
             ..self
         }
     }
@@ -123,15 +128,16 @@ impl Kernel for BufferKernel {
         db: &dyn crate::Db,
         stack_frame: &StackFrame<'_>,
         expr: syntax::Expr,
+        generate_heap_graph: &dyn Fn() -> HeapGraph,
     ) -> eyre::Result<()> {
         tracing::debug!("on_cusp: expr={:?} breakpoint={:?}", expr, self.breakpoint);
 
         if let Some(breakpoint) = self.breakpoint {
             if breakpoint.expr == expr && breakpoint.code == stack_frame.code(db) {
-                let heap_graph = HeapGraph::new(db, stack_frame);
+                let heap_graph = generate_heap_graph();
 
-                if self.dump_breakpoint {
-                    self.append(&heap_graph.graphviz(db, true));
+                if let Some(cb) = &self.breakpoint_callback {
+                    cb(db, self, &heap_graph);
                 } else {
                     self.heap_graphs.lock().push(heap_graph);
                 }

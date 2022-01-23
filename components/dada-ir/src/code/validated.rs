@@ -100,10 +100,47 @@ origin_table! {
     /// method in the `dada_parse` prelude.
     #[derive(Clone, Debug, Default, PartialEq, Eq, Hash)]
     pub struct Origins {
-        expr_spans: Expr => syntax::Expr,
-        place_spans: Place => syntax::Expr,
+        expr_spans: Expr => ExprOrigin,
+        place_spans: Place => ExprOrigin,
         named_exprs: NamedExpr => syntax::NamedExpr,
         local_variables: LocalVariable => LocalVariableOrigin,
+    }
+}
+
+/// The "validated" trees sometimes contain synthetic nodes caused by
+/// lowering the syntax expressions. We track the expression they came
+/// from, but also the fact that they are synthetic. This is needed to
+/// help place cursors and so forth.
+#[derive(Copy, Clone, Debug, PartialEq, Eq, Hash)]
+pub struct ExprOrigin {
+    pub syntax_expr: syntax::Expr,
+    pub synthesized: bool,
+}
+
+impl ExprOrigin {
+    pub fn real(expr: syntax::Expr) -> Self {
+        Self {
+            syntax_expr: expr,
+            synthesized: false,
+        }
+    }
+    pub fn synthesized(expr: syntax::Expr) -> Self {
+        Self {
+            syntax_expr: expr,
+            synthesized: true,
+        }
+    }
+}
+
+impl From<syntax::Expr> for ExprOrigin {
+    fn from(e: syntax::Expr) -> Self {
+        Self::real(e)
+    }
+}
+
+impl From<ExprOrigin> for syntax::Expr {
+    fn from(e: ExprOrigin) -> Self {
+        e.syntax_expr
     }
 }
 
@@ -148,9 +185,6 @@ impl DebugWithDb<InIrDb<'_, Tree>> for Expr {
 
 #[derive(PartialEq, Eq, Clone, Hash, Debug)]
 pub enum ExprData {
-    /// Reference to a local variable
-    Place(Place),
-
     /// true, false
     BooleanLiteral(bool),
 
@@ -229,7 +263,6 @@ impl ExprData {
     ) -> std::fmt::Result {
         let id = id.map(u32::from);
         match self {
-            ExprData::Place(p) => DebugWithDb::fmt(p, f, db),
             ExprData::BooleanLiteral(v) => std::fmt::Debug::fmt(v, f),
             ExprData::IntegerLiteral(v) => write!(f, "{}", v),
             ExprData::StringLiteral(v) => std::fmt::Debug::fmt(&v.as_str(db.db()), f),
@@ -295,7 +328,11 @@ id!(pub struct Place);
 
 impl DebugWithDb<InIrDb<'_, Tree>> for Place {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>, db: &InIrDb<'_, Tree>) -> std::fmt::Result {
-        DebugWithDb::fmt(&self.data(db.tables()), f, db)
+        f.debug_tuple("")
+            .field(&self)
+            .field(&self.data(db.tables()).debug(db))
+            .field(&db.origins()[*self])
+            .finish()
     }
 }
 

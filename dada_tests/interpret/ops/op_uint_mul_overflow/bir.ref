@@ -4,57 +4,97 @@
         BasicBlock(0): BasicBlockData(
             [
                 (
-                    Cusp,
-                    Expr(1),
-                ),
-                (
                     Assign(
-                        uint_max{0},
+                        temp{1},
                         18446744073709551615,
                     ),
                     Expr(0),
                 ),
                 (
-                    Cusp,
+                    Cusp(
+                        Some(
+                            temp{1},
+                        ),
+                    ),
                     Expr(0),
                 ),
                 (
-                    Cusp,
+                    Assign(
+                        uint_max{0},
+                        temp{1}.give,
+                    ),
+                    Expr(0),
+                ),
+                (
+                    Cusp(
+                        None,
+                    ),
                     Expr(1),
                 ),
                 (
-                    Cusp,
+                    Assign(
+                        temp{3},
+                        uint_max{0}.give,
+                    ),
+                    Expr(2),
+                ),
+                (
+                    Cusp(
+                        Some(
+                            temp{3},
+                        ),
+                    ),
+                    Expr(2),
+                ),
+                (
+                    Cusp(
+                        Some(
+                            temp{3},
+                        ),
+                    ),
                     Expr(2),
                 ),
                 (
                     Assign(
-                        temp{2},
+                        temp{4},
                         2,
                     ),
                     Expr(3),
                 ),
                 (
-                    Cusp,
+                    Cusp(
+                        Some(
+                            temp{4},
+                        ),
+                    ),
                     Expr(3),
                 ),
                 (
                     Assign(
-                        temp{1},
-                        uint_max{0} * temp{2},
+                        temp{2},
+                        temp{3} * temp{4},
                     ),
                     Expr(4),
                 ),
                 (
-                    Cusp,
+                    Cusp(
+                        Some(
+                            temp{2},
+                        ),
+                    ),
                     Expr(4),
                 ),
                 (
-                    Cusp,
+                    Cusp(
+                        Some(
+                            temp{2},
+                        ),
+                    ),
                     Expr(5),
                 ),
             ],
             Return(
-                temp{1},
+                temp{2},
             ),
         ),
     },

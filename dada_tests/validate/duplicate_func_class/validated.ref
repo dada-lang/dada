@@ -4,6 +4,9 @@
         Seq(
             [],
         ),
-        Expr(0),
+        ExprOrigin {
+            syntax_expr: Expr(0),
+            synthesized: false,
+        },
     ),
 ]

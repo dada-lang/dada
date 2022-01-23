@@ -1,0 +1,39 @@
+# Breakpoint: Expr(8) at dada_tests/heap-graph/nested-functions.dada:12:10:15:48
+digraph {
+  node[shape = "note"];
+  rankdir = "LR";
+  subgraph cluster_stack {
+    label=<<b>stack</b>>
+    rank="source";
+    stack[
+      shape="none";
+      label=<
+        <table border="0">
+        <tr><td border="1">main</td></tr>
+        <tr><td port="0">name: "Fellow Dadaist"</td></tr>
+        <tr><td border="1">helper</td></tr>
+        <tr><td port="18">p: ()</td></tr>
+        <tr><td port="23">q: ()</td></tr>
+        <tr><td port="35">(in-flight)</td></tr>
+        </table>
+      >;
+    ];
+  }
+  node0 [
+    label = <<table border="0">
+      <tr><td border="1">Point</td></tr>
+      <tr><td port="0">x</td></tr>
+      <tr><td port="1">y: 66</td></tr>
+    </table>>
+  ];
+  node1 [
+    label = <<table border="0">
+      <tr><td border="1">Point</td></tr>
+      <tr><td port="0">x: 22</td></tr>
+      <tr><td port="1">y: 44</td></tr>
+    </table>>
+  ];
+  "stack":35 -> "node0"
+  "node0":0 -> "node1"
+}
+breakpoint expression encountered

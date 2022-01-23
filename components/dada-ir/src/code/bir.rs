@@ -199,7 +199,10 @@ pub enum StatementData {
     /// is on the "cusp" of completion -- that is,
     /// it has almost completely taken effect, except that
     /// control flow has not yet transferred to its successor.
-    Cusp,
+    ///
+    /// The `Place` argument is the location of the expression's
+    /// value that was just produced.
+    Cusp(Option<Place>),
 }
 
 impl DebugWithDb<InIrDb<'_, Bir>> for StatementData {
@@ -211,7 +214,7 @@ impl DebugWithDb<InIrDb<'_, Bir>> for StatementData {
                 .field(&expr.debug(db))
                 .finish(),
 
-            StatementData::Cusp => f.debug_tuple("Cusp").finish(),
+            StatementData::Cusp(p) => f.debug_tuple("Cusp").field(&p.debug(db)).finish(),
         }
     }
 }

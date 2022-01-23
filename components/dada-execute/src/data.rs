@@ -102,6 +102,16 @@ impl Data {
         .eyre(interpreter.db())
     }
 
+    pub(crate) fn field(&self, interpreter: &Interpreter<'_>, name: Word) -> eyre::Result<&Value> {
+        let db = interpreter.db();
+        match self {
+            Data::Instance(i) => match i.class.field_index(db, name) {
+                Some(index) => Ok(&i.fields[index]),
+                None => Err(Self::no_such_field(interpreter, i.class, name)),
+            },
+            _ => Err(self.expected(interpreter, "something with fields")),
+        }
+    }
     pub(crate) fn field_mut(
         &mut self,
         interpreter: &Interpreter<'_>,
