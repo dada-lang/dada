@@ -3,7 +3,35 @@ import init, { compiler } from "./pkg/dada_web.js";
 const workerURL = 'ace/viz.render.js';
 let viz = new Viz({ workerURL });
 
-// Wrapper around the raw wasm-bdingen API.
+class Queue {
+    constructor() {
+        this.active = 0;
+        this.queue = [];
+    }
+
+    // Submit a workFunction to the queue -- when called, this
+    // should return a promise. It will be called once the
+    // active worker has gotten around to it.
+    submit(workFunction) {
+        this.queue.push(workFunction);
+
+        if (!this.active) {
+            this.active = 1;
+            this.doWork();
+        }
+    }
+
+    async doWork() {
+        while (this.queue.length != 0) {
+            let workFunction = this.queue.shift();
+            let promise = workFunction();
+            await promise;
+        }
+        this.active = 0;
+    }
+}
+
+// Wrapper around the raw wasm-bindgen API.
 // Because you can't make async functions with `&mut self`,
 // we tend to pass ownership of the dada compiler back and
 // forth, which then requires a wrapper to track it.
@@ -44,21 +72,28 @@ class DadaCompiler {
 init()
     .then(async () => {
         var dada = new DadaCompiler();
+        let queue = new Queue();
 
         var editor = ace.edit("editor");
         editor.setTheme("ace/theme/twilight");
         editor.setOptions({
             fontSize: "18px"
         });
-        editor.session.on('change', async function (delta) {
+        editor.session.on('change', function (delta) {
             // delta.start, delta.end, delta.lines, delta.action
             setStatusMessage("");
-            await updateOutput(dada, editor, null);
+            let text = editor.getValue();
+            queue.submit(async function () {
+                await updateOutput(dada, text, null);
+            });
         });
-        editor.session.getSelection().on('changeCursor', async function (arg) {
+        editor.session.getSelection().on('changeCursor', function (arg) {
+            let text = editor.getValue();
             let cursor = editor.session.getSelection().getCursor();
             console.log("changeCursor", cursor.row, cursor.column);
-            await updateOutput(dada, editor, cursor);
+            queue.submit(async function () {
+                await updateOutput(dada, text, cursor);
+            });
         });
         // editor.session.setMode("ace/mode/javascript");
 
@@ -69,7 +104,10 @@ init()
             await copyClipboardUrl(editor);
         }
 
-        await updateOutput(dada, editor, null);
+        let text = editor.getValue();
+        queue.submit(async function () {
+            await updateOutput(dada, text, null);
+        });
     });
 
 // Check if the user accessed `playground?code=foo` and, if so,
@@ -124,17 +162,14 @@ async function minify(url) {
     }
 }
 
-async function updateOutput(dada, editor, cursor) {
-    console.log("updateOutput: ", dada, cursor);
+async function updateOutput(dada, text, cursor) {
+    console.log("updateOutput", dada, text, cursor);
+
     try {
-        dada.setSourceText(editor.getValue());
+        dada.setSourceText(text);
         dada.setBreakpoint(cursor);
 
-        console.log("executing until cursor: ", JSON.stringify(cursor));
         await dada.execute();
-        console.log("executed");
-        console.log("diagnostics:", dada.diagnostics);
-        console.log("output:", dada.output);
 
         // Append diagnostics (if any) to stdout.
         let diagnostics = dada.diagnostics;
@@ -143,7 +178,6 @@ async function updateOutput(dada, editor, cursor) {
         // Take the console output, convert it to html, and put it in the
         // output area.
         var html = (new AnsiUp).ansi_to_html(output);
-        console.log("html:", html);
         document.getElementById("output").innerHTML = html;
 
         // Clear any previous heap capture nodes.
