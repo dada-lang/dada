@@ -76,12 +76,17 @@ pub(crate) struct ObjectNodeData {
 }
 
 #[derive(Copy, Clone, Debug, Hash, PartialEq, Eq)]
-#[allow(clippy::enum_variant_names)]
-pub(crate) enum ValueEdge {
-    ToObject(ObjectNode),
-    ToClass(Class),
-    ToFunction(Function),
-    ToData(DataNode),
+pub(crate) struct ValueEdge {
+    // permission: PermissionNode,
+    target: ValueEdgeTarget,
+}
+
+#[derive(Copy, Clone, Debug, Hash, PartialEq, Eq)]
+pub(crate) enum ValueEdgeTarget {
+    Object(ObjectNode),
+    Class(Class),
+    Function(Function),
+    Data(DataNode),
 }
 
 id!(pub(crate) struct DataNode);

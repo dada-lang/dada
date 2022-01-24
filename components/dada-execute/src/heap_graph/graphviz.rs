@@ -2,7 +2,7 @@ use dada_collections::IndexSet;
 use dada_id::InternKey;
 use dada_parse::prelude::*;
 
-use super::{DataNode, HeapGraph, ValueEdge};
+use super::{DataNode, HeapGraph, ValueEdge, ValueEdgeTarget};
 
 impl HeapGraph {
     pub fn graphviz(&self, db: &dyn crate::Db, include_temporaries: bool) -> String {
@@ -135,8 +135,8 @@ impl HeapGraph {
     fn print_heap_node(&self, w: &mut GraphvizWriter<'_>, edge: ValueEdge) -> eyre::Result<()> {
         let name = w.node_name(&edge);
         w.indent(format!(r#"{name} ["#))?;
-        match edge {
-            ValueEdge::ToObject(o) => {
+        match edge.target {
+            ValueEdgeTarget::Object(o) => {
                 let data = o.data(&self.tables);
                 let fields = data.class.fields(w.db);
                 let field_names = fields
@@ -148,15 +148,15 @@ impl HeapGraph {
                 self.print_fields(w, &name, field_names, &data.fields, 0)?;
                 w.undent(r#"</table>>"#)?;
             }
-            ValueEdge::ToClass(c) => {
+            ValueEdgeTarget::Class(c) => {
                 let name = c.name(w.db).as_str(w.db);
                 w.println(format!(r#"label = <<b>{name}</b>>"#))?;
             }
-            ValueEdge::ToFunction(f) => {
+            ValueEdgeTarget::Function(f) => {
                 let name = f.name(w.db).as_str(w.db);
                 w.println(format!(r#"label = <<b>{name}()</b>>"#))?;
             }
-            ValueEdge::ToData(d) => {
+            ValueEdgeTarget::Data(d) => {
                 let data_str = self.data_str(d);
                 w.println(format!(r#"label = {data_str:?}"#))?;
             }
@@ -190,8 +190,8 @@ impl HeapGraph {
     ) -> Result<(), eyre::Error> {
         let edge: &ValueEdge = edge;
         if let Some(name) = name {
-            if let ValueEdge::ToData(d) = edge {
-                let data_str = self.data_str(*d);
+            if let ValueEdgeTarget::Data(d) = edge.target {
+                let data_str = self.data_str(d);
                 w.println(format!(
                     r#"<tr><td port="{index}">{name}: {data_str}</td></tr>"#,
                 ))?;

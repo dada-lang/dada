@@ -8,7 +8,7 @@ use crate::{data::Instance, execute::StackFrame, interpreter::Interpreter, value
 
 use super::{
     DataNodeData, HeapGraph, LocalVariableEdge, ObjectNode, ObjectNodeData, StackFrameNodeData,
-    ValueEdge,
+    ValueEdge, ValueEdgeTarget,
 };
 
 #[derive(Default)]
@@ -65,31 +65,36 @@ impl HeapGraph {
     }
 
     fn value_node(&mut self, cache: &mut Cache, db: &dyn crate::Db, value: &Value) -> ValueEdge {
-        value.peek(|_permission, data| match data {
-            crate::data::Data::Instance(i) => ValueEdge::ToObject(self.object_node(cache, db, i)),
-            crate::data::Data::Class(c) => ValueEdge::ToClass(*c),
-            crate::data::Data::Function(f) => ValueEdge::ToFunction(*f),
-            crate::data::Data::Intrinsic(i) => self.data_edge(db, &i.as_str(db)),
-            crate::data::Data::Thunk(_thunk) => self.data_edge(db, &"<thunk>"), // FIXME
-            crate::data::Data::Tuple(_tuple) => self.data_edge(db, &"<tuple>"), // FIXME
-            crate::data::Data::Bool(b) => self.data_edge(db, b),
-            crate::data::Data::Uint(v) => self.data_edge(db, v),
-            crate::data::Data::Int(i) => self.data_edge(db, i),
-            crate::data::Data::Float(f) => self.data_edge(db, f),
-            crate::data::Data::String(w) => self.data_edge(db, &w.as_str(db).to_string()),
-            crate::data::Data::Unit(u) => self.data_edge(db, u),
+        value.peek(|_permission, data| {
+            let target = match data {
+                crate::data::Data::Instance(i) => {
+                    ValueEdgeTarget::Object(self.object_node(cache, db, i))
+                }
+                crate::data::Data::Class(c) => ValueEdgeTarget::Class(*c),
+                crate::data::Data::Function(f) => ValueEdgeTarget::Function(*f),
+                crate::data::Data::Intrinsic(i) => self.data_target(db, &i.as_str(db)),
+                crate::data::Data::Thunk(_thunk) => self.data_target(db, &"<thunk>"), // FIXME
+                crate::data::Data::Tuple(_tuple) => self.data_target(db, &"<tuple>"), // FIXME
+                crate::data::Data::Bool(b) => self.data_target(db, b),
+                crate::data::Data::Uint(v) => self.data_target(db, v),
+                crate::data::Data::Int(i) => self.data_target(db, i),
+                crate::data::Data::Float(f) => self.data_target(db, f),
+                crate::data::Data::String(w) => self.data_target(db, &w.as_str(db).to_string()),
+                crate::data::Data::Unit(u) => self.data_target(db, u),
+            };
+            ValueEdge { target }
         })
     }
 
-    fn data_edge(
+    fn data_target(
         &mut self,
         _db: &dyn crate::Db,
         d: &(impl std::fmt::Debug + Send + Sync + Clone + 'static),
-    ) -> ValueEdge {
+    ) -> ValueEdgeTarget {
         let b = DataNodeData {
             debug: Box::new(d.clone()),
         };
-        ValueEdge::ToData(self.tables.add(b))
+        ValueEdgeTarget::Data(self.tables.add(b))
     }
 
     fn object_node(
