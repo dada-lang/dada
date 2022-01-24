@@ -6,6 +6,7 @@ pub(crate) struct Tokens<'me> {
 
     /// Span of last token consumed.
     last_span: Span,
+
     skipped: Skipped,
     tokens: &'me [Token],
 }
@@ -32,14 +33,13 @@ impl<'me> Tokens<'me> {
     }
 
     fn next_token(&mut self) -> Option<Token> {
-        if self.tokens.is_empty() {
-            return None;
+        if let Some(result) = self.peek() {
+            self.last_span = self.peek_span();
+            self.tokens = &self.tokens[1..];
+            Some(result)
+        } else {
+            None
         }
-        self.last_span = self.peek_span();
-        let result = self.peek();
-        self.tokens = &self.tokens[1..];
-
-        result
     }
 
     /// True if we skipped a newline after consuming
@@ -54,19 +54,28 @@ impl<'me> Tokens<'me> {
         self.skipped >= Skipped::Any
     }
 
+    /// If `token` is a token that should be skipped, returns `Some(s)`
+    /// with the appropriate skip category. Else returns `None`.
+    fn should_skip_token(&self, token: Token) -> Option<Skipped> {
+        match token {
+            Token::Whitespace('\n') => Some(Skipped::Newline),
+            Token::Whitespace(_) => Some(Skipped::Any),
+            Token::Comment(_) => Some(Skipped::Any),
+            _ => None,
+        }
+    }
+
     /// Skip tokens that the parser doesn't want to see,
     /// such as whitespace.
     fn skip_tokens(&mut self) {
         self.skipped = Skipped::None;
         while let Some(t) = self.peek() {
-            match t {
-                Token::Whitespace('\n') => self.skipped = self.skipped.max(Skipped::Newline),
-                Token::Whitespace(_) => self.skipped = self.skipped.max(Skipped::Any),
-                Token::Comment(_) => self.skipped = self.skipped.max(Skipped::Any),
-                _ => return,
+            if let Some(skipped) = self.should_skip_token(t) {
+                self.skipped = self.skipped.max(skipped);
+                self.next_token();
+            } else {
+                break;
             }
-
-            self.next_token();
         }
     }
 
