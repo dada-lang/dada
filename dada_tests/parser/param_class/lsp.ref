@@ -37,8 +37,8 @@
                                 character: 6,
                             },
                             end: Position {
-                                line: 13,
-                                character: 6,
+                                line: 12,
+                                character: 13,
                             },
                         },
                     },

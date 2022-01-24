@@ -1,4 +1,4 @@
-# Breakpoint: Expr(3) at dada_tests/heap-graph/tutorial-1.dada:4:14:8:44
+# Breakpoint: Expr(4) at dada_tests/heap-graph/tutorial-1.dada:4:6:4:33
 digraph {
   node[shape = "note"];
   rankdir = "LR";
@@ -10,8 +10,7 @@ digraph {
       label=<
         <table border="0">
         <tr><td border="1">main</td></tr>
-        <tr><td port="0">p: ()</td></tr>
-        <tr><td port="14">(in-flight)</td></tr>
+        <tr><td port="0">p</td></tr>
         </table>
       >;
     ];
@@ -23,6 +22,6 @@ digraph {
       <tr><td port="1">y: 44</td></tr>
     </table>>
   ];
-  "stack":14 -> "node0"
+  "stack":0 -> "node0"
 }
 breakpoint expression encountered

@@ -7,6 +7,9 @@ pub(crate) struct Tokens<'me> {
     /// Span of last token consumed.
     last_span: Span,
 
+    /// Span of last token consumed.
+    last_not_skipped_span: Span,
+
     skipped: Skipped,
     tokens: &'me [Token],
 }
@@ -25,6 +28,7 @@ impl<'me> Tokens<'me> {
         let mut this = Tokens {
             db,
             last_span: start_span,
+            last_not_skipped_span: start_span,
             tokens,
             skipped: Skipped::None,
         };
@@ -32,9 +36,15 @@ impl<'me> Tokens<'me> {
         this
     }
 
-    fn next_token(&mut self) -> Option<Token> {
+    /// Advance to the next token; if `skipped` is true, the
+    /// current token is being skipped, so we should not update
+    /// `last_span`
+    fn next_token(&mut self, skipped: bool) -> Option<Token> {
         if let Some(result) = self.peek() {
             self.last_span = self.peek_span();
+            if !skipped {
+                self.last_not_skipped_span = self.last_span;
+            }
             self.tokens = &self.tokens[1..];
             Some(result)
         } else {
@@ -72,7 +82,7 @@ impl<'me> Tokens<'me> {
         while let Some(t) = self.peek() {
             if let Some(skipped) = self.should_skip_token(t) {
                 self.skipped = self.skipped.max(skipped);
-                self.next_token();
+                self.next_token(true);
             } else {
                 break;
             }
@@ -81,7 +91,7 @@ impl<'me> Tokens<'me> {
 
     /// Advance by one token and return the span + token just consumed (if any).
     pub(crate) fn consume(&mut self) -> Option<Token> {
-        let token = self.next_token()?;
+        let token = self.next_token(false)?;
 
         self.skip_tokens();
 
@@ -90,8 +100,9 @@ impl<'me> Tokens<'me> {
     }
 
     /// Span of the previously consumed token (or `Span::start` otherwise).
+    /// Does not include any skipped tokens.
     pub(crate) fn last_span(&self) -> Span {
-        self.last_span
+        self.last_not_skipped_span
     }
 
     /// Span of the next pending token (or last span if there are no more tokens).
