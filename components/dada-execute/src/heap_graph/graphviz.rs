@@ -67,8 +67,8 @@ impl HeapGraph {
             let label = value_edge.label.as_str();
             w.println(format!(
                 r#"{source:?}:{source_port} -> {target:?} [label={label:?}];"#,
-                source = value_edge.source,
-                source_port = value_edge.source_port,
+                source = value_edge.source.node,
+                source_port = value_edge.source.port,
                 target = value_edge.target,
             ))?;
         }
@@ -218,18 +218,44 @@ impl HeapGraph {
 }
 
 struct GraphvizWriter<'w> {
+    /// If true, include temporary variables from stack frames
+    /// in the output (usually false).
     include_temporaries: bool,
+
+    /// Queue of edges to process.
     node_queue: Vec<ValueEdge>,
+
+    /// Set of all edges we have ever processed; when a new edge
+    /// is added to this set, it is pushed to the queue.
     node_set: IndexSet<ValueEdge>,
+
+    /// A collection of edges from fields to their values,
+    /// accumulated as we walk the `HeapGraph` and then
+    /// dumped out at the end.
     value_edge_list: Vec<GraphvizValueEdge>,
+
+    /// The crate database.
     db: &'w dyn crate::Db,
+
+    /// Where we write the output.
     writer: &'w mut dyn std::io::Write,
+
+    /// Current indentation in spaces.
     indent: usize,
 }
 
+/// Identifies a particular "place" in the graphviz output;
+/// this is either a field or a local variable.
+struct GraphvizPlace {
+    /// Id of the node within graphviz.
+    node: String,
+
+    /// Port of the row for this field.
+    port: usize,
+}
+
 struct GraphvizValueEdge {
-    source: String,
-    source_port: usize,
+    source: GraphvizPlace,
     target: String,
     label: PermissionNodeLabel,
 }
@@ -267,8 +293,10 @@ impl GraphvizWriter<'_> {
     ) {
         let name = self.node_name(target);
         self.value_edge_list.push(GraphvizValueEdge {
-            source: source.to_string(),
-            source_port,
+            source: GraphvizPlace {
+                node: source.to_string(),
+                port: source_port,
+            },
             target: name,
             label,
         });
