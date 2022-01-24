@@ -5,7 +5,7 @@ use crate::{error::DiagnosticBuilderExt, interpreter::Interpreter, moment::Momen
 use super::{invalidated::Invalidated, Permission, PermissionData};
 
 #[derive(Debug)]
-pub(super) struct Shared {
+pub(crate) struct Shared {
     granted: Moment,
     canceled: Invalidated,
 }

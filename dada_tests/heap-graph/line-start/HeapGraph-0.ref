@@ -20,6 +20,6 @@ digraph {
   node0 [
     label = <<b>Point</b>>
   ];
-  "stack":17 -> "node0"
+  "stack":17 -> "node0" [label="our"];
 }
 breakpoint expression encountered

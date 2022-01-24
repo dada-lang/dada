@@ -2,7 +2,7 @@ use dada_collections::IndexSet;
 use dada_id::InternKey;
 use dada_parse::prelude::*;
 
-use super::{DataNode, HeapGraph, ValueEdge, ValueEdgeTarget};
+use super::{DataNode, HeapGraph, PermissionNodeLabel, ValueEdge, ValueEdgeTarget};
 
 impl HeapGraph {
     pub fn graphviz(&self, db: &dyn crate::Db, include_temporaries: bool) -> String {
@@ -14,7 +14,7 @@ impl HeapGraph {
             include_temporaries,
             node_queue: Default::default(),
             node_set: Default::default(),
-            edge_list: vec![],
+            value_edge_list: vec![],
         };
         self.to_graphviz(&mut writer).unwrap();
         String::from_utf8(output).unwrap()
@@ -62,13 +62,14 @@ impl HeapGraph {
 
         self.print_heap(w)?;
 
-        let edge_list = std::mem::take(&mut w.edge_list);
-        for edge in edge_list {
+        let value_edge_list = std::mem::take(&mut w.value_edge_list);
+        for value_edge in value_edge_list {
+            let label = value_edge.label.as_str();
             w.println(format!(
-                r#"{source:?}:{source_port} -> {target:?}"#,
-                source = edge.source,
-                source_port = edge.source_port,
-                target = edge.target,
+                r#"{source:?}:{source_port} -> {target:?} [label={label:?}];"#,
+                source = value_edge.source,
+                source_port = value_edge.source_port,
+                target = value_edge.target,
             ))?;
         }
 
@@ -197,7 +198,8 @@ impl HeapGraph {
                 ))?;
             } else {
                 w.println(format!(r#"<tr><td port="{index}">{name}</td></tr>"#))?;
-                w.push_edge(source, index, edge);
+                let label = edge.permission.data(&self.tables).label;
+                w.push_value_edge(source, index, edge, label);
             }
         }
         Ok(())
@@ -213,36 +215,23 @@ impl HeapGraph {
             format!("{}[...]{}", &data[0..20], &data[len..])
         }
     }
-
-    fn print_edge(
-        &mut self,
-        w: &mut GraphvizWriter<'_>,
-        source_name: &str,
-        source_index: usize,
-        target: &ValueEdge,
-    ) -> eyre::Result<()> {
-        let target_name = w.node_name(target);
-        w.println(format!(
-            r#"{source_name}:{source_index} -> "{target_name}""#
-        ))?;
-        Ok(())
-    }
 }
 
 struct GraphvizWriter<'w> {
     include_temporaries: bool,
     node_queue: Vec<ValueEdge>,
     node_set: IndexSet<ValueEdge>,
-    edge_list: Vec<GraphvizEdge>,
+    value_edge_list: Vec<GraphvizValueEdge>,
     db: &'w dyn crate::Db,
     writer: &'w mut dyn std::io::Write,
     indent: usize,
 }
 
-struct GraphvizEdge {
+struct GraphvizValueEdge {
     source: String,
     source_port: usize,
     target: String,
+    label: PermissionNodeLabel,
 }
 
 impl GraphvizWriter<'_> {
@@ -269,12 +258,19 @@ impl GraphvizWriter<'_> {
         self.println(s)
     }
 
-    fn push_edge(&mut self, source: &str, source_port: usize, target: &ValueEdge) {
+    fn push_value_edge(
+        &mut self,
+        source: &str,
+        source_port: usize,
+        target: &ValueEdge,
+        label: PermissionNodeLabel,
+    ) {
         let name = self.node_name(target);
-        self.edge_list.push(GraphvizEdge {
+        self.value_edge_list.push(GraphvizValueEdge {
             source: source.to_string(),
             source_port,
             target: name,
+            label,
         });
     }
 

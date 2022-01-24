@@ -101,10 +101,16 @@ impl Permission {
     pub(crate) fn share(&self, interpreter: &Interpreter<'_>) -> eyre::Result<Permission> {
         self.data.share(self, interpreter)
     }
+
+    /// Read the internal data. Used to capture heap-graphs
+    /// but not meant to be used by the interpreter.
+    pub(crate) fn peek_data(&self) -> &PermissionData {
+        &self.data
+    }
 }
 
 #[derive(Debug)]
-enum PermissionData {
+pub(crate) enum PermissionData {
     My(my::My),
     Leased(leased::Leased),
     Our(our::Our),
@@ -211,6 +217,15 @@ impl PermissionData {
             PermissionData::Leased(p) => p.check_await(interpreter),
             PermissionData::Shared(p) => p.check_await(interpreter),
             PermissionData::Our(p) => p.check_await(interpreter),
+        }
+    }
+
+    pub(crate) fn peek_tenant(&self) -> Option<Permission> {
+        match self {
+            PermissionData::My(p) => p.peek_tenant(),
+            PermissionData::Leased(p) => p.peek_tenant(),
+            PermissionData::Shared(_) => None,
+            PermissionData::Our(_) => None,
         }
     }
 }
