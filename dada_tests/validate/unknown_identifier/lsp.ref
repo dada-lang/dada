@@ -1,0 +1,51 @@
+[
+    Diagnostic {
+        range: Range {
+            start: Position {
+                line: 3,
+                character: 13,
+            },
+            end: Position {
+                line: 3,
+                character: 16,
+            },
+        },
+        severity: Some(
+            Error,
+        ),
+        code: None,
+        source: None,
+        message: "can't find anything named `baz`",
+        related_information: Some(
+            [
+                DiagnosticRelatedInformation {
+                    location: Location {
+                        uri: Url {
+                            scheme: "file",
+                            cannot_be_a_base: false,
+                            username: "",
+                            password: None,
+                            host: None,
+                            port: None,
+                            path: "(local-file-prefix)/dada_tests/validate/unknown_identifier.dada",
+                            query: None,
+                            fragment: None,
+                        },
+                        range: Range {
+                            start: Position {
+                                line: 3,
+                                character: 13,
+                            },
+                            end: Position {
+                                line: 3,
+                                character: 16,
+                            },
+                        },
+                    },
+                    message: "here",
+                },
+            ],
+        ),
+        tags: None,
+    },
+]
