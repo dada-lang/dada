@@ -2,9 +2,9 @@
     syntax::Tree {
         origin: Code(
             Some(
-                Tokens(dada_tests/heap-graph/nested-points.dada:4:16:4:16),
+                Tokens(dada_tests/heap-graph/nested-points.dada:4:15:4:15),
             ),
-            Tokens(dada_tests/heap-graph/nested-points.dada:4:19:21:2),
+            Tokens(dada_tests/heap-graph/nested-points.dada:4:18:21:1),
         ),
         data: syntax::Tree {
             root_expr: (

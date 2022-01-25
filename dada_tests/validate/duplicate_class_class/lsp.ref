@@ -3,11 +3,11 @@
         range: Range {
             start: Position {
                 line: 2,
-                character: 8,
+                character: 7,
             },
             end: Position {
                 line: 2,
-                character: 11,
+                character: 10,
             },
         },
         severity: Some(
@@ -34,11 +34,11 @@
                         range: Range {
                             start: Position {
                                 line: 2,
-                                character: 8,
+                                character: 7,
                             },
                             end: Position {
                                 line: 2,
-                                character: 11,
+                                character: 10,
                             },
                         },
                     },
@@ -60,11 +60,11 @@
                         range: Range {
                             start: Position {
                                 line: 1,
-                                character: 8,
+                                character: 7,
                             },
                             end: Position {
                                 line: 1,
-                                character: 11,
+                                character: 10,
                             },
                         },
                     },

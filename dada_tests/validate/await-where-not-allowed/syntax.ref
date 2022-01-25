@@ -2,9 +2,9 @@
     syntax::Tree {
         origin: Code(
             Some(
-                Tokens(dada_tests/validate/await-where-not-allowed.dada:1:15:1:15),
+                Tokens(dada_tests/validate/await-where-not-allowed.dada:1:14:1:14),
             ),
-            Tokens(dada_tests/validate/await-where-not-allowed.dada:1:18:4:2),
+            Tokens(dada_tests/validate/await-where-not-allowed.dada:1:17:4:1),
         ),
         data: syntax::Tree {
             root_expr: (
@@ -46,9 +46,9 @@
     syntax::Tree {
         origin: Code(
             Some(
-                Tokens(dada_tests/validate/await-where-not-allowed.dada:6:28:6:28),
+                Tokens(dada_tests/validate/await-where-not-allowed.dada:6:27:6:27),
             ),
-            Tokens(dada_tests/validate/await-where-not-allowed.dada:6:31:11:2),
+            Tokens(dada_tests/validate/await-where-not-allowed.dada:6:30:11:1),
         ),
         data: syntax::Tree {
             root_expr: (
@@ -102,9 +102,9 @@
     syntax::Tree {
         origin: Code(
             Some(
-                Tokens(dada_tests/validate/await-where-not-allowed.dada:13:30:13:30),
+                Tokens(dada_tests/validate/await-where-not-allowed.dada:13:29:13:29),
             ),
-            Tokens(dada_tests/validate/await-where-not-allowed.dada:13:33:18:2),
+            Tokens(dada_tests/validate/await-where-not-allowed.dada:13:32:18:1),
         ),
         data: syntax::Tree {
             root_expr: (
@@ -158,9 +158,9 @@
     syntax::Tree {
         origin: Code(
             Some(
-                Tokens(dada_tests/validate/await-where-not-allowed.dada:20:16:20:16),
+                Tokens(dada_tests/validate/await-where-not-allowed.dada:20:15:20:15),
             ),
-            Tokens(dada_tests/validate/await-where-not-allowed.dada:20:19:22:2),
+            Tokens(dada_tests/validate/await-where-not-allowed.dada:20:18:22:1),
         ),
         data: syntax::Tree {
             root_expr: (

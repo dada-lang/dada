@@ -2,9 +2,9 @@
     syntax::Tree {
         origin: Code(
             Some(
-                Tokens(dada_tests/heap-graph/nested-functions.dada:3:16:3:16),
+                Tokens(dada_tests/heap-graph/nested-functions.dada:3:15:3:15),
             ),
-            Tokens(dada_tests/heap-graph/nested-functions.dada:3:19:8:2),
+            Tokens(dada_tests/heap-graph/nested-functions.dada:3:18:8:1),
         ),
         data: syntax::Tree {
             root_expr: (
@@ -105,9 +105,9 @@
     syntax::Tree {
         origin: Code(
             Some(
-                Tokens(dada_tests/heap-graph/nested-functions.dada:10:18:10:18),
+                Tokens(dada_tests/heap-graph/nested-functions.dada:10:17:10:17),
             ),
-            Tokens(dada_tests/heap-graph/nested-functions.dada:10:21:16:2),
+            Tokens(dada_tests/heap-graph/nested-functions.dada:10:20:16:1),
         ),
         data: syntax::Tree {
             root_expr: (
