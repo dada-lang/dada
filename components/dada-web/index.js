@@ -64,6 +64,14 @@ class DadaCompiler {
         return this.dada.diagnostics;
     }
 
+    get num_diagnostics() {
+        return this.dada.num_diagnostics;
+    }
+
+    diagnostic(i) {
+        return this.dada.diagnostic(i);
+    }
+
     get heap() {
         return this.dada.heap;
     }
@@ -84,7 +92,7 @@ init()
             setStatusMessage("");
             let text = editor.getValue();
             queue.submit(async function () {
-                await updateOutput(dada, text, null);
+                await updateOutput(dada, editor, text, null);
             });
         });
         editor.session.getSelection().on('changeCursor', function (arg) {
@@ -92,7 +100,7 @@ init()
             let cursor = editor.session.getSelection().getCursor();
             console.log("changeCursor", cursor.row, cursor.column);
             queue.submit(async function () {
-                await updateOutput(dada, text, cursor);
+                await updateOutput(dada, editor, text, cursor);
             });
         });
         // editor.session.setMode("ace/mode/javascript");
@@ -106,7 +114,7 @@ init()
 
         let text = editor.getValue();
         queue.submit(async function () {
-            await updateOutput(dada, text, null);
+            await updateOutput(dada, editor, text, null);
         });
     });
 
@@ -162,7 +170,7 @@ async function minify(url) {
     }
 }
 
-async function updateOutput(dada, text, cursor) {
+async function updateOutput(dada, editor, text, cursor) {
     console.log("updateOutput", dada, text, cursor);
 
     try {
@@ -174,6 +182,27 @@ async function updateOutput(dada, text, cursor) {
         // Append diagnostics (if any) to stdout.
         let diagnostics = dada.diagnostics;
         let output = (diagnostics == "" ? dada.output : diagnostics + "\n" + dada.output);
+
+        // Create Ace annotations for the errors.
+        let annotations = [];
+        for (let i = 0; i < dada.num_diagnostics; i++) {
+            console.log("diagnostic ", i);
+            let diagnostic = dada.diagnostic(i);
+            console.log("severity", diagnostic.severity);
+            let primary_label = diagnostic.primary_label;
+            console.log("primary label", primary_label.start.line0, primary_label.start.column0, primary_label.message);
+            let severity = diagnostic.severity == "error" ? "error"
+                : diagnostic.severity == "warning" ? "warning" :
+                    "information";
+            annotations.push({
+                row: primary_label.start.line0,
+                column: primary_label.start.column0,
+                text: primary_label.message,
+                type: severity,
+            });
+        }
+        console.log("annoattions", annotations);
+        editor.getSession().setAnnotations(annotations);
 
         // Take the console output, convert it to html, and put it in the
         // output area.

@@ -3,8 +3,11 @@
 use dada_error_format::format_diagnostics;
 use dada_execute::kernel::BufferKernel;
 use dada_ir::{filename::Filename, span::LineColumn};
+use diagnostics::DadaDiagnostic;
 use tracing_wasm::WASMLayerConfigBuilder;
 use wasm_bindgen::prelude::*;
+
+mod diagnostics;
 
 #[wasm_bindgen(start)]
 pub fn start() -> Result<(), JsValue> {
@@ -24,9 +27,8 @@ pub fn start() -> Result<(), JsValue> {
 pub struct DadaCompiler {
     db: dada_db::Db,
 
-    /// Current diagnostics emitted by the compiler, formatted
-    /// as a string.
-    diagnostics: String,
+    /// Current diagnostics emitted by the compiler.
+    diagnostics: Vec<dada_ir::diagnostic::Diagnostic>,
 
     /// Current output emitted by the program.
     output: String,
@@ -102,11 +104,7 @@ impl DadaCompiler {
             diagnostics.len(),
         );
 
-        self.diagnostics = if diagnostics.is_empty() {
-            String::new()
-        } else {
-            format_diagnostics(&self.db, &diagnostics).unwrap()
-        };
+        self.diagnostics = diagnostics.to_owned();
 
         self.heap_capture = heap_graphs
             .into_iter()
@@ -117,8 +115,18 @@ impl DadaCompiler {
     }
 
     #[wasm_bindgen(getter)]
+    pub fn num_diagnostics(&self) -> usize {
+        self.diagnostics.len()
+    }
+
+    #[wasm_bindgen]
+    pub fn diagnostic(&self, index: usize) -> DadaDiagnostic {
+        DadaDiagnostic::from(&self.db, &self.diagnostics[index])
+    }
+
+    #[wasm_bindgen(getter)]
     pub fn diagnostics(&self) -> String {
-        self.diagnostics.clone()
+        format_diagnostics(&self.db, &self.diagnostics).unwrap()
     }
 
     #[wasm_bindgen(getter)]
