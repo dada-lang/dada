@@ -1,6 +1,6 @@
 //! The "kernel" is the interface from the interpreter to the outside world.
 
-use dada_ir::{filename::Filename, function::Function};
+use dada_ir::{filename::Filename, function::Function, span::FileSpan};
 use parking_lot::Mutex;
 use salsa::DebugWithDb;
 
@@ -31,6 +31,7 @@ pub trait Kernel: Send + Sync {
         db: &dyn crate::Db,
         breakpoint_filename: Filename,
         breakpoint_index: usize,
+        breakpoint_span: FileSpan,
         generate_heap_graph: &dyn Fn() -> HeapGraph,
     ) -> eyre::Result<()>;
 }
@@ -52,6 +53,7 @@ pub struct BufferKernel {
 pub struct BreakpointRecord {
     pub breakpoint_filename: Filename,
     pub breakpoint_index: usize,
+    pub breakpoint_span: FileSpan,
     pub heap_at_start: HeapGraph,
     pub heap_at_end: HeapGraph,
 }
@@ -167,6 +169,7 @@ impl Kernel for BufferKernel {
         db: &dyn crate::Db,
         filename: Filename,
         index: usize,
+        span: FileSpan,
         generate_heap_graph: &dyn Fn() -> HeapGraph,
     ) -> eyre::Result<()> {
         tracing::debug!(
@@ -182,6 +185,7 @@ impl Kernel for BufferKernel {
         let breakpoint_record = BreakpointRecord {
             breakpoint_filename,
             breakpoint_index,
+            breakpoint_span: span,
             heap_at_start,
             heap_at_end: generate_heap_graph(),
         };

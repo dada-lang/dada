@@ -1,6 +1,7 @@
 use std::path::PathBuf;
 
 use dada_execute::heap_graph::HeapGraph;
+use dada_ir::span::FileSpan;
 use eyre::Context;
 use tokio::io::AsyncWriteExt;
 
@@ -74,6 +75,7 @@ impl dada_execute::kernel::Kernel for Kernel {
         _db: &dyn dada_execute::Db,
         _breakpoint_filename: dada_ir::filename::Filename,
         _breakpoint_index: usize,
+        _breakpoint_span: FileSpan,
         _generate_heap_graph: &dyn Fn() -> HeapGraph,
     ) -> eyre::Result<()> {
         panic!("no breakpoints set")

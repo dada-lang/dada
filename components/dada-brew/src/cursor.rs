@@ -1,7 +1,7 @@
 use dada_id::prelude::*;
 use dada_ir::{
     code::{
-        bir,
+        bir, syntax,
         validated::{self, ExprOrigin},
     },
     word::SpannedOptionalWord,
@@ -140,10 +140,9 @@ impl Cursor {
         origin: ExprOrigin,
     ) {
         for o in origins.into_iter().chain(Some(origin)) {
-            self.push_breakpoint_end(brewery, place, o);
+            self.push_breakpoint_end_with_distinct_origin(brewery, origin.syntax_expr, place, o);
         }
     }
-
     /// Push a "breakpoint-end" statement onto the current basic block.
     /// These statements indicate the end of the given origin node
     /// in the BIR.
@@ -153,11 +152,22 @@ impl Cursor {
         place: Option<bir::Place>,
         origin: ExprOrigin,
     ) {
+        self.push_breakpoint_end_with_distinct_origin(brewery, origin.syntax_expr, place, origin);
+    }
+
+    /// Helper: push the breakpoint-end but the origin/breakpoint-expr might be distinct.
+    fn push_breakpoint_end_with_distinct_origin(
+        &mut self,
+        brewery: &mut Brewery<'_>,
+        expr: syntax::Expr,
+        place: Option<bir::Place>,
+        origin: ExprOrigin,
+    ) {
         if !origin.synthesized && self.end_block.is_some() {
             if let Some(breakpoint_index) = brewery.expr_is_breakpoint(origin.syntax_expr) {
                 let filename = brewery.code().filename(brewery.db());
                 let statement = brewery.add(
-                    bir::StatementData::BreakpointEnd(filename, breakpoint_index, place),
+                    bir::StatementData::BreakpointEnd(filename, breakpoint_index, expr, place),
                     origin,
                 );
                 self.push_statement(brewery, statement);

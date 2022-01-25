@@ -165,11 +165,21 @@ impl StackFrame<'_> {
                             &|| HeapGraph::new(interpreter, &self, None),
                         )?;
                     }
-                    dada_ir::code::bir::StatementData::BreakpointEnd(filename, index, place) => {
+                    dada_ir::code::bir::StatementData::BreakpointEnd(
+                        filename,
+                        index,
+                        expr,
+                        place,
+                    ) => {
+                        let span = self
+                            .function
+                            .syntax_tree(interpreter.db())
+                            .spans(interpreter.db())[*expr];
                         interpreter.kernel().breakpoint_end(
                             interpreter.db(),
                             *filename,
                             *index,
+                            span.in_file(*filename),
                             &|| HeapGraph::new(interpreter, &self, *place),
                         )?;
                     }

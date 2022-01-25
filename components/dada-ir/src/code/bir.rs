@@ -209,9 +209,14 @@ pub enum StatementData {
     /// in the given file (identified by the usize index) is about
     /// to complete and produce the (optional) `Place` as its value.
     ///
+    /// The `syntax::Expr` argument is the expression that just
+    /// completed. This may not be the same as the expression on which
+    /// the breakpoint was set, if that expression was part of a larger
+    /// place or other "compound" that could not be executed independently.
+    ///
     /// Any side-effects from the breakpoint will have taken place
     /// when this statement executes.
-    BreakpointEnd(Filename, usize, Option<Place>),
+    BreakpointEnd(Filename, usize, syntax::Expr, Option<Place>),
 }
 
 impl DebugWithDb<InIrDb<'_, Bir>> for StatementData {
@@ -229,10 +234,11 @@ impl DebugWithDb<InIrDb<'_, Bir>> for StatementData {
                 .field(index)
                 .finish(),
 
-            StatementData::BreakpointEnd(filename, index, p) => f
+            StatementData::BreakpointEnd(filename, index, e, p) => f
                 .debug_tuple("BreakpointEnd")
                 .field(&filename.debug(db.db()))
                 .field(index)
+                .field(e)
                 .field(&p.debug(db))
                 .finish(),
         }
