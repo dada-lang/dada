@@ -11,14 +11,6 @@
                     Expr(0),
                 ),
                 (
-                    Cusp(
-                        Some(
-                            temp{1},
-                        ),
-                    ),
-                    Expr(0),
-                ),
-                (
                     Assign(
                         blah{0},
                         temp{1}.give,
@@ -26,39 +18,11 @@
                     Expr(0),
                 ),
                 (
-                    Cusp(
-                        None,
-                    ),
-                    Expr(1),
-                ),
-                (
                     Assign(
                         temp{3},
                         blah{0}.give,
                     ),
                     Expr(4),
-                ),
-                (
-                    Cusp(
-                        Some(
-                            temp{3},
-                        ),
-                    ),
-                    Expr(2),
-                ),
-                (
-                    Cusp(
-                        Some(
-                            temp{3},
-                        ),
-                    ),
-                    Expr(4),
-                ),
-                (
-                    Cusp(
-                        None,
-                    ),
-                    Expr(3),
                 ),
             ],
             Error,
