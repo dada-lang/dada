@@ -48,3 +48,10 @@ body {
 .lang-configure {
     display: none;
 }
+
+.breakpoint {
+    position: absolute;
+    border-bottom: 2px solid yellow;
+    /*background-color: darkslategrey;*/
+    
+}

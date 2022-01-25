@@ -4,10 +4,12 @@ use dada_error_format::format_diagnostics;
 use dada_execute::kernel::BufferKernel;
 use dada_ir::{filename::Filename, span::LineColumn};
 use diagnostics::DadaDiagnostic;
+use range::DadaRange;
 use tracing_wasm::WASMLayerConfigBuilder;
 use wasm_bindgen::prelude::*;
 
 mod diagnostics;
+mod range;
 
 #[wasm_bindgen(start)]
 pub fn start() -> Result<(), JsValue> {
@@ -36,6 +38,8 @@ pub struct DadaCompiler {
     /// If a breakpoint was set, contains graphviz source
     /// for the heap at that point (else empty).
     heap_capture: String,
+
+    breakpoint_ranges: Vec<DadaRange>,
 }
 
 #[wasm_bindgen]
@@ -106,6 +110,13 @@ impl DadaCompiler {
 
         self.diagnostics = diagnostics.to_owned();
 
+        self.breakpoint_ranges = heap_graphs
+            .iter()
+            .map(|record| DadaRange::from(&self.db, record.breakpoint_span))
+            .collect();
+        self.breakpoint_ranges.sort();
+        self.breakpoint_ranges.dedup();
+
         self.heap_capture = heap_graphs
             .into_iter()
             .map(|record| record.to_graphviz(&self.db))
@@ -122,6 +133,16 @@ impl DadaCompiler {
     #[wasm_bindgen]
     pub fn diagnostic(&self, index: usize) -> DadaDiagnostic {
         DadaDiagnostic::from(&self.db, &self.diagnostics[index])
+    }
+
+    #[wasm_bindgen(getter)]
+    pub fn num_breakpoint_ranges(&self) -> usize {
+        self.breakpoint_ranges.len()
+    }
+
+    #[wasm_bindgen]
+    pub fn breakpoint_range(&self, index: usize) -> DadaRange {
+        self.breakpoint_ranges[index]
     }
 
     #[wasm_bindgen(getter)]
