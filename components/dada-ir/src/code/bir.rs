@@ -4,6 +4,7 @@
 use crate::{
     class::Class,
     code::validated::op::Op,
+    filename::Filename,
     function::Function,
     in_ir_db::InIrDb,
     intrinsic::Intrinsic,
@@ -195,14 +196,14 @@ pub enum StatementData {
 
     /// In terms of the semantics, this is a no-op.
     /// It is used by the time traveling debugger.
-    /// It indicates the moment when a syntax expression
-    /// is on the "cusp" of completion -- that is,
-    /// it has almost completely taken effect, except that
-    /// control flow has not yet transferred to its successor.
     ///
-    /// The `Place` argument is the location of the expression's
-    /// value that was just produced.
-    Cusp(Option<Place>),
+    /// It indicates the moment when one of the breakpoint expressions
+    /// in the given file (identified by the usize index) is about
+    /// to complete and produce the (optional) `Place` as its value.
+    ///
+    /// Any side-effects from the breakpoint will have taken place
+    /// when this statement executes.
+    BreakpointEnd(Filename, usize, Option<Place>),
 }
 
 impl DebugWithDb<InIrDb<'_, Bir>> for StatementData {
@@ -214,7 +215,12 @@ impl DebugWithDb<InIrDb<'_, Bir>> for StatementData {
                 .field(&expr.debug(db))
                 .finish(),
 
-            StatementData::Cusp(p) => f.debug_tuple("Cusp").field(&p.debug(db)).finish(),
+            StatementData::BreakpointEnd(filename, index, p) => f
+                .debug_tuple("BreakpointEnd")
+                .field(&filename.debug(db.db()))
+                .field(index)
+                .field(&p.debug(db))
+                .finish(),
         }
     }
 }

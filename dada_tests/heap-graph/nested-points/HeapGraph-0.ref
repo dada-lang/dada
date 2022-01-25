@@ -1,4 +1,4 @@
-# Breakpoint: Expr(3) at dada_tests/heap-graph/nested-points.dada:5:10:5:23
+# Breakpoint: Expr(3) at class:5:10:5:23
 digraph {
   node[shape = "note"];
   rankdir = "LR";

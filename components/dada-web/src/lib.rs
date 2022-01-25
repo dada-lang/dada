@@ -1,6 +1,5 @@
 #![allow(clippy::unused_unit)] // wasm-bindgen seems to trigger this
 
-use dada_breakpoint::breakpoint::Breakpoint;
 use dada_error_format::format_diagnostics;
 use dada_execute::kernel::BufferKernel;
 use dada_ir::{filename::Filename, span::LineColumn};
@@ -24,9 +23,6 @@ pub fn start() -> Result<(), JsValue> {
 #[derive(Default)]
 pub struct DadaCompiler {
     db: dada_db::Db,
-
-    /// Breakpoint set by user, if any.
-    breakpoint: Option<Breakpoint>,
 
     /// Current diagnostics emitted by the compiler, formatted
     /// as a string.
@@ -62,17 +58,14 @@ impl DadaCompiler {
 
     #[wasm_bindgen]
     pub fn with_breakpoint(mut self, line0: u32, column0: u32) -> Self {
-        self.breakpoint = dada_breakpoint::breakpoint::find(
-            &self.db,
-            self.filename(),
-            LineColumn::new0(line0, column0),
-        );
+        self.db
+            .set_breakpoints(self.filename(), vec![LineColumn::new0(line0, column0)]);
         self
     }
 
     #[wasm_bindgen]
     pub fn without_breakpoint(mut self) -> Self {
-        self.breakpoint = None;
+        self.db.set_breakpoints(self.filename(), vec![]);
         self
     }
 
@@ -81,9 +74,7 @@ impl DadaCompiler {
         let filename = self.filename();
         let diagnostics = self.db.diagnostics(filename);
 
-        let mut kernel = BufferKernel::new()
-            .breakpoint(self.breakpoint)
-            .stop_at_breakpoint(true);
+        let mut kernel = BufferKernel::new().stop_at_breakpoint(true);
         match self.db.function_named(filename, "main") {
             Some(function) => {
                 kernel
@@ -102,11 +93,10 @@ impl DadaCompiler {
         let heap_graphs = kernel.take_heap_graphs();
 
         tracing::info!(
-            "Execution complete: breakpoint={:?}, \
+            "Execution complete: \
             {} bytes of output, \
             {} heaps captured, \
             {} diagnostics.",
-            self.breakpoint,
             self.output.len(),
             heap_graphs.len(),
             diagnostics.len(),

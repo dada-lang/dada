@@ -12,7 +12,7 @@ use super::{Errors, Query};
 impl super::Options {
     pub(super) async fn perform_heap_graph_query_on_db(
         &self,
-        db: &dada_db::Db,
+        in_db: &mut dada_db::Db,
         path: &Path,
         query_index: usize,
         filename: Filename,
@@ -21,6 +21,11 @@ impl super::Options {
     ) -> eyre::Result<()> {
         assert!(matches!(query.kind, QueryKind::HeapGraph));
 
+        // FIXME: total hack to workaround a salsa bug:
+        let db = &mut dada_db::Db::default();
+        db.update_file(filename, in_db.file_source(filename).clone());
+        db.set_breakpoints(filename, vec![LineColumn::new1(query.line, query.column)]);
+
         let breakpoint = dada_breakpoint::breakpoint::find(
             db,
             filename,
@@ -28,7 +33,6 @@ impl super::Options {
         );
 
         let mut kernel = BufferKernel::new()
-            .breakpoint(breakpoint)
             .stop_at_breakpoint(true)
             .breakpoint_callback(|db, kernel, graph| kernel.append(&graph.graphviz(db, false)));
 
@@ -62,6 +66,9 @@ impl super::Options {
         if !output_matched {
             eyre::bail!("query regex `{:?}` did not match the output", query.message);
         }
+
+        // clear the breakpoints when we're done
+        db.set_breakpoints(filename, vec![]);
 
         Ok(())
     }

@@ -11,25 +11,9 @@
                     Expr(0),
                 ),
                 (
-                    Cusp(
-                        Some(
-                            temp{1},
-                        ),
-                    ),
-                    Expr(0),
-                ),
-                (
                     Assign(
                         temp{2},
                         (),
-                    ),
-                    Expr(1),
-                ),
-                (
-                    Cusp(
-                        Some(
-                            temp{2},
-                        ),
                     ),
                     Expr(1),
                 ),
@@ -39,22 +23,6 @@
                         temp{1} * temp{2},
                     ),
                     Expr(2),
-                ),
-                (
-                    Cusp(
-                        Some(
-                            temp{0},
-                        ),
-                    ),
-                    Expr(2),
-                ),
-                (
-                    Cusp(
-                        Some(
-                            temp{0},
-                        ),
-                    ),
-                    Expr(3),
                 ),
             ],
             Return(

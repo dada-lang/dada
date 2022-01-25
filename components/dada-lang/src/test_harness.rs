@@ -169,7 +169,7 @@ impl Options {
             .await?;
 
         for (query, query_index) in expected_queries.iter().zip(0..) {
-            self.perform_query_on_db(&db, path, filename, query, query_index, &mut errors)
+            self.perform_query_on_db(&mut db, path, filename, query, query_index, &mut errors)
                 .await?;
         }
 
@@ -204,7 +204,7 @@ impl Options {
 
     async fn perform_query_on_db(
         &self,
-        db: &dada_db::Db,
+        db: &mut dada_db::Db,
         path: &Path,
         filename: Filename,
         query: &Query,

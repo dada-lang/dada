@@ -157,12 +157,11 @@ impl StackFrame<'_> {
                         let expr_value = self.evaluate_bir_expr(interpreter, *expr)?;
                         self.assign_place(interpreter, *place, expr_value)?;
                     }
-                    dada_ir::code::bir::StatementData::Cusp(place) => {
-                        let syntax_expr = self.origins[*statement];
-                        interpreter.kernel().on_cusp(
+                    dada_ir::code::bir::StatementData::BreakpointEnd(filename, index, place) => {
+                        interpreter.kernel().breakpoint_end(
                             interpreter.db(),
-                            &self,
-                            syntax_expr,
+                            *filename,
+                            *index,
                             &|| HeapGraph::new(interpreter, &self, *place),
                         )?;
                     }

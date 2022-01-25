@@ -11,7 +11,7 @@ mod ide;
 mod run;
 mod test_harness;
 
-const DEFAULT_LOG: &str = "info";
+const DEFAULT_LOG: &str = "warn,dada_lang=info";
 
 #[derive(StructOpt)]
 pub struct Options {
@@ -53,6 +53,7 @@ impl Options {
                     .with_indent_amount(2)
             });
         tracing::subscriber::set_global_default(subscriber).unwrap();
+        tracing_log::LogTracer::init()?;
 
         match &self.cmd {
             Command::Ide(command_options) => {

@@ -10,14 +10,6 @@
                     ),
                     Expr(0),
                 ),
-                (
-                    Cusp(
-                        Some(
-                            temp{0},
-                        ),
-                    ),
-                    Expr(0),
-                ),
             ],
             Return(
                 temp{0},

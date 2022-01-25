@@ -10,14 +10,6 @@
                     ),
                     Expr(0),
                 ),
-                (
-                    Cusp(
-                        Some(
-                            temp{1},
-                        ),
-                    ),
-                    Expr(0),
-                ),
             ],
             Return(
                 temp{1},
@@ -35,14 +27,6 @@
                     ),
                     Expr(0),
                 ),
-                (
-                    Cusp(
-                        Some(
-                            temp{1},
-                        ),
-                    ),
-                    Expr(0),
-                ),
             ],
             Return(
                 temp{1},
@@ -60,11 +44,20 @@
                     ),
                     Expr(0),
                 ),
+            ],
+            Return(
+                temp{2},
+            ),
+        ),
+    },
+    bir::Bir {
+        start_basic_block: BasicBlock(0),
+        BasicBlock(0): BasicBlockData(
+            [
                 (
-                    Cusp(
-                        Some(
-                            temp{2},
-                        ),
+                    Assign(
+                        temp{2},
+                        (),
                     ),
                     Expr(0),
                 ),
@@ -85,14 +78,6 @@
                     ),
                     Expr(0),
                 ),
-                (
-                    Cusp(
-                        Some(
-                            temp{2},
-                        ),
-                    ),
-                    Expr(0),
-                ),
             ],
             Return(
                 temp{2},
@@ -107,39 +92,6 @@
                     Assign(
                         temp{2},
                         (),
-                    ),
-                    Expr(0),
-                ),
-                (
-                    Cusp(
-                        Some(
-                            temp{2},
-                        ),
-                    ),
-                    Expr(0),
-                ),
-            ],
-            Return(
-                temp{2},
-            ),
-        ),
-    },
-    bir::Bir {
-        start_basic_block: BasicBlock(0),
-        BasicBlock(0): BasicBlockData(
-            [
-                (
-                    Assign(
-                        temp{2},
-                        (),
-                    ),
-                    Expr(0),
-                ),
-                (
-                    Cusp(
-                        Some(
-                            temp{2},
-                        ),
                     ),
                     Expr(0),
                 ),
@@ -160,14 +112,6 @@
                     ),
                     Expr(0),
                 ),
-                (
-                    Cusp(
-                        Some(
-                            temp{1},
-                        ),
-                    ),
-                    Expr(0),
-                ),
             ],
             Return(
                 temp{1},
@@ -185,14 +129,6 @@
                     ),
                     Expr(0),
                 ),
-                (
-                    Cusp(
-                        Some(
-                            temp{2},
-                        ),
-                    ),
-                    Expr(0),
-                ),
             ],
             Return(
                 temp{2},
@@ -207,14 +143,6 @@
                     Assign(
                         temp{2},
                         (),
-                    ),
-                    Expr(0),
-                ),
-                (
-                    Cusp(
-                        Some(
-                            temp{2},
-                        ),
                     ),
                     Expr(0),
                 ),

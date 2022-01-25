@@ -1,10 +1,10 @@
 //! The "kernel" is the interface from the interpreter to the outside world.
 
-use dada_breakpoint::breakpoint::Breakpoint;
-use dada_ir::{code::syntax, function::Function};
+use dada_ir::{filename::Filename, function::Function};
 use parking_lot::Mutex;
+use salsa::DebugWithDb;
 
-use crate::{execute::StackFrame, heap_graph::HeapGraph, value::Value};
+use crate::{heap_graph::HeapGraph, value::Value};
 
 #[async_trait::async_trait]
 pub trait Kernel: Send + Sync {
@@ -16,13 +16,12 @@ pub trait Kernel: Send + Sync {
         self.print("\n").await
     }
 
-    /// Indicates that `stack_frame` is on the cusp of completing `expr`.
-    /// This gives the kernel a chance to capture the state.
-    fn on_cusp(
+    /// Indicates that we have reached the end of a breakpoint expression.
+    fn breakpoint_end(
         &self,
         db: &dyn crate::Db,
-        stack_frame: &StackFrame<'_>,
-        expr: syntax::Expr,
+        breakpoint_filename: Filename,
+        breakpoint_index: usize,
         generate_heap_graph: &dyn Fn() -> HeapGraph,
     ) -> eyre::Result<()>;
 }
@@ -30,7 +29,6 @@ pub trait Kernel: Send + Sync {
 #[derive(Default)]
 pub struct BufferKernel {
     buffer: Mutex<String>,
-    breakpoint: Option<Breakpoint>,
     stop_at_breakpoint: bool,
     breakpoint_callback: Option<BreakpointCallback>,
     heap_graphs: Mutex<Vec<HeapGraph>>,
@@ -41,13 +39,6 @@ type BreakpointCallback = Box<dyn Fn(&dyn crate::Db, &BufferKernel, &HeapGraph) 
 impl BufferKernel {
     pub fn new() -> Self {
         Self::default()
-    }
-
-    /// Buiilder method: if breakpoint is Some, then whenever the breakpoint is
-    /// encountered we will capture a heap-graph.
-    pub fn breakpoint(self, breakpoint: Option<Breakpoint>) -> Self {
-        assert!(self.breakpoint.is_none());
-        Self { breakpoint, ..self }
     }
 
     /// Builder method: if `stop_at_breakpoint` is true, then when a breakpoint
@@ -123,29 +114,29 @@ impl Kernel for BufferKernel {
         Ok(())
     }
 
-    fn on_cusp(
+    fn breakpoint_end(
         &self,
         db: &dyn crate::Db,
-        stack_frame: &StackFrame<'_>,
-        expr: syntax::Expr,
+        filename: Filename,
+        index: usize,
         generate_heap_graph: &dyn Fn() -> HeapGraph,
     ) -> eyre::Result<()> {
-        tracing::debug!("on_cusp: expr={:?} breakpoint={:?}", expr, self.breakpoint);
+        tracing::debug!(
+            "breakpoint_end(filename={:?}, index={:?})",
+            filename.debug(db),
+            index
+        );
 
-        if let Some(breakpoint) = self.breakpoint {
-            if breakpoint.expr == expr && breakpoint.code == stack_frame.code(db) {
-                let heap_graph = generate_heap_graph();
+        let heap_graph = generate_heap_graph();
 
-                if let Some(cb) = &self.breakpoint_callback {
-                    cb(db, self, &heap_graph);
-                } else {
-                    self.heap_graphs.lock().push(heap_graph);
-                }
+        if let Some(cb) = &self.breakpoint_callback {
+            cb(db, self, &heap_graph);
+        } else {
+            self.heap_graphs.lock().push(heap_graph);
+        }
 
-                if self.stop_at_breakpoint {
-                    return Err(BreakpointExpressionEncountered.into());
-                }
-            }
+        if self.stop_at_breakpoint {
+            return Err(BreakpointExpressionEncountered.into());
         }
 
         Ok(())

@@ -100,11 +100,11 @@ impl Cursor {
         }
     }
 
-    /// Push cusp expressions for each origin in `origins`.
+    /// Push breakpoint-end expressions for each origin in `origins`.
     /// Used when evaluating something like `a.b.c.give`:
     /// the cusps for `a`, `a.b`, and `a.b.c` are all emitted
     /// simultaneously with the final value.
-    pub(crate) fn push_cusps(
+    pub(crate) fn push_breakpoint_ends(
         &mut self,
         brewery: &mut Brewery<'_>,
         place: Option<bir::Place>,
@@ -112,22 +112,28 @@ impl Cursor {
         origin: ExprOrigin,
     ) {
         for origin in origins.into_iter().chain(Some(origin)) {
-            self.push_cusp(brewery, place, origin);
+            self.push_breakpoint_end(brewery, place, origin);
         }
     }
 
-    /// Push a "cusp" statement onto the current basic block.
+    /// Push a "breakpoint-end" statement onto the current basic block.
     /// These statements indicate the end of the given origin node
     /// in the BIR.
-    pub(crate) fn push_cusp(
+    pub(crate) fn push_breakpoint_end(
         &mut self,
         brewery: &mut Brewery<'_>,
         place: Option<bir::Place>,
         origin: ExprOrigin,
     ) {
         if !origin.synthesized && self.end_block.is_some() {
-            let statement = brewery.add(bir::StatementData::Cusp(place), origin);
-            self.push_statement(brewery, statement);
+            if let Some(breakpoint_index) = brewery.expr_is_breakpoint(origin.syntax_expr) {
+                let filename = brewery.code().filename(brewery.db());
+                let statement = brewery.add(
+                    bir::StatementData::BreakpointEnd(filename, breakpoint_index, place),
+                    origin,
+                );
+                self.push_statement(brewery, statement);
+            }
         }
     }
 

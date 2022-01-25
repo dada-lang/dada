@@ -237,6 +237,7 @@ dependencies = [
 name = "dada-brew"
 version = "0.1.0"
 dependencies = [
+ "dada-breakpoint",
  "dada-collections",
  "dada-id",
  "dada-ir",
@@ -362,6 +363,7 @@ dependencies = [
  "structopt",
  "tokio",
  "tracing",
+ "tracing-log",
  "tracing-subscriber",
  "tracing-tree",
 ]

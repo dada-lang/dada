@@ -4,14 +4,17 @@ use dada_collections::Map;
 use dada_id::prelude::*;
 use dada_ir::{
     code::{
-        bir,
+        bir, syntax,
         validated::{self, ExprOrigin},
+        Code,
     },
     origin_table::{HasOriginIn, PushOriginIn},
 };
 
-pub(crate) struct Brewery<'me> {
+pub struct Brewery<'me> {
     db: &'me dyn crate::Db,
+    code: Code,
+    breakpoints: &'me [syntax::Expr],
     validated_tree_data: &'me validated::TreeData,
     validated_origins: &'me validated::Origins,
     tables: &'me mut bir::Tables,
@@ -22,15 +25,17 @@ pub(crate) struct Brewery<'me> {
 }
 
 #[derive(Clone, Copy, Debug, PartialEq, PartialOrd, Hash)]
-pub(crate) struct LoopContext {
-    pub(crate) continue_block: bir::BasicBlock,
-    pub(crate) break_block: bir::BasicBlock,
-    pub(crate) loop_value: bir::Place,
+pub struct LoopContext {
+    pub continue_block: bir::BasicBlock,
+    pub break_block: bir::BasicBlock,
+    pub loop_value: bir::Place,
 }
 
 impl<'me> Brewery<'me> {
     pub fn new(
         db: &'me dyn crate::Db,
+        code: Code,
+        breakpoints: &'me [syntax::Expr],
         validated_tree: validated::Tree,
         tables: &'me mut bir::Tables,
         origins: &'me mut bir::Origins,
@@ -46,6 +51,8 @@ impl<'me> Brewery<'me> {
         );
         Self {
             db,
+            code,
+            breakpoints,
             validated_tree_data,
             validated_origins,
             tables,
@@ -54,6 +61,14 @@ impl<'me> Brewery<'me> {
             variables,
             dummy_terminator,
         }
+    }
+
+    pub fn db(&self) -> &'me dyn crate::Db {
+        self.db
+    }
+
+    pub fn expr_is_breakpoint(&self, expr: syntax::Expr) -> Option<usize> {
+        self.breakpoints.iter().position(|bp| *bp == expr)
     }
 
     pub fn validated_tables(&self) -> &'me validated::Tables {
@@ -66,6 +81,8 @@ impl<'me> Brewery<'me> {
     pub fn subbrewery(&mut self) -> Brewery<'_> {
         Brewery {
             db: self.db,
+            code: self.code,
+            breakpoints: self.breakpoints,
             validated_tree_data: self.validated_tree_data,
             validated_origins: self.validated_origins,
             tables: self.tables,
@@ -74,6 +91,10 @@ impl<'me> Brewery<'me> {
             variables: self.variables.clone(),
             dummy_terminator: self.dummy_terminator,
         }
+    }
+
+    pub fn code(&self) -> Code {
+        self.code
     }
 
     pub fn origin<K>(&self, of: K) -> K::Origin

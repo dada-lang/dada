@@ -11,14 +11,6 @@
                     Expr(0),
                 ),
                 (
-                    Cusp(
-                        Some(
-                            temp{1},
-                        ),
-                    ),
-                    Expr(0),
-                ),
-                (
                     Assign(
                         x{0},
                         temp{1}.give,
@@ -26,31 +18,9 @@
                     Expr(0),
                 ),
                 (
-                    Cusp(
-                        None,
-                    ),
-                    Expr(1),
-                ),
-                (
                     Assign(
                         temp{6},
                         x{0}.give,
-                    ),
-                    Expr(2),
-                ),
-                (
-                    Cusp(
-                        Some(
-                            temp{6},
-                        ),
-                    ),
-                    Expr(2),
-                ),
-                (
-                    Cusp(
-                        Some(
-                            temp{6},
-                        ),
                     ),
                     Expr(2),
                 ),
@@ -62,25 +32,9 @@
                     Expr(3),
                 ),
                 (
-                    Cusp(
-                        Some(
-                            temp{7},
-                        ),
-                    ),
-                    Expr(3),
-                ),
-                (
                     Assign(
                         temp{5},
                         temp{6} + temp{7},
-                    ),
-                    Expr(4),
-                ),
-                (
-                    Cusp(
-                        Some(
-                            temp{5},
-                        ),
                     ),
                     Expr(4),
                 ),
@@ -92,25 +46,9 @@
                     Expr(5),
                 ),
                 (
-                    Cusp(
-                        Some(
-                            temp{8},
-                        ),
-                    ),
-                    Expr(5),
-                ),
-                (
                     Assign(
                         temp{3},
                         temp{5} + temp{8},
-                    ),
-                    Expr(6),
-                ),
-                (
-                    Cusp(
-                        Some(
-                            temp{3},
-                        ),
                     ),
                     Expr(6),
                 ),
@@ -122,25 +60,11 @@
                     Expr(6),
                 ),
                 (
-                    Cusp(
-                        None,
-                    ),
-                    Expr(7),
-                ),
-                (
                     Assign(
                         temp{4},
                         (),
                     ),
                     Expr(7),
-                ),
-                (
-                    Cusp(
-                        Some(
-                            temp{4},
-                        ),
-                    ),
-                    Expr(8),
                 ),
             ],
             Return(

@@ -46,6 +46,15 @@ impl Db {
         dada_ir::manifest::source_text::set(self, filename, source_text)
     }
 
+    pub fn file_source(&self, filename: Filename) -> &String {
+        dada_ir::manifest::source_text(self, filename)
+    }
+
+    /// Set the breakpoints within the given file where the interpreter stops and executes callbacks.
+    pub fn set_breakpoints(&mut self, filename: Filename, locations: Vec<LineColumn>) {
+        dada_breakpoint::locations::breakpoint_locations::set(self, filename, locations);
+    }
+
     /// Checks `filename` for compilation errors and returns all relevant diagnostics.
     pub fn diagnostics(&self, filename: Filename) -> Vec<Diagnostic> {
         dada_check::check_filename::accumulated::<dada_ir::diagnostic::Diagnostics>(self, filename)

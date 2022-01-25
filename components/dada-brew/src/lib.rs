@@ -7,9 +7,19 @@
 #[salsa::jar(Db)]
 pub struct Jar(brew::brew);
 
-pub trait Db: salsa::DbWithJar<Jar> + dada_ir::Db + dada_parse::Db + dada_validate::Db {}
+pub trait Db:
+    salsa::DbWithJar<Jar> + dada_breakpoint::Db + dada_ir::Db + dada_parse::Db + dada_validate::Db
+{
+}
 
-impl<T> Db for T where T: salsa::DbWithJar<Jar> + dada_ir::Db + dada_parse::Db + dada_validate::Db {}
+impl<T> Db for T where
+    T: salsa::DbWithJar<Jar>
+        + dada_breakpoint::Db
+        + dada_ir::Db
+        + dada_parse::Db
+        + dada_validate::Db
+{
+}
 
 mod brew;
 mod brewery;

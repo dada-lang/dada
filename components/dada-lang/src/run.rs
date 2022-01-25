@@ -1,10 +1,7 @@
 use std::path::PathBuf;
 
 use dada_execute::heap_graph::HeapGraph;
-use dada_ir::in_ir_db::InIrDbExt;
-use dada_parse::prelude::*;
 use eyre::Context;
-use salsa::DebugWithDb;
 use tokio::io::AsyncWriteExt;
 
 #[derive(structopt::StructOpt)]
@@ -62,19 +59,13 @@ impl dada_execute::kernel::Kernel for Kernel {
         return Ok(());
     }
 
-    fn on_cusp(
+    fn breakpoint_end(
         &self,
-        db: &dyn dada_execute::Db,
-        stack_frame: &dada_execute::StackFrame<'_>,
-        expr: dada_ir::code::syntax::Expr,
+        _db: &dyn dada_execute::Db,
+        _breakpoint_filename: dada_ir::filename::Filename,
+        _breakpoint_index: usize,
         _generate_heap_graph: &dyn Fn() -> HeapGraph,
     ) -> eyre::Result<()> {
-        let code = stack_frame.code(db);
-        let syntax_tree = code.syntax_tree(db);
-        tracing::debug!(
-            "on the cusp of completing {:?}",
-            expr.debug(&syntax_tree.in_ir_db(db))
-        );
-        Ok(())
+        panic!("no breakpoints set")
     }
 }

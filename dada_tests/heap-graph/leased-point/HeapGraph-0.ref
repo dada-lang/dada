@@ -1,4 +1,4 @@
-# Breakpoint: Expr(11) at dada_tests/heap-graph/leased-point.dada:4:5:5:28
+# Breakpoint: Expr(11) at class:4:5:5:28
 digraph {
   node[shape = "note"];
   rankdir = "LR";

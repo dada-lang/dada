@@ -11,22 +11,6 @@
                     Expr(0),
                 ),
                 (
-                    Cusp(
-                        Some(
-                            temp{2},
-                        ),
-                    ),
-                    Expr(0),
-                ),
-                (
-                    Cusp(
-                        Some(
-                            temp{2},
-                        ),
-                    ),
-                    Expr(0),
-                ),
-                (
                     Assign(
                         temp{6},
                         temp{2}.give,
@@ -47,14 +31,6 @@
         BasicBlock(1): BasicBlockData(
             [
                 (
-                    Cusp(
-                        Some(
-                            temp{1},
-                        ),
-                    ),
-                    Expr(1),
-                ),
-                (
                     Assign(
                         t{0},
                         temp{1}.give,
@@ -62,31 +38,9 @@
                     Expr(1),
                 ),
                 (
-                    Cusp(
-                        None,
-                    ),
-                    Expr(2),
-                ),
-                (
                     Assign(
                         temp{3},
                         Print.give,
-                    ),
-                    Expr(3),
-                ),
-                (
-                    Cusp(
-                        Some(
-                            temp{3},
-                        ),
-                    ),
-                    Expr(3),
-                ),
-                (
-                    Cusp(
-                        Some(
-                            temp{3},
-                        ),
                     ),
                     Expr(3),
                 ),
@@ -101,14 +55,6 @@
                     Assign(
                         temp{4},
                         "Done",
-                    ),
-                    Expr(4),
-                ),
-                (
-                    Cusp(
-                        Some(
-                            temp{4},
-                        ),
                     ),
                     Expr(4),
                 ),
@@ -135,16 +81,7 @@
             ),
         ),
         BasicBlock(2): BasicBlockData(
-            [
-                (
-                    Cusp(
-                        Some(
-                            temp{7},
-                        ),
-                    ),
-                    Expr(5),
-                ),
-            ],
+            [],
             Assign(
                 temp{5},
                 Await(
@@ -154,24 +91,7 @@
             ),
         ),
         BasicBlock(3): BasicBlockData(
-            [
-                (
-                    Cusp(
-                        Some(
-                            temp{5},
-                        ),
-                    ),
-                    Expr(6),
-                ),
-                (
-                    Cusp(
-                        Some(
-                            temp{5},
-                        ),
-                    ),
-                    Expr(7),
-                ),
-            ],
+            [],
             Return(
                 temp{5},
             ),

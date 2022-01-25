@@ -14,10 +14,18 @@ use crate::{
 
 #[salsa::memoized(in crate::Jar)]
 pub fn brew(db: &dyn crate::Db, validated_tree: validated::Tree) -> bir::Bir {
-    let origin = validated_tree.origin(db);
+    let code = validated_tree.origin(db);
+    let breakpoints = dada_breakpoint::locations::breakpoints_in_code(db, code);
     let mut tables = bir::Tables::default();
     let mut origins = bir::Origins::default();
-    let brewery = &mut Brewery::new(db, validated_tree, &mut tables, &mut origins);
+    let brewery = &mut Brewery::new(
+        db,
+        code,
+        &breakpoints,
+        validated_tree,
+        &mut tables,
+        &mut origins,
+    );
     let num_parameters = validated_tree.data(db).num_parameters;
 
     // Compile the root expression and -- assuming it doesn't diverse --
@@ -36,7 +44,7 @@ pub fn brew(db: &dyn crate::Db, validated_tree: validated::Tree) -> bir::Bir {
 
     bir::Bir::new(
         db,
-        origin,
+        code,
         BirData::new(tables, num_parameters, start_basic_block),
         origins,
     )
@@ -58,19 +66,19 @@ impl Cursor {
             } => {
                 let loop_context = brewery.loop_context(*from_expr);
                 self.brew_expr_and_assign_to(brewery, loop_context.loop_value, *with_value);
-                self.push_cusp(brewery, Some(loop_context.loop_value), origin);
+                self.push_breakpoint_end(brewery, Some(loop_context.loop_value), origin);
                 self.terminate_and_goto(brewery, loop_context.break_block, origin);
             }
 
             validated::ExprData::Continue(from_expr) => {
                 let loop_context = brewery.loop_context(*from_expr);
-                self.push_cusp(brewery, None, origin);
+                self.push_breakpoint_end(brewery, None, origin);
                 self.terminate_and_goto(brewery, loop_context.continue_block, origin);
             }
 
             validated::ExprData::Return(value_expr) => {
                 if let Some(value_place) = self.brew_expr_to_temporary(brewery, *value_expr) {
-                    self.push_cusp(brewery, Some(value_place), origin);
+                    self.push_breakpoint_end(brewery, Some(value_place), origin);
                     self.terminate_and_diverge(
                         brewery,
                         bir::TerminatorData::Return(value_place),
@@ -80,14 +88,14 @@ impl Cursor {
             }
 
             validated::ExprData::Error => {
-                self.push_cusp(brewery, None, origin);
+                self.push_breakpoint_end(brewery, None, origin);
                 self.terminate_and_diverge(brewery, bir::TerminatorData::Error, origin)
             }
 
             validated::ExprData::Assign(place, value_expr) => {
                 let (place, origins) = self.brew_place(brewery, *place);
                 self.brew_expr_and_assign_to(brewery, place, *value_expr);
-                self.push_cusps(brewery, None, origins, origin)
+                self.push_breakpoint_ends(brewery, None, origins, origin)
             }
 
             validated::ExprData::Await(_)
@@ -146,7 +154,7 @@ impl Cursor {
                         },
                         origin,
                     );
-                    self.push_cusp(brewery, Some(target), origin);
+                    self.push_breakpoint_end(brewery, Some(target), origin);
                 }
             }
 
@@ -159,7 +167,7 @@ impl Cursor {
                         |_| bir::TerminatorData::If(condition_place, if_true_block, if_false_block),
                         origin,
                     );
-                    self.push_cusp(brewery, Some(target), origin); // "cusp" of an if is after it completes
+                    self.push_breakpoint_end(brewery, Some(target), origin); // "cusp" of an if is after it completes
 
                     let mut if_true_cursor = self.with_end_block(if_true_block);
                     if_true_cursor.brew_expr_and_assign_to(brewery, target, *if_true);
@@ -178,7 +186,7 @@ impl Cursor {
                     |_| bir::TerminatorData::Goto(body_block),
                     origin,
                 );
-                self.push_cusp(brewery, Some(target), origin); // "cusp" of a loop is after it breaks
+                self.push_breakpoint_end(brewery, Some(target), origin); // "cusp" of a loop is after it breaks
 
                 let mut body_brewery = brewery.subbrewery();
                 body_brewery.push_loop_context(
@@ -201,19 +209,19 @@ impl Cursor {
             validated::ExprData::Share(place) => {
                 let (place, origins) = self.brew_place(brewery, *place);
                 self.push_assignment(brewery, target, bir::ExprData::Share(place), origin);
-                self.push_cusps(brewery, Some(target), origins, origin);
+                self.push_breakpoint_ends(brewery, Some(target), origins, origin);
             }
 
             validated::ExprData::Lease(place) => {
                 let (place, origins) = self.brew_place(brewery, *place);
                 self.push_assignment(brewery, target, bir::ExprData::Lease(place), origin);
-                self.push_cusps(brewery, Some(target), origins, origin);
+                self.push_breakpoint_ends(brewery, Some(target), origins, origin);
             }
 
             validated::ExprData::Give(place) => {
                 let (place, origins) = self.brew_place(brewery, *place);
                 self.push_assignment(brewery, target, bir::ExprData::Give(place), origin);
-                self.push_cusps(brewery, Some(target), origins, origin)
+                self.push_breakpoint_ends(brewery, Some(target), origins, origin)
             }
 
             validated::ExprData::BooleanLiteral(value) => {
@@ -223,7 +231,7 @@ impl Cursor {
                     bir::ExprData::BooleanLiteral(*value),
                     origin,
                 );
-                self.push_cusp(brewery, Some(target), origin);
+                self.push_breakpoint_end(brewery, Some(target), origin);
             }
 
             validated::ExprData::IntegerLiteral(value) => {
@@ -233,7 +241,7 @@ impl Cursor {
                     bir::ExprData::IntegerLiteral(*value),
                     origin,
                 );
-                self.push_cusp(brewery, Some(target), origin);
+                self.push_breakpoint_end(brewery, Some(target), origin);
             }
 
             validated::ExprData::StringLiteral(value) => {
@@ -243,7 +251,7 @@ impl Cursor {
                     bir::ExprData::StringLiteral(*value),
                     origin,
                 );
-                self.push_cusp(brewery, Some(target), origin);
+                self.push_breakpoint_end(brewery, Some(target), origin);
             }
 
             validated::ExprData::Tuple(exprs) => {
@@ -259,7 +267,7 @@ impl Cursor {
                         assert_ne!(values.len(), 1);
                         self.push_assignment(brewery, target, bir::ExprData::Tuple(values), origin);
                     }
-                    self.push_cusp(brewery, Some(target), origin);
+                    self.push_breakpoint_end(brewery, Some(target), origin);
                 }
             }
 
@@ -272,7 +280,7 @@ impl Cursor {
                             bir::ExprData::Op(lhs, *op, rhs),
                             origin,
                         );
-                        self.push_cusp(brewery, Some(target), origin);
+                        self.push_breakpoint_end(brewery, Some(target), origin);
                     }
                 }
             }
@@ -283,10 +291,10 @@ impl Cursor {
                         self.brew_expr_for_side_effects(brewery, *e);
                     }
                     self.brew_expr_and_assign_to(brewery, target, *last_expr);
-                    self.push_cusp(brewery, Some(target), origin);
+                    self.push_breakpoint_end(brewery, Some(target), origin);
                 } else {
                     self.push_assignment(brewery, target, bir::ExprData::Unit, origin);
-                    self.push_cusp(brewery, Some(target), origin);
+                    self.push_breakpoint_end(brewery, Some(target), origin);
                 }
             }
 
@@ -321,7 +329,7 @@ impl Cursor {
                             },
                             origin,
                         );
-                        self.push_cusp(brewery, Some(target), origin);
+                        self.push_breakpoint_end(brewery, Some(target), origin);
                     }
                 }
             }
@@ -334,7 +342,7 @@ impl Cursor {
                 self.brew_expr_and_assign_to(brewery, target, *subexpr);
 
                 self.terminate_and_continue(brewery, bir::TerminatorData::EndAtomic, origin);
-                self.push_cusp(brewery, Some(target), origin);
+                self.push_breakpoint_end(brewery, Some(target), origin);
             }
 
             validated::ExprData::Error

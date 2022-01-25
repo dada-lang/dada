@@ -11,22 +11,6 @@
                     Expr(0),
                 ),
                 (
-                    Cusp(
-                        Some(
-                            temp{1},
-                        ),
-                    ),
-                    Expr(0),
-                ),
-                (
-                    Cusp(
-                        Some(
-                            temp{1},
-                        ),
-                    ),
-                    Expr(0),
-                ),
-                (
                     Assign(
                         temp{8},
                         temp{1}.give,
@@ -37,14 +21,6 @@
                     Assign(
                         temp{2},
                         "Hello ",
-                    ),
-                    Expr(1),
-                ),
-                (
-                    Cusp(
-                        Some(
-                            temp{2},
-                        ),
                     ),
                     Expr(1),
                 ),
@@ -71,16 +47,7 @@
             ),
         ),
         BasicBlock(1): BasicBlockData(
-            [
-                (
-                    Cusp(
-                        Some(
-                            temp{7},
-                        ),
-                    ),
-                    Expr(2),
-                ),
-            ],
+            [],
             Assign(
                 temp{6},
                 Await(
@@ -92,33 +59,9 @@
         BasicBlock(2): BasicBlockData(
             [
                 (
-                    Cusp(
-                        Some(
-                            temp{6},
-                        ),
-                    ),
-                    Expr(3),
-                ),
-                (
                     Assign(
                         temp{3},
                         Print.give,
-                    ),
-                    Expr(4),
-                ),
-                (
-                    Cusp(
-                        Some(
-                            temp{3},
-                        ),
-                    ),
-                    Expr(4),
-                ),
-                (
-                    Cusp(
-                        Some(
-                            temp{3},
-                        ),
                     ),
                     Expr(4),
                 ),
@@ -133,22 +76,6 @@
                     Assign(
                         temp{4},
                         name{0}.give,
-                    ),
-                    Expr(5),
-                ),
-                (
-                    Cusp(
-                        Some(
-                            temp{4},
-                        ),
-                    ),
-                    Expr(5),
-                ),
-                (
-                    Cusp(
-                        Some(
-                            temp{4},
-                        ),
                     ),
                     Expr(5),
                 ),
@@ -175,16 +102,7 @@
             ),
         ),
         BasicBlock(3): BasicBlockData(
-            [
-                (
-                    Cusp(
-                        Some(
-                            temp{10},
-                        ),
-                    ),
-                    Expr(6),
-                ),
-            ],
+            [],
             Assign(
                 temp{5},
                 Await(
@@ -194,24 +112,7 @@
             ),
         ),
         BasicBlock(4): BasicBlockData(
-            [
-                (
-                    Cusp(
-                        Some(
-                            temp{5},
-                        ),
-                    ),
-                    Expr(7),
-                ),
-                (
-                    Cusp(
-                        Some(
-                            temp{5},
-                        ),
-                    ),
-                    Expr(8),
-                ),
-            ],
+            [],
             Return(
                 temp{5},
             ),
@@ -229,22 +130,6 @@
                     Expr(0),
                 ),
                 (
-                    Cusp(
-                        Some(
-                            temp{0},
-                        ),
-                    ),
-                    Expr(0),
-                ),
-                (
-                    Cusp(
-                        Some(
-                            temp{0},
-                        ),
-                    ),
-                    Expr(0),
-                ),
-                (
                     Assign(
                         temp{4},
                         temp{0}.give,
@@ -255,14 +140,6 @@
                     Assign(
                         temp{1},
                         "Pluschplusch",
-                    ),
-                    Expr(1),
-                ),
-                (
-                    Cusp(
-                        Some(
-                            temp{1},
-                        ),
                     ),
                     Expr(1),
                 ),
@@ -289,16 +166,7 @@
             ),
         ),
         BasicBlock(1): BasicBlockData(
-            [
-                (
-                    Cusp(
-                        Some(
-                            temp{3},
-                        ),
-                    ),
-                    Expr(2),
-                ),
-            ],
+            [],
             Assign(
                 temp{2},
                 Await(
@@ -308,24 +176,7 @@
             ),
         ),
         BasicBlock(2): BasicBlockData(
-            [
-                (
-                    Cusp(
-                        Some(
-                            temp{2},
-                        ),
-                    ),
-                    Expr(3),
-                ),
-                (
-                    Cusp(
-                        Some(
-                            temp{2},
-                        ),
-                    ),
-                    Expr(4),
-                ),
-            ],
+            [],
             Return(
                 temp{2},
             ),

@@ -1,4 +1,4 @@
-# Breakpoint: Expr(4) at dada_tests/heap-graph/cursor-position.dada:4:6:4:23
+# Breakpoint: Expr(4) at class:4:6:4:23
 digraph {
   node[shape = "note"];
   rankdir = "LR";
