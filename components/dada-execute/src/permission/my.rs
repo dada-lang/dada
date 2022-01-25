@@ -3,7 +3,7 @@ use crate::interpreter::Interpreter;
 use super::{invalidated::Invalidated, tenant::Tenant, Permission, PermissionData};
 
 #[derive(Debug)]
-pub(super) struct My {
+pub(crate) struct My {
     /// Owners permissions are invalidated when they are given
     /// away.
     given: Invalidated,
@@ -66,5 +66,9 @@ impl My {
 
     pub(crate) fn is_valid(&self) -> bool {
         self.given.is_valid()
+    }
+
+    pub(crate) fn peek_tenant(&self) -> Option<Permission> {
+        self.tenant.peek_tenant()
     }
 }

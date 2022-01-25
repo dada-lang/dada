@@ -6,7 +6,7 @@ use super::{invalidated::Invalidated, tenant::Tenant, Permission, PermissionData
 
 /// Represents an "Exclusive Lease" (nobody else has access during the lease)
 #[derive(Debug)]
-pub(super) struct Leased {
+pub(crate) struct Leased {
     granted: Moment,
 
     /// Leased permissions are invalidated when they are canceled by
@@ -58,7 +58,7 @@ impl Leased {
         Ok(())
     }
 
-    pub(crate) fn check_await(&self, interpreter: &Interpreter) -> eyre::Result<()> {
+    pub(super) fn check_await(&self, interpreter: &Interpreter) -> eyre::Result<()> {
         let span_now = interpreter.span_now();
         let span_then = interpreter.span(self.granted);
         Err(error!(span_now, "leased permission does not permit await")
@@ -66,7 +66,11 @@ impl Leased {
             .eyre(interpreter.db()))
     }
 
-    pub(crate) fn is_valid(&self) -> bool {
+    pub(super) fn is_valid(&self) -> bool {
         self.canceled.is_valid()
+    }
+
+    pub(crate) fn peek_tenant(&self) -> Option<Permission> {
+        self.tenant.peek_tenant()
     }
 }

@@ -5,7 +5,7 @@ use crate::{error::DiagnosticBuilderExt, interpreter::Interpreter, moment::Momen
 use super::{Permission, PermissionData};
 
 #[derive(Debug)]
-pub(super) struct Our {
+pub(crate) struct Our {
     granted: Moment,
 }
 

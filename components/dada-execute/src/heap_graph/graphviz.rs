@@ -1,8 +1,8 @@
-use dada_collections::IndexSet;
+use dada_collections::{IndexSet, Map};
 use dada_id::InternKey;
 use dada_parse::prelude::*;
 
-use super::{DataNode, HeapGraph, ValueEdge};
+use super::{DataNode, HeapGraph, PermissionNode, ValueEdge, ValueEdgeTarget};
 
 impl HeapGraph {
     pub fn graphviz(&self, db: &dyn crate::Db, include_temporaries: bool) -> String {
@@ -14,7 +14,8 @@ impl HeapGraph {
             include_temporaries,
             node_queue: Default::default(),
             node_set: Default::default(),
-            edge_list: vec![],
+            permissions: Default::default(),
+            value_edge_list: vec![],
         };
         self.to_graphviz(&mut writer).unwrap();
         String::from_utf8(output).unwrap()
@@ -62,19 +63,44 @@ impl HeapGraph {
 
         self.print_heap(w)?;
 
-        let edge_list = std::mem::take(&mut w.edge_list);
-        for edge in edge_list {
+        let value_edge_list = std::mem::take(&mut w.value_edge_list);
+        for value_edge in &value_edge_list {
+            let permission_data = value_edge.permission.data(&self.tables);
+            let label = permission_data.label.as_str();
+
+            let style = if permission_data.tenant.is_some() {
+                "dotted"
+            } else {
+                "solid"
+            };
+
             w.println(format!(
-                r#"{source:?}:{source_port} -> {target:?}"#,
-                source = edge.source,
-                source_port = edge.source_port,
-                target = edge.target,
+                r#"{source:?}:{source_port} -> {target:?} [label={label:?}, style={style:?}];"#,
+                source = value_edge.source.node,
+                source_port = value_edge.source.port,
+                target = value_edge.target,
             ))?;
         }
 
         w.undent("}")?;
 
         Ok(())
+    }
+
+    fn find_lessor_place<'w>(
+        &self,
+        w: &'w GraphvizWriter<'_>,
+        permission: PermissionNode,
+    ) -> Vec<GraphvizPlace> {
+        if let Some(place) = w.permissions.get(&permission) {
+            return place.clone();
+        }
+
+        if let Some(lessor) = permission.data(&self.tables).lessor {
+            return self.find_lessor_place(w, lessor);
+        }
+
+        vec![]
     }
 
     fn print_stack(&self, w: &mut GraphvizWriter<'_>) -> eyre::Result<()> {
@@ -132,11 +158,15 @@ impl HeapGraph {
         Ok(())
     }
 
-    fn print_heap_node(&self, w: &mut GraphvizWriter<'_>, edge: ValueEdge) -> eyre::Result<()> {
+    fn print_heap_node(
+        &self,
+        w: &mut GraphvizWriter<'_>,
+        edge: ValueEdgeTarget,
+    ) -> eyre::Result<()> {
         let name = w.node_name(&edge);
         w.indent(format!(r#"{name} ["#))?;
         match edge {
-            ValueEdge::ToObject(o) => {
+            ValueEdgeTarget::Object(o) => {
                 let data = o.data(&self.tables);
                 let fields = data.class.fields(w.db);
                 let field_names = fields
@@ -148,15 +178,15 @@ impl HeapGraph {
                 self.print_fields(w, &name, field_names, &data.fields, 0)?;
                 w.undent(r#"</table>>"#)?;
             }
-            ValueEdge::ToClass(c) => {
+            ValueEdgeTarget::Class(c) => {
                 let name = c.name(w.db).as_str(w.db);
                 w.println(format!(r#"label = <<b>{name}</b>>"#))?;
             }
-            ValueEdge::ToFunction(f) => {
+            ValueEdgeTarget::Function(f) => {
                 let name = f.name(w.db).as_str(w.db);
                 w.println(format!(r#"label = <<b>{name}()</b>>"#))?;
             }
-            ValueEdge::ToData(d) => {
+            ValueEdgeTarget::Data(d) => {
                 let data_str = self.data_str(d);
                 w.println(format!(r#"label = {data_str:?}"#))?;
             }
@@ -190,14 +220,22 @@ impl HeapGraph {
     ) -> Result<(), eyre::Error> {
         let edge: &ValueEdge = edge;
         if let Some(name) = name {
-            if let ValueEdge::ToData(d) = edge {
-                let data_str = self.data_str(*d);
+            w.permissions
+                .entry(edge.permission)
+                .or_insert(vec![])
+                .push(GraphvizPlace {
+                    node: source.to_string(),
+                    port: index,
+                });
+
+            if let ValueEdgeTarget::Data(d) = edge.target {
+                let data_str = self.data_str(d);
                 w.println(format!(
                     r#"<tr><td port="{index}">{name}: {data_str}</td></tr>"#,
                 ))?;
             } else {
                 w.println(format!(r#"<tr><td port="{index}">{name}</td></tr>"#))?;
-                w.push_edge(source, index, edge);
+                w.push_value_edge(source, index, edge, edge.permission);
             }
         }
         Ok(())
@@ -213,36 +251,53 @@ impl HeapGraph {
             format!("{}[...]{}", &data[0..20], &data[len..])
         }
     }
-
-    fn print_edge(
-        &mut self,
-        w: &mut GraphvizWriter<'_>,
-        source_name: &str,
-        source_index: usize,
-        target: &ValueEdge,
-    ) -> eyre::Result<()> {
-        let target_name = w.node_name(target);
-        w.println(format!(
-            r#"{source_name}:{source_index} -> "{target_name}""#
-        ))?;
-        Ok(())
-    }
 }
 
 struct GraphvizWriter<'w> {
+    /// If true, include temporary variables from stack frames
+    /// in the output (usually false).
     include_temporaries: bool,
-    node_queue: Vec<ValueEdge>,
-    node_set: IndexSet<ValueEdge>,
-    edge_list: Vec<GraphvizEdge>,
+
+    /// Queue of edges to process.
+    node_queue: Vec<ValueEdgeTarget>,
+
+    /// Set of all edges we have ever processed; when a new edge
+    /// is added to this set, it is pushed to the queue.
+    node_set: IndexSet<ValueEdgeTarget>,
+
+    /// A collection of edges from fields to their values,
+    /// accumulated as we walk the `HeapGraph` and then
+    /// dumped out at the end.
+    value_edge_list: Vec<GraphvizValueEdge>,
+
+    /// Maps from each permission to the place whose value has it.
+    permissions: Map<PermissionNode, Vec<GraphvizPlace>>,
+
+    /// The crate database.
     db: &'w dyn crate::Db,
+
+    /// Where we write the output.
     writer: &'w mut dyn std::io::Write,
+
+    /// Current indentation in spaces.
     indent: usize,
 }
 
-struct GraphvizEdge {
-    source: String,
-    source_port: usize,
+/// Identifies a particular "place" in the graphviz output;
+/// this is either a field or a local variable.
+#[derive(Clone, Debug)]
+struct GraphvizPlace {
+    /// Id of the node within graphviz.
+    node: String,
+
+    /// Port of the row for this field.
+    port: usize,
+}
+
+struct GraphvizValueEdge {
+    source: GraphvizPlace,
     target: String,
+    permission: PermissionNode,
 }
 
 impl GraphvizWriter<'_> {
@@ -269,16 +324,25 @@ impl GraphvizWriter<'_> {
         self.println(s)
     }
 
-    fn push_edge(&mut self, source: &str, source_port: usize, target: &ValueEdge) {
-        let name = self.node_name(target);
-        self.edge_list.push(GraphvizEdge {
-            source: source.to_string(),
-            source_port,
+    fn push_value_edge(
+        &mut self,
+        source: &str,
+        source_port: usize,
+        edge: &ValueEdge,
+        permission: PermissionNode,
+    ) {
+        let name = self.node_name(&edge.target);
+        self.value_edge_list.push(GraphvizValueEdge {
+            source: GraphvizPlace {
+                node: source.to_string(),
+                port: source_port,
+            },
             target: name,
+            permission,
         });
     }
 
-    fn node_name(&mut self, edge: &ValueEdge) -> String {
+    fn node_name(&mut self, edge: &ValueEdgeTarget) -> String {
         let (index, new) = self.node_set.insert_full(*edge);
         if new {
             self.node_queue.push(*edge);

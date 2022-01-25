@@ -6,7 +6,7 @@ use super::{Permission, PermissionData};
 
 /// Core struct for any unique permission
 #[derive(Default, Debug)]
-pub(super) struct Tenant {
+pub(crate) struct Tenant {
     /// Has this permission been leased or shared?
     tenant: ArcSwapOption<PermissionData>,
 }
@@ -42,5 +42,9 @@ impl Tenant {
                 self.tenant.store(None);
             }
         }
+    }
+
+    pub(crate) fn peek_tenant(&self) -> Option<Permission> {
+        self.tenant.load_full().map(Permission::new)
     }
 }

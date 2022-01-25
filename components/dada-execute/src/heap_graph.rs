@@ -14,7 +14,7 @@ use dada_ir::{
     word::Word,
 };
 
-use crate::{interpreter::Interpreter, moment::Moment, StackFrame};
+use crate::{interpreter::Interpreter, StackFrame};
 
 mod capture;
 mod graphviz;
@@ -47,6 +47,7 @@ tables! {
         stack_frame_nodes: alloc StackFrameNode => StackFrameNodeData,
         objects: alloc ObjectNode => ObjectNodeData,
         datas: alloc DataNode => DataNodeData,
+        permissions: alloc PermissionNode => PermissionNodeData,
     }
 }
 
@@ -76,12 +77,17 @@ pub(crate) struct ObjectNodeData {
 }
 
 #[derive(Copy, Clone, Debug, Hash, PartialEq, Eq)]
-#[allow(clippy::enum_variant_names)]
-pub(crate) enum ValueEdge {
-    ToObject(ObjectNode),
-    ToClass(Class),
-    ToFunction(Function),
-    ToData(DataNode),
+pub(crate) struct ValueEdge {
+    permission: PermissionNode,
+    target: ValueEdgeTarget,
+}
+
+#[derive(Copy, Clone, Debug, Hash, PartialEq, Eq)]
+pub(crate) enum ValueEdgeTarget {
+    Object(ObjectNode),
+    Class(Class),
+    Function(Function),
+    Data(DataNode),
 }
 
 id!(pub(crate) struct DataNode);
@@ -94,26 +100,34 @@ pub(crate) struct DataNodeData {
 id!(pub(crate) struct PermissionNode);
 
 #[derive(Debug)]
-pub(crate) enum PermissionNodeData {
-    My {
-        granted: Moment,
-    },
+pub(crate) struct PermissionNodeData {
+    label: PermissionNodeLabel,
 
-    Our {
-        granted: Moment,
-    },
+    /// If `Some`, then this permission is leased by somebody else.
+    tenant: Option<PermissionNode>,
 
-    Leased {
-        granted: Moment,
-        lessor: PermissionNode,
-    },
+    /// If `Some`, then this permission is leased from the given
+    /// permission, which must be a unique (my or leased) permission.
+    lessor: Option<PermissionNode>,
+}
 
-    Shared {
-        granted: Moment,
-        lessor: PermissionNode,
-    },
+#[derive(Copy, Clone, Debug)]
+pub(crate) enum PermissionNodeLabel {
+    My,
+    Our,
+    Leased,
+    Shared,
+    Expired,
+}
 
-    Expired {
-        canceled: Moment,
-    },
+impl PermissionNodeLabel {
+    pub(crate) fn as_str(&self) -> &'static str {
+        match self {
+            PermissionNodeLabel::My => "my",
+            PermissionNodeLabel::Our => "our",
+            PermissionNodeLabel::Leased => "leased",
+            PermissionNodeLabel::Shared => "shared",
+            PermissionNodeLabel::Expired => "expired",
+        }
+    }
 }

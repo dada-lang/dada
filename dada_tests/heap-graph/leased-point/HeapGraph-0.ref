@@ -1,4 +1,4 @@
-# Breakpoint: Expr(4) at dada_tests/heap-graph/nested-points.dada:5:6:5:23
+# Breakpoint: Expr(11) at dada_tests/heap-graph/leased-point.dada:4:5:5:28
 digraph {
   node[shape = "note"];
   rankdir = "LR";
@@ -11,11 +11,19 @@ digraph {
         <table border="0">
         <tr><td border="1">main</td></tr>
         <tr><td port="0">p</td></tr>
-        <tr><td port="5">q: ()</td></tr>
+        <tr><td port="5">q</td></tr>
+        <tr><td port="17">(in-flight): ()</td></tr>
         </table>
       >;
     ];
   }
+  node1 [
+    label = <<table border="0">
+      <tr><td border="1">Point</td></tr>
+      <tr><td port="0">x</td></tr>
+      <tr><td port="1">y: 66</td></tr>
+    </table>>
+  ];
   node0 [
     label = <<table border="0">
       <tr><td border="1">Point</td></tr>
@@ -23,6 +31,8 @@ digraph {
       <tr><td port="1">y: 44</td></tr>
     </table>>
   ];
-  "stack":0 -> "node0" [label="my", style="solid"];
+  "stack":0 -> "node0" [label="my", style="dotted"];
+  "stack":5 -> "node1" [label="my", style="solid"];
+  "node1":0 -> "node0" [label="leased", style="solid"];
 }
 breakpoint expression encountered
