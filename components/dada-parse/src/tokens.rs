@@ -6,6 +6,10 @@ pub(crate) struct Tokens<'me> {
 
     /// Span of last token consumed.
     last_span: Span,
+
+    /// Span of last token consumed.
+    last_not_skipped_span: Span,
+
     skipped: Skipped,
     tokens: &'me [Token],
 }
@@ -24,6 +28,7 @@ impl<'me> Tokens<'me> {
         let mut this = Tokens {
             db,
             last_span: start_span,
+            last_not_skipped_span: start_span,
             tokens,
             skipped: Skipped::None,
         };
@@ -31,15 +36,20 @@ impl<'me> Tokens<'me> {
         this
     }
 
-    fn next_token(&mut self) -> Option<Token> {
-        if self.tokens.is_empty() {
-            return None;
+    /// Advance to the next token; if `skipped` is true, the
+    /// current token is being skipped, so we should not update
+    /// `last_span`
+    fn next_token(&mut self, skipped: bool) -> Option<Token> {
+        if let Some(result) = self.peek() {
+            self.last_span = self.peek_span();
+            if !skipped {
+                self.last_not_skipped_span = self.last_span;
+            }
+            self.tokens = &self.tokens[1..];
+            Some(result)
+        } else {
+            None
         }
-        self.last_span = self.peek_span();
-        let result = self.peek();
-        self.tokens = &self.tokens[1..];
-
-        result
     }
 
     /// True if we skipped a newline after consuming
@@ -54,25 +64,34 @@ impl<'me> Tokens<'me> {
         self.skipped >= Skipped::Any
     }
 
+    /// If `token` is a token that should be skipped, returns `Some(s)`
+    /// with the appropriate skip category. Else returns `None`.
+    fn should_skip_token(&self, token: Token) -> Option<Skipped> {
+        match token {
+            Token::Whitespace('\n') => Some(Skipped::Newline),
+            Token::Whitespace(_) => Some(Skipped::Any),
+            Token::Comment(_) => Some(Skipped::Any),
+            _ => None,
+        }
+    }
+
     /// Skip tokens that the parser doesn't want to see,
     /// such as whitespace.
     fn skip_tokens(&mut self) {
         self.skipped = Skipped::None;
         while let Some(t) = self.peek() {
-            match t {
-                Token::Whitespace('\n') => self.skipped = self.skipped.max(Skipped::Newline),
-                Token::Whitespace(_) => self.skipped = self.skipped.max(Skipped::Any),
-                Token::Comment(_) => self.skipped = self.skipped.max(Skipped::Any),
-                _ => return,
+            if let Some(skipped) = self.should_skip_token(t) {
+                self.skipped = self.skipped.max(skipped);
+                self.next_token(true);
+            } else {
+                break;
             }
-
-            self.next_token();
         }
     }
 
     /// Advance by one token and return the span + token just consumed (if any).
     pub(crate) fn consume(&mut self) -> Option<Token> {
-        let token = self.next_token()?;
+        let token = self.next_token(false)?;
 
         self.skip_tokens();
 
@@ -81,8 +100,9 @@ impl<'me> Tokens<'me> {
     }
 
     /// Span of the previously consumed token (or `Span::start` otherwise).
+    /// Does not include any skipped tokens.
     pub(crate) fn last_span(&self) -> Span {
-        self.last_span
+        self.last_not_skipped_span
     }
 
     /// Span of the next pending token (or last span if there are no more tokens).

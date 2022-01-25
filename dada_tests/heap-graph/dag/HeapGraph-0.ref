@@ -1,4 +1,4 @@
-# Breakpoint: Expr(9) at dada_tests/heap-graph/dag.dada:5:10:8:65
+# Breakpoint: Expr(11) at dada_tests/heap-graph/dag.dada:4:5:5:21
 digraph {
   node[shape = "note"];
   rankdir = "LR";
@@ -11,8 +11,8 @@ digraph {
         <table border="0">
         <tr><td border="1">main</td></tr>
         <tr><td port="0">p</td></tr>
-        <tr><td port="6">q: ()</td></tr>
-        <tr><td port="18">(in-flight)</td></tr>
+        <tr><td port="6">q</td></tr>
+        <tr><td port="18">(in-flight): ()</td></tr>
         </table>
       >;
     ];
@@ -32,7 +32,7 @@ digraph {
     </table>>
   ];
   "stack":0 -> "node0"
-  "stack":18 -> "node1"
+  "stack":6 -> "node1"
   "node1":0 -> "node0"
   "node1":1 -> "node0"
 }
