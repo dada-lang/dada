@@ -34,7 +34,7 @@ impl super::Options {
 
         let mut kernel = BufferKernel::new()
             .stop_at_breakpoint(true)
-            .breakpoint_callback(|db, kernel, graph| kernel.append(&graph.graphviz(db, false)));
+            .breakpoint_callback(|db, kernel, record| kernel.append(&record.to_graphviz(db)));
 
         if let Some(breakpoint) = breakpoint {
             kernel.append(&format!(

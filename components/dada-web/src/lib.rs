@@ -90,7 +90,7 @@ impl DadaCompiler {
         };
 
         self.output = kernel.take_buffer();
-        let heap_graphs = kernel.take_heap_graphs();
+        let heap_graphs = kernel.take_recorded_breakpoints();
 
         tracing::info!(
             "Execution complete: \
@@ -110,7 +110,7 @@ impl DadaCompiler {
 
         self.heap_capture = heap_graphs
             .into_iter()
-            .map(|hg| hg.graphviz(&self.db, false))
+            .map(|record| record.to_graphviz(&self.db))
             .collect();
 
         self

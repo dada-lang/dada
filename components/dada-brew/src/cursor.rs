@@ -100,6 +100,34 @@ impl Cursor {
         }
     }
 
+    /// If any of the origins in `origins`, or `origin`, is a breakpoint expression,
+    /// push a "breakpoint-start" statement onto the current basic block.
+    pub(crate) fn push_breakpoint_starts(
+        &mut self,
+        brewery: &mut Brewery<'_>,
+        origins: impl IntoIterator<Item = ExprOrigin>,
+        origin: ExprOrigin,
+    ) {
+        for o in origins.into_iter().chain(Some(origin)) {
+            self.push_breakpoint_start(brewery, o);
+        }
+    }
+
+    /// If `origin` is a breakpoint expression, push a "breakpoint-start"
+    /// statement onto the current basic block.
+    pub(crate) fn push_breakpoint_start(&mut self, brewery: &mut Brewery<'_>, origin: ExprOrigin) {
+        if !origin.synthesized && self.end_block.is_some() {
+            if let Some(breakpoint_index) = brewery.expr_is_breakpoint(origin.syntax_expr) {
+                let filename = brewery.code().filename(brewery.db());
+                let statement = brewery.add(
+                    bir::StatementData::BreakpointStart(filename, breakpoint_index),
+                    origin,
+                );
+                self.push_statement(brewery, statement);
+            }
+        }
+    }
+
     /// Push breakpoint-end expressions for each origin in `origins`.
     /// Used when evaluating something like `a.b.c.give`:
     /// the cusps for `a`, `a.b`, and `a.b.c` are all emitted
@@ -111,8 +139,8 @@ impl Cursor {
         origins: impl IntoIterator<Item = ExprOrigin>,
         origin: ExprOrigin,
     ) {
-        for origin in origins.into_iter().chain(Some(origin)) {
-            self.push_breakpoint_end(brewery, place, origin);
+        for o in origins.into_iter().chain(Some(origin)) {
+            self.push_breakpoint_end(brewery, place, o);
         }
     }
 

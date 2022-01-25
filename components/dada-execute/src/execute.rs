@@ -157,6 +157,14 @@ impl StackFrame<'_> {
                         let expr_value = self.evaluate_bir_expr(interpreter, *expr)?;
                         self.assign_place(interpreter, *place, expr_value)?;
                     }
+                    dada_ir::code::bir::StatementData::BreakpointStart(filename, index) => {
+                        interpreter.kernel().breakpoint_start(
+                            interpreter.db(),
+                            *filename,
+                            *index,
+                            &|| HeapGraph::new(interpreter, &self, None),
+                        )?;
+                    }
                     dada_ir::code::bir::StatementData::BreakpointEnd(filename, index, place) => {
                         interpreter.kernel().breakpoint_end(
                             interpreter.db(),

@@ -2,38 +2,61 @@
 digraph {
   node[shape = "note"];
   rankdir = "LR";
-  subgraph cluster_stack {
-    label=<<b>stack</b>>
-    rank="source";
-    stack[
-      shape="none";
-      label=<
-        <table border="0">
-        <tr><td border="1">main</td></tr>
-        <tr><td port="0">name: "Fellow Dadaist"</td></tr>
-        <tr><td border="1">helper</td></tr>
-        <tr><td port="18">p: ()</td></tr>
-        <tr><td port="23">q: ()</td></tr>
-        <tr><td port="35">(in-flight)</td></tr>
-        </table>
-      >;
+  subgraph cluster_after {
+    label=<<b>after</b>>
+    subgraph cluster_afterstack {
+      label=<<b>stack</b>>
+      rank="source";
+      afterstack[
+        shape="none";
+        label=<
+          <table border="0">
+          <tr><td border="1">main</td></tr>
+          <tr><td port="0">name: "Fellow Dadaist"</td></tr>
+          <tr><td border="1">helper</td></tr>
+          <tr><td port="18">p: ()</td></tr>
+          <tr><td port="23">q: ()</td></tr>
+          <tr><td port="35">(in-flight)</td></tr>
+          </table>
+        >;
+      ];
+    }
+    afternode0 [
+      label = <<table border="0">
+        <tr><td border="1">Point</td></tr>
+        <tr><td port="0">x</td></tr>
+        <tr><td port="1">y: 66</td></tr>
+      </table>>
     ];
+    afternode1 [
+      label = <<table border="0">
+        <tr><td border="1">Point</td></tr>
+        <tr><td port="0">x: 22</td></tr>
+        <tr><td port="1">y: 44</td></tr>
+      </table>>
+    ];
+    "stack":35 -> "afternode0" [label="my", style="solid"];
+    "afternode0":0 -> "afternode1" [label="my", style="solid"];
   }
-  node0 [
-    label = <<table border="0">
-      <tr><td border="1">Point</td></tr>
-      <tr><td port="0">x</td></tr>
-      <tr><td port="1">y: 66</td></tr>
-    </table>>
-  ];
-  node1 [
-    label = <<table border="0">
-      <tr><td border="1">Point</td></tr>
-      <tr><td port="0">x: 22</td></tr>
-      <tr><td port="1">y: 44</td></tr>
-    </table>>
-  ];
-  "stack":35 -> "node0" [label="my", style="solid"];
-  "node0":0 -> "node1" [label="my", style="solid"];
+  subgraph cluster_before {
+    label=<<b>before</b>>
+    subgraph cluster_beforestack {
+      label=<<b>stack</b>>
+      rank="source";
+      beforestack[
+        shape="none";
+        label=<
+          <table border="0">
+          <tr><td border="1">main</td></tr>
+          <tr><td port="0">name: "Fellow Dadaist"</td></tr>
+          <tr><td border="1">helper</td></tr>
+          <tr><td port="18">p</td></tr>
+          <tr><td port="23">q: ()</td></tr>
+          </table>
+        >;
+      ];
+    }
+    "beforestack":18 -> "beforenode0" [label="my", style="solid"];
+  }
 }
 breakpoint expression encountered

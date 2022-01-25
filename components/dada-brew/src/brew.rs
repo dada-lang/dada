@@ -64,6 +64,7 @@ impl Cursor {
                 from_expr,
                 with_value,
             } => {
+                self.push_breakpoint_start(brewery, origin);
                 let loop_context = brewery.loop_context(*from_expr);
                 self.brew_expr_and_assign_to(brewery, loop_context.loop_value, *with_value);
                 self.push_breakpoint_end(brewery, Some(loop_context.loop_value), origin);
@@ -71,12 +72,14 @@ impl Cursor {
             }
 
             validated::ExprData::Continue(from_expr) => {
+                self.push_breakpoint_start(brewery, origin);
                 let loop_context = brewery.loop_context(*from_expr);
                 self.push_breakpoint_end(brewery, None, origin);
                 self.terminate_and_goto(brewery, loop_context.continue_block, origin);
             }
 
             validated::ExprData::Return(value_expr) => {
+                self.push_breakpoint_start(brewery, origin);
                 if let Some(value_place) = self.brew_expr_to_temporary(brewery, *value_expr) {
                     self.push_breakpoint_end(brewery, Some(value_place), origin);
                     self.terminate_and_diverge(
@@ -88,11 +91,13 @@ impl Cursor {
             }
 
             validated::ExprData::Error => {
+                self.push_breakpoint_start(brewery, origin);
                 self.push_breakpoint_end(brewery, None, origin);
                 self.terminate_and_diverge(brewery, bir::TerminatorData::Error, origin)
             }
 
             validated::ExprData::Assign(place, value_expr) => {
+                self.push_breakpoint_start(brewery, origin);
                 let (place, origins) = self.brew_place(brewery, *place);
                 self.brew_expr_and_assign_to(brewery, place, *value_expr);
                 self.push_breakpoint_ends(brewery, None, origins, origin)
@@ -142,6 +147,7 @@ impl Cursor {
         let origin = brewery.origin(expr);
         match expr.data(brewery.validated_tables()) {
             validated::ExprData::Await(future) => {
+                self.push_breakpoint_start(brewery, origin);
                 if let Some(place) = self.brew_expr_to_temporary(brewery, *future) {
                     self.terminate_and_continue(
                         brewery,
@@ -159,6 +165,7 @@ impl Cursor {
             }
 
             validated::ExprData::If(condition, if_true, if_false) => {
+                self.push_breakpoint_start(brewery, origin);
                 if let Some(condition_place) = self.brew_expr_to_temporary(brewery, *condition) {
                     let if_true_block = brewery.dummy_block(origin);
                     let if_false_block = brewery.dummy_block(origin);
@@ -180,6 +187,7 @@ impl Cursor {
             }
 
             validated::ExprData::Loop(body) => {
+                self.push_breakpoint_start(brewery, origin);
                 let body_block = brewery.dummy_block(origin);
                 let break_block = self.terminate_and_continue(
                     brewery,
@@ -208,23 +216,27 @@ impl Cursor {
 
             validated::ExprData::Share(place) => {
                 let (place, origins) = self.brew_place(brewery, *place);
+                self.push_breakpoint_starts(brewery, origins.iter().copied(), origin);
                 self.push_assignment(brewery, target, bir::ExprData::Share(place), origin);
                 self.push_breakpoint_ends(brewery, Some(target), origins, origin);
             }
 
             validated::ExprData::Lease(place) => {
                 let (place, origins) = self.brew_place(brewery, *place);
+                self.push_breakpoint_starts(brewery, origins.iter().copied(), origin);
                 self.push_assignment(brewery, target, bir::ExprData::Lease(place), origin);
                 self.push_breakpoint_ends(brewery, Some(target), origins, origin);
             }
 
             validated::ExprData::Give(place) => {
                 let (place, origins) = self.brew_place(brewery, *place);
+                self.push_breakpoint_starts(brewery, origins.iter().copied(), origin);
                 self.push_assignment(brewery, target, bir::ExprData::Give(place), origin);
                 self.push_breakpoint_ends(brewery, Some(target), origins, origin)
             }
 
             validated::ExprData::BooleanLiteral(value) => {
+                self.push_breakpoint_start(brewery, origin);
                 self.push_assignment(
                     brewery,
                     target,
@@ -235,6 +247,7 @@ impl Cursor {
             }
 
             validated::ExprData::IntegerLiteral(value) => {
+                self.push_breakpoint_start(brewery, origin);
                 self.push_assignment(
                     brewery,
                     target,
@@ -245,6 +258,7 @@ impl Cursor {
             }
 
             validated::ExprData::StringLiteral(value) => {
+                self.push_breakpoint_start(brewery, origin);
                 self.push_assignment(
                     brewery,
                     target,
@@ -255,6 +269,7 @@ impl Cursor {
             }
 
             validated::ExprData::Tuple(exprs) => {
+                self.push_breakpoint_start(brewery, origin);
                 if let Some(values) = exprs
                     .iter()
                     .map(|expr| self.brew_expr_to_temporary(brewery, *expr))
@@ -272,6 +287,7 @@ impl Cursor {
             }
 
             validated::ExprData::Op(lhs, op, rhs) => {
+                self.push_breakpoint_start(brewery, origin);
                 if let Some(lhs) = self.brew_expr_to_temporary(brewery, *lhs) {
                     if let Some(rhs) = self.brew_expr_to_temporary(brewery, *rhs) {
                         self.push_assignment(
@@ -286,6 +302,7 @@ impl Cursor {
             }
 
             validated::ExprData::Seq(exprs) => {
+                self.push_breakpoint_start(brewery, origin);
                 if let Some((last_expr, prefix)) = exprs.split_last() {
                     for e in prefix {
                         self.brew_expr_for_side_effects(brewery, *e);
@@ -299,11 +316,13 @@ impl Cursor {
             }
 
             validated::ExprData::Assign(_, _) => {
+                self.push_breakpoint_start(brewery, origin);
                 self.brew_expr_for_side_effects(brewery, expr);
                 self.push_assignment(brewery, target, bir::ExprData::Unit, origin);
             }
 
             validated::ExprData::Call(func, args) => {
+                self.push_breakpoint_start(brewery, origin);
                 if let Some(func_place) = self.brew_expr_to_temporary(brewery, *func) {
                     let mut places = vec![];
                     let mut names = vec![];
@@ -335,6 +354,7 @@ impl Cursor {
             }
 
             validated::ExprData::Atomic(subexpr) => {
+                self.push_breakpoint_start(brewery, origin);
                 self.terminate_and_continue(brewery, bir::TerminatorData::StartAtomic, origin);
 
                 // FIXME what if a break exits through an atomic?

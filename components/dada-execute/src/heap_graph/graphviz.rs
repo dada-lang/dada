@@ -5,10 +5,12 @@ use dada_parse::prelude::*;
 use super::{DataNode, HeapGraph, PermissionNode, ValueEdge, ValueEdgeTarget};
 
 impl HeapGraph {
-    pub fn graphviz(&self, db: &dyn crate::Db, include_temporaries: bool) -> String {
+    /// Plots this heap-graph by itself.
+    pub fn graphviz_alone(&self, db: &dyn crate::Db, include_temporaries: bool) -> String {
         let mut output = vec![];
         let mut writer = GraphvizWriter {
             db,
+            name_prefix: "",
             writer: &mut std::io::Cursor::new(&mut output),
             indent: 0,
             include_temporaries,
@@ -17,7 +19,46 @@ impl HeapGraph {
             permissions: Default::default(),
             value_edge_list: vec![],
         };
-        self.to_graphviz(&mut writer).unwrap();
+        self.to_graphviz(&mut writer, |w| self.stack_and_heap(w))
+            .unwrap();
+        String::from_utf8(output).unwrap()
+    }
+
+    /// Plots this heap-graph as the "state at start of breakpoint", with `heap_graph_end` as "state at end of breakpoint".
+    pub fn graphviz_paired(
+        &self,
+        db: &dyn crate::Db,
+        include_temporaries: bool,
+        heap_graph_end: &HeapGraph,
+    ) -> String {
+        let mut output = vec![];
+        let mut writer = GraphvizWriter {
+            db,
+            name_prefix: "",
+            writer: &mut std::io::Cursor::new(&mut output),
+            indent: 0,
+            include_temporaries,
+            node_queue: Default::default(),
+            node_set: Default::default(),
+            permissions: Default::default(),
+            value_edge_list: vec![],
+        };
+        self.to_graphviz(&mut writer, |w| {
+            w.name_prefix("after");
+            w.indent("subgraph cluster_after {")?;
+            w.println("label=<<b>after</b>>")?;
+            heap_graph_end.stack_and_heap(w)?;
+            w.undent("}")?;
+
+            w.name_prefix("before");
+            w.indent("subgraph cluster_before {")?;
+            w.println("label=<<b>before</b>>")?;
+            self.stack_and_heap(w)?;
+            w.undent("}")?;
+
+            Ok(())
+        })
+        .unwrap();
         String::from_utf8(output).unwrap()
     }
 
@@ -52,13 +93,23 @@ impl HeapGraph {
     }
      */
 
-    fn to_graphviz(&self, w: &mut GraphvizWriter<'_>) -> eyre::Result<()> {
+    fn to_graphviz(
+        &self,
+        w: &mut GraphvizWriter<'_>,
+        contents: impl FnOnce(&mut GraphvizWriter<'_>) -> eyre::Result<()>,
+    ) -> eyre::Result<()> {
         w.indent("digraph {")?;
-
         w.println(r#"node[shape = "note"];"#)?;
-
         w.println(r#"rankdir = "LR";"#)?;
 
+        contents(w)?;
+
+        w.undent("}")?;
+
+        Ok(())
+    }
+
+    fn stack_and_heap(&self, w: &mut GraphvizWriter<'_>) -> eyre::Result<()> {
         self.print_stack(w)?;
 
         self.print_heap(w)?;
@@ -82,8 +133,6 @@ impl HeapGraph {
             ))?;
         }
 
-        w.undent("}")?;
-
         Ok(())
     }
 
@@ -104,11 +153,14 @@ impl HeapGraph {
     }
 
     fn print_stack(&self, w: &mut GraphvizWriter<'_>) -> eyre::Result<()> {
-        w.indent("subgraph cluster_stack {")?;
+        let np = w.name_prefix;
+
+        w.indent(format!("subgraph cluster_{np}stack {{"))?;
         w.println("label=<<b>stack</b>>")?;
         w.println(r#"rank="source";"#)?;
 
-        w.indent(r#"stack["#)?;
+        let stack_node_name = format!("{np}stack");
+        w.indent(format!(r#"{stack_node_name}["#))?;
         w.println(r#"shape="none";"#)?;
         w.indent(r#"label=<"#)?;
         w.println(r#"<table border="0">"#)?;
@@ -127,7 +179,7 @@ impl HeapGraph {
 
             field_index = self.print_fields(
                 w,
-                "stack",
+                &stack_node_name,
                 names,
                 stack_frame_data.variables.iter().map(|v| &v.value),
                 field_index,
@@ -281,6 +333,9 @@ struct GraphvizWriter<'w> {
 
     /// Current indentation in spaces.
     indent: usize,
+
+    /// String to prefix on all node names.
+    name_prefix: &'static str,
 }
 
 /// Identifies a particular "place" in the graphviz output;
@@ -301,6 +356,10 @@ struct GraphvizValueEdge {
 }
 
 impl GraphvizWriter<'_> {
+    fn name_prefix(&mut self, prefix: &'static str) {
+        self.name_prefix = prefix;
+    }
+
     fn indent(&mut self, s: impl AsRef<str>) -> eyre::Result<()> {
         self.println(s)?;
         self.indent += 2;
@@ -347,6 +406,7 @@ impl GraphvizWriter<'_> {
         if new {
             self.node_queue.push(*edge);
         }
-        format!("node{index}")
+        let np = self.name_prefix;
+        format!("{np}node{index}")
     }
 }

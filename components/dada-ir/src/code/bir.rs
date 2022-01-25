@@ -199,6 +199,14 @@ pub enum StatementData {
     ///
     /// It indicates the moment when one of the breakpoint expressions
     /// in the given file (identified by the usize index) is about
+    /// to start executon.
+    BreakpointStart(Filename, usize),
+
+    /// In terms of the semantics, this is a no-op.
+    /// It is used by the time traveling debugger.
+    ///
+    /// It indicates the moment when one of the breakpoint expressions
+    /// in the given file (identified by the usize index) is about
     /// to complete and produce the (optional) `Place` as its value.
     ///
     /// Any side-effects from the breakpoint will have taken place
@@ -213,6 +221,12 @@ impl DebugWithDb<InIrDb<'_, Bir>> for StatementData {
                 .debug_tuple("Assign")
                 .field(&place.debug(db))
                 .field(&expr.debug(db))
+                .finish(),
+
+            StatementData::BreakpointStart(filename, index) => f
+                .debug_tuple("BreakpoingStart")
+                .field(&filename.debug(db.db()))
+                .field(index)
                 .finish(),
 
             StatementData::BreakpointEnd(filename, index, p) => f

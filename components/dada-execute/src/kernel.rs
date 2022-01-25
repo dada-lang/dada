@@ -16,6 +16,15 @@ pub trait Kernel: Send + Sync {
         self.print("\n").await
     }
 
+    /// Indicates that we have reached the start of a breakpoint expression.
+    fn breakpoint_start(
+        &self,
+        db: &dyn crate::Db,
+        breakpoint_filename: Filename,
+        breakpoint_index: usize,
+        generate_heap_graph: &dyn Fn() -> HeapGraph,
+    ) -> eyre::Result<()>;
+
     /// Indicates that we have reached the end of a breakpoint expression.
     fn breakpoint_end(
         &self,
@@ -31,10 +40,31 @@ pub struct BufferKernel {
     buffer: Mutex<String>,
     stop_at_breakpoint: bool,
     breakpoint_callback: Option<BreakpointCallback>,
-    heap_graphs: Mutex<Vec<HeapGraph>>,
+
+    /// When we start a breakpoint, we push an entry here.
+    started_breakpoints: Mutex<Vec<(Filename, usize, HeapGraph)>>,
+
+    /// When we end a breakpoint, we construct a `BreakpointHeapGraph` and
+    /// either invoke `breakpoint_callback` or else buffer it here.
+    heap_graphs: Mutex<Vec<BreakpointRecord>>,
 }
 
-type BreakpointCallback = Box<dyn Fn(&dyn crate::Db, &BufferKernel, &HeapGraph) + Send + Sync>;
+pub struct BreakpointRecord {
+    pub breakpoint_filename: Filename,
+    pub breakpoint_index: usize,
+    pub heap_at_start: HeapGraph,
+    pub heap_at_end: HeapGraph,
+}
+
+impl BreakpointRecord {
+    pub fn to_graphviz(&self, db: &dyn crate::Db) -> String {
+        self.heap_at_start
+            .graphviz_paired(db, false, &self.heap_at_end)
+    }
+}
+
+type BreakpointCallback =
+    Box<dyn Fn(&dyn crate::Db, &BufferKernel, BreakpointRecord) + Send + Sync>;
 
 impl BufferKernel {
     pub fn new() -> Self {
@@ -56,7 +86,7 @@ impl BufferKernel {
     /// heap graph.
     pub fn breakpoint_callback(
         self,
-        callback: impl Fn(&dyn crate::Db, &Self, &HeapGraph) + Send + Sync + 'static,
+        callback: impl Fn(&dyn crate::Db, &Self, BreakpointRecord) + Send + Sync + 'static,
     ) -> Self {
         Self {
             breakpoint_callback: Some(Box::new(callback)),
@@ -87,8 +117,9 @@ impl BufferKernel {
         }
     }
 
-    /// Take the heap graphs from the mutex
-    pub fn take_heap_graphs(&mut self) -> Vec<HeapGraph> {
+    /// Take the recorded data from breakpoints that triggered.
+    /// This vec will be empty if there is a breakpoint callback set.
+    pub fn take_recorded_breakpoints(&mut self) -> Vec<BreakpointRecord> {
         std::mem::take(self.heap_graphs.get_mut())
     }
 
@@ -114,6 +145,23 @@ impl Kernel for BufferKernel {
         Ok(())
     }
 
+    fn breakpoint_start(
+        &self,
+        db: &dyn crate::Db,
+        filename: Filename,
+        index: usize,
+        generate_heap_graph: &dyn Fn() -> HeapGraph,
+    ) -> eyre::Result<()> {
+        tracing::debug!(
+            "breakpoint_start(filename={:?}, index={:?})",
+            filename.debug(db),
+            index
+        );
+        let tuple = (filename, index, generate_heap_graph());
+        self.started_breakpoints.lock().push(tuple);
+        Ok(())
+    }
+
     fn breakpoint_end(
         &self,
         db: &dyn crate::Db,
@@ -127,12 +175,21 @@ impl Kernel for BufferKernel {
             index
         );
 
-        let heap_graph = generate_heap_graph();
+        let (breakpoint_filename, breakpoint_index, heap_at_start) =
+            self.started_breakpoints.lock().pop().unwrap();
+        assert_eq!(filename, breakpoint_filename);
+        assert_eq!(index, breakpoint_index);
+        let breakpoint_record = BreakpointRecord {
+            breakpoint_filename,
+            breakpoint_index,
+            heap_at_start,
+            heap_at_end: generate_heap_graph(),
+        };
 
         if let Some(cb) = &self.breakpoint_callback {
-            cb(db, self, &heap_graph);
+            cb(db, self, breakpoint_record);
         } else {
-            self.heap_graphs.lock().push(heap_graph);
+            self.heap_graphs.lock().push(breakpoint_record);
         }
 
         if self.stop_at_breakpoint {
