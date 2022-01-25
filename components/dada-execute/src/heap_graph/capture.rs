@@ -132,6 +132,7 @@ impl HeapGraph {
         let node = self.tables.add(PermissionNodeData {
             label,
             lessor: None,
+            tenant: None,
         });
 
         cache.permissions.insert(data_ptr, node);
@@ -139,6 +140,7 @@ impl HeapGraph {
         if let Some(tenant) = permission.peek_data().peek_tenant() {
             assert!(permission.is_valid());
             let tenant_node = self.permission_node(cache, db, &tenant);
+            self.tables[node].tenant = Some(tenant_node);
             self.tables[tenant_node].lessor = Some(node);
         }
 

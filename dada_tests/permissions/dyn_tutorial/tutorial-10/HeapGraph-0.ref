@@ -1,4 +1,4 @@
-# Breakpoint: Expr(4) at dada_tests/heap-graph/nested-points.dada:5:6:5:23
+# Breakpoint: Expr(4) at dada_tests/permissions/dyn_tutorial/tutorial-10.dada:4:6:4:33
 digraph {
   node[shape = "note"];
   rankdir = "LR";
@@ -12,6 +12,7 @@ digraph {
         <tr><td border="1">main</td></tr>
         <tr><td port="0">p</td></tr>
         <tr><td port="5">q: ()</td></tr>
+        <tr><td port="7">x: ()</td></tr>
         </table>
       >;
     ];

@@ -103,6 +103,9 @@ id!(pub(crate) struct PermissionNode);
 pub(crate) struct PermissionNodeData {
     label: PermissionNodeLabel,
 
+    /// If `Some`, then this permission is leased by somebody else.
+    tenant: Option<PermissionNode>,
+
     /// If `Some`, then this permission is leased from the given
     /// permission, which must be a unique (my or leased) permission.
     lessor: Option<PermissionNode>,
