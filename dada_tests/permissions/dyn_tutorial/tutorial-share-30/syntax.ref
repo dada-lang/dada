@@ -2,13 +2,13 @@
     syntax::Tree {
         origin: Code(
             Some(
-                Tokens(dada_tests/permissions/dyn_tutorial/tutorial-40.dada:3:15:3:15),
+                Tokens(dada_tests/permissions/dyn_tutorial/tutorial-share-30.dada:3:15:3:15),
             ),
-            Tokens(dada_tests/permissions/dyn_tutorial/tutorial-40.dada:3:18:12:1),
+            Tokens(dada_tests/permissions/dyn_tutorial/tutorial-share-30.dada:3:18:10:1),
         ),
         data: syntax::Tree {
             root_expr: (
-                Expr(15),
+                Expr(11),
                 Seq(
                     [
                         (
@@ -69,7 +69,7 @@
                                 ),
                                 (
                                     Expr(7),
-                                    Share(
+                                    Give(
                                         (
                                             Expr(6),
                                             Id(
@@ -81,41 +81,16 @@
                             ),
                         ),
                         (
-                            Expr(11),
+                            Expr(10),
                             Var(
                                 (
                                     "r",
                                     None,
                                 ),
                                 (
-                                    Expr(10),
-                                    Share(
-                                        (
-                                            Expr(9),
-                                            Id(
-                                                "q",
-                                            ),
-                                        ),
-                                    ),
-                                ),
-                            ),
-                        ),
-                        (
-                            Expr(14),
-                            Var(
-                                (
-                                    "s",
-                                    None,
-                                ),
-                                (
-                                    Expr(13),
-                                    Share(
-                                        (
-                                            Expr(12),
-                                            Id(
-                                                "r",
-                                            ),
-                                        ),
+                                    Expr(9),
+                                    Id(
+                                        "q",
                                     ),
                                 ),
                             ),
