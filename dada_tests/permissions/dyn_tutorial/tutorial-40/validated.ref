@@ -1,6 +1,6 @@
 [
     (
-        Expr(40),
+        Expr(35),
         Seq(
             [
                 (
@@ -264,7 +264,7 @@
                             Place(7),
                             q{6},
                             ExprOrigin {
-                                syntax_expr: Expr(7),
+                                syntax_expr: Expr(8),
                                 synthesized: true,
                             },
                         ),
@@ -279,23 +279,23 @@
                                                 Place(8),
                                                 temp{7},
                                                 ExprOrigin {
-                                                    syntax_expr: Expr(6),
+                                                    syntax_expr: Expr(7),
                                                     synthesized: true,
                                                 },
                                             ),
                                             (
                                                 Expr(20),
-                                                Give(
+                                                Share(
                                                     Place(9),
                                                 ),
                                                 ExprOrigin {
-                                                    syntax_expr: Expr(6),
+                                                    syntax_expr: Expr(7),
                                                     synthesized: false,
                                                 },
                                             ),
                                         ),
                                         ExprOrigin {
-                                            syntax_expr: Expr(6),
+                                            syntax_expr: Expr(7),
                                             synthesized: true,
                                         },
                                     ),
@@ -305,20 +305,20 @@
                                             Place(8),
                                         ),
                                         ExprOrigin {
-                                            syntax_expr: Expr(6),
+                                            syntax_expr: Expr(7),
                                             synthesized: true,
                                         },
                                     ),
                                 ],
                             ),
                             ExprOrigin {
-                                syntax_expr: Expr(6),
+                                syntax_expr: Expr(7),
                                 synthesized: true,
                             },
                         ),
                     ),
                     ExprOrigin {
-                        syntax_expr: Expr(7),
+                        syntax_expr: Expr(8),
                         synthesized: false,
                     },
                 ),
@@ -327,9 +327,9 @@
                     Assign(
                         (
                             Place(10),
-                            x{8},
+                            r{8},
                             ExprOrigin {
-                                syntax_expr: Expr(10),
+                                syntax_expr: Expr(11),
                                 synthesized: true,
                             },
                         ),
@@ -344,23 +344,23 @@
                                                 Place(11),
                                                 temp{9},
                                                 ExprOrigin {
-                                                    syntax_expr: Expr(9),
+                                                    syntax_expr: Expr(10),
                                                     synthesized: true,
                                                 },
                                             ),
                                             (
                                                 Expr(25),
-                                                Give(
-                                                    Place(13),
+                                                Share(
+                                                    Place(12),
                                                 ),
                                                 ExprOrigin {
-                                                    syntax_expr: Expr(9),
+                                                    syntax_expr: Expr(10),
                                                     synthesized: false,
                                                 },
                                             ),
                                         ),
                                         ExprOrigin {
-                                            syntax_expr: Expr(9),
+                                            syntax_expr: Expr(10),
                                             synthesized: true,
                                         },
                                     ),
@@ -370,20 +370,20 @@
                                             Place(11),
                                         ),
                                         ExprOrigin {
-                                            syntax_expr: Expr(9),
+                                            syntax_expr: Expr(10),
                                             synthesized: true,
                                         },
                                     ),
                                 ],
                             ),
                             ExprOrigin {
-                                syntax_expr: Expr(9),
+                                syntax_expr: Expr(10),
                                 synthesized: true,
                             },
                         ),
                     ),
                     ExprOrigin {
-                        syntax_expr: Expr(10),
+                        syntax_expr: Expr(11),
                         synthesized: false,
                     },
                 ),
@@ -391,10 +391,10 @@
                     Expr(34),
                     Assign(
                         (
-                            Place(14),
-                            x{10},
+                            Place(13),
+                            s{10},
                             ExprOrigin {
-                                syntax_expr: Expr(13),
+                                syntax_expr: Expr(14),
                                 synthesized: true,
                             },
                         ),
@@ -406,121 +406,56 @@
                                         Expr(31),
                                         Assign(
                                             (
-                                                Place(15),
+                                                Place(14),
                                                 temp{11},
                                                 ExprOrigin {
-                                                    syntax_expr: Expr(12),
+                                                    syntax_expr: Expr(13),
                                                     synthesized: true,
                                                 },
                                             ),
                                             (
                                                 Expr(30),
-                                                Give(
-                                                    Place(17),
+                                                Share(
+                                                    Place(15),
                                                 ),
                                                 ExprOrigin {
-                                                    syntax_expr: Expr(12),
+                                                    syntax_expr: Expr(13),
                                                     synthesized: false,
                                                 },
                                             ),
                                         ),
                                         ExprOrigin {
-                                            syntax_expr: Expr(12),
+                                            syntax_expr: Expr(13),
                                             synthesized: true,
                                         },
                                     ),
                                     (
                                         Expr(32),
                                         Give(
-                                            Place(15),
+                                            Place(14),
                                         ),
                                         ExprOrigin {
-                                            syntax_expr: Expr(12),
+                                            syntax_expr: Expr(13),
                                             synthesized: true,
                                         },
                                     ),
                                 ],
                             ),
                             ExprOrigin {
-                                syntax_expr: Expr(12),
+                                syntax_expr: Expr(13),
                                 synthesized: true,
                             },
                         ),
                     ),
                     ExprOrigin {
-                        syntax_expr: Expr(13),
-                        synthesized: false,
-                    },
-                ),
-                (
-                    Expr(39),
-                    Assign(
-                        (
-                            Place(18),
-                            x{12},
-                            ExprOrigin {
-                                syntax_expr: Expr(16),
-                                synthesized: true,
-                            },
-                        ),
-                        (
-                            Expr(38),
-                            Seq(
-                                [
-                                    (
-                                        Expr(36),
-                                        Assign(
-                                            (
-                                                Place(19),
-                                                temp{13},
-                                                ExprOrigin {
-                                                    syntax_expr: Expr(15),
-                                                    synthesized: true,
-                                                },
-                                            ),
-                                            (
-                                                Expr(35),
-                                                Give(
-                                                    Place(21),
-                                                ),
-                                                ExprOrigin {
-                                                    syntax_expr: Expr(15),
-                                                    synthesized: false,
-                                                },
-                                            ),
-                                        ),
-                                        ExprOrigin {
-                                            syntax_expr: Expr(15),
-                                            synthesized: true,
-                                        },
-                                    ),
-                                    (
-                                        Expr(37),
-                                        Give(
-                                            Place(19),
-                                        ),
-                                        ExprOrigin {
-                                            syntax_expr: Expr(15),
-                                            synthesized: true,
-                                        },
-                                    ),
-                                ],
-                            ),
-                            ExprOrigin {
-                                syntax_expr: Expr(15),
-                                synthesized: true,
-                            },
-                        ),
-                    ),
-                    ExprOrigin {
-                        syntax_expr: Expr(16),
+                        syntax_expr: Expr(14),
                         synthesized: false,
                     },
                 ),
             ],
         ),
         ExprOrigin {
-            syntax_expr: Expr(17),
+            syntax_expr: Expr(15),
             synthesized: false,
         },
     ),
