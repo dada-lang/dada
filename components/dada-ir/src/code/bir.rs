@@ -346,7 +346,7 @@ pub enum ExprData {
     StringLiteral(Word),
 
     /// `expr.share`
-    Share(Place),
+    GiveShare(Place),
 
     /// `expr.lease`
     Lease(Place),
@@ -373,7 +373,7 @@ impl DebugWithDb<InIrDb<'_, Bir>> for ExprData {
             ExprData::BooleanLiteral(b) => write!(f, "{}", b),
             ExprData::IntegerLiteral(w) => write!(f, "{}", w),
             ExprData::StringLiteral(w) => write!(f, "{:?}", w.as_str(db.db())),
-            ExprData::Share(p) => write!(f, "{:?}.share", p.debug(db)),
+            ExprData::GiveShare(p) => write!(f, "{:?}.share", p.debug(db)),
             ExprData::Lease(p) => write!(f, "{:?}.lease", p.debug(db)),
             ExprData::Give(p) => write!(f, "{:?}.give", p.debug(db)),
             ExprData::Unit => write!(f, "()"),

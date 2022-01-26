@@ -93,9 +93,9 @@ impl Value {
         Ok(Value { permission, data })
     }
 
-    pub(crate) fn share(&self, interpreter: &Interpreter<'_>) -> eyre::Result<Value> {
+    pub(crate) fn give_share(&self, interpreter: &Interpreter<'_>) -> eyre::Result<Value> {
         Ok(Value {
-            permission: self.permission.share(interpreter)?,
+            permission: self.permission.give_share(interpreter)?,
             data: self.data.clone(),
         })
     }

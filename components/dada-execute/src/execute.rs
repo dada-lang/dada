@@ -235,7 +235,9 @@ impl StackFrame<'_> {
             bir::ExprData::BooleanLiteral(value) => Ok(Value::new(interpreter, *value)),
             bir::ExprData::IntegerLiteral(value) => Ok(Value::new(interpreter, *value)),
             bir::ExprData::StringLiteral(value) => Ok(Value::new(interpreter, *value)),
-            bir::ExprData::Share(place) => self.with_place(interpreter, *place, Value::share),
+            bir::ExprData::GiveShare(place) => {
+                self.with_place(interpreter, *place, Value::give_share)
+            }
             bir::ExprData::Lease(place) => self.with_place(interpreter, *place, Value::lease),
             bir::ExprData::Give(place) => self.with_place_mut(interpreter, *place, Value::give),
             bir::ExprData::Tuple(places) => {
@@ -246,8 +248,8 @@ impl StackFrame<'_> {
                 Ok(Value::new(interpreter, Tuple { fields }))
             }
             bir::ExprData::Op(lhs, op, rhs) => {
-                let lhs = self.with_place(interpreter, *lhs, Value::share)?;
-                let rhs = self.with_place(interpreter, *rhs, Value::share)?;
+                let lhs = self.with_place(interpreter, *lhs, Value::give_share)?;
+                let rhs = self.with_place(interpreter, *rhs, Value::give_share)?;
                 lhs.read(interpreter, |lhs| {
                     rhs.read(interpreter, |rhs| {
                         self.apply_op(interpreter, expr, lhs, *op, rhs)

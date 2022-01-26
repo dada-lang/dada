@@ -29,7 +29,7 @@ impl Shared {
         Ok(())
     }
 
-    pub(super) fn share(
+    pub(super) fn give_share(
         &self,
         this: &Permission,
         interpreter: &Interpreter<'_>,

@@ -95,8 +95,8 @@ impl Permission {
     /// `var q = p.lease.share`.
     ///
     /// May also affect the permissions of `p`!
-    pub(crate) fn share(&self, interpreter: &Interpreter<'_>) -> eyre::Result<Permission> {
-        self.data.share(self, interpreter)
+    pub(crate) fn give_share(&self, interpreter: &Interpreter<'_>) -> eyre::Result<Permission> {
+        self.data.give_share(self, interpreter)
     }
 
     /// Read the internal data. Used to capture heap-graphs
@@ -153,17 +153,23 @@ impl PermissionData {
             PermissionData::Leased(p) => p.lease(interpreter),
 
             // For non-exclusive permisions, leasing is the same as sharing:
-            PermissionData::Shared(_) | PermissionData::Our(_) => self.share(this, interpreter),
+            PermissionData::Shared(_) | PermissionData::Our(_) => {
+                self.give_share(this, interpreter)
+            }
         }
     }
 
     /// See [`Permission::share`]
-    fn share(&self, this: &Permission, interpreter: &Interpreter<'_>) -> eyre::Result<Permission> {
+    fn give_share(
+        &self,
+        this: &Permission,
+        interpreter: &Interpreter<'_>,
+    ) -> eyre::Result<Permission> {
         match self {
-            PermissionData::My(p) => p.share(interpreter),
-            PermissionData::Leased(p) => p.share(interpreter),
-            PermissionData::Shared(p) => p.share(this, interpreter),
-            PermissionData::Our(p) => p.share(this, interpreter),
+            PermissionData::My(p) => p.give_share(interpreter),
+            PermissionData::Leased(p) => p.give_share(interpreter),
+            PermissionData::Shared(p) => p.give_share(this, interpreter),
+            PermissionData::Our(p) => p.give_share(this, interpreter),
         }
     }
 

@@ -217,7 +217,7 @@ impl Cursor {
             validated::ExprData::Share(place) => {
                 let (place, origins) = self.brew_place(brewery, *place);
                 self.push_breakpoint_starts(brewery, origins.iter().copied(), origin);
-                self.push_assignment(brewery, target, bir::ExprData::Share(place), origin);
+                self.push_assignment(brewery, target, bir::ExprData::GiveShare(place), origin);
                 self.push_breakpoint_ends(brewery, Some(target), origins, origin);
             }
 
