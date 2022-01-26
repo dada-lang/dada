@@ -37,7 +37,7 @@ pub struct DadaCompiler {
 
     /// If a breakpoint was set, contains graphviz source
     /// for the heap at that point (else empty).
-    heap_capture: String,
+    heap_capture: Vec<(String, String)>,
 
     breakpoint_ranges: Vec<DadaRange>,
 }
@@ -119,7 +119,12 @@ impl DadaCompiler {
 
         self.heap_capture = heap_graphs
             .into_iter()
-            .map(|record| record.to_graphviz(&self.db))
+            .map(|record| {
+                (
+                    record.heap_at_start.graphviz_alone(&self.db, false),
+                    record.heap_at_end.graphviz_alone(&self.db, false),
+                )
+            })
             .collect();
 
         self
@@ -156,7 +161,20 @@ impl DadaCompiler {
     }
 
     #[wasm_bindgen(getter)]
-    pub fn heap(&self) -> String {
-        self.heap_capture.clone()
+    pub fn heap_before(&self) -> String {
+        if self.heap_capture.is_empty() {
+            return String::new();
+        }
+
+        self.heap_capture[0].1.clone()
+    }
+
+    #[wasm_bindgen(getter)]
+    pub fn heap_after(&self) -> String {
+        if self.heap_capture.is_empty() {
+            return String::new();
+        }
+
+        self.heap_capture[0].1.clone()
     }
 }

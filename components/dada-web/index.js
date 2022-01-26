@@ -81,8 +81,8 @@ class DadaCompiler {
         return this.dada.breakpoint_range(i);
     }
 
-    get heap() {
-        return this.dada.heap;
+    get heaps() {
+        return [this.dada.heap_before, this.dada.heap_after];
     }
 }
 
@@ -220,12 +220,6 @@ async function updateOutput(dada, editor, text, cursor) {
     var html = (new AnsiUp).ansi_to_html(output);
     document.getElementById("output").innerHTML = html;
 
-    // Clear any previous heap capture nodes.
-    var gdiv = document.getElementById("graph");
-    while (gdiv.firstChild != null) {
-        gdiv.removeChild(gdiv.firstChild);
-    }
-
     // Remove old markers.
     let oldMarkers = editor.session.getMarkers(true);
     console.log("oldMarkers", oldMarkers);
@@ -249,15 +243,25 @@ async function updateOutput(dada, editor, text, cursor) {
         );
     }
 
-
     // If the result included any heapcapture, it will be encoded
     // as a graphviz string. Use viz.js to convert that to SVG,
     // and then add the SVG nodes there.
-    let heap = dada.heap;
-    if (heap != "") {
+    let [heap_before, heap_after] = dada.heaps;
+    await render(heap_before, "heap-before");
+    await render(heap_after, "heap-after");
+}
+
+async function render(heap_string, id) {
+    // clear old children
+    var gdiv = document.getElementById(id);
+    while (gdiv.firstChild != null) {
+        gdiv.removeChild(gdiv.firstChild);
+    }
+
+    if (heap_string != "") {
         try {
-            let element = await viz.renderSVGElement(heap);
-            gdiv.appendChild(element);
+            let svg = await viz.renderSVGElement(heap_string);
+            gdiv.appendChild(svg);
         } catch (error) {
             viz = new Viz({ workerURL });
             console.log("rendering error", error);
