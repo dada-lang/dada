@@ -93,13 +93,6 @@ impl Value {
         Ok(Value { permission, data })
     }
 
-    pub(crate) fn into_share(self, interpreter: &Interpreter<'_>) -> eyre::Result<Value> {
-        Ok(Value {
-            permission: self.permission.into_share(interpreter)?,
-            data: self.data,
-        })
-    }
-
     pub(crate) fn share(&self, interpreter: &Interpreter<'_>) -> eyre::Result<Value> {
         Ok(Value {
             permission: self.permission.share(interpreter)?,

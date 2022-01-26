@@ -235,9 +235,6 @@ impl StackFrame<'_> {
             bir::ExprData::BooleanLiteral(value) => Ok(Value::new(interpreter, *value)),
             bir::ExprData::IntegerLiteral(value) => Ok(Value::new(interpreter, *value)),
             bir::ExprData::StringLiteral(value) => Ok(Value::new(interpreter, *value)),
-            bir::ExprData::ShareValue(expr) => self
-                .evaluate_bir_expr(interpreter, *expr)?
-                .into_share(interpreter),
             bir::ExprData::Share(place) => self.with_place(interpreter, *place, Value::share),
             bir::ExprData::Lease(place) => self.with_place(interpreter, *place, Value::lease),
             bir::ExprData::Give(place) => self.with_place_mut(interpreter, *place, Value::give),

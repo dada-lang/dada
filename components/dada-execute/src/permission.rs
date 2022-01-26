@@ -88,13 +88,6 @@ impl Permission {
         self.data.lease(self, interpreter)
     }
 
-    /// Given `var q = p.give.share`, what permission does `q` get?
-    ///
-    /// May also affect the permissions of `p`!
-    pub(crate) fn into_share(self, interpreter: &Interpreter<'_>) -> eyre::Result<Permission> {
-        self.data.into_share(interpreter)
-    }
-
     /// Given `var q = p.share`, what permission does `q` get?
     ///
     /// May also affect the permissions of `p`!
