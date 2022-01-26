@@ -166,7 +166,7 @@ impl DadaCompiler {
             return String::new();
         }
 
-        self.heap_capture[0].1.clone()
+        self.heap_capture[0].0.clone()
     }
 
     #[wasm_bindgen(getter)]
