@@ -1,0 +1,53 @@
+# Breakpoint: Expr(11) at class:4:4:6:14
+digraph {
+  node[shape = "note"];
+  rankdir = "LR";
+  subgraph cluster_after {
+    label=<<b>after</b>>
+    subgraph cluster_afterstack {
+      label=<<b>stack</b>>
+      rank="source";
+      afterstack[
+        shape="none";
+        label=<
+          <table border="0">
+          <tr><td border="1">main</td></tr>
+          <tr><td port="0">p</td></tr>
+          <tr><td port="6">q</td></tr>
+          <tr><td port="8">r</td></tr>
+          <tr><td port="14">(in-flight): ()</td></tr>
+          </table>
+        >;
+      ];
+    }
+    afternode0 [
+      label = <<table border="0">
+        <tr><td border="1">Point</td></tr>
+        <tr><td port="0">x: 22</td></tr>
+        <tr><td port="1">y: 44</td></tr>
+      </table>>
+    ];
+    "afterstack":0 -> "afternode0" [label="our", style="solid"];
+    "afterstack":6 -> "afternode0" [label="our", style="solid"];
+    "afterstack":8 -> "afternode0" [label="our", style="solid"];
+  }
+  subgraph cluster_before {
+    label=<<b>before</b>>
+    subgraph cluster_beforestack {
+      label=<<b>stack</b>>
+      rank="source";
+      beforestack[
+        shape="none";
+        label=<
+          <table border="0">
+          <tr><td border="1">main</td></tr>
+          <tr><td port="0">p: ()</td></tr>
+          <tr><td port="6">q: ()</td></tr>
+          <tr><td port="8">r: ()</td></tr>
+          </table>
+        >;
+      ];
+    }
+  }
+}
+breakpoint expression encountered
