@@ -160,7 +160,7 @@ impl PermissionData {
         }
     }
 
-    /// See [`Permission::share`]
+    /// See [`Permission::into_share`]
     fn into_share(self: Arc<Self>, interpreter: &Interpreter<'_>) -> eyre::Result<Permission> {
         match &*self {
             PermissionData::My(_) => Ok(Permission::our(interpreter)),
@@ -190,7 +190,7 @@ impl PermissionData {
         }
     }
 
-    /// See [`Permission::check_read`]
+    /// See [`Permission::perform_read`]
     fn perform_read(&self, interpreter: &Interpreter<'_>) -> eyre::Result<()> {
         match self {
             PermissionData::My(p) => p.check_read(interpreter),
@@ -200,7 +200,7 @@ impl PermissionData {
         }
     }
 
-    /// See [`Permission::check_write`]
+    /// See [`Permission::perform_write`]
     fn perform_write(&self, interpreter: &Interpreter<'_>) -> eyre::Result<()> {
         match self {
             PermissionData::My(p) => p.check_write(interpreter),
@@ -210,7 +210,7 @@ impl PermissionData {
         }
     }
 
-    /// See [`Permission::check_write`]
+    /// See [`Permission::perform_await`]
     fn perform_await(&self, interpreter: &Interpreter<'_>) -> eyre::Result<()> {
         match self {
             PermissionData::My(p) => p.check_await(interpreter),
