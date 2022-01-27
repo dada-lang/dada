@@ -2,12 +2,12 @@
     Diagnostic {
         range: Range {
             start: Position {
-                line: 8,
-                character: 9,
+                line: 3,
+                character: 13,
             },
             end: Position {
-                line: 8,
-                character: 9,
+                line: 3,
+                character: 16,
             },
         },
         severity: Some(
@@ -15,7 +15,7 @@
         ),
         code: None,
         source: None,
-        message: "parameter name required",
+        message: "can't find anything named `baz`",
         related_information: Some(
             [
                 DiagnosticRelatedInformation {
@@ -27,22 +27,22 @@
                             password: None,
                             host: None,
                             port: None,
-                            path: "(local-file-prefix)/dada_tests/validate/named_parameter.dada",
+                            path: "(local-file-prefix)/dada_tests/validate/unknown_identifier.dada",
                             query: None,
                             fragment: None,
                         },
                         range: Range {
                             start: Position {
-                                line: 8,
-                                character: 9,
+                                line: 3,
+                                character: 13,
                             },
                             end: Position {
-                                line: 8,
-                                character: 9,
+                                line: 3,
+                                character: 16,
                             },
                         },
                     },
-                    message: "parameter name required here",
+                    message: "here",
                 },
             ],
         ),

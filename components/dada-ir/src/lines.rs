@@ -36,7 +36,7 @@ pub fn line_column(db: &dyn crate::Db, filename: Filename, position: Offset) -> 
     match table.line_endings.binary_search(&position) {
         Ok(line0) | Err(line0) => {
             let line_start = table.line_start(line0);
-            LineColumn::new0(line0, position - line_start + 1)
+            LineColumn::new0(line0, position - line_start)
         }
     }
 }

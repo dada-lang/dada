@@ -2,9 +2,9 @@
     syntax::Tree {
         origin: Code(
             Some(
-                Tokens(dada_tests/parser/span_lhs_binary_op.dada:1:16:1:16),
+                Tokens(dada_tests/parser/span_lhs_binary_op.dada:1:15:1:15),
             ),
-            Tokens(dada_tests/parser/span_lhs_binary_op.dada:1:19:4:2),
+            Tokens(dada_tests/parser/span_lhs_binary_op.dada:1:18:4:1),
         ),
         data: syntax::Tree {
             root_expr: (

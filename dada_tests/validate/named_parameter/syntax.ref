@@ -2,9 +2,9 @@
     syntax::Tree {
         origin: Code(
             Some(
-                Tokens(dada_tests/validate/named_parameter.dada:1:9:1:13),
+                Tokens(dada_tests/validate/named_parameter.dada:1:8:1:12),
             ),
-            Tokens(dada_tests/validate/named_parameter.dada:1:16:1:16),
+            Tokens(dada_tests/validate/named_parameter.dada:1:15:1:15),
         ),
         data: syntax::Tree {
             root_expr: (
@@ -18,9 +18,9 @@
     syntax::Tree {
         origin: Code(
             Some(
-                Tokens(dada_tests/validate/named_parameter.dada:3:16:3:16),
+                Tokens(dada_tests/validate/named_parameter.dada:3:15:3:15),
             ),
-            Tokens(dada_tests/validate/named_parameter.dada:3:19:14:2),
+            Tokens(dada_tests/validate/named_parameter.dada:3:18:14:1),
         ),
         data: syntax::Tree {
             root_expr: (

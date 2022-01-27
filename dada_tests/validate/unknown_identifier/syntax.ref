@@ -2,9 +2,9 @@
     syntax::Tree {
         origin: Code(
             Some(
-                Tokens(dada_tests/interpret/ops/op_uint_mul_overflow.dada:1:9:1:9),
+                Tokens(dada_tests/validate/unknown_identifier.dada:1:8:1:8),
             ),
-            Tokens(dada_tests/interpret/ops/op_uint_mul_overflow.dada:1:12:4:1),
+            Tokens(dada_tests/validate/unknown_identifier.dada:1:11:5:1),
         ),
         data: syntax::Tree {
             root_expr: (
@@ -15,31 +15,31 @@
                             Expr(1),
                             Var(
                                 (
-                                    "uint_max",
+                                    "blah",
                                     None,
                                 ),
                                 (
                                     Expr(0),
                                     Integer(
-                                        "18446744073709551615",
+                                        "3",
                                     ),
                                 ),
                             ),
                         ),
                         (
                             Expr(4),
-                            Op(
+                            OpEq(
                                 (
                                     Expr(2),
                                     Id(
-                                        "uint_max",
+                                        "blah",
                                     ),
                                 ),
-                                Times,
+                                PlusEqual,
                                 (
                                     Expr(3),
-                                    Integer(
-                                        "2",
+                                    Id(
+                                        "baz",
                                     ),
                                 ),
                             ),

@@ -516,8 +516,10 @@ enum QueryKind {
 fn expected_diagnostics(path: &Path) -> eyre::Result<Vec<ExpectedDiagnostic>> {
     let file_contents = std::fs::read_to_string(path)?;
 
-    let re =
-        regex::Regex::new(r"^(?P<prefix>[^#]*)#!\s*(?P<severity>[^\s*]+)\s*(?P<msg>.*)").unwrap();
+    let re = regex::Regex::new(
+        r"^(?P<prefix>[^#]*)#!\s*(?P<highlight>\^+)?\s*(?P<severity>[^\s*]+)\s*(?P<msg>.*)",
+    )
+    .unwrap();
 
     let mut last_code_line = 1;
     let mut result = vec![];
@@ -533,10 +535,14 @@ fn expected_diagnostics(path: &Path) -> eyre::Result<Vec<ExpectedDiagnostic>> {
                 line_number
             };
 
+            let highlight = c.name("highlight");
+            let start_column = highlight.map(|m| m.start() as u32 + 1);
+            let end_line_column = highlight.map(|m| (start_line, m.end() as u32 + 1));
+
             result.push(ExpectedDiagnostic {
                 start_line,
-                start_column: None,
-                end_line_column: None,
+                start_column,
+                end_line_column,
                 severity: c["severity"].to_string(),
                 message: Regex::new(&c["msg"])?,
             });

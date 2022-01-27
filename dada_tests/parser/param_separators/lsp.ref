@@ -3,11 +3,11 @@
         range: Range {
             start: Position {
                 line: 35,
-                character: 8,
+                character: 7,
             },
             end: Position {
                 line: 35,
-                character: 9,
+                character: 8,
             },
         },
         severity: Some(
@@ -34,11 +34,11 @@
                         range: Range {
                             start: Position {
                                 line: 35,
-                                character: 6,
+                                character: 5,
                             },
                             end: Position {
                                 line: 35,
-                                character: 8,
+                                character: 7,
                             },
                         },
                     },
@@ -60,11 +60,11 @@
                         range: Range {
                             start: Position {
                                 line: 35,
-                                character: 8,
+                                character: 7,
                             },
                             end: Position {
                                 line: 35,
-                                character: 9,
+                                character: 8,
                             },
                         },
                     },
@@ -78,11 +78,11 @@
         range: Range {
             start: Position {
                 line: 13,
-                character: 14,
+                character: 13,
             },
             end: Position {
                 line: 13,
-                character: 15,
+                character: 14,
             },
         },
         severity: Some(
@@ -109,11 +109,11 @@
                         range: Range {
                             start: Position {
                                 line: 13,
-                                character: 12,
+                                character: 11,
                             },
                             end: Position {
                                 line: 13,
-                                character: 14,
+                                character: 13,
                             },
                         },
                     },
@@ -135,11 +135,11 @@
                         range: Range {
                             start: Position {
                                 line: 13,
-                                character: 14,
+                                character: 13,
                             },
                             end: Position {
                                 line: 13,
-                                character: 15,
+                                character: 14,
                             },
                         },
                     },
