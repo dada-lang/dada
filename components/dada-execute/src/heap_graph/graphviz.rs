@@ -44,17 +44,17 @@ impl HeapGraph {
             value_edge_list: vec![],
         };
         self.to_graphviz(&mut writer, |w| {
-            w.name_prefix("after");
-            w.indent("subgraph cluster_after {")?;
-            w.println("label=<<b>after</b>>")?;
-            heap_graph_end.stack_and_heap(w)?;
-            w.undent("}")?;
+            let after_writer = &mut w.with_prefix("after");
+            after_writer.indent("subgraph cluster_after {")?;
+            after_writer.println("label=<<b>after</b>>")?;
+            heap_graph_end.stack_and_heap(after_writer)?;
+            after_writer.undent("}")?;
 
-            w.name_prefix("before");
-            w.indent("subgraph cluster_before {")?;
-            w.println("label=<<b>before</b>>")?;
-            self.stack_and_heap(w)?;
-            w.undent("}")?;
+            let before_writer = &mut w.with_prefix("before");
+            before_writer.indent("subgraph cluster_before {")?;
+            before_writer.println("label=<<b>before</b>>")?;
+            self.stack_and_heap(before_writer)?;
+            before_writer.undent("}")?;
 
             Ok(())
         })
@@ -356,8 +356,18 @@ struct GraphvizValueEdge {
 }
 
 impl GraphvizWriter<'_> {
-    fn name_prefix(&mut self, prefix: &'static str) {
-        self.name_prefix = prefix;
+    fn with_prefix<'me>(&'me mut self, prefix: &'static str) -> GraphvizWriter<'me> {
+        GraphvizWriter {
+            db: self.db,
+            name_prefix: prefix,
+            writer: &mut *self.writer,
+            indent: self.indent,
+            include_temporaries: self.include_temporaries,
+            node_queue: Default::default(),
+            node_set: Default::default(),
+            permissions: Default::default(),
+            value_edge_list: vec![],
+        }
     }
 
     fn indent(&mut self, s: impl AsRef<str>) -> eyre::Result<()> {

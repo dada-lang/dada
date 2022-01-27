@@ -2,9 +2,9 @@
     syntax::Tree {
         origin: Code(
             Some(
-                Tokens(dada_tests/permissions/dyn_tutorial/tutorial-share-30.dada:3:15:3:15),
+                Tokens(dada_tests/permissions/dyn_tutorial/tutorial-lease-30.dada:3:15:3:15),
             ),
-            Tokens(dada_tests/permissions/dyn_tutorial/tutorial-share-30.dada:3:18:10:1),
+            Tokens(dada_tests/permissions/dyn_tutorial/tutorial-lease-30.dada:3:18:10:1),
         ),
         data: syntax::Tree {
             root_expr: (
@@ -76,35 +76,15 @@
                             ),
                         ),
                         (
-                            Expr(10),
-                            Var(
-                                (
-                                    "r",
-                                    None,
-                                ),
+                            Expr(11),
+                            OpEq(
                                 (
                                     Expr(9),
-                                    Lease(
+                                    Dot(
                                         (
                                             Expr(8),
                                             Id(
                                                 "q",
-                                            ),
-                                        ),
-                                    ),
-                                ),
-                            ),
-                        ),
-                        (
-                            Expr(14),
-                            OpEq(
-                                (
-                                    Expr(12),
-                                    Dot(
-                                        (
-                                            Expr(11),
-                                            Id(
-                                                "r",
                                             ),
                                         ),
                                         "x",
@@ -112,9 +92,30 @@
                                 ),
                                 PlusEqual,
                                 (
-                                    Expr(13),
+                                    Expr(10),
                                     Integer(
                                         "1",
+                                    ),
+                                ),
+                            ),
+                        ),
+                        (
+                            Expr(14),
+                            Var(
+                                (
+                                    "x",
+                                    None,
+                                ),
+                                (
+                                    Expr(13),
+                                    Dot(
+                                        (
+                                            Expr(12),
+                                            Id(
+                                                "p",
+                                            ),
+                                        ),
+                                        "x",
                                     ),
                                 ),
                             ),
@@ -132,7 +133,7 @@
                                         (
                                             Expr(15),
                                             Id(
-                                                "p",
+                                                "q",
                                             ),
                                         ),
                                         "x",

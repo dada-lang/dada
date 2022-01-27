@@ -5,6 +5,7 @@ async fn main() {
     var q = p.lease
     var r = q.lease
     r.x += 1
-    var x = p.x # sees 23
-    #?         ^ HeapGraph
+    #?       ^ HeapGraph
+    #
+    # p.x should be 23
 }

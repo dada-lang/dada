@@ -2,13 +2,13 @@
     syntax::Tree {
         origin: Code(
             Some(
-                Tokens(dada_tests/permissions/dyn_tutorial/tutorial-share-30.dada:3:15:3:15),
+                Tokens(dada_tests/permissions/dyn_tutorial/tutorial-lease-20.dada:3:15:3:15),
             ),
-            Tokens(dada_tests/permissions/dyn_tutorial/tutorial-share-30.dada:3:18:10:1),
+            Tokens(dada_tests/permissions/dyn_tutorial/tutorial-lease-20.dada:3:18:11:1),
         ),
         data: syntax::Tree {
             root_expr: (
-                Expr(18),
+                Expr(15),
                 Seq(
                     [
                         (
@@ -115,27 +115,6 @@
                                     Expr(13),
                                     Integer(
                                         "1",
-                                    ),
-                                ),
-                            ),
-                        ),
-                        (
-                            Expr(17),
-                            Var(
-                                (
-                                    "x",
-                                    None,
-                                ),
-                                (
-                                    Expr(16),
-                                    Dot(
-                                        (
-                                            Expr(15),
-                                            Id(
-                                                "p",
-                                            ),
-                                        ),
-                                        "x",
                                     ),
                                 ),
                             ),

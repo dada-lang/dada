@@ -91,43 +91,43 @@
                 ),
                 (
                     Assign(
-                        temp{8},
-                        q{5}.lease,
-                    ),
-                    Expr(9),
-                ),
-                (
-                    Assign(
-                        r{7},
-                        temp{8}.give,
-                    ),
-                    Expr(9),
-                ),
-                (
-                    Assign(
                         temp{15},
-                        r{7}.x.give,
+                        q{5}.x.give,
                     ),
-                    Expr(14),
+                    Expr(11),
                 ),
                 (
                     Assign(
                         temp{16},
                         1,
                     ),
+                    Expr(10),
+                ),
+                (
+                    Assign(
+                        q{5}.x,
+                        temp{15} + temp{16},
+                    ),
+                    Expr(11),
+                ),
+                (
+                    Assign(
+                        temp{8},
+                        p{0}.x.give,
+                    ),
                     Expr(13),
                 ),
                 (
                     Assign(
-                        r{7}.x,
-                        temp{15} + temp{16},
+                        x{7},
+                        temp{8}.give,
                     ),
-                    Expr(14),
+                    Expr(13),
                 ),
                 (
                     Assign(
                         temp{10},
-                        p{0}.x.give,
+                        q{5}.x.give,
                     ),
                     Expr(16),
                 ),
