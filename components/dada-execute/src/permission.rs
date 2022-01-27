@@ -23,18 +23,24 @@ impl Permission {
         Self::new(Arc::new(data.into()))
     }
 
+    /// Creates a `my` permission.
     pub(crate) fn my(interpreter: &Interpreter<'_>) -> Self {
         Self::allocate(my::My::new(interpreter))
     }
 
+    /// Creates a `leased` permission. This is private because the only way to do that
+    /// is to invoke [`leave`] on another permission.
     fn leased(interpreter: &Interpreter<'_>) -> Self {
         Self::allocate(leased::Leased::new(interpreter))
     }
 
+    /// Creates a `shared` permission. This is private because the only way to do that
+    /// is to invoke [`share`] on a leased permission.
     fn shared(interpreter: &Interpreter<'_>) -> Self {
         Self::allocate(shared::Shared::new(interpreter))
     }
 
+    /// Creates an `our` (jointly owned) permission.
     pub(crate) fn our(interpreter: &Interpreter<'_>) -> Self {
         Self::allocate(our::Our::new(interpreter))
     }

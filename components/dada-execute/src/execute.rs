@@ -232,8 +232,8 @@ impl StackFrame<'_> {
     ) -> eyre::Result<Value> {
         self.location = StackFrameLocation::Expr(expr);
         match expr.data(self.tables) {
-            bir::ExprData::BooleanLiteral(value) => Ok(Value::new(interpreter, *value)),
-            bir::ExprData::IntegerLiteral(value) => Ok(Value::new(interpreter, *value)),
+            bir::ExprData::BooleanLiteral(value) => Ok(Value::our(interpreter, *value)),
+            bir::ExprData::IntegerLiteral(value) => Ok(Value::our(interpreter, *value)),
             bir::ExprData::StringLiteral(value) => Ok(Value::new(interpreter, *value)),
             bir::ExprData::GiveShare(place) => {
                 self.with_place(interpreter, *place, Value::give_share)
