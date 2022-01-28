@@ -1,0 +1,25 @@
+class Point(x, y)
+
+# Test what happens when we lease an "our" thing `p`
+# and then drop `p`.
+#
+# I am not entirely sure what the desired outcome of this is!
+#
+# Currently, once something becomes shared, leasing just duplicates,
+# so the test generates no runtime error.
+#
+# But there is a good case to be made that leasing should *always*
+# produce something whose lifetime is tied to the original, so that
+# when we return from `callee`, we cancel the lease.
+
+async fn main() {
+    r = callee()
+    data = r.x
+}
+
+fn callee() {
+    var p = Point(22, 44).share
+    p.lease
+}
+    
+

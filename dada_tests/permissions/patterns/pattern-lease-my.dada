@@ -1,0 +1,19 @@
+class Point(x, y)
+
+# Test what happens when we lease a "my" thing `p`
+# and then destroy `p`. The lease should be canceled.
+#
+# FIXME: Lease is not canceled because we don't
+# currently have a concept of "destroying".
+
+async fn main() {
+    r = callee()
+    data = r.x
+}
+
+fn callee() {
+    var p = Point(22, 44)
+    p.lease
+}
+    
+

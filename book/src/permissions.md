@@ -39,7 +39,6 @@ There are three actions one can take on a permission:
 * `lease`: Leasing a permission `p` creates another permission `q` with equal ability to read/write but whose access can be revoked if `p` is used again:
     * If `p` is a joint permission, then there is no action that can be taken on `p` that would revoke `q`, so we simply duplicate `p`.
         * e.g., leasing an `our` permission creates another `our` permission
-        * FIXME: *It might make sense to have leasing an `our` permission create a `shared` permission, in which case there would be an action that could invalidate: dropping `p`. Think about it.* 
 * `give-share`: Give-sharing a permission `p` creates a joint permission `q`:
     * If `p` is already a joint permission, it simply duplicates `p`, so `p = q`.
     * If `p` is a `leased` permission, it creates a `shared` tenant `q` of `p`.
@@ -76,6 +75,12 @@ When you have a `my` permission `p`, that permisson is relatively "fragile". The
 ## Cancelling a tenancy
 
 Leased permissions are not permanent. They last until the lessor permission is used in some incompatible way. Using the lessor permission causes it to reassert its access to the object, cancelling the tenant permision. Once a tenant permission is cancelled, any further attempt to use it will create an error (in the interpreter, this is a runtime error; in the compiler, this is a detected by the type system and rejected).
+
+The following sorts of actions cause cancellation:
+
+* Reads
+
+
 
 ## Examples
 
