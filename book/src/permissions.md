@@ -39,6 +39,7 @@ There are three actions one can take on a permission:
 * `lease`: Leasing a permission `p` creates another permission `q` with equal ability to read/write but whose access can be revoked if `p` is used again:
     * If `p` is a joint permission, then there is no action that can be taken on `p` that would revoke `q`, so we simply duplicate `p`.
         * e.g., leasing an `our` permission creates another `our` permission
+            * FIXME: This behavior is debatable; it seems plausible that you should be able to "lease" an `our` permisson to create a `shared` permission.
 * `give-share`: Give-sharing a permission `p` creates a joint permission `q`:
     * If `p` is already a joint permission, it simply duplicates `p`, so `p = q`.
     * If `p` is a `leased` permission, it creates a `shared` tenant `q` of `p`.
