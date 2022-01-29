@@ -88,7 +88,11 @@ impl Permission {
         self.data.lease(self, interpreter)
     }
 
-    /// Given `var q = p.share`, what permission does `q` get?
+    /// Convert all the permissions into "shared" permisions.
+    /// This is slightly more fundamental than the `share`
+    /// keyword as exposed to Dada users: e.g.,
+    /// `var q = p.share` is actually sugar for
+    /// `var q = p.lease.share`.
     ///
     /// May also affect the permissions of `p`!
     pub(crate) fn share(&self, interpreter: &Interpreter<'_>) -> eyre::Result<Permission> {
@@ -150,15 +154,6 @@ impl PermissionData {
 
             // For non-exclusive permisions, leasing is the same as sharing:
             PermissionData::Shared(_) | PermissionData::Our(_) => self.share(this, interpreter),
-        }
-    }
-
-    /// See [`Permission::into_share`]
-    fn into_share(self: Arc<Self>, interpreter: &Interpreter<'_>) -> eyre::Result<Permission> {
-        match &*self {
-            PermissionData::My(_) => Ok(Permission::our(interpreter)),
-            PermissionData::Leased(p) => p.share(interpreter),
-            PermissionData::Shared(_) | PermissionData::Our(_) => Ok(Permission::new(self)),
         }
     }
 

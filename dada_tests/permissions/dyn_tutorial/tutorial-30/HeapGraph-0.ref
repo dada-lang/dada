@@ -1,4 +1,4 @@
-# Breakpoint: Expr(11) at class:4:4:5:20
+# Breakpoint: Expr(8) at class:4:5:5:15
 digraph {
   node[shape = "note"];
   rankdir = "LR";
@@ -14,18 +14,11 @@ digraph {
           <tr><td border="1">main</td></tr>
           <tr><td port="0">p</td></tr>
           <tr><td port="6">q</td></tr>
-          <tr><td port="18">(in-flight): ()</td></tr>
+          <tr><td port="12">(in-flight): ()</td></tr>
           </table>
         >;
       ];
     }
-    afternode1 [
-      label = <<table border="0">
-        <tr><td border="1">Point</td></tr>
-        <tr><td port="0">x</td></tr>
-        <tr><td port="1">y</td></tr>
-      </table>>
-    ];
     afternode0 [
       label = <<table border="0">
         <tr><td border="1">Point</td></tr>
@@ -34,9 +27,7 @@ digraph {
       </table>>
     ];
     "afterstack":0 -> "afternode0" [label="our", style="solid"];
-    "afterstack":6 -> "afternode1" [label="my", style="solid"];
-    "afternode1":0 -> "afternode0" [label="our", style="solid"];
-    "afternode1":1 -> "afternode0" [label="our", style="solid"];
+    "afterstack":6 -> "afternode0" [label="our", style="solid"];
   }
   subgraph cluster_before {
     label=<<b>before</b>>
