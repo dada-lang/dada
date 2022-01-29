@@ -2,9 +2,9 @@
     syntax::Tree {
         origin: Code(
             Some(
-                Tokens(dada_tests/permissions/patterns/pattern-lease-our.dada:15:16:15:16),
+                Tokens(dada_tests/permissions/patterns/pattern-lease-our.dada:15:15:15:15),
             ),
-            Tokens(dada_tests/permissions/patterns/pattern-lease-our.dada:15:19:18:2),
+            Tokens(dada_tests/permissions/patterns/pattern-lease-our.dada:15:18:18:1),
         ),
         data: syntax::Tree {
             root_expr: (
@@ -61,9 +61,9 @@
     syntax::Tree {
         origin: Code(
             Some(
-                Tokens(dada_tests/permissions/patterns/pattern-lease-our.dada:20:12:20:12),
+                Tokens(dada_tests/permissions/patterns/pattern-lease-our.dada:20:11:20:11),
             ),
-            Tokens(dada_tests/permissions/patterns/pattern-lease-our.dada:20:15:23:2),
+            Tokens(dada_tests/permissions/patterns/pattern-lease-our.dada:20:14:23:1),
         ),
         data: syntax::Tree {
             root_expr: (
