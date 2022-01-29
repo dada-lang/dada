@@ -21,6 +21,7 @@
 # Reference material
 
 - [Calculus](./calculus.md)
+- [Permissions](./permissions.md)
 
 # Development Guide
 

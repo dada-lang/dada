@@ -2,13 +2,13 @@
     syntax::Tree {
         origin: Code(
             Some(
-                Tokens(dada_tests/permissions/dyn_tutorial/tutorial-10.dada:3:15:3:15),
+                Tokens(dada_tests/permissions/dyn_tutorial/tutorial-lease-10.dada:3:15:3:15),
             ),
-            Tokens(dada_tests/permissions/dyn_tutorial/tutorial-10.dada:3:18:10:1),
+            Tokens(dada_tests/permissions/dyn_tutorial/tutorial-lease-10.dada:3:18:10:1),
         ),
         data: syntax::Tree {
             root_expr: (
-                Expr(10),
+                Expr(15),
                 Seq(
                     [
                         (
@@ -56,32 +56,61 @@
                             ),
                         ),
                         (
-                            Expr(6),
+                            Expr(7),
                             Var(
                                 (
                                     "q",
                                     None,
                                 ),
                                 (
-                                    Expr(5),
-                                    Id(
-                                        "p",
+                                    Expr(6),
+                                    Lease(
+                                        (
+                                            Expr(5),
+                                            Id(
+                                                "p",
+                                            ),
+                                        ),
                                     ),
                                 ),
                             ),
                         ),
                         (
-                            Expr(9),
+                            Expr(11),
+                            OpEq(
+                                (
+                                    Expr(9),
+                                    Dot(
+                                        (
+                                            Expr(8),
+                                            Id(
+                                                "q",
+                                            ),
+                                        ),
+                                        "x",
+                                    ),
+                                ),
+                                PlusEqual,
+                                (
+                                    Expr(10),
+                                    Integer(
+                                        "1",
+                                    ),
+                                ),
+                            ),
+                        ),
+                        (
+                            Expr(14),
                             Var(
                                 (
                                     "x",
                                     None,
                                 ),
                                 (
-                                    Expr(8),
+                                    Expr(13),
                                     Dot(
                                         (
-                                            Expr(7),
+                                            Expr(12),
                                             Id(
                                                 "p",
                                             ),

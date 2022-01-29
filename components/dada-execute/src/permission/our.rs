@@ -22,7 +22,7 @@ impl Our {
         }
     }
 
-    pub(super) fn share(
+    pub(super) fn give_share(
         &self,
         this: &Permission,
         _interpreter: &Interpreter<'_>,

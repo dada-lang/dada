@@ -1,0 +1,10 @@
+class Point(var x, var y)
+
+async fn main() {
+    var p = Point(x: 22, y: 44)
+    var q = p.lease
+    q.x += 1
+    var x = p.x
+    #?         ^ HeapGraph
+    x = q.x
+}

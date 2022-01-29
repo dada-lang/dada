@@ -93,18 +93,22 @@ impl Value {
         Ok(Value { permission, data })
     }
 
-    pub(crate) fn into_share(self, interpreter: &Interpreter<'_>) -> eyre::Result<Value> {
-        Ok(Value {
-            permission: self.permission.into_share(interpreter)?,
-            data: self.data,
-        })
+    pub(crate) fn give_share(&mut self, interpreter: &Interpreter<'_>) -> eyre::Result<Value> {
+        let permission = self.permission.give_share(interpreter)?;
+
+        let data = if !self.permission.is_valid() {
+            // If we gave away our permission, have to give away our data too
+            std::mem::replace(&mut self.data, Arc::new(Mutex::new(Data::from(()))))
+        } else {
+            self.data.clone()
+        };
+
+        Ok(Value { permission, data })
     }
 
-    pub(crate) fn share(&self, interpreter: &Interpreter<'_>) -> eyre::Result<Value> {
-        Ok(Value {
-            permission: self.permission.share(interpreter)?,
-            data: self.data.clone(),
-        })
+    pub(crate) fn lease_share(&self, interpreter: &Interpreter<'_>) -> eyre::Result<Value> {
+        let mut leased_value = self.lease(interpreter)?;
+        leased_value.give_share(interpreter)
     }
 
     pub(crate) fn lease(&self, interpreter: &Interpreter<'_>) -> eyre::Result<Value> {

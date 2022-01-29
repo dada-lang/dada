@@ -23,18 +23,24 @@ impl Permission {
         Self::new(Arc::new(data.into()))
     }
 
+    /// Creates a `my` permission.
     pub(crate) fn my(interpreter: &Interpreter<'_>) -> Self {
         Self::allocate(my::My::new(interpreter))
     }
 
+    /// Creates a `leased` permission. This is private because the only way to do that
+    /// is to invoke [`leave`] on another permission.
     fn leased(interpreter: &Interpreter<'_>) -> Self {
         Self::allocate(leased::Leased::new(interpreter))
     }
 
+    /// Creates a `shared` permission. This is private because the only way to do that
+    /// is to invoke [`share`] on a leased permission.
     fn shared(interpreter: &Interpreter<'_>) -> Self {
         Self::allocate(shared::Shared::new(interpreter))
     }
 
+    /// Creates an `our` (jointly owned) permission.
     pub(crate) fn our(interpreter: &Interpreter<'_>) -> Self {
         Self::allocate(our::Our::new(interpreter))
     }
@@ -88,18 +94,15 @@ impl Permission {
         self.data.lease(self, interpreter)
     }
 
-    /// Given `var q = p.give.share`, what permission does `q` get?
+    /// Convert all the permissions into "shared" permisions.
+    /// This is slightly more fundamental than the `share`
+    /// keyword as exposed to Dada users: e.g.,
+    /// `var q = p.share` is actually sugar for
+    /// `var q = p.lease.share`.
     ///
     /// May also affect the permissions of `p`!
-    pub(crate) fn into_share(self, interpreter: &Interpreter<'_>) -> eyre::Result<Permission> {
-        self.data.into_share(interpreter)
-    }
-
-    /// Given `var q = p.share`, what permission does `q` get?
-    ///
-    /// May also affect the permissions of `p`!
-    pub(crate) fn share(&self, interpreter: &Interpreter<'_>) -> eyre::Result<Permission> {
-        self.data.share(self, interpreter)
+    pub(crate) fn give_share(&self, interpreter: &Interpreter<'_>) -> eyre::Result<Permission> {
+        self.data.give_share(self, interpreter)
     }
 
     /// Read the internal data. Used to capture heap-graphs
@@ -156,26 +159,23 @@ impl PermissionData {
             PermissionData::Leased(p) => p.lease(interpreter),
 
             // For non-exclusive permisions, leasing is the same as sharing:
-            PermissionData::Shared(_) | PermissionData::Our(_) => self.share(this, interpreter),
-        }
-    }
-
-    /// See [`Permission::into_share`]
-    fn into_share(self: Arc<Self>, interpreter: &Interpreter<'_>) -> eyre::Result<Permission> {
-        match &*self {
-            PermissionData::My(_) => Ok(Permission::our(interpreter)),
-            PermissionData::Leased(p) => p.share(interpreter),
-            PermissionData::Shared(_) | PermissionData::Our(_) => Ok(Permission::new(self)),
+            PermissionData::Shared(_) | PermissionData::Our(_) => {
+                self.give_share(this, interpreter)
+            }
         }
     }
 
     /// See [`Permission::share`]
-    fn share(&self, this: &Permission, interpreter: &Interpreter<'_>) -> eyre::Result<Permission> {
+    fn give_share(
+        &self,
+        this: &Permission,
+        interpreter: &Interpreter<'_>,
+    ) -> eyre::Result<Permission> {
         match self {
-            PermissionData::My(p) => p.share(interpreter),
-            PermissionData::Leased(p) => p.share(interpreter),
-            PermissionData::Shared(p) => p.share(this, interpreter),
-            PermissionData::Our(p) => p.share(this, interpreter),
+            PermissionData::My(p) => p.give_share(interpreter),
+            PermissionData::Leased(p) => p.give_share(interpreter),
+            PermissionData::Shared(p) => p.give_share(this, interpreter),
+            PermissionData::Our(p) => p.give_share(this, interpreter),
         }
     }
 

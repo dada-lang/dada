@@ -36,9 +36,10 @@ impl My {
         Ok(self.tenant.lease(interpreter))
     }
 
-    pub(super) fn share(&self, interpreter: &Interpreter<'_>) -> eyre::Result<Permission> {
-        self.given.check_still_valid(interpreter)?;
-        Ok(self.tenant.share(interpreter))
+    pub(super) fn give_share(&self, interpreter: &Interpreter<'_>) -> eyre::Result<Permission> {
+        self.check_owned(interpreter)?;
+        let permission = Permission::our(interpreter);
+        Ok(permission)
     }
 
     pub(super) fn check_read(&self, interpreter: &Interpreter) -> eyre::Result<()> {

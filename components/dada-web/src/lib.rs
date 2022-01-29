@@ -4,10 +4,12 @@ use dada_error_format::format_diagnostics;
 use dada_execute::kernel::BufferKernel;
 use dada_ir::{filename::Filename, span::LineColumn};
 use diagnostics::DadaDiagnostic;
+use range::DadaRange;
 use tracing_wasm::WASMLayerConfigBuilder;
 use wasm_bindgen::prelude::*;
 
 mod diagnostics;
+mod range;
 
 #[wasm_bindgen(start)]
 pub fn start() -> Result<(), JsValue> {
@@ -35,7 +37,9 @@ pub struct DadaCompiler {
 
     /// If a breakpoint was set, contains graphviz source
     /// for the heap at that point (else empty).
-    heap_capture: String,
+    heap_capture: Vec<(String, String)>,
+
+    breakpoint_ranges: Vec<DadaRange>,
 }
 
 #[wasm_bindgen]
@@ -106,9 +110,21 @@ impl DadaCompiler {
 
         self.diagnostics = diagnostics.to_owned();
 
+        self.breakpoint_ranges = heap_graphs
+            .iter()
+            .map(|record| DadaRange::from(&self.db, record.breakpoint_span))
+            .collect();
+        self.breakpoint_ranges.sort();
+        self.breakpoint_ranges.dedup();
+
         self.heap_capture = heap_graphs
             .into_iter()
-            .map(|record| record.to_graphviz(&self.db))
+            .map(|record| {
+                (
+                    record.heap_at_start.graphviz_alone(&self.db, false),
+                    record.heap_at_end.graphviz_alone(&self.db, false),
+                )
+            })
             .collect();
 
         self
@@ -125,6 +141,16 @@ impl DadaCompiler {
     }
 
     #[wasm_bindgen(getter)]
+    pub fn num_breakpoint_ranges(&self) -> usize {
+        self.breakpoint_ranges.len()
+    }
+
+    #[wasm_bindgen]
+    pub fn breakpoint_range(&self, index: usize) -> DadaRange {
+        self.breakpoint_ranges[index]
+    }
+
+    #[wasm_bindgen(getter)]
     pub fn diagnostics(&self) -> String {
         format_diagnostics(&self.db, &self.diagnostics).unwrap()
     }
@@ -135,7 +161,20 @@ impl DadaCompiler {
     }
 
     #[wasm_bindgen(getter)]
-    pub fn heap(&self) -> String {
-        self.heap_capture.clone()
+    pub fn heap_before(&self) -> String {
+        if self.heap_capture.is_empty() {
+            return String::new();
+        }
+
+        self.heap_capture[0].0.clone()
+    }
+
+    #[wasm_bindgen(getter)]
+    pub fn heap_after(&self) -> String {
+        if self.heap_capture.is_empty() {
+            return String::new();
+        }
+
+        self.heap_capture[0].1.clone()
     }
 }

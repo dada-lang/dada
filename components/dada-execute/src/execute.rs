@@ -165,11 +165,21 @@ impl StackFrame<'_> {
                             &|| HeapGraph::new(interpreter, &self, None),
                         )?;
                     }
-                    dada_ir::code::bir::StatementData::BreakpointEnd(filename, index, place) => {
+                    dada_ir::code::bir::StatementData::BreakpointEnd(
+                        filename,
+                        index,
+                        expr,
+                        place,
+                    ) => {
+                        let span = self
+                            .function
+                            .syntax_tree(interpreter.db())
+                            .spans(interpreter.db())[*expr];
                         interpreter.kernel().breakpoint_end(
                             interpreter.db(),
                             *filename,
                             *index,
+                            span.in_file(*filename),
                             &|| HeapGraph::new(interpreter, &self, *place),
                         )?;
                     }
@@ -222,13 +232,12 @@ impl StackFrame<'_> {
     ) -> eyre::Result<Value> {
         self.location = StackFrameLocation::Expr(expr);
         match expr.data(self.tables) {
-            bir::ExprData::BooleanLiteral(value) => Ok(Value::new(interpreter, *value)),
-            bir::ExprData::IntegerLiteral(value) => Ok(Value::new(interpreter, *value)),
+            bir::ExprData::BooleanLiteral(value) => Ok(Value::our(interpreter, *value)),
+            bir::ExprData::IntegerLiteral(value) => Ok(Value::our(interpreter, *value)),
             bir::ExprData::StringLiteral(value) => Ok(Value::new(interpreter, *value)),
-            bir::ExprData::ShareValue(expr) => self
-                .evaluate_bir_expr(interpreter, *expr)?
-                .into_share(interpreter),
-            bir::ExprData::Share(place) => self.with_place(interpreter, *place, Value::share),
+            bir::ExprData::GiveShare(place) => {
+                self.with_place_mut(interpreter, *place, Value::give_share)
+            }
             bir::ExprData::Lease(place) => self.with_place(interpreter, *place, Value::lease),
             bir::ExprData::Give(place) => self.with_place_mut(interpreter, *place, Value::give),
             bir::ExprData::Tuple(places) => {
@@ -239,8 +248,8 @@ impl StackFrame<'_> {
                 Ok(Value::new(interpreter, Tuple { fields }))
             }
             bir::ExprData::Op(lhs, op, rhs) => {
-                let lhs = self.with_place(interpreter, *lhs, Value::share)?;
-                let rhs = self.with_place(interpreter, *rhs, Value::share)?;
+                let lhs = self.with_place(interpreter, *lhs, Value::lease_share)?;
+                let rhs = self.with_place(interpreter, *rhs, Value::lease_share)?;
                 lhs.read(interpreter, |lhs| {
                     rhs.read(interpreter, |rhs| {
                         self.apply_op(interpreter, expr, lhs, *op, rhs)

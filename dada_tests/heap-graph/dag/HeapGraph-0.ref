@@ -33,10 +33,10 @@ digraph {
         <tr><td port="1">y: 44</td></tr>
       </table>>
     ];
-    "afterstack":0 -> "afternode0" [label="shared", style="solid"];
+    "afterstack":0 -> "afternode0" [label="our", style="solid"];
     "afterstack":6 -> "afternode1" [label="my", style="solid"];
-    "afternode1":0 -> "afternode0" [label="shared", style="solid"];
-    "afternode1":1 -> "afternode0" [label="shared", style="solid"];
+    "afternode1":0 -> "afternode0" [label="our", style="solid"];
+    "afternode1":1 -> "afternode0" [label="our", style="solid"];
   }
   subgraph cluster_before {
     label=<<b>before</b>>

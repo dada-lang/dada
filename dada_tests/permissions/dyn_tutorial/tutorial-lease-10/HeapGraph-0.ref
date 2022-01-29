@@ -23,7 +23,7 @@ digraph {
     afternode0 [
       label = <<table border="0">
         <tr><td border="1">Point</td></tr>
-        <tr><td port="0">x: ()</td></tr>
+        <tr><td port="0">x: 22</td></tr>
         <tr><td port="1">y: 44</td></tr>
       </table>>
     ];
@@ -47,6 +47,13 @@ digraph {
         >;
       ];
     }
+    beforenode0 [
+      label = <<table border="0">
+        <tr><td border="1">Point</td></tr>
+        <tr><td port="0">x: 22</td></tr>
+        <tr><td port="1">y: 44</td></tr>
+      </table>>
+    ];
     "beforestack":0 -> "beforenode0" [label="my", style="dotted"];
     "beforestack":5 -> "beforenode0" [label="leased", style="solid"];
   }

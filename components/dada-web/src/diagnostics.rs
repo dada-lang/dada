@@ -1,7 +1,5 @@
-use dada_ir::{
-    filename::Filename,
-    span::{FileSpan, Offset},
-};
+use crate::range::DadaLineColumn;
+use dada_ir::span::FileSpan;
 use wasm_bindgen::prelude::*;
 
 #[wasm_bindgen]
@@ -18,16 +16,9 @@ pub struct DadaDiagnostic {
 #[wasm_bindgen]
 #[derive(Clone)]
 pub struct DadaLabel {
-    pub start: DadaLocation,
-    pub end: DadaLocation,
+    pub start: DadaLineColumn,
+    pub end: DadaLineColumn,
     message: String,
-}
-
-#[wasm_bindgen]
-#[derive(Copy, Clone)]
-pub struct DadaLocation {
-    pub line0: u32,
-    pub column0: u32,
 }
 
 #[wasm_bindgen]
@@ -72,8 +63,8 @@ impl DadaDiagnostic {
 #[wasm_bindgen]
 impl DadaLabel {
     pub(crate) fn from(db: &dada_db::Db, span: FileSpan, message: &str) -> Self {
-        let start = DadaLocation::from(db, span.filename, span.start);
-        let end = DadaLocation::from(db, span.filename, span.end);
+        let start = DadaLineColumn::from(db, span.filename, span.start);
+        let end = DadaLineColumn::from(db, span.filename, span.end);
         DadaLabel {
             start,
             end,
@@ -84,16 +75,5 @@ impl DadaLabel {
     #[wasm_bindgen(getter)]
     pub fn message(&self) -> String {
         self.message.clone()
-    }
-}
-
-#[wasm_bindgen]
-impl DadaLocation {
-    pub(crate) fn from(db: &dada_db::Db, filename: Filename, position: Offset) -> Self {
-        let lc = dada_ir::lines::line_column(db, filename, position);
-        Self {
-            line0: lc.line0(),
-            column0: lc.column0(),
-        }
     }
 }

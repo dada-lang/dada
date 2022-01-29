@@ -12,13 +12,14 @@
 </head>
 
 <body>
-    <div class='area'>
-        <h1>Dada source text</h1>
+    <div class='grid'>
+        <div class='editor-cell'>
+            <h1>Dada source text</h1>
 
-        <input id="shareButton" type="button" value="share" />
-        <span id="statusSpan"></span>
+            <input id="shareButton" type="button" value="share" />
+            <span id="statusSpan"></span>
 
-        <pre id="editor">
+            <pre id="editor">
 async fn main() {
     print("
         I have forced myself to contradict myself
@@ -28,14 +29,22 @@ async fn main() {
 }
 </pre>
 
-    </div>
-    <div class='area'>
-        <h1>Output</h1>
-        <div class='output'>
+        </div>
+        <div class='output-cell'>
+            <h2>Output</h2>
             <pre id="output"></pre>
         </div>
-        <div class='graph' id='graph'>
-            <p>Click in the source text to display the state at that point</p>
+        <div class='heap-before-cell'>
+            <h2>State before selected statement</h2>
+            <div id='heap-before'>
+                <p>Click in the source text to display the state at that point</p>
+            </div>
+        </div>
+        <div class='heap-after-cell'>
+            <h2>State after selected statement</h2>
+            <div id='heap-after'>
+                <p>Click in the source text to display the state at that point</p>
+            </div>
         </div>
     </div>
     <script src="ace/ace.js" type="text/javascript" charset="utf-8"></script>

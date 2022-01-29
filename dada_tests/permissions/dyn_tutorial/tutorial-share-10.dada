@@ -1,0 +1,11 @@
+class Point(var x, var y)
+
+async fn main() {
+    var p = Point(x: 22, y: 44).share 
+    var q = p
+    #?       ^ HeapGraph
+    var x = p.x
+    var x = q.x
+    var x = p.x
+    # Able to successfully use both p, q
+}

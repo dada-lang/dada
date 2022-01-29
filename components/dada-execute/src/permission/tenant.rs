@@ -20,7 +20,16 @@ impl Tenant {
     }
 
     pub(super) fn share(&self, interpreter: &Interpreter<'_>) -> Permission {
-        self.cancel_tenant(interpreter);
+        self.cancel_tenant_if_exclusive(interpreter);
+
+        // If there is already a tenant, it must be a shared tenant.
+        let tenant = self.tenant.load();
+        if let Some(tenant) = &*tenant {
+            assert!(!tenant.exclusive());
+            return Permission::new(tenant.clone());
+        }
+
+        // Otherwise, create a shared tenant.
         let perm = Permission::shared(interpreter);
         self.tenant.store(Some(perm.data.clone()));
         perm
