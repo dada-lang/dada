@@ -1,0 +1,30 @@
+{
+	"name": "dada-language-server",
+	"description": "Dada Language Server",
+	"author": "Dada contributors",
+	"license": "MIT",
+	"version": "0.1.0",
+	"private": true,
+	"homepage": "https://dada-lang.org",
+	"repository": {
+		"type": "git",
+		"url": "https://github.com/dada-lang/dada"
+	},
+	"publisher": "dada-lang",
+	"categories": [
+		"Programming Languages"
+	],
+	"keywords": [
+		"dada"
+	],
+	"engines": {
+		"vscode": "^1.52.0"
+	},
+	"scripts": {},
+	"dependencies": {
+		"vscode-languageclient": "^7.0.0"
+	},
+	"devDependencies": {
+		"@types/vscode": "^1.52.0"
+	}
+}

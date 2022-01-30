@@ -1,0 +1,24 @@
+name: Editors
+
+on:
+  push:
+    branches:
+      - main
+      - staging
+      - trying
+  pull_request:
+
+jobs:
+  vscode:
+    name: Visual Studio Code
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v2.4.0
+      - uses: actions/setup-node@v2
+        with:
+          node-version: 16
+          cache: npm
+          cache-dependency-path: "**/package-lock.json"
+      - run: npm ci
+      - run: npm run compile
+      - run: npm run lint

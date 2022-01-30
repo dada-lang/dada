@@ -48,7 +48,9 @@ impl Options {
                 tracing_tree::HierarchicalLayer::default()
                     .with_writer(std::io::stderr)
                     .with_indent_lines(false)
-                    .with_ansi(true)
+                    // VSCode does not support colors in the output channel
+                    // https://github.com/Microsoft/vscode/issues/571
+                    .with_ansi(!matches!(self.cmd, Command::Ide(_)))
                     .with_targets(true)
                     .with_indent_amount(2)
             });

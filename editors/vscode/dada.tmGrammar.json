@@ -1,0 +1,80 @@
+{
+  "scopeName": "source.dada",
+  "patterns": [
+    { "include": "#comments" },
+    { "include": "#constants" },
+    { "include": "#functions" },
+    { "include": "#keywords" }
+  ],
+  "repository": {
+    "comments": {
+      "name": "comment.line.number-sign.dada",
+      "match": "\\s*#.*"
+    },
+    "constants": {
+      "patterns": [
+        {
+          "name": "constant.language.dada",
+          "match": "\\b(true|false)\\b"
+        }
+      ]
+    },
+    "functions": {
+      "patterns": [
+        {
+          "name": "meta.function.definition.dada",
+          "begin": "\\b(fn)\\s+([A-Za-z_]+)(\\()",
+          "beginCaptures": {
+						"1": {
+							"name": "keyword.other.fn.dada"
+						},
+						"2": {
+							"name": "entity.name.function.dada"
+						},
+						"3": {
+							"name": "punctuation.brackets.round.dada"
+						}
+					},
+					"end": "\\{",
+					"endCaptures": {
+						"0": {
+							"name": "punctuation.brackets.curly.dada"
+						}
+					},
+          "patterns": []
+        },
+        {
+          "name": "meta.function.call.dada",
+          "begin": "\\b([A-Za-z_]+)(\\()",
+          "beginCaptures": {
+						"1": {
+							"name": "entity.name.function.dada"
+						},
+						"2": {
+							"name": "punctuation.brackets.round.dada"
+						}
+					},
+					"end": "\\)",
+					"endCaptures": {
+						"0": {
+							"name": "punctuation.brackets.round.dada"
+						}
+					},
+          "patterns": []
+        }
+      ]
+    },
+    "keywords": {
+      "patterns": [
+        {
+          "name": "keyword.control.dada",
+          "match": "\\b(if|else|loop|while)\\b"
+        },
+        {
+          "name": "keyword.other.dada",
+          "match": "\\b(async|await)\\b"
+        }
+      ]
+    }
+  }
+}
