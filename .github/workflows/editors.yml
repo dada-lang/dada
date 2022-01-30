@@ -12,6 +12,9 @@ jobs:
   vscode:
     name: Visual Studio Code
     runs-on: ubuntu-latest
+    defaults:
+      run:
+        working-directory: editors/vscode
     steps:
       - uses: actions/checkout@v2.4.0
       - uses: actions/setup-node@v2
