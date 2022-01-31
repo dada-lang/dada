@@ -121,7 +121,7 @@ impl Options {
     async fn test_dada_file_normal(
         &self,
         path: &Path,
-        expected_diagnostics: &[ExpectedDiagnostic],
+        expected_diagnostics: &ExpectedDiagnostics,
         expected_queries: &[Query],
     ) -> eyre::Result<()> {
         let mut db = dada_db::Db::default();
@@ -136,7 +136,7 @@ impl Options {
         self.match_diagnostics_against_expectations(
             &db,
             &diagnostics,
-            expected_diagnostics,
+            &expected_diagnostics.compile,
             &mut errors,
         )?;
         self.check_output_against_ref_file(
@@ -165,8 +165,14 @@ impl Options {
             &path.join("bir.ref"),
             &mut errors,
         )?;
-        self.check_interpreted(&db, filename, &path.join("stdout.ref"), &mut errors)
-            .await?;
+        self.check_interpreted(
+            &db,
+            filename,
+            &path.join("stdout.ref"),
+            &expected_diagnostics.runtime,
+            &mut errors,
+        )
+        .await?;
 
         for (query, query_index) in expected_queries.iter().zip(0..) {
             self.perform_query_on_db(&mut db, path, filename, query, query_index, &mut errors)
@@ -180,7 +186,7 @@ impl Options {
     fn test_dada_file_in_ide(
         &self,
         path: &Path,
-        expected_diagnostics: &[ExpectedDiagnostic],
+        expected_diagnostics: &ExpectedDiagnostics,
     ) -> eyre::Result<()> {
         let mut c = lsp_client::ChildSession::spawn();
         c.send_init()?;
@@ -191,7 +197,7 @@ impl Options {
         self.match_diagnostics_against_expectations(
             &(),
             &diagnostics,
-            expected_diagnostics,
+            &expected_diagnostics.compile,
             &mut errors,
         )?;
         self.check_output_against_ref_file(
@@ -340,18 +346,36 @@ impl Options {
         db: &dada_db::Db,
         filename: Filename,
         ref_path: &Path,
+        expected_diagnostics: &[ExpectedDiagnostic],
         errors: &mut Errors,
     ) -> eyre::Result<()> {
+        let mut diagnostics = vec![];
         let actual_output = match db.function_named(filename, "main") {
             Some(function) => {
                 let mut kernel = BufferKernel::new();
-                kernel.interpret_and_buffer(db, function, vec![]).await;
+                let res = kernel.interpret(db, function, vec![]).await;
+                if let Err(err) = res {
+                    match err.downcast_ref::<dada_execute::DiagnosticError>() {
+                        Some(err) => {
+                            diagnostics.push(err.diagnostic().clone());
+                        }
+                        None => {
+                            eyre::bail!("unexpected runtime error type: {:?}", err);
+                        }
+                    }
+                }
                 kernel.take_buffer()
             }
             None => {
                 format!("no `main` function in `{}`", filename.as_str(db))
             }
         };
+        self.match_diagnostics_against_expectations(
+            db,
+            &diagnostics,
+            expected_diagnostics,
+            errors,
+        )?;
         self.check_output_against_ref_file(actual_output, ref_path, errors)?;
         Ok(())
     }
@@ -512,17 +536,25 @@ enum QueryKind {
     HeapGraph,
 }
 
+/// There are both compile-time and runtime-emitted diagnostics
+#[derive(Debug)]
+struct ExpectedDiagnostics {
+    compile: Vec<ExpectedDiagnostic>,
+    runtime: Vec<ExpectedDiagnostic>,
+}
+
 /// Returns the diagnostics that we expect to see in the file, sorted by line number.
-fn expected_diagnostics(path: &Path) -> eyre::Result<Vec<ExpectedDiagnostic>> {
+fn expected_diagnostics(path: &Path) -> eyre::Result<ExpectedDiagnostics> {
     let file_contents = std::fs::read_to_string(path)?;
 
     let re = regex::Regex::new(
-        r"^(?P<prefix>[^#]*)#!\s*(?P<highlight>\^+)?\s*(?P<severity>ERROR|WARNING|INFO)\s*(?P<msg>.*)",
+        r"^(?P<prefix>[^#]*)#!\s*(?P<highlight>\^+)?\s*(?P<type>RUN)?\s*(?P<severity>ERROR|WARNING|INFO)\s*(?P<msg>.*)",
     )
     .unwrap();
 
     let mut last_code_line = 1;
-    let mut result = vec![];
+    let mut compile_diagnostics = vec![];
+    let mut runtime_diagnostics = vec![];
     for (line, line_number) in file_contents.lines().zip(1..) {
         if let Some(c) = re.captures(line) {
             let start_line = if c["prefix"].chars().all(char::is_whitespace) {
@@ -538,19 +570,37 @@ fn expected_diagnostics(path: &Path) -> eyre::Result<Vec<ExpectedDiagnostic>> {
             let highlight = c.name("highlight");
             let start_column = highlight.map(|m| m.start() as u32 + 1);
             let end_line_column = highlight.map(|m| (start_line, m.end() as u32 + 1));
-
-            result.push(ExpectedDiagnostic {
+            let severity = c["severity"].to_string();
+            let message = Regex::new(&c["msg"])?;
+            let expected = ExpectedDiagnostic {
                 start_line,
                 start_column,
                 end_line_column,
-                severity: c["severity"].to_string(),
-                message: Regex::new(&c["msg"])?,
-            });
+                severity,
+                message,
+            };
+            let type_ = c.name("type").map_or("COMPILE", |m| m.as_str());
+
+            match type_ {
+                "COMPILE" => {
+                    compile_diagnostics.push(expected);
+                }
+                "RUN" => {
+                    runtime_diagnostics.push(expected);
+                }
+                wrong => {
+                    eyre::bail!("unexpected diagnostic type {} in {:?}", wrong, path);
+                }
+            }
         } else {
             last_code_line = line_number;
         }
     }
-    Ok(result)
+
+    Ok(ExpectedDiagnostics {
+        compile: compile_diagnostics,
+        runtime: runtime_diagnostics,
+    })
 }
 
 /// Searches for a `#?` annotation, which indicates that we want to do a

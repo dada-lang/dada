@@ -1,3 +1,4 @@
 fn main() {
     () / ()
+#!  ^^^^^^^ RUN ERROR cannot apply operator / to nothing and nothing
 }

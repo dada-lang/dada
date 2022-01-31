@@ -32,5 +32,6 @@ mod poll_once;
 mod thunk;
 mod value;
 
+pub use error::DiagnosticError;
 pub use execute::interpret;
 pub use execute::StackFrame;
