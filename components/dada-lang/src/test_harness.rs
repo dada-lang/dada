@@ -517,7 +517,7 @@ fn expected_diagnostics(path: &Path) -> eyre::Result<Vec<ExpectedDiagnostic>> {
     let file_contents = std::fs::read_to_string(path)?;
 
     let re = regex::Regex::new(
-        r"^(?P<prefix>[^#]*)#!\s*(?P<highlight>\^+)?\s*(?P<severity>[^\s*]+)\s*(?P<msg>.*)",
+        r"^(?P<prefix>[^#]*)#!\s*(?P<highlight>\^+)?\s*(?P<severity>ERROR|WARNING|INFO)\s*(?P<msg>.*)",
     )
     .unwrap();
 
