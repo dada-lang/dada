@@ -4,7 +4,7 @@
             Some(
                 Tokens(dada_tests/interpret/ops/op_bool_minus.dada:1:9:1:9),
             ),
-            Tokens(dada_tests/interpret/ops/op_bool_minus.dada:1:12:3:1),
+            Tokens(dada_tests/interpret/ops/op_bool_minus.dada:1:12:4:1),
         ),
         data: syntax::Tree {
             root_expr: (

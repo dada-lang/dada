@@ -1,3 +1,4 @@
 fn main() {
     "a" * "b"
+#!  ^^^^^^^^^ RUN ERROR cannot apply operator \* to a string and a string
 }

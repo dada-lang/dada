@@ -1,3 +1,4 @@
 async fn main() {
     print(greeting: "Hello, world").await
+    #!    ^^^^^^^^ RUN ERROR expected to find an argument named `message`, but found the name `greeting`
 }

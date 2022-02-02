@@ -7,4 +7,5 @@ async fn main() {
     #?       ^ HeapGraph
 
     var x = p.x
+    #!      ^^^ RUN ERROR permission already given
 }

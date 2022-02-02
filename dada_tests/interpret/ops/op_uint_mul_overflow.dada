@@ -1,4 +1,5 @@
 fn main() {
     var uint_max = 18446744073709551615
     uint_max * 2
+#!  ^^^^^^^^^^^^ RUN ERROR overflow
 }

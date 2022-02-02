@@ -48,7 +48,7 @@
             Some(
                 Tokens(dada_tests/interpret/function-args-expected-1-gave-2.dada:5:9:5:9),
             ),
-            Tokens(dada_tests/interpret/function-args-expected-1-gave-2.dada:5:12:7:1),
+            Tokens(dada_tests/interpret/function-args-expected-1-gave-2.dada:5:12:8:1),
         ),
         data: syntax::Tree {
             root_expr: (
