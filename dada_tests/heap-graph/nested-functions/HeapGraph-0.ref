@@ -14,29 +14,30 @@ digraph {
           <tr><td border="1">main</td></tr>
           <tr><td port="0">name: "Fellow Dadaist"</td></tr>
           <tr><td border="1">helper</td></tr>
-          <tr><td port="18">p: ()</td></tr>
-          <tr><td port="23">q: ()</td></tr>
+          <tr><td port="18">p</td></tr>
+          <tr><td port="23">q</td></tr>
           <tr><td port="35">(in-flight)</td></tr>
           </table>
         >;
       ];
     }
-    afternode0 [
-      label = <<table border="0">
-        <tr><td border="1">Point</td></tr>
-        <tr><td port="0">x</td></tr>
-        <tr><td port="1">y: 66</td></tr>
-      </table>>
-    ];
     afternode1 [
       label = <<table border="0">
         <tr><td border="1">Point</td></tr>
-        <tr><td port="0">x: 22</td></tr>
-        <tr><td port="1">y: 44</td></tr>
+        <tr><td port="0">x</td></tr>
+        <tr><td port="1">y: "66"</td></tr>
       </table>>
     ];
-    "stack":35 -> "afternode0" [label="my", style="solid"];
-    "afternode0":0 -> "afternode1" [label="my", style="solid"];
+    afternode0 [
+      label = <<table border="0">
+        <tr><td border="1">Point</td></tr>
+        <tr><td port="0">x: "22"</td></tr>
+        <tr><td port="1">y: "44"</td></tr>
+      </table>>
+    ];
+    "afterstack":18 -> "afternode0" [label="our", style="solid"];
+    "stack":35 -> "afternode1" [label="my", style="solid"];
+    "afternode1":0 -> "afternode0" [label="our", style="solid"];
   }
   subgraph cluster_before {
     label=<<b>before</b>>
@@ -51,7 +52,7 @@ digraph {
           <tr><td port="0">name: "Fellow Dadaist"</td></tr>
           <tr><td border="1">helper</td></tr>
           <tr><td port="18">p</td></tr>
-          <tr><td port="23">q: ()</td></tr>
+          <tr><td port="23">q</td></tr>
           </table>
         >;
       ];
@@ -59,8 +60,8 @@ digraph {
     beforenode0 [
       label = <<table border="0">
         <tr><td border="1">Point</td></tr>
-        <tr><td port="0">x: 22</td></tr>
-        <tr><td port="1">y: 44</td></tr>
+        <tr><td port="0">x: "22"</td></tr>
+        <tr><td port="1">y: "44"</td></tr>
       </table>>
     ];
     "beforestack":18 -> "beforenode0" [label="my", style="solid"];

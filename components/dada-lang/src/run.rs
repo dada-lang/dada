@@ -26,7 +26,7 @@ impl Options {
         // Find the "main" function
         match db.function_named(filename, "main") {
             Some(function) => {
-                dada_execute::interpret(function, &db, &Kernel::new(), vec![]).await?;
+                dada_execute::interpret(function, &db, &mut Kernel::new(), vec![]).await?;
             }
             None => {
                 return Err(eyre::eyre!(
@@ -50,7 +50,7 @@ impl Kernel {
 
 #[async_trait::async_trait]
 impl dada_execute::kernel::Kernel for Kernel {
-    async fn print(&self, text: &str) -> eyre::Result<()> {
+    async fn print(&mut self, text: &str) -> eyre::Result<()> {
         let mut stdout = tokio::io::stdout();
         let mut text = text.as_bytes();
         while !text.is_empty() {
@@ -61,22 +61,22 @@ impl dada_execute::kernel::Kernel for Kernel {
     }
 
     fn breakpoint_start(
-        &self,
+        &mut self,
         _db: &dyn dada_execute::Db,
         _breakpoint_filename: dada_ir::filename::Filename,
         _breakpoint_index: usize,
-        _generate_heap_graph: &dyn Fn() -> HeapGraph,
+        _generate_heap_graph: &mut dyn FnMut() -> HeapGraph,
     ) -> eyre::Result<()> {
         panic!("no breakpoints set")
     }
 
     fn breakpoint_end(
-        &self,
+        &mut self,
         _db: &dyn dada_execute::Db,
         _breakpoint_filename: dada_ir::filename::Filename,
         _breakpoint_index: usize,
         _breakpoint_span: FileSpan,
-        _generate_heap_graph: &dyn Fn() -> HeapGraph,
+        _generate_heap_graph: &mut dyn FnMut() -> HeapGraph,
     ) -> eyre::Result<()> {
         panic!("no breakpoints set")
     }

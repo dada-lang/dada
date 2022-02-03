@@ -16,11 +16,11 @@ use crate::{
 use dada_id::{id, prelude::*, tables};
 use salsa::DebugWithDb;
 
-use super::{syntax, validated, Code};
+use super::{syntax, validated};
 
 salsa::entity2! {
     entity Bir in crate::Jar {
-        origin: Code,
+        origin: Function,
         #[value ref] data: BirData,
         #[value ref] origins: Origins,
     }

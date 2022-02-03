@@ -1,0 +1,332 @@
+use dada_collections::IndexVec;
+use dada_ir::{
+    class::Class,
+    code::bir,
+    function::Function,
+    intrinsic::Intrinsic,
+    span::FileSpan,
+    storage_mode::{Joint, Leased},
+    word::Word,
+};
+use dada_parse::prelude::*;
+use generational_arena::Arena;
+
+use crate::thunk::RustThunk;
+
+pub mod op;
+pub mod stringify;
+
+#[derive(Debug)]
+pub struct Machine {
+    pub heap: Heap,
+    pub stack: Stack,
+
+    /// For convenience, store a single unit object,
+    pub unit_object: Object,
+}
+
+impl Default for Machine {
+    fn default() -> Self {
+        let mut heap = Heap::default();
+        let unit_object = heap.new_object(ObjectData::Unit(()));
+        Self {
+            heap,
+            stack: Default::default(),
+            unit_object,
+        }
+    }
+}
+
+/// A value is a reference to an object.
+/// It combines the object itself with a permission.
+#[derive(Copy, Clone, Debug)]
+pub struct Value {
+    pub object: Object,
+    pub permission: Permission,
+}
+
+#[derive(Debug, Default)]
+pub struct Heap {
+    pub objects: Arena<ObjectData>,
+    pub permissions: Arena<PermissionData>,
+}
+
+impl Heap {
+    fn new_object(&mut self, data: ObjectData) -> Object {
+        Object {
+            index: self.objects.insert(data),
+        }
+    }
+
+    fn new_permission(&mut self, data: PermissionData) -> Permission {
+        Permission {
+            index: self.permissions.insert(data),
+        }
+    }
+}
+
+/// An "object" is a piece of data in the heap.
+///
+/// It could be one of the primitive object types
+/// (like an integer or string) or an instance of
+/// a user-provided class.
+#[derive(Copy, Clone, PartialEq, Eq, Hash)]
+pub struct Object {
+    index: generational_arena::Index,
+}
+
+impl std::fmt::Debug for Object {
+    fn fmt(&self, fmt: &mut std::fmt::Formatter<'_>) -> std::result::Result<(), std::fmt::Error> {
+        let (a, b) = self.index.into_raw_parts();
+        fmt.debug_tuple("Object").field(&a).field(&b).finish()
+    }
+}
+
+/// The data stored in a cube.
+#[derive(Debug)]
+pub enum ObjectData {
+    Instance(Instance),
+    Class(Class),
+    Function(Function),
+    Intrinsic(Intrinsic),
+    ThunkFn(ThunkFn),
+    ThunkRust(RustThunk),
+    Tuple(Tuple),
+    Bool(bool),
+    Uint(u64),
+    Int(i64),
+    Float(f64),
+    String(Word),
+    Unit(()),
+}
+
+impl ObjectData {
+    pub fn kind_str(&self, db: &dyn crate::Db) -> String {
+        match self {
+            ObjectData::Instance(i) => format!("an instance of `{}`", i.class.name(db).as_str(db)),
+            ObjectData::Class(_) => "a class".to_string(),
+            ObjectData::Function(_) => "a function".to_string(),
+            ObjectData::Intrinsic(_) => "a function".to_string(),
+            ObjectData::ThunkFn(f) => {
+                format!("a suspended call to `{}`", f.function.name(db).as_str(db))
+            }
+            ObjectData::ThunkRust(_) => "a thunk".to_string(),
+            ObjectData::Tuple(_) => "a tuple".to_string(),
+            ObjectData::Bool(_) => "a boolean".to_string(),
+            ObjectData::Uint(_) => "an unsigned integer".to_string(),
+            ObjectData::Int(_) => "an integer".to_string(),
+            ObjectData::Float(_) => "a float".to_string(),
+            ObjectData::String(_) => "a string".to_string(),
+            ObjectData::Unit(()) => "nothing".to_string(),
+        }
+    }
+}
+
+macro_rules! object_data_from_impls {
+    ($($variant_name:ident($ty:ty),)*) => {
+        $(
+            impl From<$ty> for ObjectData {
+                fn from(data: $ty) -> Self {
+                    ObjectData::$variant_name(data)
+                }
+            }
+        )*
+    }
+}
+
+object_data_from_impls! {
+    Instance(Instance),
+    Class(Class),
+    Function(Function),
+    Intrinsic(Intrinsic),
+    ThunkFn(ThunkFn),
+    ThunkRust(RustThunk),
+    Tuple(Tuple),
+    Bool(bool),
+    Uint(u64),
+    Int(i64),
+    Float(f64),
+    String(Word),
+    Unit(()),
+}
+
+#[derive(Debug)]
+pub struct Instance {
+    pub class: Class,
+    pub fields: Vec<Value>,
+}
+
+/// When you invoke an async function, the result is
+/// a ThunkFn. This stores the arguments that
+/// were provided, waiting for an `await` to execute.
+#[derive(Debug)]
+pub struct ThunkFn {
+    pub function: Function,
+    pub arguments: Vec<Value>,
+}
+
+#[derive(Debug)]
+pub struct Tuple {
+    #[allow(dead_code)]
+    pub fields: Vec<Value>,
+}
+
+#[derive(Copy, Clone, PartialEq, Eq, Hash)]
+pub struct Permission {
+    index: generational_arena::Index,
+}
+
+impl std::fmt::Debug for Permission {
+    fn fmt(&self, fmt: &mut std::fmt::Formatter<'_>) -> std::result::Result<(), std::fmt::Error> {
+        let (a, b) = self.index.into_raw_parts();
+        fmt.debug_tuple("Permission").field(&a).field(&b).finish()
+    }
+}
+
+#[derive(Debug)]
+pub enum PermissionData {
+    /// No permission: if the place is non-none, executing this place is
+    /// what caused the permission to be revoked. If None, the permission
+    /// was never granted (e.g., uninitialized memory).
+    Expired(Option<bir::Place>),
+
+    Valid(ValidPermissionData),
+}
+
+impl PermissionData {
+    pub fn valid(&self) -> Option<&ValidPermissionData> {
+        match self {
+            PermissionData::Expired(_) => None,
+            PermissionData::Valid(v) => Some(v),
+        }
+    }
+
+    #[track_caller]
+    pub fn assert_valid(&self) -> &ValidPermissionData {
+        match self {
+            PermissionData::Expired(_) => unreachable!(),
+            PermissionData::Valid(v) => v,
+        }
+    }
+
+    #[track_caller]
+    pub fn assert_valid_mut(&mut self) -> &mut ValidPermissionData {
+        match self {
+            PermissionData::Expired(_) => unreachable!(),
+            PermissionData::Valid(v) => v,
+        }
+    }
+
+    #[track_caller]
+    pub fn tenants(&self) -> &[Permission] {
+        self.valid().map(|v| &v.tenants[..]).unwrap_or(&[])
+    }
+}
+
+/// The data for a valid permission; each permission
+/// is attached to a particular reference from some
+/// place (memory location) `p` to some object `o`.
+#[derive(Debug)]
+pub struct ValidPermissionData {
+    /// A *joint* permission indicates whether this particular
+    /// place permits other permissions to `o`.
+    ///
+    /// Note that even if this is false, the place may be
+    /// located in a jointly reachable location. See
+    /// [`crate::step::traversal::PlaceTraversal`] for more
+    /// information.
+    pub joint: Joint,
+
+    /// A *leased* permission indicates whether this particular
+    /// place owns `o` or is leasing it.
+    ///
+    /// Note that even if this is false, the permission may be
+    /// located in a leased location.
+    pub leased: Leased,
+
+    /// A "tenant" is another permission that we have given
+    /// a lease (or sublease, if we ourselves are leased) to
+    /// access `o`. This could be a shared
+    /// or exclusive lease. Accesses to the fields of `o`
+    /// through this permision may cancel the tenants' leases.
+    pub tenants: Vec<Permission>,
+}
+
+impl ValidPermissionData {
+    /// The data for a new "uniquely owned" permission.
+    pub fn my() -> Self {
+        ValidPermissionData {
+            joint: Joint::No,
+            leased: Leased::No,
+            tenants: vec![],
+        }
+    }
+
+    /// The data for a new "jointly owned" permission. Used for literals.
+    pub fn our() -> Self {
+        ValidPermissionData {
+            joint: Joint::Yes,
+            leased: Leased::No,
+            tenants: vec![],
+        }
+    }
+}
+
+#[derive(Debug, Default)]
+pub struct Stack {
+    pub frames: Vec<Frame>,
+}
+
+#[derive(Debug)]
+pub struct Frame {
+    pub pc: ProgramCounter,
+    pub locals: IndexVec<bir::LocalVariable, Value>,
+}
+
+#[derive(Copy, Clone, Debug)]
+pub struct ProgramCounter {
+    /// The BIR we are interpreting.
+    pub bir: bir::Bir,
+
+    /// The current basic block.
+    pub basic_block: bir::BasicBlock,
+
+    /// The index of the statement to execute next within the
+    /// basic block, or -- if equal to the number of statements -- indicates
+    /// we are about to execute the terminator.
+    pub statement: usize,
+}
+
+impl ProgramCounter {
+    pub fn move_to_block(self, basic_block: bir::BasicBlock) -> ProgramCounter {
+        Self::at_block(self.bir, basic_block)
+    }
+
+    pub fn at_block(bir: bir::Bir, basic_block: bir::BasicBlock) -> ProgramCounter {
+        Self {
+            bir,
+            basic_block,
+            statement: 0,
+        }
+    }
+
+    pub fn span(&self, db: &dyn crate::Db) -> FileSpan {
+        // FIXME: This code is copied/adapter from Stepper::span_from_bir,
+        // it seems like we could create some helper functions, maybe on the
+        // Bir type itself.
+
+        let bir_data = self.bir.data(db);
+        let basic_block_data = &bir_data.tables[self.basic_block];
+        let origins = self.bir.origins(db);
+        let syntax_expr = if self.statement < basic_block_data.statements.len() {
+            origins[basic_block_data.statements[self.statement]]
+        } else {
+            origins[basic_block_data.terminator]
+        };
+
+        let code = self.bir.origin(db);
+        let filename = code.filename(db);
+        let syntax_tree = code.syntax_tree(db);
+        syntax_tree.spans(db)[syntax_expr].in_file(filename)
+    }
+}

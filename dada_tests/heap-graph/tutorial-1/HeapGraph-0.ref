@@ -12,7 +12,7 @@ digraph {
         label=<
           <table border="0">
           <tr><td border="1">main</td></tr>
-          <tr><td port="0">p: ()</td></tr>
+          <tr><td port="0">p</td></tr>
           <tr><td port="14">(in-flight)</td></tr>
           </table>
         >;
@@ -33,7 +33,7 @@ digraph {
         label=<
           <table border="0">
           <tr><td border="1">main</td></tr>
-          <tr><td port="0">p: ()</td></tr>
+          <tr><td port="0">p</td></tr>
           </table>
         >;
       ];

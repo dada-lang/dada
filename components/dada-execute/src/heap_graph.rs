@@ -7,14 +7,10 @@ use std::fmt::Debug;
 
 use dada_id::{id, tables};
 use dada_ir::{
-    class::Class,
-    code::bir::{LocalVariable, Place},
-    function::Function,
-    span::FileSpan,
-    word::Word,
+    class::Class, code::bir::LocalVariable, function::Function, span::FileSpan, word::Word,
 };
 
-use crate::{interpreter::Interpreter, StackFrame};
+use crate::machine::{op::MachineOp, Value};
 
 mod capture;
 mod graphviz;
@@ -27,16 +23,16 @@ pub struct HeapGraph {
 
 impl HeapGraph {
     pub(crate) fn new(
-        interpreter: &Interpreter<'_>,
-        top: &StackFrame<'_>,
-        place: Option<Place>,
+        db: &dyn crate::Db,
+        machine: &dyn MachineOp,
+        in_flight_value: Option<Value>,
     ) -> Self {
         let mut this = Self {
             stack: vec![],
             tables: Default::default(),
         };
-        let cache = &mut capture::Cache::default();
-        this.capture_from(interpreter, cache, top, place);
+        let capture = capture::HeapGraphCapture::new(db, &mut this, machine);
+        capture.capture(in_flight_value);
         this
     }
 }
@@ -72,8 +68,14 @@ id!(pub(crate) struct ObjectNode);
 
 #[derive(Debug)]
 pub(crate) struct ObjectNodeData {
-    class: Class,
+    ty: ObjectType,
     fields: Vec<ValueEdge>,
+}
+
+#[derive(Copy, Clone, Debug, Hash, PartialEq, Eq)]
+pub(crate) enum ObjectType {
+    Class(Class),
+    Thunk(Function),
 }
 
 #[derive(Copy, Clone, Debug, Hash, PartialEq, Eq)]
@@ -88,6 +90,7 @@ pub(crate) enum ValueEdgeTarget {
     Class(Class),
     Function(Function),
     Data(DataNode),
+    Expired,
 }
 
 id!(pub(crate) struct DataNode);
@@ -103,8 +106,8 @@ id!(pub(crate) struct PermissionNode);
 pub(crate) struct PermissionNodeData {
     label: PermissionNodeLabel,
 
-    /// If `Some`, then this permission is leased by somebody else.
-    tenant: Option<PermissionNode>,
+    /// If non-empty, then this permission is leased by somebody else.
+    tenants: Vec<PermissionNode>,
 
     /// If `Some`, then this permission is leased from the given
     /// permission, which must be a unique (my or leased) permission.

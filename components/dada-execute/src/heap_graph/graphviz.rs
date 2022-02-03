@@ -2,7 +2,7 @@ use dada_collections::{IndexSet, Map};
 use dada_id::InternKey;
 use dada_parse::prelude::*;
 
-use super::{DataNode, HeapGraph, PermissionNode, ValueEdge, ValueEdgeTarget};
+use super::{DataNode, HeapGraph, ObjectType, PermissionNode, ValueEdge, ValueEdgeTarget};
 
 impl HeapGraph {
     /// Plots this heap-graph by itself.
@@ -119,7 +119,7 @@ impl HeapGraph {
             let permission_data = value_edge.permission.data(&self.tables);
             let label = permission_data.label.as_str();
 
-            let style = if permission_data.tenant.is_some() {
+            let style = if !permission_data.tenants.is_empty() {
                 "dotted"
             } else {
                 "solid"
@@ -220,12 +220,18 @@ impl HeapGraph {
         match edge {
             ValueEdgeTarget::Object(o) => {
                 let data = o.data(&self.tables);
-                let fields = data.class.fields(w.db);
+                let fields = match data.ty {
+                    ObjectType::Class(class) => class.fields(w.db),
+                    ObjectType::Thunk(function) => function.parameters(w.db),
+                };
                 let field_names = fields
                     .iter()
                     .map(|f| Some(f.name(w.db).as_str(w.db).to_string()));
                 w.indent(r#"label = <<table border="0">"#)?;
-                let class_name = data.class.name(w.db).as_str(w.db);
+                let class_name = match data.ty {
+                    ObjectType::Class(class) => class.name(w.db).as_str(w.db),
+                    ObjectType::Thunk(function) => function.name(w.db).as_str(w.db),
+                };
                 w.println(format!(r#"<tr><td border="1">{class_name}</td></tr>"#))?;
                 self.print_fields(w, &name, field_names, &data.fields, 0)?;
                 w.undent(r#"</table>>"#)?;
@@ -242,6 +248,7 @@ impl HeapGraph {
                 let data_str = self.data_str(d);
                 w.println(format!(r#"label = {data_str:?}"#))?;
             }
+            ValueEdgeTarget::Expired => {}
         }
         w.undent(r#"];"#)?;
         Ok(())
@@ -280,14 +287,24 @@ impl HeapGraph {
                     port: index,
                 });
 
-            if let ValueEdgeTarget::Data(d) = edge.target {
-                let data_str = self.data_str(d);
-                w.println(format!(
-                    r#"<tr><td port="{index}">{name}: {data_str}</td></tr>"#,
-                ))?;
-            } else {
-                w.println(format!(r#"<tr><td port="{index}">{name}</td></tr>"#))?;
-                w.push_value_edge(source, index, edge, edge.permission);
+            match edge.target {
+                ValueEdgeTarget::Data(d) => {
+                    let data_str = self.data_str(d);
+                    w.println(format!(
+                        r#"<tr><td port="{index}">{name}: {data_str}</td></tr>"#,
+                    ))?;
+                }
+
+                ValueEdgeTarget::Expired => {
+                    w.println(format!(r#"<tr><td port="{index}">{name}</td></tr>"#,))?;
+                }
+
+                ValueEdgeTarget::Class(_)
+                | ValueEdgeTarget::Function(_)
+                | ValueEdgeTarget::Object(_) => {
+                    w.println(format!(r#"<tr><td port="{index}">{name}</td></tr>"#))?;
+                    w.push_value_edge(source, index, edge, edge.permission);
+                }
             }
         }
         Ok(())

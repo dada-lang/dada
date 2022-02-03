@@ -80,7 +80,7 @@ impl DadaCompiler {
         let filename = self.filename();
         let diagnostics = self.db.diagnostics(filename);
 
-        let mut kernel = BufferKernel::new().stop_at_breakpoint(true);
+        let mut kernel = BufferKernel::new().stop_at_breakpoint(false);
         match self.db.function_named(filename, "main") {
             Some(function) => {
                 kernel

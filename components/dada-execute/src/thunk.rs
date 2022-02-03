@@ -1,84 +1,52 @@
-use dada_brew::prelude::BrewExt;
-use dada_ir::function::Function;
+use std::{future::Future, pin::Pin};
 
-use crate::{data::DadaFuture, execute::StackFrame, interpreter::Interpreter, value::Value};
+use crate::{machine::Value, step::Stepper};
 
-pub(crate) struct Thunk {
-    object: Box<dyn ThunkTrait>,
+/// A "RustThunk" is a thunk implemented in Rust.
+/// These are constructed from intrinsics.
+/// The data interpreter doesn't a
+pub struct RustThunk {
+    description: &'static str,
+    object: Box<dyn RustThunkTrait>,
 }
 
-impl Thunk {
+pub type RustFuture<'i> = Pin<Box<dyn Future<Output = eyre::Result<Value>> + 'i>>;
+
+impl RustThunk {
     pub(crate) fn new(
-        closure: impl 'static
-            + for<'i> FnOnce(&'i Interpreter<'_>, Option<&'i StackFrame<'_>>) -> DadaFuture<'i>,
+        description: &'static str,
+        closure: impl 'static + for<'i> FnOnce(&'i mut Stepper<'_>) -> RustFuture<'i>,
     ) -> Self {
-        Thunk {
+        RustThunk {
+            description,
             object: Box::new(closure),
         }
     }
 
-    pub(crate) fn for_function(function: Function, arguments: Vec<Value>) -> Thunk {
-        Thunk {
-            object: Box::new(FunctionThunk {
-                arguments,
-                function,
-            }),
-        }
-    }
-
-    pub(crate) async fn invoke(
-        self,
-        interpreter: &Interpreter<'_>,
-        parent_stack_frame: Option<&StackFrame<'_>>,
-    ) -> eyre::Result<Value> {
-        self.object.invoke(interpreter, parent_stack_frame).await
+    pub(crate) async fn invoke(self, stepper: &mut Stepper<'_>) -> eyre::Result<()> {
+        let value = self.object.invoke(stepper).await?;
+        stepper.awaken(value)?;
+        Ok(())
     }
 }
 
-impl std::fmt::Debug for Thunk {
+impl std::fmt::Debug for RustThunk {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
-        f.debug_tuple("Thunk").field(&"...").finish()
+        f.debug_tuple(self.description).field(&"...").finish()
     }
 }
 
 #[async_trait::async_trait(?Send)]
-trait ThunkTrait {
-    async fn invoke(
-        self: Box<Self>,
-        interpreter: &Interpreter<'_>,
-        parent_stack_frame: Option<&StackFrame<'_>>,
-    ) -> eyre::Result<Value>;
+trait RustThunkTrait {
+    async fn invoke(self: Box<Self>, stepper: &mut Stepper<'_>) -> eyre::Result<Value>;
 }
 
 #[async_trait::async_trait(?Send)]
-impl<T> ThunkTrait for T
+impl<T> RustThunkTrait for T
 where
-    T: for<'i> FnOnce(&'i Interpreter<'_>, Option<&'i StackFrame<'_>>) -> DadaFuture<'i>,
+    T: for<'i> FnOnce(&'i mut Stepper<'_>) -> RustFuture<'i>,
 {
-    async fn invoke(
-        self: Box<Self>,
-        interpreter: &Interpreter<'_>,
-        parent_stack_frame: Option<&StackFrame<'_>>,
-    ) -> eyre::Result<Value> {
-        self(interpreter, parent_stack_frame).await
-    }
-}
-
-struct FunctionThunk {
-    arguments: Vec<Value>,
-    function: Function,
-}
-
-#[async_trait::async_trait(?Send)]
-impl ThunkTrait for FunctionThunk {
-    async fn invoke(
-        self: Box<Self>,
-        interpreter: &Interpreter<'_>,
-        parent_stack_frame: Option<&StackFrame<'_>>,
-    ) -> eyre::Result<Value> {
-        let bir = self.function.brew(interpreter.db());
-        interpreter
-            .execute_bir(self.function, bir, self.arguments, parent_stack_frame)
-            .await
+    async fn invoke(self: Box<Self>, stepper: &mut Stepper<'_>) -> eyre::Result<Value> {
+        self(stepper).await
     }
 }

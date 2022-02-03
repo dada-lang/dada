@@ -15,11 +15,11 @@ use crate::{
 use dada_id::{id, prelude::*, tables};
 use salsa::DebugWithDb;
 
-use super::{syntax, Code};
+use super::syntax;
 
 salsa::entity2! {
     entity Tree in crate::Jar {
-        origin: Code,
+        origin: Function,
         #[value ref] data: TreeData,
         #[value ref] origins: Origins,
     }

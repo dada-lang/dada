@@ -1,3 +1,4 @@
+#![feature(let_else)]
 #![feature(trait_upcasting)]
 #![feature(try_blocks)]
 #![allow(incomplete_features)]
@@ -18,20 +19,15 @@ impl<T> Db for T where
 #[macro_use]
 mod macros;
 
-mod data;
 mod error;
-mod execute;
 mod ext;
 pub mod heap_graph;
-mod interpreter;
-mod intrinsic;
 pub mod kernel;
+pub mod machine;
 mod moment;
-mod permission;
-mod poll_once;
+mod run;
+mod step;
 mod thunk;
-mod value;
 
 pub use error::DiagnosticError;
-pub use execute::interpret;
-pub use execute::StackFrame;
+pub use run::interpret;

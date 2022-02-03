@@ -5,54 +5,54 @@
             [
                 (
                     Assign(
-                        temp{2},
+                        temp{3},
                         Class(Id { value: 1 }).give,
                     ),
                     Expr(0),
                 ),
                 (
                     Assign(
-                        temp{12},
-                        temp{2}.give,
+                        temp{11},
+                        temp{3}.give,
                     ),
                     Expr(0),
                 ),
                 (
                     Assign(
-                        temp{3},
+                        temp{4},
                         22,
                     ),
                     Expr(1),
                 ),
                 (
                     Assign(
-                        temp{13},
-                        temp{3}.give,
+                        temp{12},
+                        temp{4}.give,
                     ),
                     Expr(1),
                 ),
                 (
                     Assign(
-                        temp{4},
+                        temp{5},
                         44,
                     ),
                     Expr(2),
                 ),
                 (
                     Assign(
-                        temp{14},
-                        temp{4}.give,
+                        temp{13},
+                        temp{5}.give,
                     ),
                     Expr(2),
                 ),
             ],
             Assign(
-                temp{1},
+                temp{2},
                 Call(
-                    temp{12},
+                    temp{11},
                     [
+                        temp{12},
                         temp{13},
-                        temp{14},
                     ],
                     [
                         Some(
@@ -70,84 +70,56 @@
             [
                 (
                     Assign(
+                        temp{1},
+                        temp{2}.share,
+                    ),
+                    Expr(4),
+                ),
+                (
+                    Assign(
                         p{0},
                         temp{1}.give,
                     ),
-                    Expr(3),
+                    Expr(4),
                 ),
                 (
                     Assign(
-                        temp{6},
-                        p{0}.lease,
+                        temp{7},
+                        p{0}.give,
                     ),
-                    Expr(6),
+                    Expr(7),
                 ),
                 (
                     Assign(
-                        q{5},
-                        temp{6}.give,
+                        q{6},
+                        temp{7}.give,
                     ),
-                    Expr(6),
+                    Expr(7),
                 ),
                 (
                     Assign(
-                        temp{8},
-                        q{5}.lease,
-                    ),
-                    Expr(9),
-                ),
-                (
-                    Assign(
-                        r{7},
-                        temp{8}.give,
+                        temp{9},
+                        q{6}.give,
                     ),
                     Expr(9),
                 ),
                 (
                     Assign(
-                        temp{15},
-                        r{7}.x.give,
+                        r{8},
+                        temp{9}.give,
                     ),
-                    Expr(14),
-                ),
-                (
-                    Assign(
-                        temp{16},
-                        1,
-                    ),
-                    Expr(13),
-                ),
-                (
-                    Assign(
-                        r{7}.x,
-                        temp{15} + temp{16},
-                    ),
-                    Expr(14),
+                    Expr(9),
                 ),
                 (
                     Assign(
                         temp{10},
-                        p{0}.x.give,
-                    ),
-                    Expr(16),
-                ),
-                (
-                    Assign(
-                        x{9},
-                        temp{10}.give,
-                    ),
-                    Expr(16),
-                ),
-                (
-                    Assign(
-                        temp{11},
                         (),
                     ),
-                    Expr(17),
+                    Expr(10),
                 ),
             ],
             Return(
-                temp{11},
+                temp{10},
             ),
         ),
     },

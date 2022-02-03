@@ -8,65 +8,70 @@
         ),
         data: syntax::Tree {
             root_expr: (
-                Expr(18),
+                Expr(11),
                 Seq(
                     [
                         (
-                            Expr(4),
+                            Expr(5),
                             Var(
                                 (
                                     "p",
                                     None,
                                 ),
                                 (
-                                    Expr(3),
-                                    Call(
+                                    Expr(4),
+                                    Share(
                                         (
-                                            Expr(0),
-                                            Id(
-                                                "Point",
+                                            Expr(3),
+                                            Call(
+                                                (
+                                                    Expr(0),
+                                                    Id(
+                                                        "Point",
+                                                    ),
+                                                ),
+                                                [
+                                                    (
+                                                        Some(
+                                                            "x",
+                                                        ),
+                                                        (
+                                                            Expr(1),
+                                                            Integer(
+                                                                "22",
+                                                            ),
+                                                        ),
+                                                    ),
+                                                    (
+                                                        Some(
+                                                            "y",
+                                                        ),
+                                                        (
+                                                            Expr(2),
+                                                            Integer(
+                                                                "44",
+                                                            ),
+                                                        ),
+                                                    ),
+                                                ],
                                             ),
                                         ),
-                                        [
-                                            (
-                                                Some(
-                                                    "x",
-                                                ),
-                                                (
-                                                    Expr(1),
-                                                    Integer(
-                                                        "22",
-                                                    ),
-                                                ),
-                                            ),
-                                            (
-                                                Some(
-                                                    "y",
-                                                ),
-                                                (
-                                                    Expr(2),
-                                                    Integer(
-                                                        "44",
-                                                    ),
-                                                ),
-                                            ),
-                                        ],
                                     ),
                                 ),
                             ),
                         ),
                         (
-                            Expr(7),
+                            Expr(8),
                             Var(
                                 (
                                     "q",
                                     None,
                                 ),
                                 (
-                                    Expr(6),
-                                    Lease(
+                                    Expr(7),
+                                    Give(
                                         (
-                                            Expr(5),
+                                            Expr(6),
                                             Id(
                                                 "p",
                                             ),
@@ -84,58 +89,8 @@
                                 ),
                                 (
                                     Expr(9),
-                                    Lease(
-                                        (
-                                            Expr(8),
-                                            Id(
-                                                "q",
-                                            ),
-                                        ),
-                                    ),
-                                ),
-                            ),
-                        ),
-                        (
-                            Expr(14),
-                            OpEq(
-                                (
-                                    Expr(12),
-                                    Dot(
-                                        (
-                                            Expr(11),
-                                            Id(
-                                                "r",
-                                            ),
-                                        ),
-                                        "x",
-                                    ),
-                                ),
-                                PlusEqual,
-                                (
-                                    Expr(13),
-                                    Integer(
-                                        "1",
-                                    ),
-                                ),
-                            ),
-                        ),
-                        (
-                            Expr(17),
-                            Var(
-                                (
-                                    "x",
-                                    None,
-                                ),
-                                (
-                                    Expr(16),
-                                    Dot(
-                                        (
-                                            Expr(15),
-                                            Id(
-                                                "p",
-                                            ),
-                                        ),
-                                        "x",
+                                    Id(
+                                        "q",
                                     ),
                                 ),
                             ),

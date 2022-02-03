@@ -822,8 +822,18 @@ impl ActualDiagnostic for Diagnostic {
 
 impl ExpectedDiagnostic {
     fn summary(&self) -> String {
+        let column = if let Some(start_column) = self.start_column {
+            if let Some((end_line, end_column)) = self.end_line_column {
+                format!("{start_column}:{end_line}:{end_column}")
+            } else {
+                "".to_string()
+            }
+        } else {
+            "".to_string()
+        };
+
         format!(
-            " {}: {} {} [expected]",
+            " {}:{column} {} {} [expected]",
             self.start_line, self.severity, self.message
         )
     }

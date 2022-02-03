@@ -38,7 +38,7 @@ pub fn validate_function(db: &dyn crate::Db, function: Function) -> validated::T
     let root_expr = validator.validate_expr(syntax_tree.data(db).root_expr);
     std::mem::drop(validator);
     let data = validated::TreeData::new(tables, num_parameters, root_expr);
-    validated::Tree::new(db, code, data, origins)
+    validated::Tree::new(db, function, data, origins)
 }
 
 /// Compute the root definitions for the module. This is not memoized to

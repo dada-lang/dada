@@ -14,9 +14,9 @@ digraph {
           <tr><td border="1">main</td></tr>
           <tr><td port="0">p</td></tr>
           <tr><td port="6">q</td></tr>
-          <tr><td port="8">x: ()</td></tr>
-          <tr><td port="10">x: ()</td></tr>
-          <tr><td port="12">x: ()</td></tr>
+          <tr><td port="8">x</td></tr>
+          <tr><td port="10">x</td></tr>
+          <tr><td port="12">x</td></tr>
           </table>
         >;
       ];
@@ -24,8 +24,8 @@ digraph {
     afternode0 [
       label = <<table border="0">
         <tr><td border="1">Point</td></tr>
-        <tr><td port="0">x: 22</td></tr>
-        <tr><td port="1">y: 44</td></tr>
+        <tr><td port="0">x: "22"</td></tr>
+        <tr><td port="1">y: "44"</td></tr>
       </table>>
     ];
     "afterstack":0 -> "afternode0" [label="our", style="solid"];
@@ -42,10 +42,10 @@ digraph {
           <table border="0">
           <tr><td border="1">main</td></tr>
           <tr><td port="0">p</td></tr>
-          <tr><td port="6">q: ()</td></tr>
-          <tr><td port="8">x: ()</td></tr>
-          <tr><td port="10">x: ()</td></tr>
-          <tr><td port="12">x: ()</td></tr>
+          <tr><td port="6">q</td></tr>
+          <tr><td port="8">x</td></tr>
+          <tr><td port="10">x</td></tr>
+          <tr><td port="12">x</td></tr>
           </table>
         >;
       ];
@@ -53,8 +53,8 @@ digraph {
     beforenode0 [
       label = <<table border="0">
         <tr><td border="1">Point</td></tr>
-        <tr><td port="0">x: 22</td></tr>
-        <tr><td port="1">y: 44</td></tr>
+        <tr><td port="0">x: "22"</td></tr>
+        <tr><td port="1">y: "44"</td></tr>
       </table>>
     ];
     "beforestack":0 -> "beforenode0" [label="our", style="solid"];

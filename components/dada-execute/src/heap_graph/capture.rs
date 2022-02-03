@@ -2,50 +2,64 @@
 
 use dada_collections::Map;
 use dada_id::InternKey;
-use dada_ir::code::bir::Place;
+use dada_ir::storage_mode::{Joint, Leased};
 
-use crate::{
-    data::Instance,
-    execute::StackFrame,
-    interpreter::Interpreter,
-    permission::{Permission, PermissionData},
-    value::Value,
+use crate::machine::{
+    op::MachineOp, stringify::DefaultStringify, Frame, Object, ObjectData, Permission,
+    PermissionData, Value,
 };
 
 use super::{
-    DataNodeData, HeapGraph, LocalVariableEdge, ObjectNode, ObjectNodeData, PermissionNode,
-    PermissionNodeData, PermissionNodeLabel, StackFrameNodeData, ValueEdge, ValueEdgeTarget,
+    DataNodeData, HeapGraph, LocalVariableEdge, ObjectNode, ObjectNodeData, ObjectType,
+    PermissionNode, PermissionNodeData, PermissionNodeLabel, StackFrameNodeData, ValueEdge,
+    ValueEdgeTarget,
 };
 
-#[derive(Default)]
-pub(super) struct Cache {
-    instances: Map<*const Instance, ObjectNode>,
-    permissions: Map<*const PermissionData, PermissionNode>,
+pub(super) struct HeapGraphCapture<'me> {
+    db: &'me dyn crate::Db,
+    graph: &'me mut HeapGraph,
+    machine: &'me dyn MachineOp,
+    instances: Map<Object, ObjectNode>,
+    permissions: Map<Permission, PermissionNode>,
 }
 
-impl HeapGraph {
-    ///
-    pub(super) fn capture_from(
-        &mut self,
-        interpreter: &Interpreter<'_>,
-        cache: &mut Cache,
-        top: &StackFrame<'_>,
-        in_flight_value: Option<Place>,
-    ) {
-        if let Some(parent) = top.parent_stack_frame {
-            self.capture_from(interpreter, cache, parent, None);
+impl<'me> HeapGraphCapture<'me> {
+    pub(super) fn new(
+        db: &'me dyn crate::Db,
+        graph: &'me mut HeapGraph,
+        machine: &'me dyn MachineOp,
+    ) -> Self {
+        Self {
+            db,
+            graph,
+            machine,
+            instances: Default::default(),
+            permissions: Default::default(),
+        }
+    }
+
+    pub(super) fn capture(mut self, in_flight_value: Option<Value>) {
+        let Some((top, others)) = self.machine.frames().split_last() else {
+            return;
+        };
+
+        for frame in others {
+            self.push_frame(frame, None);
         }
 
-        let db = interpreter.db();
-        let span = top.current_span(db);
-        let bir_data = top.bir.data(db);
+        self.push_frame(top, in_flight_value);
+    }
 
-        let variables = top
-            .local_variables
+    fn push_frame(&mut self, frame: &Frame, in_flight_value: Option<Value>) {
+        let span = frame.pc.span(self.db);
+        let bir_data = frame.pc.bir.data(self.db);
+
+        let variables = frame
+            .locals
             .iter_enumerated()
-            .map(|(local_variable, value)| {
+            .map(|(local_variable, &value)| {
                 let local_variable_data = local_variable.data(&bir_data.tables);
-                let value_node = self.value_node(cache, db, value);
+                let value_node = self.value_edge(value);
                 LocalVariableEdge {
                     id: local_variable,
                     name: local_variable_data.name,
@@ -54,44 +68,54 @@ impl HeapGraph {
             })
             .collect::<Vec<_>>();
 
-        let in_flight_value = in_flight_value.map(|p| {
-            top.with_place(interpreter, p, |value, _| {
-                Ok(self.value_node(cache, db, value))
-            })
-            .unwrap()
-        });
+        let in_flight_value = in_flight_value.map(|p| self.value_edge(p));
 
         let data = StackFrameNodeData {
-            function: top.function,
+            function: frame.pc.bir.origin(self.db),
             span,
             variables,
             in_flight_value,
         };
-        let stack_frame = self.tables.add(data);
-        self.stack.push(stack_frame);
+        let stack_frame = self.graph.tables.add(data);
+        self.graph.stack.push(stack_frame);
     }
 
-    fn value_node(&mut self, cache: &mut Cache, db: &dyn crate::Db, value: &Value) -> ValueEdge {
-        value.peek(|permission, data| {
-            let permission = self.permission_node(cache, db, permission);
-            let target = match data {
-                crate::data::Data::Instance(i) => {
-                    ValueEdgeTarget::Object(self.object_node(cache, db, i))
+    fn value_edge(&mut self, value: Value) -> ValueEdge {
+        let db = self.db;
+
+        let permission = self.permission_node(value.permission);
+
+        let target = match &self.machine[value.permission] {
+            PermissionData::Expired(_) => ValueEdgeTarget::Expired,
+            PermissionData::Valid(_) => match &self.machine[value.object] {
+                ObjectData::Instance(instance) => ValueEdgeTarget::Object(self.instance_node(
+                    value.object,
+                    ObjectType::Class(instance.class),
+                    &instance.fields,
+                )),
+                ObjectData::ThunkFn(thunk) => ValueEdgeTarget::Object(self.instance_node(
+                    value.object,
+                    ObjectType::Thunk(thunk.function),
+                    &thunk.arguments,
+                )),
+                ObjectData::Tuple(_tuple) => self.data_target(db, &"<tuple>"), // FIXME
+                ObjectData::Class(c) => ValueEdgeTarget::Class(*c),
+                ObjectData::Function(f) => ValueEdgeTarget::Function(*f),
+                ObjectData::Intrinsic(_)
+                | ObjectData::ThunkRust(_)
+                | ObjectData::Bool(_)
+                | ObjectData::Uint(_)
+                | ObjectData::Int(_)
+                | ObjectData::Float(_)
+                | ObjectData::String(_)
+                | ObjectData::Unit(_) => {
+                    let string = DefaultStringify::stringify(&*self.machine, self.db, value);
+                    self.data_target(db, &string)
                 }
-                crate::data::Data::Class(c) => ValueEdgeTarget::Class(*c),
-                crate::data::Data::Function(f) => ValueEdgeTarget::Function(*f),
-                crate::data::Data::Intrinsic(i) => self.data_target(db, &i.as_str(db)),
-                crate::data::Data::Thunk(_thunk) => self.data_target(db, &"<thunk>"), // FIXME
-                crate::data::Data::Tuple(_tuple) => self.data_target(db, &"<tuple>"), // FIXME
-                crate::data::Data::Bool(b) => self.data_target(db, b),
-                crate::data::Data::Uint(v) => self.data_target(db, v),
-                crate::data::Data::Int(i) => self.data_target(db, i),
-                crate::data::Data::Float(f) => self.data_target(db, f),
-                crate::data::Data::String(w) => self.data_target(db, &w.as_str(db).to_string()),
-                crate::data::Data::Unit(u) => self.data_target(db, u),
-            };
-            ValueEdge { permission, target }
-        })
+            },
+        };
+
+        ValueEdge { permission, target }
     }
 
     fn data_target(
@@ -102,79 +126,70 @@ impl HeapGraph {
         let b = DataNodeData {
             debug: Box::new(d.clone()),
         };
-        ValueEdgeTarget::Data(self.tables.add(b))
+        ValueEdgeTarget::Data(self.graph.tables.add(b))
     }
 
-    fn permission_node(
-        &mut self,
-        cache: &mut Cache,
-        db: &dyn crate::Db,
-        permission: &Permission,
-    ) -> PermissionNode {
-        // The permision-data values have a unique location in memory, so
-        // use that to detect cycles and the like.
-        let data_ptr: *const PermissionData = permission.peek_data();
-        if let Some(n) = cache.permissions.get(&data_ptr) {
+    fn permission_node(&mut self, permission: Permission) -> PermissionNode {
+        // Watch out for cycles, but also cache.
+        if let Some(n) = self.permissions.get(&permission) {
             return *n;
         }
 
-        let label = if permission.is_valid() {
-            match permission.peek_data() {
-                PermissionData::My(_) => PermissionNodeLabel::My,
-                PermissionData::Leased(_) => PermissionNodeLabel::Leased,
-                PermissionData::Our(_) => PermissionNodeLabel::Our,
-                PermissionData::Shared(_) => PermissionNodeLabel::Shared,
-            }
-        } else {
-            PermissionNodeLabel::Expired
+        let data = &self.machine[permission];
+
+        let label = match data {
+            PermissionData::Expired(_) => PermissionNodeLabel::Expired,
+            PermissionData::Valid(valid) => match (valid.joint, valid.leased) {
+                (Joint::No, Leased::No) => PermissionNodeLabel::My,
+                (Joint::Yes, Leased::No) => PermissionNodeLabel::Our,
+                (Joint::No, Leased::Yes) => PermissionNodeLabel::Leased,
+                (Joint::Yes, Leased::Yes) => PermissionNodeLabel::Shared,
+            },
         };
 
-        let node = self.tables.add(PermissionNodeData {
+        let node = self.graph.tables.add(PermissionNodeData {
             label,
             lessor: None,
-            tenant: None,
+            tenants: vec![],
         });
 
-        cache.permissions.insert(data_ptr, node);
+        self.permissions.insert(permission, node);
 
-        if let Some(tenant) = permission.peek_data().peek_tenant() {
-            assert!(permission.is_valid());
-            let tenant_node = self.permission_node(cache, db, &tenant);
-            self.tables[node].tenant = Some(tenant_node);
-            self.tables[tenant_node].lessor = Some(node);
+        for &tenant in data.tenants() {
+            let tenant_node = self.permission_node(tenant);
+            self.graph.tables[node].tenants.push(tenant_node);
+            assert!(self.graph.tables[tenant_node].lessor.is_none());
+            self.graph.tables[tenant_node].lessor = Some(node);
         }
 
         node
     }
 
-    fn object_node(
+    fn instance_node(
         &mut self,
-        cache: &mut Cache,
-        db: &dyn crate::Db,
-        instance: &Instance,
+        object: Object,
+        ty: ObjectType,
+        field_values: &[Value],
     ) -> ObjectNode {
-        // The `instance` values have a unique location in memory, so
-        // use that to detect cycles and the like.
-        let instance_ptr: *const Instance = instance;
-        if let Some(n) = cache.instances.get(&instance_ptr) {
+        // Detect cycles and prevent redundant work.
+        if let Some(n) = self.instances.get(&object) {
             return *n;
         }
 
-        let node = self.tables.add(ObjectNodeData {
-            class: instance.class,
+        let node = self.graph.tables.add(ObjectNodeData {
+            ty,
             fields: Default::default(),
         });
 
         // Insert this into the cache lest evaluating a field leads back here!
-        cache.instances.insert(instance_ptr, node);
+        self.instances.insert(object, node);
 
-        let fields = instance
-            .fields
+        let fields = field_values
             .iter()
-            .map(|field| self.value_node(cache, db, field))
+            .map(|&field| self.value_edge(field))
             .collect::<Vec<_>>();
 
-        self.tables[node].fields = fields;
+        self.graph.tables[node].fields = fields;
 
         node
     }

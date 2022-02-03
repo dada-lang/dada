@@ -233,9 +233,9 @@ async function updateOutput(dada, editor, text, cursor) {
         editor.session.addMarker(
             new Range(
                 range.start.line0,
-                range.start.column0 - 1,
+                range.start.column0,
                 range.end.line0,
-                range.end.column0 - 1,
+                range.end.column0,
             ),
             "breakpoint",
             "text",

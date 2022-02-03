@@ -18,8 +18,10 @@ dada-ir = { path = "../dada-ir" }
 dada-parse = { path = "../dada-parse" }
 eyre = "0.6.5"
 extension-trait = "1.0.0"
+generational-arena = "0.2.8"
 html-escape = "0.2.9"
 salsa = { path = "../salsa" }
 parking_lot = "0.11.2"
 thiserror = "1"
 tracing = "0.1"
+typed-arena = "2.0.1"

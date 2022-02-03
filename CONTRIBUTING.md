@@ -2,6 +2,17 @@ Dada is pretty young and informal, but we welcome contributions!
 
 Keep in mind that Dada is my "spare time, relaxation and exploration" project. Responses may be slow and I am driving the language direction, syntax, and semantics. Naturally I would absolutely love to hear what people think, but I am acting as BDFL and final decision maker for the time being. --nikomatsakis
 
+## Feature gates
+
+Dada uses nightly, but we are careful with the feature gates we use. We only want to use features
+that are close to stabilizing. Currently accepted feature gates:
+
+```rust
+#![feature(let_else)]
+#![feature(trait_upcasting)]
+#![feature(try_blocks)]
+```
+
 ## Finding an issue
 
 Issues on the repository that are tagged with "good first issue' and the like are a good bet.
