@@ -37,11 +37,16 @@ impl Stepper<'_> {
     }
 
     pub(super) async fn intrinsic_print_async(&mut self, value: Value) -> eyre::Result<Value> {
+        let await_pc = self.machine.pc();
         let message_str = DefaultStringify::stringify(&*self.machine, self.db, value);
 
         async {
-            self.kernel.as_mut().unwrap().print(&message_str).await?;
-            self.kernel.as_mut().unwrap().print_newline().await
+            self.kernel
+                .as_mut()
+                .unwrap()
+                .print(await_pc, &message_str)
+                .await?;
+            self.kernel.as_mut().unwrap().print_newline(await_pc).await
         }
         .await
         .with_context(|| {

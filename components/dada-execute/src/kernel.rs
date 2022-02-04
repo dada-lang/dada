@@ -5,16 +5,28 @@ use std::sync::Arc;
 use dada_ir::{filename::Filename, function::Function, span::FileSpan};
 use salsa::DebugWithDb;
 
-use crate::{heap_graph::HeapGraph, machine::Value};
+use crate::{
+    heap_graph::HeapGraph,
+    machine::{ProgramCounter, Value},
+};
 
 #[async_trait::async_trait]
 pub trait Kernel: Send + Sync {
     /// Implementation for the `print` intrinsic, that prints a line of text.
-    async fn print(&mut self, text: &str) -> eyre::Result<()>;
+    ///
+    /// # Parameters
+    ///
+    /// * `await_pc` -- the program counter when the thunk was awaited
+    /// * `text` -- the string to print
+    async fn print(&mut self, await_pc: ProgramCounter, text: &str) -> eyre::Result<()>;
 
     /// Prints a newline.
-    async fn print_newline(&mut self) -> eyre::Result<()> {
-        self.print("\n").await
+    ///
+    /// # Parameters
+    ///
+    /// * `await_pc` -- the program counter when the thunk was awaited
+    async fn print_newline(&mut self, await_pc: ProgramCounter) -> eyre::Result<()> {
+        self.print(await_pc, "\n").await
     }
 
     /// Indicates that we have reached the start of a breakpoint expression.
@@ -41,9 +53,13 @@ pub trait Kernel: Send + Sync {
 pub struct BufferKernel {
     stop_at_breakpoint: bool,
     breakpoint_callback: Option<BreakpointCallback>,
+    track_output_ranges: bool,
 
     /// Collects the output of the program.
     buffer: String,
+
+    /// Tracks which program counter is responsible for which output.
+    buffer_pcs: Vec<OutputRange>,
 
     /// When we start a breakpoint, we push an entry here.
     started_breakpoints: Vec<(Filename, usize, HeapGraph)>,
@@ -51,6 +67,12 @@ pub struct BufferKernel {
     /// When we end a breakpoint, we construct a `BreakpointHeapGraph` and
     /// either invoke `breakpoint_callback` or else buffer it here.
     heap_graphs: Vec<BreakpointRecord>,
+}
+
+pub struct OutputRange {
+    pub start: usize,
+    pub end: usize,
+    pub await_pc: ProgramCounter,
 }
 
 pub struct BreakpointRecord {
@@ -83,6 +105,16 @@ impl BufferKernel {
     pub fn stop_at_breakpoint(self, stop_at_breakpoint: bool) -> Self {
         Self {
             stop_at_breakpoint,
+            ..self
+        }
+    }
+
+    /// Builder method: if `track_output_ranges` is true, then track the program
+    /// counter from each piece of text that is emitted. These can be inspected
+    /// later to determine the bytes at a given output.
+    pub fn track_output_ranges(self, track_output_ranges: bool) -> Self {
+        Self {
+            track_output_ranges,
             ..self
         }
     }
@@ -137,6 +169,28 @@ impl BufferKernel {
     pub fn append(&mut self, s: &str) {
         self.buffer.push_str(s);
     }
+
+    /// Append text into the output buffer
+    pub fn append_range(&mut self, range: OutputRange) {
+        if !self.track_output_ranges {
+            return;
+        }
+
+        // If this is appending more text from the same position, then just grow the
+        // last range we pushed.
+        if let Some(last_range) = self.buffer_pcs.last_mut() {
+            if last_range.await_pc == range.await_pc
+                && last_range.end == range.start
+                && last_range.end < range.end
+            {
+                last_range.end = range.end;
+                return;
+            }
+        }
+
+        // Else push a new range.
+        self.buffer_pcs.push(range);
+    }
 }
 
 #[derive(thiserror::Error, Debug)]
@@ -145,8 +199,17 @@ pub struct BreakpointExpressionEncountered;
 
 #[async_trait::async_trait]
 impl Kernel for BufferKernel {
-    async fn print(&mut self, message: &str) -> eyre::Result<()> {
+    async fn print(&mut self, await_pc: ProgramCounter, message: &str) -> eyre::Result<()> {
+        let start = self.buffer.len();
         self.append(message);
+        let end = self.buffer.len();
+
+        self.append_range(OutputRange {
+            start,
+            end,
+            await_pc,
+        });
+
         Ok(())
     }
 

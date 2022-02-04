@@ -1,6 +1,6 @@
 use std::path::PathBuf;
 
-use dada_execute::heap_graph::HeapGraph;
+use dada_execute::{heap_graph::HeapGraph, machine::ProgramCounter};
 use dada_ir::span::FileSpan;
 use eyre::Context;
 use tokio::io::AsyncWriteExt;
@@ -50,7 +50,7 @@ impl Kernel {
 
 #[async_trait::async_trait]
 impl dada_execute::kernel::Kernel for Kernel {
-    async fn print(&mut self, text: &str) -> eyre::Result<()> {
+    async fn print(&mut self, _await_pc: ProgramCounter, text: &str) -> eyre::Result<()> {
         let mut stdout = tokio::io::stdout();
         let mut text = text.as_bytes();
         while !text.is_empty() {
