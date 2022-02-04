@@ -4,7 +4,7 @@
             Some(
                 Tokens(dada_tests/interpret/ops/op_times_equal.dada:1:15:1:15),
             ),
-            Tokens(dada_tests/interpret/ops/op_times_equal.dada:1:18:7:1),
+            Tokens(dada_tests/interpret/ops/op_times_equal.dada:1:18:8:1),
         ),
         data: syntax::Tree {
             root_expr: (

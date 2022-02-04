@@ -7,5 +7,5 @@ async fn main() {
     #?        ^ HeapGraph
     #?         ^ HeapGraph
     #?          ^ HeapGraph
-    print("Hi").await
+    print("Hi").await #! OUTPUT Hi
 }

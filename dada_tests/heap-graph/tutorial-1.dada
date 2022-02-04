@@ -6,6 +6,6 @@ async fn main() {
     #?               ^ HeapGraph
     #?                        ^ HeapGraph
     #?                         ^ HeapGraph
-    print("The point is FIXME").await
+    print("The point is FIXME").await #! OUTPUT .*
     #? ^ HeapGraph
 }

@@ -240,8 +240,10 @@ impl BufferKernel {
             Some(range) => {
                 assert!(offset == range.start);
                 let text = &self.buffer[range.start..range.end];
+                let await_pc = range.await_pc;
                 offset = range.end;
-                Some((text, Some(range.await_pc)))
+                buffer_pcs.next();
+                Some((text, Some(await_pc)))
             }
 
             None if offset < self.buffer.len() => {

@@ -2,5 +2,5 @@ class Test(a)
 
 async fn main() {
     t = Test("foo")
-    print(t.a).await
+    print(t.a).await #! OUTPUT foo
 }

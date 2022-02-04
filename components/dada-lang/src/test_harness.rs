@@ -1,7 +1,9 @@
+use std::collections::{BTreeMap, BTreeSet};
 use std::path::{Path, PathBuf};
 use std::{env, fs};
 
 use dada_execute::kernel::BufferKernel;
+use dada_execute::machine::ProgramCounter;
 use dada_ir::{filename::Filename, item::Item};
 use eyre::Context;
 use lsp_types::Diagnostic;
@@ -170,6 +172,7 @@ impl Options {
             filename,
             &path.join("stdout.ref"),
             &expected_diagnostics.runtime,
+            &expected_diagnostics.output,
             &mut errors,
         )
         .await?;
@@ -347,12 +350,13 @@ impl Options {
         filename: Filename,
         ref_path: &Path,
         expected_diagnostics: &[ExpectedDiagnostic],
+        expected_outputs: &Option<Vec<ExpectedOutput>>,
         errors: &mut Errors,
     ) -> eyre::Result<()> {
         let mut diagnostics = vec![];
         let actual_output = match db.function_named(filename, "main") {
             Some(function) => {
-                let mut kernel = BufferKernel::new();
+                let mut kernel = BufferKernel::new().track_output_ranges(true);
                 let res = kernel.interpret(db, function, vec![]).await;
                 if let Err(err) = res {
                     match err.downcast_ref::<dada_execute::DiagnosticError>() {
@@ -364,6 +368,17 @@ impl Options {
                         }
                     }
                 }
+
+                if let Some(expected_outputs) = expected_outputs {
+                    self.match_output_against_expectations(
+                        db,
+                        filename,
+                        kernel.buffer_with_pcs(),
+                        expected_outputs,
+                        errors,
+                    )?;
+                }
+
                 kernel.take_buffer()
             }
             None => {
@@ -377,6 +392,88 @@ impl Options {
             errors,
         )?;
         self.check_output_against_ref_file(actual_output, ref_path, errors)?;
+        Ok(())
+    }
+
+    fn match_output_against_expectations<'a>(
+        &self,
+        db: &dada_db::Db,
+        filename: Filename,
+        output_with_pcs: impl Iterator<Item = (&'a str, Option<ProgramCounter>)>,
+        expected_outputs: &[ExpectedOutput],
+        errors: &mut Errors,
+    ) -> eyre::Result<()> {
+        let mut actual_diffs = vec![];
+        let mut expected_diffs = vec![];
+
+        // First, collect each bit of output that came from each line into a map, in order.
+        // Use a btreemap so that we will iterate over the keys in order.
+        let mut output_by_line = BTreeMap::default();
+        for (text, pc) in output_with_pcs {
+            let pc = pc.ok_or_else(|| eyre::eyre!("untracked output `{}` from text", text))?;
+            let span = pc.span(db);
+            let (_, start_line_column, _) = db.line_columns(span);
+            output_by_line
+                .entry(start_line_column.line1())
+                .or_insert(vec![])
+                .push(text.to_string());
+        }
+
+        // Get the set of lines that either had output or expectations (in order).
+        let line1s: BTreeSet<u32> = output_by_line
+            .keys()
+            .copied()
+            .chain(expected_outputs.iter().map(|e| e.line1))
+            .collect();
+
+        let filename = filename.as_str(db);
+
+        for line1 in line1s {
+            let mut expected_on_this_line = expected_outputs
+                .iter()
+                .filter(|e| e.line1 == line1)
+                .map(|e| &e.message)
+                .peekable();
+            let mut actual_on_this_line = output_by_line
+                .get(&line1)
+                .map(|v| &v[..])
+                .unwrap_or(&[])
+                .iter()
+                .peekable();
+
+            while let (Some(e), Some(a)) =
+                (expected_on_this_line.peek(), actual_on_this_line.peek())
+            {
+                actual_diffs.push(format!(" {filename}:{line1}: {a:?}"));
+
+                if e.is_match(a) {
+                    // If the regex is a match, push the actual output so that the diff shows them the same.
+                    expected_diffs.push(format!(" {filename}:{line1}: {a:?}"));
+                } else {
+                    // Else push the regex.
+                    expected_diffs.push(format!(" {filename}:{line1}: something matching `{e:?}`"));
+                }
+
+                expected_on_this_line.next();
+                actual_on_this_line.next();
+            }
+
+            for e in expected_on_this_line {
+                expected_diffs.push(format!(" {filename}:{line1}: something matching `{e:?}`"));
+            }
+
+            for a in actual_on_this_line {
+                actual_diffs.push(format!(" {filename}:{line1}: {a:?}"));
+            }
+        }
+
+        if expected_diffs != actual_diffs {
+            errors.push(OutputsDoNotMatch {
+                expected: expected_diffs,
+                actual: actual_diffs,
+            });
+        }
+
         Ok(())
     }
 }
@@ -441,6 +538,13 @@ impl std::fmt::Display for ExpectedDiagnosticNotFound {
     }
 }
 
+/// Part of the code to check diagnostics: the diagnostics checker pushes
+/// strings into these vectors so we can display a nice diff.
+///
+/// If we find what we expected, we push the same string into expected/actual.
+///
+/// If we don't, we push the regex we expected into one, and the actual output
+/// into actual.
 #[derive(Debug)]
 struct DiagnosticsDoNotMatch {
     expected: Vec<String>,
@@ -451,24 +555,45 @@ impl std::error::Error for DiagnosticsDoNotMatch {}
 
 impl std::fmt::Display for DiagnosticsDoNotMatch {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
-        let expected: String = self
-            .expected
-            .iter()
-            .flat_map(|e| vec![&e[..], "\n"])
-            .collect();
-        let actual: String = self
-            .actual
-            .iter()
-            .flat_map(|e| vec![&e[..], "\n"])
-            .collect();
-        write!(
-            f,
-            "{}",
-            similar::TextDiff::from_lines(&expected, &actual)
-                .unified_diff()
-                .header("from comments", "actual output")
-        )
+        display_diff(&self.expected, &self.actual, f)
     }
+}
+
+/// Part of the code to check output: the output checker pushes
+/// strings into these vectors so we can display a nice diff.
+///
+/// If we find what we expected, we push the same string into expected/actual.
+///
+/// If we don't, we push the regex we expected into one, and the actual output
+/// into actual.
+#[derive(Debug)]
+struct OutputsDoNotMatch {
+    expected: Vec<String>,
+    actual: Vec<String>,
+}
+
+impl std::error::Error for OutputsDoNotMatch {}
+
+impl std::fmt::Display for OutputsDoNotMatch {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        display_diff(&self.expected, &self.actual, f)
+    }
+}
+
+fn display_diff(
+    expected: &[String],
+    actual: &[String],
+    f: &mut std::fmt::Formatter<'_>,
+) -> std::fmt::Result {
+    let expected: String = expected.iter().flat_map(|e| vec![&e[..], "\n"]).collect();
+    let actual: String = actual.iter().flat_map(|e| vec![&e[..], "\n"]).collect();
+    write!(
+        f,
+        "{}",
+        similar::TextDiff::from_lines(&expected, &actual)
+            .unified_diff()
+            .header("from comments", "actual output")
+    )
 }
 
 #[derive(Debug)]
@@ -515,6 +640,18 @@ struct ExpectedDiagnostic {
     message: Regex,
 }
 
+/// Test files have `#! OUTPUT` lines that indicate output
+/// that is expected from a particular line.
+#[derive(Clone, Debug)]
+struct ExpectedOutput {
+    /// Line where the output should originate.
+    line1: u32,
+
+    /// A regular expression given by the user that must match
+    /// against what was printed.
+    message: Regex,
+}
+
 /// A query is indicated by a `#?   ^ QK` annotation. It means that,
 /// on the preceding line, we should do some sort of interactive
 /// query (specified by the `QK` string, see [`QueryKind`]) at the column
@@ -541,24 +678,33 @@ enum QueryKind {
 struct ExpectedDiagnostics {
     compile: Vec<ExpectedDiagnostic>,
     runtime: Vec<ExpectedDiagnostic>,
+
+    // If `None`, do not check the output.
+    output: Option<Vec<ExpectedOutput>>,
 }
 
 /// Returns the diagnostics that we expect to see in the file, sorted by line number.
 fn expected_diagnostics(path: &Path) -> eyre::Result<ExpectedDiagnostics> {
     let file_contents = std::fs::read_to_string(path)?;
 
-    let re = regex::Regex::new(
+    let diagnostic_marker = regex::Regex::new(
         r"^(?P<prefix>[^#]*)#!\s*(?P<highlight>\^+)?\s*(?P<type>RUN)?\s*(?P<severity>ERROR|WARNING|INFO)\s*(?P<msg>.*)",
     )
     .unwrap();
+
+    let output_marker = regex::Regex::new(r"^(?P<prefix>[^#]*)#!\s*OUTPUT\s+(?P<msg>.*)").unwrap();
+
+    let any_output_marker = regex::Regex::new(r"^(?P<prefix>[^#]*)#!\s*OUTPUT ANY").unwrap();
 
     let any_marker = regex::Regex::new(r"^[^#]*#!").unwrap();
 
     let mut last_code_line = 1;
     let mut compile_diagnostics = vec![];
     let mut runtime_diagnostics = vec![];
+    let mut output = vec![];
+    let mut any_output_marker_seen = None;
     for (line, line_number) in file_contents.lines().zip(1..) {
-        if let Some(c) = re.captures(line) {
+        if let Some(c) = diagnostic_marker.captures(line) {
             let start_line = if c["prefix"].chars().all(char::is_whitespace) {
                 // A comment alone on a line, like `#! ERROR ...`, will apply to the
                 // last code line.
@@ -594,6 +740,20 @@ fn expected_diagnostics(path: &Path) -> eyre::Result<ExpectedDiagnostics> {
                     eyre::bail!("unexpected diagnostic type {} in {:?}", wrong, path);
                 }
             }
+        } else if any_output_marker.is_match(line) {
+            any_output_marker_seen = Some(line_number);
+        } else if let Some(c) = output_marker.captures(line) {
+            let line1 = if c["prefix"].chars().all(char::is_whitespace) {
+                // A comment alone on a line, like `#! ERROR ...`, will apply to the
+                // last code line.
+                last_code_line
+            } else {
+                // A comment at the end of a line, like `foo() #! ERROR`, applies to
+                // that line.
+                line_number
+            };
+            let message = Regex::new(&c["msg"])?;
+            output.push(ExpectedOutput { line1, message });
         } else if any_marker.is_match(line) {
             eyre::bail!(
                 "`#!` marker on line {} doesn't have expected form",
@@ -604,9 +764,24 @@ fn expected_diagnostics(path: &Path) -> eyre::Result<ExpectedDiagnostics> {
         }
     }
 
+    if let Some(any_line) = any_output_marker_seen {
+        if let Some(o) = output.get(0) {
+            eyre::bail!(
+                "both 'OUTPUT ANY' (on line {}) and specific output (e.g. on line {}) found",
+                any_line,
+                o.line1
+            );
+        }
+    }
+
     Ok(ExpectedDiagnostics {
         compile: compile_diagnostics,
         runtime: runtime_diagnostics,
+        output: if any_output_marker_seen.is_some() {
+            None
+        } else {
+            Some(output)
+        },
     })
 }
 

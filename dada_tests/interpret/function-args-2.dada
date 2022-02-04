@@ -1,3 +1,5 @@
+#! OUTPUT ANY
+
 async fn greet2(name1, name2) {
     print("Hello ").await
     print(name1).await

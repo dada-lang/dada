@@ -1,6 +1,7 @@
 async fn main() {
     if true {
         print("1").await
+        #! OUTPUT .*
     }
 
     if false {
@@ -9,6 +10,7 @@ async fn main() {
 
     if true {
         print("3").await
+        #! OUTPUT .*
     } else {
         print("4").await
     }
@@ -17,5 +19,6 @@ async fn main() {
         print("5").await
     } else {
         print("6").await
+        #! OUTPUT .*
     }
 }

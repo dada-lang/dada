@@ -3,5 +3,6 @@ async fn main() {
     x *= 2
     if x == 8 {
         print("Huzzah").await
+        #! OUTPUT Huzzah
     }
 }
