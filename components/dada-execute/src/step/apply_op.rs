@@ -92,10 +92,13 @@ impl Stepper<'_> {
                 Op::LessThan => Ok(self.machine.our_value(lhs < rhs)),
                 Op::GreaterThan => Ok(self.machine.our_value(lhs > rhs)),
             },
-            (&ObjectData::String(lhs), &ObjectData::String(rhs)) => match op {
-                Op::EqualEqual => Ok(self.machine.our_value(lhs == rhs)),
-                _ => op_error(),
-            },
+            (ObjectData::String(lhs), ObjectData::String(rhs)) => {
+                let eq = lhs == rhs;
+                match op {
+                    Op::EqualEqual => Ok(self.machine.our_value(eq)),
+                    _ => op_error(),
+                }
+            }
             (&ObjectData::Unit(()), &ObjectData::Unit(())) => match op {
                 Op::EqualEqual => Ok(self.machine.our_value(true)),
                 _ => op_error(),

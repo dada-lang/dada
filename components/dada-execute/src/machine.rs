@@ -1,3 +1,5 @@
+//! Defines the "abstract machine" that executes a Dada program.
+
 use dada_collections::IndexVec;
 use dada_ir::{
     class::Class,
@@ -6,7 +8,6 @@ use dada_ir::{
     intrinsic::Intrinsic,
     span::FileSpan,
     storage_mode::{Joint, Leased},
-    word::Word,
 };
 use dada_parse::prelude::*;
 use generational_arena::Arena;
@@ -16,6 +17,13 @@ use crate::thunk::RustThunk;
 pub mod op;
 pub mod stringify;
 
+/// The abstract machine that executes a Dada program. Stores the state of
+/// all values as well as the stack with all the currently executing functions.
+///
+/// Most parts of the code don't interact with this struct directly.
+/// Instead they interact through the [`op::MachineOp`] trait. The idea of introducing
+/// this separation was that we may want to allow dynamically swapping in "proxy machines",
+/// for example to log or trace each action that is taken at a breakpoint.
 #[derive(Debug)]
 pub struct Machine {
     pub heap: Heap,
@@ -70,6 +78,10 @@ impl Heap {
 /// It could be one of the primitive object types
 /// (like an integer or string) or an instance of
 /// a user-provided class.
+///
+/// This struct is just an index; to get the object's
+/// data you combine it with a machine `m` via indexing,
+/// like `m[object]`.
 #[derive(Copy, Clone, PartialEq, Eq, Hash)]
 pub struct Object {
     index: generational_arena::Index,
@@ -82,21 +94,49 @@ impl std::fmt::Debug for Object {
     }
 }
 
-/// The data stored in a cube.
+/// The data stored in an object.
 #[derive(Debug)]
 pub enum ObjectData {
+    /// An instance of a class.
     Instance(Instance),
+
+    /// A reference to a class itself.
     Class(Class),
+
+    /// A reference to a function.
     Function(Function),
+
+    /// A reference to an intrinsic, like `print`.
     Intrinsic(Intrinsic),
+
+    /// The value returned by an `async fn` -- captures the function
+    /// that was called along with its arguments. When this value is
+    /// awaited, the function is actually pushed onto the stack.
     ThunkFn(ThunkFn),
+
+    /// A thunk defined by Rust code -- wraps a Rust future. Used by
+    /// intrinsics.
     ThunkRust(RustThunk),
+
+    /// A tuple of objects like `(a, b, c)`.
     Tuple(Tuple),
+
+    /// Boolean.
     Bool(bool),
+
+    /// Unsigned integer.
     Uint(u64),
+
+    /// Signed integer.
     Int(i64),
+
+    /// Floating point.
     Float(f64),
-    String(Word),
+
+    /// String.
+    String(String),
+
+    /// Zero-sized unit value.
     Unit(()),
 }
 
@@ -146,7 +186,7 @@ object_data_from_impls! {
     Uint(u64),
     Int(i64),
     Float(f64),
-    String(Word),
+    String(String),
     Unit(()),
 }
 

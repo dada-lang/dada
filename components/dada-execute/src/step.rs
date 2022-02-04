@@ -335,7 +335,9 @@ impl<'me> Stepper<'me> {
                 permission: self.machine.new_permission(ValidPermissionData::our()),
             }),
             bir::ExprData::StringLiteral(v) => Ok(Value {
-                object: self.machine.new_object(ObjectData::String(*v)),
+                object: self
+                    .machine
+                    .new_object(ObjectData::String(v.as_str(self.db).to_string())),
                 permission: self.machine.new_permission(ValidPermissionData::our()),
             }),
             bir::ExprData::Unit => Ok(Value {
