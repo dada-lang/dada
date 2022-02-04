@@ -4,6 +4,9 @@
     { "include": "#comments" },
     { "include": "#constants" },
     { "include": "#functions" },
+    { "include": "#variables" },
+    { "include": "#classes" },
+    { "include": "#strings" },
     { "include": "#keywords" }
   ],
   "repository": {
@@ -25,41 +28,125 @@
           "name": "meta.function.definition.dada",
           "begin": "\\b(fn)\\s+([A-Za-z_]+)(\\()",
           "beginCaptures": {
-						"1": {
-							"name": "keyword.other.fn.dada"
-						},
-						"2": {
-							"name": "entity.name.function.dada"
-						},
-						"3": {
-							"name": "punctuation.brackets.round.dada"
-						}
-					},
-					"end": "\\{",
-					"endCaptures": {
-						"0": {
-							"name": "punctuation.brackets.curly.dada"
-						}
-					},
+            "1": {
+              "name": "keyword.other.fn.dada"
+            },
+            "2": {
+              "name": "entity.name.function.dada"
+            },
+            "3": {
+              "name": "punctuation.brackets.round.dada"
+            }
+          },
+          "end": "\\{",
+          "endCaptures": {
+            "0": {
+              "name": "punctuation.brackets.curly.dada"
+            }
+          },
           "patterns": []
+        },
+        {
+          "name": "meta.function.support.dada",
+          "begin": "\\b(print)(\\()",
+          "beginCaptures": {
+            "1": {
+              "name": "support.function.dada"
+            },
+            "2": {
+              "name": "punctuation.brackets.round.dada"
+            }
+          },
+          "end": "\\)",
+          "endCaptures": {
+            "0": {
+              "name": "punctuation.brackets.round.dada"
+            }
+          },
+          "patterns": [
+            { "include": "#comments" },
+            { "include": "#strings" },
+            { "include": "#constants" },
+            { "include": "#keywords" },
+            { "include": "#functions" }
+          ]
         },
         {
           "name": "meta.function.call.dada",
           "begin": "\\b([A-Za-z_]+)(\\()",
           "beginCaptures": {
-						"1": {
-							"name": "entity.name.function.dada"
-						},
-						"2": {
-							"name": "punctuation.brackets.round.dada"
-						}
-					},
-					"end": "\\)",
-					"endCaptures": {
-						"0": {
-							"name": "punctuation.brackets.round.dada"
-						}
-					},
+            "1": {
+              "name": "entity.name.function.dada"
+            },
+            "2": {
+              "name": "punctuation.brackets.round.dada"
+            }
+          },
+          "end": "\\)",
+          "endCaptures": {
+            "0": {
+              "name": "punctuation.brackets.round.dada"
+            }
+          },
+          "patterns": [
+            { "include": "#comments" },
+            { "include": "#strings" },
+            { "include": "#constants" },
+            { "include": "#keywords" },
+            { "include": "#functions" }
+          ]
+        }
+      ]
+    },
+    "classes": {
+      "patterns": [
+        {
+          "name": "meta.class.definition.dada",
+          "begin": "\\b(class)\\s+([A-Za-z_]+)(\\()",
+          "beginCaptures": {
+            "1": {
+              "name": "storage.type.dada"
+            },
+            "2": {
+              "name": "entity.name.type.dada"
+            },
+            "3": {
+              "name": "punctuation.brackets.round.dada"
+            }
+          },
+          "end": "\\)",
+          "endCaptures": {
+            "0": {
+              "name": "punctuation.brackets.round.dada"
+            }
+          },
+          "patterns": []
+        }
+      ]
+    },
+    "strings": {
+      "patterns": [
+        {
+          "name": "string.quoted.double.dada",
+          "begin": "b?\"",
+          "end": "\""
+        }
+      ]
+    },
+    "variables": {
+      "patterns": [
+        {
+          "name": "meta.variable.definition.dada",
+          "begin": "\\b(var)\\s+([A-Za-z_]+)",
+          "beginCaptures": {
+            "1": {
+              "name": "storage.type.dada"
+            },
+            "2": {
+              "name": "variable.other.dada"
+            }
+          },
+          "end": "=",
           "patterns": []
         }
       ]
@@ -73,6 +160,18 @@
         {
           "name": "keyword.other.dada",
           "match": "\\b(async|await)\\b"
+        },
+        {
+          "name": "keyword.operator.dada",
+          "match": "(\\+|-|/|\\*|>|<|&|\\||\\.|:|;|=)"
+        },
+        {
+          "name": "storage.type.dada",
+          "match": "\\b(class)\\b"
+        },
+        {
+          "name": "storage.modifier.dada",
+          "match": "\\b(give|share|shared|lease|leased|atomic|var)\\b"
         }
       ]
     }

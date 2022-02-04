@@ -1,76 +1,76 @@
 {
-	"name": "dada",
-	"description": "The Dada Programming Language",
-	"author": "Dada contributors",
-	"license": "MIT",
-	"version": "0.1.0",
-	"private": true,
-	"homepage": "https://dada-lang.org",
-	"repository": {
-		"type": "git",
-		"url": "https://github.com/dada-lang/dada"
-	},
-	"publisher": "dada-lang",
-	"categories": [
-		"Programming Languages"
-	],
-	"keywords": [
-		"dada"
-	],
-	"engines": {
-		"vscode": "^1.52.0"
-	},
-	"activationEvents": [
-		"onLanguage:dada"
-	],
-	"main": "./client/out/extension",
-	"contributes": {
-		"configuration": {
-			"type": "object",
-			"title": "Dada",
-			"properties": {
-				"dada.options": {
-					"scope": "resource",
-					"type": "object",
-					"default": {},
-					"description": "Additional options."
-				}
-			}
-		},
-		"languages": [
-			{
-				"id": "dada",
-				"extensions": [
-					".dada"
-				],
-				"aliases": [
-					"Dada",
-					"dada"
+  "name": "dada",
+  "description": "The Dada Programming Language",
+  "author": "Dada contributors",
+  "license": "(Apache-2.0 OR MIT)",
+  "version": "0.1.0",
+  "private": true,
+  "homepage": "https://dada-lang.org",
+  "repository": {
+    "type": "git",
+    "url": "https://github.com/dada-lang/dada"
+  },
+  "publisher": "dada-lang",
+  "categories": [
+    "Programming Languages"
+  ],
+  "keywords": [
+    "dada"
+  ],
+  "engines": {
+    "vscode": "^1.52.0"
+  },
+  "activationEvents": [
+    "onLanguage:dada"
+  ],
+  "main": "./client/out/extension",
+  "contributes": {
+    "configuration": {
+      "type": "object",
+      "title": "Dada",
+      "properties": {
+        "dada.options": {
+          "scope": "resource",
+          "type": "object",
+          "default": {},
+          "description": "Additional options."
+        }
+      }
+    },
+    "languages": [
+      {
+        "id": "dada",
+        "extensions": [
+          ".dada"
         ],
-				"configuration": "language-configuration.json"
-			}
-		],
-		"grammars": [
-			{
-					"language": "dada",
-					"scopeName": "source.dada",
-					"path": "dada.tmGrammar.json"
-			}
-		]
-	},
-	"scripts": {
-		"vscode:prepublish": "npm run compile",
-		"compile": "tsc -b",
-		"watch": "tsc -b -w",
-		"lint": "eslint ./client/src --ext .ts,.tsx",
-		"postinstall": "cd client && npm install && cd .."
-	},
-	"devDependencies": {
-		"@types/mocha": "^5.2.0",
-		"@types/node": "^12.12.0",
-		"@typescript-eslint/eslint-plugin": "^4.23.0",
-		"@typescript-eslint/parser": "^4.23.0",
-		"eslint": "^7.26.0",
-		"typescript": "^4.4.3"
-	}
+        "aliases": [
+          "Dada",
+          "dada"
+        ],
+        "configuration": "language-configuration.json"
+      }
+    ],
+    "grammars": [
+      {
+        "language": "dada",
+        "scopeName": "source.dada",
+        "path": "dada.tmGrammar.json"
+      }
+    ]
+  },
+  "scripts": {
+    "vscode:prepublish": "npm run compile",
+    "compile": "tsc -b",
+    "watch": "tsc -b -w",
+    "lint": "eslint ./client/src --ext .ts,.tsx",
+    "postinstall": "cd client && npm install && cd .."
+  },
+  "devDependencies": {
+    "@types/mocha": "^5.2.0",
+    "@types/node": "^12.12.0",
+    "@typescript-eslint/eslint-plugin": "^4.23.0",
+    "@typescript-eslint/parser": "^4.23.0",
+    "eslint": "^7.26.0",
+    "typescript": "^4.4.3"
+  }
 }
