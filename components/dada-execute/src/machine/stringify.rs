@@ -17,7 +17,7 @@ pub(crate) impl<T: ?Sized + MachineOp> DefaultStringify for T {
         };
 
         match &self[value.object] {
-            ObjectData::String(s) => s.as_str(db).to_string(),
+            ObjectData::String(s) => s.to_string(),
             ObjectData::Bool(v) => format!("{}", v),
             ObjectData::Int(v) => format!("{}", v),
             ObjectData::Float(v) => format!("{}", v),
