@@ -1,6 +1,6 @@
 //! The "kernel" is the interface from the interpreter to the outside world.
 
-use std::sync::Arc;
+use std::{cmp::Ordering, sync::Arc};
 
 use dada_ir::{filename::Filename, function::Function, span::FileSpan};
 use salsa::DebugWithDb;
@@ -160,8 +160,14 @@ impl BufferKernel {
         std::mem::take(&mut self.heap_graphs)
     }
 
+    /// Borrow the buffered output.
+    pub fn buffer(&self) -> &str {
+        &self.buffer
+    }
+
     /// Convert the buffer into the output
     pub fn take_buffer(&mut self) -> String {
+        self.buffer_pcs.clear();
         std::mem::take(&mut self.buffer)
     }
 
@@ -171,14 +177,24 @@ impl BufferKernel {
     }
 
     /// Append text into the output buffer
-    pub fn append_range(&mut self, range: OutputRange) {
+    fn append_range(&mut self, range: OutputRange) {
         if !self.track_output_ranges {
+            return;
+        }
+
+        assert!(range.start <= range.end);
+        assert!(range.end <= self.buffer.len());
+
+        // No text.
+        if range.start == range.end {
             return;
         }
 
         // If this is appending more text from the same position, then just grow the
         // last range we pushed.
         if let Some(last_range) = self.buffer_pcs.last_mut() {
+            assert!(range.start >= last_range.end);
+
             if last_range.await_pc == range.await_pc
                 && last_range.end == range.start
                 && last_range.end < range.end
@@ -190,6 +206,52 @@ impl BufferKernel {
 
         // Else push a new range.
         self.buffer_pcs.push(range);
+    }
+
+    /// Returns the program counter that generated the output at the given
+    /// offset. Returns `None` if we are not tracking that information
+    /// or if the text was geneated via a call to `append` or other means,
+    /// and not from the program.
+    pub fn pc_at_offset(&self, offset: usize) -> Option<ProgramCounter> {
+        match self.buffer_pcs.binary_search_by(|range| {
+            if (range.start..range.end).contains(&offset) {
+                Ordering::Equal
+            } else {
+                offset.cmp(&range.start)
+            }
+        }) {
+            Ok(index) => Some(self.buffer_pcs[index].await_pc),
+            Err(_index) => None,
+        }
+    }
+
+    /// Returns an iterator over the text emitted at a given point along with
+    /// the program counter responsible (if available).
+    pub fn buffer_with_pcs(&self) -> impl Iterator<Item = (&str, Option<ProgramCounter>)> {
+        let mut offset = 0;
+        let mut buffer_pcs = self.buffer_pcs.iter().peekable();
+        std::iter::from_fn(move || match buffer_pcs.peek() {
+            Some(range) if offset < range.start => {
+                let text = &self.buffer[offset..range.start];
+                offset = range.start;
+                Some((text, None))
+            }
+
+            Some(range) => {
+                assert!(offset == range.start);
+                let text = &self.buffer[range.start..range.end];
+                offset = range.end;
+                Some((text, Some(range.await_pc)))
+            }
+
+            None if offset < self.buffer.len() => {
+                let text = &self.buffer[offset..];
+                offset = self.buffer.len();
+                Some((text, None))
+            }
+
+            None => None,
+        })
     }
 }
 
