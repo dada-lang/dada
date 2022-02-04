@@ -69,10 +69,17 @@ pub struct BufferKernel {
     heap_graphs: Vec<BreakpointRecord>,
 }
 
+#[derive(Copy, Clone, Debug)]
 pub struct OutputRange {
     pub start: usize,
     pub end: usize,
     pub await_pc: ProgramCounter,
+}
+
+impl OutputRange {
+    pub fn range(&self) -> std::ops::Range<usize> {
+        self.start..self.end
+    }
 }
 
 pub struct BreakpointRecord {
@@ -208,11 +215,13 @@ impl BufferKernel {
         self.buffer_pcs.push(range);
     }
 
-    /// Returns the program counter that generated the output at the given
-    /// offset. Returns `None` if we are not tracking that information
+    /// Returns the `OutputRange` tracking who generated the output at the given
+    /// offset (along with the full range of text that was generated).
+    ///
+    /// Returns `None` if we are not tracking that information
     /// or if the text was geneated via a call to `append` or other means,
     /// and not from the program.
-    pub fn pc_at_offset(&self, offset: usize) -> Option<ProgramCounter> {
+    pub fn pc_at_offset(&self, offset: usize) -> Option<OutputRange> {
         match self.buffer_pcs.binary_search_by(|range| {
             if (range.start..range.end).contains(&offset) {
                 Ordering::Equal
@@ -220,7 +229,7 @@ impl BufferKernel {
                 offset.cmp(&range.start)
             }
         }) {
-            Ok(index) => Some(self.buffer_pcs[index].await_pc),
+            Ok(index) => Some(self.buffer_pcs[index]),
             Err(_index) => None,
         }
     }
