@@ -501,10 +501,10 @@ struct ExpectedDiagnostic {
     /// Line where the error is expected to start.
     start_line: u32,
 
-    /// Start column, if given by the user (FIXME#84).
+    /// Start column, if given by the user.
     start_column: Option<u32>,
 
-    /// End position, if given by the user (FIXME#84).
+    /// End position, if given by the user.
     end_line_column: Option<(u32, u32)>,
 
     /// Expected severity ("ERROR", "WARNING", etc) of the diagnostic.
