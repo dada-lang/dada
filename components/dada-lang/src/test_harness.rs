@@ -552,6 +552,8 @@ fn expected_diagnostics(path: &Path) -> eyre::Result<ExpectedDiagnostics> {
     )
     .unwrap();
 
+    let any_marker = regex::Regex::new(r"^[^#]*#!").unwrap();
+
     let mut last_code_line = 1;
     let mut compile_diagnostics = vec![];
     let mut runtime_diagnostics = vec![];
@@ -592,6 +594,11 @@ fn expected_diagnostics(path: &Path) -> eyre::Result<ExpectedDiagnostics> {
                     eyre::bail!("unexpected diagnostic type {} in {:?}", wrong, path);
                 }
             }
+        } else if any_marker.is_match(line) {
+            eyre::bail!(
+                "`#!` marker on line {} doesn't have expected form",
+                line_number
+            )
         } else {
             last_code_line = line_number;
         }
