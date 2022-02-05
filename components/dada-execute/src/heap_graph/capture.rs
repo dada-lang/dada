@@ -12,7 +12,7 @@ use crate::machine::{
 use super::{
     DataNodeData, HeapGraph, LocalVariableEdge, ObjectNode, ObjectNodeData, ObjectType,
     PermissionNode, PermissionNodeData, PermissionNodeLabel, StackFrameNodeData, ValueEdge,
-    ValueEdgeTarget,
+    ValueEdgeData, ValueEdgeTarget,
 };
 
 pub(super) struct HeapGraphCapture<'me> {
@@ -115,7 +115,7 @@ impl<'me> HeapGraphCapture<'me> {
             },
         };
 
-        ValueEdge { permission, target }
+        self.graph.tables.add(ValueEdgeData { permission, target })
     }
 
     fn data_target(

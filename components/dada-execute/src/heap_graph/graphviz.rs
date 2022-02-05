@@ -2,7 +2,9 @@ use dada_collections::{IndexSet, Map};
 use dada_id::InternKey;
 use dada_parse::prelude::*;
 
-use super::{DataNode, HeapGraph, ObjectType, PermissionNode, ValueEdge, ValueEdgeTarget};
+use super::{
+    DataNode, HeapGraph, ObjectType, PermissionNode, ValueEdge, ValueEdgeData, ValueEdgeTarget,
+};
 
 impl HeapGraph {
     /// Plots this heap-graph by itself.
@@ -277,7 +279,7 @@ impl HeapGraph {
         source: &str,
         index: usize,
     ) -> Result<(), eyre::Error> {
-        let edge: &ValueEdge = edge;
+        let edge: &ValueEdgeData = edge.data(&self.tables);
         if let Some(name) = name {
             w.permissions
                 .entry(edge.permission)
@@ -414,7 +416,7 @@ impl GraphvizWriter<'_> {
         &mut self,
         source: &str,
         source_port: usize,
-        edge: &ValueEdge,
+        edge: &ValueEdgeData,
         permission: PermissionNode,
     ) {
         let name = self.node_name(&edge.target);

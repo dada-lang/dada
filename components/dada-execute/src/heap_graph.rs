@@ -44,6 +44,7 @@ tables! {
         objects: alloc ObjectNode => ObjectNodeData,
         datas: alloc DataNode => DataNodeData,
         permissions: alloc PermissionNode => PermissionNodeData,
+        value_edges: alloc ValueEdge => ValueEdgeData,
     }
 }
 
@@ -78,8 +79,10 @@ pub(crate) enum ObjectType {
     Thunk(Function),
 }
 
+id!(pub(crate) struct ValueEdge);
+
 #[derive(Copy, Clone, Debug, Hash, PartialEq, Eq)]
-pub(crate) struct ValueEdge {
+pub(crate) struct ValueEdgeData {
     permission: PermissionNode,
     target: ValueEdgeTarget,
 }
