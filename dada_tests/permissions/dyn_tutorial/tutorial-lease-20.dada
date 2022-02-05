@@ -8,4 +8,5 @@ async fn main() {
     #?       ^ HeapGraph
     #
     # p.x should be 23
+    print(p.x).await #! OUTPUT 23
 }

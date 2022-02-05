@@ -1,4 +1,5 @@
-#? @9:1 HeapGraph
+#! OUTPUT ANY
+#? @10:1 HeapGraph
 async fn main() {
     print("
         I have forced myself to contradict myself

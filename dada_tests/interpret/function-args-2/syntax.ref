@@ -2,9 +2,9 @@
     syntax::Tree {
         origin: Code(
             Some(
-                Tokens(dada_tests/interpret/function-args-2.dada:1:17:1:29),
+                Tokens(dada_tests/interpret/function-args-2.dada:3:17:3:29),
             ),
-            Tokens(dada_tests/interpret/function-args-2.dada:1:32:5:1),
+            Tokens(dada_tests/interpret/function-args-2.dada:3:32:7:1),
         ),
         data: syntax::Tree {
             root_expr: (
@@ -100,9 +100,9 @@
     syntax::Tree {
         origin: Code(
             Some(
-                Tokens(dada_tests/interpret/function-args-2.dada:7:15:7:15),
+                Tokens(dada_tests/interpret/function-args-2.dada:9:15:9:15),
             ),
-            Tokens(dada_tests/interpret/function-args-2.dada:7:18:9:1),
+            Tokens(dada_tests/interpret/function-args-2.dada:9:18:11:1),
         ),
         data: syntax::Tree {
             root_expr: (

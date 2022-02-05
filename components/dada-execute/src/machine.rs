@@ -323,7 +323,7 @@ pub struct Frame {
     pub locals: IndexVec<bir::LocalVariable, Value>,
 }
 
-#[derive(Copy, Clone, Debug)]
+#[derive(Copy, Clone, Debug, PartialEq, Eq)]
 pub struct ProgramCounter {
     /// The BIR we are interpreting.
     pub bir: bir::Bir,

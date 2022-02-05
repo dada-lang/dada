@@ -1,3 +1,5 @@
+#! OUTPUT ANY
+
 fn not_async() {
     print("Hello, world").await
     #! ERROR await is not permitted outside of async functions

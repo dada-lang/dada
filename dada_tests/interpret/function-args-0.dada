@@ -1,3 +1,5 @@
+#! OUTPUT ANY
+
 async fn greet0() {
     print("Hello you").await
 }
