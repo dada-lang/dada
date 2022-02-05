@@ -32,7 +32,7 @@ pub(crate) trait MachineOp:
     fn permission(&self, permission: Permission) -> &PermissionData;
     fn permission_mut(&mut self, permission: Permission) -> &mut PermissionData;
     fn new_permission(&mut self, data: ValidPermissionData) -> Permission;
-    fn expired_permission(&mut self, origin: Option<bir::Place>) -> Permission;
+    fn expired_permission(&mut self, origin: Option<ProgramCounter>) -> Permission;
     fn all_permissions(&self) -> Vec<Permission>;
 
     // Access locals from the top-most stack frame (panics if stack is empty).
@@ -159,7 +159,7 @@ impl MachineOp for Machine {
         self.heap.all_permissions()
     }
 
-    fn expired_permission(&mut self, place: Option<bir::Place>) -> Permission {
+    fn expired_permission(&mut self, place: Option<ProgramCounter>) -> Permission {
         self.heap.new_permission(PermissionData::Expired(place))
     }
 

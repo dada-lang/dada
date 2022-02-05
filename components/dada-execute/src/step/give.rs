@@ -78,13 +78,12 @@ impl Stepper<'_> {
         self.write(&object_traversal);
 
         let ObjectTraversal {
-            origin,
             object,
             accumulated_permissions,
         } = object_traversal;
 
         let last_permission = *accumulated_permissions.traversed.last().unwrap();
-        self.revoke(origin, last_permission);
+        self.revoke(last_permission);
         let permission = self.machine.new_permission(ValidPermissionData::my());
         Ok(Value { object, permission })
     }

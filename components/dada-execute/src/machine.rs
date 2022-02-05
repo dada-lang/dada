@@ -248,7 +248,7 @@ pub enum PermissionData {
     /// No permission: if the place is non-none, executing this place is
     /// what caused the permission to be revoked. If None, the permission
     /// was never granted (e.g., uninitialized memory).
-    Expired(Option<bir::Place>),
+    Expired(Option<ProgramCounter>),
 
     Valid(ValidPermissionData),
 }
