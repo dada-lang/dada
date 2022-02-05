@@ -29,6 +29,7 @@ mod apply_op;
 mod assert_invariants;
 mod await_thunk;
 mod call;
+mod gc;
 mod give;
 mod intrinsic;
 mod lease;
@@ -102,11 +103,13 @@ impl<'me> Stepper<'me> {
             self.step_statement(table, basic_block_data.statements[pc.statement])?;
             pc.statement += 1;
             self.machine.set_pc(pc);
+            self.gc(None);
             self.assert_invariants()?;
             return Ok(ControlFlow::Next);
         }
 
         let cf = self.step_terminator(table, pc, basic_block_data.terminator)?;
+        self.gc(None);
         self.assert_invariants()?;
         Ok(cf)
     }
@@ -249,6 +252,13 @@ impl<'me> Stepper<'me> {
 
             TerminatorData::Return(place) => {
                 let return_value = self.give_place(table, *place)?;
+
+                // Before we pop the frame, clear any permisions
+                // and run the GC. Any data that is now dead will
+                // thus have the revokation location at the end of the
+                // callee, rather than the caller.
+                self.machine.clear_frame();
+                self.gc(Some(return_value));
 
                 // Pop current frame from the stack.
                 self.machine.pop_frame();

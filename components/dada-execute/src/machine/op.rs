@@ -19,6 +19,7 @@ pub(crate) trait MachineOp:
 
     fn frames(&self) -> &[Frame];
     fn push_frame(&mut self, db: &dyn crate::Db, bir: bir::Bir, arguments: Vec<Value>);
+    fn clear_frame(&mut self);
     fn pop_frame(&mut self) -> Frame;
     fn top_frame(&self) -> Option<&Frame>;
 
@@ -26,11 +27,12 @@ pub(crate) trait MachineOp:
     fn object_mut(&mut self, object: Object) -> &mut ObjectData;
     fn take_object(&mut self, object: Object) -> ObjectData;
     fn new_object(&mut self, data: ObjectData) -> Object;
-    fn unit_object(&mut self) -> Object;
+    fn unit_object(&self) -> Object;
     fn all_objects(&self) -> Vec<Object>;
 
     fn permission(&self, permission: Permission) -> &PermissionData;
     fn permission_mut(&mut self, permission: Permission) -> &mut PermissionData;
+    fn take_permission(&mut self, permission: Permission) -> PermissionData;
     fn new_permission(&mut self, data: ValidPermissionData) -> Permission;
     fn expired_permission(&mut self, origin: Option<ProgramCounter>) -> Permission;
     fn all_permissions(&self) -> Vec<Permission>;
@@ -42,6 +44,9 @@ pub(crate) trait MachineOp:
     // Get and set the program counter from the top-most stack frame.
     fn pc(&self) -> ProgramCounter;
     fn set_pc(&mut self, pc: ProgramCounter);
+
+    // Read PC from top-most frame, or None if stack is empty.
+    fn opt_pc(&self) -> Option<ProgramCounter>;
 }
 
 impl MachineOp for Machine {
@@ -90,6 +95,16 @@ impl MachineOp for Machine {
         });
     }
 
+    /// Clear the permission from all local variables on the frame.
+    #[track_caller]
+    fn clear_frame(&mut self) {
+        let expired_permission = self.expired_permission(None);
+        let top_frame = self.stack.frames.last_mut().unwrap();
+        for v in &mut top_frame.locals {
+            v.permission = expired_permission;
+        }
+    }
+
     #[track_caller]
     fn pop_frame(&mut self) -> Frame {
         self.stack.frames.pop().unwrap()
@@ -130,7 +145,7 @@ impl MachineOp for Machine {
         self.heap.new_object(data)
     }
 
-    fn unit_object(&mut self) -> Object {
+    fn unit_object(&self) -> Object {
         self.unit_object
     }
 
@@ -151,6 +166,14 @@ impl MachineOp for Machine {
         self.heap.permissions.get_mut(permission.index).unwrap()
     }
 
+    #[track_caller]
+    fn take_permission(&mut self, permission: Permission) -> PermissionData {
+        self.heap
+            .permissions
+            .remove(permission.index)
+            .unwrap_or_else(|| panic!("permission not found: {permission:?}"))
+    }
+
     fn new_permission(&mut self, data: ValidPermissionData) -> Permission {
         self.heap.new_permission(PermissionData::Valid(data))
     }
@@ -169,6 +192,10 @@ impl MachineOp for Machine {
 
     fn local_mut(&mut self, local_variable: bir::LocalVariable) -> &mut Value {
         &mut self.stack.frames.last_mut().unwrap().locals[local_variable]
+    }
+
+    fn opt_pc(&self) -> Option<ProgramCounter> {
+        self.stack.frames.last().map(|f| f.pc)
     }
 
     fn pc(&self) -> ProgramCounter {

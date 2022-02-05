@@ -370,6 +370,19 @@ impl ProgramCounter {
         }
     }
 
+    /// True if this PC represents a `return` terminator.
+    pub fn is_return(&self, db: &dyn crate::Db) -> bool {
+        let bir_data = self.bir.data(db);
+        let basic_block_data = &bir_data.tables[self.basic_block];
+        if self.statement < basic_block_data.statements.len() {
+            return false;
+        }
+
+        let data = &bir_data.tables[basic_block_data.terminator];
+
+        matches!(data, bir::TerminatorData::Return(_))
+    }
+
     pub fn span(&self, db: &dyn crate::Db) -> FileSpan {
         // FIXME: This code is copied/adapter from Stepper::span_from_bir,
         // it seems like we could create some helper functions, maybe on the

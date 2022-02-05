@@ -15,7 +15,12 @@ use super::Stepper;
 
 impl Stepper<'_> {
     pub(crate) fn assert_invariants(&self) -> eyre::Result<()> {
-        AssertInvariants::new(self.db, self.machine).assert_all_ok()
+        // Convert an assertion failure into a panic intentionally;
+        // it's not the same as other sorts of failures.
+        AssertInvariants::new(self.db, self.machine)
+            .assert_all_ok()
+            .unwrap();
+        Ok(())
     }
 }
 

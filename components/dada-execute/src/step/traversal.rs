@@ -245,11 +245,18 @@ impl Stepper<'_> {
             }
             PermissionData::Expired(Some(expired_at)) => {
                 let place_span = self.span_from_bir(place);
-                let expired_at = expired_at.span(self.db);
+                let expired_at_span = expired_at.span(self.db);
+
+                let secondary_label = if expired_at.is_return(self.db) {
+                    "lease was cancelled when this function returned"
+                } else {
+                    "lease was cancelled here"
+                };
+
                 Err(
                     error!(place_span, "your lease to this object was cancelled")
                         .primary_label("cancelled lease used here")
-                        .secondary_label(expired_at, "lease was cancelled by the access here")
+                        .secondary_label(expired_at_span, secondary_label)
                         .eyre(self.db),
                 )
             }

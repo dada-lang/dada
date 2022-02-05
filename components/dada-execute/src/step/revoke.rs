@@ -6,12 +6,10 @@ use super::Stepper;
 
 impl Stepper<'_> {
     /// Revokes the given permission, recording the current PC as the "reason".
+    #[tracing::instrument(level = "Debug", skip(self))]
     pub(super) fn revoke(&mut self, permission: Permission) {
-        let pc = self.machine.pc();
-        let p = std::mem::replace(
-            &mut self.machine[permission],
-            PermissionData::Expired(Some(pc)),
-        );
+        let pc = self.machine.opt_pc();
+        let p = std::mem::replace(&mut self.machine[permission], PermissionData::Expired(pc));
 
         if let PermissionData::Valid(ValidPermissionData { tenants, .. }) = p {
             for tenant in tenants {
@@ -20,6 +18,7 @@ impl Stepper<'_> {
         }
     }
 
+    #[tracing::instrument(level = "Debug", skip(self))]
     pub(super) fn revoke_tenants(&mut self, permission: Permission) {
         // Temporarily swap out the data for `permission`...
         let mut p = std::mem::replace(&mut self.machine[permission], PermissionData::Expired(None));
@@ -35,6 +34,7 @@ impl Stepper<'_> {
         self.machine[permission] = p;
     }
 
+    #[tracing::instrument(level = "Debug", skip(self))]
     pub(super) fn revoke_exclusive_tenants(&mut self, permission: Permission) {
         // Temporarily swap out the data for `permission`...
         let mut p = std::mem::replace(&mut self.machine[permission], PermissionData::Expired(None));
