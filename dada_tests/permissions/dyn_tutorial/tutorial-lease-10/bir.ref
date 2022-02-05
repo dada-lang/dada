@@ -112,26 +112,59 @@
                 ),
                 (
                     Assign(
+                        temp{7},
+                        Print.give,
+                    ),
+                    Expr(12),
+                ),
+                (
+                    Assign(
+                        temp{16},
+                        temp{7}.give,
+                    ),
+                    Expr(12),
+                ),
+                (
+                    Assign(
                         temp{8},
                         p{0}.x.give,
                     ),
-                    Expr(13),
+                    Expr(14),
                 ),
                 (
                     Assign(
-                        x{7},
+                        temp{17},
                         temp{8}.give,
-                    ),
-                    Expr(13),
-                ),
-                (
-                    Assign(
-                        temp{9},
-                        (),
                     ),
                     Expr(14),
                 ),
             ],
+            Assign(
+                temp{15},
+                Call(
+                    temp{16},
+                    [
+                        temp{17},
+                    ],
+                    [
+                        None,
+                    ],
+                ),
+                BasicBlock(2),
+            ),
+        ),
+        BasicBlock(2): BasicBlockData(
+            [],
+            Assign(
+                temp{9},
+                Await(
+                    temp{15},
+                ),
+                BasicBlock(3),
+            ),
+        ),
+        BasicBlock(3): BasicBlockData(
+            [],
             Return(
                 temp{9},
             ),

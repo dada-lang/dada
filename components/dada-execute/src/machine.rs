@@ -66,10 +66,30 @@ impl Heap {
         }
     }
 
+    fn all_objects(&self) -> Vec<Object> {
+        let mut vec: Vec<_> = self
+            .objects
+            .iter()
+            .map(|(index, _)| Object { index })
+            .collect();
+        vec.sort();
+        vec
+    }
+
     fn new_permission(&mut self, data: PermissionData) -> Permission {
         Permission {
             index: self.permissions.insert(data),
         }
+    }
+
+    fn all_permissions(&self) -> Vec<Permission> {
+        let mut vec: Vec<_> = self
+            .permissions
+            .iter()
+            .map(|(index, _)| Permission { index })
+            .collect();
+        vec.sort();
+        vec
     }
 }
 
@@ -82,7 +102,7 @@ impl Heap {
 /// This struct is just an index; to get the object's
 /// data you combine it with a machine `m` via indexing,
 /// like `m[object]`.
-#[derive(Copy, Clone, PartialEq, Eq, Hash)]
+#[derive(Copy, Clone, PartialEq, Eq, Hash, PartialOrd, Ord)]
 pub struct Object {
     index: generational_arena::Index,
 }
@@ -211,7 +231,7 @@ pub struct Tuple {
     pub fields: Vec<Value>,
 }
 
-#[derive(Copy, Clone, PartialEq, Eq, Hash)]
+#[derive(Copy, Clone, PartialEq, Eq, Hash, PartialOrd, Ord)]
 pub struct Permission {
     index: generational_arena::Index,
 }

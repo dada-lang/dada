@@ -26,6 +26,7 @@ use self::traversal::Anchor;
 
 mod access;
 mod apply_op;
+mod assert_invariants;
 mod await_thunk;
 mod call;
 mod give;
@@ -90,7 +91,7 @@ impl<'me> Stepper<'me> {
 
         let basic_block_data = pc.basic_block.data(table);
 
-        // The statement should either be the idnex of a statement or
+        // The statement should either be the index of a statement or
         // the terminator.
         assert!(
             pc.statement <= basic_block_data.statements.len(),
@@ -101,10 +102,13 @@ impl<'me> Stepper<'me> {
             self.step_statement(table, basic_block_data.statements[pc.statement])?;
             pc.statement += 1;
             self.machine.set_pc(pc);
+            self.assert_invariants()?;
             return Ok(ControlFlow::Next);
         }
 
-        self.step_terminator(table, pc, basic_block_data.terminator)
+        let cf = self.step_terminator(table, pc, basic_block_data.terminator)?;
+        self.assert_invariants()?;
+        Ok(cf)
     }
 
     /// After a `ControlFlow::Await` is returned, the caller is responsible for

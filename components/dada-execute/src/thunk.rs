@@ -5,7 +5,7 @@ use crate::{machine::Value, step::Stepper};
 /// The data interpreter doesn't a
 pub struct RustThunk {
     description: &'static str,
-    arguments: Vec<Value>,
+    pub(crate) arguments: Vec<Value>,
     object: Box<dyn RustThunkTrait>,
 }
 

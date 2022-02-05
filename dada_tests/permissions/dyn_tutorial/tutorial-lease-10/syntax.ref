@@ -8,7 +8,7 @@
         ),
         data: syntax::Tree {
             root_expr: (
-                Expr(15),
+                Expr(17),
                 Seq(
                     [
                         (
@@ -100,22 +100,34 @@
                             ),
                         ),
                         (
-                            Expr(14),
-                            Var(
+                            Expr(16),
+                            Await(
                                 (
-                                    "x",
-                                    None,
-                                ),
-                                (
-                                    Expr(13),
-                                    Dot(
+                                    Expr(15),
+                                    Call(
                                         (
                                             Expr(12),
                                             Id(
-                                                "p",
+                                                "print",
                                             ),
                                         ),
-                                        "x",
+                                        [
+                                            (
+                                                None,
+                                                (
+                                                    Expr(14),
+                                                    Dot(
+                                                        (
+                                                            Expr(13),
+                                                            Id(
+                                                                "p",
+                                                            ),
+                                                        ),
+                                                        "x",
+                                                    ),
+                                                ),
+                                            ),
+                                        ],
                                     ),
                                 ),
                             ),

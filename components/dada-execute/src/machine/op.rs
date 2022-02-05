@@ -27,11 +27,13 @@ pub(crate) trait MachineOp:
     fn take_object(&mut self, object: Object) -> ObjectData;
     fn new_object(&mut self, data: ObjectData) -> Object;
     fn unit_object(&mut self) -> Object;
+    fn all_objects(&self) -> Vec<Object>;
 
     fn permission(&self, permission: Permission) -> &PermissionData;
     fn permission_mut(&mut self, permission: Permission) -> &mut PermissionData;
     fn new_permission(&mut self, data: ValidPermissionData) -> Permission;
     fn expired_permission(&mut self, origin: Option<bir::Place>) -> Permission;
+    fn all_permissions(&self) -> Vec<Permission>;
 
     // Access locals from the top-most stack frame (panics if stack is empty).
     fn local(&self, local_variable: bir::LocalVariable) -> &Value;
@@ -132,6 +134,10 @@ impl MachineOp for Machine {
         self.unit_object
     }
 
+    fn all_objects(&self) -> Vec<Object> {
+        self.heap.all_objects()
+    }
+
     #[track_caller]
     fn permission(&self, permission: Permission) -> &PermissionData {
         self.heap
@@ -147,6 +153,10 @@ impl MachineOp for Machine {
 
     fn new_permission(&mut self, data: ValidPermissionData) -> Permission {
         self.heap.new_permission(PermissionData::Valid(data))
+    }
+
+    fn all_permissions(&self) -> Vec<Permission> {
+        self.heap.all_permissions()
     }
 
     fn expired_permission(&mut self, place: Option<bir::Place>) -> Permission {
