@@ -82,14 +82,12 @@ pub(super) struct AccumulatedPermissions {
 /// from the outgoing edge from the field `a` to the object
 /// `a2`.
 pub(super) struct PlaceTraversal<'me> {
-    pub(super) origin: bir::Place,
     pub(super) accumulated_permissions: AccumulatedPermissions,
     pub(super) place: &'me mut Value,
 }
 
 /// See [`PlaceTraversal`] for detailed explanation.
 pub(super) struct ObjectTraversal {
-    pub(super) origin: bir::Place,
     pub(super) accumulated_permissions: AccumulatedPermissions,
     pub(super) object: Object,
 }
@@ -119,30 +117,25 @@ impl Stepper<'_> {
                     atomic: lv_data.storage_mode.atomic(),
                 };
                 Ok(PlaceTraversal {
-                    origin: place,
                     accumulated_permissions: permissions,
                     place: &mut self.machine[*lv],
                 })
             }
 
             bir::PlaceData::Function(f) => {
-                Ok(self.temporary_place(anchor, place, ObjectData::Function(*f)))
+                Ok(self.temporary_place(anchor, ObjectData::Function(*f)))
             }
-            bir::PlaceData::Class(c) => {
-                Ok(self.temporary_place(anchor, place, ObjectData::Class(*c)))
-            }
+            bir::PlaceData::Class(c) => Ok(self.temporary_place(anchor, ObjectData::Class(*c))),
             bir::PlaceData::Intrinsic(i) => {
-                Ok(self.temporary_place(anchor, place, ObjectData::Intrinsic(*i)))
+                Ok(self.temporary_place(anchor, ObjectData::Intrinsic(*i)))
             }
             bir::PlaceData::Dot(owner_place, field_name) => {
                 let ObjectTraversal {
-                    origin: _,
                     accumulated_permissions,
                     object: owner_object,
                 } = self.traverse_to_object(anchor, table, *owner_place)?;
                 let owner_field = self.object_field(place, owner_object, *field_name)?;
                 Ok(PlaceTraversal {
-                    origin: place,
                     accumulated_permissions,
                     place: owner_field,
                 })
@@ -164,13 +157,11 @@ impl Stepper<'_> {
         place: bir::Place,
     ) -> eyre::Result<ObjectTraversal> {
         let PlaceTraversal {
-            origin,
             accumulated_permissions,
             place: &mut Value { permission, object },
         } = self.traverse_to_place(anchor, table, place)?;
         let permissions = self.accumulate_permission(place, accumulated_permissions, permission)?;
         Ok(ObjectTraversal {
-            origin,
             accumulated_permissions: permissions,
             object,
         })
@@ -213,7 +204,6 @@ impl Stepper<'_> {
     fn temporary_place<'me>(
         &'me mut self,
         anchor: &'me Anchor,
-        origin: bir::Place,
         object_data: ObjectData,
     ) -> PlaceTraversal<'me> {
         let temporary = self.temporary(object_data);
@@ -225,7 +215,6 @@ impl Stepper<'_> {
             atomic: Atomic::No,
         };
         PlaceTraversal {
-            origin,
             accumulated_permissions: permissions,
             place,
         }
@@ -256,11 +245,18 @@ impl Stepper<'_> {
             }
             PermissionData::Expired(Some(expired_at)) => {
                 let place_span = self.span_from_bir(place);
-                let expired_at = self.span_from_bir(*expired_at);
+                let expired_at_span = expired_at.span(self.db);
+
+                let secondary_label = if expired_at.is_return(self.db) {
+                    "lease was cancelled when this function returned"
+                } else {
+                    "lease was cancelled here"
+                };
+
                 Err(
                     error!(place_span, "your lease to this object was cancelled")
                         .primary_label("cancelled lease used here")
-                        .secondary_label(expired_at, "lease was cancelled by the access here")
+                        .secondary_label(expired_at_span, secondary_label)
                         .eyre(self.db),
                 )
             }

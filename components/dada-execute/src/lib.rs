@@ -16,9 +16,6 @@ impl<T> Db for T where
 {
 }
 
-#[macro_use]
-mod macros;
-
 mod error;
 mod ext;
 pub mod heap_graph;

@@ -1,4 +1,4 @@
-use dada_ir::{code::bir, storage_mode::Joint};
+use dada_ir::storage_mode::Joint;
 
 use crate::machine::{Object, ObjectData, Permission, PermissionData, Value};
 
@@ -41,14 +41,14 @@ impl Stepper<'_> {
     fn access(
         &mut self,
         traversal: &ObjectTraversal,
-        mut revoke_op: impl FnMut(&mut Self, bir::Place, Permission),
+        mut revoke_op: impl FnMut(&mut Self, Permission),
     ) {
         for &permission in &traversal.accumulated_permissions.traversed {
             assert!(matches!(self.machine[permission], PermissionData::Valid(_)));
-            revoke_op(self, traversal.origin, permission);
+            revoke_op(self, permission);
         }
 
-        self.for_each_reachable_exclusive_permission(traversal.origin, traversal.object, revoke_op);
+        self.for_each_reachable_exclusive_permission(traversal.object, revoke_op);
     }
 
     /// Whenever an object is accessed (whether via a read or a write),
@@ -97,9 +97,8 @@ impl Stepper<'_> {
     /// in order to make way for the new lease to `s`.
     fn for_each_reachable_exclusive_permission(
         &mut self,
-        origin: bir::Place,
         object: Object,
-        mut revoke_op: impl FnMut(&mut Self, bir::Place, Permission),
+        mut revoke_op: impl FnMut(&mut Self, Permission),
     ) {
         let mut reachable = vec![];
         let mut queue = vec![object];
@@ -143,7 +142,7 @@ impl Stepper<'_> {
         }
 
         for p in reachable {
-            revoke_op(self, origin, p);
+            revoke_op(self, p);
         }
     }
 

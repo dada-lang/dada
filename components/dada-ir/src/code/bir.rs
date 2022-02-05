@@ -167,6 +167,22 @@ pub struct BasicBlockData {
     pub terminator: Terminator,
 }
 
+impl BasicBlockData {
+    /// Number of "elements" in this block, including the terminator.
+    pub fn elements(&self) -> usize {
+        self.statements.len() + 1
+    }
+
+    /// Get a particular "element" in this block (either a statement or a terminator).
+    pub fn element_at(&self, index: usize) -> BasicBlockElement {
+        if index < self.statements.len() {
+            BasicBlockElement::Statement(self.statements[index])
+        } else {
+            BasicBlockElement::Terminator(self.terminator)
+        }
+    }
+}
+
 impl DebugWithDb<InIrDb<'_, Bir>> for BasicBlockData {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>, db: &InIrDb<'_, Bir>) -> std::fmt::Result {
         f.debug_tuple("BasicBlockData")
@@ -174,6 +190,15 @@ impl DebugWithDb<InIrDb<'_, Bir>> for BasicBlockData {
             .field(&self.terminator.debug(db))
             .finish()
     }
+}
+
+/// An "element" of a basic block is a statement or terminator.
+///
+/// (In case you are curious, I made this term up, it's not standard.)
+#[derive(Debug, Copy, Clone, PartialEq, Eq, Hash)]
+pub enum BasicBlockElement {
+    Statement(Statement),
+    Terminator(Terminator),
 }
 
 id!(pub struct Statement);

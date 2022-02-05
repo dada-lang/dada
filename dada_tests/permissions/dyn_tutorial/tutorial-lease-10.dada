@@ -6,5 +6,5 @@ async fn main() {
     q.x += 1
     #?     ^ HeapGraph
     #?      ^ HeapGraph
-    var x = p.x
+    print(p.x).await #! OUTPUT 23
 }

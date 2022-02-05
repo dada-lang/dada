@@ -46,7 +46,6 @@ impl Stepper<'_> {
         object_traversal: ObjectTraversal,
     ) -> eyre::Result<Value> {
         let ObjectTraversal {
-            origin: _,
             object,
             accumulated_permissions,
         } = object_traversal;

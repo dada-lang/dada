@@ -14,8 +14,7 @@ digraph {
           <tr><td border="1">main</td></tr>
           <tr><td port="0">p</td></tr>
           <tr><td port="5">q</td></tr>
-          <tr><td port="7">x</td></tr>
-          <tr><td port="15">(in-flight): "22"</td></tr>
+          <tr><td port="18">(in-flight): "22"</td></tr>
           </table>
         >;
       ];
@@ -42,7 +41,6 @@ digraph {
           <tr><td border="1">main</td></tr>
           <tr><td port="0">p</td></tr>
           <tr><td port="5">q</td></tr>
-          <tr><td port="7">x</td></tr>
           </table>
         >;
       ];

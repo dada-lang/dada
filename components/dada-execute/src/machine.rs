@@ -66,10 +66,30 @@ impl Heap {
         }
     }
 
+    fn all_objects(&self) -> Vec<Object> {
+        let mut vec: Vec<_> = self
+            .objects
+            .iter()
+            .map(|(index, _)| Object { index })
+            .collect();
+        vec.sort();
+        vec
+    }
+
     fn new_permission(&mut self, data: PermissionData) -> Permission {
         Permission {
             index: self.permissions.insert(data),
         }
+    }
+
+    fn all_permissions(&self) -> Vec<Permission> {
+        let mut vec: Vec<_> = self
+            .permissions
+            .iter()
+            .map(|(index, _)| Permission { index })
+            .collect();
+        vec.sort();
+        vec
     }
 }
 
@@ -82,7 +102,7 @@ impl Heap {
 /// This struct is just an index; to get the object's
 /// data you combine it with a machine `m` via indexing,
 /// like `m[object]`.
-#[derive(Copy, Clone, PartialEq, Eq, Hash)]
+#[derive(Copy, Clone, PartialEq, Eq, Hash, PartialOrd, Ord)]
 pub struct Object {
     index: generational_arena::Index,
 }
@@ -211,7 +231,7 @@ pub struct Tuple {
     pub fields: Vec<Value>,
 }
 
-#[derive(Copy, Clone, PartialEq, Eq, Hash)]
+#[derive(Copy, Clone, PartialEq, Eq, Hash, PartialOrd, Ord)]
 pub struct Permission {
     index: generational_arena::Index,
 }
@@ -228,7 +248,7 @@ pub enum PermissionData {
     /// No permission: if the place is non-none, executing this place is
     /// what caused the permission to be revoked. If None, the permission
     /// was never granted (e.g., uninitialized memory).
-    Expired(Option<bir::Place>),
+    Expired(Option<ProgramCounter>),
 
     Valid(ValidPermissionData),
 }
@@ -348,6 +368,19 @@ impl ProgramCounter {
             basic_block,
             statement: 0,
         }
+    }
+
+    /// True if this PC represents a `return` terminator.
+    pub fn is_return(&self, db: &dyn crate::Db) -> bool {
+        let bir_data = self.bir.data(db);
+        let basic_block_data = &bir_data.tables[self.basic_block];
+        if self.statement < basic_block_data.statements.len() {
+            return false;
+        }
+
+        let data = &bir_data.tables[basic_block_data.terminator];
+
+        matches!(data, bir::TerminatorData::Return(_))
     }
 
     pub fn span(&self, db: &dyn crate::Db) -> FileSpan {

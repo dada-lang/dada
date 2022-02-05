@@ -49,7 +49,6 @@ impl Stepper<'_> {
         self.read(&traversal);
 
         let ObjectTraversal {
-            origin: _,
             object,
             accumulated_permissions,
         } = traversal;

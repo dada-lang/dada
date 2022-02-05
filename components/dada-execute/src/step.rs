@@ -26,8 +26,10 @@ use self::traversal::Anchor;
 
 mod access;
 mod apply_op;
+mod assert_invariants;
 mod await_thunk;
 mod call;
+mod gc;
 mod give;
 mod intrinsic;
 mod lease;
@@ -90,7 +92,7 @@ impl<'me> Stepper<'me> {
 
         let basic_block_data = pc.basic_block.data(table);
 
-        // The statement should either be the idnex of a statement or
+        // The statement should either be the index of a statement or
         // the terminator.
         assert!(
             pc.statement <= basic_block_data.statements.len(),
@@ -101,10 +103,15 @@ impl<'me> Stepper<'me> {
             self.step_statement(table, basic_block_data.statements[pc.statement])?;
             pc.statement += 1;
             self.machine.set_pc(pc);
+            self.gc(None);
+            self.assert_invariants()?;
             return Ok(ControlFlow::Next);
         }
 
-        self.step_terminator(table, pc, basic_block_data.terminator)
+        let cf = self.step_terminator(table, pc, basic_block_data.terminator)?;
+        self.gc(None);
+        self.assert_invariants()?;
+        Ok(cf)
     }
 
     /// After a `ControlFlow::Await` is returned, the caller is responsible for
@@ -121,7 +128,7 @@ impl<'me> Stepper<'me> {
         match &self.machine[value.object] {
             ObjectData::Unit(()) => Ok(()),
             _ => {
-                self.intrinsic_print_async(value).await?;
+                self.intrinsic_print_async(vec![value]).await?;
                 Ok(())
             }
         }
@@ -245,6 +252,13 @@ impl<'me> Stepper<'me> {
 
             TerminatorData::Return(place) => {
                 let return_value = self.give_place(table, *place)?;
+
+                // Before we pop the frame, clear any permisions
+                // and run the GC. Any data that is now dead will
+                // thus have the revokation location at the end of the
+                // callee, rather than the caller.
+                self.machine.clear_frame();
+                self.gc(Some(return_value));
 
                 // Pop current frame from the stack.
                 self.machine.pop_frame();
