@@ -121,7 +121,7 @@ impl<'me> Stepper<'me> {
         match &self.machine[value.object] {
             ObjectData::Unit(()) => Ok(()),
             _ => {
-                self.intrinsic_print_async(value).await?;
+                self.intrinsic_print_async(vec![value]).await?;
                 Ok(())
             }
         }

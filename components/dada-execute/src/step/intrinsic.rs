@@ -5,6 +5,7 @@ use crate::{
     error::DiagnosticBuilderExt,
     machine::stringify::DefaultStringify,
     machine::{op::MachineOpExt, Value},
+    thunk::{RustThunk, RustThunkTrait},
 };
 
 use super::Stepper;
@@ -29,14 +30,17 @@ impl IntrinsicDefinition {
 }
 
 impl Stepper<'_> {
-    fn intrinsic_print(&mut self, mut values: Vec<Value>) -> eyre::Result<Value> {
-        Ok(self.machine.my_value(thunk!("print", async move |this| {
-            let message = values.pop().unwrap();
-            this.intrinsic_print_async(message).await
-        })))
+    fn intrinsic_print(&mut self, values: Vec<Value>) -> eyre::Result<Value> {
+        Ok(self
+            .machine
+            .my_value(RustThunk::new("", values, PrintIntrinsic)))
     }
 
-    pub(super) async fn intrinsic_print_async(&mut self, value: Value) -> eyre::Result<Value> {
+    pub(super) async fn intrinsic_print_async(
+        &mut self,
+        mut values: Vec<Value>,
+    ) -> eyre::Result<Value> {
+        let value = values.pop().unwrap();
         let await_pc = self.machine.pc();
         let message_str = DefaultStringify::stringify(&*self.machine, self.db, value);
 
@@ -56,4 +60,27 @@ impl Stepper<'_> {
 
         Ok(self.machine.our_value(()))
     }
+}
+
+macro_rules! intrinsics {
+    ($($name:ident => $method:ident,)*) => {
+        $(
+            struct $name;
+
+            #[async_trait::async_trait(?Send)]
+            impl RustThunkTrait for $name {
+                async fn invoke(
+                    self: Box<Self>,
+                    stepper: &mut Stepper<'_>,
+                    arguments: Vec<Value>,
+                ) -> eyre::Result<Value> {
+                    stepper.$method(arguments).await
+                }
+            }
+        )*
+    };
+}
+
+intrinsics! {
+    PrintIntrinsic => intrinsic_print_async,
 }
