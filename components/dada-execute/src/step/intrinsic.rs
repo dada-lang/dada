@@ -33,7 +33,7 @@ impl Stepper<'_> {
     fn intrinsic_print(&mut self, values: Vec<Value>) -> eyre::Result<Value> {
         Ok(self
             .machine
-            .my_value(RustThunk::new("", values, PrintIntrinsic)))
+            .my_value(RustThunk::new("print", values, PrintIntrinsic)))
     }
 
     pub(super) async fn intrinsic_print_async(

@@ -98,11 +98,15 @@ impl<'me> HeapGraphCapture<'me> {
                     ObjectType::Thunk(thunk.function),
                     &thunk.arguments,
                 )),
+                ObjectData::ThunkRust(thunk) => ValueEdgeTarget::Object(self.instance_node(
+                    value.object,
+                    ObjectType::RustThunk(thunk.description),
+                    &thunk.arguments,
+                )),
                 ObjectData::Tuple(_tuple) => self.data_target(db, &"<tuple>"), // FIXME
                 ObjectData::Class(c) => ValueEdgeTarget::Class(*c),
                 ObjectData::Function(f) => ValueEdgeTarget::Function(*f),
                 ObjectData::Intrinsic(_)
-                | ObjectData::ThunkRust(_)
                 | ObjectData::Bool(_)
                 | ObjectData::Uint(_)
                 | ObjectData::Int(_)

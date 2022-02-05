@@ -4,7 +4,7 @@ use crate::{machine::Value, step::Stepper};
 /// These are constructed from intrinsics.
 /// The data interpreter doesn't a
 pub struct RustThunk {
-    description: &'static str,
+    pub(crate) description: &'static str,
     pub(crate) arguments: Vec<Value>,
     object: Box<dyn RustThunkTrait>,
 }

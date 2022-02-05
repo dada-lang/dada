@@ -1,0 +1,66 @@
+[
+    bir::Bir {
+        start_basic_block: BasicBlock(0),
+        BasicBlock(0): BasicBlockData(
+            [
+                (
+                    Assign(
+                        temp{0},
+                        Print.give,
+                    ),
+                    Expr(0),
+                ),
+                (
+                    Assign(
+                        temp{4},
+                        temp{0}.give,
+                    ),
+                    Expr(0),
+                ),
+                (
+                    Assign(
+                        temp{1},
+                        "foo",
+                    ),
+                    Expr(1),
+                ),
+                (
+                    Assign(
+                        temp{5},
+                        temp{1}.give,
+                    ),
+                    Expr(1),
+                ),
+            ],
+            Assign(
+                temp{3},
+                Call(
+                    temp{4},
+                    [
+                        temp{5},
+                    ],
+                    [
+                        None,
+                    ],
+                ),
+                BasicBlock(1),
+            ),
+        ),
+        BasicBlock(1): BasicBlockData(
+            [],
+            Assign(
+                temp{2},
+                Await(
+                    temp{3},
+                ),
+                BasicBlock(2),
+            ),
+        ),
+        BasicBlock(2): BasicBlockData(
+            [],
+            Return(
+                temp{2},
+            ),
+        ),
+    },
+]

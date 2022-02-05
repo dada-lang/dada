@@ -222,17 +222,12 @@ impl HeapGraph {
         match edge {
             ValueEdgeTarget::Object(o) => {
                 let data = o.data(&self.tables);
-                let fields = match data.ty {
-                    ObjectType::Class(class) => class.fields(w.db),
-                    ObjectType::Thunk(function) => function.parameters(w.db),
-                };
-                let field_names = fields
-                    .iter()
-                    .map(|f| Some(f.name(w.db).as_str(w.db).to_string()));
+                let field_names: Vec<_> = self.field_names(w.db, data.ty, data.fields.len());
                 w.indent(r#"label = <<table border="0">"#)?;
                 let class_name = match data.ty {
                     ObjectType::Class(class) => class.name(w.db).as_str(w.db),
                     ObjectType::Thunk(function) => function.name(w.db).as_str(w.db),
+                    ObjectType::RustThunk(d) => d,
                 };
                 w.println(format!(r#"<tr><td border="1">{class_name}</td></tr>"#))?;
                 self.print_fields(w, &name, field_names, &data.fields, 0)?;
@@ -254,6 +249,25 @@ impl HeapGraph {
         }
         w.undent(r#"];"#)?;
         Ok(())
+    }
+
+    fn field_names(
+        &self,
+        db: &dyn crate::Db,
+        ty: ObjectType,
+        num_fields: usize,
+    ) -> Vec<Option<String>> {
+        let fields = match ty {
+            ObjectType::Class(class) => class.fields(db),
+            ObjectType::Thunk(function) => function.parameters(db),
+            ObjectType::RustThunk(_) => {
+                return (0..num_fields).map(|i| Some(format!("{}", i))).collect()
+            }
+        };
+        fields
+            .iter()
+            .map(|f| Some(f.name(db).as_str(db).to_string()))
+            .collect()
     }
 
     fn print_fields<'me>(

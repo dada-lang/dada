@@ -1,0 +1,7 @@
+async fn main() {
+    print("foo").await #! OUTPUT foo
+    #?         ^ HeapGraph
+    #
+    # Check that the resuting dump includes the
+    # RustThunk for `print`.
+}

@@ -77,6 +77,7 @@ pub(crate) struct ObjectNodeData {
 pub(crate) enum ObjectType {
     Class(Class),
     Thunk(Function),
+    RustThunk(&'static str),
 }
 
 id!(pub(crate) struct ValueEdge);
