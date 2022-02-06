@@ -5,7 +5,7 @@ use crate::{
     error::DiagnosticBuilderExt,
     machine::stringify::DefaultStringify,
     machine::{op::MachineOpExt, Value},
-    thunk::{RustThunk, RustThunkTrait},
+    thunk::RustThunk,
 };
 
 use super::Stepper;
@@ -30,10 +30,23 @@ impl IntrinsicDefinition {
 }
 
 impl Stepper<'_> {
+    /// For intrinsics that yield thunks, when those thunks get awaited,
+    /// they invoke this method. This should execute some Rust code and
+    /// yield the result. Panics if invoked with an inappropriate intrinsic.
+    pub(crate) async fn async_intrinsic(
+        &mut self,
+        intrinsic: Intrinsic,
+        values: Vec<Value>,
+    ) -> eyre::Result<Value> {
+        match intrinsic {
+            Intrinsic::Print => self.intrinsic_print_async(values).await,
+        }
+    }
+
     fn intrinsic_print(&mut self, values: Vec<Value>) -> eyre::Result<Value> {
         Ok(self
             .machine
-            .my_value(RustThunk::new("print", values, PrintIntrinsic)))
+            .my_value(RustThunk::new("print", values, Intrinsic::Print)))
     }
 
     pub(super) async fn intrinsic_print_async(
@@ -60,27 +73,4 @@ impl Stepper<'_> {
 
         Ok(self.machine.our_value(()))
     }
-}
-
-macro_rules! intrinsics {
-    ($($name:ident => $method:ident,)*) => {
-        $(
-            struct $name;
-
-            #[async_trait::async_trait(?Send)]
-            impl RustThunkTrait for $name {
-                async fn invoke(
-                    self: Box<Self>,
-                    stepper: &mut Stepper<'_>,
-                    arguments: Vec<Value>,
-                ) -> eyre::Result<Value> {
-                    stepper.$method(arguments).await
-                }
-            }
-        )*
-    };
-}
-
-intrinsics! {
-    PrintIntrinsic => intrinsic_print_async,
 }
