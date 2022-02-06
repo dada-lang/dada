@@ -115,7 +115,9 @@ impl<'me> Marker<'me> {
 impl Stepper<'_> {
     #[tracing::instrument(level = "Debug", skip(self))]
     fn sweep(&mut self, marks: &Marks) {
-        let mut dead_permissions = self.machine.all_permissions();
+        let mut live_permissions = self.machine.all_permissions();
+        let mut dead_permissions = live_permissions.clone();
+        live_permissions.retain(|p| marks.live_permissions.contains(p));
         dead_permissions.retain(|p| !marks.live_permissions.contains(p));
 
         // First: revoke all the dead permissions.
@@ -128,6 +130,13 @@ impl Stepper<'_> {
         for &p in &dead_permissions {
             let data = self.machine.take_permission(p);
             tracing::debug!("removed dead permission {:?} = {:?}", p, data);
+        }
+
+        // Next: for each *live* permission, remove any dead tenants.
+        for &p in &live_permissions {
+            if let PermissionData::Valid(valid) = &mut self.machine[p] {
+                valid.tenants.retain(|p| marks.live_permissions.contains(p));
+            }
         }
 
         // Finally: remove dead objects.

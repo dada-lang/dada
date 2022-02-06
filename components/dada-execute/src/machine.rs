@@ -61,9 +61,13 @@ pub struct Heap {
 
 impl Heap {
     fn new_object(&mut self, data: ObjectData) -> Object {
-        Object {
+        let o = Object {
             index: self.objects.insert(data),
-        }
+        };
+
+        tracing::debug!("new object: {:?} = {:?}", o, &self.objects[o.index]);
+
+        o
     }
 
     /// Returns the data for a given object, or `None` if the object
@@ -85,9 +89,13 @@ impl Heap {
     }
 
     fn new_permission(&mut self, data: PermissionData) -> Permission {
-        Permission {
+        let p = Permission {
             index: self.permissions.insert(data),
-        }
+        };
+
+        tracing::debug!("new permission: {:?} = {:?}", p, &self.permissions[p.index]);
+
+        p
     }
 
     fn all_permissions(&self) -> Vec<Permission> {
