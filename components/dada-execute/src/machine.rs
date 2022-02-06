@@ -99,6 +99,14 @@ impl Heap {
         vec.sort();
         vec
     }
+
+    /// Returns the data for a given permission, or `None` if the permission
+    /// does not exist or has been freed.
+    ///
+    /// If you know the permission exists, prefer to do `machine[permission]`.
+    pub(crate) fn permission_data(&self, permission: Permission) -> Option<&PermissionData> {
+        self.permissions.get(permission.index)
+    }
 }
 
 /// An "object" is a piece of data in the heap.
@@ -251,7 +259,7 @@ impl std::fmt::Debug for Permission {
     }
 }
 
-#[derive(Clone, Debug)]
+#[derive(Clone, Debug, PartialEq)]
 pub enum PermissionData {
     /// No permission: if the place is non-none, executing this place is
     /// what caused the permission to be revoked. If None, the permission
@@ -294,7 +302,7 @@ impl PermissionData {
 /// The data for a valid permission; each permission
 /// is attached to a particular reference from some
 /// place (memory location) `p` to some object `o`.
-#[derive(Clone, Debug)]
+#[derive(Clone, Debug, PartialEq)]
 pub struct ValidPermissionData {
     /// A *joint* permission indicates whether this particular
     /// place permits other permissions to `o`.

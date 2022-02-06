@@ -10,14 +10,22 @@ use dada_ir::{
     class::Class, code::bir::LocalVariable, function::Function, span::FileSpan, word::Word,
 };
 
-use crate::machine::{op::MachineOp, Value};
+use crate::machine::{op::MachineOp, Machine, Object, Permission, Value};
 
 mod capture;
 mod graphviz;
 
 pub struct HeapGraph {
-    // 0 is the bottom of the stack, length is the top of the stack.
+    /// Snapshot of the machine that this is a graph of
+    ///
+    /// FIXME: it's not obvious that we need the other fields of this struct.
+    /// We could generate the graphviz directly from this.
+    machine: Machine,
+
+    /// 0 is the bottom of the stack, length is the top of the stack.
     stack: Vec<StackFrameNode>,
+
+    /// Stores the data for the various bits of graphviz.
     tables: Tables,
 }
 
@@ -28,6 +36,7 @@ impl HeapGraph {
         in_flight_value: Option<Value>,
     ) -> Self {
         let mut this = Self {
+            machine: machine.snapshot(),
             stack: vec![],
             tables: Default::default(),
         };
@@ -69,6 +78,7 @@ id!(pub(crate) struct ObjectNode);
 
 #[derive(Debug)]
 pub(crate) struct ObjectNodeData {
+    object: Object,
     ty: ObjectType,
     fields: Vec<ValueEdge>,
 }
@@ -101,6 +111,7 @@ id!(pub(crate) struct DataNode);
 
 #[derive(Debug)]
 pub(crate) struct DataNodeData {
+    object: Object,
     debug: Box<dyn Debug + Send + Sync>,
 }
 
@@ -108,6 +119,8 @@ id!(pub(crate) struct PermissionNode);
 
 #[derive(Debug)]
 pub(crate) struct PermissionNodeData {
+    permission: Permission,
+
     label: PermissionNodeLabel,
 
     /// If non-empty, then this permission is leased by somebody else.

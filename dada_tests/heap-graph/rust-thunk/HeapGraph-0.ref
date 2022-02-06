@@ -12,7 +12,7 @@ digraph {
         label=<
           <table border="0">
           <tr><td border="1">main</td></tr>
-          <tr><td port="6">(in-flight)</td></tr>
+          <tr><td port="6"><font color="black">(in-flight)</font></td></tr>
           </table>
         >;
       ];
@@ -20,7 +20,7 @@ digraph {
     afternode0 [
       label = <<table border="0">
         <tr><td border="1">print</td></tr>
-        <tr><td port="0">0: "foo"</td></tr>
+        <tr><td port="0"><font color="black">0: "foo"</font></td></tr>
       </table>>
     ];
     "stack":6 -> "afternode0" [label="my", style="solid"];

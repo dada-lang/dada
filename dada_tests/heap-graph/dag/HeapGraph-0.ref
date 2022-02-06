@@ -12,9 +12,9 @@ digraph {
         label=<
           <table border="0">
           <tr><td border="1">main</td></tr>
-          <tr><td port="0">p</td></tr>
-          <tr><td port="6">q</td></tr>
-          <tr><td port="18">(in-flight): "()"</td></tr>
+          <tr><td port="0"><font color="black">p</font></td></tr>
+          <tr><td port="6"><font color="black">q</font></td></tr>
+          <tr><td port="18"><font color="black">(in-flight): "()"</font></td></tr>
           </table>
         >;
       ];
@@ -22,15 +22,15 @@ digraph {
     afternode1 [
       label = <<table border="0">
         <tr><td border="1">Point</td></tr>
-        <tr><td port="0">x</td></tr>
-        <tr><td port="1">y</td></tr>
+        <tr><td port="0"><font color="black">x</font></td></tr>
+        <tr><td port="1"><font color="black">y</font></td></tr>
       </table>>
     ];
     afternode0 [
       label = <<table border="0">
         <tr><td border="1">Point</td></tr>
-        <tr><td port="0">x: "22"</td></tr>
-        <tr><td port="1">y: "44"</td></tr>
+        <tr><td port="0"><font color="black">x: "22"</font></td></tr>
+        <tr><td port="1"><font color="black">y: "44"</font></td></tr>
       </table>>
     ];
     "afterstack":0 -> "afternode0" [label="our", style="solid"];
@@ -48,8 +48,8 @@ digraph {
         label=<
           <table border="0">
           <tr><td border="1">main</td></tr>
-          <tr><td port="0">p</td></tr>
-          <tr><td port="6">q</td></tr>
+          <tr><td port="0"><font color="black">p</font></td></tr>
+          <tr><td port="6"><font color="black">q</font></td></tr>
           </table>
         >;
       ];

@@ -12,18 +12,20 @@ digraph {
         label=<
           <table border="0">
           <tr><td border="1">main</td></tr>
-          <tr><td port="0">p</td></tr>
-          <tr><td port="5">q</td></tr>
-          <tr><td port="18">(in-flight): "22"</td></tr>
+          <tr><td port="0"><font color="slategray">p</font></td></tr>
+          <tr><td port="5"><font color="slategray">q</font></td></tr>
+          <tr><td port="18"><font color="slategray">(in-flight): "22"</font></td></tr>
           </table>
         >;
       ];
     }
     afternode0 [
+      color = "slategray",
+      fontcolor = "slategray",
       label = <<table border="0">
         <tr><td border="1">Point</td></tr>
-        <tr><td port="0">x: "22"</td></tr>
-        <tr><td port="1">y: "44"</td></tr>
+        <tr><td port="0"><font color="slategray">x: "22"</font></td></tr>
+        <tr><td port="1"><font color="slategray">y: "44"</font></td></tr>
       </table>>
     ];
     "afterstack":0 -> "afternode0" [label="my", style="dotted"];
@@ -39,17 +41,19 @@ digraph {
         label=<
           <table border="0">
           <tr><td border="1">main</td></tr>
-          <tr><td port="0">p</td></tr>
-          <tr><td port="5">q</td></tr>
+          <tr><td port="0"><font color="slategray">p</font></td></tr>
+          <tr><td port="5"><font color="slategray">q</font></td></tr>
           </table>
         >;
       ];
     }
     beforenode0 [
+      color = "slategray",
+      fontcolor = "slategray",
       label = <<table border="0">
         <tr><td border="1">Point</td></tr>
-        <tr><td port="0">x: "22"</td></tr>
-        <tr><td port="1">y: "44"</td></tr>
+        <tr><td port="0"><font color="slategray">x: "22"</font></td></tr>
+        <tr><td port="1"><font color="slategray">y: "44"</font></td></tr>
       </table>>
     ];
     "beforestack":0 -> "beforenode0" [label="my", style="dotted"];

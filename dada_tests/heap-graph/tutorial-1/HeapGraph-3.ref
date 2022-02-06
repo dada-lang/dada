@@ -12,7 +12,7 @@ digraph {
         label=<
           <table border="0">
           <tr><td border="1">main</td></tr>
-          <tr><td port="0">p</td></tr>
+          <tr><td port="0"><font color="black">p</font></td></tr>
           </table>
         >;
       ];
@@ -20,8 +20,8 @@ digraph {
     afternode0 [
       label = <<table border="0">
         <tr><td border="1">Point</td></tr>
-        <tr><td port="0">x: "22"</td></tr>
-        <tr><td port="1">y: "44"</td></tr>
+        <tr><td port="0"><font color="black">x: "22"</font></td></tr>
+        <tr><td port="1"><font color="black">y: "44"</font></td></tr>
       </table>>
     ];
     "afterstack":0 -> "afternode0" [label="my", style="solid"];
@@ -36,7 +36,7 @@ digraph {
         label=<
           <table border="0">
           <tr><td border="1">main</td></tr>
-          <tr><td port="0">p</td></tr>
+          <tr><td port="0"><font color="slategray">p</font></td></tr>
           </table>
         >;
       ];
