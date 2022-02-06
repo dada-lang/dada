@@ -41,6 +41,7 @@ impl Stepper<'_> {
         self.lease_traversal(object_traversal)
     }
 
+    #[tracing::instrument(level = "Debug", skip(self))]
     pub(super) fn lease_traversal(
         &mut self,
         object_traversal: ObjectTraversal,

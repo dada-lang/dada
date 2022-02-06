@@ -21,6 +21,7 @@ pub(super) struct Anchor {
 }
 
 /// Permissions accumulated along a traversal.
+#[derive(Debug)]
 pub(super) struct AccumulatedPermissions {
     /// Every permission that was traversed
     /// to reach the given destination
@@ -81,12 +82,14 @@ pub(super) struct AccumulatedPermissions {
 /// point to `a2` and would hence include the permissions
 /// from the outgoing edge from the field `a` to the object
 /// `a2`.
+#[derive(Debug)]
 pub(super) struct PlaceTraversal<'me> {
     pub(super) accumulated_permissions: AccumulatedPermissions,
     pub(super) place: &'me mut Value,
 }
 
 /// See [`PlaceTraversal`] for detailed explanation.
+#[derive(Debug)]
 pub(super) struct ObjectTraversal {
     pub(super) accumulated_permissions: AccumulatedPermissions,
     pub(super) object: Object,
@@ -167,7 +170,7 @@ impl Stepper<'_> {
         })
     }
 
-    pub(super) fn object_field(
+    fn object_field(
         &mut self,
         place: bir::Place,
         owner_object: Object,

@@ -44,6 +44,7 @@ impl Stepper<'_> {
         self.share_traversal(object_traversal)
     }
 
+    #[tracing::instrument(level = "debug", skip(self))]
     pub(super) fn share_traversal(&mut self, traversal: ObjectTraversal) -> eyre::Result<Value> {
         // Sharing counts as a read of the data being shared.
         self.read(&traversal);

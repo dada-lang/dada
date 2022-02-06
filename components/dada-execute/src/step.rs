@@ -102,6 +102,18 @@ impl<'me> Stepper<'me> {
             "statement index out of range"
         );
 
+        let pc_span = pc.span(self.db);
+        let snippet = pc_span.snippet(self.db);
+        if snippet.len() > 50 {
+            tracing::debug!(
+                "executing: {:?}...{:?}",
+                &snippet[..25],
+                &snippet[snippet.len() - 25..]
+            );
+        } else {
+            tracing::debug!("executing {:?}", snippet);
+        }
+
         if pc.statement < basic_block_data.statements.len() {
             self.step_statement(table, pc.bir, basic_block_data.statements[pc.statement])?;
             pc.statement += 1;
