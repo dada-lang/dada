@@ -20,9 +20,9 @@ impl Stepper<'_> {
     /// freed, we assume that this lease would be revoked (and thus you would
     /// have an expired permission).
     #[tracing::instrument(level = "Debug", skip(self))]
-    pub(super) fn gc(&mut self, in_flight: Option<Value>) {
+    pub(super) fn gc(&mut self, in_flight_values: &[Value]) {
         let mut marks = Marks::default();
-        Marker::new(self.machine, &mut marks).mark(in_flight);
+        Marker::new(self.machine, &mut marks).mark(in_flight_values);
         self.sweep(&marks);
     }
 }
@@ -44,15 +44,15 @@ impl<'me> Marker<'me> {
     }
 
     #[tracing::instrument(level = "Debug", skip(self))]
-    fn mark(&mut self, in_flight: Option<Value>) {
+    fn mark(&mut self, in_flight_values: &[Value]) {
         for frame in self.machine.frames() {
             for local_value in &frame.locals {
                 self.mark_value(*local_value);
             }
         }
 
-        if let Some(in_flight) = in_flight {
-            self.mark_value(in_flight);
+        for in_flight_value in in_flight_values {
+            self.mark_value(*in_flight_value);
         }
 
         // the singleton unit object is always live :)

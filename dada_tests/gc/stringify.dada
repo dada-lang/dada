@@ -1,0 +1,7 @@
+class Print(var x, var y)
+
+async fn main() {
+    var p = Print(Print(22, 44), 66)
+    print(p).await
+    #! OUTPUT my Print\(my Print\(22, 44\), 66\)
+}

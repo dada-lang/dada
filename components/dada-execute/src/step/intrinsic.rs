@@ -4,7 +4,7 @@ use eyre::Context;
 use crate::{
     error::DiagnosticBuilderExt,
     machine::stringify::DefaultStringify,
-    machine::{op::MachineOpExt, Value},
+    machine::{op::MachineOpExt, ProgramCounter, Value},
     thunk::RustThunk,
 };
 
@@ -36,10 +36,14 @@ impl Stepper<'_> {
     pub(crate) async fn async_intrinsic(
         &mut self,
         intrinsic: Intrinsic,
-        values: Vec<Value>,
+        mut values: Vec<Value>,
     ) -> eyre::Result<Value> {
         match intrinsic {
-            Intrinsic::Print => self.intrinsic_print_async(values).await,
+            Intrinsic::Print => {
+                let value = values.pop().unwrap();
+                let await_pc = self.machine.pc();
+                self.intrinsic_print_async(await_pc, value).await
+            }
         }
     }
 
@@ -51,10 +55,9 @@ impl Stepper<'_> {
 
     pub(super) async fn intrinsic_print_async(
         &mut self,
-        mut values: Vec<Value>,
+        await_pc: ProgramCounter,
+        value: Value,
     ) -> eyre::Result<Value> {
-        let value = values.pop().unwrap();
-        let await_pc = self.machine.pc();
         let message_str = DefaultStringify::stringify(&*self.machine, self.db, value);
 
         async {

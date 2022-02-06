@@ -1,0 +1,23 @@
+[
+    (
+        Expr(1),
+        Seq(
+            [
+                (
+                    Expr(0),
+                    Give(
+                        Place(0),
+                    ),
+                    ExprOrigin {
+                        syntax_expr: Expr(0),
+                        synthesized: false,
+                    },
+                ),
+            ],
+        ),
+        ExprOrigin {
+            syntax_expr: Expr(1),
+            synthesized: false,
+        },
+    ),
+]

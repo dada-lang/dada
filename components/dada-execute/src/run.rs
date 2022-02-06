@@ -31,8 +31,8 @@ pub async fn interpret(
         match stepper.step()? {
             ControlFlow::Next => (),
             ControlFlow::Await(t) => t.invoke(&mut stepper).await?,
-            ControlFlow::Done(v) => {
-                stepper.print_if_not_unit(v).await?;
+            ControlFlow::Done(pc, v) => {
+                stepper.print_if_not_unit(pc, v).await?;
                 return Ok(());
             }
         }

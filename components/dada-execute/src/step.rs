@@ -6,11 +6,13 @@ use dada_ir::{
         syntax,
     },
     error,
+    in_ir_db::InIrDbExt,
     origin_table::HasOriginIn,
     span::FileSpan,
     word::Word,
 };
 use dada_parse::prelude::*;
+use salsa::DebugWithDb;
 
 use crate::{
     error::DiagnosticBuilderExt,
@@ -59,9 +61,9 @@ pub(crate) enum ControlFlow {
     /// Caller's job is to call `step` again.
     Next,
 
-    /// Execution completed with the given value; caller can inspect
-    /// the value (`Stepper::check_is_unit` might be useful!).
-    Done(Value),
+    /// Execution completed from the given PC with the given value;
+    /// caller can inspect the value (`Stepper::check_is_unit` might be useful!).
+    Done(ProgramCounter, Value),
 
     /// Caller's job is to await the thunk by invoking
     /// `RustThunk::invoke`, and then start calling `step` again.
@@ -85,6 +87,7 @@ impl<'me> Stepper<'me> {
     /// or an indication of what caller should do next.
     ///
     /// Note that this function is synchronous: it never awaits or does I/O.
+    #[tracing::instrument(level = "Debug", skip(self))]
     pub(crate) fn step(&mut self) -> eyre::Result<ControlFlow> {
         let mut pc = self.machine.pc();
         let bir_data = pc.bir.data(self.db);
@@ -100,16 +103,24 @@ impl<'me> Stepper<'me> {
         );
 
         if pc.statement < basic_block_data.statements.len() {
-            self.step_statement(table, basic_block_data.statements[pc.statement])?;
+            self.step_statement(table, pc.bir, basic_block_data.statements[pc.statement])?;
             pc.statement += 1;
             self.machine.set_pc(pc);
-            self.gc(None);
+            self.gc(&[]);
             self.assert_invariants()?;
             return Ok(ControlFlow::Next);
         }
 
         let cf = self.step_terminator(table, pc, basic_block_data.terminator)?;
-        self.gc(None);
+        let temp;
+        self.gc(match &cf {
+            ControlFlow::Next => &[],
+            ControlFlow::Await(v) => &v.arguments[..],
+            ControlFlow::Done(_, v) => {
+                temp = [*v];
+                &temp
+            }
+        });
         self.assert_invariants()?;
         Ok(cf)
     }
@@ -124,11 +135,15 @@ impl<'me> Stepper<'me> {
     }
 
     /// Checks the return value from the `main` function.
-    pub(crate) async fn print_if_not_unit(&mut self, value: Value) -> eyre::Result<()> {
+    pub(crate) async fn print_if_not_unit(
+        &mut self,
+        await_pc: ProgramCounter,
+        value: Value,
+    ) -> eyre::Result<()> {
         match &self.machine[value.object] {
             ObjectData::Unit(()) => Ok(()),
             _ => {
-                self.intrinsic_print_async(vec![value]).await?;
+                self.intrinsic_print_async(await_pc, value).await?;
                 Ok(())
             }
         }
@@ -137,8 +152,14 @@ impl<'me> Stepper<'me> {
     fn step_statement(
         &mut self,
         table: &bir::Tables,
+        bir: bir::Bir,
         statement: bir::Statement,
     ) -> eyre::Result<()> {
+        tracing::debug!(
+            "statement = {:?}",
+            statement.data(table).debug(&bir.in_ir_db(self.db))
+        );
+
         match statement.data(table) {
             bir::StatementData::Assign(place, expr) => {
                 // Subtle: The way this is setup, permissions for the target are not
@@ -204,7 +225,13 @@ impl<'me> Stepper<'me> {
         pc: ProgramCounter,
         terminator: bir::Terminator,
     ) -> eyre::Result<ControlFlow> {
+        tracing::debug!(
+            "terminator = {:?}",
+            terminator.data(table).debug(&pc.bir.in_ir_db(self.db))
+        );
+
         let terminator_data: &bir::TerminatorData = &table[terminator];
+
         match terminator_data {
             // FIXME: implement atomics
             TerminatorData::StartAtomic(b)
@@ -258,7 +285,7 @@ impl<'me> Stepper<'me> {
                 // thus have the revokation location at the end of the
                 // callee, rather than the caller.
                 self.machine.clear_frame();
-                self.gc(Some(return_value));
+                self.gc(&[return_value]);
 
                 // Pop current frame from the stack.
                 self.machine.pop_frame();
@@ -266,7 +293,7 @@ impl<'me> Stepper<'me> {
                 // If that was the top frame, we are done.
                 // Otherwise, resume the frame we just uncovered.
                 if self.machine.top_frame().is_none() {
-                    Ok(ControlFlow::Done(return_value))
+                    Ok(ControlFlow::Done(pc, return_value))
                 } else {
                     self.resume_with(return_value)?;
                     Ok(ControlFlow::Next)
