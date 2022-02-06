@@ -24,7 +24,7 @@ pub mod stringify;
 /// Instead they interact through the [`op::MachineOp`] trait. The idea of introducing
 /// this separation was that we may want to allow dynamically swapping in "proxy machines",
 /// for example to log or trace each action that is taken at a breakpoint.
-#[derive(Debug)]
+#[derive(Clone, Debug)]
 pub struct Machine {
     pub heap: Heap,
     pub stack: Stack,
@@ -47,13 +47,13 @@ impl Default for Machine {
 
 /// A value is a reference to an object.
 /// It combines the object itself with a permission.
-#[derive(Copy, Clone, Debug)]
+#[derive(Copy, Clone, Debug, PartialEq, Eq)]
 pub struct Value {
     pub object: Object,
     pub permission: Permission,
 }
 
-#[derive(Debug, Default)]
+#[derive(Clone, Debug, Default)]
 pub struct Heap {
     pub objects: Arena<ObjectData>,
     pub permissions: Arena<PermissionData>,
@@ -64,6 +64,14 @@ impl Heap {
         Object {
             index: self.objects.insert(data),
         }
+    }
+
+    /// Returns the data for a given object, or `None` if the object
+    /// does not exist or has been freed.
+    ///
+    /// If you know the object exists, prefer to do `machine[object]`.
+    pub fn object_data(&self, object: Object) -> Option<&ObjectData> {
+        self.objects.get(object.index)
     }
 
     fn all_objects(&self) -> Vec<Object> {
@@ -115,7 +123,7 @@ impl std::fmt::Debug for Object {
 }
 
 /// The data stored in an object.
-#[derive(Debug)]
+#[derive(Clone, Debug, PartialEq)]
 pub enum ObjectData {
     /// An instance of a class.
     Instance(Instance),
@@ -210,7 +218,7 @@ object_data_from_impls! {
     Unit(()),
 }
 
-#[derive(Debug)]
+#[derive(Clone, Debug, PartialEq)]
 pub struct Instance {
     pub class: Class,
     pub fields: Vec<Value>,
@@ -219,13 +227,13 @@ pub struct Instance {
 /// When you invoke an async function, the result is
 /// a ThunkFn. This stores the arguments that
 /// were provided, waiting for an `await` to execute.
-#[derive(Debug)]
+#[derive(Clone, Debug, PartialEq)]
 pub struct ThunkFn {
     pub function: Function,
     pub arguments: Vec<Value>,
 }
 
-#[derive(Debug)]
+#[derive(Clone, Debug, PartialEq)]
 pub struct Tuple {
     #[allow(dead_code)]
     pub fields: Vec<Value>,
@@ -243,7 +251,7 @@ impl std::fmt::Debug for Permission {
     }
 }
 
-#[derive(Debug)]
+#[derive(Clone, Debug)]
 pub enum PermissionData {
     /// No permission: if the place is non-none, executing this place is
     /// what caused the permission to be revoked. If None, the permission
@@ -286,7 +294,7 @@ impl PermissionData {
 /// The data for a valid permission; each permission
 /// is attached to a particular reference from some
 /// place (memory location) `p` to some object `o`.
-#[derive(Debug)]
+#[derive(Clone, Debug)]
 pub struct ValidPermissionData {
     /// A *joint* permission indicates whether this particular
     /// place permits other permissions to `o`.
@@ -332,12 +340,12 @@ impl ValidPermissionData {
     }
 }
 
-#[derive(Debug, Default)]
+#[derive(Clone, Debug, Default)]
 pub struct Stack {
     pub frames: Vec<Frame>,
 }
 
-#[derive(Debug)]
+#[derive(Clone, Debug)]
 pub struct Frame {
     pub pc: ProgramCounter,
     pub locals: IndexVec<bir::LocalVariable, Value>,
