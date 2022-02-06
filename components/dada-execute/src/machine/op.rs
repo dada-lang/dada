@@ -47,6 +47,10 @@ pub(crate) trait MachineOp:
 
     // Read PC from top-most frame, or None if stack is empty.
     fn opt_pc(&self) -> Option<ProgramCounter>;
+
+    /// Clones the machine into a snapshot of the underlying data.
+    /// Used for heapgraphs and introspection.
+    fn snapshot(&self) -> Machine;
 }
 
 impl MachineOp for Machine {
@@ -204,6 +208,10 @@ impl MachineOp for Machine {
 
     fn set_pc(&mut self, pc: ProgramCounter) {
         self.stack.frames.last_mut().unwrap().pc = pc;
+    }
+
+    fn snapshot(&self) -> Machine {
+        self.clone()
     }
 }
 
