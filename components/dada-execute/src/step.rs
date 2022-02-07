@@ -49,7 +49,7 @@ pub(crate) struct Stepper<'me> {
 
 impl std::fmt::Debug for Stepper<'_> {
     fn fmt(&self, fmt: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
-        fmt.debug_tuple("Strepper").field(&self.machine).finish()
+        fmt.debug_tuple("Stepper").field(&self.machine).finish()
     }
 }
 
