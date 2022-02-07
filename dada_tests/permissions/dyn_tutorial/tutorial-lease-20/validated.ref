@@ -353,21 +353,21 @@
                     Expr(30),
                     Assign(
                         (
-                            Place(13),
+                            Place(15),
                             Dot(
                                 (
-                                    Place(12),
+                                    Place(14),
                                     r{7},
                                     ExprOrigin {
                                         syntax_expr: Expr(11),
-                                        synthesized: false,
+                                        synthesized: true,
                                     },
                                 ),
                                 "x",
                             ),
                             ExprOrigin {
                                 syntax_expr: Expr(12),
-                                synthesized: false,
+                                synthesized: true,
                             },
                         ),
                         (
@@ -418,7 +418,7 @@
                                                 Expr(32),
                                                 Assign(
                                                     (
-                                                        Place(14),
+                                                        Place(16),
                                                         temp{9},
                                                         ExprOrigin {
                                                             syntax_expr: Expr(15),
@@ -428,7 +428,7 @@
                                                     (
                                                         Expr(31),
                                                         Give(
-                                                            Place(15),
+                                                            Place(17),
                                                         ),
                                                         ExprOrigin {
                                                             syntax_expr: Expr(15),
@@ -444,7 +444,7 @@
                                             (
                                                 Expr(33),
                                                 Give(
-                                                    Place(14),
+                                                    Place(16),
                                                 ),
                                                 ExprOrigin {
                                                     syntax_expr: Expr(15),
@@ -469,7 +469,7 @@
                                                         Expr(36),
                                                         Assign(
                                                             (
-                                                                Place(16),
+                                                                Place(18),
                                                                 temp{10},
                                                                 ExprOrigin {
                                                                     syntax_expr: Expr(17),
@@ -479,7 +479,7 @@
                                                             (
                                                                 Expr(35),
                                                                 Give(
-                                                                    Place(18),
+                                                                    Place(20),
                                                                 ),
                                                                 ExprOrigin {
                                                                     syntax_expr: Expr(17),
@@ -495,7 +495,7 @@
                                                     (
                                                         Expr(37),
                                                         Give(
-                                                            Place(16),
+                                                            Place(18),
                                                         ),
                                                         ExprOrigin {
                                                             syntax_expr: Expr(17),

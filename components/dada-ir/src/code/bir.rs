@@ -26,7 +26,7 @@ salsa::entity2! {
     }
 }
 
-impl DebugWithDb<dyn crate::Db> for Bir {
+impl DebugWithDb<dyn crate::Db + '_> for Bir {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>, db: &dyn crate::Db) -> std::fmt::Result {
         let self_in_ir_db = &self.in_ir_db(db.as_dyn_ir_db());
         DebugWithDb::fmt(self.data(db), f, self_in_ir_db)

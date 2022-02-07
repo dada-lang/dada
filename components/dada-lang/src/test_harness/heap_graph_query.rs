@@ -10,6 +10,7 @@ use crate::test_harness::QueryKind;
 use super::{Errors, Query};
 
 impl super::Options {
+    #[tracing::instrument(level = "Debug", skip(self, in_db, errors))]
     pub(super) async fn perform_heap_graph_query_on_db(
         &self,
         in_db: &mut dada_db::Db,
@@ -31,9 +32,9 @@ impl super::Options {
             filename,
             LineColumn::new1(query.line, query.column),
         );
+        tracing::debug!("breakpoint={:?}", breakpoint);
 
         let mut kernel = BufferKernel::new()
-            .stop_at_breakpoint(true)
             .breakpoint_callback(|db, kernel, record| kernel.append(&record.to_graphviz(db)));
 
         if let Some(breakpoint) = breakpoint {

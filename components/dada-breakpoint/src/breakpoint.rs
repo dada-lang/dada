@@ -13,6 +13,7 @@ use dada_parse::prelude::*;
 /// See [`find`].
 #[derive(Copy, Clone, Debug)]
 pub struct Breakpoint {
+    pub item: Item,
     pub code: Code,
     pub expr: syntax::Expr,
 }
@@ -37,6 +38,7 @@ pub fn find(db: &dyn crate::Db, filename: Filename, position: LineColumn) -> Opt
     let syntax_tree = code.syntax_tree(db);
     let cusp_expr = find_syntax_expr(db, syntax_tree, offset);
     Some(Breakpoint {
+        item,
         code,
         expr: cusp_expr,
     })

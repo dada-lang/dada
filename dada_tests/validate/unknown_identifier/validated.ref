@@ -70,11 +70,11 @@
                     Expr(8),
                     Assign(
                         (
-                            Place(2),
+                            Place(3),
                             blah{0},
                             ExprOrigin {
                                 syntax_expr: Expr(2),
-                                synthesized: false,
+                                synthesized: true,
                             },
                         ),
                         (

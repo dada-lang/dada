@@ -6,6 +6,7 @@ use dada_ir::{
     },
     storage_mode::StorageMode,
 };
+use salsa::DebugWithDb;
 
 use crate::{
     brewery::{Brewery, LoopContext},
@@ -43,12 +44,20 @@ pub fn brew(db: &dyn crate::Db, validated_tree: validated::Tree) -> bir::Bir {
     }
     let start_basic_block = cursor.complete();
 
-    bir::Bir::new(
+    let bir = bir::Bir::new(
         db,
         function,
         BirData::new(tables, num_parameters, start_basic_block),
         origins,
-    )
+    );
+
+    tracing::trace!(
+        "brew(function={:?}) = {:#?}",
+        function.debug(db),
+        bir.debug(db)
+    );
+
+    bir
 }
 
 impl Cursor {
