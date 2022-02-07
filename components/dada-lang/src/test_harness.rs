@@ -63,6 +63,9 @@ impl Options {
                                 }
                             }
                             return Ok(());
+                        } else if ext == "md" {
+                            // allow .md files
+                            return Ok(());
                         }
                     }
 
