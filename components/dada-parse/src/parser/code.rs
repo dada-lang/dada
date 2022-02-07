@@ -313,7 +313,19 @@ impl CodeParser<'_, '_> {
             tracing::debug!("identifier");
             Some(self.add(ExprData::Id(id), id_span))
         } else if let Some((word_span, word)) = self.eat(Number) {
-            Some(self.add(ExprData::IntegerLiteral(word), word_span))
+            if self.eat_op(Op::Dot).is_none() {
+                Some(self.add(ExprData::IntegerLiteral(word), word_span))
+            } else {
+                if let Some((_, dec_word)) = self.eat(Number) {
+                    let span = self.span_consumed_since(word_span);
+                    Some(self.add(ExprData::FloatLiteral(word, dec_word), span))
+                } else {
+                    self.parser
+                        .error_at_current_token("expected digits after `.`")
+                        .emit(self.db);
+                    None
+                }
+            }
         } else if let Some(expr) = self.parse_format_string() {
             Some(expr)
         } else if let Some(expr) = self.parse_block_expr() {

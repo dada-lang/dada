@@ -185,6 +185,30 @@ impl<'me> Validator<'me> {
                 }
             }
 
+            syntax::ExprData::FloatLiteral(w_int, w_frac) => {
+                let raw_int_str = w_int.as_str(self.db);
+                let raw_frac_str = w_frac.as_str(self.db);
+                let int_chars = raw_int_str.chars();
+                let frac_chars = raw_frac_str.chars();
+                let all_chars = int_chars.chain(Some('.')).chain(frac_chars);
+                let all_chars = all_chars.filter(|&c| c != '_');
+                let full_str: String = all_chars.collect();
+                match f64::from_str(&full_str) {
+                    Ok(v) => self.add(validated::ExprData::FloatLiteral(eq_float::F64(v)), expr),
+                    Err(e) => {
+                        dada_ir::error!(
+                            self.span(expr),
+                            "`{}.{}` is not a valid float: {}",
+                            w_int.as_str(self.db),
+                            w_frac.as_str(self.db),
+                            e,
+                        )
+                        .emit(self.db);
+                        self.add(validated::ExprData::Error, expr)
+                    }
+                }
+            }
+
             syntax::ExprData::StringLiteral(w) => {
                 let word_str = w.as_str(self.db);
                 let dada_string = convert_to_dada_string(word_str);

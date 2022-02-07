@@ -387,6 +387,10 @@ impl<'me> Stepper<'me> {
                 object: self.machine.new_object(ObjectData::Uint(*v)),
                 permission: self.machine.new_permission(ValidPermissionData::our()),
             }),
+            bir::ExprData::FloatLiteral(v) => Ok(Value {
+                object: self.machine.new_object(ObjectData::Float(v.0)),
+                permission: self.machine.new_permission(ValidPermissionData::our()),
+            }),
             bir::ExprData::StringLiteral(v) => Ok(Value {
                 object: self
                     .machine
