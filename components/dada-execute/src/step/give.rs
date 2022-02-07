@@ -33,6 +33,7 @@ impl Stepper<'_> {
         self.give_traversal(object_traversal)
     }
 
+    #[tracing::instrument(level = "debug", skip(self))]
     pub(super) fn give_traversal(
         &mut self,
         object_traversal: ObjectTraversal,

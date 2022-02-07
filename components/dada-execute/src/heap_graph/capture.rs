@@ -103,7 +103,7 @@ impl<'me> HeapGraphCapture<'me> {
                     ObjectType::RustThunk(thunk.description),
                     &thunk.arguments,
                 )),
-                ObjectData::Tuple(_tuple) => self.data_target(db, &"<tuple>"), // FIXME
+                ObjectData::Tuple(_tuple) => self.data_target(db, value.object, &"<tuple>"), // FIXME
                 ObjectData::Class(c) => ValueEdgeTarget::Class(*c),
                 ObjectData::Function(f) => ValueEdgeTarget::Function(*f),
                 ObjectData::Intrinsic(_)
@@ -114,7 +114,7 @@ impl<'me> HeapGraphCapture<'me> {
                 | ObjectData::String(_)
                 | ObjectData::Unit(_) => {
                     let string = DefaultStringify::stringify(&*self.machine, self.db, value);
-                    self.data_target(db, &string)
+                    self.data_target(db, value.object, &string)
                 }
             },
         };
@@ -125,9 +125,11 @@ impl<'me> HeapGraphCapture<'me> {
     fn data_target(
         &mut self,
         _db: &dyn crate::Db,
+        object: Object,
         d: &(impl std::fmt::Debug + Send + Sync + Clone + 'static),
     ) -> ValueEdgeTarget {
         let b = DataNodeData {
+            object,
             debug: Box::new(d.clone()),
         };
         ValueEdgeTarget::Data(self.graph.tables.add(b))
@@ -152,6 +154,7 @@ impl<'me> HeapGraphCapture<'me> {
         };
 
         let node = self.graph.tables.add(PermissionNodeData {
+            permission,
             label,
             lessor: None,
             tenants: vec![],
@@ -181,6 +184,7 @@ impl<'me> HeapGraphCapture<'me> {
         }
 
         let node = self.graph.tables.add(ObjectNodeData {
+            object,
             ty,
             fields: Default::default(),
         });

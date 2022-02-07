@@ -1,0 +1,25 @@
+[
+    syntax::Tree {
+        origin: Code(
+            Some(
+                Tokens(dada_tests/gc/final_value_not_freed.dada:6:15:6:15),
+            ),
+            Tokens(dada_tests/gc/final_value_not_freed.dada:6:18:8:1),
+        ),
+        data: syntax::Tree {
+            root_expr: (
+                Expr(1),
+                Seq(
+                    [
+                        (
+                            Expr(0),
+                            Id(
+                                "print",
+                            ),
+                        ),
+                    ],
+                ),
+            ),
+        },
+    },
+]

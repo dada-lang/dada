@@ -12,13 +12,15 @@ digraph {
         label=<
           <table border="0">
           <tr><td border="1">main</td></tr>
-          <tr><td port="0">p</td></tr>
-          <tr><td port="14">(in-flight)</td></tr>
+          <tr><td port="0"><font color="slategray">p</font></td></tr>
+          <tr><td port="14"><font color="black">(in-flight)</font></td></tr>
           </table>
         >;
       ];
     }
     afternode0 [
+      color = "slategray",
+      fontcolor = "slategray",
       label = <<b>Point</b>>
     ];
     "stack":14 -> "afternode0" [label="our", style="solid"];
@@ -33,7 +35,7 @@ digraph {
         label=<
           <table border="0">
           <tr><td border="1">main</td></tr>
-          <tr><td port="0">p</td></tr>
+          <tr><td port="0"><font color="slategray">p</font></td></tr>
           </table>
         >;
       ];

@@ -1,10 +1,12 @@
 use dada_id::prelude::*;
 use dada_ir::{
+    class::Class,
     code::bir,
     error,
-    storage_mode::{Atomic, Joint, Leased},
+    storage_mode::{Atomic, Joint, Leased, StorageMode},
     word::Word,
 };
+use dada_parse::prelude::DadaParseClassExt;
 use typed_arena::Arena;
 
 use crate::{
@@ -21,6 +23,7 @@ pub(super) struct Anchor {
 }
 
 /// Permissions accumulated along a traversal.
+#[derive(Debug)]
 pub(super) struct AccumulatedPermissions {
     /// Every permission that was traversed
     /// to reach the given destination
@@ -81,12 +84,14 @@ pub(super) struct AccumulatedPermissions {
 /// point to `a2` and would hence include the permissions
 /// from the outgoing edge from the field `a` to the object
 /// `a2`.
+#[derive(Debug)]
 pub(super) struct PlaceTraversal<'me> {
     pub(super) accumulated_permissions: AccumulatedPermissions,
     pub(super) place: &'me mut Value,
 }
 
 /// See [`PlaceTraversal`] for detailed explanation.
+#[derive(Debug)]
 pub(super) struct ObjectTraversal {
     pub(super) accumulated_permissions: AccumulatedPermissions,
     pub(super) object: Object,
@@ -130,11 +135,20 @@ impl Stepper<'_> {
                 Ok(self.temporary_place(anchor, ObjectData::Intrinsic(*i)))
             }
             bir::PlaceData::Dot(owner_place, field_name) => {
+                let db = self.db;
                 let ObjectTraversal {
-                    accumulated_permissions,
+                    mut accumulated_permissions,
                     object: owner_object,
                 } = self.traverse_to_object(anchor, table, *owner_place)?;
-                let owner_field = self.object_field(place, owner_object, *field_name)?;
+                let (owner_class, field_index, owner_field) =
+                    self.object_field(place, owner_object, *field_name)?;
+
+                // Take the field mod einto account
+                let field = &owner_class.fields(db)[field_index];
+                let field_mode = field.decl(db).mode.unwrap_or(StorageMode::Shared);
+                accumulated_permissions.joint |= field_mode.joint();
+                accumulated_permissions.atomic |= field_mode.atomic();
+
                 Ok(PlaceTraversal {
                     accumulated_permissions,
                     place: owner_field,
@@ -167,12 +181,12 @@ impl Stepper<'_> {
         })
     }
 
-    pub(super) fn object_field(
+    fn object_field(
         &mut self,
         place: bir::Place,
         owner_object: Object,
         field_name: Word,
-    ) -> eyre::Result<&mut Value> {
+    ) -> eyre::Result<(Class, usize, &mut Value)> {
         // FIXME: Execute this before we create the mutable ref to `self.machine`,
         // even though we might not need it. The borrow checker is grumpy the ref
         // to self.machine is returned from the function and so it fails to analyze
@@ -182,7 +196,7 @@ impl Stepper<'_> {
         match &mut self.machine[owner_object] {
             ObjectData::Instance(instance) => {
                 if let Some(index) = instance.class.field_index(self.db, field_name) {
-                    Ok(&mut instance.fields[index])
+                    Ok((instance.class, index, &mut instance.fields[index]))
                 } else {
                     Err(Self::no_such_field(
                         self.db,

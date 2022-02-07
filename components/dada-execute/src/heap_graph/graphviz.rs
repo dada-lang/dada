@@ -6,11 +6,26 @@ use super::{
     DataNode, HeapGraph, ObjectType, PermissionNode, ValueEdge, ValueEdgeData, ValueEdgeTarget,
 };
 
+const UNCHANGED: &str = "slategray";
+const CHANGED: &str = "black";
+
 impl HeapGraph {
     /// Plots this heap-graph by itself.
-    pub fn graphviz_alone(&self, db: &dyn crate::Db, include_temporaries: bool) -> String {
+    ///
+    /// # Parameters
+    ///
+    /// * `db` -- the salsa database
+    /// * `include_temporaries` -- if true, print temporaries into output (verbose, hard to understand, good for debugging)
+    /// * `diff_against` -- if `Some`, another graphviz to "diff" against, this effects the colors of things
+    pub fn graphviz_alone(
+        &self,
+        db: &dyn crate::Db,
+        include_temporaries: bool,
+        diff_against: Option<&HeapGraph>,
+    ) -> String {
         let mut output = vec![];
         let mut writer = GraphvizWriter {
+            diff_against,
             db,
             name_prefix: "",
             writer: &mut std::io::Cursor::new(&mut output),
@@ -35,6 +50,7 @@ impl HeapGraph {
     ) -> String {
         let mut output = vec![];
         let mut writer = GraphvizWriter {
+            diff_against: None,
             db,
             name_prefix: "",
             writer: &mut std::io::Cursor::new(&mut output),
@@ -46,16 +62,18 @@ impl HeapGraph {
             value_edge_list: vec![],
         };
         self.to_graphviz(&mut writer, |w| {
-            let after_writer = &mut w.with_prefix("after");
+            let mut after_writer = w.with_prefix("after");
+            let mut after_writer = after_writer.diffing_against(self);
             after_writer.indent("subgraph cluster_after {")?;
             after_writer.println("label=<<b>after</b>>")?;
-            heap_graph_end.stack_and_heap(after_writer)?;
+            heap_graph_end.stack_and_heap(&mut after_writer)?;
             after_writer.undent("}")?;
 
-            let before_writer = &mut w.with_prefix("before");
+            let mut before_writer = w.with_prefix("before");
+            let mut before_writer = before_writer.diffing_against(heap_graph_end);
             before_writer.indent("subgraph cluster_before {")?;
             before_writer.println("label=<<b>before</b>>")?;
-            self.stack_and_heap(before_writer)?;
+            self.stack_and_heap(&mut before_writer)?;
             before_writer.undent("}")?;
 
             Ok(())
@@ -219,6 +237,7 @@ impl HeapGraph {
     ) -> eyre::Result<()> {
         let name = w.node_name(&edge);
         w.indent(format!(r#"{name} ["#))?;
+        self.print_heap_node_color(w, edge)?;
         match edge {
             ValueEdgeTarget::Object(o) => {
                 let data = o.data(&self.tables);
@@ -241,13 +260,24 @@ impl HeapGraph {
                 let name = f.name(w.db).as_str(w.db);
                 w.println(format!(r#"label = <<b>{name}()</b>>"#))?;
             }
-            ValueEdgeTarget::Data(d) => {
-                let data_str = self.data_str(d);
-                w.println(format!(r#"label = {data_str:?}"#))?;
+            ValueEdgeTarget::Data(_) | ValueEdgeTarget::Expired => {
+                unreachable!("we do not create graphviz nodes for data, expired")
             }
-            ValueEdgeTarget::Expired => {}
         }
         w.undent(r#"];"#)?;
+        Ok(())
+    }
+
+    fn print_heap_node_color(
+        &self,
+        w: &mut GraphvizWriter<'_>,
+        edge: ValueEdgeTarget,
+    ) -> eyre::Result<()> {
+        if !self.value_edge_target_did_change(w, edge) {
+            w.println(&format!("color = {UNCHANGED:?},"))?;
+            w.println(&format!("fontcolor = {UNCHANGED:?},"))?;
+        }
+
         Ok(())
     }
 
@@ -293,6 +323,8 @@ impl HeapGraph {
         source: &str,
         index: usize,
     ) -> Result<(), eyre::Error> {
+        let did_change = self.value_edge_did_change(w, *edge);
+        let color = if did_change { CHANGED } else { UNCHANGED };
         let edge: &ValueEdgeData = edge.data(&self.tables);
         if let Some(name) = name {
             w.permissions
@@ -303,25 +335,29 @@ impl HeapGraph {
                     port: index,
                 });
 
+            let mut string = format!(r#"<tr><td port="{index}"><font color="{color}">"#);
             match edge.target {
                 ValueEdgeTarget::Data(d) => {
                     let data_str = self.data_str(d);
-                    w.println(format!(
-                        r#"<tr><td port="{index}">{name}: {data_str}</td></tr>"#,
-                    ))?;
+                    string.push_str(name);
+                    string.push_str(": ");
+                    string.push_str(&data_str);
                 }
 
                 ValueEdgeTarget::Expired => {
-                    w.println(format!(r#"<tr><td port="{index}">{name}</td></tr>"#,))?;
+                    string.push_str(name);
                 }
 
                 ValueEdgeTarget::Class(_)
                 | ValueEdgeTarget::Function(_)
                 | ValueEdgeTarget::Object(_) => {
-                    w.println(format!(r#"<tr><td port="{index}">{name}</td></tr>"#))?;
+                    string.push_str(name);
                     w.push_value_edge(source, index, edge, edge.permission);
                 }
             }
+            string.push_str("</font></td></tr>");
+
+            w.println(&string)?;
         }
         Ok(())
     }
@@ -335,6 +371,77 @@ impl HeapGraph {
             let len = data.len() - 20;
             format!("{}[...]{}", &data[0..20], &data[len..])
         }
+    }
+
+    /// True if the argument changed vs the "diff against" graph.
+    ///
+    /// If there is no graph to diff against, return true, as everything
+    /// is considered to have changed.
+    fn value_edge_did_change(&self, w: &mut GraphvizWriter<'_>, edge: ValueEdge) -> bool {
+        let edge_data = edge.data(&self.tables);
+
+        if self.permission_node_did_change(w, edge_data.permission) {
+            return true;
+        }
+
+        self.value_edge_target_did_change(w, edge_data.target)
+    }
+
+    /// True if the argument changed vs the "diff against" graph.
+    ///
+    /// If there is no graph to diff against, return true, as everything
+    /// is considered to have changed.
+    fn value_edge_target_did_change(
+        &self,
+        w: &mut GraphvizWriter<'_>,
+        edge: ValueEdgeTarget,
+    ) -> bool {
+        let Some(diff_against) = w.diff_against else {
+            return true;
+        };
+
+        let machine_object = match edge {
+            ValueEdgeTarget::Class(_) | ValueEdgeTarget::Function(_) => None,
+
+            ValueEdgeTarget::Data(data_node) => Some(data_node.data(&self.tables).object),
+
+            ValueEdgeTarget::Expired => {
+                // If we reach this point, then either the *permision* changed or
+                // there was no visible change.
+                return false;
+            }
+
+            ValueEdgeTarget::Object(object_node) => Some(object_node.data(&self.tables).object),
+        };
+
+        match machine_object {
+            None => false,
+            Some(machine_object) => {
+                Some(&self.machine[machine_object])
+                    != diff_against.machine.heap.object_data(machine_object)
+            }
+        }
+    }
+
+    /// True if the argument changed vs the "diff against" graph.
+    ///
+    /// If there is no graph to diff against, return true, as everything
+    /// is considered to have changed.
+    fn permission_node_did_change(
+        &self,
+        w: &mut GraphvizWriter<'_>,
+        permission: PermissionNode,
+    ) -> bool {
+        let Some(diff_against) = w.diff_against else {
+            return true;
+        };
+
+        let machine_permission = permission.data(&self.tables).permission;
+        Some(&self.machine[machine_permission])
+            != diff_against
+                .machine
+                .heap
+                .permission_data(machine_permission)
     }
 }
 
@@ -369,6 +476,9 @@ struct GraphvizWriter<'w> {
 
     /// String to prefix on all node names.
     name_prefix: &'static str,
+
+    /// Graphviz to diff against, if any, used for styling.
+    diff_against: Option<&'w HeapGraph>,
 }
 
 /// Identifies a particular "place" in the graphviz output;
@@ -400,6 +510,22 @@ impl GraphvizWriter<'_> {
             node_set: Default::default(),
             permissions: Default::default(),
             value_edge_list: vec![],
+            diff_against: self.diff_against,
+        }
+    }
+
+    fn diffing_against<'me>(&'me mut self, diff_against: &'me HeapGraph) -> GraphvizWriter<'me> {
+        GraphvizWriter {
+            db: self.db,
+            name_prefix: self.name_prefix,
+            writer: &mut *self.writer,
+            indent: self.indent,
+            include_temporaries: self.include_temporaries,
+            node_queue: Default::default(),
+            node_set: Default::default(),
+            permissions: Default::default(),
+            value_edge_list: vec![],
+            diff_against: Some(diff_against),
         }
     }
 

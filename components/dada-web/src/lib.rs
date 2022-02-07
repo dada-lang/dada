@@ -121,8 +121,12 @@ impl DadaCompiler {
             .into_iter()
             .map(|record| {
                 (
-                    record.heap_at_start.graphviz_alone(&self.db, false),
-                    record.heap_at_end.graphviz_alone(&self.db, false),
+                    record
+                        .heap_at_start
+                        .graphviz_alone(&self.db, false, Some(&record.heap_at_end)),
+                    record
+                        .heap_at_end
+                        .graphviz_alone(&self.db, false, Some(&record.heap_at_start)),
                 )
             })
             .collect();

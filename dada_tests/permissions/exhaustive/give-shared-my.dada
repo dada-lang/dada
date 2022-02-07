@@ -1,0 +1,12 @@
+class Pair(var a, var b)
+
+async fn main() {
+    # Here we have an owned point, but in a shared local variable
+    p = Pair(22, 44)
+
+    # Giving that makes an *our* result
+    q = p.give
+
+    print(p).await #! OUTPUT our Pair\(22, 44\)
+    print(q).await #! OUTPUT our Pair\(22, 44\)
+}

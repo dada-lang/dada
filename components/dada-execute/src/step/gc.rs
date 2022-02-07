@@ -20,9 +20,9 @@ impl Stepper<'_> {
     /// freed, we assume that this lease would be revoked (and thus you would
     /// have an expired permission).
     #[tracing::instrument(level = "Debug", skip(self))]
-    pub(super) fn gc(&mut self, in_flight: Option<Value>) {
+    pub(super) fn gc(&mut self, in_flight_values: &[Value]) {
         let mut marks = Marks::default();
-        Marker::new(self.machine, &mut marks).mark(in_flight);
+        Marker::new(self.machine, &mut marks).mark(in_flight_values);
         self.sweep(&marks);
     }
 }
@@ -44,15 +44,15 @@ impl<'me> Marker<'me> {
     }
 
     #[tracing::instrument(level = "Debug", skip(self))]
-    fn mark(&mut self, in_flight: Option<Value>) {
+    fn mark(&mut self, in_flight_values: &[Value]) {
         for frame in self.machine.frames() {
             for local_value in &frame.locals {
                 self.mark_value(*local_value);
             }
         }
 
-        if let Some(in_flight) = in_flight {
-            self.mark_value(in_flight);
+        for in_flight_value in in_flight_values {
+            self.mark_value(*in_flight_value);
         }
 
         // the singleton unit object is always live :)
@@ -115,7 +115,9 @@ impl<'me> Marker<'me> {
 impl Stepper<'_> {
     #[tracing::instrument(level = "Debug", skip(self))]
     fn sweep(&mut self, marks: &Marks) {
-        let mut dead_permissions = self.machine.all_permissions();
+        let mut live_permissions = self.machine.all_permissions();
+        let mut dead_permissions = live_permissions.clone();
+        live_permissions.retain(|p| marks.live_permissions.contains(p));
         dead_permissions.retain(|p| !marks.live_permissions.contains(p));
 
         // First: revoke all the dead permissions.
@@ -128,6 +130,13 @@ impl Stepper<'_> {
         for &p in &dead_permissions {
             let data = self.machine.take_permission(p);
             tracing::debug!("removed dead permission {:?} = {:?}", p, data);
+        }
+
+        // Next: for each *live* permission, remove any dead tenants.
+        for &p in &live_permissions {
+            if let PermissionData::Valid(valid) = &mut self.machine[p] {
+                valid.tenants.retain(|p| marks.live_permissions.contains(p));
+            }
         }
 
         // Finally: remove dead objects.

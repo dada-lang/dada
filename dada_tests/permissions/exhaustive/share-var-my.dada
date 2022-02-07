@@ -1,0 +1,8 @@
+class Pair(var a, var b)
+
+async fn main() {
+    var p = Pair(22, 44)
+    var q = p.share
+    print(p).await #! OUTPUT our Pair\(22, 44\)
+    print(q).await #! OUTPUT our Pair\(22, 44\)
+}
