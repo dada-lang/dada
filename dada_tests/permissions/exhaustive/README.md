@@ -10,7 +10,7 @@ Op := "give" // ends in `.give`
 Place := "var" // access to a local variable declared like `var p =`
       |  "shared" // access to a local variable declared `p =`
 
-Field := "field(var)" // access to a field declared like `class Pair(a)`
+Field := "field(var)" // access to a field declared like `class Pair(var a)`
       |  "field(shared)" // access to a field declared like `class Pair(b)`
 
 Input := "my" // indicates: Pair(22, 44) stored directly
