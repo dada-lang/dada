@@ -1,7 +1,7 @@
-class Print(var x, var y)
+class Point(var x, var y)
 
 async fn main() {
-    var p = Print(Print(22, 44), 66)
+    var p = Point(Point(22, 44), 66)
     print(p).await
-    #! OUTPUT my Print\(my Print\(22, 44\), 66\)
+    #! OUTPUT my Point\(my Point\(22, 44\), 66\)
 }
