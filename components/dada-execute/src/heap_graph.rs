@@ -136,7 +136,7 @@ pub(crate) enum PermissionNodeLabel {
     My,
     Our,
     Leased,
-    Shared,
+    OurLeased,
     Expired,
 }
 
@@ -146,7 +146,7 @@ impl PermissionNodeLabel {
             PermissionNodeLabel::My => "my",
             PermissionNodeLabel::Our => "our",
             PermissionNodeLabel::Leased => "leased",
-            PermissionNodeLabel::Shared => "shared",
+            PermissionNodeLabel::OurLeased => "our leased",
             PermissionNodeLabel::Expired => "expired",
         }
     }
