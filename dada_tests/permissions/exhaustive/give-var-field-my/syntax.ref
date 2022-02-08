@@ -2,13 +2,13 @@
     syntax::Tree {
         origin: Code(
             Some(
-                Tokens(dada_tests/permissions/exhaustive/lease-var-field(shared)-my.dada:3:15:3:15),
+                Tokens(dada_tests/permissions/exhaustive/give-var-field-my.dada:3:15:3:15),
             ),
-            Tokens(dada_tests/permissions/exhaustive/lease-var-field(shared)-my.dada:3:18:14:1),
+            Tokens(dada_tests/permissions/exhaustive/give-var-field-my.dada:3:18:12:1),
         ),
         data: syntax::Tree {
             root_expr: (
-                Expr(24),
+                Expr(20),
                 Seq(
                     [
                         (
@@ -85,7 +85,7 @@
                                 ),
                                 (
                                     Expr(10),
-                                    Lease(
+                                    Give(
                                         (
                                             Expr(9),
                                             Dot(
@@ -120,7 +120,7 @@
                                                 (
                                                     Expr(13),
                                                     Id(
-                                                        "q",
+                                                        "p",
                                                     ),
                                                 ),
                                             ),
@@ -146,33 +146,6 @@
                                                 None,
                                                 (
                                                     Expr(17),
-                                                    Id(
-                                                        "p",
-                                                    ),
-                                                ),
-                                            ),
-                                        ],
-                                    ),
-                                ),
-                            ),
-                        ),
-                        (
-                            Expr(23),
-                            Await(
-                                (
-                                    Expr(22),
-                                    Call(
-                                        (
-                                            Expr(20),
-                                            Id(
-                                                "print",
-                                            ),
-                                        ),
-                                        [
-                                            (
-                                                None,
-                                                (
-                                                    Expr(21),
                                                     Id(
                                                         "q",
                                                     ),

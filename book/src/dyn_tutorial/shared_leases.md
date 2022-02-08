@@ -15,11 +15,11 @@ To create a shared lease, you  apply the `share` keyword
 Shared leases are illustrated in the following program:
 
 ```
-class Point(var x, var y)
+class Point(x, y)
 
 async fn main() {
-    var p = Point(x: 22, y: 44)
-    var q = p.lease.share
+    p = Point(x: 22, y: 44)
+    q = p.lease.share
     var r = q.share
     print("p is ({p.x}, {p.y})").await
     print("q is ({q.x}, {q.y})").await
@@ -87,11 +87,11 @@ Finally, if you move your cursor to after `p.x += 1` you will see that the lease
 If `x.lease.share` produces a shared lease, what do you think happens with `x.share.lease`? In other words, what happens if we try to lease a shared value? The answer is: that is the same as sharing it. In other words, you get an equal copy to the original. In other words, `p`, `q`, `r`, and `s` here are all shared owners of the same `Point`:
 
 ```
-class Point(var x, var y)
+class Point(x, y)
 
 async fn main() {
-    var p = Point(x: 22, y: 44).share
-    var q = q.lease
+    p = Point(x: 22, y: 44).share
+    q = q.lease
     var r = q.share
     var s = q
 }

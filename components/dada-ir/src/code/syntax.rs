@@ -3,7 +3,7 @@ use crate::{
     in_ir_db::InIrDb,
     in_ir_db::InIrDbExt,
     span::Span,
-    storage_mode::StorageMode,
+    storage_mode::Atomic,
     word::{SpannedOptionalWord, Word},
 };
 use dada_id::{id, prelude::*, tables};
@@ -238,7 +238,7 @@ impl DebugWithDb<InIrDb<'_, Tree>> for LocalVariableDecl {
 
 #[derive(PartialEq, Eq, PartialOrd, Ord, Clone, Hash, Debug)]
 pub struct LocalVariableDeclData {
-    pub mode: Option<StorageMode>,
+    pub atomic: Atomic,
     pub name: Word,
     pub ty: Option<crate::ty::Ty>,
 }
@@ -254,7 +254,7 @@ impl DebugWithDb<InIrDb<'_, Tree>> for LocalVariableDeclData {
 
 #[derive(PartialEq, Eq, Clone, Hash, Debug)]
 pub struct LocalVariableDeclSpan {
-    pub mode_span: Span,
+    pub atomic_span: Span,
     pub name_span: Span,
 }
 

@@ -13,7 +13,7 @@ When you have a local variable or a field in the `shared` mode, everything that 
 Here is an example. In this example, we are creating a `Point`, but we are storing it into a local variable declared like `shared p = ...`. The result is that the field `x` cannot be mutated, just the same as [when we did `Point(..).share`][sxm]:
 
 ```
-class Point(var x, var y)
+class Point(x, y)
 
 async fn main() {
     shared p = Point(x: 22, y: 44)
@@ -26,7 +26,7 @@ async fn main() {
 The `shared` keyword in the previous example is not really necessary, because `shared` storage is the default:
 
 ```
-class Point(var x, var y)
+class Point(x, y)
 
 async fn main() {
     p = Point(x: 22, y: 44)
@@ -39,7 +39,7 @@ async fn main() {
 In addition to preventing mutation, the shared mode allows easy copies. In this snippet, both `p` and `q` are joint owners of the same `Point`:
 
 ```
-class Point(var x, var y)
+class Point(x, y)
 
 async fn main() {
     p = Point(x: 22, y: 44)
@@ -50,13 +50,13 @@ async fn main() {
 What do you think happens in this example, where we declared `q` with the `var` mode? Hint: try putting your cursor right after the end of `p = Point(..)`:
 
 ```
-class Point(var x, var y)
+class Point(x, y)
 
 async fn main() {
     p = Point(x: 22, y: 44)
     //                     ▲
     // ────────────────────┘
-    var q = p
+    q = p
 }
 
 // ┌───┐
@@ -68,14 +68,14 @@ async fn main() {
 // └───┘                  └───────┘
 ```
 
-As you can see, because `p` is shared storage, the `Point` is already held with `our` permission. Therefore, if we move the cursor to after `var q = p`, we see that there are two `our` references to the same `Point`:
+As you can see, because `p` is shared storage, the `Point` is already held with `our` permission. Therefore, if we move the cursor to after `q = p`, we see that there are two `our` references to the same `Point`:
 
 ```
-class Point(var x, var y)
+class Point(x, y)
 
 async fn main() {
     p = Point(x: 22, y: 44)
-    var q = p
+    q = p
     //       ▲
     // ──────┘
 }

@@ -10,7 +10,7 @@ async fn main() {
 }
 
 fn callee() {
-    var p = Point(22, 44)
+    p = Point(22, 44)
     p.lease
 }
     

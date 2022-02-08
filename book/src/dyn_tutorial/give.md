@@ -6,7 +6,7 @@ At the end of the previous tutorial, we were working with this program:
 
 ```
 async fn main() {
-    var p = Point(x: 22, y: 44)
+    p = Point(x: 22, y: 44)
     print("The point is ({p.x}, {p.y})").await
 }
 ```
@@ -19,8 +19,8 @@ Next, let's take a look at this program:
 
 ```
 async fn main() {
-    var p = Point(x: 22, y: 44)
-    var q = p // <-- Added this line!
+    p = Point(x: 22, y: 44)
+    q = p // <-- Added this line!
     print("The point is ({p.x}, {p.y})").await
 }
 ```
@@ -29,20 +29,20 @@ If you run it, you will find that it gets an error:
 
 ```
 error: `p` has no value
-  > var q = p // <-- Added this line!
+  > q = p // <-- Added this line!
             - value in `p` was given to `q` here
   > print("The point is ({p.x}, {q.y})).await
                           ^^^ `p` has no value
 ```
 
-When you have an assignment like `var q = p`, the default in Dada is that you are **giving** whatever permissions `p` has over to `q`. In this case, since `p` was the exclusive owner of the value, `q` becomes the exclusive owner of the value. You can't have two exclusive owners, so that means that `p` is empty. If you run the debugger, you can see this in action. Position the cursor right before the `p` in `var q = p` line:
+When you have an assignment like `q = p`, the default in Dada is that you are **giving** whatever permissions `p` has over to `q`. In this case, since `p` was the exclusive owner of the value, `q` becomes the exclusive owner of the value. You can't have two exclusive owners, so that means that `p` is empty. If you run the debugger, you can see this in action. Position the cursor right before the `p` in `q = p` line:
 
 ```
-class Point(var x, var y)
+class Point(x, y)
 
 async fn main() {
-    var p = Point(x: 22, y: 44)
-    var q = p
+    p = Point(x: 22, y: 44)
+    q = p
     //     ▲
     // ────┘
     print("The point is ({p.x}, {p.y})").await
@@ -63,11 +63,11 @@ If you look at the state of the program, you will see:
 Now position the cursor at the end of the line and see how the state changes:
 
 ```
-class Point(var x, var y)
+class Point(x, y)
 
 async fn main() {
-    var p = Point(x: 22, y: 44)
-    var q = p
+    p = Point(x: 22, y: 44)
+    q = p
     //       ▲
     // ──────┘
     print("The point is ({p.x}, {p.y})").await
@@ -92,8 +92,8 @@ If you prefer, you can make the move from `p` to `q` explicit by using the `give
 
 ```
 async fn main() {
-    var p = Point(x: 22, y: 44)
-    var q = p.give
+    p = Point(x: 22, y: 44)
+    q = p.give
     print("The point is ({q.x}, {q.y})").await
 }
 ```

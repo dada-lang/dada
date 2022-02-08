@@ -3,7 +3,7 @@ use dada_ir::{
     class::Class,
     code::bir,
     error,
-    storage_mode::{Atomic, Joint, Leased, StorageMode},
+    storage_mode::{Atomic, Joint, Leased},
     word::Word,
 };
 use dada_parse::prelude::DadaParseClassExt;
@@ -118,8 +118,8 @@ impl Stepper<'_> {
                 let permissions = AccumulatedPermissions {
                     traversed: vec![],
                     leased: Leased::No,
-                    joint: lv_data.storage_mode.joint(),
-                    atomic: lv_data.storage_mode.atomic(),
+                    joint: Joint::No,
+                    atomic: lv_data.atomic,
                 };
                 Ok(PlaceTraversal {
                     accumulated_permissions: permissions,
@@ -145,9 +145,7 @@ impl Stepper<'_> {
 
                 // Take the field mod einto account
                 let field = &owner_class.fields(db)[field_index];
-                let field_mode = field.decl(db).mode.unwrap_or(StorageMode::Shared);
-                accumulated_permissions.joint |= field_mode.joint();
-                accumulated_permissions.atomic |= field_mode.atomic();
+                accumulated_permissions.atomic |= field.decl(db).atomic;
 
                 Ok(PlaceTraversal {
                     accumulated_permissions,

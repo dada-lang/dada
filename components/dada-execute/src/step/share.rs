@@ -143,7 +143,7 @@ impl Stepper<'_> {
         // * If we were to revoke the `my` permission, you would no longer be able to read the original path, but we promised original path remains valid.
         // * If we *just* created a new permission, the `my` permission would be invalid, but we promised original path remains valid.
         //
-        // It's also what you want for something like `var p = Point(22, 44).share`.
+        // It's also what you want for something like `p = Point(22, 44).share`.
         if let Leased::No = accumulated_permissions.leased {
             self.machine[last_permission].assert_valid_mut().joint = Joint::Yes;
 

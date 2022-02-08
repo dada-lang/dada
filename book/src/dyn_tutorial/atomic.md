@@ -184,7 +184,7 @@ In this version, we are separating the increment from the read. This explicitly 
 As described in the [sharing xor mutability][sxm] discussion, it is possible to have interference within a single thread as well. Consider this example, where we have a `Point` stored in an atomic field (part of a class `Cell`). There are two references to this cell, `cell1` and `cell2`:
 
 ```
-class Point(var x, var y)
+class Point(x, y)
 class Cell(atomic value)
 
 async fn main() {
@@ -218,7 +218,7 @@ error: use of invalidated lease
 If you step through this program, you can see what's going on. Initially, we [see](https://asciiflow.com/#/share/eJyrVspLzE1VslJyyknMUNJRykmsTC0CcqtjlCpilKwsLYx1YpQqgSwjSyMgqyS1ogTIiVF6NGUPMUgBGRCnDo%2BqmJg8kNrk1JwcQ0JqUdC0XSB9zkB9YD2otikE5GfmlSggzEeVRfMBip3YTHs0pQEZKaC624gMd5cl5pSmQvUkluTnZiajq6iwUjAyItoH2GQeTWlSqLRSMDFBmEKz%2BJ2CFkQwRNj1IKFpm6DKCkDRZkhKcGJNTSi2Ee%2FzGKVapVoAhvupNw%3D%3D) that `point1` is leased from `cell1`:
 
 ```
-class Point(var x, var y)
+class Point(x, y)
 class Cell(atomic value)
 
 async fn main() {
@@ -252,7 +252,7 @@ async fn main() {
 Moving the cursor to right after the write through `cell2.value`, we see that this lease has been invalidated:
 
 ```
-class Point(var x, var y)
+class Point(x, y)
 class Cell(atomic value)
 
 async fn main() {
@@ -292,7 +292,7 @@ To see why this is useful, imagine for a moment that you were writing a function
 In the previous example, it was crucial that we created a `lease`. If we didn't create a lease, the code could execute just fine, for better or worse:
 
 ```
-class Point(var x, var y)
+class Point(x, y)
 class Cell(atomic value)
 
 async fn main() {

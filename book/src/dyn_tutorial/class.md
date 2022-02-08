@@ -5,7 +5,7 @@
 The main data structures in Dada are classes. The full class syntax has various bells and whistles, but let's start off with the simplest form. We'll define a class `Point` for storing `(x, y)` values:
 
 ```
-class Point(var x, var y)
+class Point(x, y)
 //    ^^^^^ ^^^ ^
 //      |    |  |
 //      |    | Field name
@@ -31,7 +31,7 @@ The `class Point(..)` syntax also creates a constructor function that creates an
 
 ```
 async fn main() {
-    var p = Point(x: 22, y: 44)
+    p = Point(x: 22, y: 44)
     print("The point is {p}").await
     print("The point is ({p.x}, {p.y})").await
     p.x := 33
@@ -47,7 +47,7 @@ async fn main() {
 
 Some things to note here:
 
-* The `var p = ...` statement declares a local variable `p`
+* The `p = ...` statement declares a local variable `p`
     * Just like fields, variables have a storage mode, and `var` indicates a variable whose value can be modified.
     * If we had written `p = Point(x: 22, y: 44)` that would have created a shared local variable that doesn't permit assignment (try modifying it and see what happens!).
 * You create a class by invoking its constructor function `Point(x: 22, y: 44)`
