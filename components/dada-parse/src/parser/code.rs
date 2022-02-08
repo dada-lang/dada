@@ -189,6 +189,7 @@ impl CodeParser<'_, '_> {
                     Op::MinusEqual,
                     Op::DividedByEqual,
                     Op::TimesEqual,
+                    Op::ColonEqual,
                 ],
                 Self::parse_expr_4,
             ) {
@@ -444,6 +445,7 @@ impl CodeParser<'_, '_> {
                     .or_dummy_expr(self);
                 let span = self.spans[base].to(self.spans[rhs]);
                 match op {
+                    Op::ColonEqual => return Some(self.add(ExprData::Assign(base, rhs), span)),
                     Op::PlusEqual | Op::MinusEqual | Op::DividedByEqual | Op::TimesEqual => {
                         return Some(self.add(ExprData::OpEq(base, op, rhs), span))
                     }
