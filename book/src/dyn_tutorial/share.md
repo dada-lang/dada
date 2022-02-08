@@ -39,7 +39,7 @@ The expression `Point(x: 22, y: 44).share` creates a `Point`, as we've seen befo
 └───┘                  └───────┘
 ```
 
-This signals that `p` considers itself to have joint ownership of the `Point`. It may seem strange to call `p` a joint owner when there are no other owners yet. The difference shows up on the next line, when we execute `q = p`. As we saw before, this gives all the access from `p` into `q` -- but because `p` considers itself a joint owner, `p` can give its full access to `q` while retaining its own access. If we move the cursor to just after that line we will [see](https://asciiflow.com/#/share/eJyrVspLzE1VssorzcnRUcpJrEwtUrJSqo5RqohRsrK0MNOJUaoEsowsDYGsktSKEiAnRunRlD3IKCYmD0gqKChASDSAphiLxgKomtxKPGrR0bRdIK0B%2BZl5JQrEuAHdHUiaCvG5kbAbKqwUjIyIc0OllYKJCUIpintICjilWqVaANIL5SU%3D) that both of them have the `our` permission:
+This signals that `p` considers itself to have shared ownership of the `Point`. It may seem strange to call `p` a shared owner when there are no other owners yet. The difference shows up on the next line, when we execute `q = p`. As we saw before, this gives all the access from `p` into `q` -- but because `p` considers itself a shared owner, `p` can give its full access to `q` while retaining its own access. If we move the cursor to just after that line we will [see](https://asciiflow.com/#/share/eJyrVspLzE1VssorzcnRUcpJrEwtUrJSqo5RqohRsrK0MNOJUaoEsowsDYGsktSKEiAnRunRlD3IKCYmD0gqKChASDSAphiLxgKomtxKPGrR0bRdIK0B%2BZl5JQrEuAHdHUiaCvG5kbAbKqwUjIyIc0OllYKJCUIpintICjilWqVaANIL5SU%3D) that both of them have the `our` permission:
 
 ```
 ┌───┐
@@ -124,7 +124,7 @@ async fn main() {
 
 Each time we share a jointly owned object like the `Point` here, we just add one more owner.
 
-Similarly, since all shared variables are equal, when a shared variable gives its permissions to another, that is equivalent to sharing again. In the following program, `p`, `q`, and `r` are all joint owners of the same `Point`:
+Similarly, since all shared variables are equal, when a shared variable gives its permissions to another, that is equivalent to sharing again. In the following program, `p`, `q`, and `r` are all shared owners of the same `Point`:
 
 ```
 class Point(x, y)
@@ -138,7 +138,7 @@ async fn main() {
 
 ## Sharing a variable
 
-We just saw that, if you have joint ownership, then when you assign from one place to another, you just get two references to the same object. So if we have this program, and we put the cursor after `q = p`...
+We just saw that, if you have shared ownership, then when you assign from one place to another, you just get two references to the same object. So if we have this program, and we put the cursor after `q = p`...
 
 ```
 class Point(x, y)
@@ -217,4 +217,4 @@ we will see that `p` has full ownership of the `Point`, and `q` is not yet initi
 └───┘                  └───────┘
 ```
 
-So what's going on here? The answer is that when you apply `share`, you are *sharing* the object, which means that you *convert* your unique ownership (`my`) into joint ownership (`our`), and then you can have multiple references to that jointly owned copy.
+So what's going on here? The answer is that when you apply `share`, you are *sharing* the object, which means that you *convert* your unique ownership (`my`) into shared ownership (`our`), and then you can have multiple references to that jointly owned copy.
