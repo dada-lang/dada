@@ -7,9 +7,6 @@ Op := "give" // ends in `.give`
    |  "share" // ends in `.share`
    |  "lease" // ends in `.lease`
 
-Place := "var" // access to a local variable declared like `p =`
-      |  "shared" // access to a local variable declared `p =`
-
 Field := "field" // access to a field declared like `class Pair(a)`
 
 Input := "my" // indicates: Pair(22, 44) stored directly
