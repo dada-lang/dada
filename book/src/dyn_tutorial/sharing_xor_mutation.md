@@ -2,14 +2,14 @@
 
 {{#include ../caveat.md}}
 
-Sharing allows many variables to have equal access to the same object at the same time, but that comes with one key limitation: the `var` fields of that object become immutable!
+Sharing allows many variables to have equal access to the same object at the same time, but that comes with one key limitation: the fields of that object become immutable!
 
 ```
 class Point(x, y)
 
 async fn main() {
     p = Point(x: 22, y: 44).share
-    p.x += 1 // Exception!
+    p.x += 1 # Exception!
     print("The point is ({p.x}, {p.y})").await
 }
 ```

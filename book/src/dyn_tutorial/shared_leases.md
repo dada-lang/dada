@@ -92,8 +92,8 @@ class Point(x, y)
 async fn main() {
     p = Point(x: 22, y: 44).share
     q = q.lease
-    var r = q.share
-    var s = q
+    r = q.share
+    s = q
 }
 ```
 

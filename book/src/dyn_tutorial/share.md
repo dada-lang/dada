@@ -116,9 +116,9 @@ class Point(x, y)
 async fn main() {
     p = Point(x: 22, y: 44).share
     q = p.share
-    var r = q.share
-    var s = r.share
-    // ...and so on
+    r = q.share
+    s = r.share
+    # ...and so on
 }
 ```
 
@@ -132,6 +132,89 @@ class Point(x, y)
 async fn main() {
     p = Point(x: 22, y: 44).share
     q = p.give
-    var r = q        // equivalent to q.give
+    r = q        # equivalent to q.give
 }
 ```
+
+## Sharing a variable
+
+We just saw that, if you have joint ownership, then when you assign from one place to another, you just get two references to the same object. So if we have this program, and we put the cursor after `q = p`...
+
+```
+class Point(x, y)
+
+async fn main() {
+    p = Point(22, 44).share
+    q = p
+    #    ▲
+    # ───┘
+}
+```
+
+...then we see:
+
+```
+┌───┐
+│   │                  ┌───────┐
+│ p ├─our─────────────►│ Point │
+│   │                  │ ───── │
+│ q ├─our─────────────►│ x: 22 │
+│   │                  │ y: 44 │
+└───┘                  └───────┘
+```
+
+But what if we move the `.share` to the next line?
+
+
+```
+class Point(x, y)
+
+async fn main() {
+    p = Point(22, 44)
+    q = p.share
+    #          ▲
+    # ─────────┘
+}
+```
+
+What happens now? The answer is that we still see the same thing:
+
+
+```
+┌───┐
+│   │                  ┌───────┐
+│ p ├─our─────────────►│ Point │
+│   │                  │ ───── │
+│ q ├─our─────────────►│ x: 22 │
+│   │                  │ y: 44 │
+└───┘                  └───────┘
+```
+
+If we move the cursor up one line, though:
+
+
+```
+class Point(x, y)
+
+async fn main() {
+    p = Point(22, 44)
+    #                ▲
+    # ───────────────┘
+    q = p.share
+}
+```
+
+we will see that `p` has full ownership of the `Point`, and `q` is not yet initialized:
+
+
+```
+┌───┐
+│   │                  ┌───────┐
+│ p ├─my──────────────►│ Point │
+│   │                  │ ───── │
+│ q │                  │ x: 22 │
+│   │                  │ y: 44 │
+└───┘                  └───────┘
+```
+
+So what's going on here? The answer is that when you apply `share`, you are *sharing* the object, which means that you *convert* your unique ownership (`my`) into joint ownership (`our`), and then you can have multiple references to that jointly owned copy.
