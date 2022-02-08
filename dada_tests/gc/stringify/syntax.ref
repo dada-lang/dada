@@ -24,7 +24,7 @@
                                         (
                                             Expr(0),
                                             Id(
-                                                "Print",
+                                                "Point",
                                             ),
                                         ),
                                         [
@@ -36,7 +36,7 @@
                                                         (
                                                             Expr(1),
                                                             Id(
-                                                                "Print",
+                                                                "Point",
                                                             ),
                                                         ),
                                                         [
