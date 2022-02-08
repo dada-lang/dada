@@ -3,6 +3,7 @@ use dada_ir::code::syntax;
 use dada_ir::code::syntax::LocalVariableDecl;
 use dada_ir::code::validated;
 use dada_ir::code::validated::ExprOrigin;
+use dada_ir::code::validated::LocalVariableOrigin;
 use dada_ir::code::Code;
 use dada_ir::diagnostic::ErrorReported;
 use dada_ir::effect::Effect;
@@ -31,6 +32,7 @@ pub(crate) struct Validator<'me> {
     scope: Scope<'me>,
     effect: Effect,
     effect_span: Rc<dyn Fn(&Validator<'_>) -> FileSpan + 'me>,
+    synthesized: bool,
 }
 
 impl<'me> Validator<'me> {
@@ -54,6 +56,7 @@ impl<'me> Validator<'me> {
             scope,
             effect: code.effect,
             effect_span: Rc::new(effect_span),
+            synthesized: false,
         }
     }
 
@@ -68,6 +71,14 @@ impl<'me> Validator<'me> {
             scope: self.scope.subscope(),
             effect: self.effect,
             effect_span: self.effect_span.clone(),
+            synthesized: self.synthesized,
+        }
+    }
+
+    fn with_synthesized(self) -> Self {
+        Self {
+            synthesized: true,
+            ..self
         }
     }
 
@@ -93,13 +104,14 @@ impl<'me> Validator<'me> {
         usize::from(validated::LocalVariable::max_key(self.tables))
     }
 
-    fn add<V, O>(&mut self, data: V, origin: impl Into<O>) -> V::Key
+    fn add<V, O>(&mut self, data: V, origin: impl IntoOrigin<Origin = O>) -> V::Key
     where
         V: dada_id::InternValue<Table = validated::Tables>,
         V::Key: PushOriginIn<validated::Origins, Origin = O>,
     {
         let key = self.tables.add(data);
-        self.origins.push(key, origin.into());
+        self.origins
+            .push(key, origin.maybe_synthesized(self.synthesized));
         key
     }
 
@@ -256,7 +268,7 @@ impl<'me> Validator<'me> {
                 );
                 let place = self.add(
                     validated::PlaceData::LocalVariable(local_variable),
-                    ExprOrigin::synthesized(expr),
+                    expr.synthesized(),
                 );
 
                 let validated_initializer_expr = self.validate_expr_to_value(*initializer_expr);
@@ -377,11 +389,19 @@ impl<'me> Validator<'me> {
             }
 
             syntax::ExprData::OpEq(lhs_expr, op, rhs_expr) => {
+                // FIXME: This desugaring is overly simplistic. It will break on cases
+                // like `foo(a, b).field += 1` because it will execute `foo(a, b)` twice.
+                // What we should do for dotted paths is to lease the LHS
+                // "up to" the last field.
+
                 let result = try {
-                    let (validated_opt_temp_expr, validated_lhs_place) =
-                        self.validate_expr_as_place(*lhs_expr)?;
-                    let validated_lhs_expr =
-                        self.add(validated::ExprData::Give(validated_lhs_place), expr);
+                    let validated_lhs_expr = {
+                        let (validated_opt_temp_expr, validated_lhs_place) =
+                            self.validate_expr_as_place(*lhs_expr)?;
+                        let validated_lhs_expr =
+                            self.add(validated::ExprData::Give(validated_lhs_place), expr);
+                        self.maybe_seq(validated_opt_temp_expr, validated_lhs_expr, expr)
+                    };
                     let validated_rhs_expr = self.validate_expr(*rhs_expr);
                     let validated_op = self.validated_op(*op);
                     let validated_op_expr = self.add(
@@ -392,8 +412,14 @@ impl<'me> Validator<'me> {
                         ),
                         expr,
                     );
+
+                    let (validated_opt_temp_expr, validated_target_place) = self
+                        .subscope()
+                        .with_synthesized()
+                        .validate_expr_as_place(*lhs_expr)?;
+
                     let assign_expr = self.add(
-                        validated::ExprData::Assign(validated_lhs_place, validated_op_expr),
+                        validated::ExprData::Assign(validated_target_place, validated_op_expr),
                         expr,
                     );
                     self.maybe_seq(validated_opt_temp_expr, assign_expr, expr)
@@ -530,26 +556,23 @@ impl<'me> Validator<'me> {
 
         let validated_place = self.add(
             validated::PlaceData::LocalVariable(local_variable),
-            ExprOrigin::synthesized(expr),
+            expr.synthesized(),
         );
         let validated_expr = self.validate_expr(expr);
 
         let assign_expr = self.add(
             validated::ExprData::Assign(validated_place, validated_expr),
-            ExprOrigin::synthesized(expr),
+            expr.synthesized(),
         );
         (assign_expr, validated_place)
     }
 
     fn validate_expr_to_value(&mut self, expr: syntax::Expr) -> validated::Expr {
         let (assign_expr, place) = self.validate_expr_in_temporary(expr);
-        let place_expr = self.add(
-            validated::ExprData::Give(place),
-            ExprOrigin::synthesized(expr),
-        );
+        let place_expr = self.add(validated::ExprData::Give(place), expr.synthesized());
         self.add(
             validated::ExprData::Seq(vec![assign_expr, place_expr]),
-            ExprOrigin::synthesized(expr),
+            expr.synthesized(),
         )
     }
 
@@ -683,4 +706,68 @@ fn convert_to_dada_string(s: &str) -> String {
         return support_escape(buf.trim());
     }
     String::new()
+}
+
+trait IntoOrigin: Sized {
+    type Origin;
+
+    fn into_origin(self) -> Self::Origin;
+
+    fn maybe_synthesized(self, s: bool) -> Self::Origin {
+        if s {
+            self.synthesized()
+        } else {
+            self.into_origin()
+        }
+    }
+
+    fn synthesized(self) -> Self::Origin;
+}
+
+impl IntoOrigin for syntax::Expr {
+    type Origin = ExprOrigin;
+
+    fn into_origin(self) -> Self::Origin {
+        ExprOrigin::real(self)
+    }
+
+    fn synthesized(self) -> Self::Origin {
+        ExprOrigin::synthesized(self)
+    }
+}
+
+impl IntoOrigin for syntax::NamedExpr {
+    type Origin = syntax::NamedExpr;
+
+    fn into_origin(self) -> Self::Origin {
+        self
+    }
+
+    fn synthesized(self) -> Self::Origin {
+        panic!("cannot force named expr origin to be synthesized")
+    }
+}
+
+impl IntoOrigin for ExprOrigin {
+    type Origin = ExprOrigin;
+
+    fn into_origin(self) -> Self::Origin {
+        self
+    }
+
+    fn synthesized(self) -> Self::Origin {
+        ExprOrigin::synthesized(self.syntax_expr)
+    }
+}
+
+impl IntoOrigin for LocalVariableOrigin {
+    type Origin = LocalVariableOrigin;
+
+    fn into_origin(self) -> Self::Origin {
+        self
+    }
+
+    fn synthesized(self) -> Self::Origin {
+        panic!("cannot force local variable origin to be synthesized")
+    }
 }
