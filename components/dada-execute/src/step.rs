@@ -24,9 +24,8 @@ use crate::{
     thunk::RustThunk,
 };
 
-use self::traversal::Anchor;
-
 mod access;
+mod address;
 mod apply_op;
 mod assert_invariants;
 mod await_thunk;
@@ -211,8 +210,7 @@ impl<'me> Stepper<'me> {
     }
 
     fn peek_place(&mut self, table: &bir::Tables, place: bir::Place) -> Option<Value> {
-        let anchor = Anchor::default();
-        let traversal = self.traverse_to_object(&anchor, table, place).ok()?;
+        let traversal = self.traverse_to_object(table, place).ok()?;
         Some(Value {
             permission: *traversal.accumulated_permissions.traversed.last().unwrap(),
             object: traversal.object,
@@ -225,9 +223,8 @@ impl<'me> Stepper<'me> {
         place: bir::Place,
         value: Value,
     ) -> Result<(), eyre::Error> {
-        let anchor = Anchor::default();
-        let traversal = self.traverse_to_place(&anchor, table, place)?;
-        *traversal.place = value;
+        let traversal = self.traverse_to_place(table, place)?;
+        self.poke(traversal.address, value)?;
         Ok(())
     }
 
@@ -361,8 +358,7 @@ impl<'me> Stepper<'me> {
     /// like cancelling leases and so forth. Returns Err if `place` is invalid or has insufficient
     /// permissions to read.
     fn read_place(&mut self, table: &bir::Tables, place: bir::Place) -> eyre::Result<Object> {
-        let anchor = Anchor::default();
-        let traversal = self.traverse_to_object(&anchor, table, place)?;
+        let traversal = self.traverse_to_object(table, place)?;
         Ok(self.read(&traversal))
     }
 
@@ -411,9 +407,8 @@ impl<'me> Stepper<'me> {
                 })
             }
             bir::ExprData::Op(lhs, op, rhs) => {
-                let anchor = Anchor::default();
-                let lhs_traversal = self.traverse_to_object(&anchor, table, *lhs)?;
-                let rhs_traversal = self.traverse_to_object(&anchor, table, *rhs)?;
+                let lhs_traversal = self.traverse_to_object(table, *lhs)?;
+                let rhs_traversal = self.traverse_to_object(table, *rhs)?;
                 self.apply_op(expr, *op, lhs_traversal.object, rhs_traversal.object)
             }
             bir::ExprData::Error => {

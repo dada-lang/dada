@@ -5,10 +5,7 @@ use dada_ir::{
 
 use crate::machine::Value;
 
-use super::{
-    traversal::{Anchor, ObjectTraversal},
-    Stepper,
-};
+use super::{traversal::ObjectTraversal, Stepper};
 
 impl Stepper<'_> {
     /// The `share` operation converts a permission into a shared permission,
@@ -39,8 +36,7 @@ impl Stepper<'_> {
         table: &bir::Tables,
         place: bir::Place,
     ) -> eyre::Result<Value> {
-        let anchor = Anchor::default();
-        let object_traversal = self.traverse_to_object(&anchor, table, place)?;
+        let object_traversal = self.traverse_to_object(table, place)?;
         self.share_traversal(object_traversal)
     }
 
