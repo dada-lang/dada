@@ -20,9 +20,8 @@ impl Stepper<'_> {
         traversal.object
     }
 
-    /// Read the object that was arrived at via the given traversal.
+    /// Write the object that was arrived at via the given traversal.
     /// This may cancel active leases along that path.
-    /// Returns the object, which can now be accessed.
     ///
     /// Assumes that the traversal does not contain any expired
     /// permissions (creating a traversal fails if an expired

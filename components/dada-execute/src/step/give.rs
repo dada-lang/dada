@@ -60,7 +60,7 @@ impl Stepper<'_> {
         // e.g.
         //
         // ```notrust
-        // p = Point(22, 44).share
+        // p = Point(22, 44).lease
         // q = p.give
         // ```
         //
