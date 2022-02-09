@@ -314,25 +314,27 @@ impl CodeParser<'_, '_> {
             Some(self.add(ExprData::Id(id), id_span))
         } else if let Some((word_span, word)) = self.eat(Number) {
             let whitespace_before_dot = self.tokens.skipped_any();
-            if self.eat_op(Op::Dot).is_none() {
-                Some(self.add(ExprData::IntegerLiteral(word), word_span))
-            } else {
-                let whitespace_after_dot = self.tokens.skipped_any();
-                if let Some((_, dec_word)) = self.eat(Number) {
-                    let span = self.span_consumed_since(word_span);
+            match self.eat_op(Op::Dot) {
+                None => Some(self.add(ExprData::IntegerLiteral(word), word_span)),
+                Some(dot_span) => {
+                    let whitespace_after_dot = self.tokens.skipped_any();
+                    if let Some((_, dec_word)) = self.eat(Number) {
+                        let span = self.span_consumed_since(word_span);
 
-                    if whitespace_before_dot || whitespace_after_dot {
+                        if whitespace_before_dot || whitespace_after_dot {
+                            self.parser
+                                .error(span, "whitespace is not allowed in float literals")
+                                .emit(self.db);
+                        }
+
+                        Some(self.add(ExprData::FloatLiteral(word, dec_word), span))
+                    } else {
                         self.parser
-                            .error(span, "whitespace is not allowed in float literals")
+                            .error(dot_span, "expected digits after `.`")
                             .emit(self.db);
+                        let span = self.span_consumed_since(word_span);
+                        Some(self.add(ExprData::Error, span))
                     }
-
-                    Some(self.add(ExprData::FloatLiteral(word, dec_word), span))
-                } else {
-                    self.parser
-                        .error_at_current_token("expected digits after `.`")
-                        .emit(self.db);
-                    None
                 }
             }
         } else if let Some(expr) = self.parse_format_string() {
