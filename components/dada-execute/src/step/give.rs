@@ -72,7 +72,7 @@ impl Stepper<'_> {
         // create a new one to return.
 
         // This counts as a write to the object.
-        self.write(&object_traversal);
+        self.write_object(&object_traversal);
 
         let ObjectTraversal {
             object,

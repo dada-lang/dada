@@ -1,0 +1,97 @@
+# Breakpoint: Expr(21) at class:18:5:18:28
+digraph {
+  node[shape = "note"];
+  rankdir = "LR";
+  subgraph cluster_after {
+    label=<<b>after</b>>
+    subgraph cluster_afterstack {
+      label=<<b>stack</b>>
+      rank="source";
+      afterstack[
+        shape="none";
+        label=<
+          <table border="0">
+          <tr><td border="1">main</td></tr>
+          <tr><td port="0"><font color="slategray">pair1</font></td></tr>
+          <tr><td port="5"><font color="black">pair2</font></td></tr>
+          <tr><td port="10"><font color="black">p</font></td></tr>
+          </table>
+        >;
+      ];
+    }
+    afternode1 [
+      label = <<table border="0">
+        <tr><td border="1">Pair</td></tr>
+        <tr><td port="0"><font color="black">a</font></td></tr>
+        <tr><td port="1"><font color="slategray">b: "66"</font></td></tr>
+      </table>>
+    ];
+    afternode2 [
+      label = <<table border="0">
+        <tr><td border="1">Pair</td></tr>
+        <tr><td port="0"><font color="black">a: "23"</font></td></tr>
+        <tr><td port="1"><font color="black">b: "45"</font></td></tr>
+      </table>>
+    ];
+    afternode0 [
+      color = "slategray",
+      fontcolor = "slategray",
+      label = <<table border="0">
+        <tr><td border="1">Pair</td></tr>
+        <tr><td port="0"><font color="slategray">a: "22"</font></td></tr>
+        <tr><td port="1"><font color="slategray">b: "44"</font></td></tr>
+      </table>>
+    ];
+    "afterstack":0 -> "afternode0" [label="my", style="dotted"];
+    "afterstack":5 -> "afternode1" [label="my", style="solid"];
+    "afternode1":0 -> "afternode2" [label="my", style="solid"];
+  }
+  subgraph cluster_before {
+    label=<<b>before</b>>
+    subgraph cluster_beforestack {
+      label=<<b>stack</b>>
+      rank="source";
+      beforestack[
+        shape="none";
+        label=<
+          <table border="0">
+          <tr><td border="1">main</td></tr>
+          <tr><td port="0"><font color="slategray">pair1</font></td></tr>
+          <tr><td port="5"><font color="black">pair2</font></td></tr>
+          <tr><td port="10"><font color="black">p</font></td></tr>
+          </table>
+        >;
+      ];
+    }
+    beforenode1 [
+      label = <<table border="0">
+        <tr><td border="1">Pair</td></tr>
+        <tr><td port="0"><font color="black">a</font></td></tr>
+        <tr><td port="1"><font color="slategray">b: "66"</font></td></tr>
+      </table>>
+    ];
+    beforenode0 [
+      color = "slategray",
+      fontcolor = "slategray",
+      label = <<table border="0">
+        <tr><td border="1">Pair</td></tr>
+        <tr><td port="0"><font color="slategray">a: "22"</font></td></tr>
+        <tr><td port="1"><font color="slategray">b: "44"</font></td></tr>
+      </table>>
+    ];
+    "beforestack":0 -> "beforenode0" [label="my", style="dotted"];
+    "beforestack":5 -> "beforenode1" [label="my", style="solid"];
+    "beforestack":10 -> "beforenode0" [label="leased", style="solid"];
+    "beforenode1":0 -> "beforenode0" [label="leased", style="dotted"];
+  }
+}
+[31mError:[0m your lease to this object was cancelled
+    [38;5;246m╭[0m[38;5;246m─[0m[38;5;246m[[0mclass:21:11[38;5;246m][0m
+    [38;5;246m│[0m
+ [38;5;246m18 │[0m [38;5;249m [0m[38;5;249m [0m[38;5;249m [0m[38;5;249m [0mpair2.a := Pair(23, 45)
+ [38;5;246m   ·[0m     ───────────┬───────────  
+ [38;5;246m   ·[0m                ╰───────────── lease was cancelled here
+ [38;5;246m21 │[0m [38;5;249m [0m[38;5;249m [0m[38;5;249m [0m[38;5;249m [0m[38;5;249mp[0m[38;5;249mr[0m[38;5;249mi[0m[38;5;249mn[0m[38;5;249mt[0m[38;5;249m([0mp[38;5;249m)[0m[38;5;249m.[0m[38;5;249ma[0m[38;5;249mw[0m[38;5;249ma[0m[38;5;249mi[0m[38;5;249mt[0m
+ [38;5;246m   ·[0m           ┬  
+ [38;5;246m   ·[0m           ╰── cancelled lease used here
+[38;5;246m────╯[0m

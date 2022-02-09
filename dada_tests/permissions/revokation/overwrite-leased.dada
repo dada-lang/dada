@@ -1,0 +1,25 @@
+class Pair(a, b)
+
+async fn main() {
+    pair1 = Pair(22, 44)
+    pair2 = Pair(pair1.lease, 66)
+
+    p = pair2.a.lease
+
+    # Writing to `pair.a` causes the lease from `pair2.a`
+    # to be unreachable, and it winds up being collected
+    # by the GC and revoked.
+    pair2.a := Pair(23, 45)
+
+    # As a side effect of that GC process, `p`'s lease
+    # is cancelled.
+    #
+    # I'm not entirely sure how I feel about this case.
+    # It seems ok, but also I could imagine the GC being
+    # less aggressive about canceling unreachable leases.
+    # There may be other examples we find where that
+    # cancellation is not desirable. In that case, this
+    # example might start to work again, but I think that
+    # would be ok.
+    print(p).await #! RUN ERROR your lease to this object was cancelled
+}

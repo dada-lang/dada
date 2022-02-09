@@ -224,6 +224,7 @@ impl<'me> Stepper<'me> {
         value: Value,
     ) -> Result<(), eyre::Error> {
         let traversal = self.traverse_to_place(table, place)?;
+        self.write_place(&traversal)?;
         self.poke(traversal.address, value)?;
         Ok(())
     }

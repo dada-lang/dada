@@ -1,0 +1,13 @@
+class Pair(a, b)
+
+async fn main() {
+    pair = Pair(Pair(22, 44).share, 66)
+
+    # `p` becomes an independent handle on the same shared pair
+    p = pair.a.share
+
+    # `p` is not disturbed by this write
+    pair.a := Pair(23, 45)
+
+    print(p).await #! OUTPUT our Pair\(22, 44\)
+}

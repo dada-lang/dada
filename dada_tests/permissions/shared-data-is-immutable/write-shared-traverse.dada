@@ -1,0 +1,9 @@
+class Pair(a, b)
+
+async fn main() {
+    pair = Pair(Pair(22, 44), 66).share
+
+    # Here the *immediate* pair (`Pair(22, 44)`) was never shared,
+    # but it is stored in a pair that *is* shared.
+    pair.a.a := 23 #! RUN ERROR cannot write to shared fields
+}
