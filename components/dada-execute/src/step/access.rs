@@ -1,8 +1,17 @@
-use dada_ir::storage_mode::Joint;
+use dada_ir::{
+    error,
+    storage_mode::{Atomic, Joint},
+};
 
-use crate::machine::{Object, ObjectData, Permission, PermissionData, Value};
+use crate::{
+    error::DiagnosticBuilderExt,
+    machine::{Object, ObjectData, Permission, PermissionData, Value},
+};
 
-use super::{traversal::ObjectTraversal, Stepper};
+use super::{
+    traversal::{ObjectTraversal, PlaceTraversal},
+    Stepper,
+};
 
 impl Stepper<'_> {
     /// Read the object that was arrived at via the given traversal.
@@ -20,7 +29,7 @@ impl Stepper<'_> {
         traversal.object
     }
 
-    /// Write the object that was arrived at via the given traversal.
+    /// Write to the object that was arrived at via the given traversal.
     /// This may cancel active leases along that path.
     ///
     /// Assumes that the traversal does not contain any expired
@@ -28,8 +37,109 @@ impl Stepper<'_> {
     /// permissions is encountered, so this could only happen
     /// if the traversal is "out of date" with respect to the machine
     /// state).
-    pub(super) fn write(&mut self, traversal: &ObjectTraversal) {
+    pub(super) fn write_object(&mut self, traversal: &ObjectTraversal) {
         self.access(traversal, Self::revoke_tenants);
+    }
+
+    /// Write to the *place* identified by the given traversal (but not the
+    /// object currently stored *in* that place). This may fail if the place
+    /// is not writeable (e.g., if it is shared).
+    ///
+    /// Assumes that the traversal does not contain any expired
+    /// permissions (creating a traversal fails if an expired
+    /// permissions is encountered, so this could only happen
+    /// if the traversal is "out of date" with respect to the machine
+    /// state).
+    pub(super) fn write_place(&mut self, traversal: &PlaceTraversal) -> eyre::Result<()> {
+        let ap = &traversal.accumulated_permissions;
+        match (ap.joint, ap.atomic) {
+            (Joint::Yes, Atomic::Yes) => {
+                // Writing to a shared, atomic location NYI.
+                //
+                // We need to refactor traversal to track more information here,
+                // since we need to distinguish between an atomic location in a
+                // shared object vs a shared object in an (exclusive) atomic location.
+                let span = self.machine.pc().span(self.db);
+                return Err(error!(span, "atomic writes not implemented yet").eyre(self.db));
+            }
+
+            (Joint::Yes, Atomic::No) => {
+                let span = self.machine.pc().span(self.db);
+                return Err(error!(span, "cannot write to shared fields").eyre(self.db));
+            }
+
+            (Joint::No, Atomic::Yes) | (Joint::No, Atomic::No) => {
+                // Writing to uniquely reachable data (whether or not it is atomic)
+                // is legal. Revoke all the tenants along the way.
+                //
+                // # Example 1
+                //
+                // ```
+                // p = a.lease
+                // a.b = 3
+                // ```
+                //
+                // This write to `a.b` cancels `p`, because it has leased all of `a`.
+                //
+                // # Example 2
+                //
+                // ```
+                // p = a.b.lease
+                // a.c = 3
+                // ```
+                //
+                // This write to `a.c` does NOT cancel `p`, because it has leased `a.b`.
+                for &permission in &traversal.accumulated_permissions.traversed {
+                    assert!(matches!(self.machine[permission], PermissionData::Valid(_)));
+                    self.revoke_tenants(permission);
+                }
+
+                // # Discussion
+                //
+                // We only explicitly revoke leases from the things that we
+                // traverse, but writing to a field may have side-effects that
+                // cause leases of the data *in that field* to be revoked.
+                // These effects are caused by the garbage collector.
+                //
+                // # Example 1
+                //
+                // ```
+                // class C(f)
+                // v = C(22)
+                // a = C(v)
+                // p = a.f.lease
+                // a = C(44)
+                // ```
+                //
+                // Before the assignment to `a`, the object graph is as follows:
+                //
+                // ```
+                // a --my------> [ C ]
+                //               [ f ] --my--+-> [ C ]
+                //                           |   [ f ] --our--> 22
+                //                           |
+                // p --leased----------------+
+                // ```
+                //
+                // After the assignment to `a`, the object graph is as follows:
+                //
+                // ```
+                // a --my------> [ C ]
+                //               [ f ] --our--> 44
+                //
+                //               [ C ]
+                //               [ f ] --my--+-> [ C ]
+                //                           |   [ f ] --our--> 22
+                //                           |
+                // p --leased----------------+
+                // ```
+                //
+                // When the GC runs, the old value of `a` is collected, as are its
+                // fields, and so `p` is canceled.
+            }
+        }
+
+        Ok(())
     }
 
     /// Helper for read/write:

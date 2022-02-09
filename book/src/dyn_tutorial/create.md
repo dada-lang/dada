@@ -7,10 +7,10 @@
 For the next several chapters, we're going to work with variations on this example program:
 
 ```
-class Point(var x, var y)
+class Point(x, y)
 
 async fn main() {
-    var p = Point(x: 22, y: 44)
+    p = Point(x: 22, y: 44)
     print("The point is ({p.x}, {p.y})").await
 }
 ```
@@ -29,7 +29,7 @@ When you invoke a constructor, you get back a freshly created object with full p
 
 ### Exploring ownership with the debugger
 
-We can use the interactive debugger to explore permissions and watch how they evolve. To start, run the program below and move the cursor to the start of the `print` line. This will take you to the point right after `var p = Point(..)` has executed. If you look at the state of the program, you will see:
+We can use the interactive debugger to explore permissions and watch how they evolve. To start, run the program below and move the cursor to the start of the `print` line. This will take you to the point right after `p = Point(..)` has executed. If you look at the state of the program, you will see:
 
 ```
 ┌───┐       ┌───────┐
@@ -47,10 +47,10 @@ The label `my` on the edge from `p` to the `Point` object is telling you that `p
 If you step forward in the debugger past the `print`, you will see that `p` has been freed:
 
 ```
-class Point(var x, var y)
+class Point(x, y)
 
 async fn main() {
-    var p = Point(x: 22, y: 44)
+    p = Point(x: 22, y: 44)
     print("The point is ({p.x}, {p.y})").await
     //                                        ▲
     // ───────────────────────────────────────┘

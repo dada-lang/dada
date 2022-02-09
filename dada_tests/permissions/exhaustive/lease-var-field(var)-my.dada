@@ -1,9 +1,0 @@
-class Pair(var a, var b)
-
-async fn main() {
-    var p = Pair(Pair(22, 44), 66)
-    var q = p.a.lease
-    print(q).await #! OUTPUT leased Pair\(22, 44\)
-    print(p).await #! OUTPUT my Pair\(my Pair\(22, 44\), 66\)
-    print(q).await #! RUN ERROR your lease to this object was cancelled
-}

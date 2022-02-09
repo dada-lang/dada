@@ -12,7 +12,7 @@ async fn main() {
 }
 
 fn callee() {
-    var p = Point(22, 44).share
+    p = Point(22, 44).share
     p.lease
 }
     

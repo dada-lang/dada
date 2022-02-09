@@ -1,9 +1,9 @@
-class Point(var x, var y)
+class Point(x, y)
 
 async fn main() {
-    var p = Point(x: 22, y: 44).share
-    var q = p.give
-    var r = q
+    p = Point(x: 22, y: 44).share
+    q = p.give
+    r = q
     #?       ^ HeapGraph
     #
     # Test that p, q, r are all "our"

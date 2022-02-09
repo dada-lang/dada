@@ -1,0 +1,12 @@
+class Pair(a, b)
+
+async fn main() {
+    # Here we have an owned point, but in a shared field
+    p = Pair(Pair(22, 44), 66)
+
+    # Giving that makes a my result
+    q = p.a.give
+
+    print(p).await #! OUTPUT my Pair\(\(expired\), 66\)
+    print(q).await #! OUTPUT my Pair\(22, 44\)
+}

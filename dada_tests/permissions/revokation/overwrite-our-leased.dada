@@ -1,0 +1,14 @@
+class Pair(a, b)
+
+async fn main() {
+    pair1 = Pair(22, 44).share
+    pair2 = Pair(pair1.lease, 66)
+
+    p = pair2.a.lease
+
+    # Writing to `pair2.a` overwrites the shared
+    # lease, but that doesn't cancel it.
+    pair2.a := Pair(23, 45)
+
+    print(p).await #! OUTPUT our leased Pair\(22, 44\)
+}

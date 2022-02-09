@@ -5,17 +5,18 @@
 In the previous chapter, we talked about *giving permissions away*. But sometimes we would just like to give temporary access; this is where the `lease` keyword comes in. Consider the following program:
 
 ```
-class Point(var x, var y)
+class Point(x, y)
 
 async fn main() {
-    var p = Point(x: 22, y: 44)
-    var q = p.lease
+    p = Point(x: 22, y: 44)
+    q = p.lease
     q.x += 1
     print("The point is ({p.x}, {p.y})").await
 }
 ```
 
-Here, we added the line `var q = p.lease`. What that does is to create a *leased* copy of the `Point`. When you lease an object, you are temporarily getting permission to access it. 
+Here, we added the line `q = p.lease`. What that does is to create a *leased* copy of the `Point`. When you lease an object, you are temporarily getting permission to access it. 
+
 ## Unique leases
 
 The default lease is an **unique** lease. That means that the new variable has exclusive access to the object. So long as the lease is active, all reads and writes to that object have to go through the leased variable (`q`) or some sublease of `q`. In the next chapter, we'll talk about shared leases, which can be accessed from many variables (we actually saw a shared lease earlier, in the [chapter on creating and dropping objects](create.md)).
@@ -25,7 +26,7 @@ Because `q` has a unique lease to the `Point`, it is able to modify the fields o
 ```
 ┌───┐
 │   │                  ┌───────┐
-│ p ├─my──────────────►│ Point │
+│ p ├╌my╌╌╌╌╌╌╌╌╌╌╌╌╌╌►│ Point │
 │   │                  │ ───── │
 │ q ├─leased(p)───────►│ x: 22 │
 │   │                  │ y: 44 │
@@ -37,7 +38,7 @@ The `leased(p)` permission here says that `q` is *leased from* `p` (this implies
 ```
   ┌───┐
   │   │                  ┌───────┐
-  │ p ├─my──────────────►│ Point │
+  │ p ├─my╌╌╌╌╌╌╌╌╌╌╌╌╌╌►│ Point │
   │   │                  │ ───── │
   │ q ├─leased(p)───────►│ x: 23 │
   │   │                  │ y: 44 │
@@ -49,12 +50,12 @@ The `leased(p)` permission here says that `q` is *leased from* `p` (this implies
 When you have a leased value, you can lease it again, creating a sublease:
 
 ```
-class Point(var x, var y)
+class Point(x, y)
 
 async fn main() {
-    var p = Point(x: 22, y: 44)
-    var q = p.lease
-    var r = q.lease
+    p = Point(x: 22, y: 44)
+    q = p.lease
+    r = q.lease
     r.x += 1
     print("The point is ({p.x}, {p.y})").await
 }
@@ -65,9 +66,9 @@ Here `p` was leased to create `q`, and `q` then leased *its* permission to `r`. 
 ```
 ┌───┐
 │   │                  
-│ p ├─my──────────────►┌───────┐
+│ p ├╌my╌╌╌╌╌╌╌╌╌╌╌╌╌╌►┌───────┐
 │   │                  │ Point │
-│ q ├─leased(p)───────►│ ───── │
+│ q ├╌leased(p)╌╌╌╌╌╌╌►│ ───── │
 │   │                  │ x: 22 │
 │ r ├─leased(q)───────►│ y: 44 │
 │   │                  └───────┘
@@ -82,11 +83,11 @@ Leases last until the lessor chooses to end them. Lessors end a lease by taking 
 
 
 ```
-class Point(var x, var y)
+class Point(x, y)
 
 async fn main() {
-    var p = Point(x: 22, y: 44)
-    var q = p.lease
+    p = Point(x: 22, y: 44)
+    q = p.lease
     q.x += 1
     print("The point is ({p.x}, {p.y})").await
 }
@@ -111,12 +112,12 @@ What do you think will happen if we try to use `q` again? Try it and find out!
 Earlier, we saw that the [`give`](./give.md) keyword can be used to give ownership from one variable to another. Similarly, if you use the `give` keyword with a leased value, then this leased value is giving *its* permission to another. This is in fact equivalent to a sublease, and that is exactly what happens. That means that in this program, the `q.give` is equivalent to `q.lease`:
 
 ```
-class Point(var x, var y)
+class Point(x, y)
 
 async fn main() {
-    var p = Point(x: 22, y: 44)
-    var q = p.lease
-    var r = q.give
+    p = Point(x: 22, y: 44)
+    q = p.lease
+    r = q.give
     r.x += 1
     print("The point is ({p.x}, {p.y})").await
 }
@@ -125,12 +126,12 @@ async fn main() {
 Alternatively, we can even leave the `give` keyword away:
 
 ```
-class Point(var x, var y)
+class Point(x, y)
 
 async fn main() {
-    var p = Point(x: 22, y: 44)
-    var q = p.lease
-    var r = q
+    p = Point(x: 22, y: 44)
+    q = p.lease
+    r = q
     r.x += 1
     print("The point is ({p.x}, {p.y})").await
 }
@@ -141,9 +142,9 @@ If you step through to the line `r.x`, you will see the same picture that we saw
 ```
 ┌───┐
 │   │                  ┌───────┐
-│ p ├─my──────────────►│ Point │
+│ p ├╌my╌╌╌╌╌╌╌╌╌╌╌╌╌╌►│ Point │
 │   │                  │ ───── │
-│ q ├─leased(p)───────►│ x: 22 │
+│ q ├╌leased(p)╌╌╌╌╌╌╌►│ x: 22 │
 │   │                  │ y: 44 │
 │ r ├─leased(q)───────►│ x: 22 │
 │   │                  └───────┘
@@ -151,5 +152,17 @@ If you step through to the line `r.x`, you will see the same picture that we saw
 ```
 
 Try modifying the program so that instead of printing from `p`, we print from `q`. What happens?
+
+```
+class Point(x, y)
+
+async fn main() {
+    p = Point(x: 22, y: 44)
+    q = p.lease
+    r = q
+    r.x += 1
+    print("The point is ({q.x}, {q.y})").await
+}
+```
 
 (Answer: the sublease on `r` ends.)

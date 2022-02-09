@@ -25,6 +25,7 @@ impl Options {
     pub async fn main(&self, _crate_options: &crate::Options) -> eyre::Result<()> {
         let mut total = 0;
         let mut errors = Errors::default();
+        let mut tests_with_fixmes = 0;
 
         if self.dada_path.is_empty() {
             eyre::bail!("no test paths given; try --dada-path");
@@ -45,10 +46,25 @@ impl Options {
                     if let Some(ext) = path.extension() {
                         if ext == "dada" {
                             total += 1;
-                            self.test_dada_file(path)
+                            let fixmes = self
+                                .test_dada_file(path)
                                 .await
                                 .with_context(|| format!("testing `{}`", path.display()))?;
-                            tracing::info!("test `{}` passed", path.display());
+
+                            if fixmes.is_empty() {
+                                tracing::info!("test `{}` passed", path.display());
+                            } else {
+                                tests_with_fixmes += 1;
+
+                                for fixme in fixmes {
+                                    tracing::warn!(
+                                        "test `{}` had expected bug: {}",
+                                        path.display(),
+                                        fixme
+                                    );
+                                }
+                            }
+
                             return Ok(());
                         } else if REF_EXTENSIONS.iter().any(|e| *e == ext) {
                             // ignore ref files
@@ -99,6 +115,10 @@ impl Options {
 
         tracing::info!("{total} tests executed");
 
+        if tests_with_fixmes > 0 {
+            tracing::info!("{tests_with_fixmes} test(s) encountered known bugs");
+        }
+
         if num_errors == 0 {
             Ok(())
         } else {
@@ -107,19 +127,19 @@ impl Options {
     }
 
     #[tracing::instrument(level = "debug", skip(self))]
-    async fn test_dada_file(&self, path: &Path) -> eyre::Result<()> {
+    async fn test_dada_file(&self, path: &Path) -> eyre::Result<Vec<String>> {
         let expected_queries = &expected_queries(path)?;
-        let expected_diagnostics = &expected_diagnostics(path)?;
+        let expected_diagnostics = expected_diagnostics(path)?;
         let path_without_extention = path.with_extension("");
         fs::create_dir_all(&path_without_extention)?;
         self.test_dada_file_normal(
             &path_without_extention,
-            expected_diagnostics,
+            &expected_diagnostics,
             expected_queries,
         )
         .await?;
-        self.test_dada_file_in_ide(&path_without_extention, expected_diagnostics)?;
-        Ok(())
+        self.test_dada_file_in_ide(&path_without_extention, &expected_diagnostics)?;
+        Ok(expected_diagnostics.fixmes)
     }
 
     #[tracing::instrument(level = "debug", skip(self))]
@@ -684,6 +704,9 @@ struct ExpectedDiagnostics {
 
     // If `None`, do not check the output.
     output: Option<Vec<ExpectedOutput>>,
+
+    // Any `#! FIXME` annotations found
+    fixmes: Vec<String>,
 }
 
 /// Returns the diagnostics that we expect to see in the file, sorted by line number.
@@ -697,6 +720,10 @@ fn expected_diagnostics(path: &Path) -> eyre::Result<ExpectedDiagnostics> {
 
     let output_marker = regex::Regex::new(r"^(?P<prefix>[^#]*)#!\s*OUTPUT\s+(?P<msg>.*)").unwrap();
 
+    let fixme_issue_marker =
+        regex::Regex::new(r"#!\s*FIXME\(#(?P<issue>[0-9]+)\): (?P<message>.+)").unwrap();
+    let fixme_marker = regex::Regex::new(r"#!\s*FIXME: (?P<message>.+)").unwrap();
+
     let any_output_marker = regex::Regex::new(r"^(?P<prefix>[^#]*)#!\s*OUTPUT ANY").unwrap();
 
     let any_marker = regex::Regex::new(r"^[^#]*#!").unwrap();
@@ -705,6 +732,7 @@ fn expected_diagnostics(path: &Path) -> eyre::Result<ExpectedDiagnostics> {
     let mut compile_diagnostics = vec![];
     let mut runtime_diagnostics = vec![];
     let mut output = vec![];
+    let mut fixmes = vec![];
     let mut any_output_marker_seen = None;
     for (line, line_number) in file_contents.lines().zip(1..) {
         if let Some(c) = diagnostic_marker.captures(line) {
@@ -757,6 +785,10 @@ fn expected_diagnostics(path: &Path) -> eyre::Result<ExpectedDiagnostics> {
             };
             let message = Regex::new(&c["msg"])?;
             output.push(ExpectedOutput { line1, message });
+        } else if let Some(c) = fixme_issue_marker.captures(line) {
+            fixmes.push(format!("#{}", &c["issue"]));
+        } else if let Some(c) = fixme_marker.captures(line) {
+            fixmes.push(c["message"].trim().to_string());
         } else if any_marker.is_match(line) {
             eyre::bail!(
                 "`#!` marker on line {} doesn't have expected form",
@@ -785,6 +817,7 @@ fn expected_diagnostics(path: &Path) -> eyre::Result<ExpectedDiagnostics> {
         } else {
             Some(output)
         },
+        fixmes,
     })
 }
 
