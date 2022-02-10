@@ -101,7 +101,7 @@ pub enum ExprData {
     /// `22`, `22_222`, etc
     IntegerLiteral(Word),
 
-    /// `2.2`
+    /// `integer-part.fractional-part`
     FloatLiteral(Word, Word),
 
     /// `"foo"` with no format strings
