@@ -9,7 +9,7 @@ use crate::{
     in_ir_db::InIrDb,
     intrinsic::Intrinsic,
     prelude::InIrDbExt,
-    storage_mode::StorageMode,
+    storage_mode::Atomic,
     word::{SpannedOptionalWord, Word},
 };
 use dada_id::{id, prelude::*, tables};
@@ -161,7 +161,7 @@ pub struct LocalVariableData {
     /// If it is None, then this is a temporary
     /// introduced by the compiler.
     pub name: Option<Word>,
-    pub storage_mode: StorageMode,
+    pub atomic: Atomic,
 }
 
 #[derive(PartialEq, Eq, Copy, Clone, Hash, Debug)]

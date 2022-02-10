@@ -1,5 +1,5 @@
 async fn main() {
-    var x = 4
+    x = 4
     x *= 2
     if x == 8 {
         print("Huzzah").await

@@ -1,4 +1,4 @@
-class Point(var x, var y)
+class Point(x, y)
 
 async fn main() {
     p = Point(22, 44)

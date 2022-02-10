@@ -35,7 +35,7 @@ digraph {
     ];
     "afterstack":0 -> "afternode0" [label="my", style="dotted"];
     "afterstack":5 -> "afternode1" [label="my", style="solid"];
-    "afternode1":0 -> "afternode0" [label="shared", style="solid"];
+    "afternode1":0 -> "afternode0" [label="leased", style="solid"];
   }
   subgraph cluster_before {
     label=<<b>before</b>>

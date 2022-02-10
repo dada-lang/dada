@@ -89,7 +89,7 @@ It's possible to have `shared` values with multiple leases:
 ```
 var greeting: my String = "Hello, World!"
 var farewell: my String = "Goodbye, World!"
-var p = if say_hello { 
+p = if say_hello { 
     share greeting
 } else {
     share farewell

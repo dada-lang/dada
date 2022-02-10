@@ -166,7 +166,7 @@ fn map_variables(
                 origins,
                 bir::LocalVariableData {
                     name: validated_var_data.name,
-                    storage_mode: validated_var_data.storage_mode,
+                    atomic: validated_var_data.atomic,
                 },
                 validated_var_origin,
             );

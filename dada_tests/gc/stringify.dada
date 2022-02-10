@@ -1,7 +1,7 @@
-class Point(var x, var y)
+class Point(x, y)
 
 async fn main() {
-    var p = Point(Point(22, 44), 66)
+    p = Point(Point(22, 44), 66)
     print(p).await
     #! OUTPUT my Point\(my Point\(22, 44\), 66\)
 }

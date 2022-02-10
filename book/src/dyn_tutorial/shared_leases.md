@@ -2,25 +2,20 @@
 
 {{#include ../caveat.md}}
 
-Earlier, we saw how you can [use the `share` keyword to create joint ownership](./share.md). Often, though, you only need to create shared access temporarily, for example during a particular function. For this purpose, you can use a **shared lease**. A shared lease combines the properties of [shared ownership](./share.md) and [leases](./lease.md):
+Earlier, we saw that:
 
-* Shared leases can be copied freely, and they do not permit mutation. 
-* Shared leases are temporary, and can be cancelled by the lessor.
-    * Unlike an exclusive lease, however, lessors cancel a shared lease by *writing*. They are permitted to read because shared leases allow anyone to read.
+* You can use the [`share`](./share.md) keyword to convert unique ownership into *joint* ownership.
+* You can use the [`lease`](./lease.md) keyword to temporarily lend out access to a variable without giving up ownership.
 
-There are two ways to create a shared lease:
-
-* Apply the `share` keyword to a variable or other "place" in memory (e.g., `p.lease`); 
-To create a shared lease, you  apply the `share` keyword 
-Shared leases are illustrated in the following program:
+But what if you wanted to give many people access to the same object, but only for a limited time? You might want this, for example, so that you could mutate the object again. The answer is that you can combine sharing and leasing to create a **shared lease**:
 
 ```
-class Point(var x, var y)
+class Point(x, y)
 
 async fn main() {
-    var p = Point(x: 22, y: 44)
-    var q = p.lease.share
-    var r = q.share
+    p = Point(x: 22, y: 44)
+    q = p.lease.share
+    r = q
     print("p is ({p.x}, {p.y})").await
     print("q is ({q.x}, {q.y})").await
     print("r is ({r.x}, {r.y})").await
@@ -28,42 +23,42 @@ async fn main() {
 }
 ```
 
-Let's take it step by step. First, position your cursor after `p.lease` and you will see:
+Let's take it step by step. First, position your cursor after `p.lease` (but before `.share`) and you will see:
 
 ```
 ┌───┐
 │   │                  ┌───────┐
-│ p ├─my──────────────►│ Point │
+│ p ├╌my╌╌╌╌╌╌╌╌╌╌╌╌╌╌►│ Point │
 │   │                  │ ───── │
 │ q ├─leased(p)───────►│ x: 22 │
 │   │                  │ y: 44 │
 └───┘                  └───────┘
 ```
 
-Just after the `lease`, we have that `q` is leased from `p`, the owner. Move the cursor after the `.share` and we see that the exclusive lease is now a shared lease, indicated by `shared(p)`:
+Just after the `lease`, we have that `q` is leased from `p`, the owner. Move the cursor after the `.share` and we see that the exclusive lease is now a shared lease, indicated by `our leased(p)`:
 
 ```
 ┌───┐
 │   │                  ┌───────┐
-│ p ├─my──────────────►│ Point │
+│ p ├╌my╌╌╌╌╌╌╌╌╌╌╌╌╌╌►│ Point │
 │   │                  │ ───── │
-│ q ├─shared(p)───────►│ x: 22 │
+│ q ├─our leased(p)───►│ x: 22 │
 │   │                  │ y: 44 │
 └───┘                  └───────┘
 ```
 
 Although the lease is now shared, `p` remains the owner of the point (and the lessor of the lease).
 
-Next go past the `var r = q.share` line. As always, sharing a shared thing simply reproduces it:
+Next go past the `r = q.share` line. As always, sharing a shared thing simply reproduces it:
 
 ```
 ┌───┐
 │   │                  
-│ p ├─my──────────────►┌───────┐
+│ p ├╌my╌╌╌╌╌╌╌╌╌╌╌╌╌╌►┌───────┐
 │   │                  │ Point │
-│ q ├─shared(p)───────►│ ───── │
+│ q ├─our leased(p)───►│ ───── │
 │   │                  │ x: 22 │
-│ r ├─shared(p)───────►│ y: 44 │
+│ r ├─our leased(p)───►│ y: 44 │
 │   │                  └───────┘
 └───┘                  
 ```
@@ -84,17 +79,48 @@ Finally, if you move your cursor to after `p.x += 1` you will see that the lease
 
 ## Leasing a shared value
 
-If `x.lease.share` produces a shared lease, what do you think happens with `x.share.lease`? In other words, what happens if we try to lease a shared value? The answer is: that is the same as sharing it. In other words, you get an equal copy to the original. In other words, `p`, `q`, `r`, and `s` here are all shared owners of the same `Point`:
+If `x.lease.share` produces a shared lease, what do you think happens with `x.share.lease`? In other words, what happens if we try to lease a shared value? 
 
 ```
-class Point(var x, var y)
+class Point(x, y)
 
 async fn main() {
-    var p = Point(x: 22, y: 44).share
-    var q = q.lease
-    var r = q.share
-    var s = q
+    p = Point(x: 22, y: 44).share
+    q = q.lease
 }
 ```
 
-Why is this? Well, there is nothing that `q` can do that would invalidate `p` (same with `r` and `s`). So there is no reason to create a lease. In other words, once you've started sharing, you've already created a permission that can be duplicated at will, so there is no reason not to keep duplicating it further.
+The answer is that `p` remains the joint *owner* of the point, but `q` has a shared lease:
+
+```
+┌───┐
+│   │                  ┌───────┐
+│ p ├╌our╌╌╌╌╌╌╌╌╌╌╌╌╌►│ Point │
+│   │                  │ ───── │
+│ q ├─our leased(p)───►│ x: 22 │
+│   │                  │ y: 44 │
+└───┘                  └───────┘
+```
+
+There is one interesting wrinkle here. Ordinarily, if you [lease an object](./lease.md), then the lease is cancelled when the original object is used again. But if you have a shared lease, it's ok to continue using the original object, since the only thing that both of you can do is to read from it:
+
+
+```
+class Point(x, y)
+
+async fn main() {
+    p = Point(x: 22, y: 44).share
+    q = q.lease
+
+    # Reading from `p` does not cancel the lease `q`
+    print(p).await
+
+    # Reading from `q` still works:
+    print(q).await
+}
+
+# Prints:
+#
+# our Point(22, 44)
+# our leased Point(22, 44)
+```

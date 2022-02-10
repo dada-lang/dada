@@ -5,10 +5,7 @@ use dada_ir::{
 
 use crate::machine::Value;
 
-use super::{
-    traversal::{Anchor, ObjectTraversal},
-    Stepper,
-};
+use super::{traversal::ObjectTraversal, Stepper};
 
 impl Stepper<'_> {
     /// The `share` operation converts a permission into a shared permission,
@@ -39,8 +36,7 @@ impl Stepper<'_> {
         table: &bir::Tables,
         place: bir::Place,
     ) -> eyre::Result<Value> {
-        let anchor = Anchor::default();
-        let object_traversal = self.traverse_to_object(&anchor, table, place)?;
+        let object_traversal = self.traverse_to_object(table, place)?;
         self.share_traversal(object_traversal)
     }
 
@@ -143,7 +139,7 @@ impl Stepper<'_> {
         // * If we were to revoke the `my` permission, you would no longer be able to read the original path, but we promised original path remains valid.
         // * If we *just* created a new permission, the `my` permission would be invalid, but we promised original path remains valid.
         //
-        // It's also what you want for something like `var p = Point(22, 44).share`.
+        // It's also what you want for something like `p = Point(22, 44).share`.
         if let Leased::No = accumulated_permissions.leased {
             self.machine[last_permission].assert_valid_mut().joint = Joint::Yes;
 

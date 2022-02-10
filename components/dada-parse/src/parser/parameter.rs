@@ -6,7 +6,7 @@ use dada_ir::{
     kw::Keyword,
     parameter::Parameter,
     span::Span,
-    storage_mode::StorageMode,
+    storage_mode::Atomic,
 };
 
 use super::ParseList;
@@ -19,7 +19,7 @@ impl<'db> Parser<'db> {
     }
 
     fn parse_parameter(&mut self) -> Option<Parameter> {
-        let opt_storage_mode = self.parse_storage_mode();
+        let opt_storage_mode = self.parse_atomic();
         if let Some((name_span, name)) = self.eat(Identifier) {
             let opt_ty = if let Some(colon_span) = self.eat_op(Op::Colon) {
                 let opt_ty = self.parse_ty();
@@ -35,19 +35,19 @@ impl<'db> Parser<'db> {
                 None
             };
 
-            let (mode_span, mode) = match opt_storage_mode {
-                Some((span, mode)) => (span, Some(mode)),
-                None => (name_span, None),
+            let (atomic_span, atomic) = match opt_storage_mode {
+                Some(span) => (span, Atomic::Yes),
+                None => (name_span, Atomic::No),
             };
 
             let decl = LocalVariableDeclData {
-                mode,
+                atomic,
                 name,
                 ty: opt_ty,
             };
 
             let decl_span = LocalVariableDeclSpan {
-                mode_span,
+                atomic_span,
                 name_span,
             };
 
@@ -55,25 +55,19 @@ impl<'db> Parser<'db> {
         } else {
             // No identifier == no parameter; if there's a storage mode,
             // that's an error.
-            if let Some((span, mode)) = opt_storage_mode {
-                self.error_at_current_token(format!(
-                    "expected parameter name after storage mode `{mode}`"
-                ))
-                .secondary_label(span, "storage mode specified here")
-                .emit(self.db);
+            if let Some(span) = opt_storage_mode {
+                self.error_at_current_token("expected parameter name after `atomic`")
+                    .secondary_label(span, "`atomic` specified here")
+                    .emit(self.db);
             }
 
             None
         }
     }
 
-    pub(crate) fn parse_storage_mode(&mut self) -> Option<(Span, StorageMode)> {
-        if let Some((span, _)) = self.eat(Keyword::Shared) {
-            Some((span, StorageMode::Shared))
-        } else if let Some((span, _)) = self.eat(Keyword::Var) {
-            Some((span, StorageMode::Var))
-        } else if let Some((span, _)) = self.eat(Keyword::Atomic) {
-            Some((span, StorageMode::Atomic))
+    pub(crate) fn parse_atomic(&mut self) -> Option<Span> {
+        if let Some((span, _)) = self.eat(Keyword::Atomic) {
+            Some(span)
         } else {
             None
         }

@@ -28,8 +28,7 @@ digraph {
         <tr><td port="1"><font color="slategray">y: "44"</font></td></tr>
       </table>>
     ];
-    "afterstack":0 -> "afternode0" [label="our", style="solid"];
-    "stack":17 -> "afternode0" [label="our", style="solid"];
+    "stack":17 -> "afternode0" [label="my", style="solid"];
   }
   subgraph cluster_before {
     label=<<b>before</b>>
@@ -88,8 +87,7 @@ digraph {
         <tr><td port="1"><font color="slategray">y: "44"</font></td></tr>
       </table>>
     ];
-    "afterstack":0 -> "afternode0" [label="our", style="solid"];
-    "stack":17 -> "afternode0" [label="our", style="solid"];
+    "stack":17 -> "afternode0" [label="my", style="solid"];
   }
   subgraph cluster_before {
     label=<<b>before</b>>

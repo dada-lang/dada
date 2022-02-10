@@ -3,24 +3,18 @@ use dada_ir::{
     class::Class,
     code::bir,
     error,
-    storage_mode::{Atomic, Joint, Leased, StorageMode},
+    storage_mode::{Atomic, Joint, Leased},
     word::Word,
 };
 use dada_parse::prelude::DadaParseClassExt;
-use typed_arena::Arena;
 
 use crate::{
     error::DiagnosticBuilderExt,
     ext::DadaExecuteClassExt,
-    machine::{Object, ObjectData, Permission, PermissionData, ValidPermissionData, Value},
+    machine::{op::MachineOpExt, Object, ObjectData, Permission, PermissionData, Value},
 };
 
-use super::Stepper;
-
-#[derive(Default)]
-pub(super) struct Anchor {
-    arena: Arena<Value>,
-}
+use super::{address::Address, Stepper};
 
 /// Permissions accumulated along a traversal.
 #[derive(Debug)]
@@ -85,9 +79,9 @@ pub(super) struct AccumulatedPermissions {
 /// from the outgoing edge from the field `a` to the object
 /// `a2`.
 #[derive(Debug)]
-pub(super) struct PlaceTraversal<'me> {
+pub(super) struct PlaceTraversal {
     pub(super) accumulated_permissions: AccumulatedPermissions,
-    pub(super) place: &'me mut Value,
+    pub(super) address: Address,
 }
 
 /// See [`PlaceTraversal`] for detailed explanation.
@@ -106,52 +100,47 @@ impl Stepper<'_> {
     /// If this returns `Ok`, the place is at least potentially *accessible*,
     /// though some of the objects along the way may currently be leased. If the place
     /// tries to dereference an expired permission, returns `Err`.
-    pub(super) fn traverse_to_place<'me>(
-        &'me mut self,
-        anchor: &'me Anchor,
+    pub(super) fn traverse_to_place(
+        &mut self,
         table: &bir::Tables,
         place: bir::Place,
-    ) -> eyre::Result<PlaceTraversal<'me>> {
+    ) -> eyre::Result<PlaceTraversal> {
         match place.data(table) {
             bir::PlaceData::LocalVariable(lv) => {
                 let lv_data = lv.data(table);
                 let permissions = AccumulatedPermissions {
                     traversed: vec![],
                     leased: Leased::No,
-                    joint: lv_data.storage_mode.joint(),
-                    atomic: lv_data.storage_mode.atomic(),
+                    joint: Joint::No,
+                    atomic: lv_data.atomic,
                 };
                 Ok(PlaceTraversal {
                     accumulated_permissions: permissions,
-                    place: &mut self.machine[*lv],
+                    address: Address::Local(*lv),
                 })
             }
 
-            bir::PlaceData::Function(f) => {
-                Ok(self.temporary_place(anchor, ObjectData::Function(*f)))
-            }
-            bir::PlaceData::Class(c) => Ok(self.temporary_place(anchor, ObjectData::Class(*c))),
+            bir::PlaceData::Function(f) => Ok(self.traverse_to_constant(ObjectData::Function(*f))),
+            bir::PlaceData::Class(c) => Ok(self.traverse_to_constant(ObjectData::Class(*c))),
             bir::PlaceData::Intrinsic(i) => {
-                Ok(self.temporary_place(anchor, ObjectData::Intrinsic(*i)))
+                Ok(self.traverse_to_constant(ObjectData::Intrinsic(*i)))
             }
             bir::PlaceData::Dot(owner_place, field_name) => {
                 let db = self.db;
                 let ObjectTraversal {
                     mut accumulated_permissions,
                     object: owner_object,
-                } = self.traverse_to_object(anchor, table, *owner_place)?;
-                let (owner_class, field_index, owner_field) =
+                } = self.traverse_to_object(table, *owner_place)?;
+                let (owner_class, field_index) =
                     self.object_field(place, owner_object, *field_name)?;
 
                 // Take the field mod einto account
                 let field = &owner_class.fields(db)[field_index];
-                let field_mode = field.decl(db).mode.unwrap_or(StorageMode::Shared);
-                accumulated_permissions.joint |= field_mode.joint();
-                accumulated_permissions.atomic |= field_mode.atomic();
+                accumulated_permissions.atomic |= field.decl(db).atomic;
 
                 Ok(PlaceTraversal {
                     accumulated_permissions,
-                    place: owner_field,
+                    address: Address::Field(owner_object, field_index),
                 })
             }
         }
@@ -164,17 +153,18 @@ impl Stepper<'_> {
     /// If this returns `Ok`, the data in the object is at least potentially *accessible*,
     /// though some of the objects along the way may currently be leased. If the place
     /// tries to dereference an expired permission, returns `Err`.
-    pub(super) fn traverse_to_object<'me>(
-        &'me mut self,
-        anchor: &'me Anchor,
+    pub(super) fn traverse_to_object(
+        &mut self,
         table: &bir::Tables,
-        place: bir::Place,
+        bir_place: bir::Place,
     ) -> eyre::Result<ObjectTraversal> {
         let PlaceTraversal {
             accumulated_permissions,
-            place: &mut Value { permission, object },
-        } = self.traverse_to_place(anchor, table, place)?;
-        let permissions = self.accumulate_permission(place, accumulated_permissions, permission)?;
+            address: place,
+        } = self.traverse_to_place(table, bir_place)?;
+        let Value { permission, object } = self.peek(place);
+        let permissions =
+            self.accumulate_permission(bir_place, accumulated_permissions, permission)?;
         Ok(ObjectTraversal {
             accumulated_permissions: permissions,
             object,
@@ -186,7 +176,7 @@ impl Stepper<'_> {
         place: bir::Place,
         owner_object: Object,
         field_name: Word,
-    ) -> eyre::Result<(Class, usize, &mut Value)> {
+    ) -> eyre::Result<(Class, usize)> {
         // FIXME: Execute this before we create the mutable ref to `self.machine`,
         // even though we might not need it. The borrow checker is grumpy the ref
         // to self.machine is returned from the function and so it fails to analyze
@@ -196,7 +186,7 @@ impl Stepper<'_> {
         match &mut self.machine[owner_object] {
             ObjectData::Instance(instance) => {
                 if let Some(index) = instance.class.field_index(self.db, field_name) {
-                    Ok((instance.class, index, &mut instance.fields[index]))
+                    Ok((instance.class, index))
                 } else {
                     Err(Self::no_such_field(
                         self.db,
@@ -215,13 +205,8 @@ impl Stepper<'_> {
         }
     }
 
-    fn temporary_place<'me>(
-        &'me mut self,
-        anchor: &'me Anchor,
-        object_data: ObjectData,
-    ) -> PlaceTraversal<'me> {
-        let temporary = self.temporary(object_data);
-        let place = anchor.arena.alloc(temporary);
+    fn traverse_to_constant(&mut self, object_data: ObjectData) -> PlaceTraversal {
+        let object = self.machine.our_value(object_data);
         let permissions = AccumulatedPermissions {
             traversed: vec![],
             leased: Leased::No,
@@ -230,14 +215,8 @@ impl Stepper<'_> {
         };
         PlaceTraversal {
             accumulated_permissions: permissions,
-            place,
+            address: Address::Constant(object),
         }
-    }
-
-    fn temporary(&mut self, object_data: ObjectData) -> Value {
-        let object = self.machine.new_object(object_data);
-        let permission = self.machine.new_permission(ValidPermissionData::our());
-        Value { object, permission }
     }
 
     fn accumulate_permission(

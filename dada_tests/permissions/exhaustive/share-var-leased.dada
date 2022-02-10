@@ -1,0 +1,8 @@
+class Pair(a, b)
+
+async fn main() {
+    p = Pair(22, 44).lease
+    q = p.share
+    print(p).await #! OUTPUT leased Pair\(22, 44\)
+    print(q).await #! OUTPUT our leased Pair\(22, 44\)
+}

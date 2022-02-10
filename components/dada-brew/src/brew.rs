@@ -4,7 +4,7 @@ use dada_ir::{
         bir::{self, BirData},
         validated::{self, ExprOrigin},
     },
-    storage_mode::StorageMode,
+    storage_mode::Atomic,
 };
 use salsa::DebugWithDb;
 
@@ -440,7 +440,7 @@ fn add_temporary(brewery: &mut Brewery, origin: ExprOrigin) -> bir::LocalVariabl
     brewery.add(
         bir::LocalVariableData {
             name: None,
-            storage_mode: StorageMode::Var,
+            atomic: Atomic::No,
         },
         validated::LocalVariableOrigin::Temporary(origin.into()),
     )

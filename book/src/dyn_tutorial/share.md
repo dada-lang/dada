@@ -17,17 +17,17 @@ The `share` keyword is used to create a *shared* permission from a *unique* perm
 Consider this program:
 
 ```
-class Point(var x, var y)
+class Point(x, y)
 
 async fn main() {
-    var p = Point(x: 22, y: 44).share
-    var q = p
+    p = Point(x: 22, y: 44).share
+    q = p
     print("The point is ({p.x}, {p.y})").await
     print("The point is ({q.x}, {q.y})").await
 }
 ```
 
-The expression `Point(x: 22, y: 44).share` creates a `Point`, as we've seen before, but then immediately *shares* it. If we move the cursor to after the `var p = ...` line, we will see that the ownership from `p` is marked as `our`, and not `my`:
+The expression `Point(x: 22, y: 44).share` creates a `Point`, as we've seen before, but then immediately *shares* it. If we move the cursor to after the `p = ...` line, we will see that the ownership from `p` is marked as `our`, and not `my`:
 
 ```
 ┌───┐
@@ -39,7 +39,7 @@ The expression `Point(x: 22, y: 44).share` creates a `Point`, as we've seen befo
 └───┘                  └───────┘
 ```
 
-This signals that `p` considers itself to have joint ownership of the `Point`. It may seem strange to call `p` a joint owner when there are no other owners yet. The difference shows up on the next line, when we execute `var q = p`. As we saw before, this gives all the access from `p` into `q` -- but because `p` considers itself a joint owner, `p` can give its full access to `q` while retaining its own access. If we move the cursor to just after that line we will [see](https://asciiflow.com/#/share/eJyrVspLzE1VssorzcnRUcpJrEwtUrJSqo5RqohRsrK0MNOJUaoEsowsDYGsktSKEiAnRunRlD3IKCYmD0gqKChASDSAphiLxgKomtxKPGrR0bRdIK0B%2BZl5JQrEuAHdHUiaCvG5kbAbKqwUjIyIc0OllYKJCUIpintICjilWqVaANIL5SU%3D) that both of them have the `our` permission:
+This signals that `p` considers itself to have shared ownership of the `Point`. It may seem strange to call `p` a shared owner when there are no other owners yet. The difference shows up on the next line, when we execute `q = p`. As we saw before, this gives all the access from `p` into `q` -- but because `p` considers itself a shared owner, `p` can give its full access to `q` while retaining its own access. If we move the cursor to just after that line we will [see](https://asciiflow.com/#/share/eJyrVspLzE1VssorzcnRUcpJrEwtUrJSqo5RqohRsrK0MNOJUaoEsowsDYGsktSKEiAnRunRlD3IKCYmD0gqKChASDSAphiLxgKomtxKPGrR0bRdIK0B%2BZl5JQrEuAHdHUiaCvG5kbAbKqwUjIyIc0OllYKJCUIpintICjilWqVaANIL5SU%3D) that both of them have the `our` permission:
 
 ```
 ┌───┐
@@ -57,14 +57,14 @@ Objects with multiple owners are freed once *all* of their owners have gone out 
 
 ```
 async fn main() {
-    var p = Point(x: 22, y: 44).share
+    p = Point(x: 22, y: 44).share
     print("The point is ({p.x}, {p.y})").await
-    var q = p
+    q = p
     print("The point q is ({q.x}, {q.y})).await
 }
 ```
 
-Position the cursor right before `var q = p`. You will see:
+Position the cursor right before `q = p`. You will see:
 
 ```
 ┌───┐
@@ -76,7 +76,7 @@ Position the cursor right before `var q = p`. You will see:
 └───┘                  └───────┘
 ```
 
-Now move the cursor right *after* `var q = p`. You will see:
+Now move the cursor right *after* `q = p`. You will see:
 
 ```
 ┌───┐
@@ -111,27 +111,110 @@ If you like, step forward a few more steps in the debugger: you'll see that once
 Once something is shared, we can go on and share it even further:
 
 ```
-class Point(var x, var y)
+class Point(x, y)
 
 async fn main() {
-    var p = Point(x: 22, y: 44).share
-    var q = p.share
-    var r = q.share
-    var s = r.share
-    // ...and so on
+    p = Point(x: 22, y: 44).share
+    q = p.share
+    r = q.share
+    s = r.share
+    # ...and so on
 }
 ```
 
 Each time we share a jointly owned object like the `Point` here, we just add one more owner.
 
-Similarly, since all shared variables are equal, when a shared variable gives its permissions to another, that is equivalent to sharing again. In the following program, `p`, `q`, and `r` are all joint owners of the same `Point`:
+Similarly, since all shared variables are equal, when a shared variable gives its permissions to another, that is equivalent to sharing again. In the following program, `p`, `q`, and `r` are all shared owners of the same `Point`:
 
 ```
-class Point(var x, var y)
+class Point(x, y)
 
 async fn main() {
-    var p = Point(x: 22, y: 44).share
-    var q = p.give
-    var r = q        // equivalent to q.give
+    p = Point(x: 22, y: 44).share
+    q = p.give
+    r = q        # equivalent to q.give
 }
 ```
+
+## Sharing a variable
+
+We just saw that, if you have shared ownership, then when you assign from one place to another, you just get two references to the same object. So if we have this program, and we put the cursor after `q = p`...
+
+```
+class Point(x, y)
+
+async fn main() {
+    p = Point(22, 44).share
+    q = p
+    #    ▲
+    # ───┘
+}
+```
+
+...then we see:
+
+```
+┌───┐
+│   │                  ┌───────┐
+│ p ├─our─────────────►│ Point │
+│   │                  │ ───── │
+│ q ├─our─────────────►│ x: 22 │
+│   │                  │ y: 44 │
+└───┘                  └───────┘
+```
+
+But what if we move the `.share` to the next line?
+
+
+```
+class Point(x, y)
+
+async fn main() {
+    p = Point(22, 44)
+    q = p.share
+    #          ▲
+    # ─────────┘
+}
+```
+
+What happens now? The answer is that we still see the same thing:
+
+
+```
+┌───┐
+│   │                  ┌───────┐
+│ p ├─our─────────────►│ Point │
+│   │                  │ ───── │
+│ q ├─our─────────────►│ x: 22 │
+│   │                  │ y: 44 │
+└───┘                  └───────┘
+```
+
+If we move the cursor up one line, though:
+
+
+```
+class Point(x, y)
+
+async fn main() {
+    p = Point(22, 44)
+    #                ▲
+    # ───────────────┘
+    q = p.share
+}
+```
+
+we will see that `p` has full ownership of the `Point`, and `q` is not yet initialized:
+
+
+```
+┌───┐
+│   │                  ┌───────┐
+│ p ├─my──────────────►│ Point │
+│   │                  │ ───── │
+│ q │                  │ x: 22 │
+│   │                  │ y: 44 │
+└───┘                  └───────┘
+```
+
+So what's going on here? The answer is that when you apply `share`, you are *sharing* the object, which means that you *convert* your unique ownership (`my`) into shared ownership (`our`), and then you can have multiple references to that jointly owned copy.

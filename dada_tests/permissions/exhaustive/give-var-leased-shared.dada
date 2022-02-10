@@ -1,10 +1,10 @@
-class Pair(var a, var b)
+class Pair(a, b)
 
 async fn main() {
     # FIXME: Debatable when the underlying pair should be freed.
-    var p = Pair(22, 44).lease.share
-    var q = p.give
-    print(p).await #! OUTPUT shared Pair\(22, 44\)
-    print(q).await #! OUTPUT shared Pair\(22, 44\)
-    print(p).await #! OUTPUT shared Pair\(22, 44\)
+    p = Pair(22, 44).lease.share
+    q = p.give
+    print(p).await #! OUTPUT our leased Pair\(22, 44\)
+    print(q).await #! OUTPUT our leased Pair\(22, 44\)
+    print(p).await #! OUTPUT our leased Pair\(22, 44\)
 }

@@ -285,6 +285,10 @@ impl PermissionData {
         }
     }
 
+    pub fn joint_if_valid(&self) -> Option<Joint> {
+        self.valid().map(|v| v.joint)
+    }
+
     #[track_caller]
     pub fn assert_valid(&self) -> &ValidPermissionData {
         match self {

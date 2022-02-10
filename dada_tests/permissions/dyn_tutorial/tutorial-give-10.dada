@@ -1,11 +1,11 @@
-class Point(var x, var y)
+class Point(x, y)
 
 async fn main() {
-    var p = Point(x: 22, y: 44)
-    #?                         ^ HeapGraph
-    var q = p
-    #?       ^ HeapGraph
+    p = Point(x: 22, y: 44)
+    #?                     ^ HeapGraph
+    q = p
+    #?   ^ HeapGraph
 
-    var x = p.x
-    #!      ^ RUN ERROR your lease to this object was cancelled
+    x = p.x
+    #!  ^ RUN ERROR your lease to this object was cancelled
 }

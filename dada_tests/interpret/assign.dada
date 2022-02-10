@@ -1,5 +1,5 @@
 async fn main() {
-    var x = 2
+    x = 2
     print(x).await #! OUTPUT 2
     x := 4
     print(x).await #! OUTPUT 4

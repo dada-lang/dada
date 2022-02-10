@@ -1,0 +1,19 @@
+#! FIXME: This works because a temporary keeps the pair alive
+
+class Pair(a, b)
+
+async fn main() {
+    pair = Pair(Pair(22, 44).share, 66)
+
+    p = pair.a.lease
+
+    # Even though the object `x = Pair(22, 44)` was shared,
+    # and thus `p` is a shared lease, this write
+    # causes `x` to have no owner and get collected
+    # by the GC...
+    pair.a := Pair(23, 45)
+
+    # ...and therefore `p` is cancelled (the object
+    # it was leased from no longer exists).
+    print(p).await #! OUTPUT our leased Pair\(22, 44\)
+}

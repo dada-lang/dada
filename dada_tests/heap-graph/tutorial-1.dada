@@ -1,7 +1,7 @@
-class Point(var x, var y)
+class Point(x, y)
 
 async fn main() {
-    var p = Point(x: 22, y: 44)
+    p = Point(x: 22, y: 44)
     #?      ^ HeapGraph
     #?               ^ HeapGraph
     #?                        ^ HeapGraph

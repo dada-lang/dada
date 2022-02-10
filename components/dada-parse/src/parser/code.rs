@@ -18,7 +18,7 @@ use dada_ir::{
     kw::Keyword,
     origin_table::PushOriginIn,
     span::Span,
-    storage_mode::StorageMode,
+    storage_mode::Atomic,
     token::Token,
     token_tree::TokenTree,
     word::SpannedOptionalWord,
@@ -388,30 +388,30 @@ impl CodeParser<'_, '_> {
     fn parse_local_variable_decl(&mut self) -> Option<Expr> {
         // Look for `[mode] x = `. If we see that, we are committed to this
         // being a local variable declaration. Otherwise, we roll fully back.
-        let (mode_span, mode, name_span, name) = self.lookahead(|this| {
+        let (atomic_span, atomic, name_span, name) = self.lookahead(|this| {
             // A storage mode like `shared` or `var` *could* be a variable declaration,
             // but if we see `atomic` it might not be, so check for the `x = ` next.
-            let (mode_span, mode) = if let Some(pair) = this.parse_storage_mode() {
-                pair
+            let (atomic_span, atomic) = if let Some(span) = this.parse_atomic() {
+                (span, Atomic::Yes)
             } else {
-                (this.tokens.peek_span(), StorageMode::Shared)
+                (this.tokens.peek_span(), Atomic::No)
             };
 
             let (name_span, name) = this.eat(Identifier)?;
 
             this.eat_op(Op::Equal)?;
 
-            Some((mode_span, mode, name_span, name))
+            Some((atomic_span, atomic, name_span, name))
         })?;
 
         let local_variable_decl = self.add(
             LocalVariableDeclData {
-                mode: Some(mode),
+                atomic,
                 name,
                 ty: None, // FIXME-- should permit `ty: Ty = ...`
             },
             LocalVariableDeclSpan {
-                mode_span,
+                atomic_span,
                 name_span,
             },
         );
@@ -423,7 +423,7 @@ impl CodeParser<'_, '_> {
 
         Some(self.add(
             ExprData::Var(local_variable_decl, value),
-            self.span_consumed_since(mode_span),
+            self.span_consumed_since(atomic_span),
         ))
     }
 
@@ -527,7 +527,7 @@ impl TightenSpan for Span {
 impl TightenSpan for LocalVariableDeclSpan {
     fn tighten_span(self, parser: &Parser<'_>) -> Self {
         LocalVariableDeclSpan {
-            mode_span: self.mode_span.tighten_span(parser),
+            atomic_span: self.atomic_span.tighten_span(parser),
             name_span: self.name_span.tighten_span(parser),
         }
     }
