@@ -1,0 +1,8 @@
+fn main() {
+    a = 1 .1
+    #!  ^^^^ ERROR whitespace is not allowed in float literals
+    b = 1. 1
+    #!  ^^^^ ERROR whitespace is not allowed in float literals
+    c = 1 . 1
+    #!  ^^^^^ ERROR whitespace is not allowed in float literals
+}

@@ -101,6 +101,9 @@ pub enum ExprData {
     /// `22`, `22_222`, etc
     IntegerLiteral(Word),
 
+    /// `integer-part.fractional-part`
+    FloatLiteral(Word, Word),
+
     /// `"foo"` with no format strings
     ///
     /// FIXME: We should replace the FormatString token with a Concatenate
@@ -170,6 +173,11 @@ impl DebugWithDb<InIrDb<'_, Tree>> for ExprData {
             ExprData::IntegerLiteral(v) => {
                 f.debug_tuple("Integer").field(&v.debug(db.db())).finish()
             }
+            ExprData::FloatLiteral(v, d) => f
+                .debug_tuple("Float")
+                .field(&v.debug(db.db()))
+                .field(&d.debug(db.db()))
+                .finish(),
             ExprData::StringLiteral(v) => f.debug_tuple("String").field(&v.debug(db.db())).finish(),
             ExprData::Dot(lhs, rhs) => f
                 .debug_tuple("Dot")

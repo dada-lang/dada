@@ -1,0 +1,79 @@
+async fn main() {
+    if 1.0 + 1.0 == 2.0 {
+        print("1.0 + 1.0 == 2.0").await
+        #! OUTPUT .*
+    }
+
+    if 1.0 - 1.0 == 0.0 {
+        print("1.0 - 1.0 == 0.0").await
+        #! OUTPUT .*
+    }
+
+    if 10.0 * 10.0 == 100.0 {
+        print("10.0 * 10.0 == 100.0").await
+        #! OUTPUT .*
+    }
+
+    if 10.0 / 5.0 == 2.0 {
+        print("10.0 / 5.0 == 2.0").await
+        #! OUTPUT .*
+    }
+
+    # infinity
+    inf1 = 1.0 / 0.0
+    inf2 = 2.0 / 0.0
+    if inf1 == inf2 {
+        print("inf1 == inf2").await
+        #! OUTPUT .*
+    }
+
+    # negative infinity
+    negone = 0.0 - 1.0
+    negtwo = 0.0 - 2.0
+    neginf1 = negone / 0.0
+    neginf2 = negtwo / 0.0
+    if neginf1 == neginf2 {
+        print("neginf1 == neginf2").await
+        #! OUTPUT .*
+    }
+
+    # more negative infinity
+    negneginf = 0.0 - neginf1
+    if inf1 == negneginf {
+        print("inf1 == negneginf").await
+        #! OUTPUT .*
+    }
+
+    # nan != nan
+    nan1 = 0.0 / 0.0
+    nan2 = 0.0 / 0.0
+    if nan1 == nan2 {
+        print("error").await
+    }
+
+    if 1.0 < 2.0 {
+        print("1.0 < 2.0").await
+        #! OUTPUT .*
+    }
+
+    if 2.0 < 1.0 {
+        print("error").await
+    }
+
+    if 1.0 < 1.0 {
+        print("error").await
+    }
+
+    if 1.0 > 2.0 {
+        print("error").await
+    }
+
+    if 2.0 > 1.0 {
+        print("2.0 > 1.0").await
+        #! OUTPUT .*
+    }
+
+    if 1.0 > 1.0 {
+        print("error").await
+    }
+}
