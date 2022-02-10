@@ -1,0 +1,13 @@
+async fn main() {
+    a = 1.2
+    b = 1_1.2_2
+    # strange, but Rust also allows it
+    c = 1_1_1_.2_2_2_
+
+    print(a).await
+    #! OUTPUT 1.2
+    print(b).await
+    #! OUTPUT 11.22
+    print(c).await
+    #! OUTPUT 111.222
+}
