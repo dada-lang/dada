@@ -160,6 +160,17 @@ pub struct LocalVariableData {
     /// Name given to this variable by the user.
     /// If it is None, then this is a temporary
     /// introduced by the compiler.
+    ///
+    /// Temporaries in validation are introduced
+    /// specifically for operations like `foo().share`
+    /// that operate on a *place* semantically but
+    /// which can accept an arbitrary expression
+    /// syntactically.
+    ///
+    /// It's important that we not introduce arbitrary
+    /// temporaries because validation temporaries are
+    /// considered roots for the GC in the official
+    /// semantics.
     pub name: Option<Word>,
     pub atomic: Atomic,
 }
