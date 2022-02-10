@@ -186,6 +186,11 @@ impl<'me> Stepper<'me> {
                 let value = self.eval_expr(table, *expr)?;
                 self.assign_place(table, *place, value)?;
             }
+            bir::StatementData::Clear(lv) => {
+                let permission = self.machine.expired_permission(None);
+                let object = self.machine.unit_object();
+                *self.machine.local_mut(*lv) = Value { object, permission };
+            }
             bir::StatementData::BreakpointStart(filename, index) => {
                 let kernel = self.kernel.take().unwrap();
                 let result = kernel.breakpoint_start(self.db, *filename, *index, &mut || {

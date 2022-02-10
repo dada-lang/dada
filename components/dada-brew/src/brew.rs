@@ -69,6 +69,7 @@ impl Cursor {
     ) {
         tracing::debug!("expr = {:?}", expr.data(brewery.validated_tables()));
         let origin = brewery.origin(expr);
+        let temporary_scope = self.push_temporary_scope(brewery);
         match expr.data(brewery.validated_tables()) {
             validated::ExprData::Break {
                 from_expr,
@@ -131,6 +132,7 @@ impl Cursor {
                 let _ = self.brew_expr_to_temporary(brewery, expr);
             }
         }
+        self.pop_temporary_scope(brewery, temporary_scope);
     }
 
     pub(crate) fn brew_expr_to_temporary(
@@ -156,6 +158,7 @@ impl Cursor {
         expr: validated::Expr,
     ) {
         let origin = brewery.origin(expr);
+        let temporary_scope = self.push_temporary_scope(brewery);
         match expr.data(brewery.validated_tables()) {
             validated::ExprData::Await(future) => {
                 self.push_breakpoint_start(brewery, origin);
@@ -389,6 +392,7 @@ impl Cursor {
                 self.brew_expr_for_side_effects(brewery, expr);
             }
         };
+        self.pop_temporary_scope(brewery, temporary_scope);
     }
 
     /// Brews a place to a bir place, returning a vector of the
@@ -437,13 +441,15 @@ impl Cursor {
 }
 
 fn add_temporary(brewery: &mut Brewery, origin: ExprOrigin) -> bir::LocalVariable {
-    brewery.add(
+    let temporary = brewery.add(
         bir::LocalVariableData {
             name: None,
             atomic: Atomic::No,
         },
         validated::LocalVariableOrigin::Temporary(origin.into()),
-    )
+    );
+    brewery.push_temporary(temporary);
+    temporary
 }
 
 fn add_temporary_place(brewery: &mut Brewery, origin: ExprOrigin) -> bir::Place {

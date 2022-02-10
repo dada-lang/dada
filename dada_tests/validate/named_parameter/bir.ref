@@ -82,6 +82,30 @@
         BasicBlock(1): BasicBlockData(
             [
                 (
+                    Clear(
+                        temp{16},
+                    ),
+                    Expr(2),
+                ),
+                (
+                    Clear(
+                        temp{15},
+                    ),
+                    Expr(1),
+                ),
+                (
+                    Clear(
+                        temp{14},
+                    ),
+                    Expr(0),
+                ),
+                (
+                    Clear(
+                        temp{13},
+                    ),
+                    Expr(3),
+                ),
+                (
                     Assign(
                         temp{3},
                         foo.give,
@@ -144,6 +168,30 @@
         ),
         BasicBlock(2): BasicBlockData(
             [
+                (
+                    Clear(
+                        temp{20},
+                    ),
+                    Expr(6),
+                ),
+                (
+                    Clear(
+                        temp{19},
+                    ),
+                    Expr(5),
+                ),
+                (
+                    Clear(
+                        temp{18},
+                    ),
+                    Expr(4),
+                ),
+                (
+                    Clear(
+                        temp{17},
+                    ),
+                    Expr(7),
+                ),
                 (
                     Assign(
                         temp{6},
@@ -208,6 +256,30 @@
         BasicBlock(3): BasicBlockData(
             [
                 (
+                    Clear(
+                        temp{24},
+                    ),
+                    Expr(10),
+                ),
+                (
+                    Clear(
+                        temp{23},
+                    ),
+                    Expr(9),
+                ),
+                (
+                    Clear(
+                        temp{22},
+                    ),
+                    Expr(8),
+                ),
+                (
+                    Clear(
+                        temp{21},
+                    ),
+                    Expr(11),
+                ),
+                (
                     Assign(
                         temp{9},
                         foo.give,
@@ -271,7 +343,26 @@
             ),
         ),
         BasicBlock(4): BasicBlockData(
-            [],
+            [
+                (
+                    Clear(
+                        temp{27},
+                    ),
+                    Expr(14),
+                ),
+                (
+                    Clear(
+                        temp{26},
+                    ),
+                    Expr(13),
+                ),
+                (
+                    Clear(
+                        temp{25},
+                    ),
+                    Expr(12),
+                ),
+            ],
             Return(
                 temp{12},
             ),

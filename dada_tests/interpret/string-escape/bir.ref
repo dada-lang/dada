@@ -47,7 +47,20 @@
             ),
         ),
         BasicBlock(1): BasicBlockData(
-            [],
+            [
+                (
+                    Clear(
+                        temp{24},
+                    ),
+                    Expr(1),
+                ),
+                (
+                    Clear(
+                        temp{23},
+                    ),
+                    Expr(0),
+                ),
+            ],
             Assign(
                 temp{21},
                 Await(
@@ -58,6 +71,18 @@
         ),
         BasicBlock(2): BasicBlockData(
             [
+                (
+                    Clear(
+                        temp{22},
+                    ),
+                    Expr(2),
+                ),
+                (
+                    Clear(
+                        temp{21},
+                    ),
+                    Expr(3),
+                ),
                 (
                     Assign(
                         temp{2},
@@ -102,7 +127,20 @@
             ),
         ),
         BasicBlock(3): BasicBlockData(
-            [],
+            [
+                (
+                    Clear(
+                        temp{28},
+                    ),
+                    Expr(5),
+                ),
+                (
+                    Clear(
+                        temp{27},
+                    ),
+                    Expr(4),
+                ),
+            ],
             Assign(
                 temp{25},
                 Await(
@@ -113,6 +151,18 @@
         ),
         BasicBlock(4): BasicBlockData(
             [
+                (
+                    Clear(
+                        temp{26},
+                    ),
+                    Expr(6),
+                ),
+                (
+                    Clear(
+                        temp{25},
+                    ),
+                    Expr(7),
+                ),
                 (
                     Assign(
                         temp{4},
@@ -157,7 +207,20 @@
             ),
         ),
         BasicBlock(5): BasicBlockData(
-            [],
+            [
+                (
+                    Clear(
+                        temp{32},
+                    ),
+                    Expr(9),
+                ),
+                (
+                    Clear(
+                        temp{31},
+                    ),
+                    Expr(8),
+                ),
+            ],
             Assign(
                 temp{29},
                 Await(
@@ -168,6 +231,18 @@
         ),
         BasicBlock(6): BasicBlockData(
             [
+                (
+                    Clear(
+                        temp{30},
+                    ),
+                    Expr(10),
+                ),
+                (
+                    Clear(
+                        temp{29},
+                    ),
+                    Expr(11),
+                ),
                 (
                     Assign(
                         temp{6},
@@ -212,7 +287,20 @@
             ),
         ),
         BasicBlock(7): BasicBlockData(
-            [],
+            [
+                (
+                    Clear(
+                        temp{36},
+                    ),
+                    Expr(13),
+                ),
+                (
+                    Clear(
+                        temp{35},
+                    ),
+                    Expr(12),
+                ),
+            ],
             Assign(
                 temp{33},
                 Await(
@@ -223,6 +311,18 @@
         ),
         BasicBlock(8): BasicBlockData(
             [
+                (
+                    Clear(
+                        temp{34},
+                    ),
+                    Expr(14),
+                ),
+                (
+                    Clear(
+                        temp{33},
+                    ),
+                    Expr(15),
+                ),
                 (
                     Assign(
                         temp{8},
@@ -267,7 +367,20 @@
             ),
         ),
         BasicBlock(9): BasicBlockData(
-            [],
+            [
+                (
+                    Clear(
+                        temp{40},
+                    ),
+                    Expr(17),
+                ),
+                (
+                    Clear(
+                        temp{39},
+                    ),
+                    Expr(16),
+                ),
+            ],
             Assign(
                 temp{37},
                 Await(
@@ -278,6 +391,18 @@
         ),
         BasicBlock(10): BasicBlockData(
             [
+                (
+                    Clear(
+                        temp{38},
+                    ),
+                    Expr(18),
+                ),
+                (
+                    Clear(
+                        temp{37},
+                    ),
+                    Expr(19),
+                ),
                 (
                     Assign(
                         temp{10},
@@ -322,7 +447,20 @@
             ),
         ),
         BasicBlock(11): BasicBlockData(
-            [],
+            [
+                (
+                    Clear(
+                        temp{44},
+                    ),
+                    Expr(21),
+                ),
+                (
+                    Clear(
+                        temp{43},
+                    ),
+                    Expr(20),
+                ),
+            ],
             Assign(
                 temp{41},
                 Await(
@@ -333,6 +471,18 @@
         ),
         BasicBlock(12): BasicBlockData(
             [
+                (
+                    Clear(
+                        temp{42},
+                    ),
+                    Expr(22),
+                ),
+                (
+                    Clear(
+                        temp{41},
+                    ),
+                    Expr(23),
+                ),
                 (
                     Assign(
                         temp{12},
@@ -377,7 +527,20 @@
             ),
         ),
         BasicBlock(13): BasicBlockData(
-            [],
+            [
+                (
+                    Clear(
+                        temp{48},
+                    ),
+                    Expr(25),
+                ),
+                (
+                    Clear(
+                        temp{47},
+                    ),
+                    Expr(24),
+                ),
+            ],
             Assign(
                 temp{45},
                 Await(
@@ -388,6 +551,18 @@
         ),
         BasicBlock(14): BasicBlockData(
             [
+                (
+                    Clear(
+                        temp{46},
+                    ),
+                    Expr(26),
+                ),
+                (
+                    Clear(
+                        temp{45},
+                    ),
+                    Expr(27),
+                ),
                 (
                     Assign(
                         temp{14},
@@ -432,7 +607,20 @@
             ),
         ),
         BasicBlock(15): BasicBlockData(
-            [],
+            [
+                (
+                    Clear(
+                        temp{52},
+                    ),
+                    Expr(29),
+                ),
+                (
+                    Clear(
+                        temp{51},
+                    ),
+                    Expr(28),
+                ),
+            ],
             Assign(
                 temp{49},
                 Await(
@@ -443,6 +631,18 @@
         ),
         BasicBlock(16): BasicBlockData(
             [
+                (
+                    Clear(
+                        temp{50},
+                    ),
+                    Expr(30),
+                ),
+                (
+                    Clear(
+                        temp{49},
+                    ),
+                    Expr(31),
+                ),
                 (
                     Assign(
                         temp{16},
@@ -487,7 +687,20 @@
             ),
         ),
         BasicBlock(17): BasicBlockData(
-            [],
+            [
+                (
+                    Clear(
+                        temp{56},
+                    ),
+                    Expr(33),
+                ),
+                (
+                    Clear(
+                        temp{55},
+                    ),
+                    Expr(32),
+                ),
+            ],
             Assign(
                 temp{53},
                 Await(
@@ -498,6 +711,18 @@
         ),
         BasicBlock(18): BasicBlockData(
             [
+                (
+                    Clear(
+                        temp{54},
+                    ),
+                    Expr(34),
+                ),
+                (
+                    Clear(
+                        temp{53},
+                    ),
+                    Expr(35),
+                ),
                 (
                     Assign(
                         temp{18},
@@ -542,7 +767,20 @@
             ),
         ),
         BasicBlock(19): BasicBlockData(
-            [],
+            [
+                (
+                    Clear(
+                        temp{59},
+                    ),
+                    Expr(37),
+                ),
+                (
+                    Clear(
+                        temp{58},
+                    ),
+                    Expr(36),
+                ),
+            ],
             Assign(
                 temp{20},
                 Await(
@@ -552,7 +790,14 @@
             ),
         ),
         BasicBlock(20): BasicBlockData(
-            [],
+            [
+                (
+                    Clear(
+                        temp{57},
+                    ),
+                    Expr(38),
+                ),
+            ],
             Return(
                 temp{20},
             ),

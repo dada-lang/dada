@@ -24,6 +24,18 @@
                     ),
                     Expr(2),
                 ),
+                (
+                    Clear(
+                        temp{2},
+                    ),
+                    Expr(1),
+                ),
+                (
+                    Clear(
+                        temp{1},
+                    ),
+                    Expr(0),
+                ),
             ],
             Return(
                 temp{0},
