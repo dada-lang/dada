@@ -161,6 +161,9 @@ pub enum ExprData {
     /// `a := b`
     Assign(Expr, Expr),
 
+    /// return
+    Return(Expr),
+
     /// parse or other error
     Error,
 }
@@ -232,6 +235,7 @@ impl DebugWithDb<InIrDb<'_, Tree>> for ExprData {
                 .field(&r.debug(db))
                 .finish(),
             ExprData::Error => f.debug_tuple("Error").finish(),
+            ExprData::Return(e) => f.debug_tuple("Return").field(&e.debug(db)).finish(),
         }
     }
 }

@@ -477,6 +477,10 @@ impl<'me> Validator<'me> {
                     exprs.iter().map(|expr| self.validate_expr(*expr)).collect();
                 self.add(validated::ExprData::Seq(validated_exprs), expr)
             }
+            syntax::ExprData::Return(return_expr) => {
+                let validated_return_expr = self.validate_expr(*return_expr);
+                self.add(validated::ExprData::Return(validated_return_expr), expr)
+            }
         }
     }
 

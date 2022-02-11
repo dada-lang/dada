@@ -312,6 +312,15 @@ impl CodeParser<'_, '_> {
         } else if let Some((id_span, id)) = self.eat(Identifier) {
             tracing::debug!("identifier");
             Some(self.add(ExprData::Id(id), id_span))
+        } else if let Some((return_span, _)) = self.eat(Keyword::Return) {
+            if let Some(expr) = self.parse_expr() {
+                let span = self.span_consumed_since(return_span);
+                return Some(self.add(ExprData::Return(expr), span));
+            }
+            self.parser
+                .error(return_span, "expected an expr after `return`")
+                .emit(self.db);
+            Some(self.add(ExprData::Error, return_span))
         } else if let Some((word_span, word)) = self.eat(Number) {
             let whitespace_before_dot = self.tokens.skipped_any();
             match self.eat_op(Op::Dot) {
