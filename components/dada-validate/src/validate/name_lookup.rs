@@ -77,6 +77,13 @@ impl<'me> Scope<'me> {
             .insert(name, Definition::LocalVariable(local_variable))
     }
 
+    /// Tracks a temporary that is created; they don't affect name resolution, but they get
+    /// dropped at the same time as local variables in the surrounding scope.
+    #[tracing::instrument(level = "Debug", skip(self))]
+    pub(crate) fn insert_temporary(&mut self, local_variable: validated::LocalVariable) {
+        self.inserted.push(local_variable);
+    }
+
     /// Lookup the given name in the scope.
     pub(crate) fn lookup(&self, name: Word) -> Option<Definition> {
         self.names.get(&name).copied()

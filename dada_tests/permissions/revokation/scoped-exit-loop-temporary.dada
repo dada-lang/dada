@@ -12,7 +12,5 @@ async fn main() {
     # ...so when we exit the loop, it gets dropped,
     # and hence our lease on it (stored in `p`) is
     # cancelled.
-    #
-    #! FIXME: validation temporaries are not scoped
-    print(p).await #! OUTPUT leased Pair\(0, 44\)
+    print(p).await #! RUN ERROR your lease to this object was cancelled
 }

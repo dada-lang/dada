@@ -222,6 +222,30 @@
                     Expr(17),
                 ),
                 (
+                    Clear(
+                        temp{4},
+                    ),
+                    Expr(17),
+                ),
+                (
+                    Clear(
+                        temp{5},
+                    ),
+                    Expr(17),
+                ),
+                (
+                    Clear(
+                        temp{6},
+                    ),
+                    Expr(17),
+                ),
+                (
+                    Clear(
+                        temp{7},
+                    ),
+                    Expr(17),
+                ),
+                (
                     Assign(
                         temp{20},
                         n{2}.give,

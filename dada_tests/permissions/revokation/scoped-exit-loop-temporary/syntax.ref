@@ -4,7 +4,7 @@
             Some(
                 Tokens(dada_tests/permissions/revokation/scoped-exit-loop-temporary.dada:3:15:3:15),
             ),
-            Tokens(dada_tests/permissions/revokation/scoped-exit-loop-temporary.dada:3:18:18:1),
+            Tokens(dada_tests/permissions/revokation/scoped-exit-loop-temporary.dada:3:18:16:1),
         ),
         data: syntax::Tree {
             root_expr: (

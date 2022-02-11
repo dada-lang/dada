@@ -587,6 +587,7 @@ impl<'me> Validator<'me> {
             },
             validated::LocalVariableOrigin::Temporary(expr),
         );
+        self.scope.insert_temporary(local_variable);
 
         let validated_place = self.add(
             validated::PlaceData::LocalVariable(local_variable),
@@ -598,6 +599,7 @@ impl<'me> Validator<'me> {
             validated::ExprData::Assign(validated_place, validated_expr),
             expr.synthesized(),
         );
+
         (assign_expr, validated_place)
     }
 
