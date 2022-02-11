@@ -135,6 +135,18 @@
                     ),
                     Expr(3),
                 ),
+                (
+                    Clear(
+                        temp{0},
+                    ),
+                    Expr(5),
+                ),
+                (
+                    Clear(
+                        temp{1},
+                    ),
+                    Expr(5),
+                ),
             ],
             Goto(
                 BasicBlock(3),
@@ -257,6 +269,18 @@
                         temp{20},
                     ),
                     Expr(10),
+                ),
+                (
+                    Clear(
+                        temp{2},
+                    ),
+                    Expr(12),
+                ),
+                (
+                    Clear(
+                        temp{3},
+                    ),
+                    Expr(12),
                 ),
             ],
             Goto(
@@ -412,6 +436,18 @@
                     ),
                     Expr(17),
                 ),
+                (
+                    Clear(
+                        temp{4},
+                    ),
+                    Expr(19),
+                ),
+                (
+                    Clear(
+                        temp{5},
+                    ),
+                    Expr(19),
+                ),
             ],
             Goto(
                 BasicBlock(13),
@@ -447,6 +483,18 @@
                         temp{28},
                     ),
                     Expr(22),
+                ),
+                (
+                    Clear(
+                        temp{6},
+                    ),
+                    Expr(24),
+                ),
+                (
+                    Clear(
+                        temp{7},
+                    ),
+                    Expr(24),
                 ),
             ],
             Goto(
@@ -587,6 +635,18 @@
                     ),
                     Expr(29),
                 ),
+                (
+                    Clear(
+                        temp{8},
+                    ),
+                    Expr(31),
+                ),
+                (
+                    Clear(
+                        temp{9},
+                    ),
+                    Expr(31),
+                ),
             ],
             Goto(
                 BasicBlock(20),
@@ -622,6 +682,18 @@
                         temp{35},
                     ),
                     Expr(34),
+                ),
+                (
+                    Clear(
+                        temp{10},
+                    ),
+                    Expr(36),
+                ),
+                (
+                    Clear(
+                        temp{11},
+                    ),
+                    Expr(36),
                 ),
             ],
             Goto(

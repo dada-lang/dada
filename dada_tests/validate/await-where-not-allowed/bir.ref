@@ -167,6 +167,18 @@
                     ),
                     Expr(2),
                 ),
+                (
+                    Clear(
+                        temp{0},
+                    ),
+                    Expr(4),
+                ),
+                (
+                    Clear(
+                        temp{1},
+                    ),
+                    Expr(4),
+                ),
             ],
             EndAtomic(
                 BasicBlock(4),
@@ -262,6 +274,18 @@
                         temp{3},
                     ),
                     Expr(2),
+                ),
+                (
+                    Clear(
+                        temp{0},
+                    ),
+                    Expr(4),
+                ),
+                (
+                    Clear(
+                        temp{1},
+                    ),
+                    Expr(4),
                 ),
             ],
             EndAtomic(

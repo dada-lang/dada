@@ -186,6 +186,18 @@
                     ),
                     Expr(9),
                 ),
+                (
+                    Clear(
+                        temp{2},
+                    ),
+                    Expr(11),
+                ),
+                (
+                    Clear(
+                        temp{3},
+                    ),
+                    Expr(11),
+                ),
             ],
             Goto(
                 BasicBlock(3),
