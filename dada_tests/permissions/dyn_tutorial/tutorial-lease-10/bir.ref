@@ -69,6 +69,24 @@
         BasicBlock(1): BasicBlockData(
             [
                 (
+                    Clear(
+                        temp{12},
+                    ),
+                    Expr(2),
+                ),
+                (
+                    Clear(
+                        temp{11},
+                    ),
+                    Expr(1),
+                ),
+                (
+                    Clear(
+                        temp{10},
+                    ),
+                    Expr(0),
+                ),
+                (
                     Assign(
                         p{0},
                         temp{1}.give,
@@ -107,6 +125,18 @@
                     Assign(
                         q{5}.x,
                         temp{13} + temp{14},
+                    ),
+                    Expr(11),
+                ),
+                (
+                    Clear(
+                        temp{14},
+                    ),
+                    Expr(10),
+                ),
+                (
+                    Clear(
+                        temp{13},
                     ),
                     Expr(11),
                 ),
@@ -154,7 +184,20 @@
             ),
         ),
         BasicBlock(2): BasicBlockData(
-            [],
+            [
+                (
+                    Clear(
+                        temp{17},
+                    ),
+                    Expr(14),
+                ),
+                (
+                    Clear(
+                        temp{16},
+                    ),
+                    Expr(12),
+                ),
+            ],
             Assign(
                 temp{9},
                 Await(
@@ -164,7 +207,14 @@
             ),
         ),
         BasicBlock(3): BasicBlockData(
-            [],
+            [
+                (
+                    Clear(
+                        temp{15},
+                    ),
+                    Expr(15),
+                ),
+            ],
             Return(
                 temp{9},
             ),

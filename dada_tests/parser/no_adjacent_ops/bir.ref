@@ -25,6 +25,18 @@
                     Expr(2),
                 ),
                 (
+                    Clear(
+                        temp{6},
+                    ),
+                    Expr(1),
+                ),
+                (
+                    Clear(
+                        temp{5},
+                    ),
+                    Expr(0),
+                ),
+                (
                     Assign(
                         x{0},
                         temp{1}.give,
@@ -51,6 +63,18 @@
                         temp{8} == temp{9},
                     ),
                     Expr(6),
+                ),
+                (
+                    Clear(
+                        temp{9},
+                    ),
+                    Expr(5),
+                ),
+                (
+                    Clear(
+                        temp{8},
+                    ),
+                    Expr(4),
                 ),
             ],
             If(
@@ -119,13 +143,33 @@
             ),
         ),
         BasicBlock(3): BasicBlockData(
-            [],
+            [
+                (
+                    Clear(
+                        temp{7},
+                    ),
+                    Expr(6),
+                ),
+            ],
             Return(
                 temp{4},
             ),
         ),
         BasicBlock(4): BasicBlockData(
-            [],
+            [
+                (
+                    Clear(
+                        temp{12},
+                    ),
+                    Expr(8),
+                ),
+                (
+                    Clear(
+                        temp{11},
+                    ),
+                    Expr(7),
+                ),
+            ],
             Assign(
                 temp{4},
                 Await(
@@ -135,7 +179,26 @@
             ),
         ),
         BasicBlock(5): BasicBlockData(
-            [],
+            [
+                (
+                    Clear(
+                        temp{10},
+                    ),
+                    Expr(9),
+                ),
+                (
+                    Clear(
+                        temp{2},
+                    ),
+                    Expr(11),
+                ),
+                (
+                    Clear(
+                        temp{3},
+                    ),
+                    Expr(11),
+                ),
+            ],
             Goto(
                 BasicBlock(3),
             ),

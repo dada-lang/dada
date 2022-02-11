@@ -38,6 +38,18 @@
                     ),
                     Expr(4),
                 ),
+                (
+                    Clear(
+                        temp{4},
+                    ),
+                    Expr(3),
+                ),
+                (
+                    Clear(
+                        temp{3},
+                    ),
+                    Expr(2),
+                ),
             ],
             Return(
                 temp{2},

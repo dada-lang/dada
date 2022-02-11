@@ -51,6 +51,18 @@
         BasicBlock(1): BasicBlockData(
             [
                 (
+                    Clear(
+                        temp{6},
+                    ),
+                    Expr(1),
+                ),
+                (
+                    Clear(
+                        temp{5},
+                    ),
+                    Expr(0),
+                ),
+                (
                     Assign(
                         x{0},
                         temp{1}.give,

@@ -69,6 +69,7 @@ impl Cursor {
     ) {
         tracing::debug!("expr = {:?}", expr.data(brewery.validated_tables()));
         let origin = brewery.origin(expr);
+        let temporary_scope = self.push_temporary_scope(brewery);
         match expr.data(brewery.validated_tables()) {
             validated::ExprData::Break {
                 from_expr,
@@ -113,6 +114,13 @@ impl Cursor {
                 self.push_breakpoint_ends(brewery, None, origins, origin)
             }
 
+            validated::ExprData::Declare(vars, subexpr) => {
+                self.push_breakpoint_start(brewery, origin);
+                self.brew_expr_for_side_effects(brewery, *subexpr);
+                self.pop_declared_variables(brewery, vars, origin);
+                self.push_breakpoint_end(brewery, None, origin);
+            }
+
             validated::ExprData::Await(_)
             | validated::ExprData::If(_, _, _)
             | validated::ExprData::Loop(_)
@@ -131,6 +139,7 @@ impl Cursor {
                 let _ = self.brew_expr_to_temporary(brewery, expr);
             }
         }
+        self.pop_temporary_scope(brewery, temporary_scope);
     }
 
     pub(crate) fn brew_expr_to_temporary(
@@ -156,6 +165,7 @@ impl Cursor {
         expr: validated::Expr,
     ) {
         let origin = brewery.origin(expr);
+        let temporary_scope = self.push_temporary_scope(brewery);
         match expr.data(brewery.validated_tables()) {
             validated::ExprData::Await(future) => {
                 self.push_breakpoint_start(brewery, origin);
@@ -207,7 +217,7 @@ impl Cursor {
                 );
                 self.push_breakpoint_end(brewery, Some(target), origin); // "cusp" of a loop is after it breaks
 
-                let mut body_brewery = brewery.subbrewery();
+                let body_brewery = &mut brewery.subbrewery();
                 body_brewery.push_loop_context(
                     expr,
                     LoopContext {
@@ -217,9 +227,9 @@ impl Cursor {
                     },
                 );
                 let mut body_cursor = self.with_end_block(body_block);
-                body_cursor.brew_expr_for_side_effects(brewery, *body);
+                body_cursor.brew_expr_for_side_effects(body_brewery, *body);
                 body_cursor.terminate_and_diverge(
-                    brewery,
+                    body_brewery,
                     bir::TerminatorData::Goto(body_block),
                     origin,
                 );
@@ -382,6 +392,13 @@ impl Cursor {
                 self.push_breakpoint_end(brewery, Some(target), origin);
             }
 
+            validated::ExprData::Declare(vars, subexpr) => {
+                self.push_breakpoint_start(brewery, origin);
+                self.brew_expr_and_assign_to(brewery, target, *subexpr);
+                self.pop_declared_variables(brewery, vars, origin);
+                self.push_breakpoint_end(brewery, None, origin);
+            }
+
             validated::ExprData::Error
             | validated::ExprData::Return(_)
             | validated::ExprData::Continue(_)
@@ -389,6 +406,7 @@ impl Cursor {
                 self.brew_expr_for_side_effects(brewery, expr);
             }
         };
+        self.pop_temporary_scope(brewery, temporary_scope);
     }
 
     /// Brews a place to a bir place, returning a vector of the
@@ -437,13 +455,15 @@ impl Cursor {
 }
 
 fn add_temporary(brewery: &mut Brewery, origin: ExprOrigin) -> bir::LocalVariable {
-    brewery.add(
+    let temporary = brewery.add(
         bir::LocalVariableData {
             name: None,
             atomic: Atomic::No,
         },
         validated::LocalVariableOrigin::Temporary(origin.into()),
-    )
+    );
+    brewery.push_temporary(temporary);
+    temporary
 }
 
 fn add_temporary_place(brewery: &mut Brewery, origin: ExprOrigin) -> bir::Place {

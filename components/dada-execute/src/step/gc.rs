@@ -29,7 +29,30 @@ impl Stepper<'_> {
 
 #[derive(Debug, Default)]
 struct Marks {
+    /// Live objects: objects that had a live owning permission.
     live_objects: Set<Object>,
+
+    /// Live permissions: permisions that appeared in a live location
+    /// (e.g., a variable on some active stack frame).
+    ///
+    /// If a permission is live, then so are its tenants.
+    ///
+    /// Note that a permission may be live, but its *lessor* may not!
+    /// In that case, the lessor will be canceled, and thus gc will
+    /// in turn revoke the (live) permission.
+    ///
+    /// Example:
+    ///
+    /// ```notrust
+    /// fn foo() -> {
+    ///     p = Object()
+    ///     q = p.lease
+    ///     q
+    /// }
+    /// ```
+    ///
+    /// This function creates an Object and returns a leased copy,
+    /// In the callee, the leased value will be live, but not the owner.
     live_permissions: Set<Permission>,
 }
 
@@ -67,30 +90,36 @@ impl<'me> Marker<'me> {
     }
 
     /// Marks a value that is reachable from something live (i.e., a root value).
+    #[tracing::instrument(level = "Debug", skip(self))]
     fn mark_value(&mut self, value: Value) {
         // The *permission* lives in a live spot, therefore it is live.
-        // This also keeps "expired" permissions live.
-        self.marks.live_permissions.insert(value.permission);
+        // NB. This also keeps "expired" permissions live.
+        self.mark_permission(value.permission);
 
+        // If this is an *owned* permission, then it also keeps the object alive.
         let PermissionData::Valid(valid) = &self.machine[value.permission] else {
-            tracing::debug!("marking expired permission but skipping object: {:?}", value);
+            tracing::debug!("permission is expired");
             return;
         };
 
         if let Leased::Yes = valid.leased {
             // a lease alone isn't enough to keep data alive
-            tracing::trace!("skipping leased value: {:?} valid={:?}", value, valid);
+            tracing::debug!("permission is leased");
             return;
         }
 
-        if !self.marks.live_objects.insert(value.object) {
+        self.mark_object(value.object);
+    }
+
+    #[tracing::instrument(level = "Debug", skip(self))]
+    fn mark_object(&mut self, object: Object) {
+        if !self.marks.live_objects.insert(object) {
             // already visited
-            tracing::trace!("skipping already visited object: {:?}", value);
+            tracing::trace!("already visited");
             return;
         }
 
-        tracing::debug!("marking value: {:?}", value);
-        let object_data: &ObjectData = &self.machine[value.object];
+        let object_data: &ObjectData = &self.machine[object];
         match object_data {
             ObjectData::Instance(i) => self.mark_values(&i.fields),
             ObjectData::ThunkFn(f) => self.mark_values(&f.arguments),
@@ -108,6 +137,23 @@ impl<'me> Marker<'me> {
             | ObjectData::Unit(_) => {
                 // no reachable data
             }
+        }
+    }
+
+    #[tracing::instrument(level = "Debug", skip(self))]
+    fn mark_permission(&mut self, permission: Permission) {
+        if !self.marks.live_permissions.insert(permission) {
+            tracing::trace!("already visited");
+            return;
+        }
+
+        let PermissionData::Valid(valid) = &self.machine[permission] else {
+            // Not valid, no tenants
+            return;
+        };
+
+        for tenant in &valid.tenants {
+            self.mark_permission(*tenant);
         }
     }
 }

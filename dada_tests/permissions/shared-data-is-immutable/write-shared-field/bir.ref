@@ -65,6 +65,24 @@
         BasicBlock(1): BasicBlockData(
             [
                 (
+                    Clear(
+                        temp{9},
+                    ),
+                    Expr(2),
+                ),
+                (
+                    Clear(
+                        temp{8},
+                    ),
+                    Expr(1),
+                ),
+                (
+                    Clear(
+                        temp{7},
+                    ),
+                    Expr(0),
+                ),
+                (
                     Assign(
                         temp{1},
                         temp{2}.share,

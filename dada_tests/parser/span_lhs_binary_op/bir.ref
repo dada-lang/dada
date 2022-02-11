@@ -39,6 +39,18 @@
                     Expr(4),
                 ),
                 (
+                    Clear(
+                        temp{7},
+                    ),
+                    Expr(3),
+                ),
+                (
+                    Clear(
+                        temp{6},
+                    ),
+                    Expr(2),
+                ),
+                (
                     Assign(
                         temp{8},
                         66,
@@ -51,6 +63,18 @@
                         temp{5} + temp{8},
                     ),
                     Expr(6),
+                ),
+                (
+                    Clear(
+                        temp{8},
+                    ),
+                    Expr(5),
+                ),
+                (
+                    Clear(
+                        temp{5},
+                    ),
+                    Expr(4),
                 ),
                 (
                     Assign(

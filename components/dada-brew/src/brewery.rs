@@ -22,6 +22,21 @@ pub struct Brewery<'me> {
     loop_contexts: Map<validated::Expr, LoopContext>,
     variables: Rc<Map<validated::LocalVariable, bir::LocalVariable>>,
     dummy_terminator: bir::Terminator,
+
+    /// The "temporary stack". This is used to track temporaries that
+    /// were created during the brewing process and clear them out
+    /// so that we don't artifically extend the lifetime of objects
+    /// during interpretation.
+    ///
+    /// The basic strategy is as follows:
+    ///
+    /// * Upon starting to brew an expression, we record the length of this
+    ///   stack.
+    /// * During the brewing process, any new temporary is pushed onto this
+    ///   stack.
+    /// * When we've finished brewing an expression, we can pop off any temporaries
+    ///   pushed during that time and clear their values to nil.
+    temporaries: Vec<bir::LocalVariable>,
 }
 
 #[derive(Clone, Copy, Debug, PartialEq, PartialOrd, Hash)]
@@ -60,6 +75,7 @@ impl<'me> Brewery<'me> {
             loop_contexts: Default::default(),
             variables,
             dummy_terminator,
+            temporaries: vec![],
         }
     }
 
@@ -78,6 +94,11 @@ impl<'me> Brewery<'me> {
     /// Create a "sub-brewery" that has the same output
     /// tables but independent loop contexts and other
     /// scoped information.
+    ///
+    /// The temporary stack is also independent; the assumption
+    /// is that the subbrewery will be used to brew complete
+    /// expressions and hence the stack will just extend
+    /// the parent's stack.
     pub fn subbrewery(&mut self) -> Brewery<'_> {
         Brewery {
             db: self.db,
@@ -90,6 +111,7 @@ impl<'me> Brewery<'me> {
             loop_contexts: self.loop_contexts.clone(),
             variables: self.variables.clone(),
             dummy_terminator: self.dummy_terminator,
+            temporaries: vec![],
         }
     }
 
@@ -102,6 +124,13 @@ impl<'me> Brewery<'me> {
         K: HasOriginIn<validated::Origins>,
     {
         of.origin_in(self.validated_origins).clone()
+    }
+
+    pub fn bir_origin<K>(&self, of: K) -> K::Origin
+    where
+        K: HasOriginIn<bir::Origins>,
+    {
+        of.origin_in(self.origins).clone()
     }
 
     /// Returns a new basic block with no statements and a "panic" terminator.
@@ -143,6 +172,28 @@ impl<'me> Brewery<'me> {
     /// Panics if that loop context has not been pushed.
     pub fn variable(&self, var: validated::LocalVariable) -> bir::LocalVariable {
         self.variables[&var]
+    }
+
+    /// Number of temporaries on the "temporary stack".
+    ///
+    /// See the comments on the `temporaries` field for more information.
+    pub fn temporary_stack_len(&self) -> usize {
+        self.temporaries.len()
+    }
+
+    /// Push a temporary onto the "temporary stack".
+    ///
+    /// See the comments on the `temporaries` field for more information.
+    pub fn push_temporary(&mut self, lv: bir::LocalVariable) {
+        self.temporaries.push(lv);
+    }
+
+    /// Pop a temporary from the "temporary stack".
+    ///
+    /// See the comments on the `temporaries` field for more information.
+    #[track_caller]
+    pub fn pop_temporary(&mut self) -> bir::LocalVariable {
+        self.temporaries.pop().unwrap()
     }
 }
 

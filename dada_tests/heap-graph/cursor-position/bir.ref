@@ -65,6 +65,24 @@
         BasicBlock(1): BasicBlockData(
             [
                 (
+                    Clear(
+                        temp{15},
+                    ),
+                    Expr(2),
+                ),
+                (
+                    Clear(
+                        temp{14},
+                    ),
+                    Expr(1),
+                ),
+                (
+                    Clear(
+                        temp{13},
+                    ),
+                    Expr(0),
+                ),
+                (
                     Assign(
                         p{0},
                         temp{1}.give,
@@ -133,6 +151,24 @@
         BasicBlock(2): BasicBlockData(
             [
                 (
+                    Clear(
+                        temp{18},
+                    ),
+                    Expr(7),
+                ),
+                (
+                    Clear(
+                        temp{17},
+                    ),
+                    Expr(6),
+                ),
+                (
+                    Clear(
+                        temp{16},
+                    ),
+                    Expr(5),
+                ),
+                (
                     Assign(
                         q{5},
                         temp{6}.give,
@@ -183,7 +219,20 @@
             ),
         ),
         BasicBlock(3): BasicBlockData(
-            [],
+            [
+                (
+                    Clear(
+                        temp{21},
+                    ),
+                    Expr(11),
+                ),
+                (
+                    Clear(
+                        temp{20},
+                    ),
+                    Expr(10),
+                ),
+            ],
             Assign(
                 temp{12},
                 Await(
@@ -193,7 +242,14 @@
             ),
         ),
         BasicBlock(4): BasicBlockData(
-            [],
+            [
+                (
+                    Clear(
+                        temp{19},
+                    ),
+                    Expr(12),
+                ),
+            ],
             Return(
                 temp{12},
             ),

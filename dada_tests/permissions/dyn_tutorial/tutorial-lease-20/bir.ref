@@ -69,6 +69,24 @@
         BasicBlock(1): BasicBlockData(
             [
                 (
+                    Clear(
+                        temp{14},
+                    ),
+                    Expr(2),
+                ),
+                (
+                    Clear(
+                        temp{13},
+                    ),
+                    Expr(1),
+                ),
+                (
+                    Clear(
+                        temp{12},
+                    ),
+                    Expr(0),
+                ),
+                (
                     Assign(
                         p{0},
                         temp{1}.give,
@@ -125,6 +143,18 @@
                     Expr(14),
                 ),
                 (
+                    Clear(
+                        temp{16},
+                    ),
+                    Expr(13),
+                ),
+                (
+                    Clear(
+                        temp{15},
+                    ),
+                    Expr(14),
+                ),
+                (
                     Assign(
                         temp{9},
                         Print.give,
@@ -168,7 +198,20 @@
             ),
         ),
         BasicBlock(2): BasicBlockData(
-            [],
+            [
+                (
+                    Clear(
+                        temp{19},
+                    ),
+                    Expr(17),
+                ),
+                (
+                    Clear(
+                        temp{18},
+                    ),
+                    Expr(15),
+                ),
+            ],
             Assign(
                 temp{11},
                 Await(
@@ -178,7 +221,14 @@
             ),
         ),
         BasicBlock(3): BasicBlockData(
-            [],
+            [
+                (
+                    Clear(
+                        temp{17},
+                    ),
+                    Expr(18),
+                ),
+            ],
             Return(
                 temp{11},
             ),

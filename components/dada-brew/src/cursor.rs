@@ -19,6 +19,15 @@ pub(crate) struct Cursor {
     end_block: Option<bir::BasicBlock>,
 }
 
+/// Created when we start brewing an expression or other thing that
+/// may create temporary values. When the scope is popped, the temporaries
+/// are cleared out.
+///
+/// See the `temporaries` field of [`Brewery`] for more information.
+pub(crate) struct TemporaryScope {
+    mark: usize,
+}
+
 impl Cursor {
     pub(crate) fn new(brewery: &mut Brewery<'_>, origin: ExprOrigin) -> Self {
         let block = brewery.dummy_block(origin);
@@ -42,6 +51,48 @@ impl Cursor {
 
     pub(crate) fn in_dead_code(&self) -> bool {
         self.end_block.is_none()
+    }
+
+    pub(crate) fn push_temporary_scope(&self, brewery: &mut Brewery<'_>) -> TemporaryScope {
+        TemporaryScope {
+            mark: brewery.temporary_stack_len(),
+        }
+    }
+
+    pub(crate) fn pop_temporary_scope(&mut self, brewery: &mut Brewery<'_>, scope: TemporaryScope) {
+        while brewery.temporary_stack_len() > scope.mark {
+            let temporary = brewery.pop_temporary();
+            let origin = match brewery.bir_origin(temporary) {
+                validated::LocalVariableOrigin::Temporary(expr) => ExprOrigin::synthesized(expr),
+                validated::LocalVariableOrigin::LocalVariable(_)
+                | validated::LocalVariableOrigin::Parameter(_) => {
+                    panic!("BIR temporaries should not originate from locals or parameters")
+                }
+            };
+            self.push_clear_variable(brewery, temporary, origin);
+        }
+    }
+
+    pub(crate) fn pop_declared_variables(
+        &mut self,
+        brewery: &mut Brewery<'_>,
+        vars: &[validated::LocalVariable],
+        origin: ExprOrigin,
+    ) {
+        for var in vars {
+            let bir_var = brewery.variable(*var);
+            self.push_clear_variable(brewery, bir_var, origin);
+        }
+    }
+
+    fn push_clear_variable(
+        &mut self,
+        brewery: &mut Brewery<'_>,
+        variable: bir::LocalVariable,
+        origin: ExprOrigin,
+    ) {
+        let statement = brewery.add(bir::StatementData::Clear(variable), origin);
+        self.push_statement(brewery, statement)
     }
 
     pub(crate) fn push_statement(&mut self, brewery: &mut Brewery<'_>, statement: bir::Statement) {

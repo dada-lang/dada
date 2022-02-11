@@ -86,6 +86,11 @@ impl<'me> Validator<'me> {
         (self.effect_span)(self)
     }
 
+    fn with_loop_expr(mut self, e: validated::Expr) -> Self {
+        self.loop_stack.push(e);
+        self
+    }
+
     pub(crate) fn with_effect(
         mut self,
         effect: Effect,
@@ -317,10 +322,10 @@ impl<'me> Validator<'me> {
 
             syntax::ExprData::If(condition_expr, then_expr, else_expr) => {
                 let validated_condition_expr = self.validate_expr(*condition_expr);
-                let validated_then_expr = self.validate_expr(*then_expr);
+                let validated_then_expr = self.subscope().validate_expr_and_exit(*then_expr);
                 let validated_else_expr = match else_expr {
                     None => self.empty_tuple(expr),
-                    Some(else_expr) => self.validate_expr(*else_expr),
+                    Some(else_expr) => self.subscope().validate_expr_and_exit(*else_expr),
                 };
                 self.add(
                     validated::ExprData::If(
@@ -333,11 +338,12 @@ impl<'me> Validator<'me> {
             }
 
             syntax::ExprData::Atomic(atomic_expr) => {
-                let mut subscope = self.subscope().with_effect(Effect::Atomic, |this| {
-                    this.span(expr).leading_keyword(this.db, Keyword::Atomic)
-                });
-                let validated_atomic_expr = subscope.validate_expr(*atomic_expr);
-                std::mem::drop(subscope);
+                let validated_atomic_expr = self
+                    .subscope()
+                    .with_effect(Effect::Atomic, |this| {
+                        this.span(expr).leading_keyword(this.db, Keyword::Atomic)
+                    })
+                    .validate_expr_and_exit(*atomic_expr);
                 self.add(validated::ExprData::Atomic(validated_atomic_expr), expr)
             }
 
@@ -346,10 +352,10 @@ impl<'me> Validator<'me> {
                 // with the actual loop.
                 let loop_expr = self.add(validated::ExprData::Error, expr);
 
-                let mut subscope = self.subscope();
-                subscope.loop_stack.push(loop_expr);
-                let validated_body_expr = subscope.validate_expr(*body_expr);
-                std::mem::drop(subscope);
+                let validated_body_expr = self
+                    .subscope()
+                    .with_loop_expr(loop_expr)
+                    .validate_expr_and_exit(*body_expr);
 
                 self.tables[loop_expr] = validated::ExprData::Loop(validated_body_expr);
 
@@ -369,10 +375,10 @@ impl<'me> Validator<'me> {
                 let validated_condition_expr = self.validate_expr(*condition_expr);
 
                 // lower the body E, in a subscope so that `break` breaks out from `loop_expr`
-                let mut subscope = self.subscope();
-                subscope.loop_stack.push(loop_expr);
-                let validated_body_expr = subscope.validate_expr(*body_expr);
-                drop(subscope);
+                let validated_body_expr = self
+                    .subscope()
+                    .with_loop_expr(loop_expr)
+                    .validate_expr_and_exit(*body_expr);
 
                 let if_break_expr = {
                     // break
@@ -472,6 +478,24 @@ impl<'me> Validator<'me> {
                 self.add(validated::ExprData::Seq(validated_exprs), expr)
             }
         }
+    }
+
+    /// Validate the expression and then exit the subscope (consumes self).
+    ///
+    /// Exiting the subscope will pop-off any variables that were declared
+    /// within.
+    ///
+    /// Returns the validated result, wrapped in `Declare` if necessary.
+    fn validate_expr_and_exit(mut self, expr: syntax::Expr) -> validated::Expr {
+        let expr = self.validate_expr(expr);
+
+        let vars = self.scope.take_inserted();
+        if vars.is_empty() {
+            return expr;
+        }
+
+        let origin = self.origins[expr].synthesized();
+        self.add(validated::ExprData::Declare(vars, expr), origin)
     }
 
     fn maybe_seq(
@@ -577,6 +601,7 @@ impl<'me> Validator<'me> {
             },
             validated::LocalVariableOrigin::Temporary(expr),
         );
+        self.scope.insert_temporary(local_variable);
 
         let validated_place = self.add(
             validated::PlaceData::LocalVariable(local_variable),
@@ -588,6 +613,7 @@ impl<'me> Validator<'me> {
             validated::ExprData::Assign(validated_place, validated_expr),
             expr.synthesized(),
         );
+
         (assign_expr, validated_place)
     }
 

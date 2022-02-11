@@ -47,7 +47,20 @@
             ),
         ),
         BasicBlock(1): BasicBlockData(
-            [],
+            [
+                (
+                    Clear(
+                        temp{5},
+                    ),
+                    Expr(1),
+                ),
+                (
+                    Clear(
+                        temp{4},
+                    ),
+                    Expr(0),
+                ),
+            ],
             Assign(
                 temp{2},
                 Await(
@@ -57,7 +70,14 @@
             ),
         ),
         BasicBlock(2): BasicBlockData(
-            [],
+            [
+                (
+                    Clear(
+                        temp{3},
+                    ),
+                    Expr(2),
+                ),
+            ],
             Return(
                 temp{2},
             ),
@@ -117,7 +137,20 @@
             ),
         ),
         BasicBlock(2): BasicBlockData(
-            [],
+            [
+                (
+                    Clear(
+                        temp{5},
+                    ),
+                    Expr(1),
+                ),
+                (
+                    Clear(
+                        temp{4},
+                    ),
+                    Expr(0),
+                ),
+            ],
             Assign(
                 temp{2},
                 Await(
@@ -127,7 +160,26 @@
             ),
         ),
         BasicBlock(3): BasicBlockData(
-            [],
+            [
+                (
+                    Clear(
+                        temp{3},
+                    ),
+                    Expr(2),
+                ),
+                (
+                    Clear(
+                        temp{0},
+                    ),
+                    Expr(4),
+                ),
+                (
+                    Clear(
+                        temp{1},
+                    ),
+                    Expr(4),
+                ),
+            ],
             EndAtomic(
                 BasicBlock(4),
             ),
@@ -193,7 +245,20 @@
             ),
         ),
         BasicBlock(2): BasicBlockData(
-            [],
+            [
+                (
+                    Clear(
+                        temp{5},
+                    ),
+                    Expr(1),
+                ),
+                (
+                    Clear(
+                        temp{4},
+                    ),
+                    Expr(0),
+                ),
+            ],
             Assign(
                 temp{2},
                 Await(
@@ -203,7 +268,26 @@
             ),
         ),
         BasicBlock(3): BasicBlockData(
-            [],
+            [
+                (
+                    Clear(
+                        temp{3},
+                    ),
+                    Expr(2),
+                ),
+                (
+                    Clear(
+                        temp{0},
+                    ),
+                    Expr(4),
+                ),
+                (
+                    Clear(
+                        temp{1},
+                    ),
+                    Expr(4),
+                ),
+            ],
             EndAtomic(
                 BasicBlock(4),
             ),
@@ -263,7 +347,20 @@
             ),
         ),
         BasicBlock(1): BasicBlockData(
-            [],
+            [
+                (
+                    Clear(
+                        temp{5},
+                    ),
+                    Expr(1),
+                ),
+                (
+                    Clear(
+                        temp{4},
+                    ),
+                    Expr(0),
+                ),
+            ],
             Assign(
                 temp{2},
                 Await(
@@ -273,7 +370,14 @@
             ),
         ),
         BasicBlock(2): BasicBlockData(
-            [],
+            [
+                (
+                    Clear(
+                        temp{3},
+                    ),
+                    Expr(2),
+                ),
+            ],
             Return(
                 temp{2},
             ),

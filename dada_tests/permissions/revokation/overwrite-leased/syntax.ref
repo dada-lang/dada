@@ -4,11 +4,11 @@
             Some(
                 Tokens(dada_tests/permissions/revokation/overwrite-leased.dada:3:15:3:15),
             ),
-            Tokens(dada_tests/permissions/revokation/overwrite-leased.dada:3:18:25:1),
+            Tokens(dada_tests/permissions/revokation/overwrite-leased.dada:3:18:23:1),
         ),
         data: syntax::Tree {
             root_expr: (
-                Expr(26),
+                Expr(34),
                 Seq(
                     [
                         (
@@ -187,6 +187,60 @@
                                                 None,
                                                 (
                                                     Expr(23),
+                                                    Id(
+                                                        "p",
+                                                    ),
+                                                ),
+                                            ),
+                                        ],
+                                    ),
+                                ),
+                            ),
+                        ),
+                        (
+                            Expr(29),
+                            Await(
+                                (
+                                    Expr(28),
+                                    Call(
+                                        (
+                                            Expr(26),
+                                            Id(
+                                                "print",
+                                            ),
+                                        ),
+                                        [
+                                            (
+                                                None,
+                                                (
+                                                    Expr(27),
+                                                    Id(
+                                                        "pair1",
+                                                    ),
+                                                ),
+                                            ),
+                                        ],
+                                    ),
+                                ),
+                            ),
+                        ),
+                        (
+                            Expr(33),
+                            Await(
+                                (
+                                    Expr(32),
+                                    Call(
+                                        (
+                                            Expr(30),
+                                            Id(
+                                                "print",
+                                            ),
+                                        ),
+                                        [
+                                            (
+                                                None,
+                                                (
+                                                    Expr(31),
                                                     Id(
                                                         "p",
                                                     ),

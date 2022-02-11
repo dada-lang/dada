@@ -219,6 +219,9 @@ impl DebugWithDb<InIrDb<'_, Bir>> for Statement {
 pub enum StatementData {
     Assign(Place, Expr),
 
+    /// Clears the value from the given local variable.
+    Clear(LocalVariable),
+
     /// In terms of the semantics, this is a no-op.
     /// It is used by the time traveling debugger.
     ///
@@ -252,6 +255,8 @@ impl DebugWithDb<InIrDb<'_, Bir>> for StatementData {
                 .field(&place.debug(db))
                 .field(&expr.debug(db))
                 .finish(),
+
+            StatementData::Clear(lv) => f.debug_tuple("Clear").field(&lv.debug(db)).finish(),
 
             StatementData::BreakpointStart(filename, index) => f
                 .debug_tuple("BreakpoingStart")
