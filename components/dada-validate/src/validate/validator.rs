@@ -86,6 +86,11 @@ impl<'me> Validator<'me> {
         (self.effect_span)(self)
     }
 
+    fn with_loop_expr(mut self, e: validated::Expr) -> Self {
+        self.loop_stack.push(e);
+        self
+    }
+
     pub(crate) fn with_effect(
         mut self,
         effect: Effect,
@@ -333,11 +338,12 @@ impl<'me> Validator<'me> {
             }
 
             syntax::ExprData::Atomic(atomic_expr) => {
-                let mut subscope = self.subscope().with_effect(Effect::Atomic, |this| {
-                    this.span(expr).leading_keyword(this.db, Keyword::Atomic)
-                });
-                let validated_atomic_expr = subscope.validate_expr(*atomic_expr);
-                let validated_atomic_expr = subscope.exit_subscope(validated_atomic_expr);
+                let validated_atomic_expr = self
+                    .subscope()
+                    .with_effect(Effect::Atomic, |this| {
+                        this.span(expr).leading_keyword(this.db, Keyword::Atomic)
+                    })
+                    .validate_expr_and_exit(*atomic_expr);
                 self.add(validated::ExprData::Atomic(validated_atomic_expr), expr)
             }
 
@@ -346,10 +352,10 @@ impl<'me> Validator<'me> {
                 // with the actual loop.
                 let loop_expr = self.add(validated::ExprData::Error, expr);
 
-                let mut subscope = self.subscope();
-                subscope.loop_stack.push(loop_expr);
-                let validated_body_expr = subscope.validate_expr(*body_expr);
-                let validated_body_expr = subscope.exit_subscope(validated_body_expr);
+                let validated_body_expr = self
+                    .subscope()
+                    .with_loop_expr(loop_expr)
+                    .validate_expr_and_exit(*body_expr);
 
                 self.tables[loop_expr] = validated::ExprData::Loop(validated_body_expr);
 
@@ -369,10 +375,10 @@ impl<'me> Validator<'me> {
                 let validated_condition_expr = self.validate_expr(*condition_expr);
 
                 // lower the body E, in a subscope so that `break` breaks out from `loop_expr`
-                let mut subscope = self.subscope();
-                subscope.loop_stack.push(loop_expr);
-                let validated_body_expr = subscope.validate_expr(*body_expr);
-                let validated_body_expr = subscope.exit_subscope(validated_body_expr);
+                let validated_body_expr = self
+                    .subscope()
+                    .with_loop_expr(loop_expr)
+                    .validate_expr_and_exit(*body_expr);
 
                 let if_break_expr = {
                     // break
@@ -474,7 +480,15 @@ impl<'me> Validator<'me> {
         }
     }
 
-    fn exit_subscope(mut self, expr: validated::Expr) -> validated::Expr {
+    /// Validate the expression and then exit the subscope (consumes self).
+    ///
+    /// Exiting the subscope will pop-off any variables that were declared
+    /// within.
+    ///
+    /// Returns the validated result, wrapped in `Declare` if necessary.
+    fn validate_expr_and_exit(mut self, expr: syntax::Expr) -> validated::Expr {
+        let expr = self.validate_expr(expr);
+
         let vars = self.scope.take_inserted();
         if vars.is_empty() {
             return expr;
