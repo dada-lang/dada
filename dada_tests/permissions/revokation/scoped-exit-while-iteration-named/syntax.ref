@@ -2,9 +2,9 @@
     syntax::Tree {
         origin: Code(
             Some(
-                Tokens(dada_tests/permissions/revokation/overwrite-lease-share/scoped-exit-loop-iteration-named.dada:7:15:7:15),
+                Tokens(dada_tests/permissions/revokation/scoped-exit-while-iteration-named.dada:7:15:7:15),
             ),
-            Tokens(dada_tests/permissions/revokation/overwrite-lease-share/scoped-exit-loop-iteration-named.dada:7:18:28:1),
+            Tokens(dada_tests/permissions/revokation/scoped-exit-while-iteration-named.dada:7:18:28:1),
         ),
         data: syntax::Tree {
             root_expr: (

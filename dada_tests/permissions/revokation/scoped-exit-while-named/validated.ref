@@ -141,6 +141,10 @@
                                         Expr(38),
                                         Declare(
                                             [
+                                                temp{5},
+                                                temp{6},
+                                                temp{7},
+                                                temp{8},
                                                 pair{4},
                                             ],
                                             (

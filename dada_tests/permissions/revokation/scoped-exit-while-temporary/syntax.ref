@@ -2,13 +2,13 @@
     syntax::Tree {
         origin: Code(
             Some(
-                Tokens(dada_tests/permissions/revokation/scoped-exit-loop-iteration-temporary.dada:7:15:7:15),
+                Tokens(dada_tests/permissions/revokation/scoped-exit-while-temporary.dada:3:15:3:15),
             ),
-            Tokens(dada_tests/permissions/revokation/scoped-exit-loop-iteration-temporary.dada:7:18:27:1),
+            Tokens(dada_tests/permissions/revokation/scoped-exit-while-temporary.dada:3:18:16:1),
         ),
         data: syntax::Tree {
             root_expr: (
-                Expr(25),
+                Expr(23),
                 Seq(
                     [
                         (
@@ -42,7 +42,7 @@
                             ),
                         ),
                         (
-                            Expr(24),
+                            Expr(18),
                             While(
                                 (
                                     Expr(6),
@@ -57,30 +57,32 @@
                                         (
                                             Expr(5),
                                             Integer(
-                                                "6",
+                                                "1",
                                             ),
                                         ),
                                     ),
                                 ),
                                 (
-                                    Expr(23),
+                                    Expr(17),
                                     Seq(
                                         [
                                             (
-                                                Expr(12),
-                                                Var(
+                                                Expr(13),
+                                                Assign(
                                                     (
-                                                        "t",
-                                                        None,
+                                                        Expr(7),
+                                                        Id(
+                                                            "p",
+                                                        ),
                                                     ),
                                                     (
-                                                        Expr(11),
+                                                        Expr(12),
                                                         Lease(
                                                             (
-                                                                Expr(10),
+                                                                Expr(11),
                                                                 Call(
                                                                     (
-                                                                        Expr(7),
+                                                                        Expr(8),
                                                                         Id(
                                                                             "Pair",
                                                                         ),
@@ -89,7 +91,7 @@
                                                                         (
                                                                             None,
                                                                             (
-                                                                                Expr(8),
+                                                                                Expr(9),
                                                                                 Id(
                                                                                     "n",
                                                                                 ),
@@ -98,7 +100,7 @@
                                                                         (
                                                                             None,
                                                                             (
-                                                                                Expr(9),
+                                                                                Expr(10),
                                                                                 Integer(
                                                                                     "44",
                                                                                 ),
@@ -113,63 +115,46 @@
                                             ),
                                             (
                                                 Expr(16),
-                                                Await(
-                                                    (
-                                                        Expr(15),
-                                                        Call(
-                                                            (
-                                                                Expr(13),
-                                                                Id(
-                                                                    "print",
-                                                                ),
-                                                            ),
-                                                            [
-                                                                (
-                                                                    None,
-                                                                    (
-                                                                        Expr(14),
-                                                                        Id(
-                                                                            "p",
-                                                                        ),
-                                                                    ),
-                                                                ),
-                                                            ],
-                                                        ),
-                                                    ),
-                                                ),
-                                            ),
-                                            (
-                                                Expr(19),
-                                                Assign(
-                                                    (
-                                                        Expr(17),
-                                                        Id(
-                                                            "p",
-                                                        ),
-                                                    ),
-                                                    (
-                                                        Expr(18),
-                                                        Id(
-                                                            "t",
-                                                        ),
-                                                    ),
-                                                ),
-                                            ),
-                                            (
-                                                Expr(22),
                                                 OpEq(
                                                     (
-                                                        Expr(20),
+                                                        Expr(14),
                                                         Id(
                                                             "n",
                                                         ),
                                                     ),
                                                     PlusEqual,
                                                     (
-                                                        Expr(21),
+                                                        Expr(15),
                                                         Integer(
                                                             "1",
                                                         ),
+                                                    ),
+                                                ),
+                                            ),
+                                        ],
+                                    ),
+                                ),
+                            ),
+                        ),
+                        (
+                            Expr(22),
+                            Await(
+                                (
+                                    Expr(21),
+                                    Call(
+                                        (
+                                            Expr(19),
+                                            Id(
+                                                "print",
+                                            ),
+                                        ),
+                                        [
+                                            (
+                                                None,
+                                                (
+                                                    Expr(20),
+                                                    Id(
+                                                        "p",
                                                     ),
                                                 ),
                                             ),

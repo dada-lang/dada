@@ -141,7 +141,14 @@
                                         Expr(51),
                                         Declare(
                                             [
+                                                temp{5},
+                                                temp{6},
+                                                temp{7},
+                                                temp{8},
+                                                temp{9},
                                                 t{4},
+                                                temp{10},
+                                                temp{11},
                                             ],
                                             (
                                                 Expr(50),

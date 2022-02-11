@@ -40,54 +40,54 @@
             [
                 (
                     Assign(
-                        temp{7},
+                        temp{6},
                         Class(Id { value: 1 }).give,
                     ),
                     Expr(7),
                 ),
                 (
                     Assign(
-                        temp{15},
-                        temp{7}.give,
+                        temp{16},
+                        temp{6}.give,
                     ),
                     Expr(7),
                 ),
                 (
                     Assign(
-                        temp{8},
+                        temp{7},
                         n{2}.give,
                     ),
                     Expr(8),
                 ),
                 (
                     Assign(
-                        temp{16},
-                        temp{8}.give,
+                        temp{17},
+                        temp{7}.give,
                     ),
                     Expr(8),
                 ),
                 (
                     Assign(
-                        temp{9},
+                        temp{8},
                         44,
                     ),
                     Expr(9),
                 ),
                 (
                     Assign(
-                        temp{17},
-                        temp{9}.give,
+                        temp{18},
+                        temp{8}.give,
                     ),
                     Expr(9),
                 ),
             ],
             Assign(
-                temp{6},
+                temp{5},
                 Call(
-                    temp{15},
+                    temp{16},
                     [
-                        temp{16},
                         temp{17},
+                        temp{18},
                     ],
                     [
                         None,
@@ -100,53 +100,46 @@
         BasicBlock(2): BasicBlockData(
             [],
             Return(
-                temp{12},
+                temp{13},
             ),
         ),
         BasicBlock(3): BasicBlockData(
             [
                 (
                     Clear(
-                        temp{17},
+                        temp{18},
                     ),
                     Expr(9),
                 ),
                 (
                     Clear(
-                        temp{16},
+                        temp{17},
                     ),
                     Expr(8),
                 ),
                 (
                     Clear(
-                        temp{15},
+                        temp{16},
                     ),
                     Expr(7),
                 ),
                 (
                     Assign(
-                        temp{5},
-                        temp{6}.lease,
-                    ),
-                    Expr(11),
-                ),
-                (
-                    Assign(
-                        t{4},
+                        pair{4},
                         temp{5}.give,
                     ),
-                    Expr(11),
+                    Expr(10),
                 ),
                 (
                     Assign(
                         temp{10},
-                        Print.give,
+                        pair{4}.lease,
                     ),
                     Expr(13),
                 ),
                 (
                     Assign(
-                        temp{20},
+                        t{9},
                         temp{10}.give,
                     ),
                     Expr(13),
@@ -154,24 +147,38 @@
                 (
                     Assign(
                         temp{11},
-                        p{0}.give,
+                        Print.give,
                     ),
-                    Expr(14),
+                    Expr(15),
                 ),
                 (
                     Assign(
                         temp{21},
                         temp{11}.give,
                     ),
-                    Expr(14),
+                    Expr(15),
+                ),
+                (
+                    Assign(
+                        temp{12},
+                        p{0}.give,
+                    ),
+                    Expr(16),
+                ),
+                (
+                    Assign(
+                        temp{22},
+                        temp{12}.give,
+                    ),
+                    Expr(16),
                 ),
             ],
             Assign(
-                temp{19},
+                temp{20},
                 Call(
-                    temp{20},
+                    temp{21},
                     [
-                        temp{21},
+                        temp{22},
                     ],
                     [
                         None,
@@ -184,21 +191,21 @@
             [
                 (
                     Clear(
-                        temp{21},
+                        temp{22},
                     ),
-                    Expr(14),
+                    Expr(16),
                 ),
                 (
                     Clear(
-                        temp{20},
+                        temp{21},
                     ),
-                    Expr(13),
+                    Expr(15),
                 ),
             ],
             Assign(
-                temp{18},
+                temp{19},
                 Await(
-                    temp{19},
+                    temp{20},
                 ),
                 BasicBlock(5),
             ),
@@ -207,111 +214,159 @@
             [
                 (
                     Clear(
-                        temp{19},
+                        temp{20},
                     ),
-                    Expr(15),
+                    Expr(17),
                 ),
                 (
                     Clear(
-                        temp{18},
-                    ),
-                    Expr(16),
-                ),
-                (
-                    Assign(
-                        p{0},
-                        t{4}.give,
+                        temp{19},
                     ),
                     Expr(18),
                 ),
                 (
                     Assign(
-                        temp{22},
-                        n{2}.give,
+                        p{0},
+                        t{9}.give,
                     ),
-                    Expr(22),
+                    Expr(20),
                 ),
                 (
                     Assign(
                         temp{23},
+                        n{2}.give,
+                    ),
+                    Expr(24),
+                ),
+                (
+                    Assign(
+                        temp{24},
                         1,
                     ),
-                    Expr(21),
+                    Expr(23),
                 ),
                 (
                     Assign(
                         n{2},
-                        temp{22} + temp{23},
+                        temp{23} + temp{24},
                     ),
-                    Expr(22),
+                    Expr(24),
+                ),
+                (
+                    Clear(
+                        temp{24},
+                    ),
+                    Expr(23),
                 ),
                 (
                     Clear(
                         temp{23},
                     ),
-                    Expr(21),
-                ),
-                (
-                    Clear(
-                        temp{22},
-                    ),
-                    Expr(22),
+                    Expr(24),
                 ),
                 (
                     Assign(
-                        temp{14},
+                        temp{15},
                         (),
                     ),
-                    Expr(22),
+                    Expr(24),
                 ),
                 (
                     Clear(
-                        temp{14},
+                        temp{15},
                     ),
-                    Expr(23),
+                    Expr(25),
                 ),
                 (
                     Clear(
-                        t{4},
+                        temp{5},
                     ),
-                    Expr(23),
+                    Expr(25),
+                ),
+                (
+                    Clear(
+                        temp{6},
+                    ),
+                    Expr(25),
+                ),
+                (
+                    Clear(
+                        temp{7},
+                    ),
+                    Expr(25),
+                ),
+                (
+                    Clear(
+                        temp{8},
+                    ),
+                    Expr(25),
+                ),
+                (
+                    Clear(
+                        pair{4},
+                    ),
+                    Expr(25),
+                ),
+                (
+                    Clear(
+                        temp{10},
+                    ),
+                    Expr(25),
+                ),
+                (
+                    Clear(
+                        t{9},
+                    ),
+                    Expr(25),
+                ),
+                (
+                    Clear(
+                        temp{11},
+                    ),
+                    Expr(25),
+                ),
+                (
+                    Clear(
+                        temp{12},
+                    ),
+                    Expr(25),
                 ),
                 (
                     Assign(
-                        temp{25},
+                        temp{26},
                         n{2}.give,
                     ),
                     Expr(4),
                 ),
                 (
                     Assign(
-                        temp{26},
+                        temp{27},
                         6,
                     ),
                     Expr(5),
                 ),
                 (
                     Assign(
-                        temp{24},
-                        temp{25} < temp{26},
+                        temp{25},
+                        temp{26} < temp{27},
                     ),
                     Expr(6),
                 ),
                 (
                     Clear(
-                        temp{26},
+                        temp{27},
                     ),
                     Expr(5),
                 ),
                 (
                     Clear(
-                        temp{25},
+                        temp{26},
                     ),
                     Expr(4),
                 ),
             ],
             If(
-                temp{24},
+                temp{25},
                 BasicBlock(6),
                 BasicBlock(7),
             ),
@@ -320,10 +375,10 @@
             [
                 (
                     Assign(
-                        temp{13},
+                        temp{14},
                         (),
                     ),
-                    Expr(24),
+                    Expr(26),
                 ),
             ],
             Goto(
@@ -334,10 +389,10 @@
             [
                 (
                     Assign(
-                        temp{12},
+                        temp{13},
                         (),
                     ),
-                    Expr(24),
+                    Expr(26),
                 ),
             ],
             Goto(
@@ -348,15 +403,15 @@
             [
                 (
                     Clear(
-                        temp{24},
+                        temp{25},
                     ),
                     Expr(6),
                 ),
                 (
                     Clear(
-                        temp{13},
+                        temp{14},
                     ),
-                    Expr(24),
+                    Expr(26),
                 ),
             ],
             Goto(
