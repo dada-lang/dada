@@ -322,10 +322,10 @@ impl<'me> Validator<'me> {
 
             syntax::ExprData::If(condition_expr, then_expr, else_expr) => {
                 let validated_condition_expr = self.validate_expr(*condition_expr);
-                let validated_then_expr = self.validate_expr(*then_expr);
+                let validated_then_expr = self.subscope().validate_expr_and_exit(*then_expr);
                 let validated_else_expr = match else_expr {
                     None => self.empty_tuple(expr),
-                    Some(else_expr) => self.validate_expr(*else_expr),
+                    Some(else_expr) => self.subscope().validate_expr_and_exit(*else_expr),
                 };
                 self.add(
                     validated::ExprData::If(
