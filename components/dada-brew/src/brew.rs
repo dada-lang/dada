@@ -114,6 +114,13 @@ impl Cursor {
                 self.push_breakpoint_ends(brewery, None, origins, origin)
             }
 
+            validated::ExprData::Declare(vars, subexpr) => {
+                self.push_breakpoint_start(brewery, origin);
+                self.brew_expr_for_side_effects(brewery, *subexpr);
+                self.pop_declared_variables(brewery, vars, origin);
+                self.push_breakpoint_end(brewery, None, origin);
+            }
+
             validated::ExprData::Await(_)
             | validated::ExprData::If(_, _, _)
             | validated::ExprData::Loop(_)
@@ -210,7 +217,7 @@ impl Cursor {
                 );
                 self.push_breakpoint_end(brewery, Some(target), origin); // "cusp" of a loop is after it breaks
 
-                let mut body_brewery = brewery.subbrewery();
+                let body_brewery = &mut brewery.subbrewery();
                 body_brewery.push_loop_context(
                     expr,
                     LoopContext {
@@ -220,9 +227,9 @@ impl Cursor {
                     },
                 );
                 let mut body_cursor = self.with_end_block(body_block);
-                body_cursor.brew_expr_for_side_effects(brewery, *body);
+                body_cursor.brew_expr_for_side_effects(body_brewery, *body);
                 body_cursor.terminate_and_diverge(
-                    brewery,
+                    body_brewery,
                     bir::TerminatorData::Goto(body_block),
                     origin,
                 );
@@ -383,6 +390,13 @@ impl Cursor {
 
                 self.terminate_and_continue(brewery, bir::TerminatorData::EndAtomic, origin);
                 self.push_breakpoint_end(brewery, Some(target), origin);
+            }
+
+            validated::ExprData::Declare(vars, subexpr) => {
+                self.push_breakpoint_start(brewery, origin);
+                self.brew_expr_and_assign_to(brewery, target, *subexpr);
+                self.pop_declared_variables(brewery, vars, origin);
+                self.push_breakpoint_end(brewery, None, origin);
             }
 
             validated::ExprData::Error

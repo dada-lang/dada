@@ -1,0 +1,18 @@
+class Pair(a, b)
+
+async fn main() {
+    p = 0
+    n = 0
+    while n < 1 {
+        # a new Pair that is scoped to the loop is created here...
+        p := Pair(n, 44).lease
+        n += 1
+    }
+
+    # ...so when we exit the loop, it gets dropped,
+    # and hence our lease on it (stored in `p`) is
+    # cancelled.
+    #
+    #! FIXME: validation temporaries are not scoped
+    print(p).await #! OUTPUT leased Pair\(0, 44\)
+}

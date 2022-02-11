@@ -1,0 +1,17 @@
+class Pair(a, b)
+
+async fn main() {
+    p = 0
+    n = 0
+    while n < 1 {
+        # pair is scoped to the loop...
+        pair = Pair(n, 44)
+        p := pair.lease
+        n += 1
+    }
+
+    # ...so when we exit the loop, it gets dropped,
+    # and hence our lease on it (stored in `p`) is
+    # cancelled.
+    print(p).await #! RUN ERROR your lease to this object was cancelled
+}

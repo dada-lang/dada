@@ -172,6 +172,7 @@ pub struct LocalVariableData {
     /// considered roots for the GC in the official
     /// semantics.
     pub name: Option<Word>,
+
     pub atomic: Atomic,
 }
 
@@ -258,6 +259,9 @@ pub enum ExprData {
     /// `a := b`
     Assign(Place, Expr),
 
+    /// Bring the variables in scope during the expression
+    Declare(Vec<LocalVariable>, Expr),
+
     /// parse or other error
     Error,
 }
@@ -332,6 +336,11 @@ impl ExprData {
             ExprData::Assign(place, expr) => f
                 .debug_tuple("Assign")
                 .field(&place.debug(db))
+                .field(&expr.debug(db))
+                .finish(),
+            ExprData::Declare(vars, expr) => f
+                .debug_tuple("Declare")
+                .field(&vars.debug(db))
                 .field(&expr.debug(db))
                 .finish(),
             ExprData::Error => f.debug_tuple("Error").finish(),

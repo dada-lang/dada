@@ -1,0 +1,28 @@
+# Test for lease on data owned 
+# by a named variable scoped to a loop body
+# that is carried across iterations.
+
+class Pair(a, b)
+
+async fn main() {
+    p = 0
+    n = 0
+    while n < 6 {
+        # Create a variable `t` that leases a `Pair` which is scoped
+        # to the current loop iteration.
+        pair = Pair(n, 44)
+        t = pair.lease
+
+        # Print `p`, which stores `t` from the previous iteration.
+        # The first time round the loop, p has `0`, so this prints
+        # successfully. But the second time round the loop, the data
+        # in `t` has been dropped, and so we get an error.
+        print(p).await 
+        #! OUTPUT 0
+        #! RUN ERROR your lease to this object was cancelled
+        
+        p := t
+
+        n += 1
+    }
+}

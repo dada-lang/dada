@@ -3,11 +3,22 @@ use std::path::PathBuf;
 use dada_execute::{heap_graph::HeapGraph, machine::ProgramCounter};
 use dada_ir::span::FileSpan;
 use eyre::Context;
+use regex::Regex;
+use salsa::DebugWithDb;
 use tokio::io::AsyncWriteExt;
 
 #[derive(structopt::StructOpt)]
 pub struct Options {
+    /// Path to `.dada` file to execute
     path: PathBuf,
+
+    /// Instead of executing, print BIR for items whose names match the given regex
+    #[structopt(long)]
+    bir: Option<Regex>,
+
+    /// Instead of executing, print validated tree for items whose names match the given regex
+    #[structopt(long)]
+    validated: Option<Regex>,
 }
 
 impl Options {
@@ -23,16 +34,44 @@ impl Options {
             dada_error_format::print_diagnostic(&db, &diagnostic)?;
         }
 
-        // Find the "main" function
-        match db.function_named(filename, "main") {
-            Some(function) => {
-                dada_execute::interpret(function, &db, &mut Kernel::new(), vec![]).await?;
+        let mut should_execute = true;
+
+        if let Some(name_regex) = &self.validated {
+            for item in db.items(filename) {
+                let name = item.name(&db).as_str(&db);
+                if name_regex.is_match(name) {
+                    if let Some(tree) = db.debug_validated_tree(item) {
+                        tracing::info!("Validated tree for {:?} is {:#?}", item.debug(&db), tree);
+                    }
+                }
             }
-            None => {
-                return Err(eyre::eyre!(
-                    "could not find a function named `main` in `{}`",
-                    self.path.display()
-                ));
+            should_execute = false;
+        }
+
+        if let Some(name_regex) = &self.bir {
+            for item in db.items(filename) {
+                let name = item.name(&db).as_str(&db);
+                if name_regex.is_match(name) {
+                    if let Some(tree) = db.debug_bir(item) {
+                        tracing::info!("BIR for {:?} is {:#?}", item.debug(&db), tree);
+                    }
+                }
+            }
+            should_execute = false;
+        }
+
+        // Find the "main" function
+        if should_execute {
+            match db.function_named(filename, "main") {
+                Some(function) => {
+                    dada_execute::interpret(function, &db, &mut Kernel::new(), vec![]).await?;
+                }
+                None => {
+                    return Err(eyre::eyre!(
+                        "could not find a function named `main` in `{}`",
+                        self.path.display()
+                    ));
+                }
             }
         }
 

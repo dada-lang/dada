@@ -69,9 +69,30 @@ impl Cursor {
                     panic!("BIR temporaries should not originate from locals or parameters")
                 }
             };
-            let statement = brewery.add(bir::StatementData::Clear(temporary), origin);
-            self.push_statement(brewery, statement)
+            self.push_clear_variable(brewery, temporary, origin);
         }
+    }
+
+    pub(crate) fn pop_declared_variables(
+        &mut self,
+        brewery: &mut Brewery<'_>,
+        vars: &[validated::LocalVariable],
+        origin: ExprOrigin,
+    ) {
+        for var in vars {
+            let bir_var = brewery.variable(*var);
+            self.push_clear_variable(brewery, bir_var, origin);
+        }
+    }
+
+    fn push_clear_variable(
+        &mut self,
+        brewery: &mut Brewery<'_>,
+        variable: bir::LocalVariable,
+        origin: ExprOrigin,
+    ) {
+        let statement = brewery.add(bir::StatementData::Clear(variable), origin);
+        self.push_statement(brewery, statement)
     }
 
     pub(crate) fn push_statement(&mut self, brewery: &mut Brewery<'_>, statement: bir::Statement) {

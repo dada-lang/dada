@@ -337,7 +337,7 @@ impl<'me> Validator<'me> {
                     this.span(expr).leading_keyword(this.db, Keyword::Atomic)
                 });
                 let validated_atomic_expr = subscope.validate_expr(*atomic_expr);
-                std::mem::drop(subscope);
+                let validated_atomic_expr = subscope.exit_subscope(validated_atomic_expr);
                 self.add(validated::ExprData::Atomic(validated_atomic_expr), expr)
             }
 
@@ -349,7 +349,7 @@ impl<'me> Validator<'me> {
                 let mut subscope = self.subscope();
                 subscope.loop_stack.push(loop_expr);
                 let validated_body_expr = subscope.validate_expr(*body_expr);
-                std::mem::drop(subscope);
+                let validated_body_expr = subscope.exit_subscope(validated_body_expr);
 
                 self.tables[loop_expr] = validated::ExprData::Loop(validated_body_expr);
 
@@ -372,7 +372,7 @@ impl<'me> Validator<'me> {
                 let mut subscope = self.subscope();
                 subscope.loop_stack.push(loop_expr);
                 let validated_body_expr = subscope.validate_expr(*body_expr);
-                drop(subscope);
+                let validated_body_expr = subscope.exit_subscope(validated_body_expr);
 
                 let if_break_expr = {
                     // break
@@ -472,6 +472,16 @@ impl<'me> Validator<'me> {
                 self.add(validated::ExprData::Seq(validated_exprs), expr)
             }
         }
+    }
+
+    fn exit_subscope(mut self, expr: validated::Expr) -> validated::Expr {
+        let vars = self.scope.take_inserted();
+        if vars.is_empty() {
+            return expr;
+        }
+
+        let origin = self.origins[expr].synthesized();
+        self.add(validated::ExprData::Declare(vars, expr), origin)
     }
 
     fn maybe_seq(
