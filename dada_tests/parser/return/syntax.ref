@@ -14,20 +14,22 @@
                         (
                             Expr(3),
                             Return(
-                                (
-                                    Expr(2),
-                                    Op(
-                                        (
-                                            Expr(0),
-                                            Integer(
-                                                "22",
+                                Some(
+                                    (
+                                        Expr(2),
+                                        Op(
+                                            (
+                                                Expr(0),
+                                                Integer(
+                                                    "22",
+                                                ),
                                             ),
-                                        ),
-                                        Plus,
-                                        (
-                                            Expr(1),
-                                            Integer(
-                                                "44",
+                                            Plus,
+                                            (
+                                                Expr(1),
+                                                Integer(
+                                                    "44",
+                                                ),
                                             ),
                                         ),
                                     ),

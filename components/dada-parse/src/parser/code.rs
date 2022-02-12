@@ -175,6 +175,18 @@ impl CodeParser<'_, '_> {
             return Some(expr);
         }
 
+        if let Some((return_span, _)) = self.eat(Keyword::Return) {
+            match self.parse_expr() {
+                Some(expr) => {
+                    let span = self.span_consumed_since(return_span);
+                    return Some(self.add(ExprData::Return(Some(expr)), span));
+                }
+                None => {
+                    return Some(self.add(ExprData::Return(None), return_span));
+                }
+            }
+        }
+
         self.parse_expr_5()
     }
 
@@ -312,12 +324,6 @@ impl CodeParser<'_, '_> {
         } else if let Some((id_span, id)) = self.eat(Identifier) {
             tracing::debug!("identifier");
             Some(self.add(ExprData::Id(id), id_span))
-        } else if let Some((return_span, _)) = self.eat(Keyword::Return) {
-            if let Some(expr) = self.parse_expr() {
-                let span = self.span_consumed_since(return_span);
-                return Some(self.add(ExprData::Return(Some(expr)), span));
-            }
-            Some(self.add(ExprData::Return(None), return_span))
         } else if let Some((word_span, word)) = self.eat(Number) {
             let whitespace_before_dot = self.tokens.skipped_any();
             match self.eat_op(Op::Dot) {

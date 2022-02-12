@@ -1,0 +1,30 @@
+[
+    (
+        Expr(2),
+        Seq(
+            [
+                (
+                    Expr(1),
+                    Return(
+                        (
+                            Expr(0),
+                            ,
+                            ExprOrigin {
+                                syntax_expr: Expr(0),
+                                synthesized: false,
+                            },
+                        ),
+                    ),
+                    ExprOrigin {
+                        syntax_expr: Expr(0),
+                        synthesized: false,
+                    },
+                ),
+            ],
+        ),
+        ExprOrigin {
+            syntax_expr: Expr(1),
+            synthesized: false,
+        },
+    ),
+]
