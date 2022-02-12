@@ -477,9 +477,13 @@ impl<'me> Validator<'me> {
                     exprs.iter().map(|expr| self.validate_expr(*expr)).collect();
                 self.add(validated::ExprData::Seq(validated_exprs), expr)
             }
-            syntax::ExprData::Return(return_expr) => {
-                let validated_return_expr = self.validate_expr(*return_expr);
-                self.add(validated::ExprData::Return(validated_return_expr), expr)
+            syntax::ExprData::Return(with_value) => {
+                if let Some(return_expr) = with_value {
+                    let validated_return_expr = self.validate_expr(*return_expr);
+                    return self.add(validated::ExprData::Return(validated_return_expr), expr);
+                }
+                let empty_tuple = self.empty_tuple(expr);
+                self.add(validated::ExprData::Return(empty_tuple), expr)
             }
         }
     }

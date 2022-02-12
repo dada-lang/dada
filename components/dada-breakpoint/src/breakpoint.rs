@@ -116,10 +116,11 @@ impl TreeTraversal<'_> {
             | syntax::ExprData::Await(base_expr)
             | syntax::ExprData::Loop(base_expr)
             | syntax::ExprData::Atomic(base_expr)
-            | syntax::ExprData::Return(base_expr)
             | syntax::ExprData::Parenthesized(base_expr) => {
                 self.find_in_children(expr, Some(base_expr))
             }
+
+            syntax::ExprData::Return(base_expr) => self.find_in_children(expr, base_expr),
 
             syntax::ExprData::Tuple(child_exprs) | syntax::ExprData::Seq(child_exprs) => {
                 self.find_in_children(expr, child_exprs)

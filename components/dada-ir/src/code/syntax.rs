@@ -162,7 +162,7 @@ pub enum ExprData {
     Assign(Expr, Expr),
 
     /// return
-    Return(Expr),
+    Return(Option<Expr>),
 
     /// parse or other error
     Error,
