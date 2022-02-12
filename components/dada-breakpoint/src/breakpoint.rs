@@ -104,7 +104,7 @@ impl TreeTraversal<'_> {
             syntax::ExprData::Error
             | syntax::ExprData::Id(_)
             | syntax::ExprData::BooleanLiteral(_)
-            | syntax::ExprData::IntegerLiteral(_)
+            | syntax::ExprData::IntegerLiteral(..)
             | syntax::ExprData::FloatLiteral(_, _)
             | syntax::ExprData::StringLiteral(_) => Some(expr),
 

@@ -370,7 +370,9 @@ pub enum ExprData {
     BooleanLiteral(bool),
 
     /// `22`, `22_222`, etc
-    IntegerLiteral(u64),
+    IntegerLiteral(i64),
+
+    UnsignedIntegerLiteral(u64),
 
     /// `2.2`
     FloatLiteral(eq_float::F64),
@@ -405,6 +407,7 @@ impl DebugWithDb<InIrDb<'_, Bir>> for ExprData {
         match self {
             ExprData::BooleanLiteral(b) => write!(f, "{}", b),
             ExprData::IntegerLiteral(w) => write!(f, "{}", w),
+            ExprData::UnsignedIntegerLiteral(w) => write!(f, "{}", w),
             ExprData::StringLiteral(w) => write!(f, "{:?}", w.as_str(db.db())),
             ExprData::FloatLiteral(w) => write!(f, "{}", w),
             ExprData::GiveShare(p) => write!(f, "{:?}.share", p.debug(db)),

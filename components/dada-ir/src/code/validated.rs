@@ -201,7 +201,9 @@ pub enum ExprData {
     BooleanLiteral(bool),
 
     /// `22`, `22_222`, etc
-    IntegerLiteral(u64),
+    IntegerLiteral(i64),
+
+    UnsignedIntegerLiteral(u64),
 
     /// `2.2`
     FloatLiteral(eq_float::F64),
@@ -240,7 +242,10 @@ pub enum ExprData {
     ///
     /// * `from_expr`: Identifies the loop from which we are breaking
     /// * `with_value`: The value produced by the loop
-    Break { from_expr: Expr, with_value: Expr },
+    Break {
+        from_expr: Expr,
+        with_value: Expr,
+    },
 
     /// `continue`
     ///
@@ -283,6 +288,7 @@ impl ExprData {
         match self {
             ExprData::BooleanLiteral(v) => std::fmt::Debug::fmt(v, f),
             ExprData::IntegerLiteral(v) => write!(f, "{}", v),
+            ExprData::UnsignedIntegerLiteral(v) => write!(f, "{}", v),
             ExprData::FloatLiteral(v) => write!(f, "{}", v),
             ExprData::StringLiteral(v) => std::fmt::Debug::fmt(&v.as_str(db.db()), f),
             ExprData::Await(expr) => f.debug_tuple("Await").field(&expr.debug(db)).finish(),

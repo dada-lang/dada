@@ -327,7 +327,18 @@ impl CodeParser<'_, '_> {
         } else if let Some((word_span, word)) = self.eat(Number) {
             let whitespace_before_dot = self.tokens.skipped_any();
             match self.eat_op(Op::Dot) {
-                None => Some(self.add(ExprData::IntegerLiteral(word), word_span)),
+                None => {
+                    if whitespace_before_dot {
+                        return Some(self.add(ExprData::IntegerLiteral(word, None), word_span));
+                    }
+                    match self.eat(Identifier) {
+                        Some((_, id)) => {
+                            let span = self.span_consumed_since(word_span);
+                            Some(self.add(ExprData::IntegerLiteral(word, Some(id)), span))
+                        }
+                        None => Some(self.add(ExprData::IntegerLiteral(word, None), word_span)),
+                    }
+                }
                 Some(dot_span) => {
                     let whitespace_after_dot = self.tokens.skipped_any();
                     if let Some((_, dec_word)) = self.eat(Number) {

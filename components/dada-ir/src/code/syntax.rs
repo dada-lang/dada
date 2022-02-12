@@ -99,7 +99,7 @@ pub enum ExprData {
     BooleanLiteral(bool),
 
     /// `22`, `22_222`, etc
-    IntegerLiteral(Word),
+    IntegerLiteral(Word, Option<Word>),
 
     /// `integer-part.fractional-part`
     FloatLiteral(Word, Word),
@@ -173,7 +173,7 @@ impl DebugWithDb<InIrDb<'_, Tree>> for ExprData {
         match self {
             ExprData::Id(w) => f.debug_tuple("Id").field(&w.debug(db.db())).finish(),
             ExprData::BooleanLiteral(v) => f.debug_tuple("Boolean").field(&v).finish(),
-            ExprData::IntegerLiteral(v) => {
+            ExprData::IntegerLiteral(v, _) => {
                 f.debug_tuple("Integer").field(&v.debug(db.db())).finish()
             }
             ExprData::FloatLiteral(v, d) => f
