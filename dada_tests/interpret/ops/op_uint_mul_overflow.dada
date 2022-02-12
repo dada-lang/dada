@@ -1,5 +1,5 @@
 fn main() {
-    uint_max = 18446744073709551615
-    uint_max * 2
-#!  ^^^^^^^^^^^^ RUN ERROR overflow
+    uint_max = 18446744073709551615_u
+    uint_max * 2_u
+#!  ^^^^^^^^^^^^^^ RUN ERROR overflow
 }

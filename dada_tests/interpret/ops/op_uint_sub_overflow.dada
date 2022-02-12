@@ -1,4 +1,4 @@
 fn main() {
-    0 - 1
-#!  ^^^^^ RUN ERROR overflow
+    0_u - 1_u
+#!  ^^^^^^^^^ RUN ERROR overflow
 }

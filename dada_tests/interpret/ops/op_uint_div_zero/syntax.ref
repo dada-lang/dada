@@ -17,14 +17,14 @@
                                 (
                                     Expr(0),
                                     Integer(
-                                        "1",
+                                        "1_",
                                     ),
                                 ),
                                 DividedBy,
                                 (
                                     Expr(1),
                                     Integer(
-                                        "0",
+                                        "0_",
                                     ),
                                 ),
                             ),
