@@ -28,16 +28,11 @@ impl Stepper<'_> {
             )
             .eyre(self.db))
         };
-        // let div_zero_error = || {
-        //     let span = self.span_from_bir(expr);
-        //     Err(error!(span, "divide by zero").eyre(self.db))
-        // };
-        // let overflow_error = || {
-        //     let span = self.span_from_bir(expr);
-        //     Err(error!(span, "overflow").eyre(self.db))
-        // };
         match (op, &self.machine[rhs]) {
             (Op::Minus, &ObjectData::Int(rhs)) => Ok(self.machine.our_value(-rhs)),
+            (Op::Minus, &ObjectData::UnsuffixedInt(rhs)) => {
+                Ok(self.machine.our_value(-(rhs as i64)))
+            }
             _ => op_error(),
         }
     }

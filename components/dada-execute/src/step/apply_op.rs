@@ -43,7 +43,10 @@ impl Stepper<'_> {
                 Op::EqualEqual => Ok(self.machine.our_value(lhs == rhs)),
                 _ => op_error(),
             },
-            (&ObjectData::Uint(lhs), &ObjectData::Uint(rhs)) => match op {
+            (&ObjectData::Uint(lhs), &ObjectData::Uint(rhs))
+            | (&ObjectData::Uint(lhs), &ObjectData::UnsuffixedInt(rhs))
+            | (&ObjectData::UnsuffixedInt(lhs), &ObjectData::Uint(rhs))
+            | (&ObjectData::UnsuffixedInt(lhs), &ObjectData::UnsuffixedInt(rhs)) => match op {
                 Op::EqualEqual => Ok(self.machine.our_value(lhs == rhs)),
                 Op::Plus => match lhs.checked_add(rhs) {
                     Some(value) => Ok(self.machine.our_value(value)),
@@ -64,34 +67,15 @@ impl Stepper<'_> {
                 Op::LessThan => Ok(self.machine.our_value(lhs < rhs)),
                 Op::GreaterThan => Ok(self.machine.our_value(lhs > rhs)),
             },
-            (&ObjectData::Int(lhs), &ObjectData::Int(rhs)) => match op {
-                Op::EqualEqual => Ok(self.machine.our_value(lhs == rhs)),
-                Op::Plus => match lhs.checked_add(rhs) {
-                    Some(value) => Ok(self.machine.our_value(value)),
-                    None => overflow_error(),
-                },
-                Op::Minus => match lhs.checked_sub(rhs) {
-                    Some(value) => Ok(self.machine.our_value(value)),
-                    None => overflow_error(),
-                },
-                Op::Times => match lhs.checked_mul(rhs) {
-                    Some(value) => Ok(self.machine.our_value(value)),
-                    None => overflow_error(),
-                },
-                Op::DividedBy => match lhs.checked_div(rhs) {
-                    Some(value) => Ok(self.machine.our_value(value)),
-                    None => {
-                        if rhs != -1 {
-                            div_zero_error()
-                        } else {
-                            let span = self.span_from_bir(expr);
-                            Err(error!(span, "signed division overflow").eyre(self.db))
-                        }
-                    }
-                },
-                Op::LessThan => Ok(self.machine.our_value(lhs < rhs)),
-                Op::GreaterThan => Ok(self.machine.our_value(lhs > rhs)),
-            },
+            (&ObjectData::Int(lhs), &ObjectData::Int(rhs)) => self.apply_int(expr, op, lhs, rhs),
+            (&ObjectData::UnsuffixedInt(lhs), &ObjectData::Int(rhs)) => {
+                let lhs = lhs as i64;
+                self.apply_int(expr, op, lhs, rhs)
+            }
+            (&ObjectData::Int(lhs), &ObjectData::UnsuffixedInt(rhs)) => {
+                let rhs = rhs as i64;
+                self.apply_int(expr, op, lhs, rhs)
+            }
             (&ObjectData::Float(lhs), &ObjectData::Float(rhs)) => match op {
                 Op::EqualEqual => Ok(self.machine.our_value(lhs == rhs)),
                 Op::Plus => Ok(self.machine.our_value(lhs + rhs)),
@@ -113,6 +97,45 @@ impl Stepper<'_> {
                 _ => op_error(),
             },
             _ => op_error(),
+        }
+    }
+
+    fn apply_int(&mut self, expr: bir::Expr, op: Op, lhs: i64, rhs: i64) -> eyre::Result<Value> {
+        let div_zero_error = || {
+            let span = self.span_from_bir(expr);
+            Err(error!(span, "divide by zero").eyre(self.db))
+        };
+        let overflow_error = || {
+            let span = self.span_from_bir(expr);
+            Err(error!(span, "overflow").eyre(self.db))
+        };
+        match op {
+            Op::EqualEqual => Ok(self.machine.our_value(lhs == rhs)),
+            Op::Plus => match lhs.checked_add(rhs) {
+                Some(value) => Ok(self.machine.our_value(value)),
+                None => overflow_error(),
+            },
+            Op::Minus => match lhs.checked_sub(rhs) {
+                Some(value) => Ok(self.machine.our_value(value)),
+                None => overflow_error(),
+            },
+            Op::Times => match lhs.checked_mul(rhs) {
+                Some(value) => Ok(self.machine.our_value(value)),
+                None => overflow_error(),
+            },
+            Op::DividedBy => match lhs.checked_div(rhs) {
+                Some(value) => Ok(self.machine.our_value(value)),
+                None => {
+                    if rhs != -1 {
+                        div_zero_error()
+                    } else {
+                        let span = self.span_from_bir(expr);
+                        Err(error!(span, "signed division overflow").eyre(self.db))
+                    }
+                }
+            },
+            Op::LessThan => Ok(self.machine.our_value(lhs < rhs)),
+            Op::GreaterThan => Ok(self.machine.our_value(lhs > rhs)),
         }
     }
 }

@@ -246,6 +246,7 @@ impl Stepper<'_> {
                 | ObjectData::String(_)
                 | ObjectData::ThunkRust(_)
                 | ObjectData::Unit(_)
+                | ObjectData::UnsuffixedInt(_)
                 | ObjectData::Uint(_) => {}
             }
         }

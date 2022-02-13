@@ -192,7 +192,7 @@ impl<'me> Validator<'me> {
                             }
                         }
                     }
-                    None => self.validate_integer(&without_underscore, expr),
+                    None => self.validate_unsuffix_integer(&without_underscore, expr),
                 }
             }
 
@@ -725,6 +725,26 @@ impl<'me> Validator<'me> {
     fn validate_integer(&mut self, integer_str: &str, origin: syntax::Expr) -> validated::Expr {
         match i64::from_str(integer_str) {
             Ok(v) => self.add(validated::ExprData::IntegerLiteral(v), origin),
+            Err(e) => {
+                dada_ir::error!(
+                    self.span(origin),
+                    "`{}` is not a valid integer: {}",
+                    integer_str,
+                    e,
+                )
+                .emit(self.db);
+                self.add(validated::ExprData::Error, origin)
+            }
+        }
+    }
+
+    fn validate_unsuffix_integer(
+        &mut self,
+        integer_str: &str,
+        origin: syntax::Expr,
+    ) -> validated::Expr {
+        match u64::from_str(integer_str) {
+            Ok(v) => self.add(validated::ExprData::UnsuffixedIntegerLiteral(v), origin),
             Err(e) => {
                 dada_ir::error!(
                     self.span(origin),

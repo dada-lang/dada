@@ -130,6 +130,7 @@ impl Cursor {
             | validated::ExprData::BooleanLiteral(_)
             | validated::ExprData::IntegerLiteral(_)
             | validated::ExprData::UnsignedIntegerLiteral(_)
+            | validated::ExprData::UnsuffixedIntegerLiteral(_)
             | validated::ExprData::FloatLiteral(_)
             | validated::ExprData::StringLiteral(_)
             | validated::ExprData::Call(_, _)
@@ -286,6 +287,17 @@ impl Cursor {
                     brewery,
                     target,
                     bir::ExprData::UnsignedIntegerLiteral(*value),
+                    origin,
+                );
+                self.push_breakpoint_end(brewery, Some(target), origin);
+            }
+
+            validated::ExprData::UnsuffixedIntegerLiteral(value) => {
+                self.push_breakpoint_start(brewery, origin);
+                self.push_assignment(
+                    brewery,
+                    target,
+                    bir::ExprData::UnsuffixedIntegerLiteral(*value),
                     origin,
                 );
                 self.push_breakpoint_end(brewery, Some(target), origin);

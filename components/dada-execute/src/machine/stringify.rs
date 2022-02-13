@@ -22,6 +22,7 @@ pub(crate) impl<T: ?Sized + MachineOp> DefaultStringify for T {
             ObjectData::Int(v) => format!("{}", v),
             ObjectData::Float(v) => format!("{}", v),
             ObjectData::Uint(v) => format!("{}", v),
+            ObjectData::UnsuffixedInt(v) => format!("{}", v),
             ObjectData::Unit(_) => "()".to_string(),
             ObjectData::Intrinsic(i) => i.as_str(db).to_string(),
             ObjectData::Function(f) => f.name(db).as_str(db).to_string(),

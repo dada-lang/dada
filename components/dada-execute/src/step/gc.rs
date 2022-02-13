@@ -132,6 +132,7 @@ impl<'me> Marker<'me> {
             | ObjectData::Bool(_)
             | ObjectData::Uint(_)
             | ObjectData::Int(_)
+            | ObjectData::UnsuffixedInt(_)
             | ObjectData::Float(_)
             | ObjectData::String(_)
             | ObjectData::Unit(_) => {

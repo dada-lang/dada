@@ -205,6 +205,8 @@ pub enum ExprData {
 
     UnsignedIntegerLiteral(u64),
 
+    UnsuffixedIntegerLiteral(u64),
+
     /// `2.2`
     FloatLiteral(eq_float::F64),
 
@@ -291,6 +293,7 @@ impl ExprData {
             ExprData::BooleanLiteral(v) => std::fmt::Debug::fmt(v, f),
             ExprData::IntegerLiteral(v) => write!(f, "{}", v),
             ExprData::UnsignedIntegerLiteral(v) => write!(f, "{}", v),
+            ExprData::UnsuffixedIntegerLiteral(v) => write!(f, "{}", v),
             ExprData::FloatLiteral(v) => write!(f, "{}", v),
             ExprData::StringLiteral(v) => std::fmt::Debug::fmt(&v.as_str(db.db()), f),
             ExprData::Await(expr) => f.debug_tuple("Await").field(&expr.debug(db)).finish(),
