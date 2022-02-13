@@ -190,6 +190,36 @@ impl Stepper<'_> {
         //              [] --shared----+
         // ```
         //
+        // ## Why not change the final lease to shared?
+        //
+        // When sharing something that is leased, we create a sublease rather
+        // rather converting the lease itself to be a shared lease. The answer
+        // is that this final lease may not be under our control.
+        //
+        // Consider this example:
+        //
+        // ```notrust
+        // a -leased-> [ Obj ]
+        //             [  f  ] --leased--> b
+        // ```
+        //
+        // Here, there are two leases at play. `a` is itself leased, and it
+        // contains a leased reference to `b`. This implies that *somewhere else*,
+        // there is an *owner* for `a`. Let's call them `o`. So `o` owns an
+        // object which has a leased value to `b`, and they've leased it out to `a`.
+        // They expect to be able to re-assert control over that object at any
+        // time and find it in the same state in which they left it.
+        // If we permitted `a` to convert the lease to `b` into a shared lease,
+        // that would violate `o`'s expectations.
+        //
+        // In other words, we want the owner of `o`  to be able to do this:
+        //
+        //     a = o.lease
+        //     arbitraryCode(a)
+        //     o.f.field += 1      # requires leased access
+        //
+        // and have it work, without concern for what `arbitraryCode` may do.
+        //
         // ## Note
         //
         // Because of the special case for a "last permission", this case
