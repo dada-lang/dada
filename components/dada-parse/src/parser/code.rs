@@ -175,6 +175,18 @@ impl CodeParser<'_, '_> {
             return Some(expr);
         }
 
+        if let Some((return_span, _)) = self.eat(Keyword::Return) {
+            match self.parse_expr() {
+                Some(expr) => {
+                    let span = self.span_consumed_since(return_span);
+                    return Some(self.add(ExprData::Return(Some(expr)), span));
+                }
+                None => {
+                    return Some(self.add(ExprData::Return(None), return_span));
+                }
+            }
+        }
+
         self.parse_expr_5()
     }
 

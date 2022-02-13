@@ -1,0 +1,4 @@
+async fn main() {
+    return 22 + 44
+    #! OUTPUT 66
+}

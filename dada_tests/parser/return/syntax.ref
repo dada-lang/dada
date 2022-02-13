@@ -1,0 +1,44 @@
+[
+    syntax::Tree {
+        origin: Code(
+            Some(
+                Tokens(dada_tests/parser/return.dada:1:15:1:15),
+            ),
+            Tokens(dada_tests/parser/return.dada:1:18:4:1),
+        ),
+        data: syntax::Tree {
+            root_expr: (
+                Expr(4),
+                Seq(
+                    [
+                        (
+                            Expr(3),
+                            Return(
+                                Some(
+                                    (
+                                        Expr(2),
+                                        Op(
+                                            (
+                                                Expr(0),
+                                                Integer(
+                                                    "22",
+                                                ),
+                                            ),
+                                            Plus,
+                                            (
+                                                Expr(1),
+                                                Integer(
+                                                    "44",
+                                                ),
+                                            ),
+                                        ),
+                                    ),
+                                ),
+                            ),
+                        ),
+                    ],
+                ),
+            ),
+        },
+    },
+]

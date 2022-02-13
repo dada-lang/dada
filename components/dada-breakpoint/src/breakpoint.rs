@@ -120,6 +120,8 @@ impl TreeTraversal<'_> {
                 self.find_in_children(expr, Some(base_expr))
             }
 
+            syntax::ExprData::Return(base_expr) => self.find_in_children(expr, base_expr),
+
             syntax::ExprData::Tuple(child_exprs) | syntax::ExprData::Seq(child_exprs) => {
                 self.find_in_children(expr, child_exprs)
             }

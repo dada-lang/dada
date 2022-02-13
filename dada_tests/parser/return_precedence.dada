@@ -1,0 +1,4 @@
+fn main() {
+    return * 3
+    #!     ^ ERROR extra tokens after end of expression
+}

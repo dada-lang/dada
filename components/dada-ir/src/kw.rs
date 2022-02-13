@@ -60,6 +60,7 @@ define_keywords! {
     True => "true",
     False => "false",
     While => "while",
+    Return => "return",
 }
 
 #[salsa::memoized(in crate::Jar ref)]
