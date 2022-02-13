@@ -352,7 +352,11 @@ impl ExprData {
                 .field(&expr.debug(db))
                 .finish(),
             ExprData::Error => f.debug_tuple("Error").finish(),
-            ExprData::Unary(_, _) => todo!(),
+            ExprData::Unary(op, rhs) => f
+                .debug_tuple("Unary")
+                .field(op)
+                .field(&rhs.debug(db))
+                .finish(),
         }
     }
 }

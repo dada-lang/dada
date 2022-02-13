@@ -1,0 +1,49 @@
+[
+    (
+        Expr(4),
+        Seq(
+            [
+                (
+                    Expr(3),
+                    Op(
+                        (
+                            Expr(1),
+                            Unary(
+                                Minus,
+                                (
+                                    Expr(0),
+                                    9223372036854775807,
+                                    ExprOrigin {
+                                        syntax_expr: Expr(0),
+                                        synthesized: false,
+                                    },
+                                ),
+                            ),
+                            ExprOrigin {
+                                syntax_expr: Expr(1),
+                                synthesized: false,
+                            },
+                        ),
+                        Minus,
+                        (
+                            Expr(2),
+                            2,
+                            ExprOrigin {
+                                syntax_expr: Expr(2),
+                                synthesized: false,
+                            },
+                        ),
+                    ),
+                    ExprOrigin {
+                        syntax_expr: Expr(3),
+                        synthesized: false,
+                    },
+                ),
+            ],
+        ),
+        ExprOrigin {
+            syntax_expr: Expr(4),
+            synthesized: false,
+        },
+    ),
+]

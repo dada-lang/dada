@@ -1,0 +1,5 @@
+fn main() {
+    int_max = 9223372036854775807_i
+    int_max + 1_i
+#!  ^^^^^^^^^^^^^ RUN ERROR overflow
+}
