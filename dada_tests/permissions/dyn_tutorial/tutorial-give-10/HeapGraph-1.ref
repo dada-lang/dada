@@ -13,8 +13,8 @@ digraph {
           <table border="0">
           <tr><td border="1">main</td></tr>
           <tr><td port="0"><font color="black">p</font></td></tr>
-          <tr><td port="5"><font color="black">q</font></td></tr>
-          <tr><td port="7"><font color="slategray">x</font></td></tr>
+          <tr><td port="2"><font color="black">q</font></td></tr>
+          <tr><td port="3"><font color="slategray">x</font></td></tr>
           </table>
         >;
       ];
@@ -28,7 +28,7 @@ digraph {
         <tr><td port="1"><font color="slategray">y: "44"</font></td></tr>
       </table>>
     ];
-    "afterstack":5 -> "afternode0" [label="my", style="solid"];
+    "afterstack":2 -> "afternode0" [label="my", style="solid", penwidth=3.0, arrowtype="normal", color="red"];
   }
   subgraph cluster_before {
     label=<<b>before</b>>
@@ -41,8 +41,8 @@ digraph {
           <table border="0">
           <tr><td border="1">main</td></tr>
           <tr><td port="0"><font color="black">p</font></td></tr>
-          <tr><td port="5"><font color="slategray">q</font></td></tr>
-          <tr><td port="7"><font color="slategray">x</font></td></tr>
+          <tr><td port="2"><font color="slategray">q</font></td></tr>
+          <tr><td port="3"><font color="slategray">x</font></td></tr>
           </table>
         >;
       ];
@@ -56,7 +56,7 @@ digraph {
         <tr><td port="1"><font color="slategray">y: "44"</font></td></tr>
       </table>>
     ];
-    "beforestack":0 -> "beforenode0" [label="my", style="solid"];
+    "beforestack":0 -> "beforenode0" [label="my", style="solid", penwidth=3.0, arrowtype="normal", color="red"];
   }
 }
 [31mError:[0m your lease to this object was cancelled

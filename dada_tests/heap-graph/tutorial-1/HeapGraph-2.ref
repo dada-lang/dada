@@ -24,7 +24,7 @@ digraph {
         <tr><td port="1"><font color="black">y: "44"</font></td></tr>
       </table>>
     ];
-    "afterstack":0 -> "afternode0" [label="my", style="solid"];
+    "afterstack":0 -> "afternode0" [label="my", style="solid", penwidth=3.0, arrowtype="normal", color="red"];
   }
   subgraph cluster_before {
     label=<<b>before</b>>

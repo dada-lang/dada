@@ -3,16 +3,16 @@ class Pair(a, b)
 async fn main() {
     pair = Pair(Pair(22, 44).share, 66)
     #           ^^^^^^^^^^^^^^^^^^
-    # This introduces a (jointly owned) temporary.
+    # This created a jointly owned value but
+    # puts `pair` is the sole owner of it.
 
-    # Leasing that jointly owned temporary produces
-    # a shared lease.
+    # Leasing from `pair.a` creates a shared lease.
     p = pair.a.lease
 
-    # Overwriting `pair.a` does not destroy the temporary
-    # behind it.
+    # Overwriting `pair.a` destroys the owner of that lease,
+    # so `p` is invalidated.
     pair.a := Pair(23, 45)
 
-    # So we can still access `p`
-    print(p).await #! OUTPUT our leased Pair\(22, 44\)
+    # As `p` was invalidated, it's an error to use it.
+    print(p).await #! RUN ERROR your lease to this object was cancelled
 }

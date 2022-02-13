@@ -316,7 +316,11 @@ impl<'me> Validator<'me> {
             }
 
             syntax::ExprData::Give(target_expr) => {
-                self.validate_permission_expr(expr, *target_expr, validated::ExprData::Give)
+                if self.is_place_expression(*target_expr) {
+                    self.validate_permission_expr(expr, *target_expr, validated::ExprData::Give)
+                } else {
+                    self.validate_expr(*target_expr)
+                }
             }
 
             syntax::ExprData::Var(decl, initializer_expr) => {
@@ -587,6 +591,16 @@ impl<'me> Validator<'me> {
             self.maybe_seq(opt_temporary_expr, permission_expr, perm_expr)
         };
         self.or_error(validated_data, perm_expr)
+    }
+
+    fn is_place_expression(&self, expr: syntax::Expr) -> bool {
+        match expr.data(self.syntax_tables()) {
+            syntax::ExprData::Id(_) | syntax::ExprData::Dot(..) => true,
+            syntax::ExprData::Parenthesized(parenthesized_expr) => {
+                self.is_place_expression(*parenthesized_expr)
+            }
+            _ => false,
+        }
     }
 
     fn validate_expr_as_place(
