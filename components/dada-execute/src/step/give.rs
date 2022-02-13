@@ -70,17 +70,7 @@ impl Stepper<'_> {
 
         // The value at `place` is exclusively owned: cancel the old permission (and any tenants)
         // create a new one to return.
-
-        // This counts as a write to the object.
-        self.write_object(&object_traversal);
-
-        let ObjectTraversal {
-            object,
-            accumulated_permissions,
-        } = object_traversal;
-
-        let last_permission = *accumulated_permissions.traversed.last().unwrap();
-        self.revoke(last_permission);
+        let object = self.take_object(object_traversal);
         let permission = self.machine.new_permission(ValidPermissionData::my());
         Ok(Value { object, permission })
     }

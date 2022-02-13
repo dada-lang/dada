@@ -1,6 +1,6 @@
 use dada_ir::{
     error,
-    storage_mode::{Atomic, Joint},
+    storage_mode::{Atomic, Joint, Leased},
 };
 
 use crate::{
@@ -39,6 +39,18 @@ impl Stepper<'_> {
     /// state).
     pub(super) fn write_object(&mut self, traversal: &ObjectTraversal) {
         self.access(traversal, Self::revoke_tenants);
+    }
+
+    /// Given a traversal that has unique ownership, revokes the last permission
+    /// in the path and returns the object. This also cancels tenants of traversed
+    /// paths, as their (transitive) content has changed.
+    pub(super) fn take_object(&mut self, traversal: ObjectTraversal) -> Object {
+        assert_eq!(traversal.accumulated_permissions.joint, Joint::No);
+        assert_eq!(traversal.accumulated_permissions.leased, Leased::No);
+        self.write_object(&traversal);
+        let last_permission = *traversal.accumulated_permissions.traversed.last().unwrap();
+        self.revoke(last_permission);
+        traversal.object
     }
 
     /// Write to the *place* identified by the given traversal (but not the
