@@ -1,0 +1,26 @@
+async fn main() {
+    if 1_u + 1 == 2 {
+        print("1_u + 1 == 2").await
+        #! OUTPUT .*
+    }
+
+    if 1 + 1_u == 2 {
+        print("1 + 1_u == 2").await
+        #! OUTPUT .*
+    }
+
+    if 1_i + 1 == 2 {
+        print("1_i + 1 == 2").await
+        #! OUTPUT .*
+    }
+
+    if 1 + 1_i == 2 {
+        print("1 + 1_i == 2").await
+        #! OUTPUT .*
+    }
+
+    if 1_i + 1_u == 2 { 
+#!     ^^^^^^^^^ RUN ERROR cannot apply operator \+ to an integer and an unsigned integer
+        print("error").await
+    }
+}
