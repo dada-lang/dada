@@ -1,0 +1,7 @@
+async fn main() {
+    print(-1).await #! OUTPUT -1
+    x = 1
+    print(-x).await #! OUTPUT -1
+    print(- - 1).await #! OUTPUT 1
+    print(2 * -1).await #! OUTPUT -2
+}

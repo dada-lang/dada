@@ -268,7 +268,7 @@ impl CodeParser<'_, '_> {
     }
 
     pub(crate) fn parse_expr_2(&mut self) -> Option<Expr> {
-        if let Some(expr) = self.parse_unary(&[Op::Minus], Self::parse_expr_1) {
+        if let Some(expr) = self.parse_unary(&[Op::Minus], Self::parse_expr_2) {
             return Some(expr);
         }
         self.parse_expr_1()
