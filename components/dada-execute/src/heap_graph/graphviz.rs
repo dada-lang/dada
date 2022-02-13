@@ -3,7 +3,8 @@ use dada_id::InternKey;
 use dada_parse::prelude::*;
 
 use super::{
-    DataNode, HeapGraph, ObjectType, PermissionNode, ValueEdge, ValueEdgeData, ValueEdgeTarget,
+    DataNode, HeapGraph, ObjectType, PermissionNode, PermissionNodeLabel, ValueEdge, ValueEdgeData,
+    ValueEdgeTarget,
 };
 
 const UNCHANGED: &str = "slategray";
@@ -145,8 +146,21 @@ impl HeapGraph {
                 "solid"
             };
 
+            let (penwidth, arrowtype) = match permission_data.label {
+                PermissionNodeLabel::My | PermissionNodeLabel::Our => ("3.0", "normal"),
+                PermissionNodeLabel::Expired
+                | PermissionNodeLabel::Leased
+                | PermissionNodeLabel::OurLeased => ("1.0", "empty"),
+            };
+
+            let color = match permission_data.label {
+                PermissionNodeLabel::My | PermissionNodeLabel::Leased => "red",
+                PermissionNodeLabel::OurLeased | PermissionNodeLabel::Our => "blue",
+                PermissionNodeLabel::Expired => "grey",
+            };
+
             w.println(format!(
-                r#"{source:?}:{source_port} -> {target:?} [label={label:?}, style={style:?}];"#,
+                r#"{source:?}:{source_port} -> {target:?} [label="{label}", style="{style}", penwidth={penwidth}, arrowtype="{arrowtype}", color="{color}"];"#,
                 source = value_edge.source.node,
                 source_port = value_edge.source.port,
                 target = value_edge.target,
