@@ -158,6 +158,8 @@ pub enum ExprData {
     /// `a += b`
     OpEq(Expr, Op, Expr),
 
+    Unary(Op, Expr),
+
     /// `a := b`
     Assign(Expr, Expr),
 
@@ -236,6 +238,11 @@ impl DebugWithDb<InIrDb<'_, Tree>> for ExprData {
                 .finish(),
             ExprData::Error => f.debug_tuple("Error").finish(),
             ExprData::Return(e) => f.debug_tuple("Return").field(&e.debug(db)).finish(),
+            ExprData::Unary(o, e) => f
+                .debug_tuple("Unary")
+                .field(&o)
+                .field(&e.debug(db))
+                .finish(),
         }
     }
 }

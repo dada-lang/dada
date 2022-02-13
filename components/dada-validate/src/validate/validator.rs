@@ -424,6 +424,15 @@ impl<'me> Validator<'me> {
                 )
             }
 
+            syntax::ExprData::Unary(op, rhs_expr) => {
+                let validated_rhs_expr = self.validate_expr(*rhs_expr);
+                let validated_op = self.validated_op(*op);
+                self.add(
+                    validated::ExprData::Unary(validated_op, validated_rhs_expr),
+                    expr,
+                )
+            }
+
             syntax::ExprData::OpEq(lhs_expr, op, rhs_expr) => {
                 // FIXME: This desugaring is overly simplistic. It will break on cases
                 // like `foo(a, b).field += 1` because it will execute `foo(a, b)` twice.

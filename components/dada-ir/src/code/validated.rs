@@ -261,6 +261,8 @@ pub enum ExprData {
     /// `a + b`
     Op(Expr, Op, Expr),
 
+    Unary(Op, Expr),
+
     /// `a := b`
     Assign(Place, Expr),
 
@@ -350,6 +352,7 @@ impl ExprData {
                 .field(&expr.debug(db))
                 .finish(),
             ExprData::Error => f.debug_tuple("Error").finish(),
+            ExprData::Unary(_, _) => todo!(),
         }
     }
 }

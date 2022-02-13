@@ -126,6 +126,7 @@ impl Cursor {
             | validated::ExprData::Loop(_)
             | validated::ExprData::Seq(_)
             | validated::ExprData::Op(_, _, _)
+            | validated::ExprData::Unary(_, _)
             | validated::ExprData::BooleanLiteral(_)
             | validated::ExprData::IntegerLiteral(_)
             | validated::ExprData::UnsignedIntegerLiteral(_)
@@ -337,6 +338,14 @@ impl Cursor {
                         );
                         self.push_breakpoint_end(brewery, Some(target), origin);
                     }
+                }
+            }
+
+            validated::ExprData::Unary(op, rhs) => {
+                self.push_breakpoint_start(brewery, origin);
+                if let Some(rhs) = self.brew_expr_to_temporary(brewery, *rhs) {
+                    self.push_assignment(brewery, target, bir::ExprData::Unary(*op, rhs), origin);
+                    self.push_breakpoint_end(brewery, Some(target), origin);
                 }
             }
 

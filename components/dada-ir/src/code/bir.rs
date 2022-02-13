@@ -398,6 +398,8 @@ pub enum ExprData {
     /// `a + b`
     Op(Place, Op, Place),
 
+    Unary(Op, Place),
+
     /// parse or other error
     Error,
 }
@@ -419,6 +421,9 @@ impl DebugWithDb<InIrDb<'_, Bir>> for ExprData {
                 write!(f, "{:?} {} {:?}", lhs.debug(db), op.str(), rhs.debug(db))
             }
             ExprData::Error => write!(f, "<error>"),
+            ExprData::Unary(op, rhs) => {
+                write!(f, "{} {:?}", op.str(), rhs.debug(db))
+            }
         }
     }
 }
