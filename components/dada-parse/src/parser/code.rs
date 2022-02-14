@@ -18,7 +18,7 @@ use dada_ir::{
     kw::Keyword,
     origin_table::PushOriginIn,
     span::Span,
-    storage_mode::Atomic,
+    storage::Atomic,
     token::Token,
     token_tree::TokenTree,
     word::SpannedOptionalWord,

@@ -2,7 +2,7 @@ use dada_brew::prelude::*;
 use dada_ir::{
     code::bir,
     error,
-    storage_mode::{Joint, Leased},
+    storage::{Joint, Leased},
 };
 
 use crate::{

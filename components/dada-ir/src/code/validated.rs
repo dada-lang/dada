@@ -9,7 +9,7 @@ use crate::{
     in_ir_db::InIrDb,
     intrinsic::Intrinsic,
     prelude::InIrDbExt,
-    storage_mode::Atomic,
+    storage::Atomic,
     word::{SpannedOptionalWord, Word},
 };
 use dada_id::{id, prelude::*, tables};

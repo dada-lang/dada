@@ -1,4 +1,4 @@
-use dada_ir::storage_mode::Joint;
+use dada_ir::storage::Joint;
 
 use crate::machine::{Permission, PermissionData, ValidPermissionData};
 

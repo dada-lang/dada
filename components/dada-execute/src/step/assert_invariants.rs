@@ -7,7 +7,7 @@
 //! * I0: Every owned or exclusive permission should be associated with exactly one object across the entire machine.
 
 use dada_collections::Map;
-use dada_ir::storage_mode::{Joint, Leased};
+use dada_ir::storage::{Joint, Leased};
 
 use crate::machine::{op::MachineOp, Frame, Object, ObjectData, Permission, PermissionData, Value};
 

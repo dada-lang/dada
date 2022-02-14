@@ -10,7 +10,7 @@ use crate::{
     intrinsic::Intrinsic,
     origin_table::HasOriginIn,
     prelude::InIrDbExt,
-    storage_mode::Atomic,
+    storage::Atomic,
     word::{SpannedOptionalWord, Word},
 };
 use dada_id::{id, prelude::*, tables};

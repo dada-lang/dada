@@ -4,7 +4,7 @@ use dada_ir::{
         bir::{self, BirData},
         validated::{self, ExprOrigin},
     },
-    storage_mode::Atomic,
+    storage::Atomic,
 };
 use salsa::DebugWithDb;
 

@@ -4,7 +4,7 @@ use dada_ir::{
     code::bir,
     error,
     span::FileSpan,
-    storage_mode::{Atomic, Joint, Leased},
+    storage::{Atomic, Joint, Leased},
     word::Word,
 };
 use dada_parse::prelude::DadaParseClassExt;

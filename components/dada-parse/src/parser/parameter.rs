@@ -6,7 +6,7 @@ use dada_ir::{
     kw::Keyword,
     parameter::Parameter,
     span::Span,
-    storage_mode::{Atomic, SpannedSpecifier, Specifier},
+    storage::{Atomic, SpannedSpecifier, Specifier},
 };
 
 use super::ParseList;

@@ -3,7 +3,7 @@ use crate::{
     in_ir_db::InIrDb,
     in_ir_db::InIrDbExt,
     span::Span,
-    storage_mode::{Atomic, SpannedSpecifier},
+    storage::{Atomic, SpannedSpecifier},
     word::{SpannedOptionalWord, Word},
 };
 use dada_id::{id, prelude::*, tables};

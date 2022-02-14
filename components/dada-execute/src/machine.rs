@@ -7,7 +7,7 @@ use dada_ir::{
     function::Function,
     intrinsic::Intrinsic,
     span::FileSpan,
-    storage_mode::{Joint, Leased},
+    storage::{Joint, Leased},
 };
 use dada_parse::prelude::*;
 use generational_arena::Arena;

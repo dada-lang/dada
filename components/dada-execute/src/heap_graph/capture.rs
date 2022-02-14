@@ -2,7 +2,7 @@
 
 use dada_collections::Map;
 use dada_id::InternKey;
-use dada_ir::storage_mode::{Joint, Leased};
+use dada_ir::storage::{Joint, Leased};
 
 use crate::machine::{
     op::MachineOp, stringify::DefaultStringify, Frame, Object, ObjectData, Permission,

@@ -12,7 +12,7 @@ use dada_ir::origin_table::HasOriginIn;
 use dada_ir::origin_table::PushOriginIn;
 use dada_ir::span::FileSpan;
 use dada_ir::span::Span;
-use dada_ir::storage_mode::Atomic;
+use dada_ir::storage::Atomic;
 use dada_ir::word::Word;
 use dada_lex::prelude::*;
 use dada_parse::prelude::*;

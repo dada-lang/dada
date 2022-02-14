@@ -5,7 +5,7 @@
 //! The gc currently runs after every step, keeping things tidy.
 
 use dada_collections::Set;
-use dada_ir::storage_mode::Leased;
+use dada_ir::storage::Leased;
 
 use crate::machine::{op::MachineOp, Object, ObjectData, Permission, PermissionData, Value};
 

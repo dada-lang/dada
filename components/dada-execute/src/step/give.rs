@@ -1,6 +1,6 @@
 use dada_ir::{
     code::bir,
-    storage_mode::{Joint, Leased},
+    storage::{Joint, Leased},
 };
 
 use crate::machine::{ValidPermissionData, Value};

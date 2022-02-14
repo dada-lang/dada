@@ -1,6 +1,6 @@
 use dada_ir::{
     error,
-    storage_mode::{Atomic, Joint, Leased},
+    storage::{Atomic, Joint, Leased},
 };
 
 use crate::{

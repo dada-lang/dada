@@ -1,5 +1,5 @@
 use dada_ir::{
-    storage_mode::{Joint, Leased},
+    storage::{Joint, Leased},
     word::Word,
 };
 
