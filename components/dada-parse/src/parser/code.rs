@@ -1,7 +1,7 @@
 use crate::{
     parser::Parser,
     prelude::*,
-    token_test::{FormatStringLiteral, Identifier, Number},
+    token_test::{Alphabetic, FormatStringLiteral, Identifier, Number},
 };
 
 use dada_id::InternValue;
@@ -332,16 +332,17 @@ impl CodeParser<'_, '_> {
             tracing::debug!("identifier");
             Some(self.add(ExprData::Id(id), id_span))
         } else if let Some((word_span, word)) = self.eat(Number) {
-            let whitespace_before_dot = self.tokens.skipped_any();
+            let whitespace_after_number = self.tokens.skipped_any();
+
             match self.eat_op(Op::Dot) {
                 None => {
-                    if whitespace_before_dot {
+                    if whitespace_after_number {
                         return Some(self.add(ExprData::IntegerLiteral(word, None), word_span));
                     }
-                    match self.eat(Identifier) {
-                        Some((_, id)) => {
+                    match self.eat(Alphabetic) {
+                        Some((_, alphabetic)) => {
                             let span = self.span_consumed_since(word_span);
-                            Some(self.add(ExprData::IntegerLiteral(word, Some(id)), span))
+                            Some(self.add(ExprData::IntegerLiteral(word, Some(alphabetic)), span))
                         }
                         None => Some(self.add(ExprData::IntegerLiteral(word, None), word_span)),
                     }
@@ -351,7 +352,7 @@ impl CodeParser<'_, '_> {
                     if let Some((_, dec_word)) = self.eat(Number) {
                         let span = self.span_consumed_since(word_span);
 
-                        if whitespace_before_dot || whitespace_after_dot {
+                        if whitespace_after_number || whitespace_after_dot {
                             self.parser
                                 .error(span, "whitespace is not allowed in float literals")
                                 .emit(self.db);

@@ -58,6 +58,16 @@ impl TokenTest for Identifier {
     }
 }
 
+#[derive(Debug)]
+pub(crate) struct Alphabetic;
+impl TokenTest for Alphabetic {
+    type Narrow = Word;
+
+    fn test(self, _db: &dyn crate::Db, token: Token) -> Option<Word> {
+        token.alphabetic()
+    }
+}
+
 /// A number like `22` or `22_000`.
 ///
 /// Note that `.` is not accepted.

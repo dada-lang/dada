@@ -98,7 +98,7 @@ pub enum ExprData {
     /// true, false
     BooleanLiteral(bool),
 
-    /// `22`, `22_222`, etc
+    /// (`22`, suffix: `u`), (`22_222`, suffix: `i`), etc
     IntegerLiteral(Word, Option<Word>),
 
     /// `integer-part.fractional-part`

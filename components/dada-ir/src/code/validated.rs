@@ -200,11 +200,13 @@ pub enum ExprData {
     /// true, false
     BooleanLiteral(bool),
 
-    /// `22`, `22_222`, etc
+    /// `22i`, `22_222i`, etc
     IntegerLiteral(i64),
 
+    /// `22u`, `22_222u`, etc
     UnsignedIntegerLiteral(u64),
 
+    /// `22`, `22_222`, etc
     UnsuffixedIntegerLiteral(u64),
 
     /// `2.2`
