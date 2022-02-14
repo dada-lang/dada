@@ -146,7 +146,7 @@ impl Cursor {
     ) {
         if self.end_block.is_some() {
             let value = brewery.add(value, origin);
-            let statement = brewery.add(bir::StatementData::Assign(target, value), origin);
+            let statement = brewery.add(bir::StatementData::AssignExpr(target, value), origin);
             self.push_statement(brewery, statement);
         }
     }

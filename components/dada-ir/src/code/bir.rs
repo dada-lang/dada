@@ -218,7 +218,8 @@ impl DebugWithDb<InIrDb<'_, Bir>> for Statement {
 
 #[derive(PartialEq, Eq, Clone, Hash, Debug)]
 pub enum StatementData {
-    Assign(Place, Expr),
+    /// Assign the result of evaluating an expression to a place.
+    AssignExpr(Place, Expr),
 
     /// Clears the value from the given local variable.
     Clear(LocalVariable),
@@ -251,7 +252,7 @@ pub enum StatementData {
 impl DebugWithDb<InIrDb<'_, Bir>> for StatementData {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>, db: &InIrDb<'_, Bir>) -> std::fmt::Result {
         match self {
-            StatementData::Assign(place, expr) => f
+            StatementData::AssignExpr(place, expr) => f
                 .debug_tuple("Assign")
                 .field(&place.debug(db))
                 .field(&expr.debug(db))

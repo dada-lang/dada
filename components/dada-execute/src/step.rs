@@ -173,7 +173,7 @@ impl<'me> Stepper<'me> {
         );
 
         match statement.data(table) {
-            bir::StatementData::Assign(place, expr) => {
+            bir::StatementData::AssignExpr(place, expr) => {
                 // Subtle: The way this is setup, permissions for the target are not
                 // canceled until the write occurs. Consider something like this:
                 //
