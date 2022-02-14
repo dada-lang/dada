@@ -6,7 +6,7 @@ use dada_ir::{
     kw::Keyword,
     parameter::Parameter,
     span::Span,
-    storage_mode::Atomic,
+    storage_mode::{Atomic, SpannedSpecifier, Specifier},
 };
 
 use super::ParseList;
@@ -19,6 +19,7 @@ impl<'db> Parser<'db> {
     }
 
     fn parse_parameter(&mut self) -> Option<Parameter> {
+        let opt_specifier = self.parse_permission_specifier();
         let opt_storage_mode = self.parse_atomic();
         if let Some((name_span, name)) = self.eat(Identifier) {
             let opt_ty = if let Some(colon_span) = self.eat_op(Op::Colon) {
@@ -40,8 +41,11 @@ impl<'db> Parser<'db> {
                 None => (name_span, Atomic::No),
             };
 
+            let specifier = opt_specifier.or_defaulted(self, name_span);
+
             let decl = LocalVariableDeclData {
                 atomic,
+                specifier,
                 name,
                 ty: opt_ty,
             };
@@ -70,6 +74,60 @@ impl<'db> Parser<'db> {
             Some(span)
         } else {
             None
+        }
+    }
+
+    pub(crate) fn parse_permission_specifier(&mut self) -> Option<SpannedSpecifier> {
+        let filename = self.filename;
+        let some_specifier = |specifier, span: Span| {
+            Some(SpannedSpecifier::new(
+                self.db,
+                specifier,
+                false,
+                span.in_file(filename),
+            ))
+        };
+        if let Some((my_span, _)) = self.eat(Keyword::My) {
+            if let Some((leased_span, _)) = self.eat(Keyword::Leased) {
+                some_specifier(Specifier::Leased, my_span.to(leased_span))
+            } else {
+                some_specifier(Specifier::My, my_span)
+            }
+        } else if let Some((our_span, _)) = self.eat(Keyword::Our) {
+            if let Some((leased_span, _)) = self.eat(Keyword::Leased) {
+                some_specifier(Specifier::OurLeased, our_span.to(leased_span))
+            } else {
+                some_specifier(Specifier::Our, our_span)
+            }
+        } else if let Some((leased_span, _)) = self.eat(Keyword::Leased) {
+            if let Some((my_span, _)) = self.eat(Keyword::My) {
+                self.error(my_span, "this should be written `leased`, not `leased my`")
+                    .emit(self.db);
+                some_specifier(Specifier::Leased, leased_span.to(my_span))
+            } else if let Some((our_span, _)) = self.eat(Keyword::Our) {
+                self.error(
+                    our_span,
+                    "this should be written `our leased`, not `leased our`",
+                )
+                .emit(self.db);
+                some_specifier(Specifier::OurLeased, leased_span.to(our_span))
+            } else {
+                some_specifier(Specifier::Leased, leased_span)
+            }
+        } else if let Some((any_span, _)) = self.eat(Keyword::Any) {
+            some_specifier(Specifier::Any, any_span)
+        } else {
+            None
+        }
+    }
+}
+
+#[extension_trait::extension_trait]
+pub(crate) impl SpannedSpecifierExt for Option<SpannedSpecifier> {
+    fn or_defaulted(self, parser: &Parser<'_>, name_span: Span) -> SpannedSpecifier {
+        match self {
+            Some(s) => s,
+            None => SpannedSpecifier::new_defaulted(parser.db, name_span.in_file(parser.filename)),
         }
     }
 }

@@ -1,3 +1,37 @@
+use crate::span::FileSpan;
+
+salsa::entity2! {
+    /// A "spanned spanned" is a `Specifier` that carries a span for diagnostics.
+    entity SpannedSpecifier in crate::Jar {
+        #[id] specifier: Specifier,
+
+        /// If true, the specifier was not explicitly given by the user
+        /// but was defaulted.
+        defaulted: bool,
+
+        /// Span of the specifier keywords, or storage name if specified was
+        /// defaulted.
+        span: FileSpan,
+    }
+}
+
+impl SpannedSpecifier {
+    /// Creates a new `SpannedSpecifier` for a variable/field that didn't
+    /// have an explicit specifier.
+    pub fn new_defaulted(db: &dyn crate::Db, name_span: FileSpan) -> Self {
+        Self::new(db, Specifier::Any, true, name_span)
+    }
+}
+
+#[derive(PartialEq, Eq, PartialOrd, Ord, Clone, Hash, Debug)]
+pub enum Specifier {
+    My,
+    Our,
+    Leased,
+    OurLeased,
+    Any,
+}
+
 /// NB: Ordering is significant. As we traverse a path, we take the
 /// max of the atomic properties for the various storage modes,
 /// and we want that to be atomic if any step was atomic.

@@ -43,24 +43,26 @@ impl std::fmt::Display for Keyword {
 }
 
 define_keywords! {
+    Any => "any",
+    Async => "async",
+    Atomic => "atomic",
+    Await => "await",
     Class => "class",
-    Var => "var",
+    Else => "else",
+    False => "false",
+    Fn => "fn",
     Give => "give",
-    Share => "share",
-    Shared => "shared",
+    If => "if",
     Lease => "lease",
     Leased => "leased",
-    Atomic => "atomic",
-    Fn => "fn",
-    Async => "async",
-    Await => "await",
-    If => "if",
-    Else => "else",
     Loop => "loop",
-    True => "true",
-    False => "false",
-    While => "while",
+    My => "my",
     Return => "return",
+    Share => "share",
+    Shared => "shared",
+    True => "true",
+    Our => "our",
+    While => "while",
 }
 
 #[salsa::memoized(in crate::Jar ref)]
