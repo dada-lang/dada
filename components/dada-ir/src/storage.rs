@@ -23,7 +23,7 @@ impl SpannedSpecifier {
     }
 }
 
-#[derive(PartialEq, Eq, PartialOrd, Ord, Clone, Hash, Debug)]
+#[derive(PartialEq, Eq, PartialOrd, Ord, Copy, Clone, Hash, Debug)]
 pub enum Specifier {
     My,
     Our,

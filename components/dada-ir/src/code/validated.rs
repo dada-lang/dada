@@ -9,7 +9,7 @@ use crate::{
     in_ir_db::InIrDb,
     intrinsic::Intrinsic,
     prelude::InIrDbExt,
-    storage::Atomic,
+    storage::{Atomic, Specifier},
     word::{SpannedOptionalWord, Word},
 };
 use dada_id::{id, prelude::*, tables};
@@ -172,6 +172,8 @@ pub struct LocalVariableData {
     /// considered roots for the GC in the official
     /// semantics.
     pub name: Option<Word>,
+
+    pub specifier: Specifier,
 
     pub atomic: Atomic,
 }

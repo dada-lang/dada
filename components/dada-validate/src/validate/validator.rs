@@ -13,6 +13,7 @@ use dada_ir::origin_table::PushOriginIn;
 use dada_ir::span::FileSpan;
 use dada_ir::span::Span;
 use dada_ir::storage::Atomic;
+use dada_ir::storage::Specifier;
 use dada_ir::word::Word;
 use dada_lex::prelude::*;
 use dada_parse::prelude::*;
@@ -142,6 +143,7 @@ impl<'me> Validator<'me> {
         let local_variable = self.add(
             validated::LocalVariableData {
                 name: Some(decl_data.name),
+                specifier: decl_data.specifier.specifier(self.db),
                 atomic: decl_data.atomic,
             },
             validated::LocalVariableOrigin::Parameter(decl),
@@ -328,6 +330,7 @@ impl<'me> Validator<'me> {
                 let local_variable = self.add(
                     validated::LocalVariableData {
                         name: Some(decl_data.name),
+                        specifier: decl_data.specifier.specifier(self.db),
                         atomic: decl_data.atomic,
                     },
                     validated::LocalVariableOrigin::LocalVariable(*decl),
@@ -661,6 +664,7 @@ impl<'me> Validator<'me> {
         let local_variable = self.add(
             validated::LocalVariableData {
                 name: None,
+                specifier: Specifier::Any,
                 atomic: Atomic::No,
             },
             validated::LocalVariableOrigin::Temporary(expr),

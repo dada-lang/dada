@@ -218,6 +218,7 @@ fn map_variables(
                 origins,
                 bir::LocalVariableData {
                     name: validated_var_data.name,
+                    specifier: validated_var_data.specifier,
                     atomic: validated_var_data.atomic,
                 },
                 validated_var_origin,
