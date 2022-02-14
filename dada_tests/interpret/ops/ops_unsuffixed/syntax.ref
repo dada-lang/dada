@@ -2,13 +2,13 @@
     syntax::Tree {
         origin: Code(
             Some(
-                Tokens(dada_tests/interpret/ops/ops_mixed_int.dada:1:15:1:15),
+                Tokens(dada_tests/interpret/ops/ops_unsuffixed.dada:1:15:1:15),
             ),
-            Tokens(dada_tests/interpret/ops/ops_mixed_int.dada:1:18:26:1),
+            Tokens(dada_tests/interpret/ops/ops_unsuffixed.dada:1:18:21:1),
         ),
         data: syntax::Tree {
             root_expr: (
-                Expr(55),
+                Expr(44),
                 Seq(
                     [
                         (
@@ -277,76 +277,6 @@
                                                                         Expr(39),
                                                                         String(
                                                                             "1 + 1_i == 2",
-                                                                        ),
-                                                                    ),
-                                                                ),
-                                                            ],
-                                                        ),
-                                                    ),
-                                                ),
-                                            ),
-                                        ],
-                                    ),
-                                ),
-                                None,
-                            ),
-                        ),
-                        (
-                            Expr(54),
-                            If(
-                                (
-                                    Expr(48),
-                                    Op(
-                                        (
-                                            Expr(46),
-                                            Op(
-                                                (
-                                                    Expr(44),
-                                                    Integer(
-                                                        "1_",
-                                                    ),
-                                                ),
-                                                Plus,
-                                                (
-                                                    Expr(45),
-                                                    Integer(
-                                                        "1_",
-                                                    ),
-                                                ),
-                                            ),
-                                        ),
-                                        EqualEqual,
-                                        (
-                                            Expr(47),
-                                            Integer(
-                                                "2",
-                                            ),
-                                        ),
-                                    ),
-                                ),
-                                (
-                                    Expr(53),
-                                    Seq(
-                                        [
-                                            (
-                                                Expr(52),
-                                                Await(
-                                                    (
-                                                        Expr(51),
-                                                        Call(
-                                                            (
-                                                                Expr(49),
-                                                                Id(
-                                                                    "print",
-                                                                ),
-                                                            ),
-                                                            [
-                                                                (
-                                                                    None,
-                                                                    (
-                                                                        Expr(50),
-                                                                        String(
-                                                                            "error",
                                                                         ),
                                                                     ),
                                                                 ),

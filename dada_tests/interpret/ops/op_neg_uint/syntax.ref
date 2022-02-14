@@ -1,0 +1,31 @@
+[
+    syntax::Tree {
+        origin: Code(
+            Some(
+                Tokens(dada_tests/interpret/ops/op_neg_uint.dada:1:9:1:9),
+            ),
+            Tokens(dada_tests/interpret/ops/op_neg_uint.dada:1:12:4:1),
+        ),
+        data: syntax::Tree {
+            root_expr: (
+                Expr(2),
+                Seq(
+                    [
+                        (
+                            Expr(1),
+                            Unary(
+                                Minus,
+                                (
+                                    Expr(0),
+                                    Integer(
+                                        "1",
+                                    ),
+                                ),
+                            ),
+                        ),
+                    ],
+                ),
+            ),
+        },
+    },
+]

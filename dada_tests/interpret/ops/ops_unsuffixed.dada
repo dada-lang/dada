@@ -18,9 +18,4 @@ async fn main() {
         print("1 + 1_i == 2").await
         #! OUTPUT .*
     }
-
-    if 1_i + 1_u == 2 { 
-#!     ^^^^^^^^^ RUN ERROR cannot apply operator \+ to an integer and an unsigned integer
-        print("error").await
-    }
 }

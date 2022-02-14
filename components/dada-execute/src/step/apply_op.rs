@@ -68,13 +68,15 @@ impl Stepper<'_> {
                 Op::GreaterThan => Ok(self.machine.our_value(lhs > rhs)),
             },
             (&ObjectData::Int(lhs), &ObjectData::Int(rhs)) => self.apply_int(expr, op, lhs, rhs),
-            (&ObjectData::UnsuffixedInt(lhs), &ObjectData::Int(rhs)) => {
-                let lhs = lhs as i64;
-                self.apply_int(expr, op, lhs, rhs)
-            }
+            (&ObjectData::UnsuffixedInt(lhs), &ObjectData::Int(rhs)) => match i64::try_from(lhs) {
+                Ok(lhs) => self.apply_int(expr, op, lhs, rhs),
+                Err(_) => overflow_error(),
+            },
             (&ObjectData::Int(lhs), &ObjectData::UnsuffixedInt(rhs)) => {
-                let rhs = rhs as i64;
-                self.apply_int(expr, op, lhs, rhs)
+                match i64::try_from(rhs) {
+                    Ok(rhs) => self.apply_int(expr, op, lhs, rhs),
+                    Err(_) => overflow_error(),
+                }
             }
             (&ObjectData::Float(lhs), &ObjectData::Float(rhs)) => match op {
                 Op::EqualEqual => Ok(self.machine.our_value(lhs == rhs)),

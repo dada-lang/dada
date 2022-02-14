@@ -5,49 +5,36 @@
             [
                 (
                     Assign(
-                        temp{2},
-                        9223372036854775807,
+                        temp{1},
+                        9223372036854775808,
                     ),
                     Expr(0),
                 ),
                 (
                     Assign(
-                        temp{1},
-                        - temp{2},
+                        temp{2},
+                        1,
                     ),
                     Expr(1),
-                ),
-                (
-                    Clear(
-                        temp{2},
-                    ),
-                    Expr(0),
-                ),
-                (
-                    Assign(
-                        temp{3},
-                        2,
-                    ),
-                    Expr(2),
                 ),
                 (
                     Assign(
                         temp{0},
-                        temp{1} - temp{3},
-                    ),
-                    Expr(3),
-                ),
-                (
-                    Clear(
-                        temp{3},
+                        temp{1} + temp{2},
                     ),
                     Expr(2),
                 ),
                 (
                     Clear(
-                        temp{1},
+                        temp{2},
                     ),
                     Expr(1),
+                ),
+                (
+                    Clear(
+                        temp{1},
+                    ),
+                    Expr(0),
                 ),
             ],
             Return(
