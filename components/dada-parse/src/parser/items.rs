@@ -1,4 +1,4 @@
-use crate::{parser::Parser, token_test::Identifier};
+use crate::{parser::Parser, token_test::SpannedIdentifier};
 
 use dada_ir::{
     class::Class, code::Code, effect::Effect, function::Function, item::Item, kw::Keyword,
@@ -31,8 +31,8 @@ impl<'db> Parser<'db> {
 
     fn parse_class(&mut self) -> Option<Class> {
         let (class_span, _) = self.eat(Keyword::Class)?;
-        let (class_name_span, class_name) = self
-            .eat(Identifier)
+        let (_, class_name) = self
+            .eat(SpannedIdentifier)
             .or_report_error(self, || "expected a class name")?;
         let (_, field_tokens) = self
             .delimited('(')
@@ -42,7 +42,6 @@ impl<'db> Parser<'db> {
             class_name,
             field_tokens,
             self.span_consumed_since(class_span).in_file(self.filename),
-            class_name_span.in_file(self.filename),
         ))
     }
 
@@ -55,8 +54,8 @@ impl<'db> Parser<'db> {
         let (fn_span, _) = self
             .eat(Keyword::Fn)
             .or_report_error(self, || "expected `fn`".to_string())?;
-        let (func_name_span, func_name) = self
-            .eat(Identifier)
+        let (_, func_name) = self
+            .eat(SpannedIdentifier)
             .or_report_error(self, || "expected function name".to_string())?;
         let (_, parameter_tokens) = self
             .delimited('(')
@@ -71,7 +70,6 @@ impl<'db> Parser<'db> {
             func_name,
             code,
             self.span_consumed_since(start_span).in_file(self.filename),
-            func_name_span.in_file(self.filename),
             effect_span.unwrap_or(fn_span).in_file(self.filename),
         ))
     }

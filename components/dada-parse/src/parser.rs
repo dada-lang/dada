@@ -32,18 +32,18 @@ impl<'me> Parser<'me> {
     /// Returns `Some` if the next pending token matches `is`, along
     /// with the narrowed view of the next token.
     fn peek<TT: TokenTest>(&mut self, test: TT) -> Option<TT::Narrow> {
-        test.test(self.db, self.tokens.peek()?)
+        let span = self.tokens.peek_span().in_file(self.filename);
+        test.test(self.db, self.tokens.peek()?, span)
     }
 
     /// If the next pending token matches `test`, consumes it and
     /// returns the span + narrowed view. Otherwise returns None
     /// and has no effect. Returns None if there is no pending token.
     fn eat<TT: TokenTest>(&mut self, test: TT) -> Option<(Span, TT::Narrow)> {
-        let start_span = self.tokens.peek_span();
+        let span = self.tokens.peek_span();
         let narrow = self.peek(test)?;
         self.tokens.consume();
-        let end_span = self.tokens.last_span();
-        Some((start_span.to(end_span), narrow))
+        Some((span, narrow))
     }
 
     /// Run `op` -- if it returns `None`, then no tokens are consumed.

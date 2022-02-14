@@ -1,15 +1,12 @@
-use crate::{span::FileSpan, token_tree::TokenTree, word::Word};
+use crate::{span::FileSpan, token_tree::TokenTree, word::SpannedWord};
 
 salsa::entity2! {
     entity Class in crate::Jar {
-        #[id] name: Word,
+        #[id] name: SpannedWord,
         field_tokens: TokenTree,
 
         /// Overall span of the class (including any body)
         span: FileSpan,
-
-        /// Span of the class name specifically
-        name_span: FileSpan,
     }
 }
 

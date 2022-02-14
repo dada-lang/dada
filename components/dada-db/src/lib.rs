@@ -66,7 +66,7 @@ impl Db {
         for item in filename.items(self) {
             if let Item::Function(function) = item {
                 let function_name = function.name(self);
-                if name == function_name {
+                if name == function_name.word(self) {
                     return Some(*function);
                 }
             }

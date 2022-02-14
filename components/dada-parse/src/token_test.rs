@@ -1,5 +1,10 @@
 use dada_ir::{
-    format_string::FormatString, kw::Keyword, token::Token, token_tree::TokenTree, word::Word,
+    format_string::FormatString,
+    kw::Keyword,
+    span::FileSpan,
+    token::Token,
+    token_tree::TokenTree,
+    word::{SpannedWord, Word},
 };
 
 /// Represents some kind of "condition test" that can be applied to a single token
@@ -11,13 +16,13 @@ pub(crate) trait TokenTest: std::fmt::Debug {
 
     /// If `token` matches the condition, return `Some` with a potentially transformed
     /// version of the token. Else returns None.
-    fn test(self, db: &dyn crate::Db, token: Token) -> Option<Self::Narrow>;
+    fn test(self, db: &dyn crate::Db, token: Token, span: FileSpan) -> Option<Self::Narrow>;
 }
 
 impl TokenTest for Keyword {
     type Narrow = Self;
 
-    fn test(self, db: &dyn crate::Db, token: Token) -> Option<Self> {
+    fn test(self, db: &dyn crate::Db, token: Token, _span: FileSpan) -> Option<Self> {
         let Some(str) = token.alphabetic_str(db) else {
             return None;
         };
@@ -36,7 +41,7 @@ pub(crate) struct AnyKeyword;
 impl TokenTest for AnyKeyword {
     type Narrow = Keyword;
 
-    fn test(self, db: &dyn crate::Db, token: Token) -> Option<Keyword> {
+    fn test(self, db: &dyn crate::Db, token: Token, _span: FileSpan) -> Option<Keyword> {
         let word = token.alphabetic()?;
         dada_ir::kw::keywords(db).get(&word).copied()
     }
@@ -48,7 +53,7 @@ pub(crate) struct Identifier;
 impl TokenTest for Identifier {
     type Narrow = Word;
 
-    fn test(self, db: &dyn crate::Db, token: Token) -> Option<Word> {
+    fn test(self, db: &dyn crate::Db, token: Token, _span: FileSpan) -> Option<Word> {
         let word = token.alphabetic()?;
         if dada_ir::kw::keywords(db).contains_key(&word) {
             None
@@ -63,8 +68,20 @@ pub(crate) struct Alphabetic;
 impl TokenTest for Alphabetic {
     type Narrow = Word;
 
-    fn test(self, _db: &dyn crate::Db, token: Token) -> Option<Word> {
+    fn test(self, _db: &dyn crate::Db, token: Token, _span: FileSpan) -> Option<Word> {
         token.alphabetic()
+    }
+}
+
+/// An `Alphabetic` that is not a keyword
+#[derive(Debug)]
+pub(crate) struct SpannedIdentifier;
+impl TokenTest for SpannedIdentifier {
+    type Narrow = SpannedWord;
+
+    fn test(self, db: &dyn crate::Db, token: Token, span: FileSpan) -> Option<SpannedWord> {
+        let word = Identifier.test(db, token, span)?;
+        Some(SpannedWord::new(db, word, span))
     }
 }
 
@@ -77,7 +94,7 @@ pub(crate) struct Number;
 impl TokenTest for Number {
     type Narrow = Word;
 
-    fn test(self, _db: &dyn crate::Db, token: Token) -> Option<Word> {
+    fn test(self, _db: &dyn crate::Db, token: Token, _span: FileSpan) -> Option<Word> {
         match token {
             Token::Number(w) => Some(w),
             _ => None,
@@ -90,7 +107,7 @@ pub(crate) struct FormatStringLiteral;
 impl TokenTest for FormatStringLiteral {
     type Narrow = FormatString;
 
-    fn test(self, _db: &dyn crate::Db, token: Token) -> Option<FormatString> {
+    fn test(self, _db: &dyn crate::Db, token: Token, _span: FileSpan) -> Option<FormatString> {
         match token {
             Token::FormatString(fs) => Some(fs),
             _ => None,
@@ -101,7 +118,7 @@ impl TokenTest for FormatStringLiteral {
 impl TokenTest for Token {
     type Narrow = Token;
 
-    fn test(self, _: &dyn crate::Db, token: Token) -> Option<Token> {
+    fn test(self, _: &dyn crate::Db, token: Token, _span: FileSpan) -> Option<Token> {
         if self == token {
             Some(token)
         } else {
@@ -116,7 +133,7 @@ pub(crate) struct Any;
 impl TokenTest for Any {
     type Narrow = Token;
 
-    fn test(self, _: &dyn crate::Db, token: Token) -> Option<Token> {
+    fn test(self, _: &dyn crate::Db, token: Token, _span: FileSpan) -> Option<Token> {
         Some(token)
     }
 }
@@ -127,7 +144,7 @@ pub(crate) struct AnyTree;
 impl TokenTest for AnyTree {
     type Narrow = TokenTree;
 
-    fn test(self, _: &dyn crate::Db, token: Token) -> Option<TokenTree> {
+    fn test(self, _: &dyn crate::Db, token: Token, _span: FileSpan) -> Option<TokenTree> {
         token.tree()
     }
 }

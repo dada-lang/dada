@@ -16,15 +16,15 @@ impl Item {
 
     pub fn name(self, db: &dyn crate::Db) -> Word {
         match self {
-            Item::Function(f) => f.name(db),
-            Item::Class(c) => c.name(db),
+            Item::Function(f) => f.name(db).word(db),
+            Item::Class(c) => c.name(db).word(db),
         }
     }
 
     pub fn name_span(self, db: &dyn crate::Db) -> FileSpan {
         match self {
-            Item::Function(f) => f.name_span(db),
-            Item::Class(c) => c.name_span(db),
+            Item::Function(f) => f.name(db).span(db),
+            Item::Class(c) => c.name(db).span(db),
         }
     }
 
