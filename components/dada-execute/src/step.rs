@@ -420,7 +420,7 @@ impl<'me> Stepper<'me> {
                 object: self.machine.new_object(ObjectData::Unit(())),
                 permission: self.machine.new_permission(ValidPermissionData::our()),
             }),
-            bir::ExprData::GiveShare(place) => self.share_place(table, *place),
+            bir::ExprData::Share(place) => self.share_place(table, *place),
             bir::ExprData::Lease(place) => self.lease_place(table, *place),
             bir::ExprData::Give(place) => self.give_place(table, *place),
             bir::ExprData::Tuple(places) => {
