@@ -253,7 +253,7 @@ impl DebugWithDb<InIrDb<'_, Bir>> for StatementData {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>, db: &InIrDb<'_, Bir>) -> std::fmt::Result {
         match self {
             StatementData::AssignExpr(place, expr) => f
-                .debug_tuple("Assign")
+                .debug_tuple("AssignExpr")
                 .field(&place.debug(db))
                 .field(&expr.debug(db))
                 .finish(),
