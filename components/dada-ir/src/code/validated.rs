@@ -201,13 +201,13 @@ pub enum ExprData {
     BooleanLiteral(bool),
 
     /// `22i`, `22_222i`, etc
-    IntegerLiteral(i64),
+    SignedIntegerLiteral(i64),
 
     /// `22u`, `22_222u`, etc
     UnsignedIntegerLiteral(u64),
 
     /// `22`, `22_222`, etc
-    UnsuffixedIntegerLiteral(u64),
+    IntegerLiteral(u64),
 
     /// `2.2`
     FloatLiteral(eq_float::F64),
@@ -295,7 +295,7 @@ impl ExprData {
             ExprData::BooleanLiteral(v) => std::fmt::Debug::fmt(v, f),
             ExprData::IntegerLiteral(v) => write!(f, "{}", v),
             ExprData::UnsignedIntegerLiteral(v) => write!(f, "{}", v),
-            ExprData::UnsuffixedIntegerLiteral(v) => write!(f, "{}", v),
+            ExprData::SignedIntegerLiteral(v) => write!(f, "{}", v),
             ExprData::FloatLiteral(v) => write!(f, "{}", v),
             ExprData::StringLiteral(v) => std::fmt::Debug::fmt(&v.as_str(db.db()), f),
             ExprData::Await(expr) => f.debug_tuple("Await").field(&expr.debug(db)).finish(),

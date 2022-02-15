@@ -391,11 +391,11 @@ impl<'me> Stepper<'me> {
                 permission: self.machine.new_permission(ValidPermissionData::our()),
             }),
             bir::ExprData::UnsignedIntegerLiteral(v) => Ok(Value {
-                object: self.machine.new_object(ObjectData::Uint(*v)),
+                object: self.machine.new_object(ObjectData::UnsignedInt(*v)),
                 permission: self.machine.new_permission(ValidPermissionData::our()),
             }),
-            bir::ExprData::UnsuffixedIntegerLiteral(v) => Ok(Value {
-                object: self.machine.new_object(ObjectData::UnsuffixedInt(*v)),
+            bir::ExprData::SignedIntegerLiteral(v) => Ok(Value {
+                object: self.machine.new_object(ObjectData::SignedInt(*v)),
                 permission: self.machine.new_permission(ValidPermissionData::our()),
             }),
             bir::ExprData::FloatLiteral(v) => Ok(Value {

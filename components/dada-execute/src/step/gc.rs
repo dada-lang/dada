@@ -130,9 +130,9 @@ impl<'me> Marker<'me> {
             | ObjectData::Function(_)
             | ObjectData::Intrinsic(_)
             | ObjectData::Bool(_)
-            | ObjectData::Uint(_)
+            | ObjectData::UnsignedInt(_)
+            | ObjectData::SignedInt(_)
             | ObjectData::Int(_)
-            | ObjectData::UnsuffixedInt(_)
             | ObjectData::Float(_)
             | ObjectData::String(_)
             | ObjectData::Unit(_) => {

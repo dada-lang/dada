@@ -29,8 +29,8 @@ impl Stepper<'_> {
             .eyre(self.db))
         };
         match (op, &self.machine[rhs]) {
-            (Op::Minus, &ObjectData::Int(rhs)) => Ok(self.machine.our_value(-rhs)),
-            (Op::Minus, &ObjectData::UnsuffixedInt(rhs)) => {
+            (Op::Minus, &ObjectData::SignedInt(rhs)) => Ok(self.machine.our_value(-rhs)),
+            (Op::Minus, &ObjectData::Int(rhs)) => {
                 match i64::try_from(rhs) {
                     Ok(rhs) => Ok(self.machine.our_value(-rhs)),
                     Err(_) => {

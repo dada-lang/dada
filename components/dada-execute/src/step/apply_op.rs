@@ -43,10 +43,10 @@ impl Stepper<'_> {
                 Op::EqualEqual => Ok(self.machine.our_value(lhs == rhs)),
                 _ => op_error(),
             },
-            (&ObjectData::Uint(lhs), &ObjectData::Uint(rhs))
-            | (&ObjectData::Uint(lhs), &ObjectData::UnsuffixedInt(rhs))
-            | (&ObjectData::UnsuffixedInt(lhs), &ObjectData::Uint(rhs))
-            | (&ObjectData::UnsuffixedInt(lhs), &ObjectData::UnsuffixedInt(rhs)) => match op {
+            (&ObjectData::UnsignedInt(lhs), &ObjectData::UnsignedInt(rhs))
+            | (&ObjectData::UnsignedInt(lhs), &ObjectData::Int(rhs))
+            | (&ObjectData::Int(lhs), &ObjectData::UnsignedInt(rhs))
+            | (&ObjectData::Int(lhs), &ObjectData::Int(rhs)) => match op {
                 Op::EqualEqual => Ok(self.machine.our_value(lhs == rhs)),
                 Op::Plus => match lhs.checked_add(rhs) {
                     Some(value) => Ok(self.machine.our_value(value)),
@@ -67,12 +67,12 @@ impl Stepper<'_> {
                 Op::LessThan => Ok(self.machine.our_value(lhs < rhs)),
                 Op::GreaterThan => Ok(self.machine.our_value(lhs > rhs)),
             },
-            (&ObjectData::Int(lhs), &ObjectData::Int(rhs)) => self.apply_int(expr, op, lhs, rhs),
-            (&ObjectData::UnsuffixedInt(lhs), &ObjectData::Int(rhs)) => match i64::try_from(lhs) {
+            (&ObjectData::SignedInt(lhs), &ObjectData::SignedInt(rhs)) => self.apply_int(expr, op, lhs, rhs),
+            (&ObjectData::Int(lhs), &ObjectData::SignedInt(rhs)) => match i64::try_from(lhs) {
                 Ok(lhs) => self.apply_int(expr, op, lhs, rhs),
                 Err(_) => overflow_error(),
             },
-            (&ObjectData::Int(lhs), &ObjectData::UnsuffixedInt(rhs)) => {
+            (&ObjectData::SignedInt(lhs), &ObjectData::Int(rhs)) => {
                 match i64::try_from(rhs) {
                     Ok(rhs) => self.apply_int(expr, op, lhs, rhs),
                     Err(_) => overflow_error(),

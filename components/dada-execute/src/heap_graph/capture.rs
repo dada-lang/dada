@@ -108,9 +108,9 @@ impl<'me> HeapGraphCapture<'me> {
                 ObjectData::Function(f) => ValueEdgeTarget::Function(*f),
                 ObjectData::Intrinsic(_)
                 | ObjectData::Bool(_)
-                | ObjectData::Uint(_)
-                | ObjectData::UnsuffixedInt(_)
+                | ObjectData::UnsignedInt(_)
                 | ObjectData::Int(_)
+                | ObjectData::SignedInt(_)
                 | ObjectData::Float(_)
                 | ObjectData::String(_)
                 | ObjectData::Unit(_) => {

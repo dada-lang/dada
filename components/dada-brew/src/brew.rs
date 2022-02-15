@@ -130,7 +130,7 @@ impl Cursor {
             | validated::ExprData::BooleanLiteral(_)
             | validated::ExprData::IntegerLiteral(_)
             | validated::ExprData::UnsignedIntegerLiteral(_)
-            | validated::ExprData::UnsuffixedIntegerLiteral(_)
+            | validated::ExprData::SignedIntegerLiteral(_)
             | validated::ExprData::FloatLiteral(_)
             | validated::ExprData::StringLiteral(_)
             | validated::ExprData::Call(_, _)
@@ -270,12 +270,12 @@ impl Cursor {
                 self.push_breakpoint_end(brewery, Some(target), origin);
             }
 
-            validated::ExprData::IntegerLiteral(value) => {
+            validated::ExprData::SignedIntegerLiteral(value) => {
                 self.push_breakpoint_start(brewery, origin);
                 self.push_assignment(
                     brewery,
                     target,
-                    bir::ExprData::IntegerLiteral(*value),
+                    bir::ExprData::SignedIntegerLiteral(*value),
                     origin,
                 );
                 self.push_breakpoint_end(brewery, Some(target), origin);
@@ -292,12 +292,12 @@ impl Cursor {
                 self.push_breakpoint_end(brewery, Some(target), origin);
             }
 
-            validated::ExprData::UnsuffixedIntegerLiteral(value) => {
+            validated::ExprData::IntegerLiteral(value) => {
                 self.push_breakpoint_start(brewery, origin);
                 self.push_assignment(
                     brewery,
                     target,
-                    bir::ExprData::UnsuffixedIntegerLiteral(*value),
+                    bir::ExprData::IntegerLiteral(*value),
                     origin,
                 );
                 self.push_breakpoint_end(brewery, Some(target), origin);

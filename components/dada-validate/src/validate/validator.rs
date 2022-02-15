@@ -196,7 +196,7 @@ impl<'me> Validator<'me> {
                                 ),
                             },
                             "i" => match i64::from_str(&without_underscore) {
-                                Ok(v) => self.add(validated::ExprData::IntegerLiteral(v), expr),
+                                Ok(v) => self.add(validated::ExprData::SignedIntegerLiteral(v), expr),
                                 Err(e) => parse_error(
                                     self,
                                     format!(
@@ -212,7 +212,7 @@ impl<'me> Validator<'me> {
                         }
                     }
                     None => match u64::from_str(&without_underscore) {
-                        Ok(v) => self.add(validated::ExprData::UnsuffixedIntegerLiteral(v), expr),
+                        Ok(v) => self.add(validated::ExprData::IntegerLiteral(v), expr),
                         Err(e) => parse_error(
                             self,
                             format!("`{}` is not a valid integer: {}", &without_underscore, e),
