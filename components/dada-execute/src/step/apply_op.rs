@@ -45,8 +45,7 @@ impl Stepper<'_> {
             },
             (&ObjectData::UnsignedInt(lhs), &ObjectData::UnsignedInt(rhs))
             | (&ObjectData::UnsignedInt(lhs), &ObjectData::Int(rhs))
-            | (&ObjectData::Int(lhs), &ObjectData::UnsignedInt(rhs))
-            | (&ObjectData::Int(lhs), &ObjectData::Int(rhs)) => match op {
+            | (&ObjectData::Int(lhs), &ObjectData::UnsignedInt(rhs)) => match op {
                 Op::EqualEqual => Ok(self.machine.our_value(lhs == rhs)),
                 Op::Plus => match lhs.checked_add(rhs) {
                     Some(value) => Ok(self.machine.our_value(value)),
@@ -67,17 +66,38 @@ impl Stepper<'_> {
                 Op::LessThan => Ok(self.machine.our_value(lhs < rhs)),
                 Op::GreaterThan => Ok(self.machine.our_value(lhs > rhs)),
             },
-            (&ObjectData::SignedInt(lhs), &ObjectData::SignedInt(rhs)) => self.apply_int(expr, op, lhs, rhs),
+            (&ObjectData::Int(lhs), &ObjectData::Int(rhs)) => match op {
+                Op::EqualEqual => Ok(self.machine.our_value(lhs == rhs)),
+                Op::Plus => match lhs.checked_add(rhs) {
+                    Some(value) => Ok(self.machine.our_value(ObjectData::Int(value))),
+                    None => overflow_error(),
+                },
+                Op::Minus => match lhs.checked_sub(rhs) {
+                    Some(value) => Ok(self.machine.our_value(ObjectData::Int(value))),
+                    None => overflow_error(),
+                },
+                Op::Times => match lhs.checked_mul(rhs) {
+                    Some(value) => Ok(self.machine.our_value(ObjectData::Int(value))),
+                    None => overflow_error(),
+                },
+                Op::DividedBy => match lhs.checked_div(rhs) {
+                    Some(value) => Ok(self.machine.our_value(ObjectData::Int(value))),
+                    None => div_zero_error(),
+                },
+                Op::LessThan => Ok(self.machine.our_value(lhs < rhs)),
+                Op::GreaterThan => Ok(self.machine.our_value(lhs > rhs)),
+            },
+            (&ObjectData::SignedInt(lhs), &ObjectData::SignedInt(rhs)) => {
+                self.apply_signed_int(expr, op, lhs, rhs)
+            }
             (&ObjectData::Int(lhs), &ObjectData::SignedInt(rhs)) => match i64::try_from(lhs) {
-                Ok(lhs) => self.apply_int(expr, op, lhs, rhs),
+                Ok(lhs) => self.apply_signed_int(expr, op, lhs, rhs),
                 Err(_) => overflow_error(),
             },
-            (&ObjectData::SignedInt(lhs), &ObjectData::Int(rhs)) => {
-                match i64::try_from(rhs) {
-                    Ok(rhs) => self.apply_int(expr, op, lhs, rhs),
-                    Err(_) => overflow_error(),
-                }
-            }
+            (&ObjectData::SignedInt(lhs), &ObjectData::Int(rhs)) => match i64::try_from(rhs) {
+                Ok(rhs) => self.apply_signed_int(expr, op, lhs, rhs),
+                Err(_) => overflow_error(),
+            },
             (&ObjectData::Float(lhs), &ObjectData::Float(rhs)) => match op {
                 Op::EqualEqual => Ok(self.machine.our_value(lhs == rhs)),
                 Op::Plus => Ok(self.machine.our_value(lhs + rhs)),
@@ -102,7 +122,13 @@ impl Stepper<'_> {
         }
     }
 
-    fn apply_int(&mut self, expr: bir::Expr, op: Op, lhs: i64, rhs: i64) -> eyre::Result<Value> {
+    fn apply_signed_int(
+        &mut self,
+        expr: bir::Expr,
+        op: Op,
+        lhs: i64,
+        rhs: i64,
+    ) -> eyre::Result<Value> {
         let div_zero_error = || {
             let span = self.span_from_bir(expr);
             Err(error!(span, "divide by zero").eyre(self.db))

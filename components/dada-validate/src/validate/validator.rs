@@ -196,7 +196,9 @@ impl<'me> Validator<'me> {
                                 ),
                             },
                             "i" => match i64::from_str(&without_underscore) {
-                                Ok(v) => self.add(validated::ExprData::SignedIntegerLiteral(v), expr),
+                                Ok(v) => {
+                                    self.add(validated::ExprData::SignedIntegerLiteral(v), expr)
+                                }
                                 Err(e) => parse_error(
                                     self,
                                     format!(
