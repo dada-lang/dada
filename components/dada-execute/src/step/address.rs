@@ -1,4 +1,4 @@
-use dada_ir::{code::bir, error};
+use dada_ir::{code::bir, error, parameter::Parameter, storage::Specifier};
 
 use crate::{
     error::DiagnosticBuilderExt,
@@ -16,17 +16,33 @@ pub(super) enum Address {
     /// A constant, like a Class or a Function
     Constant(Value),
 
-    /// A field of an object
-    Field(Object, usize),
+    /// A field with the given index of the given object.
+    /// If this is a field of a user-declared class (as opposed,
+    /// say, to a tuple), then includes the [`Parameter`]
+    /// representing that field.
+    Field(Object, usize, Option<Parameter>),
 }
 
 impl Stepper<'_> {
+    pub(super) fn specifier(&self, address: Address) -> Specifier {
+        match address {
+            Address::Local(local) => {
+                let bir = self.machine.pc().bir;
+                let local_decl = &bir.data(self.db).tables[local];
+                local_decl.specifier
+            }
+            Address::Constant(_) => Specifier::Any,
+            Address::Field(_, _, Some(field)) => field.decl(self.db).specifier.specifier(self.db),
+            Address::Field(_, _, None) => Specifier::Any,
+        }
+    }
+
     /// Read the value at `address`; does not account for permissions at all.
     pub(super) fn peek(&self, address: Address) -> Value {
         match address {
             Address::Local(lv) => self.machine[lv],
             Address::Constant(v) => v,
-            Address::Field(o, f) => match &self.machine[o] {
+            Address::Field(o, f, _) => match &self.machine[o] {
                 ObjectData::Instance(i) => i.fields[f],
                 ObjectData::Tuple(v) => v.fields[f],
                 d => panic!("unexpected thing with fields: {d:?}"),
@@ -45,7 +61,7 @@ impl Stepper<'_> {
                 )
                 .eyre(self.db))
             }
-            Address::Field(o, f) => match &mut self.machine[o] {
+            Address::Field(o, f, _) => match &mut self.machine[o] {
                 ObjectData::Instance(i) => i.fields[f] = value,
                 ObjectData::Tuple(v) => v.fields[f] = value,
                 d => panic!("unexpected thing with fields: {d:?}"),

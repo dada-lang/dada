@@ -221,6 +221,13 @@ pub enum StatementData {
     /// Assign the result of evaluating an expression to a place.
     AssignExpr(Place, Expr),
 
+    /// Assign from one place to another. At execution time,
+    /// this will be converted into a give/lease/share operation,
+    /// depending on the storage mode of place. (In compiled Dada,
+    /// these operations should not occur, because we can always
+    /// statically analyze the place being assigned to.)
+    AssignPlace(Place, Place),
+
     /// Clears the value from the given local variable.
     Clear(LocalVariable),
 
@@ -256,6 +263,12 @@ impl DebugWithDb<InIrDb<'_, Bir>> for StatementData {
                 .debug_tuple("AssignExpr")
                 .field(&place.debug(db))
                 .field(&expr.debug(db))
+                .finish(),
+
+            StatementData::AssignPlace(target, source) => f
+                .debug_tuple("AssignPlace")
+                .field(&target.debug(db))
+                .field(&source.debug(db))
                 .finish(),
 
             StatementData::Clear(lv) => f.debug_tuple("Clear").field(&lv.debug(db)).finish(),

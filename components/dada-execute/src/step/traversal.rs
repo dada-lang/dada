@@ -137,13 +137,13 @@ impl Stepper<'_> {
                 let (owner_class, field_index) =
                     self.object_field(place, owner_object, *field_name)?;
 
-                // Take the field mod einto account
-                let field = &owner_class.fields(db)[field_index];
+                // Take the field mode into account
+                let field = owner_class.fields(db)[field_index];
                 accumulated_permissions.atomic |= field.decl(db).atomic;
 
                 Ok(PlaceTraversal {
                     accumulated_permissions,
-                    address: Address::Field(owner_object, field_index),
+                    address: Address::Field(owner_object, field_index, Some(field)),
                 })
             }
         }

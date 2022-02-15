@@ -9,6 +9,7 @@ use dada_ir::{
     in_ir_db::InIrDbExt,
     origin_table::HasOriginIn,
     span::FileSpan,
+    storage::Atomic,
     word::Word,
 };
 use dada_parse::prelude::*;
@@ -185,7 +186,10 @@ impl<'me> Stepper<'me> {
                 //
                 // This works, but the act of assigning to `p.x` cancels the lease from `q`.
                 let value = self.eval_expr(table, *expr)?;
-                self.assign_place(table, *place, value)?;
+                self.assign_value_to_place(table, *place, value)?;
+            }
+            bir::StatementData::AssignPlace(target_place, source_place) => {
+                self.assign_place_to_place(table, *target_place, *source_place)?;
             }
             bir::StatementData::Clear(lv) => {
                 let permission = self.machine.expired_permission(None);
@@ -223,7 +227,33 @@ impl<'me> Stepper<'me> {
         })
     }
 
-    fn assign_place(
+    fn assign_place_to_place(
+        &mut self,
+        table: &bir::Tables,
+        target_place: bir::Place,
+        source_place: bir::Place,
+    ) -> Result<(), eyre::Error> {
+        let target_traversal = self.traverse_to_place(table, target_place)?;
+        assert_ne!(
+            target_traversal.accumulated_permissions.atomic,
+            Atomic::Yes,
+            "atomics not yet implemented"
+        );
+
+        let value = match self.specifier(target_traversal.address) {
+            dada_ir::storage::Specifier::My => self.give_place(table, source_place)?,
+            dada_ir::storage::Specifier::Our => self.share_place(table, source_place)?,
+            dada_ir::storage::Specifier::Leased => self.lease_place(table, source_place)?,
+            dada_ir::storage::Specifier::OurLeased => {
+                self.share_leased_place(table, source_place)?
+            }
+            dada_ir::storage::Specifier::Any => self.give_place(table, source_place)?,
+        };
+
+        self.assign_value_to_place(table, target_place, value)
+    }
+
+    fn assign_value_to_place(
         &mut self,
         table: &bir::Tables,
         place: bir::Place,
@@ -277,7 +307,7 @@ impl<'me> Stepper<'me> {
                 next_block,
             ) => match self.call(table, terminator, *function, arguments, labels)? {
                 call::CallResult::Returned(return_value) => {
-                    self.assign_place(table, *destination, return_value)?;
+                    self.assign_value_to_place(table, *destination, return_value)?;
                     self.machine.set_pc(pc.move_to_block(*next_block));
                     Ok(ControlFlow::Next)
                 }
@@ -364,7 +394,7 @@ impl<'me> Stepper<'me> {
         }
 
         let new_pc = top.pc.move_to_block(*top_basic_block);
-        self.assign_place(top_table, *top_place, value)?;
+        self.assign_value_to_place(top_table, *top_place, value)?;
         self.machine.set_pc(new_pc);
         Ok(())
     }

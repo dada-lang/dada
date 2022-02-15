@@ -40,6 +40,33 @@ impl Stepper<'_> {
         self.share_traversal(object_traversal)
     }
 
+    /// Equivalent to `foo.lease.share`, used when assigning to an `our shared` location.
+    pub(super) fn share_leased_place(
+        &mut self,
+        table: &bir::Tables,
+        place: bir::Place,
+    ) -> eyre::Result<Value> {
+        let object_traversal = self.traverse_to_object(table, place)?;
+        if let Joint::Yes = object_traversal.accumulated_permissions.joint {
+            self.lease_traversal(object_traversal)
+        } else if let Leased::Yes = object_traversal.accumulated_permissions.leased {
+            self.share_traversal(object_traversal)
+        } else {
+            // Fully owned: first lease it, which will create a new tenant.
+            let Value {
+                object,
+                permission: leased_permission,
+            } = self.lease_traversal(object_traversal)?;
+
+            // Then create a shared sublease of `permission`.
+            let shared_permission = self.new_tenant_permission(Joint::Yes, leased_permission);
+            Ok(Value {
+                object,
+                permission: shared_permission,
+            })
+        }
+    }
+
     #[tracing::instrument(level = "debug", skip(self))]
     pub(super) fn share_traversal(&mut self, traversal: ObjectTraversal) -> eyre::Result<Value> {
         // Sharing counts as a read of the data being shared.
