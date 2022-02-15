@@ -171,6 +171,7 @@ pub enum ObjectData {
     /// Unsigned integer.
     UnsignedInt(u64),
 
+    /// Unsuffixed integer
     Int(u64),
 
     /// Signed integer.

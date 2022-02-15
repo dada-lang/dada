@@ -402,6 +402,7 @@ pub enum ExprData {
     /// `a + b`
     Op(Place, Op, Place),
 
+    /// `- 1`
     Unary(Op, Place),
 
     /// parse or other error
