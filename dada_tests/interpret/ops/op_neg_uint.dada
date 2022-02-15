@@ -1,4 +1,5 @@
 fn main() {
     -1u
 #! ^^^^ RUN ERROR cannot apply operator - to an unsigned integer
+# FIXME: Error highlighting should not include the leading whitespace
 }
