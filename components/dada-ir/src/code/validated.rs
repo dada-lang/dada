@@ -248,10 +248,7 @@ pub enum ExprData {
     ///
     /// * `from_expr`: Identifies the loop from which we are breaking
     /// * `with_value`: The value produced by the loop
-    Break {
-        from_expr: Expr,
-        with_value: Expr,
-    },
+    Break { from_expr: Expr, with_value: Expr },
 
     /// `continue`
     ///
@@ -267,10 +264,14 @@ pub enum ExprData {
     /// `a + b`
     Op(Expr, Op, Expr),
 
+    /// `<op> x`
     Unary(Op, Expr),
 
-    /// `a := b`
+    /// `a := b.give`
     Assign(Place, Expr),
+
+    /// `a := b`
+    AssignFromPlace(Place, Place),
 
     /// Bring the variables in scope during the expression
     Declare(Vec<LocalVariable>, Expr),
@@ -352,6 +353,11 @@ impl ExprData {
                 .debug_tuple("Assign")
                 .field(&place.debug(db))
                 .field(&expr.debug(db))
+                .finish(),
+            ExprData::AssignFromPlace(target, source) => f
+                .debug_tuple("AssignFromPlace")
+                .field(&target.debug(db))
+                .field(&source.debug(db))
                 .finish(),
             ExprData::Declare(vars, expr) => f
                 .debug_tuple("Declare")

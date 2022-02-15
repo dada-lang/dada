@@ -114,6 +114,19 @@ impl Cursor {
                 self.push_breakpoint_ends(brewery, None, origins, origin)
             }
 
+            validated::ExprData::AssignFromPlace(target_place, source_place) => {
+                self.push_breakpoint_start(brewery, origin);
+                let (target_place, target_origins) = self.brew_place(brewery, *target_place);
+                let (source_place, source_origins) = self.brew_place(brewery, *source_place);
+                self.push_assignment_from_place(brewery, target_place, source_place, origin);
+                self.push_breakpoint_ends(
+                    brewery,
+                    None,
+                    target_origins.into_iter().chain(source_origins),
+                    origin,
+                )
+            }
+
             validated::ExprData::Declare(vars, subexpr) => {
                 self.push_breakpoint_start(brewery, origin);
                 self.brew_expr_for_side_effects(brewery, *subexpr);
@@ -375,8 +388,7 @@ impl Cursor {
                 }
             }
 
-            validated::ExprData::Assign(_, _) => {
-                self.push_breakpoint_start(brewery, origin);
+            validated::ExprData::Assign(..) | validated::ExprData::AssignFromPlace(..) => {
                 self.brew_expr_for_side_effects(brewery, expr);
                 self.push_assignment(brewery, target, bir::ExprData::Unit, origin);
             }
