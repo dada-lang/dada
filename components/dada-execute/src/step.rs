@@ -9,7 +9,7 @@ use dada_ir::{
     in_ir_db::InIrDbExt,
     origin_table::HasOriginIn,
     span::FileSpan,
-    storage::Atomic,
+    storage::{Atomic, Specifier},
     word::Word,
 };
 use dada_parse::prelude::*;
@@ -232,7 +232,7 @@ impl<'me> Stepper<'me> {
         table: &bir::Tables,
         target_place: bir::Place,
         source_place: bir::Place,
-    ) -> Result<(), eyre::Error> {
+    ) -> eyre::Result<()> {
         let target_traversal = self.traverse_to_place(table, target_place)?;
         assert_ne!(
             target_traversal.accumulated_permissions.atomic,
@@ -240,17 +240,28 @@ impl<'me> Stepper<'me> {
             "atomics not yet implemented"
         );
 
-        let value = match self.specifier(target_traversal.address) {
-            dada_ir::storage::Specifier::My => self.give_place(table, source_place)?,
-            dada_ir::storage::Specifier::Our => self.share_place(table, source_place)?,
-            dada_ir::storage::Specifier::Leased => self.lease_place(table, source_place)?,
-            dada_ir::storage::Specifier::OurLeased => {
-                self.share_leased_place(table, source_place)?
-            }
-            dada_ir::storage::Specifier::Any => self.give_place(table, source_place)?,
-        };
+        let value = self.prepare_value_for_specifier(
+            table,
+            self.specifier(target_traversal.address),
+            source_place,
+        )?;
 
         self.assign_value_to_place(table, target_place, value)
+    }
+
+    fn prepare_value_for_specifier(
+        &mut self,
+        table: &bir::Tables,
+        specifier: Specifier,
+        source_place: bir::Place,
+    ) -> eyre::Result<Value> {
+        Ok(match specifier {
+            Specifier::My => self.give_place(table, source_place)?,
+            Specifier::Our => self.share_place(table, source_place)?,
+            Specifier::Leased => self.lease_place(table, source_place)?,
+            Specifier::OurLeased => self.share_leased_place(table, source_place)?,
+            Specifier::Any => self.give_place(table, source_place)?,
+        })
     }
 
     fn assign_value_to_place(
