@@ -23,6 +23,7 @@ impl Stepper<'_> {
     /// permissions is encountered, so this could only happen
     /// if the traversal is "out of date" with respect to the machine
     /// state).
+    #[tracing::instrument(level = "Debug", skip(self))]
     pub(super) fn read(&mut self, traversal: &ObjectTraversal) -> Object {
         self.access(traversal, Self::revoke_exclusive_tenants);
 
@@ -37,6 +38,7 @@ impl Stepper<'_> {
     /// permissions is encountered, so this could only happen
     /// if the traversal is "out of date" with respect to the machine
     /// state).
+    #[tracing::instrument(level = "Debug", skip(self))]
     pub(super) fn write_object(&mut self, traversal: &ObjectTraversal) {
         self.access(traversal, Self::revoke_tenants);
     }
@@ -44,6 +46,7 @@ impl Stepper<'_> {
     /// Given a traversal that has unique ownership, revokes the last permission
     /// in the path and returns the object. This also cancels tenants of traversed
     /// paths, as their (transitive) content has changed.
+    #[tracing::instrument(level = "Debug", skip(self))]
     pub(super) fn take_object(&mut self, traversal: ObjectTraversal) -> Object {
         assert_eq!(traversal.accumulated_permissions.joint, Joint::No);
         assert_eq!(traversal.accumulated_permissions.leased, Leased::No);
@@ -62,6 +65,7 @@ impl Stepper<'_> {
     /// permissions is encountered, so this could only happen
     /// if the traversal is "out of date" with respect to the machine
     /// state).
+    #[tracing::instrument(level = "Debug", skip(self))]
     pub(super) fn write_place(&mut self, traversal: &PlaceTraversal) -> eyre::Result<()> {
         let ap = &traversal.accumulated_permissions;
         match (ap.joint, ap.atomic) {
@@ -159,6 +163,7 @@ impl Stepper<'_> {
     /// Apply `revoke_op` to each path that was traversed to reach the
     /// destination object `o`, along with any data exclusively
     /// reachable from `o`.
+    #[tracing::instrument(level = "Debug", skip(self, revoke_op))]
     fn access(
         &mut self,
         traversal: &ObjectTraversal,

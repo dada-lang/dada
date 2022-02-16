@@ -2,7 +2,16 @@ class Pair(a, b)
 
 async fn main() {
     p = Pair(22, 44).lease
+
+    # Sharing a leased thing: creates a shared sublease
     q = p.share
-    print(p).await #! OUTPUT leased Pair\(22, 44\)
+
+    # Accessing `q`: ok
     print(q).await #! OUTPUT our leased Pair\(22, 44\)
+
+    # Accessing `p`: ok, but cancels subleases
+    print(p).await #! OUTPUT leased Pair\(22, 44\)
+
+    # Accessing `q` again: error
+    print(q).await #! RUN ERROR your lease to this object was cancelled
 }

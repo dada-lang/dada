@@ -1,0 +1,41 @@
+# Test that is intended to show the dangerous
+# of the "house party" rule. If we allow the
+# lessor to read without violating the tenant's
+# lease, that could permit the lessor to mutate
+# atomic fields, but the tenant was assuming it
+# had unique access to those fields.
+#
+# It turns out that, lacking a combined 
+# "shared-lease" operation, and not having implemented
+# atomic fields etc, it's hard to demonstrate this danger. =)
+# But I'm pretty sure it's there.
+
+class Accumulator(atomic list)
+class List()
+
+fn foo(accumulator) # ->
+{
+    accumulator.list.lease.share
+}
+
+async fn main() {
+    a = Accumulator(list: List())
+
+    # get a shared lease to the list,
+    # but it is still owned by `a`
+    l = foo(a.lease)
+
+    # share `a`, which currently revokes
+    # the lease `a`, and hence `l`
+    # becomes inaccessible
+    s = a.share
+
+    print(l).await #! RUN ERROR your lease to this object was cancelled
+
+    atomic {
+        # can still modify `s.list`, but only
+        # in an atomic section
+        s.list := List() 
+        #! FIXME: atomic writes not implemented
+    }
+}

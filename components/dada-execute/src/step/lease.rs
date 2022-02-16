@@ -42,12 +42,19 @@ impl Stepper<'_> {
         &mut self,
         object_traversal: ObjectTraversal,
     ) -> eyre::Result<Value> {
+        // Leasing something that is shared is akin to read it;
+        // leasing something that is exclusive is akin to writing it.
+        match object_traversal.accumulated_permissions.joint {
+            Joint::No => self.write_object(&object_traversal),
+            Joint::Yes => {
+                self.read(&object_traversal);
+            }
+        }
+
         let ObjectTraversal {
             object,
             accumulated_permissions,
         } = object_traversal;
-
-        // XXX assert the traversed edges are valid for lease (possibly joint lease)
 
         // The last traversed permission is the one that led to the object
         // (and there must be one, because you can't reach an object without
