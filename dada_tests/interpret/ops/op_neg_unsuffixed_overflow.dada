@@ -1,5 +1,4 @@
 fn main() {
     -9223372036854775808
-#! ^^^^^^^^^^^^^^^^^^^^^ RUN ERROR overflow
-# FIXME: Error highlighting should not include the leading whitespace
+#!  ^^^^^^^^^^^^^^^^^^^^ RUN ERROR overflow
 }

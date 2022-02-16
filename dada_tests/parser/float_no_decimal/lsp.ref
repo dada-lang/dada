@@ -3,7 +3,7 @@
         range: Range {
             start: Position {
                 line: 2,
-                character: 9,
+                character: 10,
             },
             end: Position {
                 line: 2,
@@ -34,7 +34,7 @@
                         range: Range {
                             start: Position {
                                 line: 2,
-                                character: 9,
+                                character: 10,
                             },
                             end: Position {
                                 line: 2,

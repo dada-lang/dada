@@ -63,7 +63,7 @@ impl<'me> Parser<'me> {
     /// if so, return the span and the tokens after skipping the operator.
     fn test_op(&self, op: Op) -> Option<(Span, Tokens<'me>)> {
         let mut tokens = self.tokens;
-        let span0 = tokens.last_span();
+        let span0 = tokens.peek_span();
 
         let mut chars = op.str().chars();
 
