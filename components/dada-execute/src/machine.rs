@@ -202,7 +202,7 @@ impl ObjectData {
             ObjectData::Bool(_) => "a boolean".to_string(),
             ObjectData::UnsignedInt(_) => "an unsigned integer".to_string(),
             ObjectData::Int(_) => "an integer".to_string(),
-            ObjectData::SignedInt(_) => "an signed integer".to_string(),
+            ObjectData::SignedInt(_) => "a signed integer".to_string(),
             ObjectData::Float(_) => "a float".to_string(),
             ObjectData::String(_) => "a string".to_string(),
             ObjectData::Unit(()) => "nothing".to_string(),
