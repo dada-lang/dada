@@ -36,6 +36,7 @@ mod gc;
 mod give;
 mod intrinsic;
 mod lease;
+mod reserve;
 mod revoke;
 mod share;
 mod tenant;
@@ -415,7 +416,7 @@ impl<'me> Stepper<'me> {
     /// permissions to read.
     fn read_place(&mut self, table: &bir::Tables, place: bir::Place) -> eyre::Result<Object> {
         let traversal = self.traverse_to_object(table, place)?;
-        Ok(self.read(&traversal))
+        self.read(&traversal)
     }
 
     fn eval_place_to_bool(&mut self, table: &bir::Tables, place: bir::Place) -> eyre::Result<bool> {
@@ -461,6 +462,7 @@ impl<'me> Stepper<'me> {
                 object: self.machine.new_object(ObjectData::Unit(())),
                 permission: self.machine.new_permission(ValidPermissionData::our()),
             }),
+            bir::ExprData::Reserve(place) => self.reserve_place(table, *place),
             bir::ExprData::Share(place) => self.share_place(table, *place),
             bir::ExprData::Lease(place) => self.lease_place(table, *place),
             bir::ExprData::Give(place) => self.give_place(table, *place),

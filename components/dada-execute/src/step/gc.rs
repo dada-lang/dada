@@ -25,7 +25,7 @@ impl Stepper<'_> {
     pub(super) fn gc(&mut self, in_flight_values: &[Value]) {
         let mut marks = Marks::default();
         Marker::new(self.machine, &mut marks).mark(in_flight_values);
-        self.sweep(&marks);
+        self.sweep(&marks).unwrap();
     }
 }
 
@@ -177,7 +177,7 @@ impl<'me> Marker<'me> {
 
 impl Stepper<'_> {
     #[tracing::instrument(level = "Debug", skip(self))]
-    fn sweep(&mut self, marks: &Marks) {
+    fn sweep(&mut self, marks: &Marks) -> eyre::Result<()> {
         let mut live_permissions = self.machine.all_permissions();
         let mut dead_permissions = live_permissions.clone();
         live_permissions.retain(|p| marks.live_permissions.contains(p));
@@ -186,7 +186,7 @@ impl Stepper<'_> {
         // First: revoke all the dead permissions.
         for &p in &dead_permissions {
             tracing::debug!("revoking dead permission {:?}", p);
-            self.revoke(p);
+            self.revoke(p)?;
         }
 
         // Next: remove them from the heap.
@@ -218,5 +218,7 @@ impl Stepper<'_> {
             let data = self.machine.take_reservation(r);
             tracing::debug!("freeing {:?}: {:?}", r, data);
         }
+
+        Ok(())
     }
 }

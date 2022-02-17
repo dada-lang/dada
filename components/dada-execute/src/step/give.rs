@@ -70,7 +70,7 @@ impl Stepper<'_> {
 
         // The value at `place` is exclusively owned: cancel the old permission (and any tenants)
         // create a new one to return.
-        let object = self.take_object(object_traversal);
+        let object = self.take_object(object_traversal)?;
         let permission = self.machine.new_permission(ValidPermissionData::my());
         Ok(Value { object, permission })
     }

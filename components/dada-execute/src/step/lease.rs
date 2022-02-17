@@ -45,9 +45,9 @@ impl Stepper<'_> {
         // Leasing something that is shared is akin to read it;
         // leasing something that is exclusive is akin to writing it.
         match object_traversal.accumulated_permissions.joint {
-            Joint::No => self.write_object(&object_traversal),
+            Joint::No => self.write_object(&object_traversal)?,
             Joint::Yes => {
-                self.read(&object_traversal);
+                self.read(&object_traversal)?;
             }
         }
 

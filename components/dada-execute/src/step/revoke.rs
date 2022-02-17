@@ -1,21 +1,44 @@
-use dada_ir::storage::Joint;
+use dada_ir::{error, storage::Joint};
 
-use crate::machine::{Permission, PermissionData, ValidPermissionData};
+use crate::{
+    error::DiagnosticBuilderExt,
+    machine::{Permission, PermissionData, ValidPermissionData},
+};
 
 use super::Stepper;
 
 impl Stepper<'_> {
     /// Revokes the given permission, recording the current PC as the "reason".
     #[tracing::instrument(level = "Debug", skip(self))]
-    pub(super) fn revoke(&mut self, permission: Permission) {
+    pub(super) fn revoke(&mut self, permission: Permission) -> eyre::Result<()> {
         let pc = self.machine.opt_pc();
         let p = std::mem::replace(&mut self.machine[permission], PermissionData::Expired(pc));
 
-        if let PermissionData::Valid(ValidPermissionData { tenants, .. }) = p {
+        if let PermissionData::Valid(ValidPermissionData {
+            tenants,
+            reservations,
+            ..
+        }) = p
+        {
+            if let Some(reservation) = reservations.into_iter().next() {
+                let data = &self.machine[reservation];
+                let error_pc = pc.unwrap_or(data.pc);
+                let error_span = error_pc.span(self.db);
+                return Err(error!(
+                    error_span,
+                    "you can't overwrite this value, it is reserved right now"
+                )
+                .primary_label("attempting to invalidate reservation here")
+                .secondary_label(data.pc.span(self.db), "reservation was placed here")
+                .eyre(self.db));
+            }
+
             for tenant in tenants {
-                self.revoke(tenant);
+                self.revoke(tenant)?;
             }
         }
+
+        Ok(())
     }
 
     /// True if the permission `p` is currently sharing access to the object's
@@ -34,19 +57,21 @@ impl Stepper<'_> {
     }
 
     #[tracing::instrument(level = "Debug", skip(self))]
-    pub(super) fn revoke_tenants(&mut self, permission: Permission) {
+    pub(super) fn revoke_tenants(&mut self, permission: Permission) -> eyre::Result<()> {
         // Temporarily swap out the data for `permission`...
         let mut p = std::mem::replace(&mut self.machine[permission], PermissionData::Expired(None));
 
         // Cancel all the tenants and clear the list
         if let PermissionData::Valid(ValidPermissionData { tenants, .. }) = &mut p {
             for tenant in std::mem::take(tenants) {
-                self.revoke(tenant);
+                self.revoke(tenant)?;
             }
         }
 
         // Put the (modified) data for `p` back
         self.machine[permission] = p;
+
+        Ok(())
     }
 
     /// Revoke any tenant of `permission` that is not currently
@@ -57,23 +82,29 @@ impl Stepper<'_> {
     ///
     /// (There should be at most one such tenant.)
     #[tracing::instrument(level = "Debug", skip(self))]
-    pub(super) fn revoke_exclusive_tenants(&mut self, permission: Permission) {
+    pub(super) fn revoke_exclusive_tenants(&mut self, permission: Permission) -> eyre::Result<()> {
         // Temporarily swap out the data for `permission`...
         let mut p = std::mem::replace(&mut self.machine[permission], PermissionData::Expired(None));
 
         // Cancel all the exclusive tenants and remove them from the list
         if let PermissionData::Valid(ValidPermissionData { tenants, .. }) = &mut p {
+            let mut result = Ok(());
             tenants.retain(|&tenant| {
-                if !self.is_sharing_access(tenant) {
-                    self.revoke(tenant);
+                if result.is_err() {
+                    true
+                } else if !self.is_sharing_access(tenant) {
+                    result = self.revoke(tenant);
                     false
                 } else {
                     true
                 }
             });
+            result?;
         }
 
         // Put the (modified) data for `p` back
         self.machine[permission] = p;
+
+        Ok(())
     }
 }

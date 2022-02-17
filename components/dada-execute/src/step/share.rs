@@ -70,7 +70,7 @@ impl Stepper<'_> {
     #[tracing::instrument(level = "debug", skip(self))]
     pub(super) fn share_traversal(&mut self, traversal: ObjectTraversal) -> eyre::Result<Value> {
         // Sharing counts as a read of the data being shared.
-        self.read(&traversal);
+        self.read(&traversal)?;
 
         // The last traversed permission is the one that led to the object
         // (and there must be one, because you can't reach an object without
@@ -134,7 +134,7 @@ impl Stepper<'_> {
             //                 is created
             // ```
             (Leased::No, Joint::No) => {
-                let object = self.take_object(traversal);
+                let object = self.take_object(traversal)?;
                 let permission = self.machine.new_permission(ValidPermissionData::our());
                 Ok(Value { object, permission })
             }
