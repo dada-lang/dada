@@ -11,11 +11,17 @@ use super::op::MachineOp;
 pub(crate) impl<T: ?Sized + MachineOp> DefaultStringify for T {
     /// Converts a given value into a string. This should
     /// eventually be customizable.
-    fn stringify(&self, db: &dyn crate::Db, value: Value) -> String {
+    fn stringify_value(&self, db: &dyn crate::Db, value: Value) -> String {
         let Some(p) = self.permission_str(value.permission) else {
             return "(expired)".to_string();
         };
 
+        self.stringify_object(db, p, value)
+    }
+
+    // FIXME: There is no way for *users* to write a fn that "inspects" the permission
+    // like this. We should maybe just not print them, but it's kind of useful...?
+    fn stringify_object(&self, db: &dyn crate::Db, permission: &str, value: Value) -> String {
         match &self[value.object] {
             ObjectData::String(s) => s.to_string(),
             ObjectData::Bool(v) => format!("{}", v),
@@ -26,15 +32,18 @@ pub(crate) impl<T: ?Sized + MachineOp> DefaultStringify for T {
             ObjectData::Unit(_) => "()".to_string(),
             ObjectData::Intrinsic(i) => i.as_str(db).to_string(),
             ObjectData::Function(f) => f.name(db).as_str(db).to_string(),
-            ObjectData::ThunkFn(f) => {
-                self.object_string(db, p, Some(f.function.name(db).word(db)), &f.arguments)
-            }
+            ObjectData::ThunkFn(f) => self.object_string(
+                db,
+                permission,
+                Some(f.function.name(db).word(db)),
+                &f.arguments,
+            ),
             ObjectData::Instance(i) => {
-                self.object_string(db, p, Some(i.class.name(db).word(db)), &i.fields)
+                self.object_string(db, permission, Some(i.class.name(db).word(db)), &i.fields)
             }
             ObjectData::Class(c) => c.name(db).as_str(db).to_string(),
-            ObjectData::ThunkRust(r) => format!("{p} {r:?}"),
-            ObjectData::Tuple(t) => self.object_string(db, p, None, &t.fields),
+            ObjectData::ThunkRust(r) => format!("{permission} {r:?}"),
+            ObjectData::Tuple(t) => self.object_string(db, permission, None, &t.fields),
         }
     }
 
@@ -58,7 +67,7 @@ pub(crate) impl<T: ?Sized + MachineOp> DefaultStringify for T {
             if index > 0 {
                 output.push_str(", ");
             }
-            output.push_str(&self.stringify(db, *field));
+            output.push_str(&self.stringify_value(db, *field));
         }
         output.push(')');
         output

@@ -60,7 +60,7 @@ impl Stepper<'_> {
         await_pc: ProgramCounter,
         value: Value,
     ) -> eyre::Result<Value> {
-        let message_str = DefaultStringify::stringify(&*self.machine, self.db, value);
+        let message_str = DefaultStringify::stringify_value(&*self.machine, self.db, value);
 
         async {
             self.kernel
