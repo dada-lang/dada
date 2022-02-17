@@ -3,8 +3,8 @@ use dada_id::InternKey;
 use dada_parse::prelude::*;
 
 use super::{
-    DataNode, HeapGraph, ObjectType, PermissionNode, PermissionNodeLabel, ValueEdge, ValueEdgeData,
-    ValueEdgeTarget,
+    DataNode, HeapGraph, ObjectType, PermissionNode, PermissionNodeLabel, PermissionNodeSource,
+    ValueEdge, ValueEdgeData, ValueEdgeTarget,
 };
 
 const UNCHANGED: &str = "slategray";
@@ -148,6 +148,7 @@ impl HeapGraph {
 
             let (penwidth, arrowtype) = match permission_data.label {
                 PermissionNodeLabel::My | PermissionNodeLabel::Our => ("3.0", "normal"),
+                PermissionNodeLabel::Reserved => ("1.0", "odot"),
                 PermissionNodeLabel::Expired
                 | PermissionNodeLabel::Leased
                 | PermissionNodeLabel::OurLeased => ("1.0", "empty"),
@@ -156,6 +157,7 @@ impl HeapGraph {
             let color = match permission_data.label {
                 PermissionNodeLabel::My | PermissionNodeLabel::Leased => "red",
                 PermissionNodeLabel::OurLeased | PermissionNodeLabel::Our => "blue",
+                PermissionNodeLabel::Reserved => "grey",
                 PermissionNodeLabel::Expired => "grey",
             };
 
@@ -261,6 +263,7 @@ impl HeapGraph {
                     ObjectType::Class(class) => class.name(w.db).as_str(w.db),
                     ObjectType::Thunk(function) => function.name(w.db).as_str(w.db),
                     ObjectType::RustThunk(d) => d,
+                    ObjectType::Reservation => "(reservation)",
                 };
                 w.println(format!(r#"<tr><td border="1">{class_name}</td></tr>"#))?;
                 self.print_fields(w, &name, field_names, &data.fields, 0)?;
@@ -306,6 +309,9 @@ impl HeapGraph {
             ObjectType::Thunk(function) => function.parameters(db),
             ObjectType::RustThunk(_) => {
                 return (0..num_fields).map(|i| Some(format!("{}", i))).collect()
+            }
+            ObjectType::Reservation => {
+                return vec![Some("reserved".to_string())];
             }
         };
         fields
@@ -450,12 +456,22 @@ impl HeapGraph {
             return true;
         };
 
-        let machine_permission = permission.data(&self.tables).permission;
-        Some(&self.machine[machine_permission])
-            != diff_against
-                .machine
-                .heap
-                .permission_data(machine_permission)
+        match permission.data(&self.tables).source {
+            PermissionNodeSource::Permission(machine_permission) => {
+                Some(&self.machine[machine_permission])
+                    != diff_against
+                        .machine
+                        .heap
+                        .permission_data(machine_permission)
+            }
+            PermissionNodeSource::Reservation(machine_reservation) => {
+                Some(&self.machine[machine_reservation])
+                    != diff_against
+                        .machine
+                        .heap
+                        .reservation_data(machine_reservation)
+            }
+        }
     }
 }
 

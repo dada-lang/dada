@@ -5,7 +5,7 @@ use dada_ir::{
 
 use crate::machine::{ObjectData, Permission, PermissionData, Value};
 
-use super::op::MachineOp;
+use super::{op::MachineOp, Object};
 
 #[extension_trait::extension_trait]
 pub(crate) impl<T: ?Sized + MachineOp> DefaultStringify for T {
@@ -16,13 +16,13 @@ pub(crate) impl<T: ?Sized + MachineOp> DefaultStringify for T {
             return "(expired)".to_string();
         };
 
-        self.stringify_object(db, p, value)
+        self.stringify_object(db, p, value.object)
     }
 
     // FIXME: There is no way for *users* to write a fn that "inspects" the permission
     // like this. We should maybe just not print them, but it's kind of useful...?
-    fn stringify_object(&self, db: &dyn crate::Db, permission: &str, value: Value) -> String {
-        match &self[value.object] {
+    fn stringify_object(&self, db: &dyn crate::Db, permission: &str, object: Object) -> String {
+        match &self[object] {
             ObjectData::String(s) => s.to_string(),
             ObjectData::Bool(v) => format!("{}", v),
             ObjectData::SignedInt(v) => format!("{}_i", v),
@@ -44,6 +44,7 @@ pub(crate) impl<T: ?Sized + MachineOp> DefaultStringify for T {
             ObjectData::Class(c) => c.name(db).as_str(db).to_string(),
             ObjectData::ThunkRust(r) => format!("{permission} {r:?}"),
             ObjectData::Tuple(t) => self.object_string(db, permission, None, &t.fields),
+            ObjectData::Reservation(r) => format!("{r:?}"), // can prob do better than this :)
         }
     }
 

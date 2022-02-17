@@ -13,7 +13,7 @@ use crate::{
     error::DiagnosticBuilderExt,
     ext::DadaExecuteClassExt,
     machine::{
-        op::MachineOpExt, Object, ObjectData, Permission, PermissionData, ProgramCounter, Value,
+        op::MachineOpExtMut, Object, ObjectData, Permission, PermissionData, ProgramCounter, Value,
     },
 };
 

@@ -11,7 +11,7 @@ use dada_parse::prelude::*;
 
 use crate::{
     error::DiagnosticBuilderExt,
-    machine::{op::MachineOpExt, Instance, ObjectData, ThunkFn, Value},
+    machine::{op::MachineOpExtMut, Instance, ObjectData, ThunkFn, Value},
     step::intrinsic::IntrinsicDefinition,
 };
 

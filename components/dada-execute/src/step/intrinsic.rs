@@ -4,7 +4,7 @@ use eyre::Context;
 use crate::{
     error::DiagnosticBuilderExt,
     machine::stringify::DefaultStringify,
-    machine::{op::MachineOpExt, ProgramCounter, Value},
+    machine::{op::MachineOpExtMut, ProgramCounter, Value},
     thunk::RustThunk,
 };
 

@@ -7,7 +7,9 @@
 use dada_collections::Set;
 use dada_ir::storage::Leased;
 
-use crate::machine::{op::MachineOp, Object, ObjectData, Permission, PermissionData, Value};
+use crate::machine::{
+    op::MachineOp, Object, ObjectData, Permission, PermissionData, Reservation, Value,
+};
 
 use super::Stepper;
 
@@ -54,6 +56,9 @@ struct Marks {
     /// This function creates an Object and returns a leased copy,
     /// In the callee, the leased value will be live, but not the owner.
     live_permissions: Set<Permission>,
+
+    /// Reservations reachable from live things
+    live_reservations: Set<Reservation>,
 }
 
 struct Marker<'me> {
@@ -126,6 +131,8 @@ impl<'me> Marker<'me> {
             ObjectData::ThunkRust(f) => self.mark_values(&f.arguments),
             ObjectData::Tuple(t) => self.mark_values(&t.fields),
 
+            ObjectData::Reservation(r) => self.mark_reservation(*r),
+
             ObjectData::Class(_)
             | ObjectData::Function(_)
             | ObjectData::Intrinsic(_)
@@ -142,6 +149,11 @@ impl<'me> Marker<'me> {
     }
 
     #[tracing::instrument(level = "Debug", skip(self))]
+    fn mark_reservation(&mut self, reservation: Reservation) {
+        self.marks.live_reservations.insert(reservation);
+    }
+
+    #[tracing::instrument(level = "Debug", skip(self))]
     fn mark_permission(&mut self, permission: Permission) {
         if !self.marks.live_permissions.insert(permission) {
             tracing::trace!("already visited");
@@ -152,6 +164,10 @@ impl<'me> Marker<'me> {
             // Not valid, no tenants
             return;
         };
+
+        for reservation in &valid.reservations {
+            self.mark_reservation(*reservation);
+        }
 
         for tenant in &valid.tenants {
             self.mark_permission(*tenant);
@@ -193,6 +209,14 @@ impl Stepper<'_> {
         for &o in &dead_objects {
             let data = self.machine.take_object(o);
             tracing::debug!("freeing {:?}: {:?}", o, data);
+        }
+
+        let mut dead_reservations = self.machine.all_reservations();
+        dead_reservations.retain(|r| !marks.live_reservations.contains(r));
+
+        for &r in &dead_reservations {
+            let data = self.machine.take_reservation(r);
+            tracing::debug!("freeing {:?}: {:?}", r, data);
         }
     }
 }

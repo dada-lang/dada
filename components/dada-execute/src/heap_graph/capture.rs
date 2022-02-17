@@ -5,14 +5,14 @@ use dada_id::InternKey;
 use dada_ir::storage::{Joint, Leased};
 
 use crate::machine::{
-    op::MachineOp, stringify::DefaultStringify, Frame, Object, ObjectData, Permission,
-    PermissionData, Value,
+    op::MachineOp, op::MachineOpExt, stringify::DefaultStringify, Frame, Object, ObjectData,
+    Permission, PermissionData, Reservation, Value,
 };
 
 use super::{
     DataNodeData, HeapGraph, LocalVariableEdge, ObjectNode, ObjectNodeData, ObjectType,
-    PermissionNode, PermissionNodeData, PermissionNodeLabel, StackFrameNodeData, ValueEdge,
-    ValueEdgeData, ValueEdgeTarget,
+    PermissionNode, PermissionNodeData, PermissionNodeLabel, PermissionNodeSource,
+    StackFrameNodeData, ValueEdge, ValueEdgeData, ValueEdgeTarget,
 };
 
 pub(super) struct HeapGraphCapture<'me> {
@@ -21,6 +21,7 @@ pub(super) struct HeapGraphCapture<'me> {
     machine: &'me dyn MachineOp,
     instances: Map<Object, ObjectNode>,
     permissions: Map<Permission, PermissionNode>,
+    reservations: Map<Reservation, ObjectNode>,
 }
 
 impl<'me> HeapGraphCapture<'me> {
@@ -35,6 +36,7 @@ impl<'me> HeapGraphCapture<'me> {
             machine,
             instances: Default::default(),
             permissions: Default::default(),
+            reservations: Default::default(),
         }
     }
 
@@ -81,46 +83,53 @@ impl<'me> HeapGraphCapture<'me> {
     }
 
     fn value_edge(&mut self, value: Value) -> ValueEdge {
-        let db = self.db;
-
         let permission = self.permission_node(value.permission);
 
         let target = match &self.machine[value.permission] {
             PermissionData::Expired(_) => ValueEdgeTarget::Expired,
-            PermissionData::Valid(_) => match &self.machine[value.object] {
-                ObjectData::Instance(instance) => ValueEdgeTarget::Object(self.instance_node(
-                    value.object,
-                    ObjectType::Class(instance.class),
-                    &instance.fields,
-                )),
-                ObjectData::ThunkFn(thunk) => ValueEdgeTarget::Object(self.instance_node(
-                    value.object,
-                    ObjectType::Thunk(thunk.function),
-                    &thunk.arguments,
-                )),
-                ObjectData::ThunkRust(thunk) => ValueEdgeTarget::Object(self.instance_node(
-                    value.object,
-                    ObjectType::RustThunk(thunk.description),
-                    &thunk.arguments,
-                )),
-                ObjectData::Tuple(_tuple) => self.data_target(db, value.object, &"<tuple>"), // FIXME
-                ObjectData::Class(c) => ValueEdgeTarget::Class(*c),
-                ObjectData::Function(f) => ValueEdgeTarget::Function(*f),
-                ObjectData::Intrinsic(_)
-                | ObjectData::Bool(_)
-                | ObjectData::UnsignedInt(_)
-                | ObjectData::Int(_)
-                | ObjectData::SignedInt(_)
-                | ObjectData::Float(_)
-                | ObjectData::String(_)
-                | ObjectData::Unit(_) => {
-                    let string = DefaultStringify::stringify_value(&*self.machine, self.db, value);
-                    self.data_target(db, value.object, &string)
-                }
-            },
+            PermissionData::Valid(_) => self.value_edge_target(value.object),
         };
 
         self.graph.tables.add(ValueEdgeData { permission, target })
+    }
+
+    fn value_edge_target(&mut self, object: Object) -> ValueEdgeTarget {
+        let db = self.db;
+        match &self.machine[object] {
+            ObjectData::Instance(instance) => ValueEdgeTarget::Object(self.instance_node(
+                object,
+                ObjectType::Class(instance.class),
+                &instance.fields,
+            )),
+            ObjectData::ThunkFn(thunk) => ValueEdgeTarget::Object(self.instance_node(
+                object,
+                ObjectType::Thunk(thunk.function),
+                &thunk.arguments,
+            )),
+            ObjectData::ThunkRust(thunk) => ValueEdgeTarget::Object(self.instance_node(
+                object,
+                ObjectType::RustThunk(thunk.description),
+                &thunk.arguments,
+            )),
+            ObjectData::Tuple(_tuple) => self.data_target(db, object, &"<tuple>"), // FIXME
+            ObjectData::Reservation(reservation) => {
+                ValueEdgeTarget::Object(self.reservation_node(object, *reservation))
+            }
+            ObjectData::Class(c) => ValueEdgeTarget::Class(*c),
+            ObjectData::Function(f) => ValueEdgeTarget::Function(*f),
+            ObjectData::Intrinsic(_)
+            | ObjectData::Bool(_)
+            | ObjectData::UnsignedInt(_)
+            | ObjectData::Int(_)
+            | ObjectData::SignedInt(_)
+            | ObjectData::Float(_)
+            | ObjectData::String(_)
+            | ObjectData::Unit(_) => {
+                let string =
+                    DefaultStringify::stringify_object(&*self.machine, self.db, "", object);
+                self.data_target(db, object, &string)
+            }
+        }
     }
 
     fn data_target(
@@ -155,7 +164,7 @@ impl<'me> HeapGraphCapture<'me> {
         };
 
         let node = self.graph.tables.add(PermissionNodeData {
-            permission,
+            source: PermissionNodeSource::Permission(permission),
             label,
             lessor: None,
             tenants: vec![],
@@ -198,6 +207,40 @@ impl<'me> HeapGraphCapture<'me> {
             .map(|&field| self.value_edge(field))
             .collect::<Vec<_>>();
 
+        self.graph.tables[node].fields = fields;
+
+        node
+    }
+
+    fn reservation_node(&mut self, object: Object, reservation: Reservation) -> ObjectNode {
+        // Detect cycles and prevent redundant work.
+        if let Some(n) = self.reservations.get(&reservation) {
+            return *n;
+        }
+
+        let node = self.graph.tables.add(ObjectNodeData {
+            object,
+            ty: ObjectType::Reservation,
+            fields: Default::default(),
+        });
+
+        self.reservations.insert(reservation, node);
+
+        let mut fields = vec![];
+        match self.machine.peek_reservation(self.db, reservation) {
+            Ok(object) => {
+                let permission = self.graph.tables.add(PermissionNodeData {
+                    source: PermissionNodeSource::Reservation(reservation),
+                    label: PermissionNodeLabel::Reserved,
+                    tenants: vec![],
+                    lessor: None,
+                });
+                let target = self.value_edge_target(object);
+                fields.push(self.graph.tables.add(ValueEdgeData { permission, target }));
+            }
+
+            Err(_err) => { /* should not happen, just ignore I guess */ }
+        }
         self.graph.tables[node].fields = fields;
 
         node
