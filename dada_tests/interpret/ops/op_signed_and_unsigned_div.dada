@@ -1,0 +1,4 @@
+async fn main() {
+    print(22i / 44u).await
+    #!    ^^^^^^^^^ RUN ERROR cannot apply operator / to a signed integer and an unsigned integer
+}

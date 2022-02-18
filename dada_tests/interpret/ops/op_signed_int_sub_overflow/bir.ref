@@ -1,0 +1,58 @@
+[
+    bir::Bir {
+        start_basic_block: BasicBlock(0),
+        BasicBlock(0): BasicBlockData(
+            [
+                (
+                    Assign(
+                        temp{2},
+                        9223372036854775807,
+                    ),
+                    Expr(0),
+                ),
+                (
+                    Assign(
+                        temp{1},
+                        - temp{2},
+                    ),
+                    Expr(1),
+                ),
+                (
+                    Clear(
+                        temp{2},
+                    ),
+                    Expr(0),
+                ),
+                (
+                    Assign(
+                        temp{3},
+                        2,
+                    ),
+                    Expr(2),
+                ),
+                (
+                    Assign(
+                        temp{0},
+                        temp{1} - temp{3},
+                    ),
+                    Expr(3),
+                ),
+                (
+                    Clear(
+                        temp{3},
+                    ),
+                    Expr(2),
+                ),
+                (
+                    Clear(
+                        temp{1},
+                    ),
+                    Expr(1),
+                ),
+            ],
+            Return(
+                temp{0},
+            ),
+        ),
+    },
+]
