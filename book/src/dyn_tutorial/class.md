@@ -47,7 +47,7 @@ Some things to note here:
 
 ## Labeled arguments
 
-One other thing worth nothing is that Dada supports *labeled argments*. That means that instead of writing `Point(x, y)` one can also give labels to each argument:
+One other thing worth nothing is that Dada supports *labeled arguments*. That means that instead of writing `Point(x, y)` one can also give labels to each argument:
 
 ```
 class Point(x, y)

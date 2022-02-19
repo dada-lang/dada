@@ -47,7 +47,7 @@ Dada does have an underlying concept, the **lease**, that is analogous to Rust's
 
 # Out of scope goals
 
-## Rust compability (for now, anyway)
+## Rust compatibility (for now, anyway)
 
 Right now, Dada makes no effort to be compatible with Rust in particular. That said, But if Dada is a success, the goal would be to allow Dada and Rust code to smoothly interoperate. This may require changes to both Dada and Rust.
 

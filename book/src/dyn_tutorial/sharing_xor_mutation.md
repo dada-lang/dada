@@ -77,7 +77,7 @@ Answer: in Python, you get an infinite loop. What about in Java? There, if you'r
 
 Fundamentally, the problem here is that `transfer` was expecting to read from `source` and write to `target`; it was not expecting that those writes would also change `source`. This turns out to be a very general thing. **Most of the time, when we are writing code that writes to one variable, we don't expect that it will caues *other* variables to change their state.**
 
-Functional languges respond to this problem by preventing *all* mutation. That certainly works. Languages like Rust and Dada respond by preventing mutation and sharing from happening at the same time. That works too, and it gives you more flexibility.
+Functional languages respond to this problem by preventing *all* mutation. That certainly works. Languages like Rust and Dada respond by preventing mutation and sharing from happening at the same time. That works too, and it gives you more flexibility.
 
 ## But... what if I *want* a shared counter?
 
