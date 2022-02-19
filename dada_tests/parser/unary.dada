@@ -1,0 +1,24 @@
+async fn main() {
+    print(-1).await #! OUTPUT -1
+    x = 1
+    print(-x).await #! OUTPUT -1
+    print(- - 1).await #! OUTPUT 1
+
+    print(2 * -1).await #! OUTPUT -2
+    print(2 - -1).await #! OUTPUT 3
+    print(2 + -1).await #! OUTPUT 1
+    print(2 / -1).await #! OUTPUT -2
+
+    # FIXME: possibly these should be errors
+    print(2 * - 1).await #! OUTPUT -2
+    print(2 - - 1).await #! OUTPUT 3
+    print(2 + - 1).await #! OUTPUT 1
+    print(2 / - 1).await #! OUTPUT -2
+
+    # FIXME: possibly this should be an error
+    a = 2 -
+    -1
+    print(a).await #! OUTPUT 3
+
+    print(22 + -66 / 3).await #! OUTPUT 0
+}

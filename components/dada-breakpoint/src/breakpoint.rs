@@ -104,7 +104,7 @@ impl TreeTraversal<'_> {
             syntax::ExprData::Error
             | syntax::ExprData::Id(_)
             | syntax::ExprData::BooleanLiteral(_)
-            | syntax::ExprData::IntegerLiteral(_)
+            | syntax::ExprData::IntegerLiteral(..)
             | syntax::ExprData::FloatLiteral(_, _)
             | syntax::ExprData::StringLiteral(_) => Some(expr),
 
@@ -116,6 +116,7 @@ impl TreeTraversal<'_> {
             | syntax::ExprData::Await(base_expr)
             | syntax::ExprData::Loop(base_expr)
             | syntax::ExprData::Atomic(base_expr)
+            | syntax::ExprData::Unary(_, base_expr)
             | syntax::ExprData::Parenthesized(base_expr) => {
                 self.find_in_children(expr, Some(base_expr))
             }

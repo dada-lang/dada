@@ -98,8 +98,8 @@ pub enum ExprData {
     /// true, false
     BooleanLiteral(bool),
 
-    /// `22`, `22_222`, etc
-    IntegerLiteral(Word),
+    /// (`22`, suffix: `u`), (`22_222`, suffix: `i`), etc
+    IntegerLiteral(Word, Option<Word>),
 
     /// `integer-part.fractional-part`
     FloatLiteral(Word, Word),
@@ -158,6 +158,8 @@ pub enum ExprData {
     /// `a += b`
     OpEq(Expr, Op, Expr),
 
+    Unary(Op, Expr),
+
     /// `a := b`
     Assign(Expr, Expr),
 
@@ -173,7 +175,7 @@ impl DebugWithDb<InIrDb<'_, Tree>> for ExprData {
         match self {
             ExprData::Id(w) => f.debug_tuple("Id").field(&w.debug(db.db())).finish(),
             ExprData::BooleanLiteral(v) => f.debug_tuple("Boolean").field(&v).finish(),
-            ExprData::IntegerLiteral(v) => {
+            ExprData::IntegerLiteral(v, _) => {
                 f.debug_tuple("Integer").field(&v.debug(db.db())).finish()
             }
             ExprData::FloatLiteral(v, d) => f
@@ -236,6 +238,11 @@ impl DebugWithDb<InIrDb<'_, Tree>> for ExprData {
                 .finish(),
             ExprData::Error => f.debug_tuple("Error").finish(),
             ExprData::Return(e) => f.debug_tuple("Return").field(&e.debug(db)).finish(),
+            ExprData::Unary(o, e) => f
+                .debug_tuple("Unary")
+                .field(&o)
+                .field(&e.debug(db))
+                .finish(),
         }
     }
 }

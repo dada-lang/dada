@@ -1,0 +1,104 @@
+async fn main() {
+    if 1_i + 1 == 2_i {
+        print("1_i + 1 == 2_i").await
+        #! OUTPUT .*
+    }
+
+    if 1 + 1_i == 2_i {
+        print("1 + 1_i == 2_i").await
+        #! OUTPUT .*
+    }
+
+    if 1_i - 1 == 0_i {
+        print("1_i - 1 == 0_i").await
+        #! OUTPUT .*
+    }
+
+    if 1 - 1_i == 0_i {
+        print("1 - 1_i == 0").await
+        #! OUTPUT .*
+    }
+
+    if 10_i * 10 == 100_i {
+        print("10_i * 10 == 100_i").await
+        #! OUTPUT .*
+    }
+
+    if 10 * 10_i == 100_i {
+        print("10 * 10_i == 100_i").await
+        #! OUTPUT .*
+    }
+
+    if 10_i / 5 == 2_i {
+        print("10_i / 5 == 2_i").await
+        #! OUTPUT .*
+    }
+
+    if 10 / 5_i == 2_i {
+        print("10 / 5_i == 2_i").await
+        #! OUTPUT .*
+    }
+
+    # round toward 0
+    if 11_i / 5 == 2_i {
+        print("11_i / 5 == 2_i").await
+        #! OUTPUT .*
+    }
+
+    if 11 / 5_i == 2_i {
+        print("11 / 5_i == 2_i").await
+        #! OUTPUT .*
+    }
+
+    if 1_i < 2 {
+        print("1_i < 2").await
+        #! OUTPUT .*
+    }
+
+    if 1 < 2_i {
+        print("1 < 2_i").await
+        #! OUTPUT .*
+    }
+
+    if 2_i < 1 {
+        print("error").await
+    }
+
+    if 2 < 1_i {
+        print("error").await
+    }
+
+    if 1_i < 1 {
+        print("error").await
+    }
+
+    if 1 < 1_i {
+        print("error").await
+    }
+
+    if 1_i > 2 {
+        print("error").await
+    }
+
+    if 1 > 2_i {
+        print("error").await
+    }
+
+    if 2_i > 1 {
+        print("2_i > 1").await
+        #! OUTPUT .*
+    }
+
+    if 2 > 1_i {
+        print("2 > 1_i").await
+        #! OUTPUT .*
+    }
+
+    if 1_i > 1 {
+        print("error").await
+    }
+
+    if 1 > 1_i {
+        print("error").await
+    }
+}

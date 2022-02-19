@@ -200,6 +200,12 @@ pub enum ExprData {
     /// true, false
     BooleanLiteral(bool),
 
+    /// `22i`, `22_222i`, etc
+    SignedIntegerLiteral(i64),
+
+    /// `22u`, `22_222u`, etc
+    UnsignedIntegerLiteral(u64),
+
     /// `22`, `22_222`, etc
     IntegerLiteral(u64),
 
@@ -240,7 +246,10 @@ pub enum ExprData {
     ///
     /// * `from_expr`: Identifies the loop from which we are breaking
     /// * `with_value`: The value produced by the loop
-    Break { from_expr: Expr, with_value: Expr },
+    Break {
+        from_expr: Expr,
+        with_value: Expr,
+    },
 
     /// `continue`
     ///
@@ -255,6 +264,8 @@ pub enum ExprData {
 
     /// `a + b`
     Op(Expr, Op, Expr),
+
+    Unary(Op, Expr),
 
     /// `a := b`
     Assign(Place, Expr),
@@ -283,6 +294,8 @@ impl ExprData {
         match self {
             ExprData::BooleanLiteral(v) => std::fmt::Debug::fmt(v, f),
             ExprData::IntegerLiteral(v) => write!(f, "{}", v),
+            ExprData::UnsignedIntegerLiteral(v) => write!(f, "{}", v),
+            ExprData::SignedIntegerLiteral(v) => write!(f, "{}", v),
             ExprData::FloatLiteral(v) => write!(f, "{}", v),
             ExprData::StringLiteral(v) => std::fmt::Debug::fmt(&v.as_str(db.db()), f),
             ExprData::Await(expr) => f.debug_tuple("Await").field(&expr.debug(db)).finish(),
@@ -344,6 +357,11 @@ impl ExprData {
                 .field(&expr.debug(db))
                 .finish(),
             ExprData::Error => f.debug_tuple("Error").finish(),
+            ExprData::Unary(op, rhs) => f
+                .debug_tuple("Unary")
+                .field(op)
+                .field(&rhs.debug(db))
+                .finish(),
         }
     }
 }

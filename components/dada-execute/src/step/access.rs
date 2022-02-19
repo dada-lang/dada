@@ -242,11 +242,12 @@ impl Stepper<'_> {
                 | ObjectData::Float(_)
                 | ObjectData::Function(_)
                 | ObjectData::Intrinsic(_)
-                | ObjectData::Int(_)
+                | ObjectData::SignedInt(_)
                 | ObjectData::String(_)
                 | ObjectData::ThunkRust(_)
                 | ObjectData::Unit(_)
-                | ObjectData::Uint(_) => {}
+                | ObjectData::Int(_)
+                | ObjectData::UnsignedInt(_) => {}
             }
         }
 

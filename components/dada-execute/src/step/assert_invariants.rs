@@ -75,8 +75,9 @@ impl<'me> AssertInvariants<'me> {
             | ObjectData::Function(_)
             | ObjectData::Intrinsic(_)
             | ObjectData::Bool(_)
-            | ObjectData::Uint(_)
+            | ObjectData::UnsignedInt(_)
             | ObjectData::Int(_)
+            | ObjectData::SignedInt(_)
             | ObjectData::Float(_)
             | ObjectData::String(_)
             | ObjectData::Unit(_) => {

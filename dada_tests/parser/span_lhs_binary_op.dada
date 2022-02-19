@@ -1,5 +1,5 @@
 async fn main() {
     x = "foo"
     y = x + 44 + 66
-    #!  ^^^^^^ RUN ERROR cannot apply operator \+ to a string and an unsigned integer
+    #!  ^^^^^^ RUN ERROR cannot apply operator \+ to a string and an integer
 }

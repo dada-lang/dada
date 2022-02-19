@@ -1,7 +1,7 @@
 use crate::{
     parser::Parser,
     prelude::*,
-    token_test::{FormatStringLiteral, Identifier, Number},
+    token_test::{Alphabetic, FormatStringLiteral, Identifier, Number},
 };
 
 use dada_id::InternValue;
@@ -187,11 +187,11 @@ impl CodeParser<'_, '_> {
             }
         }
 
-        self.parse_expr_5()
+        self.parse_expr_6()
     }
 
-    pub(crate) fn parse_expr_5(&mut self) -> Option<Expr> {
-        let mut expr = self.parse_expr_4()?;
+    pub(crate) fn parse_expr_6(&mut self) -> Option<Expr> {
+        let mut expr = self.parse_expr_5()?;
 
         loop {
             if let Some(expr1) = self.parse_binop(
@@ -203,6 +203,25 @@ impl CodeParser<'_, '_> {
                     Op::TimesEqual,
                     Op::ColonEqual,
                 ],
+                Self::parse_expr_5,
+            ) {
+                expr = expr1;
+                continue;
+            }
+
+            break;
+        }
+
+        Some(expr)
+    }
+
+    pub(crate) fn parse_expr_5(&mut self) -> Option<Expr> {
+        let mut expr = self.parse_expr_4()?;
+
+        loop {
+            if let Some(expr1) = self.parse_binop(
+                expr,
+                &[Op::EqualEqual, Op::LessThan, Op::GreaterThan],
                 Self::parse_expr_4,
             ) {
                 expr = expr1;
@@ -219,11 +238,8 @@ impl CodeParser<'_, '_> {
         let mut expr = self.parse_expr_3()?;
 
         loop {
-            if let Some(expr1) = self.parse_binop(
-                expr,
-                &[Op::EqualEqual, Op::LessThan, Op::GreaterThan],
-                Self::parse_expr_3,
-            ) {
+            if let Some(expr1) = self.parse_binop(expr, &[Op::Plus, Op::Minus], Self::parse_expr_3)
+            {
                 expr = expr1;
                 continue;
             }
@@ -238,7 +254,8 @@ impl CodeParser<'_, '_> {
         let mut expr = self.parse_expr_2()?;
 
         loop {
-            if let Some(expr1) = self.parse_binop(expr, &[Op::Plus, Op::Minus], Self::parse_expr_2)
+            if let Some(expr1) =
+                self.parse_binop(expr, &[Op::DividedBy, Op::Times], Self::parse_expr_2)
             {
                 expr = expr1;
                 continue;
@@ -251,20 +268,10 @@ impl CodeParser<'_, '_> {
     }
 
     pub(crate) fn parse_expr_2(&mut self) -> Option<Expr> {
-        let mut expr = self.parse_expr_1()?;
-
-        loop {
-            if let Some(expr1) =
-                self.parse_binop(expr, &[Op::DividedBy, Op::Times], Self::parse_expr_1)
-            {
-                expr = expr1;
-                continue;
-            }
-
-            break;
+        if let Some(expr) = self.parse_unary(&[Op::Minus], Self::parse_expr_2) {
+            return Some(expr);
         }
-
-        Some(expr)
+        self.parse_expr_1()
     }
 
     pub(crate) fn parse_expr_1(&mut self) -> Option<Expr> {
@@ -325,15 +332,27 @@ impl CodeParser<'_, '_> {
             tracing::debug!("identifier");
             Some(self.add(ExprData::Id(id), id_span))
         } else if let Some((word_span, word)) = self.eat(Number) {
-            let whitespace_before_dot = self.tokens.skipped_any();
+            let whitespace_after_number = self.tokens.skipped_any();
+
             match self.eat_op(Op::Dot) {
-                None => Some(self.add(ExprData::IntegerLiteral(word), word_span)),
+                None => {
+                    if whitespace_after_number {
+                        return Some(self.add(ExprData::IntegerLiteral(word, None), word_span));
+                    }
+                    match self.eat(Alphabetic) {
+                        Some((_, alphabetic)) => {
+                            let span = self.span_consumed_since(word_span);
+                            Some(self.add(ExprData::IntegerLiteral(word, Some(alphabetic)), span))
+                        }
+                        None => Some(self.add(ExprData::IntegerLiteral(word, None), word_span)),
+                    }
+                }
                 Some(dot_span) => {
                     let whitespace_after_dot = self.tokens.skipped_any();
                     if let Some((_, dec_word)) = self.eat(Number) {
                         let span = self.span_consumed_since(word_span);
 
-                        if whitespace_before_dot || whitespace_after_dot {
+                        if whitespace_after_number || whitespace_after_dot {
                             self.parser
                                 .error(span, "whitespace is not allowed in float literals")
                                 .emit(self.db);
@@ -486,6 +505,23 @@ impl CodeParser<'_, '_> {
                     }
                     _ => return Some(self.add(ExprData::Op(base, op, rhs), span)),
                 }
+            }
+        }
+        None
+    }
+
+    fn parse_unary(
+        &mut self,
+        ops: &[Op],
+        mut parse_rhs: impl FnMut(&mut Self) -> Option<Expr>,
+    ) -> Option<Expr> {
+        for &op in ops {
+            if let Some(op_span) = self.eat_op(op) {
+                let rhs = parse_rhs(self)
+                    .or_report_error(self, || format!("expected expression after {op}"))
+                    .or_dummy_expr(self);
+                let span = self.span_consumed_since(op_span);
+                return Some(self.add(ExprData::Unary(op, rhs), span));
             }
         }
         None

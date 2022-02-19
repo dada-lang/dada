@@ -1,0 +1,4 @@
+fn main() {
+    1_u / 0_u
+#!  ^^^^^^^^^ RUN ERROR divide by zero
+}

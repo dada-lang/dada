@@ -1,5 +1,0 @@
-fn main() {
-    uint_max = 18446744073709551615
-    uint_max + 1
-#!  ^^^^^^^^^^^^ RUN ERROR overflow
-}

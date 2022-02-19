@@ -1,4 +1,0 @@
-fn main() {
-    1 / 0
-#!  ^^^^^ RUN ERROR divide by zero
-}

@@ -34,7 +34,7 @@
                         range: Range {
                             start: Position {
                                 line: 12,
-                                character: 5,
+                                character: 11,
                             },
                             end: Position {
                                 line: 12,

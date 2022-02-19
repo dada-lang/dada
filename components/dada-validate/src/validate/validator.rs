@@ -172,21 +172,54 @@ impl<'me> Validator<'me> {
                 self.add(validated::ExprData::BooleanLiteral(*b), expr)
             }
 
-            syntax::ExprData::IntegerLiteral(w) => {
+            syntax::ExprData::IntegerLiteral(w, suffix) => {
                 let raw_str = w.as_str(self.db);
                 let without_underscore: String = raw_str.chars().filter(|&c| c != '_').collect();
-                match u64::from_str(&without_underscore) {
-                    Ok(v) => self.add(validated::ExprData::IntegerLiteral(v), expr),
-                    Err(e) => {
-                        dada_ir::error!(
-                            self.span(expr),
-                            "`{}` is not a valid integer: {}",
-                            w.as_str(self.db),
-                            e,
-                        )
-                        .emit(self.db);
-                        self.add(validated::ExprData::Error, expr)
+                let parse_error = |this: &mut Validator, e| {
+                    dada_ir::error!(this.span(expr), "{}", e,).emit(this.db);
+                    this.add(validated::ExprData::Error, expr)
+                };
+                match suffix {
+                    Some(suffix) => {
+                        let suffix_str = suffix.as_str(self.db);
+                        match suffix_str {
+                            "u" => match u64::from_str(&without_underscore) {
+                                Ok(v) => {
+                                    self.add(validated::ExprData::UnsignedIntegerLiteral(v), expr)
+                                }
+                                Err(e) => parse_error(
+                                    self,
+                                    format!(
+                                        "`{}` is not a valid integer: {}",
+                                        &without_underscore, e
+                                    ),
+                                ),
+                            },
+                            "i" => match i64::from_str(&without_underscore) {
+                                Ok(v) => {
+                                    self.add(validated::ExprData::SignedIntegerLiteral(v), expr)
+                                }
+                                Err(e) => parse_error(
+                                    self,
+                                    format!(
+                                        "`{}` is not a valid integer: {}",
+                                        &without_underscore, e
+                                    ),
+                                ),
+                            },
+                            _ => parse_error(
+                                self,
+                                format!("`{}` is not a valid integer suffxi", suffix_str),
+                            ),
+                        }
                     }
+                    None => match u64::from_str(&without_underscore) {
+                        Ok(v) => self.add(validated::ExprData::IntegerLiteral(v), expr),
+                        Err(e) => parse_error(
+                            self,
+                            format!("`{}` is not a valid integer: {}", &without_underscore, e),
+                        ),
+                    },
                 }
             }
 
@@ -414,6 +447,15 @@ impl<'me> Validator<'me> {
                 let validated_op = self.validated_op(*op);
                 self.add(
                     validated::ExprData::Op(validated_lhs_expr, validated_op, validated_rhs_expr),
+                    expr,
+                )
+            }
+
+            syntax::ExprData::Unary(op, rhs_expr) => {
+                let validated_rhs_expr = self.validate_expr(*rhs_expr);
+                let validated_op = self.validated_op(*op);
+                self.add(
+                    validated::ExprData::Unary(validated_op, validated_rhs_expr),
                     expr,
                 )
             }

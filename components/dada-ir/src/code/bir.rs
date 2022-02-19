@@ -369,6 +369,12 @@ pub enum ExprData {
     /// true, false
     BooleanLiteral(bool),
 
+    /// `22i`, `22_222i`, etc
+    SignedIntegerLiteral(i64),
+
+    /// `22u`, `22_222u`, etc
+    UnsignedIntegerLiteral(u64),
+
     /// `22`, `22_222`, etc
     IntegerLiteral(u64),
 
@@ -396,6 +402,9 @@ pub enum ExprData {
     /// `a + b`
     Op(Place, Op, Place),
 
+    /// `- 1`
+    Unary(Op, Place),
+
     /// parse or other error
     Error,
 }
@@ -405,6 +414,8 @@ impl DebugWithDb<InIrDb<'_, Bir>> for ExprData {
         match self {
             ExprData::BooleanLiteral(b) => write!(f, "{}", b),
             ExprData::IntegerLiteral(w) => write!(f, "{}", w),
+            ExprData::UnsignedIntegerLiteral(w) => write!(f, "{}", w),
+            ExprData::SignedIntegerLiteral(w) => write!(f, "{}", w),
             ExprData::StringLiteral(w) => write!(f, "{:?}", w.as_str(db.db())),
             ExprData::FloatLiteral(w) => write!(f, "{}", w),
             ExprData::GiveShare(p) => write!(f, "{:?}.share", p.debug(db)),
@@ -416,6 +427,9 @@ impl DebugWithDb<InIrDb<'_, Bir>> for ExprData {
                 write!(f, "{:?} {} {:?}", lhs.debug(db), op.str(), rhs.debug(db))
             }
             ExprData::Error => write!(f, "<error>"),
+            ExprData::Unary(op, rhs) => {
+                write!(f, "{} {:?}", op.str(), rhs.debug(db))
+            }
         }
     }
 }

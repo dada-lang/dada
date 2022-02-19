@@ -169,10 +169,13 @@ pub enum ObjectData {
     Bool(bool),
 
     /// Unsigned integer.
-    Uint(u64),
+    UnsignedInt(u64),
+
+    /// Unsuffixed integer
+    Int(u64),
 
     /// Signed integer.
-    Int(i64),
+    SignedInt(i64),
 
     /// Floating point.
     Float(f64),
@@ -197,8 +200,9 @@ impl ObjectData {
             ObjectData::ThunkRust(_) => "a thunk".to_string(),
             ObjectData::Tuple(_) => "a tuple".to_string(),
             ObjectData::Bool(_) => "a boolean".to_string(),
-            ObjectData::Uint(_) => "an unsigned integer".to_string(),
+            ObjectData::UnsignedInt(_) => "an unsigned integer".to_string(),
             ObjectData::Int(_) => "an integer".to_string(),
+            ObjectData::SignedInt(_) => "a signed integer".to_string(),
             ObjectData::Float(_) => "a float".to_string(),
             ObjectData::String(_) => "a string".to_string(),
             ObjectData::Unit(()) => "nothing".to_string(),
@@ -227,8 +231,8 @@ object_data_from_impls! {
     ThunkRust(RustThunk),
     Tuple(Tuple),
     Bool(bool),
-    Uint(u64),
-    Int(i64),
+    UnsignedInt(u64),
+    SignedInt(i64),
     Float(f64),
     String(String),
     Unit(()),

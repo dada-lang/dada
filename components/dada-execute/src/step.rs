@@ -27,6 +27,7 @@ use crate::{
 mod access;
 mod address;
 mod apply_op;
+mod apply_unary;
 mod assert_invariants;
 mod await_thunk;
 mod call;
@@ -386,7 +387,15 @@ impl<'me> Stepper<'me> {
                 permission: self.machine.new_permission(ValidPermissionData::our()),
             }),
             bir::ExprData::IntegerLiteral(v) => Ok(Value {
-                object: self.machine.new_object(ObjectData::Uint(*v)),
+                object: self.machine.new_object(ObjectData::Int(*v)),
+                permission: self.machine.new_permission(ValidPermissionData::our()),
+            }),
+            bir::ExprData::UnsignedIntegerLiteral(v) => Ok(Value {
+                object: self.machine.new_object(ObjectData::UnsignedInt(*v)),
+                permission: self.machine.new_permission(ValidPermissionData::our()),
+            }),
+            bir::ExprData::SignedIntegerLiteral(v) => Ok(Value {
+                object: self.machine.new_object(ObjectData::SignedInt(*v)),
                 permission: self.machine.new_permission(ValidPermissionData::our()),
             }),
             bir::ExprData::FloatLiteral(v) => Ok(Value {
@@ -420,6 +429,10 @@ impl<'me> Stepper<'me> {
                 let lhs_traversal = self.traverse_to_object(table, *lhs)?;
                 let rhs_traversal = self.traverse_to_object(table, *rhs)?;
                 self.apply_op(expr, *op, lhs_traversal.object, rhs_traversal.object)
+            }
+            bir::ExprData::Unary(op, rhs) => {
+                let rhs_traversal = self.traverse_to_object(table, *rhs)?;
+                self.apply_unary(expr, *op, rhs_traversal.object)
             }
             bir::ExprData::Error => {
                 let span = self.span_from_bir(expr);
