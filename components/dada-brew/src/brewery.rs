@@ -185,6 +185,7 @@ impl<'me> Brewery<'me> {
     ///
     /// See the comments on the `temporaries` field for more information.
     pub fn push_temporary(&mut self, lv: bir::LocalVariable) {
+        tracing::debug!("pushing temporary: {:?}", lv);
         self.temporaries.push(lv);
     }
 

@@ -495,6 +495,7 @@ fn add_temporary(brewery: &mut Brewery, origin: ExprOrigin) -> bir::LocalVariabl
         },
         validated::LocalVariableOrigin::Temporary(origin.into()),
     );
+    tracing::debug!("created temporary: temp{{{:?}}}", u32::from(temporary));
     brewery.push_temporary(temporary);
     temporary
 }
