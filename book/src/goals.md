@@ -30,7 +30,7 @@ Some key design principles intended to create the above experience.
 
 Dada's type system is meant to be "fully erasable", similar to the relationship between TypeScript and JavaScript. That is, given some Typed Dada program, you should be able to delete all the type annotations and have it run in exactly the same way in Dynamic Dada. Any type errors should manifest as runtime exceptions at some point. 
 
-(Caveat: we may want to use function parameter types as "hints", in which case the correct erasure would inclue applying those hints. Have to see.)
+(Caveat: we may want to use function parameter types as "hints", in which case the correct erasure would include applying those hints. Have to see.)
 
 ## Values, not places or pointers
 

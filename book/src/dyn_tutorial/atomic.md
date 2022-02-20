@@ -285,7 +285,7 @@ async fn main() {
 
 If you think back to the rules on [leasing](./lease.md), this makes sense: a lease lasts until the lessor ends it by using the value. **In this case, though, the value that was leased had not one lessor (`cell1`) but *two*, because it is jointly owned.** Either of those lessors can end the lease by using the value again.
 
-To see why this is useful, imagine for a moment that you were writing a function that takes two cells as arguments. Just like the [`transfer`] function that we described in the [sharing xor mutability][sxm] chapter, you don't realize that `cell1` and `cell2` refer to the same object. In that case, this code that you wrote above is probably wrong! It is going to read the value of `x`, mutate it, and then mutate it again, ignoring that write in between. This is precisely the bug we showed as a "data race", but occuring within a single thread. Dada's rules detect this problem and eliminate it.
+To see why this is useful, imagine for a moment that you were writing a function that takes two cells as arguments. Just like the [`transfer`] function that we described in the [sharing xor mutability][sxm] chapter, you don't realize that `cell1` and `cell2` refer to the same object. In that case, this code that you wrote above is probably wrong! It is going to read the value of `x`, mutate it, and then mutate it again, ignoring that write in between. This is precisely the bug we showed as a "data race", but occurring within a single thread. Dada's rules detect this problem and eliminate it.
 
 ## Leasing versus multiple writes
 
@@ -309,6 +309,6 @@ async fn main() {
 }
 ```
 
-Runnig this, we see the output `23` -- even though there were two increments, only one took effect. Is this right? Wrong? Well, that's for you, as the author of the code, to say.
+Running this, we see the output `23` -- even though there were two increments, only one took effect. Is this right? Wrong? Well, that's for you, as the author of the code, to say.
 
 The idea here is this: **when you lease an object, you are saying "so long as I use this lease, I am not expecting interference from other variables"**. You are, in effect, creating a kind of "mini-transaction". If however you write the code *without* a lease, as we did above, then interference is possible. Just as we saw with multiple `atomic` sections, that may sometimes be what you want!
