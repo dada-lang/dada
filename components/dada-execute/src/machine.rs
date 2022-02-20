@@ -289,6 +289,13 @@ impl PermissionData {
         }
     }
 
+    pub fn expired(&self) -> Option<Option<ProgramCounter>> {
+        match self {
+            PermissionData::Expired(e) => Some(*e),
+            PermissionData::Valid(_) => None,
+        }
+    }
+
     pub fn joint_if_valid(&self) -> Option<Joint> {
         self.valid().map(|v| v.joint)
     }

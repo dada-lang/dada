@@ -228,7 +228,9 @@ impl<'me> Stepper<'me> {
         table: &bir::Tables,
         place: bir::Place,
         value: Value,
-    ) -> Result<(), eyre::Error> {
+    ) -> eyre::Result<()> {
+        assert!(self.machine[value.permission].valid().is_some());
+
         let traversal = self.traverse_to_place(table, place)?;
         self.write_place(&traversal)?;
         self.poke(traversal.address, value)?;
@@ -354,6 +356,12 @@ impl<'me> Stepper<'me> {
         let TerminatorData::Assign(top_place, _, top_basic_block) = &top_table[top_basic_block_data.terminator] else {
             unreachable!("calling frame should be at an assign terminator")
         };
+
+        // check that the value which was returned didn't get invalidated
+        // by the return itself
+        if let Some(expired_at) = self.machine[value.permission].expired() {
+            return Err(self.report_traversing_expired_permission(top.pc.span(self.db), expired_at));
+        }
 
         let new_pc = top.pc.move_to_block(*top_basic_block);
         self.assign_place(top_table, *top_place, value)?;
