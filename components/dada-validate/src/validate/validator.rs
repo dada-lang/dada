@@ -688,7 +688,7 @@ impl<'me> Validator<'me> {
 
     fn validate_named_expr(&mut self, named_expr: syntax::NamedExpr) -> validated::NamedExpr {
         let syntax::NamedExprData { name, expr } = named_expr.data(self.syntax_tables());
-        let validated_expr = self.validate_expr_to_value(*expr);
+        let validated_expr = self.validate_expr(*expr);
         self.add(
             validated::NamedExprData {
                 name: *name,
