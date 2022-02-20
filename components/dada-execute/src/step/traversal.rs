@@ -3,6 +3,7 @@ use dada_ir::{
     class::Class,
     code::bir,
     error,
+    span::FileSpan,
     storage_mode::{Atomic, Joint, Leased},
     word::Word,
 };
@@ -11,7 +12,9 @@ use dada_parse::prelude::DadaParseClassExt;
 use crate::{
     error::DiagnosticBuilderExt,
     ext::DadaExecuteClassExt,
-    machine::{op::MachineOpExt, Object, ObjectData, Permission, PermissionData, Value},
+    machine::{
+        op::MachineOpExt, Object, ObjectData, Permission, PermissionData, ProgramCounter, Value,
+    },
 };
 
 use super::{address::Address, Stepper};
@@ -232,26 +235,10 @@ impl Stepper<'_> {
         let atomic = accumulated_permissions.atomic;
 
         match &self.machine[permission] {
-            PermissionData::Expired(None) => {
+            PermissionData::Expired(expired_at) => {
+                tracing::debug!("encountered expired permission: {:?}", permission);
                 let place_span = self.span_from_bir(place);
-                Err(error!(place_span, "accessing uninitialized memory").eyre(self.db))
-            }
-            PermissionData::Expired(Some(expired_at)) => {
-                let place_span = self.span_from_bir(place);
-                let expired_at_span = expired_at.span(self.db);
-
-                let secondary_label = if expired_at.is_return(self.db) {
-                    "lease was cancelled when this function returned"
-                } else {
-                    "lease was cancelled here"
-                };
-
-                Err(
-                    error!(place_span, "your lease to this object was cancelled")
-                        .primary_label("cancelled lease used here")
-                        .secondary_label(expired_at_span, secondary_label)
-                        .eyre(self.db),
-                )
+                Err(self.report_traversing_expired_permission(place_span, *expired_at))
             }
             PermissionData::Valid(v) => {
                 match v.joint {
@@ -288,6 +275,30 @@ impl Stepper<'_> {
                         })
                     }
                 }
+            }
+        }
+    }
+
+    pub(super) fn report_traversing_expired_permission(
+        &self,
+        place_span: FileSpan,
+        expired_at: Option<ProgramCounter>,
+    ) -> eyre::Report {
+        match expired_at {
+            None => error!(place_span, "accessing uninitialized memory").eyre(self.db),
+            Some(expired_at) => {
+                let expired_at_span = expired_at.span(self.db);
+
+                let secondary_label = if expired_at.is_return(self.db) {
+                    "lease was cancelled when this function returned"
+                } else {
+                    "lease was cancelled here"
+                };
+
+                error!(place_span, "your lease to this object was cancelled")
+                    .primary_label("cancelled lease used here")
+                    .secondary_label(expired_at_span, secondary_label)
+                    .eyre(self.db)
             }
         }
     }
