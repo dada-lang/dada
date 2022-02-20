@@ -333,7 +333,7 @@ impl<'me> Validator<'me> {
                     expr.synthesized(),
                 );
 
-                let validated_initializer_expr = self.validate_expr_to_value(*initializer_expr);
+                let validated_initializer_expr = self.validate_expr(*initializer_expr);
                 self.scope.insert(decl_data.name, local_variable);
                 self.add(
                     validated::ExprData::Assign(place, validated_initializer_expr),
