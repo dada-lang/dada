@@ -5,14 +5,18 @@ use salsa::DebugWithDb;
 
 #[derive(structopt::StructOpt)]
 pub struct Options {
+    /// Paths to `.dada` files to check
     paths: Vec<PathBuf>,
 
+    /// Log the syntax tree
     #[structopt(long)]
     log_syntax_tree: bool,
 
+    /// Log the validated tree
     #[structopt(long)]
     log_validated_tree: bool,
 
+    /// Log the BIR
     #[structopt(long)]
     log_bir: bool,
 }

@@ -14,9 +14,11 @@ mod lsp_client;
 
 #[derive(structopt::StructOpt)]
 pub struct Options {
+    /// Paths to directories and/or `.dada` files to test
     #[structopt(parse(from_os_str), default_value = "dada_tests")]
     dada_path: Vec<PathBuf>,
 
+    /// Instead of validating `.ref` files, generate them
     #[structopt(long)]
     bless: bool,
 }
