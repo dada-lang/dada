@@ -24,7 +24,7 @@ pub(super) struct AccumulatedPermissions {
     /// (either a place or an object).
     pub(super) traversed: Vec<Permission>,
 
-    /// Did we traverse through a leased permision?
+    /// Did we traverse through a leased permission?
     ///
     /// If `Leased::No`, the data is owned.
     pub(super) leased: Leased,

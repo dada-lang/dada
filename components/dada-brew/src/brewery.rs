@@ -25,7 +25,7 @@ pub struct Brewery<'me> {
 
     /// The "temporary stack". This is used to track temporaries that
     /// were created during the brewing process and clear them out
-    /// so that we don't artifically extend the lifetime of objects
+    /// so that we don't artificially extend the lifetime of objects
     /// during interpretation.
     ///
     /// The basic strategy is as follows:

@@ -340,7 +340,7 @@ pub struct ValidPermissionData {
     /// a lease (or sublease, if we ourselves are leased) to
     /// access `o`. This could be a shared
     /// or exclusive lease. Accesses to the fields of `o`
-    /// through this permision may cancel the tenants' leases.
+    /// through this permission may cancel the tenants' leases.
     pub tenants: Vec<Permission>,
 }
 

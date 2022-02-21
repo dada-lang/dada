@@ -51,7 +51,7 @@ impl Stepper<'_> {
 
         // The last traversed permission is the one that led to the object
         // (and there must be one, because you can't reach an object without
-        // traversing at least one permision).
+        // traversing at least one permission).
         let last_permission = *accumulated_permissions.traversed.last().unwrap();
 
         // Special case: If last permission is already a shared lease, we can just duplicate it

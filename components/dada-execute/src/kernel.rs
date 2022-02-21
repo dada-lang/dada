@@ -219,7 +219,7 @@ impl BufferKernel {
     /// offset (along with the full range of text that was generated).
     ///
     /// Returns `None` if we are not tracking that information
-    /// or if the text was geneated via a call to `append` or other means,
+    /// or if the text was generated via a call to `append` or other means,
     /// and not from the program.
     pub fn pc_at_offset(&self, offset: usize) -> Option<OutputRange> {
         match self.buffer_pcs.binary_search_by(|range| {
