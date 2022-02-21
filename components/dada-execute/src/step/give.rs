@@ -26,12 +26,14 @@ impl Stepper<'_> {
         place: bir::Place,
     ) -> eyre::Result<Value> {
         let object_traversal = self.traverse_to_object(table, place)?;
-        self.give_traversal(object_traversal)
+        let object_traversal = self.confirm_reservation_if_any(table, object_traversal)?;
+        self.give_traversal(table, object_traversal)
     }
 
     #[tracing::instrument(level = "debug", skip(self))]
     pub(super) fn give_traversal(
         &mut self,
+        table: &bir::Tables,
         object_traversal: ObjectTraversal,
     ) -> eyre::Result<Value> {
         // Giving something that is jointly accessible is handled via sharing.
@@ -71,6 +73,7 @@ impl Stepper<'_> {
         // The value at `place` is exclusively owned: cancel the old permission (and any tenants)
         // create a new one to return.
         let object = self.take_object(object_traversal)?;
+
         let permission = self.machine.new_permission(ValidPermissionData::my());
         Ok(Value { object, permission })
     }

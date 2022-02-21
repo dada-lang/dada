@@ -250,6 +250,7 @@ impl<'me> Stepper<'me> {
         self.assign_value_to_place(table, target_place, value)
     }
 
+    #[tracing::instrument(level = "Debug", skip(self, table))]
     fn prepare_value_for_specifier(
         &mut self,
         table: &bir::Tables,

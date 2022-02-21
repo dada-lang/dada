@@ -22,6 +22,12 @@ pub(crate) impl<T: ?Sized + MachineOp> DefaultStringify for T {
     // FIXME: There is no way for *users* to write a fn that "inspects" the permission
     // like this. We should maybe just not print them, but it's kind of useful...?
     fn stringify_object(&self, db: &dyn crate::Db, permission: &str, object: Object) -> String {
+        tracing::debug!(
+            "stringify(permission = {:?}, object = {:?}, object-data = {:?})",
+            permission,
+            object,
+            self[object]
+        );
         match &self[object] {
             ObjectData::String(s) => s.to_string(),
             ObjectData::Bool(v) => format!("{}", v),

@@ -25,6 +25,7 @@ pub(crate) trait MachineOp:
     fn clear_frame(&mut self);
     fn pop_frame(&mut self) -> Frame;
     fn top_frame(&self) -> Option<&Frame>;
+    fn top_frame_index(&self) -> Option<FrameIndex>;
 
     fn object(&self, object: Object) -> &ObjectData;
     fn object_mut(&mut self, object: Object) -> &mut ObjectData;
@@ -125,6 +126,15 @@ impl MachineOp for Machine {
 
     fn top_frame(&self) -> Option<&Frame> {
         self.stack.frames.last()
+    }
+
+    fn top_frame_index(&self) -> Option<FrameIndex> {
+        let l = self.stack.frames.len();
+        if l == 0 {
+            None
+        } else {
+            Some(FrameIndex::from(l - 1))
+        }
     }
 
     #[track_caller]

@@ -35,7 +35,7 @@ pub fn validate_function(db: &dyn crate::Db, function: Function) -> validated::T
     }
     let num_parameters = validator.num_local_variables();
 
-    let root_expr = validator.validate_expr(syntax_tree.data(db).root_expr);
+    let root_expr = validator.give_validated_expr(syntax_tree.data(db).root_expr);
     std::mem::drop(validator);
     let data = validated::TreeData::new(tables, num_parameters, root_expr);
     validated::Tree::new(db, function, data, origins)

@@ -55,6 +55,7 @@ impl Stepper<'_> {
             .my_value(RustThunk::new("print", values, Intrinsic::Print)))
     }
 
+    #[tracing::instrument(level = "Debug", skip(self, await_pc))]
     pub(super) async fn intrinsic_print_async(
         &mut self,
         await_pc: ProgramCounter,
