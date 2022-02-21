@@ -296,7 +296,7 @@ impl<'me> Stepper<'me> {
             TerminatorData::Return(place) => {
                 let return_value = self.give_place(table, *place)?;
 
-                // Before we pop the frame, clear any permisions
+                // Before we pop the frame, clear any permissions
                 // and run the GC. Any data that is now dead will
                 // thus have the revokation location at the end of the
                 // callee, rather than the caller.

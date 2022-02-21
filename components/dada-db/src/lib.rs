@@ -74,12 +74,12 @@ impl Db {
         None
     }
 
-    /// Parses `filename` and returns a lits of the items within.
+    /// Parses `filename` and returns a list of the items within.
     pub fn items(&self, filename: Filename) -> Vec<Item> {
         filename.items(self).clone()
     }
 
-    /// Parses `filename` and returns a lits of the items within.
+    /// Parses `filename` and returns a list of the items within.
     pub fn debug_syntax_tree(&self, item: Item) -> Option<impl std::fmt::Debug + '_> {
         Some(item.syntax_tree(self)?.into_debug(self))
     }

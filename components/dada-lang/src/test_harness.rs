@@ -130,15 +130,15 @@ impl Options {
     async fn test_dada_file(&self, path: &Path) -> eyre::Result<Vec<String>> {
         let expected_queries = &expected_queries(path)?;
         let expected_diagnostics = expected_diagnostics(path)?;
-        let path_without_extention = path.with_extension("");
-        fs::create_dir_all(&path_without_extention)?;
+        let path_without_extension = path.with_extension("");
+        fs::create_dir_all(&path_without_extension)?;
         self.test_dada_file_normal(
-            &path_without_extention,
+            &path_without_extension,
             &expected_diagnostics,
             expected_queries,
         )
         .await?;
-        self.test_dada_file_in_ide(&path_without_extention, &expected_diagnostics)?;
+        self.test_dada_file_in_ide(&path_without_extension, &expected_diagnostics)?;
         Ok(expected_diagnostics.fixmes)
     }
 

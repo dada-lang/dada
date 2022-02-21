@@ -52,7 +52,7 @@ impl Stepper<'_> {
 
         // The last traversed permission is the one that led to the object
         // (and there must be one, because you can't reach an object without
-        // traversing at least one permision).
+        // traversing at least one permission).
         let last_permission = *accumulated_permissions.traversed.last().unwrap();
 
         // Special case, for simplicity and efficiency: If the final permission to the object
@@ -149,7 +149,7 @@ impl Stepper<'_> {
             });
         }
 
-        // Otherwise, we don't own the object, so create a joint leased permision.
+        // Otherwise, we don't own the object, so create a joint leased permission.
         // This will remain valid so long as the lease is valid (and not re-asserted).
         //
         // # Examples

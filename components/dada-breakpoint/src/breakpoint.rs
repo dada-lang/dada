@@ -59,7 +59,7 @@ pub fn find_item(db: &dyn crate::Db, filename: Filename, offset: Offset) -> Opti
 /// that is, the moment when all of E's children have been
 /// evaluated, but E has not yet taken effect itself.
 ///
-/// Assumes: the offest is somewhere in this syntax tree.
+/// Assumes: the offset is somewhere in this syntax tree.
 ///
 /// Returns None if the cursor does not lie in the syntax tree at all.
 fn find_syntax_expr(db: &dyn crate::Db, syntax_tree: syntax::Tree, offset: Offset) -> syntax::Expr {

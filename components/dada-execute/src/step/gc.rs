@@ -32,7 +32,7 @@ struct Marks {
     /// Live objects: objects that had a live owning permission.
     live_objects: Set<Object>,
 
-    /// Live permissions: permisions that appeared in a live location
+    /// Live permissions: permissions that appeared in a live location
     /// (e.g., a variable on some active stack frame).
     ///
     /// If a permission is live, then so are its tenants.

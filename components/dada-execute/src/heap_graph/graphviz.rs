@@ -406,7 +406,7 @@ impl HeapGraph {
             ValueEdgeTarget::Data(data_node) => Some(data_node.data(&self.tables).object),
 
             ValueEdgeTarget::Expired => {
-                // If we reach this point, then either the *permision* changed or
+                // If we reach this point, then either the *permission* changed or
                 // there was no visible change.
                 return false;
             }
