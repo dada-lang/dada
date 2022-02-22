@@ -353,15 +353,15 @@ impl<'me> Validator<'me> {
                     },
                     validated::LocalVariableOrigin::LocalVariable(*decl),
                 );
-                let place = self.add(
-                    validated::PlaceData::LocalVariable(local_variable),
+                let target_place = self.add(
+                    validated::TargetPlaceData::LocalVariable(local_variable),
                     expr.synthesized(),
                 );
 
                 let validated_initializer_expr = self.give_validated_expr(*initializer_expr);
                 self.scope.insert(decl_data.name, local_variable);
                 self.add(
-                    validated::ExprData::Assign(place, validated_initializer_expr),
+                    validated::ExprData::Assign(target_place, validated_initializer_expr),
                     expr,
                 )
             }
@@ -513,7 +513,7 @@ impl<'me> Validator<'me> {
                     let (validated_opt_temp_expr, validated_target_place) = self
                         .subscope()
                         .with_synthesized()
-                        .validate_expr_as_place(*lhs_expr)?;
+                        .validate_expr_as_target_place(*lhs_expr)?;
 
                     let assign_expr = self.add(
                         validated::ExprData::Assign(validated_target_place, validated_op_expr),
@@ -525,17 +525,19 @@ impl<'me> Validator<'me> {
             }
 
             syntax::ExprData::Assign(lhs_expr, rhs_expr) => {
-                let place = try {
+                let mut subscope = self.subscope();
+                let result = try {
                     let (validated_opt_temp_expr, validated_lhs_place) =
-                        self.validate_expr_as_place(*lhs_expr)?;
-                    let validated_rhs_expr = self.give_validated_expr(*rhs_expr);
-                    let assign_expr = self.add(
+                        subscope.validate_expr_as_target_place(*lhs_expr)?;
+                    let validated_rhs_expr = subscope.give_validated_expr(*rhs_expr);
+                    let assign_expr = subscope.add(
                         validated::ExprData::Assign(validated_lhs_place, validated_rhs_expr),
                         expr,
                     );
-                    self.maybe_seq(validated_opt_temp_expr, assign_expr, expr)
+                    subscope.maybe_seq(validated_opt_temp_expr, assign_expr, expr)
                 };
-                self.or_error(place, expr)
+                let result = subscope.or_error(result, expr);
+                subscope.exit(result)
             }
 
             syntax::ExprData::Error => self.add(validated::ExprData::Error, expr),
@@ -557,22 +559,83 @@ impl<'me> Validator<'me> {
         }
     }
 
+    fn validate_expr_as_target_place(
+        &mut self,
+        expr: syntax::Expr,
+    ) -> Result<(Option<validated::Expr>, validated::TargetPlace), ErrorReported> {
+        match expr.data(self.syntax_tables()) {
+            syntax::ExprData::Dot(owner, field_name) => {
+                let (assign_expr, owner_place) =
+                    self.validate_expr_in_temporary(*owner, ExprMode::Reserve);
+                let place = self.add(
+                    validated::TargetPlaceData::Dot(owner_place, *field_name),
+                    expr,
+                );
+                Ok((Some(assign_expr), place))
+            }
+
+            syntax::ExprData::Id(name) => match self.scope.lookup(*name) {
+                Some(Definition::LocalVariable(lv)) => {
+                    let place = self.add(validated::TargetPlaceData::LocalVariable(lv), expr);
+                    Ok((None, place))
+                }
+
+                Some(definition @ Definition::Function(_))
+                | Some(definition @ Definition::Class(_))
+                | Some(definition @ Definition::Intrinsic(_)) => Err(dada_ir::error!(
+                    self.span(expr),
+                    "you can only assign to local variables or fields, not {} like `{}`",
+                    definition.plural_description(),
+                    name.as_str(self.db),
+                )
+                .emit(self.db)),
+
+                None => Err(dada_ir::error!(
+                    self.span(expr),
+                    "can't find anything named `{}`",
+                    name.as_str(self.db)
+                )
+                .emit(self.db)),
+            },
+
+            syntax::ExprData::Parenthesized(target_expr) => {
+                self.validate_expr_as_target_place(*target_expr)
+            }
+
+            _ => {
+                let _ = self.give_validated_expr(expr);
+                Err(dada_ir::error!(
+                    self.span(expr),
+                    "you can only assign to local variables and fields, not arbitrary expressions",
+                )
+                .emit(self.db))
+            }
+        }
+    }
+
     /// Validate the expression and then exit the subscope (consumes self).
+    /// See [`Self::exit`].
+    fn validate_expr_and_exit(mut self, expr: syntax::Expr, mode: ExprMode) -> validated::Expr {
+        let validated_expr = self.validate_expr_in_mode(expr, mode);
+        self.exit(validated_expr)
+    }
+
+    /// Exit the subscope (consumes self) and produce `validated_expr`
+    /// (possibly wrapped in a `Declare` with any variables that were
+    /// declared within this scope).
     ///
     /// Exiting the subscope will pop-off any variables that were declared
     /// within.
     ///
     /// Returns the validated result, wrapped in `Declare` if necessary.
-    fn validate_expr_and_exit(mut self, expr: syntax::Expr, mode: ExprMode) -> validated::Expr {
-        let expr = self.validate_expr_in_mode(expr, mode);
-
+    fn exit(mut self, validated_expr: validated::Expr) -> validated::Expr {
         let vars = self.scope.take_inserted();
         if vars.is_empty() {
-            return expr;
+            return validated_expr;
         }
 
-        let origin = self.origins[expr].synthesized();
-        self.add(validated::ExprData::Declare(vars, expr), origin)
+        let origin = self.origins[validated_expr].synthesized();
+        self.add(validated::ExprData::Declare(vars, validated_expr), origin)
     }
 
     fn maybe_seq(
@@ -674,7 +737,8 @@ impl<'me> Validator<'me> {
             }
             syntax::ExprData::Error => Err(ErrorReported),
             _ => {
-                let (assign_expr, temporary_place) = self.validate_expr_in_temporary(expr);
+                let (assign_expr, temporary_place) =
+                    self.validate_expr_in_temporary(expr, ExprMode::Give);
                 Ok((Some(assign_expr), temporary_place))
             }
         }
@@ -684,6 +748,7 @@ impl<'me> Validator<'me> {
     fn validate_expr_in_temporary(
         &mut self,
         expr: syntax::Expr,
+        mode: ExprMode,
     ) -> (validated::Expr, validated::Place) {
         let local_variable = self.add(
             validated::LocalVariableData {
@@ -695,17 +760,21 @@ impl<'me> Validator<'me> {
         );
         self.scope.insert_temporary(local_variable);
 
+        let validated_target_place = self.add(
+            validated::TargetPlaceData::LocalVariable(local_variable),
+            expr.synthesized(),
+        );
+        let validated_expr = self.validate_expr_in_mode(expr, mode);
+
+        let assign_expr = self.add(
+            validated::ExprData::Assign(validated_target_place, validated_expr),
+            expr.synthesized(),
+        );
+
         let validated_place = self.add(
             validated::PlaceData::LocalVariable(local_variable),
             expr.synthesized(),
         );
-        let validated_expr = self.give_validated_expr(expr);
-
-        let assign_expr = self.add(
-            validated::ExprData::Assign(validated_place, validated_expr),
-            expr.synthesized(),
-        );
-
         (assign_expr, validated_place)
     }
 
@@ -903,6 +972,12 @@ impl IntoOrigin for LocalVariableOrigin {
     }
 
     fn synthesized(self) -> Self::Origin {
-        panic!("cannot force local variable origin to be synthesized")
+        match self {
+            // temporaries are synthesized local variables, so that's ok
+            LocalVariableOrigin::Temporary(_) => self,
+
+            // we can't make other variables be synthesized
+            _ => panic!("cannot force local variable origin to be synthesized"),
+        }
     }
 }

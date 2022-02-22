@@ -1,0 +1,7 @@
+Error: you can only assign to local variables or fields, not classes like `Foo`
+   ╭─[dada_tests/validate/assign-to-class.dada:5:9]
+   │
+ 5 │         Foo := 22 #! ERROR you can only assign to local variables or fields
+   ·         ─┬─  
+   ·          ╰─── here
+───╯

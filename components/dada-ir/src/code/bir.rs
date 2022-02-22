@@ -113,6 +113,7 @@ tables! {
         terminators: alloc Terminator => TerminatorData,
         exprs: alloc Expr => ExprData,
         places: alloc Place => PlaceData,
+        target_places: alloc TargetPlace => TargetPlaceData,
     }
 }
 
@@ -130,6 +131,7 @@ origin_table! {
         terminator: Terminator => syntax::Expr,
         expr: Expr => syntax::Expr,
         place: Place => syntax::Expr,
+        target_place: TargetPlace => syntax::Expr,
     }
 }
 
@@ -219,14 +221,23 @@ impl DebugWithDb<InIrDb<'_, Bir>> for Statement {
 #[derive(PartialEq, Eq, Clone, Hash, Debug)]
 pub enum StatementData {
     /// Assign the result of evaluating an expression to a place.
-    AssignExpr(Place, Expr),
+    /// This is the preferred form of assignment, and covers
+    /// cases like `a := b` as well as `a := 22`. In these case, either
+    /// (a) we know statically the declared mode for `a` and so we
+    /// can prepare an expression like `b.give` or `b.lease` in advance
+    /// or (b) the rhs is an rvalue, like `22`, and so is always given.
+    AssignExpr(TargetPlace, Expr),
 
-    /// Assign from one place to another. At execution time,
-    /// this will be converted into a give/lease/share operation,
-    /// depending on the storage mode of place. (In compiled Dada,
-    /// these operations should not occur, because we can always
-    /// statically analyze the place being assigned to.)
-    AssignPlace(Place, Place),
+    /// Captures an assignment like
+    ///
+    /// ```notrust
+    /// foo.bar := baz
+    /// ```
+    ///
+    /// This case is challenging because, until we know
+    /// the declared type of `bar` at runtime, we don't
+    /// know whether to give `baz`, lease it, or what.
+    AssignPlace(TargetPlace, Place),
 
     /// Clears the value from the given local variable.
     Clear(LocalVariable),
@@ -305,7 +316,7 @@ pub enum TerminatorData {
     StartAtomic(BasicBlock),
     EndAtomic(BasicBlock),
     Return(Place),
-    Assign(Place, TerminatorExpr, BasicBlock),
+    Assign(TargetPlace, TerminatorExpr, BasicBlock),
     Error,
     Panic,
 }
@@ -496,6 +507,29 @@ impl DebugWithDb<InIrDb<'_, Bir>> for PlaceData {
             PlaceData::Class(class) => write!(f, "{:?}", class.debug(db.db())),
             PlaceData::Intrinsic(intrinsic) => write!(f, "{:?}", intrinsic),
             PlaceData::Dot(p, id) => write!(f, "{:?}.{}", p.debug(db), id.as_str(db.db())),
+        }
+    }
+}
+
+id!(pub struct TargetPlace);
+
+impl DebugWithDb<InIrDb<'_, Bir>> for TargetPlace {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>, db: &InIrDb<'_, Bir>) -> std::fmt::Result {
+        write!(f, "{:?}", self.data(db.tables()).debug(db))
+    }
+}
+
+#[derive(PartialEq, Eq, Clone, Hash, Debug)]
+pub enum TargetPlaceData {
+    LocalVariable(LocalVariable),
+    Dot(Place, Word),
+}
+
+impl DebugWithDb<InIrDb<'_, Bir>> for TargetPlaceData {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>, db: &InIrDb<'_, Bir>) -> std::fmt::Result {
+        match self {
+            TargetPlaceData::LocalVariable(v) => write!(f, "{:?}", v.debug(db)),
+            TargetPlaceData::Dot(p, id) => write!(f, "{:?}.{}", p.debug(db), id.as_str(db.db())),
         }
     }
 }

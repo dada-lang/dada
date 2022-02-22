@@ -1,0 +1,55 @@
+[
+    syntax::Tree {
+        origin: Code(
+            Some(
+                Tokens(dada_tests/validate/assign-to-class.dada:3:15:3:15),
+            ),
+            Tokens(dada_tests/validate/assign-to-class.dada:3:18:7:1),
+        ),
+        data: syntax::Tree {
+            root_expr: (
+                Expr(6),
+                Seq(
+                    [
+                        (
+                            Expr(5),
+                            If(
+                                (
+                                    Expr(0),
+                                    Boolean(
+                                        false,
+                                    ),
+                                ),
+                                (
+                                    Expr(4),
+                                    Seq(
+                                        [
+                                            (
+                                                Expr(3),
+                                                Assign(
+                                                    (
+                                                        Expr(1),
+                                                        Id(
+                                                            "Foo",
+                                                        ),
+                                                    ),
+                                                    (
+                                                        Expr(2),
+                                                        Integer(
+                                                            "22",
+                                                        ),
+                                                    ),
+                                                ),
+                                            ),
+                                        ],
+                                    ),
+                                ),
+                                None,
+                            ),
+                        ),
+                    ],
+                ),
+            ),
+        },
+    },
+]

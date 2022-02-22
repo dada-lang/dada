@@ -1,8 +1,12 @@
 use dada_id::prelude::*;
 use dada_ir::{
     class::Class,
-    code::bir,
+    code::{
+        bir::{self, LocalVariable},
+        syntax,
+    },
     error,
+    origin_table::HasOriginIn,
     span::FileSpan,
     storage::{Atomic, Joint, Leased},
     word::Word,
@@ -123,14 +127,7 @@ impl Stepper<'_> {
         place: bir::Place,
     ) -> eyre::Result<PlaceTraversal> {
         match place.data(table) {
-            bir::PlaceData::LocalVariable(lv) => {
-                let lv_data = lv.data(table);
-                let permissions = AccumulatedPermissions::unique(lv_data.atomic);
-                Ok(PlaceTraversal {
-                    accumulated_permissions: permissions,
-                    address: Address::Local(*lv),
-                })
-            }
+            bir::PlaceData::LocalVariable(lv) => Ok(self.traverse_to_local_variable(table, *lv)),
 
             bir::PlaceData::Function(f) => Ok(self.traverse_to_constant(ObjectData::Function(*f))),
             bir::PlaceData::Class(c) => Ok(self.traverse_to_constant(ObjectData::Class(*c))),
@@ -158,6 +155,19 @@ impl Stepper<'_> {
         }
     }
 
+    pub(super) fn traverse_to_local_variable(
+        &mut self,
+        table: &bir::Tables,
+        lv: LocalVariable,
+    ) -> PlaceTraversal {
+        let lv_data = lv.data(table);
+        let permissions = AccumulatedPermissions::unique(lv_data.atomic);
+        PlaceTraversal {
+            accumulated_permissions: permissions,
+            address: Address::Local(lv),
+        }
+    }
+
     /// Returns a traversal that reaches the object located at `place`.
     /// This includes and accounts for the permissions from the reference
     /// to the object.
@@ -181,6 +191,28 @@ impl Stepper<'_> {
         Ok(ObjectTraversal {
             accumulated_permissions: permissions,
             object,
+        })
+    }
+
+    pub(super) fn traverse_to_object_field(
+        &mut self,
+        place: impl HasOriginIn<bir::Origins, Origin = syntax::Expr>,
+        object_traversal: ObjectTraversal,
+        field_name: Word,
+    ) -> eyre::Result<PlaceTraversal> {
+        let ObjectTraversal {
+            mut accumulated_permissions,
+            object: owner_object,
+        } = object_traversal;
+        let (owner_class, field_index) = self.object_field(place, owner_object, field_name)?;
+
+        // Take the field mode into account
+        let field = owner_class.fields(self.db)[field_index];
+        accumulated_permissions.atomic |= field.decl(self.db).atomic;
+
+        Ok(PlaceTraversal {
+            accumulated_permissions,
+            address: Address::Field(owner_object, field_index, Some(field)),
         })
     }
 
@@ -227,7 +259,7 @@ impl Stepper<'_> {
 
     fn object_field(
         &mut self,
-        place: bir::Place,
+        place: impl HasOriginIn<bir::Origins, Origin = syntax::Expr>,
         owner_object: Object,
         field_name: Word,
     ) -> eyre::Result<(Class, usize)> {

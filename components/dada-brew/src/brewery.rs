@@ -43,7 +43,7 @@ pub struct Brewery<'me> {
 pub struct LoopContext {
     pub continue_block: bir::BasicBlock,
     pub break_block: bir::BasicBlock,
-    pub loop_value: bir::Place,
+    pub loop_value: bir::TargetPlace,
 }
 
 impl<'me> Brewery<'me> {
@@ -152,6 +152,18 @@ impl<'me> Brewery<'me> {
         V::Key: PushOriginIn<bir::Origins, Origin = O>,
     {
         add(self.tables, self.origins, data, origin)
+    }
+
+    /// Converts a target-place into a place.
+    pub fn place_from_target_place(&mut self, place: bir::TargetPlace) -> bir::Place {
+        match self.tables[place] {
+            bir::TargetPlaceData::LocalVariable(lv) => {
+                self.add(bir::PlaceData::LocalVariable(lv), self.origins[place])
+            }
+            bir::TargetPlaceData::Dot(owner_place, name) => {
+                self.add(bir::PlaceData::Dot(owner_place, name), self.origins[place])
+            }
+        }
     }
 
     /// Find the loop context for a given loop expression.

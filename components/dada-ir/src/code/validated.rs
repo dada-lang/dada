@@ -89,6 +89,7 @@ tables! {
         exprs: alloc Expr => ExprData,
         named_exprs: alloc NamedExpr => NamedExprData,
         places: alloc Place => PlaceData,
+        target_places: alloc TargetPlace => TargetPlaceData,
     }
 }
 
@@ -102,6 +103,7 @@ origin_table! {
     pub struct Origins {
         expr_spans: Expr => ExprOrigin,
         place_spans: Place => ExprOrigin,
+        target_place_spans: TargetPlace => ExprOrigin,
         named_exprs: NamedExpr => syntax::NamedExpr,
         local_variables: LocalVariable => LocalVariableOrigin,
     }
@@ -271,10 +273,10 @@ pub enum ExprData {
     Unary(Op, Expr),
 
     /// `a := b.give`
-    Assign(Place, Expr),
+    Assign(TargetPlace, Expr),
 
     /// `a := b`
-    AssignFromPlace(Place, Place),
+    AssignFromPlace(TargetPlace, Place),
 
     /// Bring the variables in scope during the expression
     Declare(Vec<LocalVariable>, Expr),
@@ -407,6 +409,37 @@ impl DebugWithDb<InIrDb<'_, Tree>> for PlaceData {
             PlaceData::Intrinsic(intrinsic) => std::fmt::Debug::fmt(intrinsic, f),
             PlaceData::Class(class) => DebugWithDb::fmt(class, f, db.db()),
             PlaceData::Dot(place, field) => f
+                .debug_tuple("Dot")
+                .field(&place.debug(db))
+                .field(&field.debug(db.db()))
+                .finish(),
+        }
+    }
+}
+
+id!(pub struct TargetPlace);
+
+impl DebugWithDb<InIrDb<'_, Tree>> for TargetPlace {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>, db: &InIrDb<'_, Tree>) -> std::fmt::Result {
+        f.debug_tuple("")
+            .field(&self)
+            .field(&self.data(db.tables()).debug(db))
+            .field(&db.origins()[*self])
+            .finish()
+    }
+}
+
+#[derive(PartialEq, Eq, Clone, Hash, Debug)]
+pub enum TargetPlaceData {
+    LocalVariable(LocalVariable),
+    Dot(Place, Word),
+}
+
+impl DebugWithDb<InIrDb<'_, Tree>> for TargetPlaceData {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>, db: &InIrDb<'_, Tree>) -> std::fmt::Result {
+        match self {
+            TargetPlaceData::LocalVariable(lv) => DebugWithDb::fmt(lv, f, db),
+            TargetPlaceData::Dot(place, field) => f
                 .debug_tuple("Dot")
                 .field(&place.debug(db))
                 .field(&field.debug(db.db()))

@@ -25,6 +25,8 @@ use crate::{
     thunk::RustThunk,
 };
 
+use self::traversal::PlaceTraversal;
+
 mod access;
 mod address;
 mod apply_op;
@@ -231,10 +233,11 @@ impl<'me> Stepper<'me> {
     fn assign_place_to_place(
         &mut self,
         table: &bir::Tables,
-        target_place: bir::Place,
+        target_place: bir::TargetPlace,
         source_place: bir::Place,
     ) -> eyre::Result<()> {
-        let target_traversal = self.traverse_to_place(table, target_place)?;
+        let target_traversal = self.evaluate_target_place(table, target_place)?;
+
         assert_ne!(
             target_traversal.accumulated_permissions.atomic,
             Atomic::Yes,
@@ -247,7 +250,24 @@ impl<'me> Stepper<'me> {
             source_place,
         )?;
 
-        self.assign_value_to_place(table, target_place, value)
+        self.assign_value_to_traversal(target_traversal, value)
+    }
+
+    fn evaluate_target_place(
+        &mut self,
+        table: &bir::Tables,
+        target_place: bir::TargetPlace,
+    ) -> eyre::Result<PlaceTraversal> {
+        match &table[target_place] {
+            bir::TargetPlaceData::LocalVariable(lv) => {
+                Ok(self.traverse_to_local_variable(table, *lv))
+            }
+            bir::TargetPlaceData::Dot(owner, name) => {
+                let owner_traversal = self.traverse_to_object(table, *owner)?;
+                let owner_traversal = self.confirm_reservation_if_any(table, owner_traversal)?;
+                self.traverse_to_object_field(target_place, owner_traversal, *name)
+            }
+        }
     }
 
     #[tracing::instrument(level = "Debug", skip(self, table))]
@@ -269,14 +289,22 @@ impl<'me> Stepper<'me> {
     fn assign_value_to_place(
         &mut self,
         table: &bir::Tables,
-        place: bir::Place,
+        target_place: bir::TargetPlace,
         value: Value,
     ) -> eyre::Result<()> {
         assert!(self.machine[value.permission].valid().is_some());
 
-        let traversal = self.traverse_to_place(table, place)?;
-        self.write_place(&traversal)?;
-        self.poke(traversal.address, value)?;
+        let target_traversal = self.evaluate_target_place(table, target_place)?;
+        self.assign_value_to_traversal(target_traversal, value)
+    }
+
+    fn assign_value_to_traversal(
+        &mut self,
+        target_traversal: PlaceTraversal,
+        value: Value,
+    ) -> eyre::Result<()> {
+        self.write_place(&target_traversal)?;
+        self.poke(target_traversal.address, value)?;
         Ok(())
     }
 

@@ -1,0 +1,51 @@
+[
+    Diagnostic {
+        range: Range {
+            start: Position {
+                line: 5,
+                character: 9,
+            },
+            end: Position {
+                line: 5,
+                character: 12,
+            },
+        },
+        severity: Some(
+            Error,
+        ),
+        code: None,
+        source: None,
+        message: "you can only assign to local variables or fields, not classes like `Foo`",
+        related_information: Some(
+            [
+                DiagnosticRelatedInformation {
+                    location: Location {
+                        uri: Url {
+                            scheme: "file",
+                            cannot_be_a_base: false,
+                            username: "",
+                            password: None,
+                            host: None,
+                            port: None,
+                            path: "(local-file-prefix)/dada_tests/validate/assign-to-class.dada",
+                            query: None,
+                            fragment: None,
+                        },
+                        range: Range {
+                            start: Position {
+                                line: 5,
+                                character: 9,
+                            },
+                            end: Position {
+                                line: 5,
+                                character: 12,
+                            },
+                        },
+                    },
+                    message: "here",
+                },
+            ],
+        ),
+        tags: None,
+    },
+]

@@ -8,7 +8,7 @@ use crate::{
 use super::Stepper;
 
 /// Identifies a place in memory
-#[derive(Debug)]
+#[derive(Copy, Clone, Debug)]
 pub(super) enum Address {
     /// A local variable in the top-most stack frame
     Local(bir::LocalVariable),
