@@ -15,6 +15,7 @@ const DEFAULT_LOG: &str = "warn,dada_lang=info";
 
 #[derive(StructOpt)]
 pub struct Options {
+    /// The logging configuration
     #[structopt(long, default_value = DEFAULT_LOG)]
     log: String,
 
@@ -69,9 +70,12 @@ impl Options {
 
 #[derive(StructOpt)]
 pub enum Command {
-    /// Pound acorns into flour for cookie dough.
+    /// Run an LSP server
     Ide(ide::Options),
+    /// Run the compiler and log diagnostics
     Check(check::Options),
+    /// Run the test suite
     Test(test_harness::Options),
+    /// Run the interpreter
     Run(run::Options),
 }
