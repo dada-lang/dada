@@ -4,6 +4,7 @@ use dada_ir::code::syntax::LocalVariableDecl;
 use dada_ir::code::validated;
 use dada_ir::code::validated::ExprOrigin;
 use dada_ir::code::validated::LocalVariableOrigin;
+use dada_ir::code::validated::TargetPlaceData;
 use dada_ir::code::Code;
 use dada_ir::diagnostic::ErrorReported;
 use dada_ir::effect::Effect;
@@ -38,8 +39,14 @@ pub(crate) struct Validator<'me> {
 
 #[derive(Copy, Clone, Debug)]
 pub enum ExprMode {
-    Give,
+    Specifier(Specifier),
     Reserve,
+}
+
+impl ExprMode {
+    fn give() -> Self {
+        Self::Specifier(Specifier::My)
+    }
 }
 
 impl<'me> Validator<'me> {
@@ -159,7 +166,7 @@ impl<'me> Validator<'me> {
 
     #[tracing::instrument(level = "debug", skip(self, expr))]
     pub(crate) fn give_validated_expr(&mut self, expr: syntax::Expr) -> validated::Expr {
-        let result = self.validate_expr_in_mode(expr, ExprMode::Give);
+        let result = self.validate_expr_in_mode(expr, ExprMode::give());
 
         // Check that the validated expression always has the same
         // origin as the expression we started with.
@@ -358,7 +365,8 @@ impl<'me> Validator<'me> {
                     expr.synthesized(),
                 );
 
-                let validated_initializer_expr = self.give_validated_expr(*initializer_expr);
+                let validated_initializer_expr =
+                    self.validate_expr_in_mode(*initializer_expr, ExprMode::Specifier(specifier));
                 self.scope.insert(decl_data.name, local_variable);
                 self.add(
                     validated::ExprData::Assign(target_place, validated_initializer_expr),
@@ -413,7 +421,7 @@ impl<'me> Validator<'me> {
                 let validated_body_expr = self
                     .subscope()
                     .with_loop_expr(loop_expr)
-                    .validate_expr_and_exit(*body_expr, ExprMode::Give);
+                    .validate_expr_and_exit(*body_expr, ExprMode::Specifier(Specifier::My));
 
                 self.tables[loop_expr] = validated::ExprData::Loop(validated_body_expr);
 
@@ -529,7 +537,16 @@ impl<'me> Validator<'me> {
                 let result = try {
                     let (validated_opt_temp_expr, validated_lhs_place) =
                         subscope.validate_expr_as_target_place(*lhs_expr)?;
-                    let validated_rhs_expr = subscope.give_validated_expr(*rhs_expr);
+
+                    let mode = match subscope.tables[validated_lhs_place] {
+                        TargetPlaceData::LocalVariable(lv) => {
+                            let data = &subscope.tables[lv];
+                            ExprMode::Specifier(data.specifier)
+                        }
+                        TargetPlaceData::Dot(..) => ExprMode::Reserve,
+                    };
+
+                    let validated_rhs_expr = subscope.validate_expr_in_mode(*rhs_expr, mode);
                     let assign_expr = subscope.add(
                         validated::ExprData::Assign(validated_lhs_place, validated_rhs_expr),
                         expr,
@@ -660,7 +677,16 @@ impl<'me> Validator<'me> {
         match data {
             Ok((opt_assign_expr, place)) => {
                 let place_expr = match mode {
-                    ExprMode::Give => self.add(validated::ExprData::Give(place), origin),
+                    ExprMode::Specifier(Specifier::My) | ExprMode::Specifier(Specifier::Any) => {
+                        self.add(validated::ExprData::Give(place), origin)
+                    }
+                    ExprMode::Specifier(Specifier::Our) => {
+                        self.add(validated::ExprData::Share(place), origin)
+                    }
+                    ExprMode::Specifier(Specifier::Leased) => {
+                        self.add(validated::ExprData::Lease(place), origin)
+                    }
+                    ExprMode::Specifier(Specifier::OurLeased) => todo!(),
                     ExprMode::Reserve => self.add(validated::ExprData::Reserve(place), origin),
                 };
                 self.maybe_seq(opt_assign_expr, place_expr, origin)
@@ -738,7 +764,7 @@ impl<'me> Validator<'me> {
             syntax::ExprData::Error => Err(ErrorReported),
             _ => {
                 let (assign_expr, temporary_place) =
-                    self.validate_expr_in_temporary(expr, ExprMode::Give);
+                    self.validate_expr_in_temporary(expr, ExprMode::give());
                 Ok((Some(assign_expr), temporary_place))
             }
         }
