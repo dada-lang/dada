@@ -1,3 +1,6 @@
 target
 .vscode
 playground
+
+# Internal IR files used for reference
+*.ref
