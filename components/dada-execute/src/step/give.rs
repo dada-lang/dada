@@ -20,6 +20,7 @@ impl Stepper<'_> {
     /// Note that -- unlike sharing and leasing -- giving does NOT ensure that `place` remains
     /// valid afterwards! In particular, if you give something that you own, the only way to
     /// preserve both its ownership/sharing properties is to remove the original.
+    #[tracing::instrument(level = "Debug", skip(self, table))]
     pub(super) fn give_place(
         &mut self,
         table: &bir::Tables,

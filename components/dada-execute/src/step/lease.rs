@@ -28,6 +28,7 @@ impl Stepper<'_> {
     ///   * If `place` is jointly accessible, result will be jointly accessible
     ///   * If `place` is exclusive, result will be exclusive
     /// * `place` remains valid and unchanged; asserting `place` or invalidating it may invalidate the result
+    #[tracing::instrument(level = "Debug", skip(self, table))]
     pub(super) fn lease_place(
         &mut self,
         table: &bir::Tables,

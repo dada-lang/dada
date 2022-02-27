@@ -221,6 +221,7 @@ impl Stepper<'_> {
     /// each permission along the way, and returning that traversal.
     ///
     /// Otherwise return `traversal` unchanged.
+    #[tracing::instrument(level = "Debug", skip(self, table))]
     pub(super) fn confirm_reservation_if_any(
         &mut self,
         table: &bir::Tables,

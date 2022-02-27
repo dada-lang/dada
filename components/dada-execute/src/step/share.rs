@@ -31,6 +31,7 @@ impl Stepper<'_> {
     /// Implication:
     ///
     /// * Sharing a shared thing is effectively "cloning" it, in the Rust sense
+    #[tracing::instrument(level = "Debug", skip(self, table))]
     pub(super) fn share_place(
         &mut self,
         table: &bir::Tables,
@@ -42,12 +43,14 @@ impl Stepper<'_> {
     }
 
     /// Equivalent to `foo.lease.share`, used when assigning to an `our shared` location.
+    #[tracing::instrument(level = "Debug", skip(self, table))]
     pub(super) fn share_leased_place(
         &mut self,
         table: &bir::Tables,
         place: bir::Place,
     ) -> eyre::Result<Value> {
         let object_traversal = self.traverse_to_object(table, place)?;
+        tracing::debug!(?object_traversal);
         if let Joint::Yes = object_traversal.accumulated_permissions.joint {
             self.lease_traversal(object_traversal)
         } else if let Leased::Yes = object_traversal.accumulated_permissions.leased {
