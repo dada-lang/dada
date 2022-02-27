@@ -159,6 +159,8 @@ impl Cursor {
         self.pop_temporary_scope(brewery, temporary_scope);
     }
 
+    /// Compiles expr into a temporary `t` and returns `Some(t)`.
+    /// Returns `None` if this is dead code.
     pub(crate) fn brew_expr_to_temporary(
         &mut self,
         brewery: &mut Brewery<'_>,
