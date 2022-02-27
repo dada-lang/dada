@@ -254,11 +254,12 @@ impl Cursor {
                 );
             }
 
-            validated::ExprData::Share(place) => {
-                let (place, origins) = self.brew_place(brewery, *place);
-                self.push_breakpoint_starts(brewery, origins.iter().copied(), origin);
-                self.push_assignment(brewery, target, bir::ExprData::Share(place), origin);
-                self.push_breakpoint_ends(brewery, Some(target), origins, origin);
+            validated::ExprData::Share(operand) => {
+                if let Some(temp) = self.brew_expr_to_temporary(brewery, *operand) {
+                    self.push_breakpoint_start(brewery, origin);
+                    self.push_assignment(brewery, target, bir::ExprData::Share(temp), origin);
+                    self.push_breakpoint_end(brewery, Some(target), origin);
+                }
             }
 
             validated::ExprData::Reserve(place) => {

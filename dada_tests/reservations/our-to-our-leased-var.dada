@@ -1,0 +1,11 @@
+class Point(any a, any b)
+
+async fn main() {
+    our p = Point(22, 44)
+    our leased q = p
+    p := Point(44, 66)
+
+    #! FIXME: should `p := ...` cancel `q` here? Debatable.
+    print(p).await #! OUTPUT Point\(44, 66\)
+    print(q).await #! RUN ERROR your lease to this object was cancelled
+}

@@ -229,7 +229,7 @@ pub enum ExprData {
     Reserve(Place),
 
     /// `expr.share`
-    Share(Place),
+    Share(Expr),
 
     /// `expr.lease`
     Lease(Place),

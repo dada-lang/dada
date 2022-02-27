@@ -334,7 +334,8 @@ impl<'me> Validator<'me> {
             }
 
             syntax::ExprData::Share(target_expr) => {
-                self.validate_permission_expr(expr, *target_expr, validated::ExprData::Share)
+                let validated_target_expr = self.give_validated_expr(*target_expr);
+                self.add(validated::ExprData::Share(validated_target_expr), expr)
             }
 
             syntax::ExprData::Lease(target_expr) => {
@@ -675,22 +676,30 @@ impl<'me> Validator<'me> {
         mode: ExprMode,
     ) -> validated::Expr {
         match data {
-            Ok((opt_assign_expr, place)) => {
-                let place_expr = match mode {
-                    ExprMode::Specifier(Specifier::My) | ExprMode::Specifier(Specifier::Any) => {
-                        self.add(validated::ExprData::Give(place), origin)
-                    }
-                    ExprMode::Specifier(Specifier::Our) => {
-                        self.add(validated::ExprData::Share(place), origin)
-                    }
-                    ExprMode::Specifier(Specifier::Leased) => {
-                        self.add(validated::ExprData::Lease(place), origin)
-                    }
-                    ExprMode::Specifier(Specifier::OurLeased) => todo!(),
-                    ExprMode::Reserve => self.add(validated::ExprData::Reserve(place), origin),
-                };
-                self.maybe_seq(opt_assign_expr, place_expr, origin)
-            }
+            Ok((opt_assign_expr, place)) => match mode {
+                ExprMode::Specifier(Specifier::My) | ExprMode::Specifier(Specifier::Any) => {
+                    let place_expr = self.add(validated::ExprData::Give(place), origin);
+                    self.maybe_seq(opt_assign_expr, place_expr, origin)
+                }
+                ExprMode::Specifier(Specifier::Leased) => {
+                    let place_expr = self.add(validated::ExprData::Lease(place), origin);
+                    self.maybe_seq(opt_assign_expr, place_expr, origin)
+                }
+                ExprMode::Reserve => {
+                    let place_expr = self.add(validated::ExprData::Reserve(place), origin);
+                    self.maybe_seq(opt_assign_expr, place_expr, origin)
+                }
+                ExprMode::Specifier(Specifier::Our) => {
+                    let given_expr = self.add(validated::ExprData::Give(place), origin);
+                    let shared_expr = self.add(validated::ExprData::Share(given_expr), origin);
+                    self.maybe_seq(opt_assign_expr, shared_expr, origin)
+                }
+                ExprMode::Specifier(Specifier::OurLeased) => {
+                    let given_expr = self.add(validated::ExprData::Lease(place), origin);
+                    let shared_expr = self.add(validated::ExprData::Share(given_expr), origin);
+                    self.maybe_seq(opt_assign_expr, shared_expr, origin)
+                }
+            },
             Err(ErrorReported) => self.add(validated::ExprData::Error, origin),
         }
     }
