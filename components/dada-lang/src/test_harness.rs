@@ -166,35 +166,31 @@ impl Options {
             &expected_diagnostics.compile,
             &mut errors,
         )?;
-        self.check_output_against_ref_file(
+        self.maybe_bless_ref_file(
             dada_error_format::format_diagnostics_with_options(
                 &db,
                 &diagnostics,
                 dada_error_format::FormatOptions::no_color(),
             )?,
             &path.join("ref.ref"),
-            &mut errors,
         )?;
         self.check_compiled(
             &db,
             &[filename],
             |item| db.debug_syntax_tree(item),
             &path.join("syntax.ref"),
-            &mut errors,
         )?;
         self.check_compiled(
             &db,
             &[filename],
             |item| db.debug_validated_tree(item),
             &path.join("validated.ref"),
-            &mut errors,
         )?;
         self.check_compiled(
             &db,
             &[filename],
             |item| db.debug_bir(item),
             &path.join("bir.ref"),
-            &mut errors,
         )?;
         self.check_interpreted(
             &db,
@@ -207,7 +203,7 @@ impl Options {
         .await?;
 
         for (query, query_index) in expected_queries.iter().zip(0..) {
-            self.perform_query_on_db(&mut db, path, filename, query, query_index, &mut errors)
+            self.perform_query_on_db(&mut db, path, filename, query, query_index)
                 .await?;
         }
 
@@ -232,11 +228,7 @@ impl Options {
             &expected_diagnostics.compile,
             &mut errors,
         )?;
-        self.check_output_against_ref_file(
-            format!("{:#?}", diagnostics),
-            &path.join("lsp.ref"),
-            &mut errors,
-        )?;
+        self.maybe_bless_ref_file(format!("{:#?}", diagnostics), &path.join("lsp.ref"))?;
         errors.into_result()
     }
 
@@ -247,33 +239,18 @@ impl Options {
         filename: Filename,
         query: &Query,
         query_index: usize,
-        errors: &mut Errors,
     ) -> eyre::Result<()> {
         match query.kind {
             QueryKind::HeapGraph => self
-                .perform_heap_graph_query_on_db(db, path, query_index, filename, query, errors)
+                .perform_heap_graph_query_on_db(db, path, query_index, filename, query)
                 .await
                 .with_context(|| format!("heap query from line `{}`", query.line)),
         }
     }
 
-    fn check_output_against_ref_file(
-        &self,
-        actual_output: String,
-        ref_path: &Path,
-        errors: &mut Errors,
-    ) -> eyre::Result<()> {
+    fn maybe_bless_ref_file(&self, actual_output: String, ref_path: &Path) -> eyre::Result<()> {
         let sanitized_output = sanitize_output(actual_output)?;
         self.maybe_bless_file(ref_path, &sanitized_output)?;
-        let ref_contents = std::fs::read_to_string(&ref_path)
-            .with_context(|| format!("reading `{}`", ref_path.display()))?;
-        if ref_contents != sanitized_output {
-            errors.push(RefOutputDoesNotMatch {
-                ref_path: ref_path.to_owned(),
-                expected: ref_contents,
-                actual: sanitized_output,
-            });
-        }
         Ok(())
     }
 
@@ -354,7 +331,6 @@ impl Options {
         filenames: &[Filename],
         mut item_op: impl FnMut(Item) -> Option<D>,
         bir_path: &Path,
-        errors: &mut Errors,
     ) -> eyre::Result<()>
     where
         D: std::fmt::Debug,
@@ -368,7 +344,7 @@ impl Options {
             .iter()
             .flat_map(|&item| item_op(item))
             .collect::<Vec<_>>();
-        self.check_output_against_ref_file(format!("{birs:#?}"), bir_path, errors)?;
+        self.maybe_bless_ref_file(format!("{birs:#?}"), bir_path)?;
 
         Ok(())
     }
@@ -420,7 +396,7 @@ impl Options {
             expected_diagnostics,
             errors,
         )?;
-        self.check_output_against_ref_file(actual_output, ref_path, errors)?;
+        self.maybe_bless_ref_file(actual_output, ref_path)?;
         Ok(())
     }
 
