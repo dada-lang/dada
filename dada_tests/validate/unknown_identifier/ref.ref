@@ -1,7 +1,0 @@
-Error: can't find anything named `baz`
-   ╭─[dada_tests/validate/unknown_identifier.dada:3:13]
-   │
- 3 │     blah += baz
-   ·             ─┬─  
-   ·              ╰─── here
-───╯

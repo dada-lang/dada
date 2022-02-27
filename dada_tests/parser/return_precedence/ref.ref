@@ -1,7 +1,0 @@
-Error: extra tokens after end of expression
-   ╭─[dada_tests/parser/return_precedence.dada:2:12]
-   │
- 2 │     return * 3
-   ·            ┬  
-   ·            ╰── here
-───╯
