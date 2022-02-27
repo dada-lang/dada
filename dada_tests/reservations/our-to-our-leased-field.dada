@@ -1,0 +1,15 @@
+class Point(any a, any b)
+
+class OurLeased(our leased f)
+
+async fn main() {
+    our p = Point(22, 44)
+    my q = OurLeased(p)    
+    print(q.lease).await #! OUTPUT OurLeased\(our leased Point\(22, 44\)\)
+    p := Point(44, 66)
+    
+    #! FIXME: should `p := Point` cause `q.f` to become expired?
+    print(q.lease).await #! OUTPUT OurLeased\(\(expired\)\)
+    print(p.lease).await #! OUTPUT Point\(44, 66\)
+    print(q.lease).await #! OUTPUT OurLeased\(\(expired\)\)
+}

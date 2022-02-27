@@ -1,0 +1,406 @@
+[
+    Expr(30)(
+        Seq(
+            [
+                Expr(4)(
+                    Assign(
+                        TargetPlace(0)(
+                            p{0},
+                            ExprOrigin {
+                                syntax_expr: Expr(4),
+                                synthesized: true,
+                            },
+                        ),
+                        Expr(3)(
+                            Call(
+                                Expr(0)(
+                                    Reserve(
+                                        Place(0)(
+                                            Class(
+                                                Id {
+                                                    value: 1,
+                                                },
+                                            ),
+                                            ExprOrigin {
+                                                syntax_expr: Expr(0),
+                                                synthesized: false,
+                                            },
+                                        ),
+                                    ),
+                                    ExprOrigin {
+                                        syntax_expr: Expr(0),
+                                        synthesized: false,
+                                    },
+                                ),
+                                [
+                                    NamedExpr(
+                                        None,
+                                        Expr(1)(
+                                            22,
+                                            ExprOrigin {
+                                                syntax_expr: Expr(1),
+                                                synthesized: false,
+                                            },
+                                        ),
+                                    ),
+                                    NamedExpr(
+                                        None,
+                                        Expr(2)(
+                                            44,
+                                            ExprOrigin {
+                                                syntax_expr: Expr(2),
+                                                synthesized: false,
+                                            },
+                                        ),
+                                    ),
+                                ],
+                            ),
+                            ExprOrigin {
+                                syntax_expr: Expr(3),
+                                synthesized: false,
+                            },
+                        ),
+                    ),
+                    ExprOrigin {
+                        syntax_expr: Expr(4),
+                        synthesized: false,
+                    },
+                ),
+                Expr(8)(
+                    Assign(
+                        TargetPlace(1)(
+                            q{1},
+                            ExprOrigin {
+                                syntax_expr: Expr(8),
+                                synthesized: true,
+                            },
+                        ),
+                        Expr(7)(
+                            Call(
+                                Expr(5)(
+                                    Reserve(
+                                        Place(1)(
+                                            Class(
+                                                Id {
+                                                    value: 2,
+                                                },
+                                            ),
+                                            ExprOrigin {
+                                                syntax_expr: Expr(5),
+                                                synthesized: false,
+                                            },
+                                        ),
+                                    ),
+                                    ExprOrigin {
+                                        syntax_expr: Expr(5),
+                                        synthesized: false,
+                                    },
+                                ),
+                                [
+                                    NamedExpr(
+                                        None,
+                                        Expr(6)(
+                                            Reserve(
+                                                Place(2)(
+                                                    p{0},
+                                                    ExprOrigin {
+                                                        syntax_expr: Expr(6),
+                                                        synthesized: false,
+                                                    },
+                                                ),
+                                            ),
+                                            ExprOrigin {
+                                                syntax_expr: Expr(6),
+                                                synthesized: false,
+                                            },
+                                        ),
+                                    ),
+                                ],
+                            ),
+                            ExprOrigin {
+                                syntax_expr: Expr(7),
+                                synthesized: false,
+                            },
+                        ),
+                    ),
+                    ExprOrigin {
+                        syntax_expr: Expr(8),
+                        synthesized: false,
+                    },
+                ),
+                Expr(12)(
+                    Await(
+                        Expr(11)(
+                            Call(
+                                Expr(9)(
+                                    Reserve(
+                                        Place(3)(
+                                            Print,
+                                            ExprOrigin {
+                                                syntax_expr: Expr(9),
+                                                synthesized: false,
+                                            },
+                                        ),
+                                    ),
+                                    ExprOrigin {
+                                        syntax_expr: Expr(9),
+                                        synthesized: false,
+                                    },
+                                ),
+                                [
+                                    NamedExpr(
+                                        None,
+                                        Expr(10)(
+                                            Lease(
+                                                Place(4)(
+                                                    q{1},
+                                                    ExprOrigin {
+                                                        syntax_expr: Expr(10),
+                                                        synthesized: false,
+                                                    },
+                                                ),
+                                            ),
+                                            ExprOrigin {
+                                                syntax_expr: Expr(11),
+                                                synthesized: false,
+                                            },
+                                        ),
+                                    ),
+                                ],
+                            ),
+                            ExprOrigin {
+                                syntax_expr: Expr(12),
+                                synthesized: false,
+                            },
+                        ),
+                    ),
+                    ExprOrigin {
+                        syntax_expr: Expr(13),
+                        synthesized: false,
+                    },
+                ),
+                Expr(17)(
+                    Assign(
+                        TargetPlace(2)(
+                            p{0},
+                            ExprOrigin {
+                                syntax_expr: Expr(14),
+                                synthesized: false,
+                            },
+                        ),
+                        Expr(16)(
+                            Call(
+                                Expr(13)(
+                                    Reserve(
+                                        Place(5)(
+                                            Class(
+                                                Id {
+                                                    value: 1,
+                                                },
+                                            ),
+                                            ExprOrigin {
+                                                syntax_expr: Expr(15),
+                                                synthesized: false,
+                                            },
+                                        ),
+                                    ),
+                                    ExprOrigin {
+                                        syntax_expr: Expr(15),
+                                        synthesized: false,
+                                    },
+                                ),
+                                [
+                                    NamedExpr(
+                                        None,
+                                        Expr(14)(
+                                            44,
+                                            ExprOrigin {
+                                                syntax_expr: Expr(16),
+                                                synthesized: false,
+                                            },
+                                        ),
+                                    ),
+                                    NamedExpr(
+                                        None,
+                                        Expr(15)(
+                                            66,
+                                            ExprOrigin {
+                                                syntax_expr: Expr(17),
+                                                synthesized: false,
+                                            },
+                                        ),
+                                    ),
+                                ],
+                            ),
+                            ExprOrigin {
+                                syntax_expr: Expr(18),
+                                synthesized: false,
+                            },
+                        ),
+                    ),
+                    ExprOrigin {
+                        syntax_expr: Expr(19),
+                        synthesized: false,
+                    },
+                ),
+                Expr(21)(
+                    Await(
+                        Expr(20)(
+                            Call(
+                                Expr(18)(
+                                    Reserve(
+                                        Place(6)(
+                                            Print,
+                                            ExprOrigin {
+                                                syntax_expr: Expr(20),
+                                                synthesized: false,
+                                            },
+                                        ),
+                                    ),
+                                    ExprOrigin {
+                                        syntax_expr: Expr(20),
+                                        synthesized: false,
+                                    },
+                                ),
+                                [
+                                    NamedExpr(
+                                        None,
+                                        Expr(19)(
+                                            Lease(
+                                                Place(7)(
+                                                    q{1},
+                                                    ExprOrigin {
+                                                        syntax_expr: Expr(21),
+                                                        synthesized: false,
+                                                    },
+                                                ),
+                                            ),
+                                            ExprOrigin {
+                                                syntax_expr: Expr(22),
+                                                synthesized: false,
+                                            },
+                                        ),
+                                    ),
+                                ],
+                            ),
+                            ExprOrigin {
+                                syntax_expr: Expr(23),
+                                synthesized: false,
+                            },
+                        ),
+                    ),
+                    ExprOrigin {
+                        syntax_expr: Expr(24),
+                        synthesized: false,
+                    },
+                ),
+                Expr(25)(
+                    Await(
+                        Expr(24)(
+                            Call(
+                                Expr(22)(
+                                    Reserve(
+                                        Place(8)(
+                                            Print,
+                                            ExprOrigin {
+                                                syntax_expr: Expr(25),
+                                                synthesized: false,
+                                            },
+                                        ),
+                                    ),
+                                    ExprOrigin {
+                                        syntax_expr: Expr(25),
+                                        synthesized: false,
+                                    },
+                                ),
+                                [
+                                    NamedExpr(
+                                        None,
+                                        Expr(23)(
+                                            Lease(
+                                                Place(9)(
+                                                    p{0},
+                                                    ExprOrigin {
+                                                        syntax_expr: Expr(26),
+                                                        synthesized: false,
+                                                    },
+                                                ),
+                                            ),
+                                            ExprOrigin {
+                                                syntax_expr: Expr(27),
+                                                synthesized: false,
+                                            },
+                                        ),
+                                    ),
+                                ],
+                            ),
+                            ExprOrigin {
+                                syntax_expr: Expr(28),
+                                synthesized: false,
+                            },
+                        ),
+                    ),
+                    ExprOrigin {
+                        syntax_expr: Expr(29),
+                        synthesized: false,
+                    },
+                ),
+                Expr(29)(
+                    Await(
+                        Expr(28)(
+                            Call(
+                                Expr(26)(
+                                    Reserve(
+                                        Place(10)(
+                                            Print,
+                                            ExprOrigin {
+                                                syntax_expr: Expr(30),
+                                                synthesized: false,
+                                            },
+                                        ),
+                                    ),
+                                    ExprOrigin {
+                                        syntax_expr: Expr(30),
+                                        synthesized: false,
+                                    },
+                                ),
+                                [
+                                    NamedExpr(
+                                        None,
+                                        Expr(27)(
+                                            Lease(
+                                                Place(11)(
+                                                    q{1},
+                                                    ExprOrigin {
+                                                        syntax_expr: Expr(31),
+                                                        synthesized: false,
+                                                    },
+                                                ),
+                                            ),
+                                            ExprOrigin {
+                                                syntax_expr: Expr(32),
+                                                synthesized: false,
+                                            },
+                                        ),
+                                    ),
+                                ],
+                            ),
+                            ExprOrigin {
+                                syntax_expr: Expr(33),
+                                synthesized: false,
+                            },
+                        ),
+                    ),
+                    ExprOrigin {
+                        syntax_expr: Expr(34),
+                        synthesized: false,
+                    },
+                ),
+            ],
+        ),
+        ExprOrigin {
+            syntax_expr: Expr(35),
+            synthesized: false,
+        },
+    ),
+]

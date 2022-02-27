@@ -1,0 +1,4 @@
+leased OurLeased(our leased Point(22, 44))
+leased OurLeased((expired))
+leased Point(44, 66)
+leased OurLeased((expired))
