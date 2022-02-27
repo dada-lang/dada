@@ -191,8 +191,8 @@ id!(pub struct Expr);
 
 impl DebugWithDb<InIrDb<'_, Tree>> for Expr {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>, db: &InIrDb<'_, Tree>) -> std::fmt::Result {
-        f.debug_tuple("")
-            .field(&self)
+        let name = format!("{:?}", self);
+        f.debug_tuple(&name)
             .field(&self.data(db.tables()).debug(db))
             .field(&db.origins()[*self])
             .finish()
@@ -312,12 +312,12 @@ impl ExprData {
                 .field(&expr.debug(db))
                 .field(&args.debug(db))
                 .finish(),
-            ExprData::Reserve(p) => f.debug_tuple("Reserve").field(p).finish(),
-            ExprData::Share(p) => f.debug_tuple("Share").field(p).finish(),
-            ExprData::Lease(p) => f.debug_tuple("Lease").field(p).finish(),
-            ExprData::Give(p) => f.debug_tuple("Give").field(p).finish(),
+            ExprData::Reserve(p) => f.debug_tuple("Reserve").field(&p.debug(db)).finish(),
+            ExprData::Share(p) => f.debug_tuple("Share").field(&p.debug(db)).finish(),
+            ExprData::Lease(p) => f.debug_tuple("Lease").field(&p.debug(db)).finish(),
+            ExprData::Give(p) => f.debug_tuple("Give").field(&p.debug(db)).finish(),
             ExprData::Tuple(exprs) => {
-                let mut f = f.debug_tuple("");
+                let mut f = f.debug_tuple("Tuple");
                 for expr in exprs {
                     f.field(&expr.debug(db));
                 }
@@ -384,8 +384,8 @@ id!(pub struct Place);
 
 impl DebugWithDb<InIrDb<'_, Tree>> for Place {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>, db: &InIrDb<'_, Tree>) -> std::fmt::Result {
-        f.debug_tuple("")
-            .field(&self)
+        let name = format!("{:?}", self);
+        f.debug_tuple(&name)
             .field(&self.data(db.tables()).debug(db))
             .field(&db.origins()[*self])
             .finish()
@@ -421,8 +421,8 @@ id!(pub struct TargetPlace);
 
 impl DebugWithDb<InIrDb<'_, Tree>> for TargetPlace {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>, db: &InIrDb<'_, Tree>) -> std::fmt::Result {
-        f.debug_tuple("")
-            .field(&self)
+        let name = format!("{:?}", self);
+        f.debug_tuple(&name)
             .field(&self.data(db.tables()).debug(db))
             .field(&db.origins()[*self])
             .finish()
@@ -464,7 +464,7 @@ pub struct NamedExprData {
 
 impl DebugWithDb<InIrDb<'_, Tree>> for NamedExprData {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>, db: &InIrDb<'_, Tree>) -> std::fmt::Result {
-        f.debug_tuple("")
+        f.debug_tuple("NamedExpr")
             .field(&self.name.debug(db.db()))
             .field(&self.expr.debug(db))
             .finish()
