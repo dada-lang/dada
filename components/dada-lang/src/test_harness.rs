@@ -167,7 +167,11 @@ impl Options {
             &mut errors,
         )?;
         self.check_output_against_ref_file(
-            dada_error_format::format_diagnostics(&db, &diagnostics)?,
+            dada_error_format::format_diagnostics_with_options(
+                &db,
+                &diagnostics,
+                dada_error_format::FormatOptions::no_color(),
+            )?,
             &path.join("ref.ref"),
             &mut errors,
         )?;
