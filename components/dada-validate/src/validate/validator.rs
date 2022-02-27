@@ -4,7 +4,6 @@ use dada_ir::code::syntax::LocalVariableDecl;
 use dada_ir::code::validated;
 use dada_ir::code::validated::ExprOrigin;
 use dada_ir::code::validated::LocalVariableOrigin;
-use dada_ir::code::validated::TargetPlaceData;
 use dada_ir::code::Code;
 use dada_ir::diagnostic::ErrorReported;
 use dada_ir::effect::Effect;
@@ -536,23 +535,29 @@ impl<'me> Validator<'me> {
             syntax::ExprData::Assign(lhs_expr, rhs_expr) => {
                 let mut subscope = self.subscope();
                 let result = try {
-                    let (validated_opt_temp_expr, validated_lhs_place) =
+                    let (validated_lhs_opt_temp_expr, validated_lhs_place) =
                         subscope.validate_expr_as_target_place(*lhs_expr)?;
 
-                    let mode = match subscope.tables[validated_lhs_place] {
-                        TargetPlaceData::LocalVariable(lv) => {
-                            let data = &subscope.tables[lv];
-                            ExprMode::Specifier(data.specifier)
-                        }
-                        TargetPlaceData::Dot(..) => ExprMode::Reserve,
+                    let assign_expr = if subscope.is_place_expression(*rhs_expr) {
+                        let (validated_rhs_opt_temp_expr, validated_rhs_place) =
+                            subscope.validate_expr_as_place(*rhs_expr)?;
+                        let assign_expr = subscope.add(
+                            validated::ExprData::AssignFromPlace(
+                                validated_lhs_place,
+                                validated_rhs_place,
+                            ),
+                            expr,
+                        );
+                        subscope.maybe_seq(validated_rhs_opt_temp_expr, assign_expr, expr)
+                    } else {
+                        let validated_rhs_expr = subscope.give_validated_expr(*rhs_expr);
+                        subscope.add(
+                            validated::ExprData::Assign(validated_lhs_place, validated_rhs_expr),
+                            expr,
+                        )
                     };
 
-                    let validated_rhs_expr = subscope.validate_expr_in_mode(*rhs_expr, mode);
-                    let assign_expr = subscope.add(
-                        validated::ExprData::Assign(validated_lhs_place, validated_rhs_expr),
-                        expr,
-                    );
-                    subscope.maybe_seq(validated_opt_temp_expr, assign_expr, expr)
+                    subscope.maybe_seq(validated_lhs_opt_temp_expr, assign_expr, expr)
                 };
                 let result = subscope.or_error(result, expr);
                 subscope.exit(result)

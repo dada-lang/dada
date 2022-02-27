@@ -275,7 +275,9 @@ pub enum ExprData {
     /// `a := b.give`
     Assign(TargetPlace, Expr),
 
-    /// `a := b`
+    /// `a := b` -- used when the specifier (`my`, `our`, etc) is not known
+    /// statically, and we we can't determine whether the place should be
+    /// given, leased, or what
     AssignFromPlace(TargetPlace, Place),
 
     /// Bring the variables in scope during the expression
