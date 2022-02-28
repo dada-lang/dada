@@ -7,10 +7,10 @@ use salsa::DebugWithDb;
 
 use crate::test_harness::QueryKind;
 
-use super::{Errors, Query};
+use super::Query;
 
 impl super::Options {
-    #[tracing::instrument(level = "Debug", skip(self, in_db, errors))]
+    #[tracing::instrument(level = "Debug", skip(self, in_db))]
     pub(super) async fn perform_heap_graph_query_on_db(
         &self,
         in_db: &mut dada_db::Db,
@@ -18,7 +18,6 @@ impl super::Options {
         query_index: usize,
         filename: Filename,
         query: &Query,
-        errors: &mut Errors,
     ) -> eyre::Result<()> {
         assert!(matches!(query.kind, QueryKind::HeapGraph));
 
@@ -62,7 +61,7 @@ impl super::Options {
         let output_matched = query.message.is_match(&actual_output);
 
         let ref_path = path.join(format!("HeapGraph-{query_index}.ref"));
-        self.check_output_against_ref_file(actual_output, &ref_path, errors)?;
+        self.maybe_bless_ref_file(actual_output, &ref_path)?;
 
         if !output_matched {
             eyre::bail!("query regex `{:?}` did not match the output", query.message);
