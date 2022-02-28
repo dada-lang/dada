@@ -1,6 +1,12 @@
 [workspace]
 members = [".", "components/*"]
-default-members = [".", "components/*"]
+
+# Exclude xtask so it isn't installed with `cargo install`
+default-members = [
+  ".",
+  "components/dada-*",
+  "components/salsa"
+]
 
 [package]
 name = "dada"
