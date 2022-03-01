@@ -360,18 +360,14 @@ impl<'me> Validator<'me> {
                     },
                     validated::LocalVariableOrigin::LocalVariable(*decl),
                 );
+                self.scope.insert(decl_data.name, local_variable);
+
                 let target_place = self.add(
                     validated::TargetPlaceData::LocalVariable(local_variable),
                     expr.synthesized(),
                 );
 
-                let validated_initializer_expr =
-                    self.validate_expr_in_mode(*initializer_expr, ExprMode::Specifier(specifier));
-                self.scope.insert(decl_data.name, local_variable);
-                self.add(
-                    validated::ExprData::Assign(target_place, validated_initializer_expr),
-                    expr,
-                )
+                self.validated_assignment(target_place, *initializer_expr, expr)
             }
 
             syntax::ExprData::Parenthesized(parenthesized_expr) => {
@@ -533,34 +529,16 @@ impl<'me> Validator<'me> {
             }
 
             syntax::ExprData::Assign(lhs_expr, rhs_expr) => {
-                let mut subscope = self.subscope();
                 let result = try {
                     let (validated_lhs_opt_temp_expr, validated_lhs_place) =
-                        subscope.validate_expr_as_target_place(*lhs_expr)?;
+                        self.validate_expr_as_target_place(*lhs_expr)?;
 
-                    let assign_expr = if subscope.is_place_expression(*rhs_expr) {
-                        let (validated_rhs_opt_temp_expr, validated_rhs_place) =
-                            subscope.validate_expr_as_place(*rhs_expr)?;
-                        let assign_expr = subscope.add(
-                            validated::ExprData::AssignFromPlace(
-                                validated_lhs_place,
-                                validated_rhs_place,
-                            ),
-                            expr,
-                        );
-                        subscope.maybe_seq(validated_rhs_opt_temp_expr, assign_expr, expr)
-                    } else {
-                        let validated_rhs_expr = subscope.give_validated_expr(*rhs_expr);
-                        subscope.add(
-                            validated::ExprData::Assign(validated_lhs_place, validated_rhs_expr),
-                            expr,
-                        )
-                    };
+                    let assign_expr =
+                        self.validated_assignment(validated_lhs_place, *rhs_expr, expr);
 
-                    subscope.maybe_seq(validated_lhs_opt_temp_expr, assign_expr, expr)
+                    self.maybe_seq(validated_lhs_opt_temp_expr, assign_expr, expr)
                 };
-                let result = subscope.or_error(result, expr);
-                subscope.exit(result)
+                self.or_error(result, expr)
             }
 
             syntax::ExprData::Error => self.add(validated::ExprData::Error, expr),
@@ -579,6 +557,59 @@ impl<'me> Validator<'me> {
                 let empty_tuple = self.empty_tuple(expr);
                 self.add(validated::ExprData::Return(empty_tuple), expr)
             }
+        }
+    }
+
+    fn validated_assignment(
+        &mut self,
+        target_place: validated::TargetPlace,
+        initializer_expr: syntax::Expr,
+        origin: syntax::Expr,
+    ) -> validated::Expr {
+        if self.is_place_expression(initializer_expr) {
+            // Compile
+            //
+            //     Specifier x = <place>
+            //
+            // to
+            //
+            //     x = <place>
+            //
+            // directly.
+            let result = try {
+                let (validated_opt_temp_expr, validated_initializer_place) =
+                    self.validate_expr_as_place(initializer_expr)?;
+                let assignment_expr = self.add(
+                    validated::ExprData::AssignFromPlace(target_place, validated_initializer_place),
+                    origin,
+                );
+                self.maybe_seq(validated_opt_temp_expr, assignment_expr, origin)
+            };
+            self.or_error(result, origin)
+        } else {
+            // Compile
+            //
+            //     Specifier x = <rvalue>
+            //
+            // to
+            //
+            //     temp = <rvalue>
+            //     x = temp
+            //
+            // This temporary lives as long as `x` does.
+            //
+            // The reason for introducing this temporary is because
+            // some specifiers (notably `lease`) need a place
+            // to "borrow" from. For other specifiers (e.g., `my`, `our`, `any`)
+            // we simply move/copy out from `temp` immediately and it has no
+            // ill-effect.
+            let (temp_initializer_expr, temp_place) =
+                self.validate_expr_in_temporary(initializer_expr, ExprMode::give());
+            let assignment_expr = self.add(
+                validated::ExprData::AssignFromPlace(target_place, temp_place),
+                origin,
+            );
+            self.maybe_seq(Some(temp_initializer_expr), assignment_expr, origin)
         }
     }
 
