@@ -13,10 +13,10 @@ digraph {
           <table border="0">
           <tr><td border="1">main</td></tr>
           <tr><td port="0"><font color="black">p</font></td></tr>
-          <tr><td port="3"><font color="black">q</font></td></tr>
+          <tr><td port="2"><font color="black">q</font></td></tr>
           <tr><td port="4"><font color="black">r</font></td></tr>
-          <tr><td port="5"><font color="black">s</font></td></tr>
-          <tr><td port="10"><font color="black">(in-flight): "()"</font></td></tr>
+          <tr><td port="6"><font color="black">s</font></td></tr>
+          <tr><td port="19"><font color="black">(in-flight): "()"</font></td></tr>
           </table>
         >;
       ];
@@ -29,9 +29,9 @@ digraph {
       </table>>
     ];
     "afterstack":0 -> "afternode0" [label="our", style="solid", penwidth=3.0, arrowtype="normal", color="blue"];
-    "afterstack":3 -> "afternode0" [label="our", style="solid", penwidth=3.0, arrowtype="normal", color="blue"];
+    "afterstack":2 -> "afternode0" [label="our", style="solid", penwidth=3.0, arrowtype="normal", color="blue"];
     "afterstack":4 -> "afternode0" [label="our", style="solid", penwidth=3.0, arrowtype="normal", color="blue"];
-    "afterstack":5 -> "afternode0" [label="our", style="solid", penwidth=3.0, arrowtype="normal", color="blue"];
+    "afterstack":6 -> "afternode0" [label="our", style="solid", penwidth=3.0, arrowtype="normal", color="blue"];
   }
   subgraph cluster_before {
     label=<<b>before</b>>
@@ -44,9 +44,9 @@ digraph {
           <table border="0">
           <tr><td border="1">main</td></tr>
           <tr><td port="0"><font color="black">p</font></td></tr>
-          <tr><td port="3"><font color="black">q</font></td></tr>
+          <tr><td port="2"><font color="black">q</font></td></tr>
           <tr><td port="4"><font color="black">r</font></td></tr>
-          <tr><td port="5"><font color="black">s</font></td></tr>
+          <tr><td port="6"><font color="black">s</font></td></tr>
           </table>
         >;
       ];

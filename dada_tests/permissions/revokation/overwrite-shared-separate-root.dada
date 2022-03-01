@@ -6,13 +6,11 @@ async fn main() {
     #           ^^^^
     # Temp is shared, so this clones
 
-    # Leasing from `pair.a` creates a shared lease
-    # from temp/pair
+    # Leasing from `pair.a` creates a third owner.
     p = pair.a.lease
 
     # Overwriting `pair.a` removes one handle to
-    # the shared pair, but there is still a separate
-    # handle from `temp`, so `p` remains valid.
+    # the shared pair, but `p` is unaffected.
     pair.a := Pair(23, 45)
-    print(p).await #! OUTPUT our leased Pair\(22, 44\)
+    print(p).await #! OUTPUT our Pair\(22, 44\)
 }

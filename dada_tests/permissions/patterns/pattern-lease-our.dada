@@ -1,13 +1,11 @@
 class Point(x, y)
 
 # Test what happens when we lease an "our" thing `p`
-# and then drop `p`. Just as with any owned thing,
-# the memory for `p` is freed and hence the lease
-# is invalid.
+# and then drop `p`. Since leasing an `our` thing
+# just clones it, the result is valid.
 
 async fn main() {
     r = callee()
-    #!  ^^^^^^^^ RUN ERROR your lease to this object was cancelled
     data = r.x
 }
 

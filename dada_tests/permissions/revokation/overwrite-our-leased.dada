@@ -10,5 +10,5 @@ async fn main() {
     # lease, but that doesn't cancel it.
     pair2.a := Pair(23, 45)
 
-    print(p).await #! OUTPUT our leased Pair\(22, 44\)
+    print(p).await #! OUTPUT our Pair\(22, 44\)
 }

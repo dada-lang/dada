@@ -6,13 +6,10 @@ async fn main() {
     # This created a jointly owned value but
     # puts `pair` is the sole owner of it.
 
-    # Leasing from `pair.a` creates a shared lease.
+    # Leasing from `pair.a` clones it, since `pair.a` is "our"
     p = pair.a.lease
 
-    # Overwriting `pair.a` destroys the owner of that lease,
-    # so `p` is invalidated.
+    # Since `p` is owned, overwriting `pair.a` has no effect on it.
     pair.a := Pair(23, 45)
-
-    # As `p` was invalidated, it's an error to use it.
-    print(p).await #! RUN ERROR your lease to this object was cancelled
+    print(p).await #! OUTPUT our Pair\(22, 44\)
 }

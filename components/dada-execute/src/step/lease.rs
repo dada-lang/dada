@@ -23,11 +23,12 @@ impl Stepper<'_> {
     ///
     /// The following invariants are maintained:
     ///
-    /// * Results in a leased value that refers to the same object as `place`
+    /// * Results in a value `v` that refers to the same object as `place`
     /// * Preserves the sharing properties of `place`:
     ///   * If `place` is jointly accessible, result will be jointly accessible
     ///   * If `place` is exclusive, result will be exclusive
-    /// * `place` remains valid and unchanged; asserting `place` or invalidating it may invalidate the result
+    /// * `place` remains valid and unchanged; asserting `place` or invalidating
+    ///   it may invalidate the result
     #[tracing::instrument(level = "Debug", skip(self, table))]
     pub(super) fn lease_place(
         &mut self,
@@ -63,7 +64,7 @@ impl Stepper<'_> {
         // traversing at least one permission).
         let last_permission = *accumulated_permissions.traversed.last().unwrap();
 
-        // Special case: If last permission is already a shared lease, we can just duplicate it
+        // Special case: If last permission is already shared, we can just duplicate it
         //
         // # Example
         //
@@ -83,15 +84,23 @@ impl Stepper<'_> {
         // * Preserves sharing properties.
         // * `place` is not altered.
         if let ValidPermissionData {
-            joint: Joint::Yes,
-            leased: Leased::Yes,
-            ..
+            joint: Joint::Yes, ..
         } = self.machine[last_permission].assert_valid()
         {
             return Ok(Value {
                 object,
                 permission: last_permission,
             });
+        }
+
+        // If the input is `our`, clone it. Note that this preserves all the invariants,
+        // even though it results in an owned value.
+        if let (Joint::Yes, Leased::No) = (
+            accumulated_permissions.joint,
+            accumulated_permissions.leased,
+        ) {
+            let permission = self.machine.new_permission(ValidPermissionData::our());
+            return Ok(Value { object, permission });
         }
 
         // Otherwise, allocate a new lease permission; if we have exclusive

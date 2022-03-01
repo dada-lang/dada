@@ -14,8 +14,8 @@ digraph {
           <tr><td border="1">main</td></tr>
           <tr><td port="0"><font color="black">p</font></td></tr>
           <tr><td port="2"><font color="black">q</font></td></tr>
-          <tr><td port="3"><font color="slategray">x: "23"</font></td></tr>
-          <tr><td port="4"><font color="slategray">x</font></td></tr>
+          <tr><td port="5"><font color="slategray">x: "23"</font></td></tr>
+          <tr><td port="6"><font color="slategray">x</font></td></tr>
           </table>
         >;
       ];
@@ -43,8 +43,8 @@ digraph {
           <tr><td border="1">main</td></tr>
           <tr><td port="0"><font color="black">p</font></td></tr>
           <tr><td port="2"><font color="black">q</font></td></tr>
-          <tr><td port="3"><font color="slategray">x</font></td></tr>
-          <tr><td port="4"><font color="slategray">x</font></td></tr>
+          <tr><td port="5"><font color="slategray">x</font></td></tr>
+          <tr><td port="6"><font color="slategray">x</font></td></tr>
           </table>
         >;
       ];
@@ -65,9 +65,9 @@ digraph {
 [31mError:[0m your lease to this object was cancelled
    [38;5;246m╭[0m[38;5;246m─[0m[38;5;246m[[0mclass:9:9[38;5;246m][0m
    [38;5;246m│[0m
- [38;5;246m7 │[0m [38;5;249m [0m[38;5;249m [0m[38;5;249m [0m[38;5;249m [0m[38;5;249mx[0m[38;5;249m [0m[38;5;249m=[0m[38;5;249m [0mp.x
- [38;5;246m  ·[0m         ─┬─  
- [38;5;246m  ·[0m          ╰─── lease was cancelled here
+ [38;5;246m7 │[0m [38;5;249m [0m[38;5;249m [0m[38;5;249m [0m[38;5;249m [0mx = p.x
+ [38;5;246m  ·[0m     ───┬───  
+ [38;5;246m  ·[0m        ╰───── lease was cancelled here
  [38;5;246m9 │[0m [38;5;249m [0m[38;5;249m [0m[38;5;249m [0m[38;5;249m [0m[38;5;249mx[0m[38;5;249m [0m[38;5;249m=[0m[38;5;249m [0mq[38;5;249m.[0m[38;5;249mx[0m
  [38;5;246m  ·[0m         ┬  
  [38;5;246m  ·[0m         ╰── cancelled lease used here
