@@ -107,11 +107,21 @@ impl Cursor {
                 self.terminate_and_diverge(brewery, bir::TerminatorData::Error, origin)
             }
 
-            validated::ExprData::Assign(place, value_expr) => {
-                let (place, origins) = self.brew_target_place(brewery, *place);
-                self.push_breakpoint_starts(brewery, origins.iter().copied(), origin);
+            validated::ExprData::AssignTemporary(place, value_expr) => {
+                // temporaries are always created with "any" specifier, which ensures
+                // that we will never have to apply specifier to `value_expr`
+                assert_eq!(brewery.validated_tables()[*place].specifier, Specifier::Any);
+
+                // we only ever use this for temporaries, user-created values use `AssignFromPlace`
+                assert!(matches!(
+                    brewery.origin(*place),
+                    validated::LocalVariableOrigin::Temporary(_)
+                ));
+
+                self.push_breakpoint_start(brewery, origin);
+                let place = self.brew_target_variable(brewery, *place, origin);
                 self.brew_expr_and_assign_to(brewery, place, *value_expr);
-                self.push_breakpoint_ends(brewery, None::<bir::Place>, origins, origin)
+                self.push_breakpoint_end(brewery, None::<bir::Place>, origin)
             }
 
             validated::ExprData::AssignFromPlace(target_place, source_place) => {
@@ -403,7 +413,7 @@ impl Cursor {
                 }
             }
 
-            validated::ExprData::Assign(..) | validated::ExprData::AssignFromPlace(..) => {
+            validated::ExprData::AssignTemporary(..) | validated::ExprData::AssignFromPlace(..) => {
                 self.brew_expr_for_side_effects(brewery, expr);
                 self.push_assignment(brewery, target, bir::ExprData::Unit, origin);
             }
@@ -519,19 +529,27 @@ impl Cursor {
         place: validated::TargetPlace,
     ) -> (bir::TargetPlace, Vec<ExprOrigin>) {
         let origin = brewery.origin(place);
-        match place.data(brewery.validated_tables()) {
+        match brewery.validated_tables()[place] {
             validated::TargetPlaceData::LocalVariable(validated_var) => {
-                let bir_var = brewery.variable(*validated_var);
-                let place = brewery.add(bir::TargetPlaceData::LocalVariable(bir_var), origin);
+                let place = self.brew_target_variable(brewery, validated_var, origin);
                 (place, vec![origin])
             }
             validated::TargetPlaceData::Dot(base, field) => {
-                let (base, mut origins) = self.brew_place(brewery, *base);
-                let place = brewery.add(bir::TargetPlaceData::Dot(base, *field), origin);
+                let (base, mut origins) = self.brew_place(brewery, base);
+                let place = brewery.add(bir::TargetPlaceData::Dot(base, field), origin);
                 origins.push(origin);
                 (place, origins)
             }
         }
+    }
+    pub(crate) fn brew_target_variable(
+        &mut self,
+        brewery: &mut Brewery<'_>,
+        validated_var: validated::LocalVariable,
+        origin: ExprOrigin,
+    ) -> bir::TargetPlace {
+        let bir_var = brewery.variable(validated_var);
+        brewery.add(bir::TargetPlaceData::LocalVariable(bir_var), origin)
     }
 }
 
