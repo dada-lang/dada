@@ -14,7 +14,7 @@ use dada_ir::{
 pub struct Brewery<'me> {
     db: &'me dyn crate::Db,
     code: Code,
-    breakpoints: &'me [syntax::Expr],
+    pub(crate) breakpoints: &'me [syntax::Expr],
     validated_tree_data: &'me validated::TreeData,
     validated_origins: &'me validated::Origins,
     tables: &'me mut bir::Tables,

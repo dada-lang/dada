@@ -180,6 +180,11 @@ impl Cursor {
     /// If `origin` is a breakpoint expression, push a "breakpoint-start"
     /// statement onto the current basic block.
     pub(crate) fn push_breakpoint_start(&mut self, brewery: &mut Brewery<'_>, origin: ExprOrigin) {
+        tracing::debug!(
+            "push_breakpoint_start: origin={:?} breakpoints={:?}",
+            origin,
+            brewery.breakpoints
+        );
         if !origin.synthesized && self.end_block.is_some() {
             if let Some(breakpoint_index) = brewery.expr_is_breakpoint(origin.syntax_expr) {
                 let filename = brewery.code().filename(brewery.db());

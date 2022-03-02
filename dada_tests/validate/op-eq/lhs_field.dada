@@ -1,0 +1,7 @@
+class Point(our x, our y)
+
+async fn main() {
+    my p = Point(22, 44)
+    p.x += 1
+    print(p).await #! OUTPUT Point\(23, 44\)
+}

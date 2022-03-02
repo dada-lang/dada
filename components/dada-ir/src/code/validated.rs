@@ -113,7 +113,7 @@ origin_table! {
 /// lowering the syntax expressions. We track the expression they came
 /// from, but also the fact that they are synthetic. This is needed to
 /// help place cursors and so forth.
-#[derive(Copy, Clone, Debug, PartialEq, Eq, Hash)]
+#[derive(Copy, Clone, PartialEq, Eq, Hash)]
 pub struct ExprOrigin {
     pub syntax_expr: syntax::Expr,
     pub synthesized: bool,
@@ -130,6 +130,21 @@ impl ExprOrigin {
         Self {
             syntax_expr: expr,
             synthesized: true,
+        }
+    }
+}
+
+impl std::fmt::Debug for ExprOrigin {
+    fn fmt(&self, fmt: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        let ExprOrigin {
+            synthesized,
+            syntax_expr,
+        } = *self;
+
+        if synthesized {
+            write!(fmt, "synthesized from {syntax_expr:?}")
+        } else {
+            write!(fmt, "from {syntax_expr:?}")
         }
     }
 }

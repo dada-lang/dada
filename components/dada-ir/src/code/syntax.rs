@@ -84,8 +84,7 @@ id!(pub struct Expr);
 
 impl DebugWithDb<InIrDb<'_, Tree>> for Expr {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>, db: &InIrDb<'_, Tree>) -> std::fmt::Result {
-        f.debug_tuple("")
-            .field(self)
+        f.debug_tuple(&format!("{self:?}"))
             .field(&self.data(db.tables()).debug(db))
             .finish()
     }
@@ -265,9 +264,11 @@ pub struct LocalVariableDeclData {
 
 impl DebugWithDb<InIrDb<'_, Tree>> for LocalVariableDeclData {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>, db: &InIrDb<'_, Tree>) -> std::fmt::Result {
-        f.debug_tuple("")
-            .field(&self.name.debug(db.db()))
-            .field(&self.ty.debug(db.db()))
+        f.debug_struct("LocalVariableDeclData")
+            .field("specifier", &self.specifier.specifier(db.db()))
+            .field("atomic", &self.atomic)
+            .field("name", &self.name.debug(db.db()))
+            .field("ty", &self.ty.debug(db.db()))
             .finish()
     }
 }
@@ -294,8 +295,7 @@ pub struct NamedExprData {
 
 impl DebugWithDb<InIrDb<'_, Tree>> for NamedExprData {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>, db: &InIrDb<'_, Tree>) -> std::fmt::Result {
-        f.debug_tuple("")
-            .field(&self.name.word(db.db()).debug(db.db()))
+        f.debug_tuple(&format!("{:?}", self.name.word(db.db()).debug(db.db())))
             .field(&self.expr.debug(db))
             .finish()
     }
