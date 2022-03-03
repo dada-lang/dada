@@ -14,8 +14,8 @@ digraph {
           <tr><td border="1">main</td></tr>
           <tr><td port="0"><font color="black">p</font></td></tr>
           <tr><td port="2"><font color="black">q</font></td></tr>
-          <tr><td port="5"><font color="slategray">x: "23"</font></td></tr>
-          <tr><td port="6"><font color="slategray">x</font></td></tr>
+          <tr><td port="6"><font color="slategray">x: "23"</font></td></tr>
+          <tr><td port="7"><font color="slategray">x</font></td></tr>
           </table>
         >;
       ];
@@ -43,8 +43,8 @@ digraph {
           <tr><td border="1">main</td></tr>
           <tr><td port="0"><font color="black">p</font></td></tr>
           <tr><td port="2"><font color="black">q</font></td></tr>
-          <tr><td port="5"><font color="slategray">x</font></td></tr>
           <tr><td port="6"><font color="slategray">x</font></td></tr>
+          <tr><td port="7"><font color="slategray">x</font></td></tr>
           </table>
         >;
       ];
@@ -59,7 +59,7 @@ digraph {
       </table>>
     ];
     "beforestack":0 -> "beforenode0" [label="my", style="dotted", penwidth=3.0, arrowtype="normal", color="red"];
-    "beforestack":2 -> "beforenode0" [label="leased", style="solid", penwidth=1.0, arrowtype="empty", color="red"];
+    "beforestack":2 -> "beforenode0" [label="leased", style="dotted", penwidth=1.0, arrowtype="empty", color="red"];
   }
 }
 [31mError:[0m your lease to this object was cancelled

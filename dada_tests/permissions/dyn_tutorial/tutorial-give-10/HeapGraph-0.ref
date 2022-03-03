@@ -49,55 +49,6 @@ digraph {
     }
   }
 }
-digraph {
-  node[shape = "note"];
-  rankdir = "LR";
-  subgraph cluster_after {
-    label=<<b>after</b>>
-    subgraph cluster_afterstack {
-      label=<<b>stack</b>>
-      rank="source";
-      afterstack[
-        shape="none";
-        label=<
-          <table border="0">
-          <tr><td border="1">main</td></tr>
-          <tr><td port="0"><font color="black">p</font></td></tr>
-          <tr><td port="2"><font color="slategray">q</font></td></tr>
-          <tr><td port="3"><font color="slategray">x</font></td></tr>
-          <tr><td port="9"><font color="black">(in-flight): "()"</font></td></tr>
-          </table>
-        >;
-      ];
-    }
-    afternode0 [
-      label = <<table border="0">
-        <tr><td border="1">Point</td></tr>
-        <tr><td port="0"><font color="black">x: "22"</font></td></tr>
-        <tr><td port="1"><font color="black">y: "44"</font></td></tr>
-      </table>>
-    ];
-    "afterstack":0 -> "afternode0" [label="my", style="solid", penwidth=3.0, arrowtype="normal", color="red"];
-  }
-  subgraph cluster_before {
-    label=<<b>before</b>>
-    subgraph cluster_beforestack {
-      label=<<b>stack</b>>
-      rank="source";
-      beforestack[
-        shape="none";
-        label=<
-          <table border="0">
-          <tr><td border="1">main</td></tr>
-          <tr><td port="0"><font color="slategray">p</font></td></tr>
-          <tr><td port="2"><font color="slategray">q</font></td></tr>
-          <tr><td port="3"><font color="slategray">x</font></td></tr>
-          </table>
-        >;
-      ];
-    }
-  }
-}
 [31mError:[0m your lease to this object was cancelled
    [38;5;246m╭[0m[38;5;246m─[0m[38;5;246m[[0mclass:9:9[38;5;246m][0m
    [38;5;246m│[0m

@@ -489,6 +489,15 @@ impl ValidPermissionData {
             tenants: vec![],
         }
     }
+
+    pub fn as_str(&self) -> &'static str {
+        match (self.joint, self.leased) {
+            (Joint::No, Leased::No) => "my",
+            (Joint::No, Leased::Yes) => "leased",
+            (Joint::Yes, Leased::No) => "our",
+            (Joint::Yes, Leased::Yes) => "our leased",
+        }
+    }
 }
 
 #[derive(Clone, Debug, Default)]

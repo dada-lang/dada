@@ -32,6 +32,44 @@ pub enum Specifier {
     Any,
 }
 
+impl Specifier {
+    /// True if values stored under this specifier must be uniquely
+    /// accessible (my, leased) and cannot be jointly accessible (our, our leased).
+    ///
+    /// [`Specifier::Any`] returns false.
+    pub fn must_be_unique(self) -> bool {
+        match self {
+            Specifier::My | Specifier::Leased => true,
+            Specifier::Our | Specifier::OurLeased => false,
+            Specifier::Any => false,
+        }
+    }
+
+    /// True if values stored under this specifier must be owned (my, our)
+    /// and cannot be leased (leased, our leased).
+    ///
+    /// [`Specifier::Any`] returns false.
+    pub fn must_be_owned(self) -> bool {
+        match self {
+            Specifier::Our | Specifier::My => true,
+            Specifier::OurLeased | Specifier::Leased => false,
+            Specifier::Any => false,
+        }
+    }
+}
+
+impl std::fmt::Display for Specifier {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        match self {
+            Specifier::Our => write!(f, "our"),
+            Specifier::My => write!(f, "my"),
+            Specifier::OurLeased => write!(f, "our leased"),
+            Specifier::Leased => write!(f, "leased"),
+            Specifier::Any => write!(f, "any"),
+        }
+    }
+}
+
 /// NB: Ordering is significant. As we traverse a path, we take the
 /// max of the atomic properties for the various storage modes,
 /// and we want that to be atomic if any step was atomic.

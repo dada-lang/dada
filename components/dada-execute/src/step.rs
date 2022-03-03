@@ -9,7 +9,7 @@ use dada_ir::{
     in_ir_db::InIrDbExt,
     origin_table::HasOriginIn,
     span::FileSpan,
-    storage::{Atomic, Specifier},
+    storage::{Atomic, Joint, Leased, Specifier},
     word::Word,
 };
 use dada_parse::prelude::*;
@@ -244,11 +244,9 @@ impl<'me> Stepper<'me> {
             "atomics not yet implemented"
         );
 
-        let value = self.prepare_value_for_specifier(
-            table,
-            self.specifier(target_traversal.address),
-            source_place,
-        )?;
+        let specifier = self.specifier(target_traversal.address);
+
+        let value = self.prepare_value_for_specifier(table, specifier, source_place)?;
 
         self.assign_value_to_traversal(target_traversal, value)
     }
@@ -277,13 +275,49 @@ impl<'me> Stepper<'me> {
         specifier: Specifier,
         source_place: bir::Place,
     ) -> eyre::Result<Value> {
-        Ok(match specifier {
+        let value = match specifier {
             Specifier::My => self.give_place(table, source_place)?,
             Specifier::Our => self.share_place(table, source_place)?,
             Specifier::Leased => self.lease_place(table, source_place)?,
             Specifier::OurLeased => self.share_leased_place(table, source_place)?,
             Specifier::Any => self.give_place(table, source_place)?,
-        })
+        };
+
+        let permission = &self.machine[value.permission];
+        let valid = permission
+            .valid()
+            .expect("value to be stored has expired permision");
+
+        if let (true, Leased::Yes) = (specifier.must_be_owned(), valid.leased) {
+            let pc = self.machine.pc();
+            let pc_span = pc.span(self.db);
+            let source_place_span = self.span_from_bir(source_place);
+            return Err(
+                error!(pc_span, "`{specifier}` locations require owned values")
+                    .secondary_label(
+                        source_place_span,
+                        format!("this value is `{}`, which is not owned", valid.as_str()),
+                    )
+                    .eyre(self.db),
+            );
+        }
+
+        if let (true, Joint::Yes) = (specifier.must_be_unique(), valid.joint) {
+            let pc = self.machine.pc();
+            let pc_span = pc.span(self.db);
+            let source_place_span = self.span_from_bir(source_place);
+            return Err(error!(
+                pc_span,
+                "`{specifier}` locations require uniquely accessible values"
+            )
+            .secondary_label(
+                source_place_span,
+                format!("this value is `{}`, which is shared", valid.as_str()),
+            )
+            .eyre(self.db));
+        }
+
+        Ok(value)
     }
 
     fn assign_value_to_place(
