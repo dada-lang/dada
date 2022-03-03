@@ -3,4 +3,6 @@ target
 playground
 
 # Internal IR files used for reference
-*.ref
+syntax.ref
+validated.ref
+bir.ref
