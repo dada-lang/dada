@@ -9,7 +9,7 @@ use crate::{
     in_ir_db::InIrDb,
     intrinsic::Intrinsic,
     prelude::InIrDbExt,
-    storage::{Atomic, Specifier},
+    storage::{Atomic, SpannedSpecifier},
     word::{SpannedOptionalWord, Word},
 };
 use dada_id::{id, prelude::*, tables};
@@ -190,7 +190,10 @@ pub struct LocalVariableData {
     /// semantics.
     pub name: Option<Word>,
 
-    pub specifier: Specifier,
+    /// If `Some`, then contains specifier given by the
+    /// user. If `None`, this is a temporary, and its
+    /// specifier is effectively [`Specifier::Any`].
+    pub specifier: Option<SpannedSpecifier>,
 
     pub atomic: Atomic,
 }

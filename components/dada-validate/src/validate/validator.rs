@@ -152,7 +152,7 @@ impl<'me> Validator<'me> {
         let local_variable = self.add(
             validated::LocalVariableData {
                 name: Some(decl_data.name),
-                specifier: decl_data.specifier.specifier(self.db),
+                specifier: Some(decl_data.specifier),
                 atomic: decl_data.atomic,
             },
             validated::LocalVariableOrigin::Parameter(decl),
@@ -348,11 +348,10 @@ impl<'me> Validator<'me> {
 
             syntax::ExprData::Var(decl, initializer_expr) => {
                 let decl_data = decl.data(self.syntax_tables());
-                let specifier = decl_data.specifier.specifier(self.db);
                 let local_variable = self.add(
                     validated::LocalVariableData {
                         name: Some(decl_data.name),
-                        specifier,
+                        specifier: Some(decl_data.specifier),
                         atomic: decl_data.atomic,
                     },
                     validated::LocalVariableOrigin::LocalVariable(*decl),
@@ -882,7 +881,7 @@ impl<'me> Validator<'me> {
         let local_variable = self.add(
             validated::LocalVariableData {
                 name: None,
-                specifier: Specifier::Any,
+                specifier: None,
                 atomic: Atomic::No,
             },
             validated::LocalVariableOrigin::Temporary(origin.syntax_expr),

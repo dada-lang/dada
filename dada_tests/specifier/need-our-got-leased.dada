@@ -1,5 +1,5 @@
 class Point()
 
 async fn main() {
-    our p = Point().lease #! RUN ERROR
+    our p = Point().lease #! RUN ERROR more permissions needed
 }

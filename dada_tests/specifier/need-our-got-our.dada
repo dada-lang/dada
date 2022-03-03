@@ -1,5 +1,5 @@
 class Point()
 
 async fn main() {
-    leased p = Point().share #! RUN ERROR
+    our p = Point().share
 }

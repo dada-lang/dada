@@ -4,7 +4,7 @@ use dada_ir::{
         bir::{self, BirData},
         validated::{self, ExprOrigin},
     },
-    storage::{Atomic, Specifier},
+    storage::Atomic,
 };
 use salsa::DebugWithDb;
 
@@ -110,7 +110,7 @@ impl Cursor {
             validated::ExprData::AssignTemporary(place, value_expr) => {
                 // temporaries are always created with "any" specifier, which ensures
                 // that we will never have to apply specifier to `value_expr`
-                assert_eq!(brewery.validated_tables()[*place].specifier, Specifier::Any);
+                assert_eq!(brewery.validated_tables()[*place].specifier, None);
 
                 // we only ever use this for temporaries, user-created values use `AssignFromPlace`
                 assert!(matches!(
@@ -557,7 +557,7 @@ fn add_temporary(brewery: &mut Brewery, origin: ExprOrigin) -> bir::LocalVariabl
     let temporary = brewery.add(
         bir::LocalVariableData {
             name: None,
-            specifier: Specifier::Any,
+            specifier: None,
             atomic: Atomic::No,
         },
         validated::LocalVariableOrigin::Temporary(origin.into()),

@@ -4,7 +4,6 @@ use dada_ir::{
     error,
     origin_table::HasOriginIn,
     parameter::Parameter,
-    storage::Specifier,
     word::{SpannedOptionalWord, Word},
 };
 use dada_parse::prelude::*;
@@ -15,7 +14,7 @@ use crate::{
     step::intrinsic::IntrinsicDefinition,
 };
 
-use super::Stepper;
+use super::{IntoSpecifierAndSpan, Stepper};
 
 pub(super) enum CallResult {
     Returned(Value),
@@ -76,9 +75,13 @@ impl Stepper<'_> {
             &ObjectData::Intrinsic(intrinsic) => {
                 let definition = IntrinsicDefinition::for_intrinsic(self.db, intrinsic);
                 self.match_labels(callee, labels, &definition.argument_names)?;
+                let callee_span = self.span_from_bir(callee);
                 let arguments = self.prepare_arguments(
                     table,
-                    definition.argument_specifiers.iter().copied(),
+                    definition
+                        .argument_specifiers
+                        .iter()
+                        .map(|specifier| (*specifier, callee_span)),
                     argument_places,
                 )?;
                 let value = (definition.function)(self, arguments)?;
@@ -107,7 +110,7 @@ impl Stepper<'_> {
             table,
             parameters
                 .iter()
-                .map(|parameter| parameter.decl(self.db).specifier.specifier(self.db)),
+                .map(|parameter| parameter.decl(self.db).specifier),
             argument_places,
         )
     }
@@ -116,14 +119,14 @@ impl Stepper<'_> {
     fn prepare_arguments(
         &mut self,
         table: &bir::Tables,
-        specifiers: impl Iterator<Item = Specifier>,
+        specifiers: impl Iterator<Item = impl IntoSpecifierAndSpan>,
         argument_places: &[bir::Place],
     ) -> eyre::Result<Vec<Value>> {
         argument_places
             .iter()
             .zip(specifiers)
             .map(|(argument_place, specifier)| {
-                self.prepare_value_for_specifier(table, specifier, *argument_place)
+                self.prepare_value_for_specifier(table, Some(specifier), *argument_place)
             })
             .collect()
     }

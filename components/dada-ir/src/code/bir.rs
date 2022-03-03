@@ -10,7 +10,7 @@ use crate::{
     intrinsic::Intrinsic,
     origin_table::HasOriginIn,
     prelude::InIrDbExt,
-    storage::{Atomic, Specifier},
+    storage::{Atomic, SpannedSpecifier},
     word::{SpannedOptionalWord, Word},
 };
 use dada_id::{id, prelude::*, tables};
@@ -152,7 +152,13 @@ pub struct LocalVariableData {
     /// If it is None, then this is a temporary
     /// introduced by the compiler.
     pub name: Option<Word>,
-    pub specifier: Specifier,
+
+    /// Specifier given this variable by the user
+    /// (possibly defaulted). If this is `None`,
+    /// then this is a temporary introduced by the compiler,
+    /// and it gets the specifier `Any`.
+    pub specifier: Option<SpannedSpecifier>,
+
     pub atomic: Atomic,
 }
 

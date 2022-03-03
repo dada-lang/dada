@@ -1,4 +1,4 @@
-use dada_ir::{code::bir, error, parameter::Parameter, storage::Specifier};
+use dada_ir::{code::bir, error, parameter::Parameter, storage::SpannedSpecifier};
 
 use crate::{
     error::DiagnosticBuilderExt,
@@ -24,16 +24,16 @@ pub(super) enum Address {
 }
 
 impl Stepper<'_> {
-    pub(super) fn specifier(&self, address: Address) -> Specifier {
+    pub(super) fn specifier(&self, address: Address) -> Option<SpannedSpecifier> {
         match address {
             Address::Local(local) => {
                 let bir = self.machine.pc().bir;
                 let local_decl = &bir.data(self.db).tables[local];
                 local_decl.specifier
             }
-            Address::Constant(_) => Specifier::Any,
-            Address::Field(_, _, Some(field)) => field.decl(self.db).specifier.specifier(self.db),
-            Address::Field(_, _, None) => Specifier::Any,
+            Address::Constant(_) => None,
+            Address::Field(_, _, Some(field)) => Some(field.decl(self.db).specifier),
+            Address::Field(_, _, None) => None,
         }
     }
 

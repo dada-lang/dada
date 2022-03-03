@@ -9,7 +9,7 @@ use dada_ir::{
     in_ir_db::InIrDbExt,
     origin_table::HasOriginIn,
     span::FileSpan,
-    storage::{Atomic, Joint, Leased, Specifier},
+    storage::{Atomic, Joint, Leased, SpannedSpecifier, Specifier},
     word::Word,
 };
 use dada_parse::prelude::*;
@@ -272,9 +272,14 @@ impl<'me> Stepper<'me> {
     fn prepare_value_for_specifier(
         &mut self,
         table: &bir::Tables,
-        specifier: Specifier,
+        specifier: Option<impl IntoSpecifierAndSpan>,
         source_place: bir::Place,
     ) -> eyre::Result<Value> {
+        let (specifier, specifier_span) = match specifier {
+            Some(i) => i.into_specifier_and_span(self.db),
+            None => return self.give_place(table, source_place),
+        };
+
         let value = match specifier {
             Specifier::My => self.give_place(table, source_place)?,
             Specifier::Our => self.share_place(table, source_place)?,
@@ -289,32 +294,31 @@ impl<'me> Stepper<'me> {
             .expect("value to be stored has expired permision");
 
         if let (true, Leased::Yes) = (specifier.must_be_owned(), valid.leased) {
-            let pc = self.machine.pc();
-            let pc_span = pc.span(self.db);
             let source_place_span = self.span_from_bir(source_place);
-            return Err(
-                error!(pc_span, "`{specifier}` locations require owned values")
-                    .secondary_label(
-                        source_place_span,
-                        format!("this value is `{}`, which is not owned", valid.as_str()),
-                    )
-                    .eyre(self.db),
-            );
+            return Err(error!(source_place_span, "more permissions needed")
+                .primary_label(format!(
+                    "this value is `{}`, which is leased, not owned",
+                    valid.as_str()
+                ))
+                .secondary_label(
+                    specifier_span,
+                    format!("`{specifier}` requires owned values"),
+                )
+                .eyre(self.db));
         }
 
         if let (true, Joint::Yes) = (specifier.must_be_unique(), valid.joint) {
-            let pc = self.machine.pc();
-            let pc_span = pc.span(self.db);
             let source_place_span = self.span_from_bir(source_place);
-            return Err(error!(
-                pc_span,
-                "`{specifier}` locations require uniquely accessible values"
-            )
-            .secondary_label(
-                source_place_span,
-                format!("this value is `{}`, which is shared", valid.as_str()),
-            )
-            .eyre(self.db));
+            return Err(error!(source_place_span, "more permissions needed")
+                .primary_label(format!(
+                    "this value is `{}`, which is shared, not unique",
+                    valid.as_str()
+                ))
+                .secondary_label(
+                    specifier_span,
+                    format!("`{specifier}` requires unique access"),
+                )
+                .eyre(self.db));
         }
 
         Ok(value)
@@ -596,5 +600,21 @@ impl<'me> Stepper<'me> {
         let filename = code.filename(self.db);
         let syntax_tree = code.syntax_tree(self.db);
         syntax_tree.spans(self.db)[syntax_expr].in_file(filename)
+    }
+}
+
+trait IntoSpecifierAndSpan: std::fmt::Debug {
+    fn into_specifier_and_span(self, db: &dyn crate::Db) -> (Specifier, FileSpan);
+}
+
+impl IntoSpecifierAndSpan for (Specifier, FileSpan) {
+    fn into_specifier_and_span(self, _db: &dyn crate::Db) -> (Specifier, FileSpan) {
+        self
+    }
+}
+
+impl IntoSpecifierAndSpan for SpannedSpecifier {
+    fn into_specifier_and_span(self, db: &dyn crate::Db) -> (Specifier, FileSpan) {
+        (self.specifier(db), self.span(db))
     }
 }
