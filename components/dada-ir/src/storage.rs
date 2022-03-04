@@ -19,7 +19,7 @@ impl SpannedSpecifier {
     /// Creates a new `SpannedSpecifier` for a variable/field that didn't
     /// have an explicit specifier.
     pub fn new_defaulted(db: &dyn crate::Db, name_span: FileSpan) -> Self {
-        Self::new(db, Specifier::Any, true, name_span)
+        Self::new(db, Specifier::OurLeased, true, name_span)
     }
 }
 

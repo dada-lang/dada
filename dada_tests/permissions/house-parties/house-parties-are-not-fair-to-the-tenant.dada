@@ -10,25 +10,25 @@
 # atomic fields etc, it's hard to demonstrate this danger. =)
 # But I'm pretty sure it's there.
 
-class Accumulator(atomic list)
+class Accumulator(my atomic list)
 class List()
 
-fn foo(accumulator) # ->
+fn foo(leased accumulator) # ->
 {
     accumulator.list.lease.share
 }
 
 async fn main() {
-    a = Accumulator(list: List())
+    my a = Accumulator(list: List())
 
     # get a shared lease to the list,
     # but it is still owned by `a`
-    l = foo(a.lease)
+    l = foo(a)
 
     # share `a`, which currently revokes
     # the lease `a`, and hence `l`
     # becomes inaccessible
-    s = a.share
+    our s = a
 
     print(l).await #! RUN ERROR your lease to this object was cancelled
 

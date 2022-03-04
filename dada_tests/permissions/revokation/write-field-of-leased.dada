@@ -1,10 +1,10 @@
-class Pair(a, b)
+class Pair(any a, any b)
 
 async fn main() {
-    p = Pair(22, 44).lease
+    any p = Pair(22, 44).lease
 
     # we now have a shared lease on `p`
-    q = p.share
+    any q = p.share
 
     # mutating field of `p` cancels our shared lease
     p.a := 23

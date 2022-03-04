@@ -280,6 +280,8 @@ impl<'me> Stepper<'me> {
             None => return self.give_place(table, source_place),
         };
 
+        tracing::debug!(?specifier);
+
         let value = match specifier {
             Specifier::My => self.give_place(table, source_place)?,
             Specifier::Our => self.share_place(table, source_place)?,

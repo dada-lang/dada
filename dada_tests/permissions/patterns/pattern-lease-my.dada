@@ -1,4 +1,4 @@
-class Point(x, y)
+class Point(any x, any y)
 
 # Test what happens when we lease a "my" thing `p`
 # and then destroy `p`. The lease should be canceled.

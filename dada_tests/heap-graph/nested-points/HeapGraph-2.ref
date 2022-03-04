@@ -12,19 +12,13 @@ digraph {
         label=<
           <table border="0">
           <tr><td border="1">main</td></tr>
-          <tr><td port="0"><font color="black">p</font></td></tr>
+          <tr><td port="0"><font color="slategray">p</font></td></tr>
           <tr><td port="2"><font color="slategray">q</font></td></tr>
-          <tr><td port="12"><font color="black">(in-flight)</font></td></tr>
+          <tr><td port="12"><font color="slategray">(in-flight)</font></td></tr>
           </table>
         >;
       ];
     }
-    afternode1 [
-      label = <<table border="0">
-        <tr><td border="1">(reservation)</td></tr>
-        <tr><td port="0"><font color="black">reserved</font></td></tr>
-      </table>>
-    ];
     afternode0 [
       color = "slategray",
       fontcolor = "slategray",
@@ -34,9 +28,8 @@ digraph {
         <tr><td port="1"><font color="slategray">y: "44"</font></td></tr>
       </table>>
     ];
-    "afterstack":0 -> "afternode0" [label="my", style="solid", penwidth=3.0, arrowtype="normal", color="red"];
-    "stack":12 -> "afternode1" [label="my", style="solid", penwidth=3.0, arrowtype="normal", color="red"];
-    "afternode1":0 -> "afternode0" [label="reserved", style="solid", penwidth=1.0, arrowtype="odot", color="grey"];
+    "afterstack":0 -> "afternode0" [label="our leased", style="solid", penwidth=1.0, arrowtype="empty", color="blue"];
+    "stack":12 -> "afternode0" [label="our leased", style="solid", penwidth=1.0, arrowtype="empty", color="blue"];
   }
   subgraph cluster_before {
     label=<<b>before</b>>
@@ -48,7 +41,7 @@ digraph {
         label=<
           <table border="0">
           <tr><td border="1">main</td></tr>
-          <tr><td port="0"><font color="black">p</font></td></tr>
+          <tr><td port="0"><font color="slategray">p</font></td></tr>
           <tr><td port="2"><font color="slategray">q</font></td></tr>
           </table>
         >;
@@ -63,6 +56,6 @@ digraph {
         <tr><td port="1"><font color="slategray">y: "44"</font></td></tr>
       </table>>
     ];
-    "beforestack":0 -> "beforenode0" [label="my", style="solid", penwidth=3.0, arrowtype="normal", color="red"];
+    "beforestack":0 -> "beforenode0" [label="our leased", style="solid", penwidth=1.0, arrowtype="empty", color="blue"];
   }
 }

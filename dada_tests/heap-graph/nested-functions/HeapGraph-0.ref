@@ -14,21 +14,21 @@ digraph {
           <tr><td border="1">main</td></tr>
           <tr><td port="0"><font color="slategray">name: "Fellow Dadaist"</font></td></tr>
           <tr><td border="1">helper</td></tr>
-          <tr><td port="14"><font color="black">p</font></td></tr>
+          <tr><td port="14"><font color="slategray">p</font></td></tr>
           <tr><td port="16"><font color="slategray">q</font></td></tr>
           <tr><td port="26"><font color="black">(in-flight)</font></td></tr>
           </table>
         >;
       ];
     }
-    afternode0 [
+    afternode1 [
       label = <<table border="0">
         <tr><td border="1">Point</td></tr>
-        <tr><td port="0"><font color="black">x</font></td></tr>
+        <tr><td port="0"><font color="slategray">x</font></td></tr>
         <tr><td port="1"><font color="black">y: "66"</font></td></tr>
       </table>>
     ];
-    afternode1 [
+    afternode0 [
       color = "slategray",
       fontcolor = "slategray",
       label = <<table border="0">
@@ -37,8 +37,9 @@ digraph {
         <tr><td port="1"><font color="slategray">y: "44"</font></td></tr>
       </table>>
     ];
-    "stack":26 -> "afternode0" [label="my", style="solid", penwidth=3.0, arrowtype="normal", color="red"];
-    "afternode0":0 -> "afternode1" [label="my", style="solid", penwidth=3.0, arrowtype="normal", color="red"];
+    "afterstack":14 -> "afternode0" [label="our leased", style="solid", penwidth=1.0, arrowtype="empty", color="blue"];
+    "stack":26 -> "afternode1" [label="my", style="solid", penwidth=3.0, arrowtype="normal", color="red"];
+    "afternode1":0 -> "afternode0" [label="our leased", style="solid", penwidth=1.0, arrowtype="empty", color="blue"];
   }
   subgraph cluster_before {
     label=<<b>before</b>>
@@ -52,7 +53,7 @@ digraph {
           <tr><td border="1">main</td></tr>
           <tr><td port="0"><font color="slategray">name: "Fellow Dadaist"</font></td></tr>
           <tr><td border="1">helper</td></tr>
-          <tr><td port="14"><font color="black">p</font></td></tr>
+          <tr><td port="14"><font color="slategray">p</font></td></tr>
           <tr><td port="16"><font color="slategray">q</font></td></tr>
           </table>
         >;
@@ -67,7 +68,7 @@ digraph {
         <tr><td port="1"><font color="slategray">y: "44"</font></td></tr>
       </table>>
     ];
-    "beforestack":14 -> "beforenode0" [label="my", style="solid", penwidth=3.0, arrowtype="normal", color="red"];
+    "beforestack":14 -> "beforenode0" [label="our leased", style="solid", penwidth=1.0, arrowtype="empty", color="blue"];
   }
 }
 Hello

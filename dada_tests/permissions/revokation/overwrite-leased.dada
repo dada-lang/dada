@@ -1,10 +1,10 @@
-class Pair(a, b)
+class Pair(any a, any b)
 
 async fn main() {
-    pair1 = Pair(22, 44)
-    pair2 = Pair(pair1.lease, 66)
+    any pair1 = Pair(22, 44)
+    any pair2 = Pair(pair1.lease, 66)
 
-    p = pair2.a.lease
+    any p = pair2.a.lease
 
     # Writing to `pair.a` causes the lease from `pair2.a`
     # to be unreachable. However, the owned value that backs

@@ -1,4 +1,4 @@
-class Point(x, y)
+class Point(any x, any y)
 
 # Test what happens when we lease an "our" thing `p`
 # and then drop `p`. Since leasing an `our` thing

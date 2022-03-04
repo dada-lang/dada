@@ -1,8 +1,8 @@
-class Point(x, y)
+class Point(any x, any y)
 
 async fn main() {
-    p = Point(22, 44)
-    q = p.lease
+    any p = Point(22, 44)
+    any q = p.lease
     #? @ +1:10 HeapGraph
     q.x += 1
     print(q).await
