@@ -1,0 +1,18 @@
+// For the footer
+#content {
+  overflow-y: visible;
+  min-height: 100px;
+  margin-top: 10px;
+}
+
+#nav-header {
+  @extend .sticky-top;
+}
+
+@include media-breakpoint-up(md) {
+  #content {
+    // subtract the height for the menu, footer, and their padding
+    height: calc(100vh - 56px - 24px - 10px - 16px - 16px);
+    overflow-y: scroll;
+  }
+}
