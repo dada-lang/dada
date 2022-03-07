@@ -417,7 +417,7 @@ impl Options {
             expected_diagnostics,
             errors,
         )?;
-        self.maybe_bless_ref_file(actual_output, ref_path)?;
+        self.check_output_against_ref_file(actual_output, ref_path, errors)?;
         Ok(())
     }
 
