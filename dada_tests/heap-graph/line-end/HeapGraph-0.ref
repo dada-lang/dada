@@ -1,0 +1,40 @@
+# Breakpoint: Expr(0) at async:2:9:2:11
+digraph {
+  node[shape = "note"];
+  rankdir = "LR";
+  subgraph cluster_after {
+    label=<<b>after</b>>
+    subgraph cluster_afterstack {
+      label=<<b>stack</b>>
+      rank="source";
+      afterstack[
+        shape="none";
+        label=<
+          <table border="0">
+          <tr><td border="1">main</td></tr>
+          <tr><td port="0"><font color="slategray">x</font></td></tr>
+          <tr><td port="2"><font color="slategray">y</font></td></tr>
+          <tr><td port="5"><font color="black">(in-flight): "22"</font></td></tr>
+          </table>
+        >;
+      ];
+    }
+  }
+  subgraph cluster_before {
+    label=<<b>before</b>>
+    subgraph cluster_beforestack {
+      label=<<b>stack</b>>
+      rank="source";
+      beforestack[
+        shape="none";
+        label=<
+          <table border="0">
+          <tr><td border="1">main</td></tr>
+          <tr><td port="0"><font color="slategray">x</font></td></tr>
+          <tr><td port="2"><font color="slategray">y</font></td></tr>
+          </table>
+        >;
+      ];
+    }
+  }
+}
