@@ -204,7 +204,7 @@ impl Options {
         .await?;
 
         for (query, query_index) in expected_queries.iter().zip(0..) {
-            self.perform_query_on_db(&mut db, path, filename, query, query_index)
+            self.perform_query_on_db(&mut db, path, filename, query, query_index, &mut errors)
                 .await?;
         }
 
@@ -240,10 +240,11 @@ impl Options {
         filename: Filename,
         query: &Query,
         query_index: usize,
+        errors: &mut Errors,
     ) -> eyre::Result<()> {
         match query.kind {
             QueryKind::HeapGraph => self
-                .perform_heap_graph_query_on_db(db, path, query_index, filename, query)
+                .perform_heap_graph_query_on_db(db, path, query_index, filename, query, errors)
                 .await
                 .with_context(|| format!("heap query from line `{}`", query.line)),
         }
