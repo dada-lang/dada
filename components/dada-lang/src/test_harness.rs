@@ -166,13 +166,14 @@ impl Options {
             &expected_diagnostics.compile,
             &mut errors,
         )?;
-        self.maybe_bless_ref_file(
+        self.check_output_against_ref_file(
             dada_error_format::format_diagnostics_with_options(
                 &db,
                 &diagnostics,
                 dada_error_format::FormatOptions::no_color(),
             )?,
-            &path.join("ref.ref"),
+            &path.join("compiler-output.ref"),
+            &mut errors,
         )?;
         self.check_compiled(
             &db,
@@ -248,10 +249,29 @@ impl Options {
         }
     }
 
-    fn maybe_bless_ref_file(&self, actual_output: String, ref_path: &Path) -> eyre::Result<()> {
+    fn check_output_against_ref_file(
+        &self,
+        actual_output: String,
+        ref_path: &Path,
+        errors: &mut Errors,
+    ) -> eyre::Result<()> {
+        let sanitized_output = self.maybe_bless_ref_file(actual_output, ref_path)?;
+        let ref_contents = std::fs::read_to_string(&ref_path)
+            .with_context(|| format!("reading `{}`", ref_path.display()))?;
+        if ref_contents != sanitized_output {
+            errors.push(RefOutputDoesNotMatch {
+                ref_path: ref_path.to_owned(),
+                expected: ref_contents,
+                actual: sanitized_output,
+            });
+        }
+        Ok(())
+    }
+
+    fn maybe_bless_ref_file(&self, actual_output: String, ref_path: &Path) -> eyre::Result<String> {
         let sanitized_output = sanitize_output(actual_output)?;
         self.maybe_bless_file(ref_path, &sanitized_output)?;
-        Ok(())
+        Ok(sanitized_output)
     }
 
     fn maybe_bless_file(&self, ref_path: &Path, actual_diagnostics: &str) -> eyre::Result<()> {
