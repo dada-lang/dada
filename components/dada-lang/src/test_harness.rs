@@ -179,19 +179,19 @@ impl Options {
             &db,
             &[filename],
             |item| db.debug_syntax_tree(item),
-            &path.join("syntax.ref"),
+            &path.join("syntax.debug"),
         )?;
         self.check_compiled(
             &db,
             &[filename],
             |item| db.debug_validated_tree(item),
-            &path.join("validated.ref"),
+            &path.join("validated.debug"),
         )?;
         self.check_compiled(
             &db,
             &[filename],
             |item| db.debug_bir(item),
-            &path.join("bir.ref"),
+            &path.join("bir.debug"),
         )?;
         self.check_interpreted(
             &db,
@@ -229,7 +229,7 @@ impl Options {
             &expected_diagnostics.compile,
             &mut errors,
         )?;
-        self.maybe_bless_ref_file(format!("{:#?}", diagnostics), &path.join("lsp.ref"))?;
+        self.bless_debug_file(format!("{:#?}", diagnostics), &path.join("lsp.debug"))?;
         errors.into_result()
     }
 
@@ -269,18 +269,16 @@ impl Options {
         Ok(())
     }
 
+    /// `.ref` files are generated on-demand via `--bless`
     fn maybe_bless_ref_file(&self, actual_output: String, ref_path: &Path) -> eyre::Result<String> {
         let sanitized_output = sanitize_output(actual_output)?;
-        self.maybe_bless_file(ref_path, &sanitized_output)?;
+        maybe_bless_file(ref_path, &sanitized_output, self.bless)?;
         Ok(sanitized_output)
     }
 
-    fn maybe_bless_file(&self, ref_path: &Path, actual_diagnostics: &str) -> eyre::Result<()> {
-        if self.bless {
-            std::fs::write(&ref_path, actual_diagnostics)
-                .with_context(|| format!("writing `{}`", ref_path.display()))?;
-        }
-
+    /// `.debug` files are always generated, as they are not validated against, and `gitignore`d
+    fn bless_debug_file(&self, actual_output: String, ref_path: &Path) -> eyre::Result<()> {
+        maybe_bless_file(ref_path, &actual_output, true)?;
         Ok(())
     }
 
@@ -365,7 +363,7 @@ impl Options {
             .iter()
             .flat_map(|&item| item_op(item))
             .collect::<Vec<_>>();
-        self.maybe_bless_ref_file(format!("{birs:#?}"), bir_path)?;
+        self.bless_debug_file(format!("{birs:#?}"), bir_path)?;
 
         Ok(())
     }
@@ -1058,6 +1056,16 @@ impl ExpectedDiagnostic {
             self.start_line, self.severity, self.message
         )
     }
+}
+
+/// Bless file on-demand
+fn maybe_bless_file(ref_path: &Path, actual_diagnostics: &str, bless: bool) -> eyre::Result<()> {
+    if bless {
+        std::fs::write(&ref_path, actual_diagnostics)
+            .with_context(|| format!("writing `{}`", ref_path.display()))?;
+    }
+
+    Ok(())
 }
 
 /// Remove system-specific absolute paths from output strings.

@@ -2,8 +2,8 @@ target
 .vscode
 playground
 
-# Internal IR files used for reference
-syntax.ref
-validated.ref
-bir.ref
-lsp.ref
+# Internal IR files used for debugging
+syntax.debug
+validated.debug
+bir.debug
+lsp.debug
