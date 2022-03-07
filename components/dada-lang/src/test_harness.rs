@@ -1061,6 +1061,7 @@ impl ExpectedDiagnostic {
 }
 
 /// Remove system-specific absolute paths from output strings.
+// TODO: sanitize OS-specific path separators in output strings.
 fn sanitize_output(output: String) -> eyre::Result<String> {
     let local_file_prefix = format!(
         r#""{}"#,
