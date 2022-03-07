@@ -1,0 +1,10 @@
+Error: already have a class named `Foo`
+   ╭─[dada_tests/validate/duplicate_class_class.dada:2:7]
+   │
+ 1 │ class Foo()
+   ·       ─┬─  
+   ·        ╰─── the class is here
+ 2 │ class Foo()
+   ·       ─┬─  
+   ·        ╰─── ignoring this class for now
+───╯

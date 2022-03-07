@@ -1,0 +1,10 @@
+Error: already have a class named `test`
+   ╭─[dada_tests/validate/duplicate_class_func.dada:2:4]
+   │
+ 1 │ class test()
+   ·       ──┬─  
+   ·         ╰─── the class is here
+ 2 │ fn test() {}
+   ·    ──┬─  
+   ·      ╰─── ignoring this function for now
+───╯

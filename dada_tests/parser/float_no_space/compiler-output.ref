@@ -1,0 +1,21 @@
+Error: whitespace is not allowed in float literals
+   ╭─[dada_tests/parser/float_no_space.dada:2:9]
+   │
+ 2 │     a = 1 .1
+   ·         ──┬─  
+   ·           ╰─── here
+───╯
+Error: whitespace is not allowed in float literals
+   ╭─[dada_tests/parser/float_no_space.dada:4:9]
+   │
+ 4 │     b = 1. 1
+   ·         ──┬─  
+   ·           ╰─── here
+───╯
+Error: whitespace is not allowed in float literals
+   ╭─[dada_tests/parser/float_no_space.dada:6:9]
+   │
+ 6 │     c = 1 . 1
+   ·         ──┬──  
+   ·           ╰──── here
+───╯
