@@ -271,15 +271,12 @@ impl Options {
 
     /// `.ref` files are generated on-demand via `--bless`
     fn maybe_bless_ref_file(&self, actual_output: String, ref_path: &Path) -> eyre::Result<String> {
-        let sanitized_output = sanitize_output(actual_output)?;
-        maybe_bless_file(ref_path, &sanitized_output, self.bless)?;
-        Ok(sanitized_output)
+        maybe_sanitize_and_bless_file(actual_output, ref_path, self.bless)
     }
 
     /// `.debug` files are always generated, as they are not validated against, and `gitignore`d
-    fn bless_debug_file(&self, actual_output: String, ref_path: &Path) -> eyre::Result<()> {
-        maybe_bless_file(ref_path, &actual_output, true)?;
-        Ok(())
+    fn bless_debug_file(&self, actual_output: String, debug_path: &Path) -> eyre::Result<String> {
+        maybe_sanitize_and_bless_file(actual_output, debug_path, true)
     }
 
     fn match_diagnostics_against_expectations<D>(
@@ -1056,6 +1053,17 @@ impl ExpectedDiagnostic {
             self.start_line, self.severity, self.message
         )
     }
+}
+
+/// Sanitize and bless file on-demand
+fn maybe_sanitize_and_bless_file(
+    actual_output: String,
+    path: &Path,
+    bless: bool,
+) -> eyre::Result<String> {
+    let sanitized_output = sanitize_output(actual_output)?;
+    maybe_bless_file(path, &sanitized_output, bless)?;
+    Ok(sanitized_output)
 }
 
 /// Bless file on-demand
