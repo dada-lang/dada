@@ -16,7 +16,7 @@ dada-error-format = { path = "../dada-error-format" }
 dada-id = { path = "../dada-id" }
 dada-ir = { path = "../dada-ir" }
 dada-parse = { path = "../dada-parse" }
-eyre = "0.6.5"
+eyre = "0.6.7"
 extension-trait = "1.0.0"
 generational-arena = "0.2.8"
 html-escape = "0.2.9"

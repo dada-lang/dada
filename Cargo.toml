@@ -22,6 +22,6 @@ harness = false
 
 [dependencies]
 dada-lang = { path = "components/dada-lang" }
-eyre = "0.6.5"
+eyre = "0.6.7"
 structopt = "0.3"
 tokio = { version = "1", features = ["full"] }
