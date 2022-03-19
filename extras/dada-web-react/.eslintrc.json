@@ -1,0 +1,118 @@
+{
+  "parser": "@typescript-eslint/parser",
+  "parserOptions": {
+    "babelOptions": {
+      "presets": ["@babel/preset-react"]
+    },
+    "ecmaVersion": 2020,
+    "ecmaFeatures": {
+      "jsx": true
+    },
+    "requireConfigFile": false
+  },
+  "env": {
+    "browser": true,
+    "node": true,
+    "es6": true,
+    "jest/globals": true
+  },
+  "extends": [
+    "react-app",
+    "plugin:@typescript-eslint/recommended",
+    "plugin:jest/recommended",
+    "prettier"
+  ],
+  "plugins": ["@typescript-eslint", "jest", "prettier"],
+  "settings": {
+    "react": {
+      "version": "detect"
+    }
+  },
+  "rules": {
+    "max-len": ["warn", 120],
+    "no-eval": "error",
+    "quotes": [
+      "warn",
+      "double",
+      {
+        "allowTemplateLiterals": true,
+        "avoidEscape": true
+      }
+    ],
+    "no-unused-vars": [
+      "warn",
+      {
+        "vars": "all",
+        "args": "none",
+        "ignoreRestSiblings": false,
+        "varsIgnorePattern": "^_"
+      }
+    ],
+    "@typescript-eslint/no-unused-vars": [
+      "warn",
+      {
+        "vars": "all",
+        "args": "none",
+        "ignoreRestSiblings": false,
+        "varsIgnorePattern": "^_"
+      }
+    ],
+    "no-console": "warn",
+    "react/prop-types": "off",
+    "curly": ["warn", "multi-or-nest", "consistent"],
+    "react/jsx-indent": ["warn", 2],
+    "indent": [
+      "warn",
+      2,
+      {
+        "ignoredNodes": ["TemplateLiteral"],
+        "SwitchCase": 1
+      }
+    ],
+    "semi": ["warn", "always"],
+    "space-before-blocks": ["warn", "always"],
+    "no-multi-spaces": "warn",
+    "brace-style": [
+      "warn",
+      "1tbs",
+      {
+        "allowSingleLine": true
+      }
+    ],
+    "max-nested-callbacks": ["warn", 3],
+    "no-alert": "error",
+    "no-else-return": "warn",
+    "jest/expect-expect": "off",
+    "comma-spacing": "warn",
+    "block-spacing": ["warn", "always"],
+    "key-spacing": "warn",
+    "no-trailing-spaces": "warn",
+    "object-curly-spacing": ["warn", "always"],
+    "space-infix-ops": "warn",
+    "space-unary-ops": [
+      "warn",
+      {
+        "words": true,
+        "nonwords": false
+      }
+    ],
+    "keyword-spacing": [
+      "warn",
+      {
+        "before": true
+      }
+    ],
+    "no-multiple-empty-lines": [
+      "warn",
+      {
+        "max": 2,
+        "maxEOF": 1
+      }
+    ],
+    "eol-last": 1,
+    "no-unsafe-finally": "off",
+    "react/jsx-curly-spacing": ["warn", "never"],
+    "react-hooks/rules-of-hooks": "error",
+    "react-hooks/exhaustive-deps": "warn"
+  }
+}

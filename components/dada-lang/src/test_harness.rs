@@ -166,31 +166,32 @@ impl Options {
             &expected_diagnostics.compile,
             &mut errors,
         )?;
-        self.maybe_bless_ref_file(
+        self.check_output_against_ref_file(
             dada_error_format::format_diagnostics_with_options(
                 &db,
                 &diagnostics,
                 dada_error_format::FormatOptions::no_color(),
             )?,
-            &path.join("ref.ref"),
+            &path.join("compiler-output.ref"),
+            &mut errors,
         )?;
         self.check_compiled(
             &db,
             &[filename],
             |item| db.debug_syntax_tree(item),
-            &path.join("syntax.ref"),
+            &path.join("syntax.debug"),
         )?;
         self.check_compiled(
             &db,
             &[filename],
             |item| db.debug_validated_tree(item),
-            &path.join("validated.ref"),
+            &path.join("validated.debug"),
         )?;
         self.check_compiled(
             &db,
             &[filename],
             |item| db.debug_bir(item),
-            &path.join("bir.ref"),
+            &path.join("bir.debug"),
         )?;
         self.check_interpreted(
             &db,
@@ -203,7 +204,7 @@ impl Options {
         .await?;
 
         for (query, query_index) in expected_queries.iter().zip(0..) {
-            self.perform_query_on_db(&mut db, path, filename, query, query_index)
+            self.perform_query_on_db(&mut db, path, filename, query, query_index, &mut errors)
                 .await?;
         }
 
@@ -228,7 +229,7 @@ impl Options {
             &expected_diagnostics.compile,
             &mut errors,
         )?;
-        self.maybe_bless_ref_file(format!("{:#?}", diagnostics), &path.join("lsp.ref"))?;
+        self.bless_debug_file(format!("{:#?}", diagnostics), &path.join("lsp.debug"))?;
         errors.into_result()
     }
 
@@ -239,28 +240,43 @@ impl Options {
         filename: Filename,
         query: &Query,
         query_index: usize,
+        errors: &mut Errors,
     ) -> eyre::Result<()> {
         match query.kind {
             QueryKind::HeapGraph => self
-                .perform_heap_graph_query_on_db(db, path, query_index, filename, query)
+                .perform_heap_graph_query_on_db(db, path, query_index, filename, query, errors)
                 .await
                 .with_context(|| format!("heap query from line `{}`", query.line)),
         }
     }
 
-    fn maybe_bless_ref_file(&self, actual_output: String, ref_path: &Path) -> eyre::Result<()> {
-        let sanitized_output = sanitize_output(actual_output)?;
-        self.maybe_bless_file(ref_path, &sanitized_output)?;
+    fn check_output_against_ref_file(
+        &self,
+        actual_output: String,
+        ref_path: &Path,
+        errors: &mut Errors,
+    ) -> eyre::Result<()> {
+        let sanitized_output = self.maybe_bless_ref_file(actual_output, ref_path)?;
+        let ref_contents = std::fs::read_to_string(&ref_path)
+            .with_context(|| format!("reading `{}`", ref_path.display()))?;
+        if ref_contents != sanitized_output {
+            errors.push(RefOutputDoesNotMatch {
+                ref_path: ref_path.to_owned(),
+                expected: ref_contents,
+                actual: sanitized_output,
+            });
+        }
         Ok(())
     }
 
-    fn maybe_bless_file(&self, ref_path: &Path, actual_diagnostics: &str) -> eyre::Result<()> {
-        if self.bless {
-            std::fs::write(&ref_path, actual_diagnostics)
-                .with_context(|| format!("writing `{}`", ref_path.display()))?;
-        }
+    /// `.ref` files are generated on-demand via `--bless`
+    fn maybe_bless_ref_file(&self, actual_output: String, ref_path: &Path) -> eyre::Result<String> {
+        maybe_sanitize_and_bless_file(actual_output, ref_path, self.bless)
+    }
 
-        Ok(())
+    /// `.debug` files are always generated, as they are not validated against, and `gitignore`d
+    fn bless_debug_file(&self, actual_output: String, debug_path: &Path) -> eyre::Result<String> {
+        maybe_sanitize_and_bless_file(actual_output, debug_path, true)
     }
 
     fn match_diagnostics_against_expectations<D>(
@@ -344,7 +360,7 @@ impl Options {
             .iter()
             .flat_map(|&item| item_op(item))
             .collect::<Vec<_>>();
-        self.maybe_bless_ref_file(format!("{birs:#?}"), bir_path)?;
+        self.bless_debug_file(format!("{birs:#?}"), bir_path)?;
 
         Ok(())
     }
@@ -396,7 +412,7 @@ impl Options {
             expected_diagnostics,
             errors,
         )?;
-        self.maybe_bless_ref_file(actual_output, ref_path)?;
+        self.check_output_against_ref_file(actual_output, ref_path, errors)?;
         Ok(())
     }
 
@@ -1039,7 +1055,29 @@ impl ExpectedDiagnostic {
     }
 }
 
+/// Sanitize and bless file on-demand
+fn maybe_sanitize_and_bless_file(
+    actual_output: String,
+    path: &Path,
+    bless: bool,
+) -> eyre::Result<String> {
+    let sanitized_output = sanitize_output(actual_output)?;
+    maybe_bless_file(path, &sanitized_output, bless)?;
+    Ok(sanitized_output)
+}
+
+/// Bless file on-demand
+fn maybe_bless_file(ref_path: &Path, actual_diagnostics: &str, bless: bool) -> eyre::Result<()> {
+    if bless {
+        std::fs::write(&ref_path, actual_diagnostics)
+            .with_context(|| format!("writing `{}`", ref_path.display()))?;
+    }
+
+    Ok(())
+}
+
 /// Remove system-specific absolute paths from output strings.
+// TODO: sanitize OS-specific path separators in output strings.
 fn sanitize_output(output: String) -> eyre::Result<String> {
     let local_file_prefix = format!(
         r#""{}"#,
