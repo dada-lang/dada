@@ -48,15 +48,15 @@ impl<'me> Parser<'me> {
 
     /// Run `op` -- if it returns `None`, then no tokens are consumed.
     /// If it returns `Some`, then the tokens are consumed.
-    /// use sparingly, and try not to report errors or have side-effects in `op`.
+    /// Use sparingly, and try not to report errors or have side-effects in `op`.
     fn lookahead<R>(&mut self, op: impl FnOnce(&mut Self) -> Option<R>) -> Option<R> {
         let tokens = self.tokens;
-        if let Some(r) = op(self) {
-            Some(r)
-        } else {
+        let r = op(self);
+        if r.is_none() {
+            // Restore tokens that `op` may have consumed.
             self.tokens = tokens;
-            None
         }
+        r
     }
 
     /// Peek ahead to see if `op` matches the next set of tokens;
