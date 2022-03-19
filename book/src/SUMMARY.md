@@ -26,7 +26,10 @@
 # Development Guide
 
 - [Building Dada and running tests](./build_and_run.md)
-
+- [Tutorial structure](./tutorial_structure.md)
+  - [Dynamic Dada](./tutorial_structure/dynamic_dada.md)
+- [Sketchy ideas](./sketchy_ideas.md)
+  
 # Older, outdated content
 
 - [Tutorial](./old_tutorial.md)
