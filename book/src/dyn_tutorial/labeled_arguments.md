@@ -1,9 +1,9 @@
 # Aside: Labeled argments
 
-Before we go further with the tutorial, it's worth nothing that Dada supports *labeled arguments*. That means that instead of writing `Point(x, y)` one can also give labels to each argument:
+Before we go further with the tutorial, it's worth nothing that Dada supports *labeled arguments*. That means that instead of writing `Point(22, 44)` one can also give labels to each argument, like `Point(x: 22, y: 44)`:
 
 ```
-class Point(x, y)
+class Point(our x, our y)
 
 async fn main() {
     my p = Point(x: 22, y: 44)
@@ -22,7 +22,7 @@ Adding labels can help make it clearer what is going on. The rules are as follow
 Dada will also sometimes suggest you use labels if it thinks you might be making a mistake. For example, try this:
 
 ```
-class Point(x, y)
+class Point(our x, our y)
 
 async fn print_line(my start, my end) {
     print(start).await
@@ -40,7 +40,7 @@ async fn main() {
 See the squiggly line? That is Dada telling us that we may have reversed the order of `end` and `start`. We can disable this warning by giving explicit labels to the arguments, making it clear that we *meant* to switch the order:
 
 ```
-class Point(x, y)
+class Point(our x, our y)
 
 async fn print_line(my start, my end) {
     print(start).await
