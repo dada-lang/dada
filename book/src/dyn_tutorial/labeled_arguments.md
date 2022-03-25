@@ -5,10 +5,8 @@ Before we go further with the tutorial, it's worth nothing that Dada supports *l
 ```
 class Point(our x, our y)
 
-async fn main() {
-    my p = Point(x: 22, y: 44)
-    print("The point is `{p}`").await
-}
+my p = Point(x: 22, y: 44)
+print("The point is `{p}`").await
 
 # prints:
 # The point is `Point(x: 22, y: 44)`
@@ -29,12 +27,10 @@ async fn print_line(my start, my end) {
     print(end).await
 }
 
-async fn main() {
-    my start = Point(22, 44)
-    my end = Point(33, 55)
-    print_line(end, start).await
-    #          ~~~~~~~~~~ warning: are these parameters in the right order?
-}
+my start = Point(22, 44)
+my end = Point(33, 55)
+print_line(end, start).await
+#          ~~~~~~~~~~ warning: are these parameters in the right order?
 ```
 
 See the squiggly line? That is Dada telling us that we may have reversed the order of `end` and `start`. We can disable this warning by giving explicit labels to the arguments, making it clear that we *meant* to switch the order:
@@ -47,9 +43,7 @@ async fn print_line(my start, my end) {
     print(end).await
 }
 
-async fn main() {
-    my start = Point(22, 44)
-    my end = Point(33, 55)
-    print_line(start: end, end: start).await
-}
+my start = Point(22, 44)
+my end = Point(33, 55)
+print_line(start: end, end: start).await
 ```

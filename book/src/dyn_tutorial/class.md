@@ -24,25 +24,28 @@ The `class Point(..)` syntax also creates a constructor function that creates an
 ```
 class Point(our x, our y)
 
-async fn main() {
-    my p = Point(22, 44)
-    print("The point is `{p}`").await
-    print("The point is `({p.x}, {p.y})`").await
-    p.x := compute_new_value()
-    p.x += 1
-    print("The point is now `({p.x}, {p.y})`").await
+# This function is declared as `async` because it
+# awaits the result of print.
+async fn print_point(p) {
+    print("The point is `{p}`).await
 }
 
 # This function is not declared as `async` because it
-# doesn't await anything:
+# doesn't await anything. The `->` indicates that it
+# returns a value.
 fn compute_new_value() -> {
     33
 }
 
+my p = Point(22, 44)
+print_point(p).await
+p.x := compute_new_value()
+p.x += 1
+print_point(p).await
+
 # prints:
 # The point is `Point(x: 22, y: 44)`
-# The point is `(22, 44)`
-# The point is now `(34, 44)`
+# The point is `Point(x: 34, y: 44)`
 ```
 
 Some things to note here:
@@ -55,6 +58,7 @@ Some things to note here:
     * The default stringifier prints the values of each field.
 * You write `:=` to reassign variables or fields (just `=` is for declaring a new variable).
     * You can also use the `+=`, `-=`, `*=`, `/=`, `%=` operators you may be familiar with from other languages.
+* Declaring a function with `async fn` means that it can await thunks, like the one from calling `print`.
 * Declaring a function with `->` means that it returns a value; as in Rust, the final expression in the function is its return value.
     * In this case, `compute_new_value()` returns `33`.
 

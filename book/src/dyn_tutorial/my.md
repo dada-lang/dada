@@ -1,5 +1,7 @@
 # I me, me, mine: The my permission
 
+{{#include ../caveat.md}}
+
 The `my` permission is in many ways the most basic. It declares that a variable has **unique ownership** of an object. Just like owning a house, having ownership means that the variable has full, irrevokable access to that object.
 
 ## Ownership vs leasing
@@ -13,11 +15,9 @@ But we said that `my` represents **unique** ownership -- what does it mean that 
 ```
 class Point(our x, our y)
 
-async fn main() {
-    my p = Point(22, 44)
-    my q = p # <--- added this line
-    print("The point is ({p.x}, {p.y})").await
-}
+my p = Point(22, 44)
+my q = p # <--- added this line
+print("The point is ({p.x}, {p.y})").await
 ```
 
 If you run it, you will find that it gets an error:
@@ -39,22 +39,20 @@ Dada comes equipped with a visual debugger that can help you to understand how p
 ```
 class Point(our x, our y)
 
-async fn main() {
-    my p = Point(22, 44)
-    #                  ▲
-    # ─────────────────┘
-    my q = p
-    print("The point is ({p.x}, {p.y})").await
-}
+my p = Point(22, 44)
+#                  ▲
+# ─────────────────┘
+my q = p
+print("The point is ({p.x}, {p.y})").await
 
 # You see:
-
-┌───┐       ┌───────┐
-│ p ├──my──►│ Point │
-│   │       │ ───── │
-│ q │       │ x: 22 │
-└───┘       │ y: 44 │
-            └───────┘
+# 
+# ┌───┐       ┌───────┐
+# │ p ├──my──►│ Point │
+# │   │       │ ───── │
+# │ q │       │ x: 22 │
+# └───┘       │ y: 44 │
+#             └───────┘
 ```
 
 
@@ -63,27 +61,61 @@ Now position the cursor at the end of the next line and see how the state change
 ```
 class Point(our x, our y)
 
-async fn main() {
-    my p = Point(22, 44)
-    my q = p
-    #       ▲
-    # ──────┘
-    print("The point is ({p.x}, {p.y})").await
-}
+my p = Point(22, 44)
+my q = p
+#       ▲
+# ──────┘
+print("The point is ({p.x}, {p.y})").await
 
 # You see:
-
-┌───┐       ┌───────┐
-│ p │       │ Point │
-│   │       │ ───── │
-│ q ├──my──►│ x: 22 │
-└───┘       │ y: 44 │
-            └───────┘
+# 
+# ┌───┐       ┌───────┐
+# │ p │       │ Point │
+# │   │       │ ───── │
+# │ q ├──my──►│ x: 22 │
+# └───┘       │ y: 44 │
+#             └───────┘
 ```
 
 The `Point` is now owned by `q`!
 
 Try changing the `print` to print from `q` instead of `p`...you will find the program works as expected.
+
+## Calling a function can give ownership, too
+
+What do you think happens when we run this code?
+
+```
+class Point(our x, our y)
+
+fn take_point(my point) { }
+
+my p = Point(22, 44)
+take_point(p)
+print(p).await
+```
+
+If you guessed "error", you were right! Check it out:
+
+```
+error: `p` has no value
+  > take_point(p)
+               - value in `p` was given away here
+  > print(p).await
+          ^ `p` has no value
+```
+
+What this example shows is that calling a function whose parameters are declared as `my` transfers ownership to those parameters in just the same way as declaring a `my` local variable. The same holds when calling a class constructor:
+
+```
+class Point(our x, our y)
+class Line(my start, my end)
+
+my start = Point(22, 44)
+my end = Point(33, 55)
+my line1 = Line(start, end)
+my line2 = Line(start, end) # Error
+```
 
 ## Making this explicit: the `give` keyword
 
@@ -92,12 +124,10 @@ If you prefer, you can make the move from `p` to `q` explicit by using the `give
 ```
 class Point(our x, our y)
 
-async fn main() {
-    my p = Point(22, 44)
-    my q = p.give
-    #        ~~~~ this is new
-    print("The point is ({p.x}, {p.y})").await
-}
+my p = Point(22, 44)
+my q = p.give
+#        ~~~~ this is new
+print("The point is ({p.x}, {p.y})").await
 ```
 
 ## Give can give more than ownership

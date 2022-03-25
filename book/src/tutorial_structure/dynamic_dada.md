@@ -32,6 +32,10 @@ Covers `my` and `our` and their interactions
 * the `share` keyword for making this explicit
     * `our q = p.share`
 
+### friends don't let friends share and mutate
+
+* `our p = Point(...)`, `p.x += 1` → error and why
+
 ### my to our and the reverse
 
 * `my -> our` gives ownership
@@ -47,10 +51,6 @@ class Pair(my a, my b)
 our p = Pair(Object(), Object())
 our o = p.a                       # my field in an our context is our
 ```
-
-### friends don't let friends share and mutate
-
-* `our p = Point(...)`, `p.x += 1` → error and why
 
 ### any: dynamic modes
 

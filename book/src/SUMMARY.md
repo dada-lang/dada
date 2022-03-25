@@ -7,7 +7,9 @@
   - [Declaring the `Point` class](./dyn_tutorial/class.md)
       - [Aside: labeled arguments](./dyn_tutorial/labeled_arguments.md)
   - [Permissions](./dyn_tutorial/permissions.md)
-    - [I me, me, mine: the my permission](./dyn_tutorial/my.md)
+    - [I me, me, mine: the `my` permission](./dyn_tutorial/my.md)
+    - [Share and share alike with the `our` permission](./dyn_tutorial/our.md)
+    - [Friends don't let friends mutate `our` data](./dyn_tutorial/sharing_xor_mutation.md)
   - [Giving permissions away](./dyn_tutorial/give.md)
   - [Leasing permissions](./dyn_tutorial/lease.md)
   - [Sharing permissions](./dyn_tutorial/share.md)
@@ -38,3 +40,4 @@
   - [Sharing](./old_tutorial/sharing.md)
 - [Key capabilities](./capabilities.md)
   - [Sharing synthesized values](./capabilities/sharing_synthesized_values.md)
+
