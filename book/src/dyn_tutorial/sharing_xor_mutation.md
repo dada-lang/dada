@@ -78,7 +78,7 @@ transfer(l, l)
 
 Answer: in Python, you get an infinite loop. What about in Java? There, if you're lucky, you get an [exception](https://docs.oracle.com/javase/7/docs/api/java/util/ConcurrentModificationException.html); otherwise, you get undefined results. What about in C++? There, this is called [iterator invalidation](https://wiki.c2.com/?IteratorInvalidationProblem), and it can lead to crashes or even security vulnerabilities.
 
-Fundamentally, the problem here is that `transfer` was expecting to read from `source` and write to `target`; it was not expecting that those writes would also change `source`. This turns out to be a very general thing. **Most of the time, when we are writing code that writes to one variable, we don't expect that it will caues *other* variables to change their state.**
+Fundamentally, the problem here is that `transfer` was expecting to read from `source` and write to `target`; it was **not** expecting that those writes would also change `source`. This turns out to be a very general thing. **Most of the time, when we are writing code that writes to one variable, we don't expect that it will caues *other* variables to change their state.**
 
 Functional languages respond to this problem by preventing *all* mutation. That certainly works. Languages like Rust and Dada respond by preventing mutation and sharing from happening at the same time. That works too, and it gives you more flexibility.
 

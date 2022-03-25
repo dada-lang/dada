@@ -29,19 +29,17 @@ Covers `my` and `our` and their interactions
 * introducing the `our` mode, and how it copies
     * `our p = Point(...)`, `our q = p` copies
     * `fn foo(our x)`, we saw `class Point(our x)`
-* the `share` keyword for making this explicit
-    * `our q = p.share`
-
-### friends don't let friends share and mutate
-
-* `our p = Point(...)`, `p.x += 1` → error and why
-
-### my to our and the reverse
-
 * `my -> our` gives ownership
     * `my p = Point(...), our q = p`
 * once shared, cannot go back to unique, could be other copies
     * `my q = Point(....).share`
+* the `share` keyword for making this explicit
+    * `our q = p.share`
+* `give` applied to `share` has no effect
+
+### friends don't let friends mutate `our` data
+
+* `our p = Point(...)`, `p.x += 1` → error and why
 
 ### inherited modes
 
