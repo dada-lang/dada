@@ -1,4 +1,4 @@
-# Friends don't let friends mutate `our` data
+# Friends don't let friends mutate shared data
 
 {{#include ../caveat.md}}
 
@@ -13,13 +13,13 @@ our p = Point(x: 22, y: 44)
 p.x += 1                    # <-- Error!
 ```
 
-This is, in fact, a core principle of Dada: **Friends don't let friends mutate `our` data**[^xor]. What it means is that we like sharing, and we like mutation, but we don't like having them both at the same time: that way leads to despair. Well, bugs anyway.
+This is, in fact, a core principle of Dada: **Friends don't let friends mutate shared data**[^xor]. What it means is that we like sharing, and we like mutation, but we don't like having them both at the same time: that way leads to despair. Well, bugs anyway.
 
-[^xor]: Sometimes more "pithily" said as **sharing xor mutation please**.
+[^xor]: Sometimes more "pithily" said as **sharing xor mutation**.
 
 ## Aside: What's wrong with sharing and mutation?
 
-The idea of *sharing xor mutability* needs a bit of justification: it's a pretty big shift from how most languages work! To give you a feeling for why this is such a bedrock principle of Dada, let's look at two examples. For these examples, we'll be using Python, but the same kinds of examples can be constructed in basically any language that permits mutation.
+The *friends don't let friends mutate shared data* principle needs a bit of justification: it's a pretty big shift from how most languages work! To give you a feeling for why this is such a bedrock principle of Dada, let's look at two examples. For these examples, we'll be using Python, but the same kinds of examples can be constructed in basically any language that permits mutation.
 
 ### Example 1: Data race
 
