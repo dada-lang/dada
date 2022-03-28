@@ -9,10 +9,10 @@ class Point(our x, our y)
 any my_p = Point(22, 44)
 
 # You can `give` it to another variable
-any no_my_p = owned_p.give
+any my_p_now = my_p.give
 
 # You can `share` it
-any our_p = no_my_p.share
+any our_p = my_p_now.share
 
 # Giving a shared thing is a copy
 any also_our_p = our_p.give

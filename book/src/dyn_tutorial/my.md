@@ -17,7 +17,7 @@ class Point(our x, our y)
 
 my p = Point(22, 44)
 my q = p # <--- added this line
-print("The point is ({p.x}, {p.y})").await
+print("The point is {p}").await
 ```
 
 If you run it, you will find that it gets an error:
@@ -26,8 +26,8 @@ If you run it, you will find that it gets an error:
 error: `p` has no value
   > my q = p # <-- Added this line!
         - value in `p` was given to `q` here
-  > print("The point is ({p.x}, {q.y})).await
-                          ^^^ `p` has no value
+  > print("The point is {p}").await
+                        ^^^ `p` has no value
 ```
 
 When you assign to the `my q` variable, you are actually **giving** ownership from `p` to `q`. You can't have two unique owners, so that means that `p` is empty. 
@@ -43,7 +43,7 @@ my p = Point(22, 44)
 #                  ▲
 # ─────────────────┘
 my q = p
-print("The point is ({p.x}, {p.y})").await
+print("The point is {p}").await
 
 # You see:
 # 
@@ -65,7 +65,7 @@ my p = Point(22, 44)
 my q = p
 #       ▲
 # ──────┘
-print("The point is ({p.x}, {p.y})").await
+print("The point is {p}").await
 
 # You see:
 # 
