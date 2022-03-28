@@ -52,7 +52,6 @@ my p = Point(22, 44)
 print("I can access {p}").await    # Prints `Point(22, 44)`
 #                              ▲
 # ─────────────────────────────┘
-
 ...
 
 # You see:

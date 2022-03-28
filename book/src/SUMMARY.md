@@ -10,7 +10,7 @@
     - [I me, me, mine: the `my` permission](./dyn_tutorial/my.md)
     - [Share and share alike with the `our` permission](./dyn_tutorial/our.md)
     - [Friends don't let friends mutate `our` data](./dyn_tutorial/sharing_xor_mutation.md)
-    - [Inherited permissions](./dyn_tutorial/inherited.md)
+    - [Permissions on fields](./dyn_tutorial/field_permissions.md)
     - [The `any` permission](./dyn_tutorial/any.md)
   - [Atomic storage and blocks](./dyn_tutorial/atomic.md)
 - [Tutorial: Typed Dada](./typed_tutorial.md)
