@@ -43,6 +43,8 @@ define_operators! {
     DividedByEqual => "/=",
     ColonEqual => ":=",
     EqualEqual => "==",
+    GreaterEqual => ">=",
+    LessEqual => "<=",
 
     // 1-character ops
     Plus => "+",
