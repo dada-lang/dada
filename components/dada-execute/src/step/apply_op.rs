@@ -41,12 +41,16 @@ impl Stepper<'_> {
         match (&self.machine[lhs], &self.machine[rhs]) {
             (&ObjectData::Bool(lhs), &ObjectData::Bool(rhs)) => match op {
                 Op::EqualEqual => Ok(self.machine.our_value(lhs == rhs)),
+                Op::GreaterEqual => Ok(self.machine.our_value(lhs >= rhs)),
+                Op::LessEqual => Ok(self.machine.our_value(lhs <= rhs)),
                 _ => op_error(),
             },
             (&ObjectData::UnsignedInt(lhs), &ObjectData::UnsignedInt(rhs))
             | (&ObjectData::UnsignedInt(lhs), &ObjectData::Int(rhs))
             | (&ObjectData::Int(lhs), &ObjectData::UnsignedInt(rhs)) => match op {
                 Op::EqualEqual => Ok(self.machine.our_value(lhs == rhs)),
+                Op::GreaterEqual => Ok(self.machine.our_value(lhs >= rhs)),
+                Op::LessEqual => Ok(self.machine.our_value(lhs <= rhs)),
                 Op::Plus => match lhs.checked_add(rhs) {
                     Some(value) => Ok(self.machine.our_value(value)),
                     None => overflow_error(),
@@ -68,6 +72,8 @@ impl Stepper<'_> {
             },
             (&ObjectData::Int(lhs), &ObjectData::Int(rhs)) => match op {
                 Op::EqualEqual => Ok(self.machine.our_value(lhs == rhs)),
+                Op::GreaterEqual => Ok(self.machine.our_value(lhs >= rhs)),
+                Op::LessEqual => Ok(self.machine.our_value(lhs <= rhs)),
                 Op::Plus => match lhs.checked_add(rhs) {
                     Some(value) => Ok(self.machine.our_value(ObjectData::Int(value))),
                     None => overflow_error(),
@@ -100,6 +106,8 @@ impl Stepper<'_> {
             },
             (&ObjectData::Float(lhs), &ObjectData::Float(rhs)) => match op {
                 Op::EqualEqual => Ok(self.machine.our_value(lhs == rhs)),
+                Op::GreaterEqual => Ok(self.machine.our_value(lhs >= rhs)),
+                Op::LessEqual => Ok(self.machine.our_value(lhs <= rhs)),
                 Op::Plus => Ok(self.machine.our_value(lhs + rhs)),
                 Op::Minus => Ok(self.machine.our_value(lhs - rhs)),
                 Op::Times => Ok(self.machine.our_value(lhs * rhs)),
@@ -107,15 +115,25 @@ impl Stepper<'_> {
                 Op::LessThan => Ok(self.machine.our_value(lhs < rhs)),
                 Op::GreaterThan => Ok(self.machine.our_value(lhs > rhs)),
             },
-            (ObjectData::String(lhs), ObjectData::String(rhs)) => {
-                let eq = lhs == rhs;
-                match op {
-                    Op::EqualEqual => Ok(self.machine.our_value(eq)),
-                    _ => op_error(),
+            (ObjectData::String(lhs), ObjectData::String(rhs)) => match op {
+                Op::EqualEqual => {
+                    let val = lhs == rhs;
+                    Ok(self.machine.our_value(val))
                 }
-            }
+                Op::GreaterEqual => {
+                    let val = lhs >= rhs;
+                    Ok(self.machine.our_value(val))
+                }
+                Op::LessEqual => {
+                    let val = lhs <= rhs;
+                    Ok(self.machine.our_value(val))
+                }
+                _ => op_error(),
+            },
             (&ObjectData::Unit(()), &ObjectData::Unit(())) => match op {
                 Op::EqualEqual => Ok(self.machine.our_value(true)),
+                Op::GreaterEqual => Ok(self.machine.our_value(lhs >= rhs)),
+                Op::LessEqual => Ok(self.machine.our_value(lhs <= rhs)),
                 _ => op_error(),
             },
             _ => op_error(),
@@ -139,6 +157,8 @@ impl Stepper<'_> {
         };
         match op {
             Op::EqualEqual => Ok(self.machine.our_value(lhs == rhs)),
+            Op::GreaterEqual => Ok(self.machine.our_value(lhs >= rhs)),
+            Op::LessEqual => Ok(self.machine.our_value(lhs <= rhs)),
             Op::Plus => match lhs.checked_add(rhs) {
                 Some(value) => Ok(self.machine.our_value(value)),
                 None => overflow_error(),

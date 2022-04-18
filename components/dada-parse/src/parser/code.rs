@@ -221,7 +221,13 @@ impl CodeParser<'_, '_> {
         loop {
             if let Some(expr1) = self.parse_binop(
                 expr,
-                &[Op::EqualEqual, Op::LessThan, Op::GreaterThan],
+                &[
+                    Op::EqualEqual,
+                    Op::LessThan,
+                    Op::GreaterThan,
+                    Op::GreaterEqual,
+                    Op::LessEqual,
+                ],
                 Self::parse_expr_4,
             ) {
                 expr = expr1;

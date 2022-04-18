@@ -708,6 +708,8 @@ impl<'me> Validator<'me> {
 
             // Binops
             syntax::op::Op::EqualEqual => validated::op::Op::EqualEqual,
+            syntax::op::Op::GreaterEqual => validated::op::Op::GreaterEqual,
+            syntax::op::Op::LessEqual => validated::op::Op::LessEqual,
             syntax::op::Op::Plus => validated::op::Op::Plus,
             syntax::op::Op::Minus => validated::op::Op::Minus,
             syntax::op::Op::Times => validated::op::Op::Times,

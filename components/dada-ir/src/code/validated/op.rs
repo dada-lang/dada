@@ -37,6 +37,8 @@ impl std::fmt::Display for Op {
 
 define_operators! {
     EqualEqual => "==",
+    GreaterEqual => ">=",
+    LessEqual => "<=",
     Plus => "+",
     Minus => "-",
     Times => "*",
