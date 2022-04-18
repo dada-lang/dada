@@ -949,7 +949,8 @@ impl<'me> Validator<'me> {
             | syntax::op::Op::LeftAngle
             | syntax::op::Op::RightAngle
             | syntax::op::Op::Dot
-            | syntax::op::Op::Equal => {
+            | syntax::op::Op::Equal
+            | syntax::op::Op::RightArrow => {
                 unreachable!("unexpected op")
             }
         }

@@ -1,7 +1,12 @@
 use crate::{parser::Parser, token_test::SpannedIdentifier};
 
 use dada_ir::{
-    class::Class, code::Code, effect::Effect, function::Function, item::Item, kw::Keyword,
+    class::Class,
+    code::{syntax::op::Op, Code},
+    effect::Effect,
+    function::Function,
+    item::Item,
+    kw::Keyword,
 };
 
 use super::OrReportError;
@@ -60,10 +65,16 @@ impl<'db> Parser<'db> {
         let (_, parameter_tokens) = self
             .delimited('(')
             .or_report_error(self, || "expected function parameters".to_string())?;
+        let return_type = self.eat_op(Op::RightArrow);
         let (_, body_tokens) = self
             .delimited('{')
             .or_report_error(self, || "expected function body".to_string())?;
-        let code = Code::new(effect, Some(parameter_tokens), body_tokens);
+        let code = Code::new(
+            effect,
+            Some(parameter_tokens),
+            return_type.map(|s| s.in_file(self.filename)),
+            body_tokens,
+        );
         let start_span = effect_span.unwrap_or(fn_span);
         Some(Function::new(
             self.db,

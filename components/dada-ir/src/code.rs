@@ -1,4 +1,4 @@
-use crate::{effect::Effect, filename::Filename, token_tree::TokenTree};
+use crate::{effect::Effect, filename::Filename, span::FileSpan, token_tree::TokenTree};
 
 /// "Code" represents a block of code attached to a method.
 /// After parsing, it just contains a token tree, but you can...
@@ -14,6 +14,8 @@ pub struct Code {
     /// Tokens for the parameter list (parsed when we generate the syntax tree).
     pub parameter_tokens: Option<TokenTree>,
 
+    pub return_type: Option<FileSpan>,
+
     /// Tokens for the body (parsed when we generate the syntax tree).
     pub body_tokens: TokenTree,
 }
@@ -22,11 +24,13 @@ impl Code {
     pub fn new(
         effect: Effect,
         parameter_tokens: Option<TokenTree>,
+        return_type: Option<FileSpan>,
         body_tokens: TokenTree,
     ) -> Self {
         Self {
             effect,
             parameter_tokens,
+            return_type,
             body_tokens,
         }
     }
@@ -38,9 +42,10 @@ impl Code {
 
 impl<Db: ?Sized + crate::Db> salsa::DebugWithDb<Db> for Code {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>, db: &Db) -> std::fmt::Result {
-        f.debug_tuple("Code")
-            .field(&self.parameter_tokens.debug(db))
-            .field(&self.body_tokens.debug(db))
+        f.debug_struct("Code")
+            .field("parameter_tokens", &self.parameter_tokens.debug(db))
+            .field("return_type", &self.return_type.debug(db))
+            .field("body_tokens", &self.body_tokens.debug(db))
             .finish()
     }
 }
