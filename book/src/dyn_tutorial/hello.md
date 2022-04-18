@@ -5,13 +5,11 @@
 The classic “Hello, World” program in Dada should be quite familiar:
 
 ```
-async fn main() {
-    print("
-        I have forced myself to contradict myself
-        in order to avoid conforming to my own taste.
-          -- Marcel Duchamp
-    ").await
-}
+print("
+    I have forced myself to contradict myself
+    in order to avoid conforming to my own taste.
+      -- Marcel Duchamp
+").await
 ```
 
 When you run this (try it!) it prints:

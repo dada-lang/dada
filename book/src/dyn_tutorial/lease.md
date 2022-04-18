@@ -2,167 +2,104 @@
 
 {{#include ../caveat.md}}
 
-In the previous chapter, we talked about *giving permissions away*. But sometimes we would just like to give temporary access; this is where the `lease` keyword comes in. Consider the following program:
+So far in the tutorial, we've worked exclusively with the two **owned** permisions, `my` and `our`. Owned permissions have the property that they are independent from all other variables. When you have owned permission to an object, [nobody can take that away from you](./our.md#why-cant-we-invalidate-other-our-values). (In the case of `our`, you might only have read permission, but that read permisson cannot be revoked.)
 
-```
-class Point(x, y)
+Sometimes, though, we want to give people **temporary** access to an object that we own, without giving up control. In Dada, this is called a **lease**, and it works in a very similar way to how an ["at will" lease] works in "real life". If one variable `a` owns an object, it can lease out that object to another variable `b` temporarily. `b` can use the object up until `a` wants it back.
 
-async fn main() {
-    p = Point(x: 22, y: 44)
-    q = p.lease
-    q.x += 1
-    print("The point is ({p.x}, {p.y})").await
-}
-```
+["at will" lease]: https://en.wikipedia.org/wiki/Leasehold_estate#Tenancy_at_will
 
-Here, we added the line `q = p.lease`. What that does is to create a *leased* copy of the `Point`. When you lease an object, you are temporarily getting permission to access it. 
+## The permissions table
+
+Leased permissions complete the "permisions table" that we saw earlier:
+
+|            | Unique   | Shared     |
+| ---------- | -------- | ---------- |
+| Owned      | [`my`](./my.md)     | [`our`](./our.md)      |
+| **Leased** | ⭐ **`leased`** ⭐ | [`shleased`](./shlease.md) |
+
+We'll start by talking about *unique leases*, written `lease`, and then cover *shared leases*, which we call a `shlease` (pronounced, um, "sh-lease", kind of like the German "schliese"[^notreal]).
+
+[^notreal]: No, "shlease" is not a real word.^[wasnot]
+
+[^wasnot]: At least, "shlease" *was* not a real word, until now! Who wants words that other people have invented anyway?
 
 ## Unique leases
 
-The default lease is an **unique** lease. That means that the new variable has exclusive access to the object. So long as the lease is active, all reads and writes to that object have to go through the leased variable (`q`) or some sublease of `q`. In the next chapter, we'll talk about shared leases, which can be accessed from many variables (we actually saw a shared lease earlier, in the [chapter on creating and dropping objects](create.md)).
+In this example, the line `leased l = p` declares a variable `l` that has a *unique lease* to the object stored in `p`:
 
-Because `q` has a unique lease to the `Point`, it is able to modify the fields of the `Point`. Let's explore this in the debugger. Position your cursor right before `q.x += 1` and you will [see](https://asciiflow.com/#/share/eJyrVspLzE1VssorzcnRUcpJrEwtUrJSqo5RqohRsrK0MNKJUaoEsowsLIGsktSKEiAnRunRlD3IKCYmD0gqKChASDSAphiLxgKomtxKPGrR0bRdIK0B%2BZl5JQrEuAHdHUiaCqFyOamJxakpGgWa%2BGyssFIwMiLOxkorBRMThFIU20kKJqVapVoAp%2FrUlQ%3D%3D):
+```
+class Point(our x, our y)
+
+my p = Point(22, 44)
+leased l = p
+l.x += 1
+print(l.x).await             # Prints `23`
+print(p.x).await             # Prints `23`
+```
+
+As you can see, a unique lease can be used just like the original object. Modifications to the leased object like `l.x += 1` affect the original object too, so when we print `p.x` we see `23`.
+
+If you position your cursor right after `leased l = p`, you will see the following diagram, which shows that both `p` and `l` store the same object. The `my` arrow from `p` has been "dashed" to indicate that, while `p` retains ownership, the object is currently leased to another variable:
 
 ```
 ┌───┐
 │   │                  ┌───────┐
 │ p ├╌my╌╌╌╌╌╌╌╌╌╌╌╌╌╌►│ Point │
 │   │                  │ ───── │
-│ q ├─leased(p)───────►│ x: 22 │
+│ l ├─leased──────────►│ x: 22 │
 │   │                  │ y: 44 │
 └───┘                  └───────┘
 ```
 
-The `leased(p)` permission here says that `q` is *leased from* `p` (this implies a unique lease). If we then go to the next line, we see that the value of `x` changes:
+## What makes unique leases *unique*?
+
+Unique leases are called unique because, so long as the lease has not been canceled, it grants unique access to the object, meaning that no other variable besides `l` can access the object in any way -- even reads. This is why its ok to write to the object through `l`, even though ["friends don't let friends mutate shared data"](./sharing_xor_mutation.md). In other words, even though two variables have access to the same object (`p` and `l`), only one of them has access to the object *at any given time*.
+
+## Terminating a unique lease
+
+A unique lease can be *terminated* in two ways:
+
+* The leased variable `l` goes out of scope.
+* The owner (or lessor) variable `p` is used again. Because `l` had a unique lease, once `p` starts using the object, that implies the unique lease is canceled -- otherwise it wouldn't be unique, would it?
+
+You can see this second case by positioning your cursor after the `print(p).await` line in our original example. You will see that the `l` variable no longer has a value, and the `p` line is no longer 'dashed':
 
 ```
-  ┌───┐
-  │   │                  ┌───────┐
-  │ p ├─my╌╌╌╌╌╌╌╌╌╌╌╌╌╌►│ Point │
-  │   │                  │ ───── │
-  │ q ├─leased(p)───────►│ x: 23 │
-  │   │                  │ y: 44 │
-  └───┘                  └───────┘
+class Point(our x, our y)
+
+my p = Point(22, 44)
+leased l = p
+l.x += 1
+print(l.x).await             # Prints `23`
+print(p.x).await             # Prints `23`
+#               ▲
+# ──────────────┘
+
+# You see
+#
+# ┌───┐
+# │   │                  ┌───────┐
+# │ p ├─my──────────────►│ Point │
+# │   │                  │ ───── │
+# │ l │                  │ x: 23 │
+# │   │                  │ y: 44 │
+# └───┘                  └───────┘
 ```
 
-## Subleasing
+What do you think will happen if we try to use `l` again? Try it and find out!
 
-When you have a leased value, you can lease it again, creating a sublease:
+## The `lease` keyword
 
-```
-class Point(x, y)
-
-async fn main() {
-    p = Point(x: 22, y: 44)
-    q = p.lease
-    r = q.lease
-    r.x += 1
-    print("The point is ({p.x}, {p.y})").await
-}
-```
-
-Here `p` was leased to create `q`, and `q` then leased *its* permission to `r`. If step through in the debugger to just before `r.x += 1`, we see:
+In addition to assigning to a `leased` variable, we can explicitly create a lease with the `lease` keyword. This is particularly useful when combined with [`any` permissions](./any.md). In this example, `any l = p.lease` is equivalent to the `leased l = p` that we saw earlier:
 
 ```
-┌───┐
-│   │                  
-│ p ├╌my╌╌╌╌╌╌╌╌╌╌╌╌╌╌►┌───────┐
-│   │                  │ Point │
-│ q ├╌leased(p)╌╌╌╌╌╌╌►│ ───── │
-│   │                  │ x: 22 │
-│ r ├─leased(q)───────►│ y: 44 │
-│   │                  └───────┘
-└───┘                  
+class Point(our x, our y)
+
+my p = Point(22, 44)
+any l = p.lease
+l.x += 1
 ```
 
-This shows that the lessor for a lease can either be the *owner* of the object (`p`, in the case of `q`) or another leased value (`q`, in the case of `r`).
+# Giving a leased value
 
-## Ending a lease
-
-Leases last until the lessor chooses to end them. Lessors end a lease by taking some action that violates the terms of the lease: here, since `q` has an exclusive lease, `p` can end the lease by reading or writing from the point, as that implies that `q` no longer has exclusive access. If we go back to our original example with just `p` and `q`:
-
-
-```
-class Point(x, y)
-
-async fn main() {
-    p = Point(x: 22, y: 44)
-    q = p.lease
-    q.x += 1
-    print("The point is ({p.x}, {p.y})").await
-}
-```
-
-Here the the `print` statement reads from `p` -- this will end the lease once it executes. Using the debugger, position the line just after the print and you will [see](https://asciiflow.com/#/share/eJyrVspLzE1VssorzcnRUcpJrEwtUrJSqo5RqohRsrK0MNOJUaoEsowsDYGsktSKEiAnRunRlD3IKCYmD0gqKChASDSAphiLxgKomtxKPGrR0bRdIK0B%2BZl5JQoE3YDhCiQthbi0VFgpGBkRY3allYKJCUIhij0kBYdSrVItAJuouas%3D):
-
-```
-┌───┐
-│   │                  ┌───────┐
-│ p ├─my──────────────►│ Point │
-│   │                  │ ───── │
-│ q │                  │ x: 22 │
-│   │                  │ y: 44 │
-└───┘                  └───────┘
-```
-
-What do you think will happen if we try to use `q` again? Try it and find out!
-
-## Giving a leased value
-
-Earlier, we saw that the [`give`](./give.md) keyword can be used to give ownership from one variable to another. Similarly, if you use the `give` keyword with a leased value, then this leased value is giving *its* permission to another. This is in fact equivalent to a sublease, and that is exactly what happens. That means that in this program, the `q.give` is equivalent to `q.lease`:
-
-```
-class Point(x, y)
-
-async fn main() {
-    p = Point(x: 22, y: 44)
-    q = p.lease
-    r = q.give
-    r.x += 1
-    print("The point is ({p.x}, {p.y})").await
-}
-```
-
-Alternatively, we can even leave the `give` keyword away:
-
-```
-class Point(x, y)
-
-async fn main() {
-    p = Point(x: 22, y: 44)
-    q = p.lease
-    r = q
-    r.x += 1
-    print("The point is ({p.x}, {p.y})").await
-}
-```
-
-If you step through to the line `r.x`, you will see the same picture that we saw with `q.lease`:
-
-```
-┌───┐
-│   │                  ┌───────┐
-│ p ├╌my╌╌╌╌╌╌╌╌╌╌╌╌╌╌►│ Point │
-│   │                  │ ───── │
-│ q ├╌leased(p)╌╌╌╌╌╌╌►│ x: 22 │
-│   │                  │ y: 44 │
-│ r ├─leased(q)───────►│ x: 22 │
-│   │                  └───────┘
-└───┘                  
-```
-
-Try modifying the program so that instead of printing from `p`, we print from `q`. What happens?
-
-```
-class Point(x, y)
-
-async fn main() {
-    p = Point(x: 22, y: 44)
-    q = p.lease
-    r = q
-    r.x += 1
-    print("The point is ({q.x}, {q.y})").await
-}
-```
-
-(Answer: the sublease on `r` ends.)
+You may be wondering what happens when you `give` a leased value. As always, giving a value means creating a second value with the same permissions -- but to explain exactly how giving works on a leased value, we have to introduce one more concept, the *sublease*. That's covered in the next section.
