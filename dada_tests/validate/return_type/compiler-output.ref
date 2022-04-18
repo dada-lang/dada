@@ -1,24 +1,24 @@
-Error: cannot return a value
+Error: cannot return a value in this function
     ╭─[dada_tests/validate/return_type.dada:10:12]
     │
- 10 │     return 1 #! ERROR cannot return a value
+ 10 │     return 1 #! ERROR cannot return a value in this function
     ·            ┬  
-    ·            ╰── cannot return a value
+    ·            ╰── can only write `return` (without a value) in this function
 ────╯
-Error: must return something
+Error: function body cannot be empty
    ╭─[dada_tests/validate/return_type.dada:5:16]
    │
  5 │ fn not_unit2() -> {
    ·                ─┬  
-   ·                 ╰── because return type is not unit
+   ·                 ╰── because function is supposed to return something
 ───╯
-Error: must return something
+Error: return requires an expression
    ╭─[dada_tests/validate/return_type.dada:2:5]
    │
  1 │ fn not_unit1() -> {
    ·                ─┬  
-   ·                 ╰── because return type is not unit
- 2 │     return #! ERROR must return something
+   ·                 ╰── because the function returns a value
+ 2 │     return #! ERROR return requires an expression
    ·     ───┬──  
-   ·        ╰──── must return something
+   ·        ╰──── cannot just have `return` without an expression afterwards
 ───╯

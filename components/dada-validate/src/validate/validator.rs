@@ -166,8 +166,8 @@ impl<'me> Validator<'me> {
         if let Some(return_type) = self.code.return_type {
             if let validated::ExprData::Seq(exprs) = validated_expr.data(self.tables) {
                 if exprs.is_empty() {
-                    dada_ir::error!(return_type, "must return something",)
-                        .primary_label("because return type is not unit")
+                    dada_ir::error!(return_type, "function body cannot be empty",)
+                        .primary_label("because function is supposed to return something")
                         .emit(self.db);
                 }
             }
@@ -541,15 +541,20 @@ impl<'me> Validator<'me> {
             syntax::ExprData::Return(with_value) => {
                 match (self.code.return_type, with_value) {
                     (Some(return_type), None) => {
-                        dada_ir::error!(self.span(expr), "must return something")
-                            .primary_label("must return something")
-                            .secondary_label(return_type, "because return type is not unit")
+                        dada_ir::error!(self.span(expr), "return requires an expression")
+                            .primary_label(
+                                "cannot just have `return` without an expression afterwards",
+                            )
+                            .secondary_label(return_type, "because the function returns a value")
                             .emit(self.db);
                     }
                     (None, Some(return_expr)) => {
-                        dada_ir::error!(self.span(*return_expr), "cannot return a value")
-                            .primary_label("cannot return a value")
-                            .emit(self.db);
+                        dada_ir::error!(
+                            self.span(*return_expr),
+                            "cannot return a value in this function"
+                        )
+                        .primary_label("can only write `return` (without a value) in this function")
+                        .emit(self.db);
                     }
                     _ => {}
                 }
