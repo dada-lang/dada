@@ -14,6 +14,7 @@ pub struct Code {
     /// Tokens for the parameter list (parsed when we generate the syntax tree).
     pub parameter_tokens: Option<TokenTree>,
 
+    /// Span of `->` symbol if it has one.
     pub return_type: Option<FileSpan>,
 
     /// Tokens for the body (parsed when we generate the syntax tree).
