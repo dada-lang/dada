@@ -172,11 +172,12 @@ impl<'me> Validator<'me> {
                 }
             }
         } else {
-            let unit = self.add(validated::ExprData::Tuple(vec![]), expr);
+            let origin = ExprOrigin::synthesized(expr);
+            let unit = self.add(validated::ExprData::Tuple(vec![]), origin);
             if let validated::ExprData::Seq(exprs) = validated_expr.data_mut(self.tables) {
                 exprs.push(unit);
             } else {
-                return self.add(validated::ExprData::Seq(vec![validated_expr, unit]), expr);
+                return self.add(validated::ExprData::Seq(vec![validated_expr, unit]), origin);
             }
         }
         validated_expr
