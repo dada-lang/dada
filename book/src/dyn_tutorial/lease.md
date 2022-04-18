@@ -2,7 +2,7 @@
 
 {{#include ../caveat.md}}
 
-So far in the tutorial, we've worked exclusively with the two **owned** permisions, `my` and `our`. Owned permissions have the property that they are independent from all other variables. When you have owned permission to an object, nobody can take that away from you. (In the case of `our`, you might only have read permission, but that read permisson cannot be revoked.)
+So far in the tutorial, we've worked exclusively with the two **owned** permisions, `my` and `our`. Owned permissions have the property that they are independent from all other variables. When you have owned permission to an object, [nobody can take that away from you](./our.md#why-cant-we-invalidate-other-our-values). (In the case of `our`, you might only have read permission, but that read permisson cannot be revoked.)
 
 Sometimes, though, we want to give people **temporary** access to an object that we own, without giving up control. In Dada, this is called a **lease**, and it works in a very similar way to how an ["at will" lease] works in "real life". If one variable `a` owns an object, it can lease out that object to another variable `b` temporarily. `b` can use the object up until `a` wants it back.
 
@@ -12,10 +12,10 @@ Sometimes, though, we want to give people **temporary** access to an object that
 
 Leased permissions complete the "permisions table" that we saw earlier:
 
-|        | Unique   | Shared     |
-| ------ | -------- | ---------- |
-| Owned  | `my`     | `our`      |
-| Leased | `leased` | `shleased` |
+|            | Unique   | Shared     |
+| ---------- | -------- | ---------- |
+| Owned      | [`my`](./my.md)     | [`our`](./our.md)      |
+| **Leased** | ⭐ **`leased`** ⭐ | [`shleased`](./shlease.md) |
 
 We'll start by talking about *unique leases*, written `lease`, and then cover *shared leases*, which we call a `shlease` (pronounced, um, "sh-lease", kind of like the German "schliese"[^notreal]).
 

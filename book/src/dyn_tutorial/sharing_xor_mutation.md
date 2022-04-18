@@ -15,7 +15,7 @@ p.x += 1                    # <-- Error!
 
 This is, in fact, a core principle of Dada: **Friends don't let friends mutate shared data**[^xor]. What it means is that we like sharing, and we like mutation, but we don't like having them both at the same time: that way leads to despair. Well, bugs anyway.
 
-[^xor]: Sometimes more "pithily" said as **sharing xor mutation**.
+[^xor]: A shorter, if less playful, alternative is **sharing xor mutation**.
 
 ## Aside: What's wrong with sharing and mutation?
 

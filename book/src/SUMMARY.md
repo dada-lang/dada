@@ -14,6 +14,8 @@
     - [The `any` permission](./dyn_tutorial/any.md)
     - [Leasing permissions](./dyn_tutorial/lease.md)
     - [Subleases](./dyn_tutorial/sublease.md)
+    - [Shleases](./dyn_tutorial/shlease.md)
+    - [Shleases vs sharing a lease](./dyn_tutorial/house_party.md)
   - [Atomic storage and blocks](./dyn_tutorial/atomic.md)
 - [Tutorial: Typed Dada](./typed_tutorial.md)
 - [Dada for Rustaceans](./rustaceans.md)

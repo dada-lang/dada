@@ -1,6 +1,8 @@
 # Permissions on fields
 
-Like other variables, class fields have permissions. T(he `Point` class we've been working with, for example, declares its `x` and `y` fields to have `our` permission:
+{{#include ../caveat.md}}
+
+Like other variables, class fields have permissions. The `Point` class we've been working with, for example, declares its `x` and `y` fields to have `our` permission:
 
 ```
 class Point(our x, our y)

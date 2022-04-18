@@ -27,7 +27,7 @@ leased l2 = l1
 # └────┘                  
 ```
 
-Subleases can be ended just like any other lease, except that a sublease can be terminated either by the lessor (`l1`, here) or by the original owner (`p`, here).
+Subleases can be ended just like any other lease, except that a sublease can be terminated either by the lessor (`l1`, here) or by the original owner (`p`, here). Try inserting commands like `l1.x += 1` or `p.x += 1` and see how the diagram changes.
 
 ## Giving a leased value
 
