@@ -1,4 +1,4 @@
-use crate::{effect::Effect, filename::Filename, span::FileSpan, token_tree::TokenTree};
+use crate::{effect::Effect, filename::Filename, return_type::ReturnType, token_tree::TokenTree};
 
 /// "Code" represents a block of code attached to a method.
 /// After parsing, it just contains a token tree, but you can...
@@ -14,11 +14,8 @@ pub struct Code {
     /// Tokens for the parameter list (parsed when we generate the syntax tree).
     pub parameter_tokens: Option<TokenTree>,
 
-    /// Span of `->` symbol if it has one, or where it would go if doesn't have it.
-    pub return_type: FileSpan,
-
-    /// Whether this funcion returns a value (has `->`) or not.
-    pub returns_value: bool,
+    /// Return type of the function.
+    pub return_type: ReturnType,
 
     /// Tokens for the body (parsed when we generate the syntax tree).
     pub body_tokens: TokenTree,
@@ -28,15 +25,13 @@ impl Code {
     pub fn new(
         effect: Effect,
         parameter_tokens: Option<TokenTree>,
-        return_type: FileSpan,
-        returns_value: bool,
+        return_type: ReturnType,
         body_tokens: TokenTree,
     ) -> Self {
         Self {
             effect,
             parameter_tokens,
             return_type,
-            returns_value,
             body_tokens,
         }
     }
