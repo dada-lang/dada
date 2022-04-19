@@ -13,10 +13,10 @@ impl Stepper<'_> {
     ///
     /// # Examples
     ///
-    /// Creates a shared point:
+    /// Creates a leased point:
     ///
     /// ```notrust
-    /// p = Point(22, 44).share
+    /// p = Point(22, 44).lease
     /// ```
     ///
     /// # Invariants
@@ -28,7 +28,7 @@ impl Stepper<'_> {
     ///   * If `place` is jointly accessible, result will be jointly accessible
     ///   * If `place` is exclusive, result will be exclusive
     /// * `place` remains valid and unchanged; asserting `place` or invalidating
-    ///   it may invalidate the result
+    ///   it may invalidate the result `v`.
     #[tracing::instrument(level = "Debug", skip(self, table))]
     pub(super) fn lease_place(
         &mut self,
@@ -116,28 +116,28 @@ impl Stepper<'_> {
         //                   :
         //                   : tenant
         //                   v
-        //                 --shared--> b
+        //                 --leased--> b
         //                 =========== resulting permission
         // ```
         //
         // ```notrust
         // a -my-> [ Obj ]
-        //         [  f  ] --leased---> b
+        //         [  f  ] --leased----> b
         //                   :
         //                   : tenant
         //                   v
-        //                 --shared--> b
-        //                 =========== resulting permission
+        //                 --leased----> b
+        //                 ============= resulting permission
         // ```
         //
         // ```notrust
         // a -our-> [ Obj ]
-        //          [  f  ] --leased---> b
+        //          [  f  ] --leased----> b
         //                    :
         //                    : tenant
         //                    v
-        //                  --shared--> b
-        //                  =========== resulting permission
+        //                  --shleased--> b
+        //                  ============= resulting permission
         // ```
         //
         // In each case, reasserting `a.f` *may* invalidate the resulting

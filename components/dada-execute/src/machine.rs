@@ -495,7 +495,7 @@ impl ValidPermissionData {
             (Joint::No, Leased::No) => "my",
             (Joint::No, Leased::Yes) => "leased",
             (Joint::Yes, Leased::No) => "our",
-            (Joint::Yes, Leased::Yes) => "our leased",
+            (Joint::Yes, Leased::Yes) => "shleased",
         }
     }
 }

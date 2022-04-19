@@ -25,7 +25,8 @@ impl Stepper<'_> {
     /// * The result is shared
     /// * The shared result has the same ownership/lease properties as original path:
     ///   * If original path was owned, shared result is owned (sharing a `my Foo` gives an `our Foo`).
-    ///   * If original path was leased, shared result is leased and lives as long as original lease would (sharing a `my leased(p) Foo` gives an `our leased(p) Foo`).
+    ///   * If original path was leased, shared result is leased and lives as long as original lease would
+    ///     (sharing a `leased(p) Foo` gives a `shleased(p) Foo`).
     /// * After sharing, the original path can be read (or shared again) without disturbing the share.
     ///
     /// Implication:
@@ -40,36 +41,6 @@ impl Stepper<'_> {
         let object_traversal = self.traverse_to_object(table, place)?;
         let object_traversal = self.confirm_reservation_if_any(table, object_traversal)?;
         self.share_traversal(object_traversal)
-    }
-
-    /// Equivalent to `foo.lease.share`, used when assigning to an `our shared` location.
-    #[tracing::instrument(level = "Debug", skip(self, table))]
-    pub(super) fn share_leased_place(
-        &mut self,
-        table: &bir::Tables,
-        place: bir::Place,
-    ) -> eyre::Result<Value> {
-        let object_traversal = self.traverse_to_object(table, place)?;
-        let object_traversal = self.confirm_reservation_if_any(table, object_traversal)?;
-        tracing::debug!(?object_traversal);
-        if let Joint::Yes = object_traversal.accumulated_permissions.joint {
-            self.lease_traversal(object_traversal)
-        } else if let Leased::Yes = object_traversal.accumulated_permissions.leased {
-            self.share_traversal(object_traversal)
-        } else {
-            // Fully owned: first lease it, which will create a new tenant.
-            let Value {
-                object,
-                permission: leased_permission,
-            } = self.lease_traversal(object_traversal)?;
-
-            // Then create a shared sublease of `permission`.
-            let shared_permission = self.new_tenant_permission(Joint::Yes, leased_permission);
-            Ok(Value {
-                object,
-                permission: shared_permission,
-            })
-        }
     }
 
     #[tracing::instrument(level = "debug", skip(self))]

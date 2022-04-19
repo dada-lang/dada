@@ -11,15 +11,16 @@
 # But I'm pretty sure it's there.
 
 class Accumulator(my atomic list)
-class List()
+class List(our field)
 
-fn foo(leased accumulator) # ->
+fn foo(leased accumulator) # -> shleased List
 {
+    #! FIXME: Reading an atomic field without atomic section should not be allowed
     accumulator.list.lease.share
 }
 
 async fn main() {
-    my a = Accumulator(list: List())
+    my a = Accumulator(list: List(22))
 
     # get a shared lease to the list,
     # but it is still owned by `a`

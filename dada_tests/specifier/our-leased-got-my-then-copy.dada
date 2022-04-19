@@ -1,7 +1,0 @@
-class Point(our x, our y)
-
-async fn main() {
-    p = Point(22, 33)
-    q = p
-    print(p).await #! OUTPUT Point\(22, 33\)
-}

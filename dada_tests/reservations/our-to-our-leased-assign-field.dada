@@ -1,6 +1,6 @@
 class Point(any a, any b)
 
-class OurLeased(our leased f)
+class OurLeased(shleased f)
 
 async fn main() {
     our p = Point(22, 44)     # create a shared point `(22, 44)`

@@ -87,7 +87,7 @@ pub(crate) impl<T: ?Sized + MachineOp> DefaultStringify for T {
                 (Joint::No, Leased::No) => "my",
                 (Joint::Yes, Leased::No) => "our",
                 (Joint::No, Leased::Yes) => "leased",
-                (Joint::Yes, Leased::Yes) => "our leased",
+                (Joint::Yes, Leased::Yes) => "shleased",
             }),
         }
     }

@@ -19,7 +19,7 @@ impl SpannedSpecifier {
     /// Creates a new `SpannedSpecifier` for a variable/field that didn't
     /// have an explicit specifier.
     pub fn new_defaulted(db: &dyn crate::Db, name_span: FileSpan) -> Self {
-        Self::new(db, Specifier::OurLeased, true, name_span)
+        Self::new(db, Specifier::Shleased, true, name_span)
     }
 }
 
@@ -28,31 +28,31 @@ pub enum Specifier {
     My,
     Our,
     Leased,
-    OurLeased,
+    Shleased,
     Any,
 }
 
 impl Specifier {
     /// True if values stored under this specifier must be uniquely
-    /// accessible (my, leased) and cannot be jointly accessible (our, our leased).
+    /// accessible (my, leased) and cannot be jointly accessible (our, shleased).
     ///
     /// [`Specifier::Any`] returns false.
     pub fn must_be_unique(self) -> bool {
         match self {
             Specifier::My | Specifier::Leased => true,
-            Specifier::Our | Specifier::OurLeased => false,
+            Specifier::Our | Specifier::Shleased => false,
             Specifier::Any => false,
         }
     }
 
     /// True if values stored under this specifier must be owned (my, our)
-    /// and cannot be leased (leased, our leased).
+    /// and cannot be leased (leased, shleased).
     ///
     /// [`Specifier::Any`] returns false.
     pub fn must_be_owned(self) -> bool {
         match self {
             Specifier::Our | Specifier::My => true,
-            Specifier::OurLeased | Specifier::Leased => false,
+            Specifier::Shleased | Specifier::Leased => false,
             Specifier::Any => false,
         }
     }
@@ -63,7 +63,7 @@ impl std::fmt::Display for Specifier {
         match self {
             Specifier::Our => write!(f, "our"),
             Specifier::My => write!(f, "my"),
-            Specifier::OurLeased => write!(f, "our leased"),
+            Specifier::Shleased => write!(f, "shleased"),
             Specifier::Leased => write!(f, "leased"),
             Specifier::Any => write!(f, "any"),
         }

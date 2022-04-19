@@ -151,12 +151,12 @@ impl HeapGraph {
                 PermissionNodeLabel::Reserved => ("1.0", "odot"),
                 PermissionNodeLabel::Expired
                 | PermissionNodeLabel::Leased
-                | PermissionNodeLabel::OurLeased => ("1.0", "empty"),
+                | PermissionNodeLabel::Shleased => ("1.0", "empty"),
             };
 
             let color = match permission_data.label {
                 PermissionNodeLabel::My | PermissionNodeLabel::Leased => "red",
-                PermissionNodeLabel::OurLeased | PermissionNodeLabel::Our => "blue",
+                PermissionNodeLabel::Shleased | PermissionNodeLabel::Our => "blue",
                 PermissionNodeLabel::Reserved => "grey",
                 PermissionNodeLabel::Expired => "grey",
             };

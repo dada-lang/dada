@@ -338,6 +338,10 @@ impl<'me> Validator<'me> {
                 self.validate_permission_expr(expr, *target_expr, validated::ExprData::Lease)
             }
 
+            syntax::ExprData::Shlease(target_expr) => {
+                self.validate_permission_expr(expr, *target_expr, validated::ExprData::Shlease)
+            }
+
             syntax::ExprData::Give(target_expr) => {
                 if self.is_place_expression(*target_expr) {
                     self.validate_permission_expr(expr, *target_expr, validated::ExprData::Give)
@@ -776,10 +780,9 @@ impl<'me> Validator<'me> {
                     let shared_expr = self.add(validated::ExprData::Share(given_expr), origin);
                     self.seq(opt_assign_expr, shared_expr)
                 }
-                ExprMode::Specifier(Specifier::OurLeased) => {
-                    let given_expr = self.add(validated::ExprData::Lease(place), origin);
-                    let shared_expr = self.add(validated::ExprData::Share(given_expr), origin);
-                    self.seq(opt_assign_expr, shared_expr)
+                ExprMode::Specifier(Specifier::Shleased) => {
+                    let place_expr = self.add(validated::ExprData::Shlease(place), origin);
+                    self.seq(opt_assign_expr, place_expr)
                 }
             },
             Err(ErrorReported) => self.add(validated::ExprData::Error, origin),

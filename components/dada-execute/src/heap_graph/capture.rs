@@ -159,7 +159,7 @@ impl<'me> HeapGraphCapture<'me> {
                 (Joint::No, Leased::No) => PermissionNodeLabel::My,
                 (Joint::Yes, Leased::No) => PermissionNodeLabel::Our,
                 (Joint::No, Leased::Yes) => PermissionNodeLabel::Leased,
-                (Joint::Yes, Leased::Yes) => PermissionNodeLabel::OurLeased,
+                (Joint::Yes, Leased::Yes) => PermissionNodeLabel::Shleased,
             },
         };
 
