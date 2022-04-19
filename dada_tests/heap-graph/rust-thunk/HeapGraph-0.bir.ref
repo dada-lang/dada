@@ -12,25 +12,25 @@
                 ),
                 (
                     AssignExpr(
-                        temp{2},
+                        temp{3},
                         Print.reserve,
                     ),
                     Expr(0),
                 ),
                 (
                     AssignExpr(
-                        temp{3},
+                        temp{4},
                         "foo",
                     ),
                     Expr(1),
                 ),
             ],
             Assign(
-                temp{1},
+                temp{2},
                 Call(
-                    temp{2},
+                    temp{3},
                     [
-                        temp{3},
+                        temp{4},
                     ],
                     [
                         None,
@@ -47,28 +47,28 @@
                         0,
                         Expr(2),
                         Some(
-                            temp{1},
+                            temp{2},
                         ),
                     ),
                     Expr(2),
                 ),
                 (
                     Clear(
-                        temp{3},
+                        temp{4},
                     ),
                     Expr(1),
                 ),
                 (
                     Clear(
-                        temp{2},
+                        temp{3},
                     ),
                     Expr(0),
                 ),
             ],
             Assign(
-                temp{0},
+                temp{1},
                 Await(
-                    temp{1},
+                    temp{2},
                 ),
                 BasicBlock(2),
             ),
@@ -77,9 +77,22 @@
             [
                 (
                     Clear(
-                        temp{1},
+                        temp{2},
                     ),
                     Expr(2),
+                ),
+                (
+                    Clear(
+                        temp{1},
+                    ),
+                    Expr(3),
+                ),
+                (
+                    AssignExpr(
+                        temp{0},
+                        (),
+                    ),
+                    Expr(4),
                 ),
             ],
             Return(

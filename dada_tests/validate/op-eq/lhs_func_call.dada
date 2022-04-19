@@ -8,7 +8,7 @@ async fn main() {
     print(p).await
 }
 
-async fn test(leased p) {
+async fn test(leased p) -> {
     print("Hi").await
     p
 }

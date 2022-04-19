@@ -103,21 +103,21 @@
                 ),
                 (
                     AssignExpr(
-                        temp{10},
+                        temp{11},
                         Class(Id { value: 1 }).reserve,
                     ),
                     Expr(6),
                 ),
                 (
                     AssignExpr(
-                        temp{11},
+                        temp{12},
                         p{0}.reserve,
                     ),
                     Expr(7),
                 ),
                 (
                     AssignExpr(
-                        temp{12},
+                        temp{13},
                         p{0}.reserve,
                     ),
                     Expr(8),
@@ -126,10 +126,10 @@
             Assign(
                 temp{3},
                 Call(
-                    temp{10},
+                    temp{11},
                     [
-                        temp{11},
                         temp{12},
+                        temp{13},
                     ],
                     [
                         None,
@@ -143,19 +143,19 @@
             [
                 (
                     Clear(
-                        temp{12},
+                        temp{13},
                     ),
                     Expr(8),
                 ),
                 (
                     Clear(
-                        temp{11},
+                        temp{12},
                     ),
                     Expr(7),
                 ),
                 (
                     Clear(
-                        temp{10},
+                        temp{11},
                     ),
                     Expr(6),
                 ),
@@ -168,10 +168,23 @@
                 ),
                 (
                     AssignExpr(
-                        temp{4},
+                        temp{10},
                         (),
                     ),
                     Expr(10),
+                ),
+                (
+                    Clear(
+                        temp{10},
+                    ),
+                    Expr(10),
+                ),
+                (
+                    AssignExpr(
+                        temp{4},
+                        (),
+                    ),
+                    Expr(11),
                 ),
                 (
                     BreakpointEnd(

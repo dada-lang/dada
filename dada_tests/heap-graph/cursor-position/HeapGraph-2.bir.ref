@@ -179,25 +179,25 @@
                 ),
                 (
                     AssignExpr(
-                        temp{14},
+                        temp{15},
                         Print.reserve,
                     ),
                     Expr(10),
                 ),
                 (
                     AssignExpr(
-                        temp{15},
+                        temp{16},
                         "Hi",
                     ),
                     Expr(11),
                 ),
             ],
             Assign(
-                temp{13},
+                temp{14},
                 Call(
-                    temp{14},
+                    temp{15},
                     [
-                        temp{15},
+                        temp{16},
                     ],
                     [
                         None,
@@ -210,21 +210,21 @@
             [
                 (
                     Clear(
-                        temp{15},
+                        temp{16},
                     ),
                     Expr(11),
                 ),
                 (
                     Clear(
-                        temp{14},
+                        temp{15},
                     ),
                     Expr(10),
                 ),
             ],
             Assign(
-                temp{4},
+                temp{13},
                 Await(
-                    temp{13},
+                    temp{14},
                 ),
                 BasicBlock(4),
             ),
@@ -233,9 +233,22 @@
             [
                 (
                     Clear(
-                        temp{13},
+                        temp{14},
                     ),
                     Expr(12),
+                ),
+                (
+                    Clear(
+                        temp{13},
+                    ),
+                    Expr(13),
+                ),
+                (
+                    AssignExpr(
+                        temp{4},
+                        (),
+                    ),
+                    Expr(14),
                 ),
             ],
             Return(

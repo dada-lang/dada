@@ -16,7 +16,7 @@ digraph {
           <tr><td port="2"><font color="black">q</font></td></tr>
           <tr><td port="4"><font color="black">r</font></td></tr>
           <tr><td port="6"><font color="black">s</font></td></tr>
-          <tr><td port="19"><font color="black">(in-flight): "()"</font></td></tr>
+          <tr><td port="20"><font color="black">(in-flight): "()"</font></td></tr>
           </table>
         >;
       ];

@@ -9,7 +9,7 @@ async fn main() {
     data = r.x
 }
 
-fn callee() {
+fn callee() -> {
     p = Point(22, 44).share
     p.lease
 }

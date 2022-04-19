@@ -64,10 +64,23 @@
                 ),
                 (
                     AssignExpr(
-                        temp{4},
+                        temp{6},
                         (),
                     ),
                     Expr(3),
+                ),
+                (
+                    Clear(
+                        temp{6},
+                    ),
+                    Expr(3),
+                ),
+                (
+                    AssignExpr(
+                        temp{4},
+                        (),
+                    ),
+                    Expr(4),
                 ),
             ],
             Return(

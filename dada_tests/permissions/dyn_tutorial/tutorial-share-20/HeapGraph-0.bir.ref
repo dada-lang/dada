@@ -187,7 +187,7 @@
                 ),
                 (
                     AssignExpr(
-                        temp{18},
+                        temp{19},
                         r{4}.give,
                     ),
                     Expr(12),
@@ -195,13 +195,13 @@
                 (
                     AssignExpr(
                         temp{7},
-                        temp{18}.share,
+                        temp{19}.share,
                     ),
                     Expr(13),
                 ),
                 (
                     Clear(
-                        temp{18},
+                        temp{19},
                     ),
                     Expr(12),
                 ),
@@ -214,10 +214,23 @@
                 ),
                 (
                     AssignExpr(
-                        temp{8},
+                        temp{18},
                         (),
                     ),
                     Expr(14),
+                ),
+                (
+                    Clear(
+                        temp{18},
+                    ),
+                    Expr(14),
+                ),
+                (
+                    AssignExpr(
+                        temp{8},
+                        (),
+                    ),
+                    Expr(15),
                 ),
                 (
                     BreakpointEnd(

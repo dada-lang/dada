@@ -103,25 +103,25 @@
                 ),
                 (
                     AssignExpr(
-                        temp{8},
+                        temp{9},
                         Print.reserve,
                     ),
                     Expr(5),
                 ),
                 (
                     AssignExpr(
-                        temp{9},
+                        temp{10},
                         "The point is FIXME",
                     ),
                     Expr(6),
                 ),
             ],
             Assign(
-                temp{7},
+                temp{8},
                 Call(
-                    temp{8},
+                    temp{9},
                     [
-                        temp{9},
+                        temp{10},
                     ],
                     [
                         None,
@@ -134,21 +134,21 @@
             [
                 (
                     Clear(
-                        temp{9},
+                        temp{10},
                     ),
                     Expr(6),
                 ),
                 (
                     Clear(
-                        temp{8},
+                        temp{9},
                     ),
                     Expr(5),
                 ),
             ],
             Assign(
-                temp{2},
+                temp{7},
                 Await(
-                    temp{7},
+                    temp{8},
                 ),
                 BasicBlock(3),
             ),
@@ -157,9 +157,22 @@
             [
                 (
                     Clear(
-                        temp{7},
+                        temp{8},
                     ),
                     Expr(7),
+                ),
+                (
+                    Clear(
+                        temp{7},
+                    ),
+                    Expr(8),
+                ),
+                (
+                    AssignExpr(
+                        temp{2},
+                        (),
+                    ),
+                    Expr(9),
                 ),
             ],
             Return(
