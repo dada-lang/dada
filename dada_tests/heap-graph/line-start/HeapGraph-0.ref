@@ -14,7 +14,7 @@ digraph {
           <tr><td border="1">main</td></tr>
           <tr><td port="0"><font color="slategray">p</font></td></tr>
           <tr><td port="2"><font color="slategray">q</font></td></tr>
-          <tr><td port="12"><font color="black">(in-flight)</font></td></tr>
+          <tr><td port="13"><font color="black">(in-flight)</font></td></tr>
           </table>
         >;
       ];
@@ -24,7 +24,7 @@ digraph {
       fontcolor = "slategray",
       label = <<b>Point</b>>
     ];
-    "stack":12 -> "afternode0" [label="our", style="solid", penwidth=3.0, arrowtype="normal", color="blue"];
+    "stack":13 -> "afternode0" [label="our", style="solid", penwidth=3.0, arrowtype="normal", color="blue"];
   }
   subgraph cluster_before {
     label=<<b>before</b>>

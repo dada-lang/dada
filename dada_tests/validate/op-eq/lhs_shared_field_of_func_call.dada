@@ -8,7 +8,7 @@ async fn main() {
     print(p).await
 }
 
-async fn test(shleased p) {
+async fn test(shleased p) -> {
     print("Hi").await #! OUTPUT Hi
     p
 }

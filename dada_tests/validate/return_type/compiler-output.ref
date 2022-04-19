@@ -1,0 +1,27 @@
+Error: cannot return a value in this function
+    ╭─[dada_tests/validate/return_type.dada:10:12]
+    │
+  9 │ fn unit() {
+    ·          ┬  
+    ·          ╰── because function doesn't have `->` here
+ 10 │     return 1 #! ERROR cannot return a value in this function
+    ·            ┬  
+    ·            ╰── can only write `return` (without a value) in this function
+────╯
+Error: function body cannot be empty
+   ╭─[dada_tests/validate/return_type.dada:5:16]
+   │
+ 5 │ fn not_unit2() -> {
+   ·                ─┬  
+   ·                 ╰── because function is supposed to return something
+───╯
+Error: return requires an expression
+   ╭─[dada_tests/validate/return_type.dada:2:5]
+   │
+ 1 │ fn not_unit1() -> {
+   ·                ─┬  
+   ·                 ╰── because the function returns a value
+ 2 │     return #! ERROR return requires an expression
+   ·     ───┬──  
+   ·        ╰──── cannot just have `return` without an expression afterwards
+───╯

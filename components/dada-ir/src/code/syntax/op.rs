@@ -45,6 +45,7 @@ define_operators! {
     EqualEqual => "==",
     GreaterEqual => ">=",
     LessEqual => "<=",
+    RightArrow => "->",
 
     // 1-character ops
     Plus => "+",

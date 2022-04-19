@@ -13,7 +13,7 @@ digraph {
           <table border="0">
           <tr><td border="1">main</td></tr>
           <tr><td port="0"><font color="slategray">p</font></td></tr>
-          <tr><td port="10"><font color="black">(in-flight): "print"</font></td></tr>
+          <tr><td port="11"><font color="black">(in-flight): "print"</font></td></tr>
           </table>
         >;
       ];

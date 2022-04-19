@@ -16,6 +16,7 @@ pub mod lines;
 pub mod manifest;
 pub mod parameter;
 pub mod prelude;
+pub mod return_type;
 pub mod span;
 pub mod storage;
 pub mod token;
@@ -45,6 +46,7 @@ pub struct Jar(
     word::Word,
     word::SpannedWord,
     word::SpannedOptionalWord,
+    return_type::ReturnType,
 );
 
 pub trait Db: salsa::DbWithJar<Jar> {

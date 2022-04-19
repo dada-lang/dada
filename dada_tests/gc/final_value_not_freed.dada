@@ -3,6 +3,6 @@
 
 #! OUTPUT ANY
 
-async fn main() {
+async fn main() -> {
     print
 }

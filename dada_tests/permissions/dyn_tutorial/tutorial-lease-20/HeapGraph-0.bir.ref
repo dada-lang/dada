@@ -217,25 +217,25 @@
                 ),
                 (
                     AssignExpr(
-                        temp{19},
+                        temp{20},
                         Print.reserve,
                     ),
                     Expr(15),
                 ),
                 (
                     AssignExpr(
-                        temp{20},
+                        temp{21},
                         p{0}.x.reserve,
                     ),
                     Expr(17),
                 ),
             ],
             Assign(
-                temp{18},
+                temp{19},
                 Call(
-                    temp{19},
+                    temp{20},
                     [
-                        temp{20},
+                        temp{21},
                     ],
                     [
                         None,
@@ -248,21 +248,21 @@
             [
                 (
                     Clear(
-                        temp{20},
+                        temp{21},
                     ),
                     Expr(17),
                 ),
                 (
                     Clear(
-                        temp{19},
+                        temp{20},
                     ),
                     Expr(15),
                 ),
             ],
             Assign(
-                temp{8},
+                temp{18},
                 Await(
-                    temp{18},
+                    temp{19},
                 ),
                 BasicBlock(3),
             ),
@@ -271,9 +271,22 @@
             [
                 (
                     Clear(
-                        temp{18},
+                        temp{19},
                     ),
                     Expr(18),
+                ),
+                (
+                    Clear(
+                        temp{18},
+                    ),
+                    Expr(19),
+                ),
+                (
+                    AssignExpr(
+                        temp{8},
+                        (),
+                    ),
+                    Expr(20),
                 ),
             ],
             Return(

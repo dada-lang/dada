@@ -1,28 +1,28 @@
-fn foo() {
+fn foo() -> {
     if true { 1_i } else { 2_i }
     -5  
     # FIXME: Want to return `-5`, not `-4`
 }
 
-fn foo1() {
+fn foo1() -> {
     a = if true { 1_i } else { 2_i }
     -5 
     # FIXME: Want to return `-5` and set `a` to 1
 }
 
-fn foo2() {
+fn foo2() -> {
     a = {if true { 1_i } else { 2_i }
     -5} 
     a
 }
 
-fn foo3() {
+fn foo3() -> {
     a = if false { 1_i } else { 2_i
     -5} 
     a
 }
 
-async fn foo4() {
+async fn foo4() -> {
     a = if false { 1 } else { print(2).await 
     #! RUN ERROR cannot apply operator - to nothing and an integer
     #! OUTPUT 2
@@ -36,6 +36,5 @@ async fn main() {
     print(foo1()).await #! OUTPUT ()
     print(foo2()).await #! OUTPUT -4
     print(foo3()).await #! OUTPUT -3
-    foo4().await 
-    {}
+    foo4().await
 }

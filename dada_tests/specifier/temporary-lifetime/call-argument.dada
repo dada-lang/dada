@@ -13,6 +13,6 @@ async fn main() {
     print(o).await
 }
 
-fn lease_me(leased p) {
+fn lease_me(leased p) -> {
     p
 }

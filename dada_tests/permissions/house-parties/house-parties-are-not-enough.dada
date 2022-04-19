@@ -10,8 +10,7 @@ class List()
 # This function takes a `shleased` accumulator and returns a
 # `shleased` result. (Though, if given an `our` accumulator,
 # it will return an `our` list, given current rules.)
-fn get_list(accumulator) # ->
-{
+fn get_list(accumulator) -> {
     accumulator.list.share
 }
 
