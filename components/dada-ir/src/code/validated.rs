@@ -252,6 +252,9 @@ pub enum ExprData {
     /// `expr.lease`
     Lease(Place),
 
+    /// `expr.shlease`
+    Shlease(Place),
+
     /// `expr.give`
     Give(Place),
 
@@ -339,6 +342,7 @@ impl ExprData {
             ExprData::Reserve(p) => f.debug_tuple("Reserve").field(&p.debug(db)).finish(),
             ExprData::Share(p) => f.debug_tuple("Share").field(&p.debug(db)).finish(),
             ExprData::Lease(p) => f.debug_tuple("Lease").field(&p.debug(db)).finish(),
+            ExprData::Shlease(p) => f.debug_tuple("Shlease").field(&p.debug(db)).finish(),
             ExprData::Give(p) => f.debug_tuple("Give").field(&p.debug(db)).finish(),
             ExprData::Tuple(exprs) => {
                 let mut f = f.debug_tuple("Tuple");

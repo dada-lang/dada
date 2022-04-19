@@ -7,7 +7,7 @@ async fn main() {
     any q = p.share
 
     # Accessing `q`: ok
-    print(q).await #! OUTPUT our leased Pair\(22, 44\)
+    print(q).await #! OUTPUT shleased Pair\(22, 44\)
 
     # Accessing `p`: ok, but cancels subleases
     print(p).await #! OUTPUT leased Pair\(22, 44\)

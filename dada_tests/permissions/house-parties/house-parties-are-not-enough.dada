@@ -7,6 +7,9 @@
 class Accumulator(my list)
 class List()
 
+# This function takes a `shleased` accumulator and returns a
+# `shleased` result. (Though, if given an `our` accumulator,
+# it will return an `our` list, given current rules.)
 fn get_list(accumulator) # ->
 {
     accumulator.list.share
@@ -24,7 +27,6 @@ async fn main() {
     l1 = get_list(a)
     l2 = get_list(a)
     print(l2).await #! OUTPUT List\(\)
-    print(l1).await #! RUN ERROR your lease to this object was cancelled
-    print(l2).await
-    #! FIXME: House parties are not enough to express Rust patterns
+    print(l1).await #! OUTPUT shleased List
+    print(l2).await #! OUTPUT shleased List
 }

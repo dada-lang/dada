@@ -53,7 +53,7 @@ impl Stepper<'_> {
             return true;
         }
 
-        valid.tenants.iter().any(|p| self.is_sharing_access(*p))
+        false
     }
 
     #[tracing::instrument(level = "Debug", skip(self))]

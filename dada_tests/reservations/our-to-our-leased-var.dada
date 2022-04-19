@@ -2,7 +2,7 @@ class Point(any a, any b)
 
 async fn main() {
     our p = Point(22, 44)
-    our leased q = p          # `q` becomes 2nd owner of `(22, 44)`
+    shleased q = p          # `q` becomes 2nd owner of `(22, 44)`
     p := Point(44, 66)        # reassigning `p` has no effect on `q`
 
     print(p).await #! OUTPUT Point\(44, 66\)

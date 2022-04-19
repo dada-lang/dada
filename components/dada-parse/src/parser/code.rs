@@ -305,6 +305,10 @@ impl CodeParser<'_, '_> {
                     let span = self.spans[expr].to(kw_span);
                     expr = self.add(ExprData::Lease(expr), span);
                     continue;
+                } else if let Some((kw_span, _)) = self.eat(Keyword::Shlease) {
+                    let span = self.spans[expr].to(kw_span);
+                    expr = self.add(ExprData::Shlease(expr), span);
+                    continue;
                 } else {
                     self.parser
                         .error_at_current_token("expected identifier after `.`")

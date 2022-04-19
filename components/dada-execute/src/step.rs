@@ -41,6 +41,7 @@ mod lease;
 mod reserve;
 mod revoke;
 mod share;
+mod shlease;
 mod tenant;
 mod traversal;
 
@@ -286,7 +287,7 @@ impl<'me> Stepper<'me> {
             Specifier::My => self.give_place(table, source_place)?,
             Specifier::Our => self.share_place(table, source_place)?,
             Specifier::Leased => self.lease_place(table, source_place)?,
-            Specifier::OurLeased => self.share_leased_place(table, source_place)?,
+            Specifier::Shleased => self.shlease_place(table, source_place)?,
             Specifier::Any => self.give_place(table, source_place)?,
         };
 
@@ -534,6 +535,7 @@ impl<'me> Stepper<'me> {
             bir::ExprData::Reserve(place) => self.reserve_place(table, *place),
             bir::ExprData::Share(place) => self.share_place(table, *place),
             bir::ExprData::Lease(place) => self.lease_place(table, *place),
+            bir::ExprData::Shlease(place) => self.shlease_place(table, *place),
             bir::ExprData::Give(place) => self.give_place(table, *place),
             bir::ExprData::Tuple(places) => {
                 let fields = places

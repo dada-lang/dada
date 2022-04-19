@@ -88,32 +88,13 @@ impl<'db> Parser<'db> {
             ))
         };
         if let Some((my_span, _)) = self.eat(Keyword::My) {
-            if let Some((leased_span, _)) = self.eat(Keyword::Leased) {
-                some_specifier(Specifier::Leased, my_span.to(leased_span))
-            } else {
-                some_specifier(Specifier::My, my_span)
-            }
+            some_specifier(Specifier::My, my_span)
         } else if let Some((our_span, _)) = self.eat(Keyword::Our) {
-            if let Some((leased_span, _)) = self.eat(Keyword::Leased) {
-                some_specifier(Specifier::OurLeased, our_span.to(leased_span))
-            } else {
-                some_specifier(Specifier::Our, our_span)
-            }
+            some_specifier(Specifier::Our, our_span)
+        } else if let Some((shleased_span, _)) = self.eat(Keyword::Shleased) {
+            some_specifier(Specifier::Shleased, shleased_span)
         } else if let Some((leased_span, _)) = self.eat(Keyword::Leased) {
-            if let Some((my_span, _)) = self.eat(Keyword::My) {
-                self.error(my_span, "this should be written `leased`, not `leased my`")
-                    .emit(self.db);
-                some_specifier(Specifier::Leased, leased_span.to(my_span))
-            } else if let Some((our_span, _)) = self.eat(Keyword::Our) {
-                self.error(
-                    our_span,
-                    "this should be written `our leased`, not `leased our`",
-                )
-                .emit(self.db);
-                some_specifier(Specifier::OurLeased, leased_span.to(our_span))
-            } else {
-                some_specifier(Specifier::Leased, leased_span)
-            }
+            some_specifier(Specifier::Leased, leased_span)
         } else if let Some((any_span, _)) = self.eat(Keyword::Any) {
             some_specifier(Specifier::Any, any_span)
         } else {

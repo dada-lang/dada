@@ -6,10 +6,10 @@ Every reference to a Dada object has an associated **permission**. Each permissi
 
 Dada has four kinds of permissions, and they can be categorized along two dimensions:
 
-|        | Exclusive | Shared     |
-| ------ | --------- | ---------- |
-| Owned  | my        | our        |
-| Leased | leased    | our leased |
+|        | Exclusive | Shared   |
+| ------ | --------- | -------- |
+| Owned  | my        | our      |
+| Leased | leased    | shleased |
 
 **Exclusive permissions** give exclusive access to the object, meaning that while that permission is active, no other permission gives access to the same data. They give full ability to mutate. Exclusive permissions cannot be duplicated, but they can be *leased*, as will be discussed shortly. **Shared permissions** do not guarantee exclusive access. They can be freely duplicated.
 
@@ -35,9 +35,9 @@ The final point is interesting: we can have an `our` object (shared ownership) t
 class Point()
 
 fn test() -> {
-    p = Point().share        # our Point
-    q = p.lease              # our leased Point
-    q                        # returning to the caller drops `p`, cancelling `q`
+    any p = Point().share        # our Point
+    any q = p.lease              # shleased Point
+    q                            # returning to the caller drops `p`, cancelling `q`
 }
 
 fn main() {

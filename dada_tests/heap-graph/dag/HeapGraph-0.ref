@@ -34,7 +34,7 @@ digraph {
       </table>>
     ];
     "afterstack":0 -> "afternode0" [label="our", style="solid", penwidth=3.0, arrowtype="normal", color="blue"];
-    "afterstack":2 -> "afternode1" [label="our leased", style="solid", penwidth=1.0, arrowtype="empty", color="blue"];
+    "afterstack":2 -> "afternode1" [label="shleased", style="solid", penwidth=1.0, arrowtype="empty", color="blue"];
     "afternode1":0 -> "afternode0" [label="our", style="solid", penwidth=3.0, arrowtype="normal", color="blue"];
     "afternode1":1 -> "afternode0" [label="our", style="solid", penwidth=3.0, arrowtype="normal", color="blue"];
   }
