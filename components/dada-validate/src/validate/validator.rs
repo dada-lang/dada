@@ -160,8 +160,23 @@ impl<'me> Validator<'me> {
         self.scope.insert(decl_data.name, local_variable);
     }
 
+    #[tracing::instrument(level = "debug", skip_all)]
+    pub(crate) fn give_validated_root_expr(&mut self, expr: syntax::Expr) -> validated::Expr {
+        let expr = self.give_validated_expr(expr);
+        if let Some(return_type) = self.code.return_type {
+            if let validated::ExprData::Seq(exprs) = expr.data(self.tables) {
+                if exprs.is_empty() {
+                    dada_ir::error!(return_type, "must return something",)
+                        .primary_label("because return type is not unit")
+                        .emit(self.db);
+                }
+            }
+        }
+        expr
+    }
+
     #[tracing::instrument(level = "debug", skip(self, expr))]
-    pub(crate) fn give_validated_expr(&mut self, expr: syntax::Expr) -> validated::Expr {
+    fn give_validated_expr(&mut self, expr: syntax::Expr) -> validated::Expr {
         let result = self.validate_expr_in_mode(expr, ExprMode::give());
 
         // Check that the validated expression always has the same
@@ -516,12 +531,26 @@ impl<'me> Validator<'me> {
                 self.add(validated::ExprData::Seq(validated_exprs), expr)
             }
             syntax::ExprData::Return(with_value) => {
-                if let Some(return_expr) = with_value {
-                    let validated_return_expr = self.give_validated_expr(*return_expr);
-                    return self.add(validated::ExprData::Return(validated_return_expr), expr);
+                match (self.code.return_type, with_value) {
+                    (Some(return_type), None) => {
+                        dada_ir::error!(self.span(expr), "must return something")
+                            .primary_label("must return something")
+                            .secondary_label(return_type, "because return type is not unit")
+                            .emit(self.db);
+                    }
+                    (None, Some(return_expr)) => {
+                        dada_ir::error!(self.span(*return_expr), "cannot return a value")
+                            .primary_label("cannot return a value")
+                            .emit(self.db);
+                    }
+                    _ => {}
                 }
-                let empty_tuple = self.empty_tuple(expr);
-                self.add(validated::ExprData::Return(empty_tuple), expr)
+                let validated_expr = if let Some(return_expr) = with_value {
+                    self.give_validated_expr(*return_expr)
+                } else {
+                    self.empty_tuple(expr)
+                };
+                self.add(validated::ExprData::Return(validated_expr), expr)
             }
         }
     }
