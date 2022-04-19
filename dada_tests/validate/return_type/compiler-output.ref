@@ -1,6 +1,9 @@
 Error: cannot return a value in this function
     ╭─[dada_tests/validate/return_type.dada:10:12]
     │
+  9 │ fn unit() {
+    ·          ┬  
+    ·          ╰── because function doesn't have `->` here
  10 │     return 1 #! ERROR cannot return a value in this function
     ·            ┬  
     ·            ╰── can only write `return` (without a value) in this function

@@ -163,10 +163,10 @@ impl<'me> Validator<'me> {
     #[tracing::instrument(level = "debug", skip_all)]
     pub(crate) fn give_validated_root_expr(&mut self, expr: syntax::Expr) -> validated::Expr {
         let validated_expr = self.give_validated_expr(expr);
-        if let Some(return_type) = self.code.return_type {
+        if self.code.returns_value {
             if let validated::ExprData::Seq(exprs) = validated_expr.data(self.tables) {
                 if exprs.is_empty() {
-                    dada_ir::error!(return_type, "function body cannot be empty",)
+                    dada_ir::error!(self.code.return_type, "function body cannot be empty",)
                         .primary_label("because function is supposed to return something")
                         .emit(self.db);
                 }
@@ -539,21 +539,28 @@ impl<'me> Validator<'me> {
                 self.add(validated::ExprData::Seq(validated_exprs), expr)
             }
             syntax::ExprData::Return(with_value) => {
-                match (self.code.return_type, with_value) {
-                    (Some(return_type), None) => {
+                match (self.code.returns_value, with_value) {
+                    (true, None) => {
                         dada_ir::error!(self.span(expr), "return requires an expression")
                             .primary_label(
                                 "cannot just have `return` without an expression afterwards",
                             )
-                            .secondary_label(return_type, "because the function returns a value")
+                            .secondary_label(
+                                self.code.return_type,
+                                "because the function returns a value",
+                            )
                             .emit(self.db);
                     }
-                    (None, Some(return_expr)) => {
+                    (false, Some(return_expr)) => {
                         dada_ir::error!(
                             self.span(*return_expr),
                             "cannot return a value in this function"
                         )
                         .primary_label("can only write `return` (without a value) in this function")
+                        .secondary_label(
+                            self.code.return_type,
+                            "because function doesn't have `->` here",
+                        )
                         .emit(self.db);
                     }
                     _ => {}

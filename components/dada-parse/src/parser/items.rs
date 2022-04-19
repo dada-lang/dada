@@ -7,6 +7,7 @@ use dada_ir::{
     function::Function,
     item::Item,
     kw::Keyword,
+    span::Span,
 };
 
 use super::OrReportError;
@@ -65,14 +66,22 @@ impl<'db> Parser<'db> {
         let (_, parameter_tokens) = self
             .delimited('(')
             .or_report_error(self, || "expected function parameters".to_string())?;
-        let return_type = self.eat_op(Op::RightArrow);
+        let right_arrow = self.eat_op(Op::RightArrow);
+        let return_type = right_arrow
+            .unwrap_or_else(|| Span {
+                // span between last non skipped token and next non skippable token
+                start: self.tokens.last_span().end,
+                end: self.tokens.peek_span().start,
+            })
+            .in_file(self.filename);
         let (_, body_tokens) = self
             .delimited('{')
             .or_report_error(self, || "expected function body".to_string())?;
         let code = Code::new(
             effect,
             Some(parameter_tokens),
-            return_type.map(|s| s.in_file(self.filename)),
+            return_type,
+            right_arrow.is_some(),
             body_tokens,
         );
         let start_span = effect_span.unwrap_or(fn_span);

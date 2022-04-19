@@ -14,8 +14,11 @@ pub struct Code {
     /// Tokens for the parameter list (parsed when we generate the syntax tree).
     pub parameter_tokens: Option<TokenTree>,
 
-    /// Span of `->` symbol if it has one.
-    pub return_type: Option<FileSpan>,
+    /// Span of `->` symbol if it has one, or where it would go if doesn't have it.
+    pub return_type: FileSpan,
+
+    /// Whether this funcion returns a value (has `->`) or not.
+    pub returns_value: bool,
 
     /// Tokens for the body (parsed when we generate the syntax tree).
     pub body_tokens: TokenTree,
@@ -25,13 +28,15 @@ impl Code {
     pub fn new(
         effect: Effect,
         parameter_tokens: Option<TokenTree>,
-        return_type: Option<FileSpan>,
+        return_type: FileSpan,
+        returns_value: bool,
         body_tokens: TokenTree,
     ) -> Self {
         Self {
             effect,
             parameter_tokens,
             return_type,
+            returns_value,
             body_tokens,
         }
     }
