@@ -14,7 +14,7 @@ use dada_ir::{
 pub struct Brewery<'me> {
     db: &'me dyn crate::Db,
     code: Code,
-    breakpoints: &'me [syntax::Expr],
+    pub(crate) breakpoints: &'me [syntax::Expr],
     validated_tree_data: &'me validated::TreeData,
     validated_origins: &'me validated::Origins,
     tables: &'me mut bir::Tables,
@@ -43,7 +43,7 @@ pub struct Brewery<'me> {
 pub struct LoopContext {
     pub continue_block: bir::BasicBlock,
     pub break_block: bir::BasicBlock,
-    pub loop_value: bir::Place,
+    pub loop_value: bir::TargetPlace,
 }
 
 impl<'me> Brewery<'me> {
@@ -154,6 +154,18 @@ impl<'me> Brewery<'me> {
         add(self.tables, self.origins, data, origin)
     }
 
+    /// Converts a target-place into a place.
+    pub fn place_from_target_place(&mut self, place: bir::TargetPlace) -> bir::Place {
+        match self.tables[place] {
+            bir::TargetPlaceData::LocalVariable(lv) => {
+                self.add(bir::PlaceData::LocalVariable(lv), self.origins[place])
+            }
+            bir::TargetPlaceData::Dot(owner_place, name) => {
+                self.add(bir::PlaceData::Dot(owner_place, name), self.origins[place])
+            }
+        }
+    }
+
     /// Find the loop context for a given loop expression.
     ///
     /// Panics if that loop context has not been pushed.
@@ -185,6 +197,7 @@ impl<'me> Brewery<'me> {
     ///
     /// See the comments on the `temporaries` field for more information.
     pub fn push_temporary(&mut self, lv: bir::LocalVariable) {
+        tracing::debug!("pushing temporary: {:?}", lv);
         self.temporaries.push(lv);
     }
 
@@ -217,6 +230,7 @@ fn map_variables(
                 origins,
                 bir::LocalVariableData {
                     name: validated_var_data.name,
+                    specifier: validated_var_data.specifier,
                     atomic: validated_var_data.atomic,
                 },
                 validated_var_origin,

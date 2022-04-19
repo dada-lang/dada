@@ -4,7 +4,7 @@ use dada_ir::{
         bir::{self, BirData},
         validated::{self, ExprOrigin},
     },
-    storage_mode::Atomic,
+    storage::Atomic,
 };
 use salsa::DebugWithDb;
 
@@ -85,7 +85,7 @@ impl Cursor {
             validated::ExprData::Continue(from_expr) => {
                 self.push_breakpoint_start(brewery, origin);
                 let loop_context = brewery.loop_context(*from_expr);
-                self.push_breakpoint_end(brewery, None, origin);
+                self.push_breakpoint_end(brewery, None::<bir::Place>, origin);
                 self.terminate_and_goto(brewery, loop_context.continue_block, origin);
             }
 
@@ -103,22 +103,49 @@ impl Cursor {
 
             validated::ExprData::Error => {
                 self.push_breakpoint_start(brewery, origin);
-                self.push_breakpoint_end(brewery, None, origin);
+                self.push_breakpoint_end(brewery, None::<bir::Place>, origin);
                 self.terminate_and_diverge(brewery, bir::TerminatorData::Error, origin)
             }
 
-            validated::ExprData::Assign(place, value_expr) => {
+            validated::ExprData::AssignTemporary(place, value_expr) => {
+                // temporaries are always created with "any" specifier, which ensures
+                // that we will never have to apply specifier to `value_expr`
+                assert_eq!(brewery.validated_tables()[*place].specifier, None);
+
+                // we only ever use this for temporaries, user-created values use `AssignFromPlace`
+                assert!(matches!(
+                    brewery.origin(*place),
+                    validated::LocalVariableOrigin::Temporary(_)
+                ));
+
                 self.push_breakpoint_start(brewery, origin);
-                let (place, origins) = self.brew_place(brewery, *place);
+                let place = self.brew_target_variable(brewery, *place, origin);
                 self.brew_expr_and_assign_to(brewery, place, *value_expr);
-                self.push_breakpoint_ends(brewery, None, origins, origin)
+                self.push_breakpoint_end(brewery, None::<bir::Place>, origin)
+            }
+
+            validated::ExprData::AssignFromPlace(target_place, source_place) => {
+                let (target_place, target_origins) = self.brew_target_place(brewery, *target_place);
+                let (source_place, source_origins) = self.brew_place(brewery, *source_place);
+                self.push_breakpoint_starts(
+                    brewery,
+                    target_origins.iter().chain(source_origins.iter()).copied(),
+                    origin,
+                );
+                self.push_assignment_from_place(brewery, target_place, source_place, origin);
+                self.push_breakpoint_ends(
+                    brewery,
+                    None::<bir::Place>,
+                    target_origins.into_iter().chain(source_origins),
+                    origin,
+                )
             }
 
             validated::ExprData::Declare(vars, subexpr) => {
                 self.push_breakpoint_start(brewery, origin);
                 self.brew_expr_for_side_effects(brewery, *subexpr);
                 self.pop_declared_variables(brewery, vars, origin);
-                self.push_breakpoint_end(brewery, None, origin);
+                self.push_breakpoint_end(brewery, None::<bir::Place>, origin);
             }
 
             validated::ExprData::Await(_)
@@ -134,6 +161,7 @@ impl Cursor {
             | validated::ExprData::FloatLiteral(_)
             | validated::ExprData::StringLiteral(_)
             | validated::ExprData::Call(_, _)
+            | validated::ExprData::Reserve(_)
             | validated::ExprData::Share(_)
             | validated::ExprData::Lease(_)
             | validated::ExprData::Give(_)
@@ -145,6 +173,8 @@ impl Cursor {
         self.pop_temporary_scope(brewery, temporary_scope);
     }
 
+    /// Compiles expr into a temporary `t` and returns `Some(t)`.
+    /// Returns `None` if this is dead code.
     pub(crate) fn brew_expr_to_temporary(
         &mut self,
         brewery: &mut Brewery<'_>,
@@ -154,7 +184,7 @@ impl Cursor {
         // Spill into a temporary
         let temp_place = add_temporary_place(brewery, origin);
         self.brew_expr_and_assign_to(brewery, temp_place, expr);
-        Some(temp_place)
+        Some(brewery.place_from_target_place(temp_place))
     }
 
     /// Compiles an expression down to the value it produces.
@@ -164,7 +194,7 @@ impl Cursor {
     pub(crate) fn brew_expr_and_assign_to(
         &mut self,
         brewery: &mut Brewery<'_>,
-        target: bir::Place,
+        target: bir::TargetPlace,
         expr: validated::Expr,
     ) {
         let origin = brewery.origin(expr);
@@ -238,10 +268,18 @@ impl Cursor {
                 );
             }
 
-            validated::ExprData::Share(place) => {
+            validated::ExprData::Share(operand) => {
+                if let Some(temp) = self.brew_expr_to_temporary(brewery, *operand) {
+                    self.push_breakpoint_start(brewery, origin);
+                    self.push_assignment(brewery, target, bir::ExprData::Share(temp), origin);
+                    self.push_breakpoint_end(brewery, Some(target), origin);
+                }
+            }
+
+            validated::ExprData::Reserve(place) => {
                 let (place, origins) = self.brew_place(brewery, *place);
                 self.push_breakpoint_starts(brewery, origins.iter().copied(), origin);
-                self.push_assignment(brewery, target, bir::ExprData::GiveShare(place), origin);
+                self.push_assignment(brewery, target, bir::ExprData::Reserve(place), origin);
                 self.push_breakpoint_ends(brewery, Some(target), origins, origin);
             }
 
@@ -375,8 +413,7 @@ impl Cursor {
                 }
             }
 
-            validated::ExprData::Assign(_, _) => {
-                self.push_breakpoint_start(brewery, origin);
+            validated::ExprData::AssignTemporary(..) | validated::ExprData::AssignFromPlace(..) => {
                 self.brew_expr_for_side_effects(brewery, expr);
                 self.push_assignment(brewery, target, bir::ExprData::Unit, origin);
             }
@@ -429,7 +466,7 @@ impl Cursor {
                 self.push_breakpoint_start(brewery, origin);
                 self.brew_expr_and_assign_to(brewery, target, *subexpr);
                 self.pop_declared_variables(brewery, vars, origin);
-                self.push_breakpoint_end(brewery, None, origin);
+                self.push_breakpoint_end(brewery, None::<bir::Place>, origin);
             }
 
             validated::ExprData::Error
@@ -485,21 +522,52 @@ impl Cursor {
             }
         }
     }
+
+    pub(crate) fn brew_target_place(
+        &mut self,
+        brewery: &mut Brewery<'_>,
+        place: validated::TargetPlace,
+    ) -> (bir::TargetPlace, Vec<ExprOrigin>) {
+        let origin = brewery.origin(place);
+        match brewery.validated_tables()[place] {
+            validated::TargetPlaceData::LocalVariable(validated_var) => {
+                let place = self.brew_target_variable(brewery, validated_var, origin);
+                (place, vec![origin])
+            }
+            validated::TargetPlaceData::Dot(base, field) => {
+                let (base, mut origins) = self.brew_place(brewery, base);
+                let place = brewery.add(bir::TargetPlaceData::Dot(base, field), origin);
+                origins.push(origin);
+                (place, origins)
+            }
+        }
+    }
+    pub(crate) fn brew_target_variable(
+        &mut self,
+        brewery: &mut Brewery<'_>,
+        validated_var: validated::LocalVariable,
+        origin: ExprOrigin,
+    ) -> bir::TargetPlace {
+        let bir_var = brewery.variable(validated_var);
+        brewery.add(bir::TargetPlaceData::LocalVariable(bir_var), origin)
+    }
 }
 
 fn add_temporary(brewery: &mut Brewery, origin: ExprOrigin) -> bir::LocalVariable {
     let temporary = brewery.add(
         bir::LocalVariableData {
             name: None,
+            specifier: None,
             atomic: Atomic::No,
         },
         validated::LocalVariableOrigin::Temporary(origin.into()),
     );
+    tracing::debug!("created temporary: temp{{{:?}}}", u32::from(temporary));
     brewery.push_temporary(temporary);
     temporary
 }
 
-fn add_temporary_place(brewery: &mut Brewery, origin: ExprOrigin) -> bir::Place {
+fn add_temporary_place(brewery: &mut Brewery, origin: ExprOrigin) -> bir::TargetPlace {
     let temporary_var = add_temporary(brewery, origin);
-    brewery.add(bir::PlaceData::LocalVariable(temporary_var), origin)
+    brewery.add(bir::TargetPlaceData::LocalVariable(temporary_var), origin)
 }

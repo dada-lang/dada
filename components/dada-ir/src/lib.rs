@@ -17,7 +17,7 @@ pub mod manifest;
 pub mod parameter;
 pub mod prelude;
 pub mod span;
-pub mod storage_mode;
+pub mod storage;
 pub mod token;
 pub mod token_tree;
 pub mod ty;
@@ -39,6 +39,7 @@ pub struct Jar(
     lines::line_table,
     manifest::source_text,
     parameter::Parameter,
+    storage::SpannedSpecifier,
     token_tree::TokenTree,
     ty::Ty,
     word::Word,

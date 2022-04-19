@@ -45,6 +45,13 @@ impl super::Options {
             ));
         }
 
+        self.check_compiled(
+            db,
+            &[filename],
+            |item| db.debug_bir(item),
+            &path.join(format!("HeapGraph-{query_index}.bir.ref")),
+        )?;
+
         match db.function_named(filename, "main") {
             Some(function) => {
                 kernel.interpret_and_buffer(db, function, vec![]).await;

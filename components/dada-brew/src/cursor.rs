@@ -140,13 +140,26 @@ impl Cursor {
     pub(crate) fn push_assignment(
         &mut self,
         brewery: &mut Brewery<'_>,
-        target: bir::Place,
+        target: bir::TargetPlace,
         value: bir::ExprData,
         origin: ExprOrigin,
     ) {
         if self.end_block.is_some() {
             let value = brewery.add(value, origin);
-            let statement = brewery.add(bir::StatementData::Assign(target, value), origin);
+            let statement = brewery.add(bir::StatementData::AssignExpr(target, value), origin);
+            self.push_statement(brewery, statement);
+        }
+    }
+
+    pub(crate) fn push_assignment_from_place(
+        &mut self,
+        brewery: &mut Brewery<'_>,
+        target: bir::TargetPlace,
+        source: bir::Place,
+        origin: ExprOrigin,
+    ) {
+        if self.end_block.is_some() {
+            let statement = brewery.add(bir::StatementData::AssignPlace(target, source), origin);
             self.push_statement(brewery, statement);
         }
     }
@@ -167,6 +180,11 @@ impl Cursor {
     /// If `origin` is a breakpoint expression, push a "breakpoint-start"
     /// statement onto the current basic block.
     pub(crate) fn push_breakpoint_start(&mut self, brewery: &mut Brewery<'_>, origin: ExprOrigin) {
+        tracing::debug!(
+            "push_breakpoint_start: origin={:?} breakpoints={:?}",
+            origin,
+            brewery.breakpoints
+        );
         if !origin.synthesized && self.end_block.is_some() {
             if let Some(breakpoint_index) = brewery.expr_is_breakpoint(origin.syntax_expr) {
                 let filename = brewery.code().filename(brewery.db());
@@ -186,10 +204,11 @@ impl Cursor {
     pub(crate) fn push_breakpoint_ends(
         &mut self,
         brewery: &mut Brewery<'_>,
-        place: Option<bir::Place>,
+        place: Option<impl AnyPlace>,
         origins: impl IntoIterator<Item = ExprOrigin>,
         origin: ExprOrigin,
     ) {
+        let place = place.map(|p| p.into_place(brewery));
         for o in origins.into_iter().chain(Some(origin)) {
             self.push_breakpoint_end_with_distinct_origin(brewery, origin.syntax_expr, place, o);
         }
@@ -200,9 +219,10 @@ impl Cursor {
     pub(crate) fn push_breakpoint_end(
         &mut self,
         brewery: &mut Brewery<'_>,
-        place: Option<bir::Place>,
+        place: Option<impl AnyPlace>,
         origin: ExprOrigin,
     ) {
+        let place = place.map(|p| p.into_place(brewery));
         self.push_breakpoint_end_with_distinct_origin(brewery, origin.syntax_expr, place, origin);
     }
 
@@ -243,5 +263,21 @@ impl Cursor {
         let validated::NamedExprData { name, expr } = arg.data(brewery.validated_tables());
         let place = self.brew_expr_to_temporary(brewery, *expr)?;
         Some((place, *name))
+    }
+}
+
+pub(crate) trait AnyPlace {
+    fn into_place(self, brewery: &mut Brewery<'_>) -> bir::Place;
+}
+
+impl AnyPlace for bir::Place {
+    fn into_place(self, _brewery: &mut Brewery<'_>) -> bir::Place {
+        self
+    }
+}
+
+impl AnyPlace for bir::TargetPlace {
+    fn into_place(self, brewery: &mut Brewery<'_>) -> bir::Place {
+        brewery.place_from_target_place(self)
     }
 }

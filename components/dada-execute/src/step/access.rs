@@ -1,6 +1,6 @@
 use dada_ir::{
     error,
-    storage_mode::{Atomic, Joint},
+    storage::{Atomic, Joint, Leased},
 };
 
 use crate::{
@@ -23,10 +23,11 @@ impl Stepper<'_> {
     /// permissions is encountered, so this could only happen
     /// if the traversal is "out of date" with respect to the machine
     /// state).
-    pub(super) fn read(&mut self, traversal: &ObjectTraversal) -> Object {
-        self.access(traversal, Self::revoke_exclusive_tenants);
+    #[tracing::instrument(level = "Debug", skip(self))]
+    pub(super) fn read(&mut self, traversal: &ObjectTraversal) -> eyre::Result<Object> {
+        self.access(traversal, Self::revoke_exclusive_tenants)?;
 
-        traversal.object
+        Ok(traversal.object)
     }
 
     /// Write to the object that was arrived at via the given traversal.
@@ -37,8 +38,22 @@ impl Stepper<'_> {
     /// permissions is encountered, so this could only happen
     /// if the traversal is "out of date" with respect to the machine
     /// state).
-    pub(super) fn write_object(&mut self, traversal: &ObjectTraversal) {
-        self.access(traversal, Self::revoke_tenants);
+    #[tracing::instrument(level = "Debug", skip(self))]
+    pub(super) fn write_object(&mut self, traversal: &ObjectTraversal) -> eyre::Result<()> {
+        self.access(traversal, Self::revoke_tenants)
+    }
+
+    /// Given a traversal that has unique ownership, revokes the last permission
+    /// in the path and returns the object. This also cancels tenants of traversed
+    /// paths, as their (transitive) content has changed.
+    #[tracing::instrument(level = "Debug", skip(self))]
+    pub(super) fn take_object(&mut self, traversal: ObjectTraversal) -> eyre::Result<Object> {
+        assert_eq!(traversal.accumulated_permissions.joint, Joint::No);
+        assert_eq!(traversal.accumulated_permissions.leased, Leased::No);
+        self.write_object(&traversal)?;
+        let last_permission = *traversal.accumulated_permissions.traversed.last().unwrap();
+        self.revoke(last_permission)?;
+        Ok(traversal.object)
     }
 
     /// Write to the *place* identified by the given traversal (but not the
@@ -50,6 +65,7 @@ impl Stepper<'_> {
     /// permissions is encountered, so this could only happen
     /// if the traversal is "out of date" with respect to the machine
     /// state).
+    #[tracing::instrument(level = "Debug", skip(self))]
     pub(super) fn write_place(&mut self, traversal: &PlaceTraversal) -> eyre::Result<()> {
         let ap = &traversal.accumulated_permissions;
         match (ap.joint, ap.atomic) {
@@ -91,7 +107,7 @@ impl Stepper<'_> {
                 // This write to `a.c` does NOT cancel `p`, because it has leased `a.b`.
                 for &permission in &traversal.accumulated_permissions.traversed {
                     assert!(matches!(self.machine[permission], PermissionData::Valid(_)));
-                    self.revoke_tenants(permission);
+                    self.revoke_tenants(permission)?;
                 }
 
                 // # Discussion
@@ -147,17 +163,20 @@ impl Stepper<'_> {
     /// Apply `revoke_op` to each path that was traversed to reach the
     /// destination object `o`, along with any data exclusively
     /// reachable from `o`.
+    #[tracing::instrument(level = "Debug", skip(self, revoke_op))]
     fn access(
         &mut self,
         traversal: &ObjectTraversal,
-        mut revoke_op: impl FnMut(&mut Self, Permission),
-    ) {
+        mut revoke_op: impl FnMut(&mut Self, Permission) -> eyre::Result<()>,
+    ) -> eyre::Result<()> {
         for &permission in &traversal.accumulated_permissions.traversed {
             assert!(matches!(self.machine[permission], PermissionData::Valid(_)));
-            revoke_op(self, permission);
+            revoke_op(self, permission)?;
         }
 
-        self.for_each_reachable_exclusive_permission(traversal.object, revoke_op);
+        self.for_each_reachable_exclusive_permission(traversal.object, revoke_op)?;
+
+        Ok(())
     }
 
     /// Whenever an object is accessed (whether via a read or a write),
@@ -207,8 +226,8 @@ impl Stepper<'_> {
     fn for_each_reachable_exclusive_permission(
         &mut self,
         object: Object,
-        mut revoke_op: impl FnMut(&mut Self, Permission),
-    ) {
+        mut revoke_op: impl FnMut(&mut Self, Permission) -> eyre::Result<()>,
+    ) -> eyre::Result<()> {
         let mut reachable = vec![];
         let mut queue = vec![object];
 
@@ -237,7 +256,8 @@ impl Stepper<'_> {
                     self.push_reachable_via_fields(&v.fields, &mut reachable, &mut queue);
                 }
 
-                ObjectData::Bool(_)
+                ObjectData::Reservation(_)
+                | ObjectData::Bool(_)
                 | ObjectData::Class(_)
                 | ObjectData::Float(_)
                 | ObjectData::Function(_)
@@ -252,8 +272,10 @@ impl Stepper<'_> {
         }
 
         for p in reachable {
-            revoke_op(self, p);
+            revoke_op(self, p)?;
         }
+
+        Ok(())
     }
 
     fn push_reachable_via_fields(

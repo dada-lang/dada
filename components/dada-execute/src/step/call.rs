@@ -10,12 +10,11 @@ use dada_parse::prelude::*;
 
 use crate::{
     error::DiagnosticBuilderExt,
-    ext::DadaExecuteClassExt,
-    machine::{op::MachineOpExt, Instance, ObjectData, ThunkFn, Value},
+    machine::{op::MachineOpExtMut, Instance, ObjectData, ThunkFn, Value},
     step::intrinsic::IntrinsicDefinition,
 };
 
-use super::Stepper;
+use super::{IntoSpecifierAndSpan, Stepper};
 
 pub(super) enum CallResult {
     Returned(Value),
@@ -32,10 +31,6 @@ impl Stepper<'_> {
         labels: &[SpannedOptionalWord],
     ) -> eyre::Result<CallResult> {
         let function_value = self.give_place(table, callee)?;
-        let arguments: Vec<Value> = argument_places
-            .iter()
-            .map(|a| self.give_place(table, *a))
-            .collect::<eyre::Result<_>>()?;
 
         assert!(
             self.machine[function_value.permission].valid().is_some(),
@@ -43,19 +38,23 @@ impl Stepper<'_> {
         );
 
         match &self.machine[function_value.object] {
-            ObjectData::Class(c) => {
-                let field_names = c.field_names(self.db);
-                self.match_labels(terminator, labels, field_names)?;
+            &ObjectData::Class(c) => {
+                let fields = c.fields(self.db);
+                self.match_labels(terminator, labels, fields)?;
+                let arguments =
+                    self.prepare_arguments_for_parameters(table, fields, argument_places)?;
                 let instance = Instance {
-                    class: *c,
+                    class: c,
                     fields: arguments,
                 };
                 Ok(CallResult::Returned(self.machine.my_value(instance)))
             }
-            ObjectData::Function(function) => {
-                let function = *function;
+            &ObjectData::Function(function) => {
                 let parameters = function.parameters(self.db);
                 self.match_labels(terminator, labels, parameters)?;
+
+                let arguments =
+                    self.prepare_arguments_for_parameters(table, parameters, argument_places)?;
 
                 if function.code(self.db).effect.permits_await() {
                     // If the function can await, then it must be an async function.
@@ -73,9 +72,18 @@ impl Stepper<'_> {
                     Ok(CallResult::PushedNewFrame)
                 }
             }
-            ObjectData::Intrinsic(intrinsic) => {
-                let definition = IntrinsicDefinition::for_intrinsic(self.db, *intrinsic);
+            &ObjectData::Intrinsic(intrinsic) => {
+                let definition = IntrinsicDefinition::for_intrinsic(self.db, intrinsic);
                 self.match_labels(callee, labels, &definition.argument_names)?;
+                let callee_span = self.span_from_bir(callee);
+                let arguments = self.prepare_arguments(
+                    table,
+                    definition
+                        .argument_specifiers
+                        .iter()
+                        .map(|specifier| (*specifier, callee_span)),
+                    argument_places,
+                )?;
                 let value = (definition.function)(self, arguments)?;
                 Ok(CallResult::Returned(value))
             }
@@ -89,6 +97,38 @@ impl Stepper<'_> {
                 .eyre(self.db))
             }
         }
+    }
+
+    /// Prepare the arguments according to the given specifiers.
+    fn prepare_arguments_for_parameters(
+        &mut self,
+        table: &bir::Tables,
+        parameters: &[Parameter],
+        argument_places: &[bir::Place],
+    ) -> eyre::Result<Vec<Value>> {
+        self.prepare_arguments(
+            table,
+            parameters
+                .iter()
+                .map(|parameter| parameter.decl(self.db).specifier),
+            argument_places,
+        )
+    }
+
+    /// Prepare the arguments according to the given specifiers.
+    fn prepare_arguments(
+        &mut self,
+        table: &bir::Tables,
+        specifiers: impl Iterator<Item = impl IntoSpecifierAndSpan>,
+        argument_places: &[bir::Place],
+    ) -> eyre::Result<Vec<Value>> {
+        argument_places
+            .iter()
+            .zip(specifiers)
+            .map(|(argument_place, specifier)| {
+                self.prepare_value_for_specifier(table, Some(specifier), *argument_place)
+            })
+            .collect()
     }
 
     fn match_labels(

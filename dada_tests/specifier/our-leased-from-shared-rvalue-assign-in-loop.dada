@@ -1,0 +1,23 @@
+class Point(our x, our y)
+
+async fn main() {
+    # Leasing an `our` value just takes ownership
+    # of it, so `p` becomes (shared) owner of this
+    # point here.
+    our leased p = Point(22, 44).share
+
+    i = 0
+    while i < 1 {
+        print(p).await #! OUTPUT Point\(22, 44\)
+
+        # Leasing an `our` value just takes ownership
+        # of it, so `p` becomes (shared) owner of this
+        # point here.
+        p := Point(44, 66).share
+        print(p).await #! OUTPUT Point\(44, 66\)
+        i += 1
+    }
+
+    # p is (shared) owner, so still valid.
+    print(p).await #! OUTPUT Point\(44, 66\)
+}

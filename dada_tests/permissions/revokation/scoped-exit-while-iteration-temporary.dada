@@ -2,7 +2,7 @@
 # by a temporary scoped to a loop body
 # that is carried across iterations.
 
-class Pair(a, b)
+class Pair(any a, any b)
 
 async fn main() {
     p = 0

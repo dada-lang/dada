@@ -1,10 +1,10 @@
-class Pair(a, b)
+class Pair(any a, any b)
 
 async fn main() {
-    pair = Pair(Pair(22, 44).share, 66)
+    any pair = Pair(Pair(22, 44).share, 66)
 
     # `p` becomes an independent handle on the same shared pair
-    p = pair.a.share
+    any p = pair.a.share
 
     # `p` is not disturbed by this write
     pair.a := Pair(23, 45)

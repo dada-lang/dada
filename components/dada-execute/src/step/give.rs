@@ -1,6 +1,6 @@
 use dada_ir::{
     code::bir,
-    storage_mode::{Joint, Leased},
+    storage::{Joint, Leased},
 };
 
 use crate::machine::{ValidPermissionData, Value};
@@ -20,18 +20,21 @@ impl Stepper<'_> {
     /// Note that -- unlike sharing and leasing -- giving does NOT ensure that `place` remains
     /// valid afterwards! In particular, if you give something that you own, the only way to
     /// preserve both its ownership/sharing properties is to remove the original.
+    #[tracing::instrument(level = "Debug", skip(self, table))]
     pub(super) fn give_place(
         &mut self,
         table: &bir::Tables,
         place: bir::Place,
     ) -> eyre::Result<Value> {
         let object_traversal = self.traverse_to_object(table, place)?;
-        self.give_traversal(object_traversal)
+        let object_traversal = self.confirm_reservation_if_any(table, object_traversal)?;
+        self.give_traversal(table, object_traversal)
     }
 
     #[tracing::instrument(level = "debug", skip(self))]
     pub(super) fn give_traversal(
         &mut self,
+        table: &bir::Tables,
         object_traversal: ObjectTraversal,
     ) -> eyre::Result<Value> {
         // Giving something that is jointly accessible is handled via sharing.
@@ -70,17 +73,8 @@ impl Stepper<'_> {
 
         // The value at `place` is exclusively owned: cancel the old permission (and any tenants)
         // create a new one to return.
+        let object = self.take_object(object_traversal)?;
 
-        // This counts as a write to the object.
-        self.write_object(&object_traversal);
-
-        let ObjectTraversal {
-            object,
-            accumulated_permissions,
-        } = object_traversal;
-
-        let last_permission = *accumulated_permissions.traversed.last().unwrap();
-        self.revoke(last_permission);
         let permission = self.machine.new_permission(ValidPermissionData::my());
         Ok(Value { object, permission })
     }

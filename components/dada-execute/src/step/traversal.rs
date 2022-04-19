@@ -1,9 +1,14 @@
 use dada_id::prelude::*;
 use dada_ir::{
     class::Class,
-    code::bir,
+    code::{
+        bir::{self, LocalVariable},
+        syntax,
+    },
     error,
-    storage_mode::{Atomic, Joint, Leased},
+    origin_table::HasOriginIn,
+    span::FileSpan,
+    storage::{Atomic, Joint, Leased},
     word::Word,
 };
 use dada_parse::prelude::DadaParseClassExt;
@@ -11,7 +16,10 @@ use dada_parse::prelude::DadaParseClassExt;
 use crate::{
     error::DiagnosticBuilderExt,
     ext::DadaExecuteClassExt,
-    machine::{op::MachineOpExt, Object, ObjectData, Permission, PermissionData, Value},
+    machine::{
+        op::MachineOpExtMut, Object, ObjectData, Permission, PermissionData, ProgramCounter,
+        ReservationData, Value,
+    },
 };
 
 use super::{address::Address, Stepper};
@@ -37,6 +45,19 @@ pub(super) struct AccumulatedPermissions {
 
     /// Did we pass through atomic storage?
     pub(super) atomic: Atomic,
+}
+
+impl AccumulatedPermissions {
+    /// Returns the permisions one would have when accessing
+    /// a uniquely owned location with the given "atomic"-ness.
+    pub fn unique(atomic: Atomic) -> Self {
+        AccumulatedPermissions {
+            traversed: vec![],
+            leased: Leased::No,
+            joint: Joint::No,
+            atomic,
+        }
+    }
 }
 
 /// A traversal to a place (i.e., a traversal that terminates
@@ -106,19 +127,7 @@ impl Stepper<'_> {
         place: bir::Place,
     ) -> eyre::Result<PlaceTraversal> {
         match place.data(table) {
-            bir::PlaceData::LocalVariable(lv) => {
-                let lv_data = lv.data(table);
-                let permissions = AccumulatedPermissions {
-                    traversed: vec![],
-                    leased: Leased::No,
-                    joint: Joint::No,
-                    atomic: lv_data.atomic,
-                };
-                Ok(PlaceTraversal {
-                    accumulated_permissions: permissions,
-                    address: Address::Local(*lv),
-                })
-            }
+            bir::PlaceData::LocalVariable(lv) => Ok(self.traverse_to_local_variable(table, *lv)),
 
             bir::PlaceData::Function(f) => Ok(self.traverse_to_constant(ObjectData::Function(*f))),
             bir::PlaceData::Class(c) => Ok(self.traverse_to_constant(ObjectData::Class(*c))),
@@ -134,15 +143,28 @@ impl Stepper<'_> {
                 let (owner_class, field_index) =
                     self.object_field(place, owner_object, *field_name)?;
 
-                // Take the field mod einto account
-                let field = &owner_class.fields(db)[field_index];
+                // Take the field mode into account
+                let field = owner_class.fields(db)[field_index];
                 accumulated_permissions.atomic |= field.decl(db).atomic;
 
                 Ok(PlaceTraversal {
                     accumulated_permissions,
-                    address: Address::Field(owner_object, field_index),
+                    address: Address::Field(owner_object, field_index, Some(field)),
                 })
             }
+        }
+    }
+
+    pub(super) fn traverse_to_local_variable(
+        &mut self,
+        table: &bir::Tables,
+        lv: LocalVariable,
+    ) -> PlaceTraversal {
+        let lv_data = lv.data(table);
+        let permissions = AccumulatedPermissions::unique(lv_data.atomic);
+        PlaceTraversal {
+            accumulated_permissions: permissions,
+            address: Address::Local(lv),
         }
     }
 
@@ -160,20 +182,85 @@ impl Stepper<'_> {
     ) -> eyre::Result<ObjectTraversal> {
         let PlaceTraversal {
             accumulated_permissions,
-            address: place,
+            address,
         } = self.traverse_to_place(table, bir_place)?;
-        let Value { permission, object } = self.peek(place);
+        let Value { permission, object } = self.peek(address);
         let permissions =
             self.accumulate_permission(bir_place, accumulated_permissions, permission)?;
+
         Ok(ObjectTraversal {
             accumulated_permissions: permissions,
             object,
         })
     }
 
+    pub(super) fn traverse_to_object_field(
+        &mut self,
+        place: impl HasOriginIn<bir::Origins, Origin = syntax::Expr>,
+        object_traversal: ObjectTraversal,
+        field_name: Word,
+    ) -> eyre::Result<PlaceTraversal> {
+        let ObjectTraversal {
+            mut accumulated_permissions,
+            object: owner_object,
+        } = object_traversal;
+        let (owner_class, field_index) = self.object_field(place, owner_object, field_name)?;
+
+        // Take the field mode into account
+        let field = owner_class.fields(self.db)[field_index];
+        accumulated_permissions.atomic |= field.decl(self.db).atomic;
+
+        Ok(PlaceTraversal {
+            accumulated_permissions,
+            address: Address::Field(owner_object, field_index, Some(field)),
+        })
+    }
+
+    /// If `traversal` reaches a reservation, then "confirm" the reservation by
+    /// traversing to the place that was reversal, removing the reservation from
+    /// each permission along the way, and returning that traversal.
+    ///
+    /// Otherwise return `traversal` unchanged.
+    #[tracing::instrument(level = "Debug", skip(self, table))]
+    pub(super) fn confirm_reservation_if_any(
+        &mut self,
+        table: &bir::Tables,
+        traversal: ObjectTraversal,
+    ) -> eyre::Result<ObjectTraversal> {
+        let ObjectData::Reservation(_) = self.machine[traversal.object] else {
+            return Ok(traversal);
+        };
+
+        let (Joint::No, Leased::No) = (traversal.accumulated_permissions.joint, traversal.accumulated_permissions.leased) else {
+            // our codegen doesn't ever share or lease a temporary containing a reservation
+            panic!("expected to find reservation in a `my` location");
+        };
+
+        let object = self.take_object(traversal)?;
+        let ObjectData::Reservation(reservation) = self.machine[object] else {
+            panic!("object data changed from a reservation");
+        };
+        let ReservationData {
+            pc: _,
+            frame_index,
+            place: reserved_place,
+        } = self.machine.take_reservation(reservation);
+
+        assert_eq!(
+            frame_index,
+            self.machine.top_frame_index().unwrap(),
+            "reservation `{reservation:?}` escaped its frame"
+        );
+
+        // the reservation should ensure that this place is still valid
+        let retraversal = self.traverse_to_object(table, reserved_place).unwrap();
+        self.remove_reservations(reservation, &retraversal.accumulated_permissions.traversed)?;
+        Ok(retraversal)
+    }
+
     fn object_field(
         &mut self,
-        place: bir::Place,
+        place: impl HasOriginIn<bir::Origins, Origin = syntax::Expr>,
         owner_object: Object,
         field_name: Word,
     ) -> eyre::Result<(Class, usize)> {
@@ -232,26 +319,10 @@ impl Stepper<'_> {
         let atomic = accumulated_permissions.atomic;
 
         match &self.machine[permission] {
-            PermissionData::Expired(None) => {
+            PermissionData::Expired(expired_at) => {
+                tracing::debug!("encountered expired permission: {:?}", permission);
                 let place_span = self.span_from_bir(place);
-                Err(error!(place_span, "accessing uninitialized memory").eyre(self.db))
-            }
-            PermissionData::Expired(Some(expired_at)) => {
-                let place_span = self.span_from_bir(place);
-                let expired_at_span = expired_at.span(self.db);
-
-                let secondary_label = if expired_at.is_return(self.db) {
-                    "lease was cancelled when this function returned"
-                } else {
-                    "lease was cancelled here"
-                };
-
-                Err(
-                    error!(place_span, "your lease to this object was cancelled")
-                        .primary_label("cancelled lease used here")
-                        .secondary_label(expired_at_span, secondary_label)
-                        .eyre(self.db),
-                )
+                Err(self.report_traversing_expired_permission(place_span, *expired_at))
             }
             PermissionData::Valid(v) => {
                 match v.joint {
@@ -288,6 +359,30 @@ impl Stepper<'_> {
                         })
                     }
                 }
+            }
+        }
+    }
+
+    pub(super) fn report_traversing_expired_permission(
+        &self,
+        place_span: FileSpan,
+        expired_at: Option<ProgramCounter>,
+    ) -> eyre::Report {
+        match expired_at {
+            None => error!(place_span, "accessing uninitialized memory").eyre(self.db),
+            Some(expired_at) => {
+                let expired_at_span = expired_at.span(self.db);
+
+                let secondary_label = if expired_at.is_return(self.db) {
+                    "lease was cancelled when this function returned"
+                } else {
+                    "lease was cancelled here"
+                };
+
+                error!(place_span, "your lease to this object was cancelled")
+                    .primary_label("cancelled lease used here")
+                    .secondary_label(expired_at_span, secondary_label)
+                    .eyre(self.db)
             }
         }
     }

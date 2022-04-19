@@ -11,9 +11,9 @@ class Character(name)
 # not need to cancel guest.
 
 async fn main() {
-    owner = Character("Achilles")
-    lessee = owner.lease
-    guest = lessee.share
+    any owner = Character("Achilles")
+    any lessee = owner.lease
+    any guest = lessee.share
     print(owner.name).await #! OUTPUT Achilles
     print(lessee.name).await #! OUTPUT Achilles
     print(guest.name).await #! OUTPUT Achilles

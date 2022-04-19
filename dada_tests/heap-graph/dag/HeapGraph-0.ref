@@ -13,8 +13,8 @@ digraph {
           <table border="0">
           <tr><td border="1">main</td></tr>
           <tr><td port="0"><font color="black">p</font></td></tr>
-          <tr><td port="6"><font color="black">q</font></td></tr>
-          <tr><td port="18"><font color="black">(in-flight): "()"</font></td></tr>
+          <tr><td port="2"><font color="black">q</font></td></tr>
+          <tr><td port="13"><font color="black">(in-flight): "()"</font></td></tr>
           </table>
         >;
       ];
@@ -33,10 +33,10 @@ digraph {
         <tr><td port="1"><font color="black">y: "44"</font></td></tr>
       </table>>
     ];
-    "afterstack":0 -> "afternode0" [label="our", style="solid"];
-    "afterstack":6 -> "afternode1" [label="my", style="solid"];
-    "afternode1":0 -> "afternode0" [label="our", style="solid"];
-    "afternode1":1 -> "afternode0" [label="our", style="solid"];
+    "afterstack":0 -> "afternode0" [label="our", style="solid", penwidth=3.0, arrowtype="normal", color="blue"];
+    "afterstack":2 -> "afternode1" [label="our leased", style="solid", penwidth=1.0, arrowtype="empty", color="blue"];
+    "afternode1":0 -> "afternode0" [label="our", style="solid", penwidth=3.0, arrowtype="normal", color="blue"];
+    "afternode1":1 -> "afternode0" [label="our", style="solid", penwidth=3.0, arrowtype="normal", color="blue"];
   }
   subgraph cluster_before {
     label=<<b>before</b>>
@@ -49,7 +49,7 @@ digraph {
           <table border="0">
           <tr><td border="1">main</td></tr>
           <tr><td port="0"><font color="black">p</font></td></tr>
-          <tr><td port="6"><font color="black">q</font></td></tr>
+          <tr><td port="2"><font color="black">q</font></td></tr>
           </table>
         >;
       ];

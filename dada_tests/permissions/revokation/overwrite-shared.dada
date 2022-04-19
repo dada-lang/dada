@@ -1,18 +1,15 @@
-class Pair(a, b)
+class Pair(any a, any b)
 
 async fn main() {
-    pair = Pair(Pair(22, 44).share, 66)
+    any pair = Pair(Pair(22, 44).share, 66)
     #           ^^^^^^^^^^^^^^^^^^
-    # This introduces a (jointly owned) temporary.
+    # This created a jointly owned value but
+    # puts `pair` is the sole owner of it.
 
-    # Leasing that jointly owned temporary produces
-    # a shared lease.
-    p = pair.a.lease
+    # Leasing from `pair.a` clones it, since `pair.a` is "our"
+    any p = pair.a.lease
 
-    # Overwriting `pair.a` does not destroy the temporary
-    # behind it.
+    # Since `p` is owned, overwriting `pair.a` has no effect on it.
     pair.a := Pair(23, 45)
-
-    # So we can still access `p`
-    print(p).await #! OUTPUT our leased Pair\(22, 44\)
+    print(p).await #! OUTPUT our Pair\(22, 44\)
 }

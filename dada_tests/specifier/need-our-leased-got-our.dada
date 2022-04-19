@@ -1,0 +1,5 @@
+class Point()
+
+async fn main() {
+    our leased p = Point().share
+}

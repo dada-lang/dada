@@ -5,9 +5,11 @@
 //! The gc currently runs after every step, keeping things tidy.
 
 use dada_collections::Set;
-use dada_ir::storage_mode::Leased;
+use dada_ir::storage::Leased;
 
-use crate::machine::{op::MachineOp, Object, ObjectData, Permission, PermissionData, Value};
+use crate::machine::{
+    op::MachineOp, Object, ObjectData, Permission, PermissionData, Reservation, Value,
+};
 
 use super::Stepper;
 
@@ -23,7 +25,7 @@ impl Stepper<'_> {
     pub(super) fn gc(&mut self, in_flight_values: &[Value]) {
         let mut marks = Marks::default();
         Marker::new(self.machine, &mut marks).mark(in_flight_values);
-        self.sweep(&marks);
+        self.sweep(&marks).unwrap();
     }
 }
 
@@ -54,6 +56,9 @@ struct Marks {
     /// This function creates an Object and returns a leased copy,
     /// In the callee, the leased value will be live, but not the owner.
     live_permissions: Set<Permission>,
+
+    /// Reservations reachable from live things
+    live_reservations: Set<Reservation>,
 }
 
 struct Marker<'me> {
@@ -126,6 +131,8 @@ impl<'me> Marker<'me> {
             ObjectData::ThunkRust(f) => self.mark_values(&f.arguments),
             ObjectData::Tuple(t) => self.mark_values(&t.fields),
 
+            ObjectData::Reservation(r) => self.mark_reservation(*r),
+
             ObjectData::Class(_)
             | ObjectData::Function(_)
             | ObjectData::Intrinsic(_)
@@ -142,6 +149,11 @@ impl<'me> Marker<'me> {
     }
 
     #[tracing::instrument(level = "Debug", skip(self))]
+    fn mark_reservation(&mut self, reservation: Reservation) {
+        self.marks.live_reservations.insert(reservation);
+    }
+
+    #[tracing::instrument(level = "Debug", skip(self))]
     fn mark_permission(&mut self, permission: Permission) {
         if !self.marks.live_permissions.insert(permission) {
             tracing::trace!("already visited");
@@ -153,6 +165,10 @@ impl<'me> Marker<'me> {
             return;
         };
 
+        for reservation in &valid.reservations {
+            self.mark_reservation(*reservation);
+        }
+
         for tenant in &valid.tenants {
             self.mark_permission(*tenant);
         }
@@ -161,7 +177,7 @@ impl<'me> Marker<'me> {
 
 impl Stepper<'_> {
     #[tracing::instrument(level = "Debug", skip(self))]
-    fn sweep(&mut self, marks: &Marks) {
+    fn sweep(&mut self, marks: &Marks) -> eyre::Result<()> {
         let mut live_permissions = self.machine.all_permissions();
         let mut dead_permissions = live_permissions.clone();
         live_permissions.retain(|p| marks.live_permissions.contains(p));
@@ -170,7 +186,7 @@ impl Stepper<'_> {
         // First: revoke all the dead permissions.
         for &p in &dead_permissions {
             tracing::debug!("revoking dead permission {:?}", p);
-            self.revoke(p);
+            self.revoke(p)?;
         }
 
         // Next: remove them from the heap.
@@ -194,5 +210,15 @@ impl Stepper<'_> {
             let data = self.machine.take_object(o);
             tracing::debug!("freeing {:?}: {:?}", o, data);
         }
+
+        let mut dead_reservations = self.machine.all_reservations();
+        dead_reservations.retain(|r| !marks.live_reservations.contains(r));
+
+        for &r in &dead_reservations {
+            let data = self.machine.take_reservation(r);
+            tracing::debug!("freeing {:?}: {:?}", r, data);
+        }
+
+        Ok(())
     }
 }

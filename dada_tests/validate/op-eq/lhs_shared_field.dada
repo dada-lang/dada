@@ -1,0 +1,7 @@
+class Point(our x, our y)
+
+async fn main() {
+    our p = Point(22, 44)
+    p.x += 1 #! RUN ERROR cannot write to shared fields
+    print(p).await
+}

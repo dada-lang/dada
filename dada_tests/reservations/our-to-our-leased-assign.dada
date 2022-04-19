@@ -1,0 +1,22 @@
+class Point(any a, any b)
+
+async fn main() {
+    our p = Point(22, 44)
+
+    # leasing an "our" thing becomes a second
+    # owner (lessors are always exclusive)
+    our leased q = p
+    print(q).await #! OUTPUT Point\(22, 44\)
+
+    # reassigning `p` does not invalidate `q`.
+    p := Point(44, 66)
+    print(q).await #! OUTPUT Point\(22, 44\)
+
+    # reassigning `q` creates a second owner for the `(44, 66)` point
+    q := p
+
+    # reassigning `p`, again, does not invalidate `q`
+    p := Point(33, 55)
+    print(p).await #! OUTPUT Point\(33, 55\)
+    print(q).await #! OUTPUT Point\(44, 66\)
+}

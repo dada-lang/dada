@@ -10,7 +10,7 @@ use crate::{
     intrinsic::Intrinsic,
     origin_table::HasOriginIn,
     prelude::InIrDbExt,
-    storage_mode::Atomic,
+    storage::{Atomic, SpannedSpecifier},
     word::{SpannedOptionalWord, Word},
 };
 use dada_id::{id, prelude::*, tables};
@@ -113,6 +113,7 @@ tables! {
         terminators: alloc Terminator => TerminatorData,
         exprs: alloc Expr => ExprData,
         places: alloc Place => PlaceData,
+        target_places: alloc TargetPlace => TargetPlaceData,
     }
 }
 
@@ -130,6 +131,7 @@ origin_table! {
         terminator: Terminator => syntax::Expr,
         expr: Expr => syntax::Expr,
         place: Place => syntax::Expr,
+        target_place: TargetPlace => syntax::Expr,
     }
 }
 
@@ -150,6 +152,13 @@ pub struct LocalVariableData {
     /// If it is None, then this is a temporary
     /// introduced by the compiler.
     pub name: Option<Word>,
+
+    /// Specifier given this variable by the user
+    /// (possibly defaulted). If this is `None`,
+    /// then this is a temporary introduced by the compiler,
+    /// and it gets the specifier `Any`.
+    pub specifier: Option<SpannedSpecifier>,
+
     pub atomic: Atomic,
 }
 
@@ -217,7 +226,24 @@ impl DebugWithDb<InIrDb<'_, Bir>> for Statement {
 
 #[derive(PartialEq, Eq, Clone, Hash, Debug)]
 pub enum StatementData {
-    Assign(Place, Expr),
+    /// Assign the result of evaluating an expression to a place.
+    /// This is the preferred form of assignment, and covers
+    /// cases like `a := b` as well as `a := 22`. In these case, either
+    /// (a) we know statically the declared mode for `a` and so we
+    /// can prepare an expression like `b.give` or `b.lease` in advance
+    /// or (b) the rhs is an rvalue, like `22`, and so is always given.
+    AssignExpr(TargetPlace, Expr),
+
+    /// Captures an assignment like
+    ///
+    /// ```notrust
+    /// foo.bar := baz
+    /// ```
+    ///
+    /// This case is challenging because, until we know
+    /// the declared type of `bar` at runtime, we don't
+    /// know whether to give `baz`, lease it, or what.
+    AssignPlace(TargetPlace, Place),
 
     /// Clears the value from the given local variable.
     Clear(LocalVariable),
@@ -250,10 +276,16 @@ pub enum StatementData {
 impl DebugWithDb<InIrDb<'_, Bir>> for StatementData {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>, db: &InIrDb<'_, Bir>) -> std::fmt::Result {
         match self {
-            StatementData::Assign(place, expr) => f
-                .debug_tuple("Assign")
+            StatementData::AssignExpr(place, expr) => f
+                .debug_tuple("AssignExpr")
                 .field(&place.debug(db))
                 .field(&expr.debug(db))
+                .finish(),
+
+            StatementData::AssignPlace(target, source) => f
+                .debug_tuple("AssignPlace")
+                .field(&target.debug(db))
+                .field(&source.debug(db))
                 .finish(),
 
             StatementData::Clear(lv) => f.debug_tuple("Clear").field(&lv.debug(db)).finish(),
@@ -290,7 +322,7 @@ pub enum TerminatorData {
     StartAtomic(BasicBlock),
     EndAtomic(BasicBlock),
     Return(Place),
-    Assign(Place, TerminatorExpr, BasicBlock),
+    Assign(TargetPlace, TerminatorExpr, BasicBlock),
     Error,
     Panic,
 }
@@ -384,8 +416,13 @@ pub enum ExprData {
     /// `"foo"` with no format strings
     StringLiteral(Word),
 
+    /// `expr.reserve`
+    ///
+    /// not (presently) actual syntax, emitted as part of lowering
+    Reserve(Place),
+
     /// `expr.share`
-    GiveShare(Place),
+    Share(Place),
 
     /// `expr.lease`
     Lease(Place),
@@ -418,7 +455,8 @@ impl DebugWithDb<InIrDb<'_, Bir>> for ExprData {
             ExprData::SignedIntegerLiteral(w) => write!(f, "{}", w),
             ExprData::StringLiteral(w) => write!(f, "{:?}", w.as_str(db.db())),
             ExprData::FloatLiteral(w) => write!(f, "{}", w),
-            ExprData::GiveShare(p) => write!(f, "{:?}.share", p.debug(db)),
+            ExprData::Reserve(p) => write!(f, "{:?}.reserve", p.debug(db)),
+            ExprData::Share(p) => write!(f, "{:?}.share", p.debug(db)),
             ExprData::Lease(p) => write!(f, "{:?}.lease", p.debug(db)),
             ExprData::Give(p) => write!(f, "{:?}.give", p.debug(db)),
             ExprData::Unit => write!(f, "()"),
@@ -475,6 +513,29 @@ impl DebugWithDb<InIrDb<'_, Bir>> for PlaceData {
             PlaceData::Class(class) => write!(f, "{:?}", class.debug(db.db())),
             PlaceData::Intrinsic(intrinsic) => write!(f, "{:?}", intrinsic),
             PlaceData::Dot(p, id) => write!(f, "{:?}.{}", p.debug(db), id.as_str(db.db())),
+        }
+    }
+}
+
+id!(pub struct TargetPlace);
+
+impl DebugWithDb<InIrDb<'_, Bir>> for TargetPlace {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>, db: &InIrDb<'_, Bir>) -> std::fmt::Result {
+        write!(f, "{:?}", self.data(db.tables()).debug(db))
+    }
+}
+
+#[derive(PartialEq, Eq, Clone, Hash, Debug)]
+pub enum TargetPlaceData {
+    LocalVariable(LocalVariable),
+    Dot(Place, Word),
+}
+
+impl DebugWithDb<InIrDb<'_, Bir>> for TargetPlaceData {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>, db: &InIrDb<'_, Bir>) -> std::fmt::Result {
+        match self {
+            TargetPlaceData::LocalVariable(v) => write!(f, "{:?}", v.debug(db)),
+            TargetPlaceData::Dot(p, id) => write!(f, "{:?}.{}", p.debug(db), id.as_str(db.db())),
         }
     }
 }

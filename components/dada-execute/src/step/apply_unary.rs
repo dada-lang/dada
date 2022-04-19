@@ -5,7 +5,7 @@ use dada_ir::{
 
 use crate::{
     error::DiagnosticBuilderExt,
-    machine::op::MachineOpExt,
+    machine::op::MachineOpExtMut,
     machine::{Object, ObjectData, Value},
 };
 

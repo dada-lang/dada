@@ -1,4 +1,4 @@
-use dada_ir::storage_mode::{Joint, Leased};
+use dada_ir::storage::{Joint, Leased};
 
 use crate::machine::{Permission, ValidPermissionData};
 
@@ -10,6 +10,7 @@ impl Stepper<'_> {
         let permission = self.machine.new_permission(ValidPermissionData {
             joint,
             leased: Leased::Yes,
+            reservations: vec![],
             tenants: vec![],
         });
 

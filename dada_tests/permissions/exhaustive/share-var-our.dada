@@ -1,4 +1,4 @@
-class Pair(a, b)
+class Pair(any a, any b)
 
 async fn main() {
     p = Pair(22, 44).share

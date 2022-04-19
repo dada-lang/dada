@@ -24,6 +24,17 @@ pub(crate) enum Definition {
     Intrinsic(Intrinsic),
 }
 
+impl Definition {
+    pub(crate) fn plural_description(&self) -> &str {
+        match self {
+            Definition::LocalVariable(_) => "variables",
+            Definition::Function(_) => "functions",
+            Definition::Class(_) => "classes",
+            Definition::Intrinsic(_) => "functions",
+        }
+    }
+}
+
 impl From<Item> for Definition {
     fn from(value: Item) -> Self {
         match value {

@@ -1,11 +1,11 @@
-class Point(x, y)
+class Point(our x, our y)
 
 async fn main() {
-    p = Point(22, 44)
-    #?               ^ HeapGraph
-    q = Point(p, 66)
-    #?        ^ HeapGraph
-    #?         ^ HeapGraph
-    #?          ^ HeapGraph
+    our p = Point(22, 44)
+    #?                   ^ HeapGraph
+    our q = Point(p, 66)
+    #?            ^ HeapGraph
+    #?             ^ HeapGraph
+    #?              ^ HeapGraph
     print("Hi").await #! OUTPUT Hi
 }

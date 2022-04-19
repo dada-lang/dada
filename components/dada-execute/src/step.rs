@@ -9,6 +9,7 @@ use dada_ir::{
     in_ir_db::InIrDbExt,
     origin_table::HasOriginIn,
     span::FileSpan,
+    storage::{Atomic, Joint, Leased, SpannedSpecifier, Specifier},
     word::Word,
 };
 use dada_parse::prelude::*;
@@ -24,6 +25,8 @@ use crate::{
     thunk::RustThunk,
 };
 
+use self::traversal::PlaceTraversal;
+
 mod access;
 mod address;
 mod apply_op;
@@ -35,6 +38,7 @@ mod gc;
 mod give;
 mod intrinsic;
 mod lease;
+mod reserve;
 mod revoke;
 mod share;
 mod tenant;
@@ -173,7 +177,7 @@ impl<'me> Stepper<'me> {
         );
 
         match statement.data(table) {
-            bir::StatementData::Assign(place, expr) => {
+            bir::StatementData::AssignExpr(place, expr) => {
                 // Subtle: The way this is setup, permissions for the target are not
                 // canceled until the write occurs. Consider something like this:
                 //
@@ -185,7 +189,10 @@ impl<'me> Stepper<'me> {
                 //
                 // This works, but the act of assigning to `p.x` cancels the lease from `q`.
                 let value = self.eval_expr(table, *expr)?;
-                self.assign_place(table, *place, value)?;
+                self.assign_value_to_place(table, *place, value)?;
+            }
+            bir::StatementData::AssignPlace(target_place, source_place) => {
+                self.assign_place_to_place(table, *target_place, *source_place)?;
             }
             bir::StatementData::Clear(lv) => {
                 let permission = self.machine.expired_permission(None);
@@ -223,15 +230,121 @@ impl<'me> Stepper<'me> {
         })
     }
 
-    fn assign_place(
+    fn assign_place_to_place(
         &mut self,
         table: &bir::Tables,
-        place: bir::Place,
+        target_place: bir::TargetPlace,
+        source_place: bir::Place,
+    ) -> eyre::Result<()> {
+        let target_traversal = self.evaluate_target_place(table, target_place)?;
+
+        assert_ne!(
+            target_traversal.accumulated_permissions.atomic,
+            Atomic::Yes,
+            "atomics not yet implemented"
+        );
+
+        let specifier = self.specifier(target_traversal.address);
+
+        let value = self.prepare_value_for_specifier(table, specifier, source_place)?;
+
+        self.assign_value_to_traversal(target_traversal, value)
+    }
+
+    fn evaluate_target_place(
+        &mut self,
+        table: &bir::Tables,
+        target_place: bir::TargetPlace,
+    ) -> eyre::Result<PlaceTraversal> {
+        match &table[target_place] {
+            bir::TargetPlaceData::LocalVariable(lv) => {
+                Ok(self.traverse_to_local_variable(table, *lv))
+            }
+            bir::TargetPlaceData::Dot(owner, name) => {
+                let owner_traversal = self.traverse_to_object(table, *owner)?;
+                let owner_traversal = self.confirm_reservation_if_any(table, owner_traversal)?;
+                self.traverse_to_object_field(target_place, owner_traversal, *name)
+            }
+        }
+    }
+
+    #[tracing::instrument(level = "Debug", skip(self, table))]
+    fn prepare_value_for_specifier(
+        &mut self,
+        table: &bir::Tables,
+        specifier: Option<impl IntoSpecifierAndSpan>,
+        source_place: bir::Place,
+    ) -> eyre::Result<Value> {
+        let (specifier, specifier_span) = match specifier {
+            Some(i) => i.into_specifier_and_span(self.db),
+            None => return self.give_place(table, source_place),
+        };
+
+        tracing::debug!(?specifier);
+
+        let value = match specifier {
+            Specifier::My => self.give_place(table, source_place)?,
+            Specifier::Our => self.share_place(table, source_place)?,
+            Specifier::Leased => self.lease_place(table, source_place)?,
+            Specifier::OurLeased => self.share_leased_place(table, source_place)?,
+            Specifier::Any => self.give_place(table, source_place)?,
+        };
+
+        let permission = &self.machine[value.permission];
+        let valid = permission
+            .valid()
+            .expect("value to be stored has expired permision");
+
+        if let (true, Leased::Yes) = (specifier.must_be_owned(), valid.leased) {
+            let source_place_span = self.span_from_bir(source_place);
+            return Err(error!(source_place_span, "more permissions needed")
+                .primary_label(format!(
+                    "this value is `{}`, which is leased, not owned",
+                    valid.as_str()
+                ))
+                .secondary_label(
+                    specifier_span,
+                    format!("`{specifier}` requires owned values"),
+                )
+                .eyre(self.db));
+        }
+
+        if let (true, Joint::Yes) = (specifier.must_be_unique(), valid.joint) {
+            let source_place_span = self.span_from_bir(source_place);
+            return Err(error!(source_place_span, "more permissions needed")
+                .primary_label(format!(
+                    "this value is `{}`, which is shared, not unique",
+                    valid.as_str()
+                ))
+                .secondary_label(
+                    specifier_span,
+                    format!("`{specifier}` requires unique access"),
+                )
+                .eyre(self.db));
+        }
+
+        Ok(value)
+    }
+
+    fn assign_value_to_place(
+        &mut self,
+        table: &bir::Tables,
+        target_place: bir::TargetPlace,
         value: Value,
-    ) -> Result<(), eyre::Error> {
-        let traversal = self.traverse_to_place(table, place)?;
-        self.write_place(&traversal)?;
-        self.poke(traversal.address, value)?;
+    ) -> eyre::Result<()> {
+        assert!(self.machine[value.permission].valid().is_some());
+
+        let target_traversal = self.evaluate_target_place(table, target_place)?;
+        self.assign_value_to_traversal(target_traversal, value)
+    }
+
+    fn assign_value_to_traversal(
+        &mut self,
+        target_traversal: PlaceTraversal,
+        value: Value,
+    ) -> eyre::Result<()> {
+        self.write_place(&target_traversal)?;
+        self.poke(target_traversal.address, value)?;
         Ok(())
     }
 
@@ -275,7 +388,7 @@ impl<'me> Stepper<'me> {
                 next_block,
             ) => match self.call(table, terminator, *function, arguments, labels)? {
                 call::CallResult::Returned(return_value) => {
-                    self.assign_place(table, *destination, return_value)?;
+                    self.assign_value_to_place(table, *destination, return_value)?;
                     self.machine.set_pc(pc.move_to_block(*next_block));
                     Ok(ControlFlow::Next)
                 }
@@ -355,8 +468,14 @@ impl<'me> Stepper<'me> {
             unreachable!("calling frame should be at an assign terminator")
         };
 
+        // check that the value which was returned didn't get invalidated
+        // by the return itself
+        if let Some(expired_at) = self.machine[value.permission].expired() {
+            return Err(self.report_traversing_expired_permission(top.pc.span(self.db), expired_at));
+        }
+
         let new_pc = top.pc.move_to_block(*top_basic_block);
-        self.assign_place(top_table, *top_place, value)?;
+        self.assign_value_to_place(top_table, *top_place, value)?;
         self.machine.set_pc(new_pc);
         Ok(())
     }
@@ -366,7 +485,7 @@ impl<'me> Stepper<'me> {
     /// permissions to read.
     fn read_place(&mut self, table: &bir::Tables, place: bir::Place) -> eyre::Result<Object> {
         let traversal = self.traverse_to_object(table, place)?;
-        Ok(self.read(&traversal))
+        self.read(&traversal)
     }
 
     fn eval_place_to_bool(&mut self, table: &bir::Tables, place: bir::Place) -> eyre::Result<bool> {
@@ -412,7 +531,8 @@ impl<'me> Stepper<'me> {
                 object: self.machine.new_object(ObjectData::Unit(())),
                 permission: self.machine.new_permission(ValidPermissionData::our()),
             }),
-            bir::ExprData::GiveShare(place) => self.share_place(table, *place),
+            bir::ExprData::Reserve(place) => self.reserve_place(table, *place),
+            bir::ExprData::Share(place) => self.share_place(table, *place),
             bir::ExprData::Lease(place) => self.lease_place(table, *place),
             bir::ExprData::Give(place) => self.give_place(table, *place),
             bir::ExprData::Tuple(places) => {
@@ -452,7 +572,7 @@ impl<'me> Stepper<'me> {
 
     fn no_such_field(db: &dyn crate::Db, span: FileSpan, class: Class, name: Word) -> eyre::Report {
         let class_name = class.name(db).as_str(db);
-        let class_span = class.name_span(db);
+        let class_span = class.name(db).span(db);
         error!(
             span,
             "the class `{}` has no field named `{}`",
@@ -482,5 +602,21 @@ impl<'me> Stepper<'me> {
         let filename = code.filename(self.db);
         let syntax_tree = code.syntax_tree(self.db);
         syntax_tree.spans(self.db)[syntax_expr].in_file(filename)
+    }
+}
+
+trait IntoSpecifierAndSpan: std::fmt::Debug {
+    fn into_specifier_and_span(self, db: &dyn crate::Db) -> (Specifier, FileSpan);
+}
+
+impl IntoSpecifierAndSpan for (Specifier, FileSpan) {
+    fn into_specifier_and_span(self, _db: &dyn crate::Db) -> (Specifier, FileSpan) {
+        self
+    }
+}
+
+impl IntoSpecifierAndSpan for SpannedSpecifier {
+    fn into_specifier_and_span(self, db: &dyn crate::Db) -> (Specifier, FileSpan) {
+        (self.specifier(db), self.span(db))
     }
 }

@@ -1,0 +1,12 @@
+class Point(our x, our y)
+
+async fn main() {
+    my p = Point(22, 44)
+    test(p).await.x += 1
+    print(p).await #! OUTPUT Point\(23, 44\)
+}
+
+async fn test(leased p) {
+    print("Hi").await #! OUTPUT Hi
+    p
+}

@@ -317,8 +317,15 @@ impl Kernel for BufferKernel {
             index
         );
 
-        let (breakpoint_filename, breakpoint_index, heap_at_start) =
-            self.started_breakpoints.pop().unwrap();
+        let Some((breakpoint_filename, breakpoint_index, heap_at_start)) =
+            self.started_breakpoints.pop()
+        else {
+            panic!(
+                "breakpoint {index} for `{}` at `{:?}` not found",
+                filename.as_str(db),
+                span.debug(db),
+            )
+        };
         assert_eq!(filename, breakpoint_filename);
         assert_eq!(index, breakpoint_index);
         let breakpoint_record = BreakpointRecord {

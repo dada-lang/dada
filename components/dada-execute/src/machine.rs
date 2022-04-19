@@ -1,19 +1,21 @@
 //! Defines the "abstract machine" that executes a Dada program.
 
 use dada_collections::IndexVec;
+use dada_id::id;
 use dada_ir::{
     class::Class,
     code::bir,
     function::Function,
     intrinsic::Intrinsic,
     span::FileSpan,
-    storage_mode::{Joint, Leased},
+    storage::{Joint, Leased},
 };
 use dada_parse::prelude::*;
 use generational_arena::Arena;
 
 use crate::thunk::RustThunk;
 
+pub mod assert_invariants;
 pub mod op;
 pub mod stringify;
 
@@ -57,6 +59,7 @@ pub struct Value {
 pub struct Heap {
     pub objects: Arena<ObjectData>,
     pub permissions: Arena<PermissionData>,
+    pub reservations: Arena<ReservationData>,
 }
 
 impl Heap {
@@ -115,6 +118,34 @@ impl Heap {
     pub(crate) fn permission_data(&self, permission: Permission) -> Option<&PermissionData> {
         self.permissions.get(permission.index)
     }
+
+    fn new_reservation(&mut self, data: ReservationData) -> Reservation {
+        let p = Reservation {
+            index: self.reservations.insert(data),
+        };
+
+        tracing::debug!(
+            "new reservation: {:?} = {:?}",
+            p,
+            &self.reservations[p.index]
+        );
+
+        p
+    }
+
+    pub(crate) fn reservation_data(&self, reservation: Reservation) -> Option<&ReservationData> {
+        self.reservations.get(reservation.index)
+    }
+
+    fn all_reservations(&self) -> Vec<Reservation> {
+        let mut vec: Vec<_> = self
+            .reservations
+            .iter()
+            .map(|(index, _)| Reservation { index })
+            .collect();
+        vec.sort();
+        vec
+    }
 }
 
 /// An "object" is a piece of data in the heap.
@@ -143,6 +174,11 @@ impl std::fmt::Debug for Object {
 pub enum ObjectData {
     /// An instance of a class.
     Instance(Instance),
+
+    /// A temporary hold that is placed on a place during evaluation,
+    /// preventing the user from overwriting it. USed for "two-phase borrow"-like
+    /// patterns, in Rust terms.
+    Reservation(Reservation),
 
     /// A reference to a class itself.
     Class(Class),
@@ -191,6 +227,7 @@ impl ObjectData {
     pub fn kind_str(&self, db: &dyn crate::Db) -> String {
         match self {
             ObjectData::Instance(i) => format!("an instance of `{}`", i.class.name(db).as_str(db)),
+            ObjectData::Reservation(_) => "a reservation".to_string(),
             ObjectData::Class(_) => "a class".to_string(),
             ObjectData::Function(_) => "a function".to_string(),
             ObjectData::Intrinsic(_) => "a function".to_string(),
@@ -224,6 +261,7 @@ macro_rules! object_data_from_impls {
 
 object_data_from_impls! {
     Instance(Instance),
+    Reservation(Reservation),
     Class(Class),
     Function(Function),
     Intrinsic(Intrinsic),
@@ -259,6 +297,50 @@ pub struct Tuple {
     pub fields: Vec<Value>,
 }
 
+/// A *reservation* is issued for a place when
+/// we evaluate the place before we actually consume it and
+/// we wish to ensure that the place is not invalidated in the
+/// meantime; it is also used when we do not yet know how the
+/// place will be used.
+///
+/// Example:
+///
+/// ```notrust
+/// foo(a.b.c, ...)
+/// ```
+///
+/// Here, we have not yet figured out what fn is being
+/// called, and so we don't know if `a.b.c` is being shared
+/// or leased or what.
+#[derive(Copy, Clone, PartialEq, Eq, Hash, PartialOrd, Ord)]
+pub struct Reservation {
+    index: generational_arena::Index,
+}
+
+impl std::fmt::Debug for Reservation {
+    fn fmt(&self, fmt: &mut std::fmt::Formatter<'_>) -> std::result::Result<(), std::fmt::Error> {
+        let (a, b) = self.index.into_raw_parts();
+        fmt.debug_tuple("Reservation").field(&a).field(&b).finish()
+    }
+}
+
+#[derive(Clone, Debug, PartialEq)]
+pub struct ReservationData {
+    /// PC when the reservation was placed.
+    pub pc: ProgramCounter,
+
+    /// The active frame when reservation was created.
+    /// Because reservations are used only in particular
+    /// ways, we only expect the reservation to be activated
+    /// when this frame is the top-most frame, but we need
+    /// to store the frame for use when creating heap graphs
+    /// etc.
+    pub frame_index: FrameIndex,
+
+    /// The place which was reserved
+    pub place: bir::Place,
+}
+
 #[derive(Copy, Clone, PartialEq, Eq, Hash, PartialOrd, Ord)]
 pub struct Permission {
     index: generational_arena::Index,
@@ -286,6 +368,13 @@ impl PermissionData {
         match self {
             PermissionData::Expired(_) => None,
             PermissionData::Valid(v) => Some(v),
+        }
+    }
+
+    pub fn expired(&self) -> Option<Option<ProgramCounter>> {
+        match self {
+            PermissionData::Expired(e) => Some(*e),
+            PermissionData::Valid(_) => None,
         }
     }
 
@@ -336,7 +425,43 @@ pub struct ValidPermissionData {
     /// located in a leased location.
     pub leased: Leased,
 
-    /// A "tenant" is another permission that we have given
+    /// A *reservation* is placed on a permission when the
+    /// permission (and its associated value) will be traversed
+    /// or accessed by some pending operation (typically a function
+    /// that has yet to be called). The reservation makes
+    /// it an error to revoke the permission. Reservations are removed
+    /// when the pending operation occurs.
+    ///
+    /// # Example: function calls
+    ///
+    /// ```notrust
+    /// foo(a.b.c, ...)
+    /// ```
+    ///
+    /// When calling `foo`, we would place a *reservation* on the
+    /// place `a.b.c` before we go off and evaluate `...`. This allows
+    /// `...` to access `a.b.c` but ensures that `...` cannot revoke
+    /// `a.b.c`.
+    ///
+    /// # Example: tuples
+    ///
+    /// ```notrust
+    /// (a.b.c, ...)
+    /// ```
+    ///
+    /// As with function calls, we reserve `a.b.c` while evaluating `...`.
+    ///
+    /// # Example: assignments
+    ///
+    /// ```notrust
+    /// a.b.c = ...
+    /// ```
+    ///
+    /// When performing this assignment, we would reserve `a.b` while
+    /// evaluating `...`, thus ensuring that `...` cannot revoke `a.b`.
+    pub reservations: Vec<Reservation>,
+
+    /// A *tenant* is another permission that we have given
     /// a lease (or sublease, if we ourselves are leased) to
     /// access `o`. This could be a shared
     /// or exclusive lease. Accesses to the fields of `o`
@@ -350,6 +475,7 @@ impl ValidPermissionData {
         ValidPermissionData {
             joint: Joint::No,
             leased: Leased::No,
+            reservations: vec![],
             tenants: vec![],
         }
     }
@@ -359,15 +485,27 @@ impl ValidPermissionData {
         ValidPermissionData {
             joint: Joint::Yes,
             leased: Leased::No,
+            reservations: vec![],
             tenants: vec![],
+        }
+    }
+
+    pub fn as_str(&self) -> &'static str {
+        match (self.joint, self.leased) {
+            (Joint::No, Leased::No) => "my",
+            (Joint::No, Leased::Yes) => "leased",
+            (Joint::Yes, Leased::No) => "our",
+            (Joint::Yes, Leased::Yes) => "our leased",
         }
     }
 }
 
 #[derive(Clone, Debug, Default)]
 pub struct Stack {
-    pub frames: Vec<Frame>,
+    pub frames: IndexVec<FrameIndex, Frame>,
 }
+
+id!(pub struct FrameIndex);
 
 #[derive(Clone, Debug)]
 pub struct Frame {

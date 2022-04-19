@@ -1,10 +1,15 @@
-class Pair(a, b)
+class Pair(any a, any b)
 
 async fn main() {
-    # FIXME: Debatable when the underlying pair should be freed.
-    p = Pair(22, 44).lease
-    q = p.give
-    print(p).await #! OUTPUT leased Pair\(22, 44\)
+    any p = Pair(22, 44).lease
+    any q = p.give                    # Giving a leased thing: subleases
+
+    # Accessing `q`: ok
     print(q).await #! OUTPUT leased Pair\(22, 44\)
+
+    # Accessing `p`: ok, but cancels sublease (to `q`)
     print(p).await #! OUTPUT leased Pair\(22, 44\)
+
+    # Accessing `q` again: error
+    print(q).await #! RUN ERROR your lease to this object was cancelled
 }

@@ -12,70 +12,8 @@ digraph {
         label=<
           <table border="0">
           <tr><td border="1">main</td></tr>
-          <tr><td port="0"><font color="slategray">p</font></td></tr>
-          <tr><td port="5"><font color="slategray">q</font></td></tr>
-          <tr><td port="18"><font color="slategray">(in-flight): "22"</font></td></tr>
-          </table>
-        >;
-      ];
-    }
-    afternode0 [
-      color = "slategray",
-      fontcolor = "slategray",
-      label = <<table border="0">
-        <tr><td border="1">Point</td></tr>
-        <tr><td port="0"><font color="slategray">x: "22"</font></td></tr>
-        <tr><td port="1"><font color="slategray">y: "44"</font></td></tr>
-      </table>>
-    ];
-    "afterstack":0 -> "afternode0" [label="my", style="dotted"];
-    "afterstack":5 -> "afternode0" [label="leased", style="solid"];
-  }
-  subgraph cluster_before {
-    label=<<b>before</b>>
-    subgraph cluster_beforestack {
-      label=<<b>stack</b>>
-      rank="source";
-      beforestack[
-        shape="none";
-        label=<
-          <table border="0">
-          <tr><td border="1">main</td></tr>
-          <tr><td port="0"><font color="slategray">p</font></td></tr>
-          <tr><td port="5"><font color="slategray">q</font></td></tr>
-          </table>
-        >;
-      ];
-    }
-    beforenode0 [
-      color = "slategray",
-      fontcolor = "slategray",
-      label = <<table border="0">
-        <tr><td border="1">Point</td></tr>
-        <tr><td port="0"><font color="slategray">x: "22"</font></td></tr>
-        <tr><td port="1"><font color="slategray">y: "44"</font></td></tr>
-      </table>>
-    ];
-    "beforestack":0 -> "beforenode0" [label="my", style="dotted"];
-    "beforestack":5 -> "beforenode0" [label="leased", style="solid"];
-  }
-}
-digraph {
-  node[shape = "note"];
-  rankdir = "LR";
-  subgraph cluster_after {
-    label=<<b>after</b>>
-    subgraph cluster_afterstack {
-      label=<<b>stack</b>>
-      rank="source";
-      afterstack[
-        shape="none";
-        label=<
-          <table border="0">
-          <tr><td border="1">main</td></tr>
           <tr><td port="0"><font color="black">p</font></td></tr>
-          <tr><td port="5"><font color="black">q</font></td></tr>
-          <tr><td port="18"><font color="black">(in-flight): "23"</font></td></tr>
+          <tr><td port="2"><font color="black">q</font></td></tr>
           </table>
         >;
       ];
@@ -83,12 +21,12 @@ digraph {
     afternode0 [
       label = <<table border="0">
         <tr><td border="1">Point</td></tr>
-        <tr><td port="0"><font color="black">x: "23"</font></td></tr>
+        <tr><td port="0"><font color="slategray">x: "23"</font></td></tr>
         <tr><td port="1"><font color="slategray">y: "44"</font></td></tr>
       </table>>
     ];
-    "afterstack":0 -> "afternode0" [label="my", style="dotted"];
-    "afterstack":5 -> "afternode0" [label="leased", style="solid"];
+    "afterstack":0 -> "afternode0" [label="my", style="dotted", penwidth=3.0, arrowtype="normal", color="red"];
+    "afterstack":2 -> "afternode0" [label="leased", style="dotted", penwidth=1.0, arrowtype="empty", color="red"];
   }
   subgraph cluster_before {
     label=<<b>before</b>>
@@ -101,7 +39,7 @@ digraph {
           <table border="0">
           <tr><td border="1">main</td></tr>
           <tr><td port="0"><font color="black">p</font></td></tr>
-          <tr><td port="5"><font color="black">q</font></td></tr>
+          <tr><td port="2"><font color="black">q</font></td></tr>
           </table>
         >;
       ];
@@ -109,68 +47,12 @@ digraph {
     beforenode0 [
       label = <<table border="0">
         <tr><td border="1">Point</td></tr>
-        <tr><td port="0"><font color="slategray">x: "22"</font></td></tr>
+        <tr><td port="0"><font color="black">x: "22"</font></td></tr>
         <tr><td port="1"><font color="slategray">y: "44"</font></td></tr>
       </table>>
     ];
-    "beforestack":0 -> "beforenode0" [label="my", style="dotted"];
-    "beforestack":5 -> "beforenode0" [label="leased", style="solid"];
-  }
-}
-digraph {
-  node[shape = "note"];
-  rankdir = "LR";
-  subgraph cluster_after {
-    label=<<b>after</b>>
-    subgraph cluster_afterstack {
-      label=<<b>stack</b>>
-      rank="source";
-      afterstack[
-        shape="none";
-        label=<
-          <table border="0">
-          <tr><td border="1">main</td></tr>
-          <tr><td port="0"><font color="black">p</font></td></tr>
-          <tr><td port="5"><font color="black">q</font></td></tr>
-          </table>
-        >;
-      ];
-    }
-    afternode0 [
-      label = <<table border="0">
-        <tr><td border="1">Point</td></tr>
-        <tr><td port="0"><font color="black">x: "23"</font></td></tr>
-        <tr><td port="1"><font color="slategray">y: "44"</font></td></tr>
-      </table>>
-    ];
-    "afterstack":0 -> "afternode0" [label="my", style="dotted"];
-    "afterstack":5 -> "afternode0" [label="leased", style="solid"];
-  }
-  subgraph cluster_before {
-    label=<<b>before</b>>
-    subgraph cluster_beforestack {
-      label=<<b>stack</b>>
-      rank="source";
-      beforestack[
-        shape="none";
-        label=<
-          <table border="0">
-          <tr><td border="1">main</td></tr>
-          <tr><td port="0"><font color="black">p</font></td></tr>
-          <tr><td port="5"><font color="black">q</font></td></tr>
-          </table>
-        >;
-      ];
-    }
-    beforenode0 [
-      label = <<table border="0">
-        <tr><td border="1">Point</td></tr>
-        <tr><td port="0"><font color="slategray">x: "22"</font></td></tr>
-        <tr><td port="1"><font color="slategray">y: "44"</font></td></tr>
-      </table>>
-    ];
-    "beforestack":0 -> "beforenode0" [label="my", style="dotted"];
-    "beforestack":5 -> "beforenode0" [label="leased", style="solid"];
+    "beforestack":0 -> "beforenode0" [label="my", style="dotted", penwidth=3.0, arrowtype="normal", color="red"];
+    "beforestack":2 -> "beforenode0" [label="leased", style="dotted", penwidth=1.0, arrowtype="empty", color="red"];
   }
 }
 23

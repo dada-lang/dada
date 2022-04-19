@@ -1,0 +1,12 @@
+class Object(any data)
+
+async fn main() {
+    any o = if true { Object(true).lease } else { Object(false).lease }
+    #! RUN ERROR your lease to this object was cancelled
+    #
+    # What happens here:
+    # * `Object(true).lease` is equivalent to `{ any o = Object(true); o.lease }`
+    # * that variable `o` is dropped as we exit the `if-then-else`
+
+    print(o).await
+}

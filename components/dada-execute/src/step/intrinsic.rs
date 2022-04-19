@@ -1,10 +1,10 @@
-use dada_ir::{error, intrinsic::Intrinsic, word::Word};
+use dada_ir::{error, intrinsic::Intrinsic, storage::Specifier, word::Word};
 use eyre::Context;
 
 use crate::{
     error::DiagnosticBuilderExt,
     machine::stringify::DefaultStringify,
-    machine::{op::MachineOpExt, ProgramCounter, Value},
+    machine::{op::MachineOpExtMut, ProgramCounter, Value},
     thunk::RustThunk,
 };
 
@@ -14,6 +14,7 @@ pub(crate) type IntrinsicFn = fn(&mut Stepper<'_>, Vec<Value>) -> eyre::Result<V
 
 pub(crate) struct IntrinsicDefinition {
     pub(crate) argument_names: Vec<Word>,
+    pub(crate) argument_specifiers: Vec<Specifier>,
     pub(crate) function: IntrinsicFn,
 }
 
@@ -22,6 +23,7 @@ impl IntrinsicDefinition {
         match intrinsic {
             Intrinsic::Print => IntrinsicDefinition {
                 argument_names: vec![Word::from(db, "message")],
+                argument_specifiers: vec![Specifier::Any],
                 function: |s, v| s.intrinsic_print(v),
                 // FIXME: Stepper::intrinsic_write doesn't type check, why?
             },
@@ -53,12 +55,13 @@ impl Stepper<'_> {
             .my_value(RustThunk::new("print", values, Intrinsic::Print)))
     }
 
+    #[tracing::instrument(level = "Debug", skip(self, await_pc))]
     pub(super) async fn intrinsic_print_async(
         &mut self,
         await_pc: ProgramCounter,
         value: Value,
     ) -> eyre::Result<Value> {
-        let message_str = DefaultStringify::stringify(&*self.machine, self.db, value);
+        let message_str = DefaultStringify::stringify_value(&*self.machine, self.db, value);
 
         async {
             self.kernel

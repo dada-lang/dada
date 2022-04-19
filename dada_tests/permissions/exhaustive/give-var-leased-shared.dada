@@ -1,4 +1,4 @@
-class Pair(a, b)
+class Pair(any a, any b)
 
 async fn main() {
     # FIXME: Debatable when the underlying pair should be freed.

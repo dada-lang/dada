@@ -1,4 +1,4 @@
-class Point(x, y)
+class Point(any x, any y)
 
 async fn main() {
     p = Point(22, 44).share

@@ -9,7 +9,7 @@ use crate::{
     in_ir_db::InIrDb,
     intrinsic::Intrinsic,
     prelude::InIrDbExt,
-    storage_mode::Atomic,
+    storage::{Atomic, SpannedSpecifier},
     word::{SpannedOptionalWord, Word},
 };
 use dada_id::{id, prelude::*, tables};
@@ -89,6 +89,7 @@ tables! {
         exprs: alloc Expr => ExprData,
         named_exprs: alloc NamedExpr => NamedExprData,
         places: alloc Place => PlaceData,
+        target_places: alloc TargetPlace => TargetPlaceData,
     }
 }
 
@@ -102,6 +103,7 @@ origin_table! {
     pub struct Origins {
         expr_spans: Expr => ExprOrigin,
         place_spans: Place => ExprOrigin,
+        target_place_spans: TargetPlace => ExprOrigin,
         named_exprs: NamedExpr => syntax::NamedExpr,
         local_variables: LocalVariable => LocalVariableOrigin,
     }
@@ -111,7 +113,7 @@ origin_table! {
 /// lowering the syntax expressions. We track the expression they came
 /// from, but also the fact that they are synthetic. This is needed to
 /// help place cursors and so forth.
-#[derive(Copy, Clone, Debug, PartialEq, Eq, Hash)]
+#[derive(Copy, Clone, PartialEq, Eq, Hash)]
 pub struct ExprOrigin {
     pub syntax_expr: syntax::Expr,
     pub synthesized: bool,
@@ -128,6 +130,21 @@ impl ExprOrigin {
         Self {
             syntax_expr: expr,
             synthesized: true,
+        }
+    }
+}
+
+impl std::fmt::Debug for ExprOrigin {
+    fn fmt(&self, fmt: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        let ExprOrigin {
+            synthesized,
+            syntax_expr,
+        } = *self;
+
+        if synthesized {
+            write!(fmt, "synthesized from {syntax_expr:?}")
+        } else {
+            write!(fmt, "from {syntax_expr:?}")
         }
     }
 }
@@ -173,6 +190,11 @@ pub struct LocalVariableData {
     /// semantics.
     pub name: Option<Word>,
 
+    /// If `Some`, then contains specifier given by the
+    /// user. If `None`, this is a temporary, and its
+    /// specifier is effectively [`Specifier::Any`].
+    pub specifier: Option<SpannedSpecifier>,
+
     pub atomic: Atomic,
 }
 
@@ -187,8 +209,8 @@ id!(pub struct Expr);
 
 impl DebugWithDb<InIrDb<'_, Tree>> for Expr {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>, db: &InIrDb<'_, Tree>) -> std::fmt::Result {
-        f.debug_tuple("")
-            .field(&self)
+        let name = format!("{:?}", self);
+        f.debug_tuple(&name)
             .field(&self.data(db.tables()).debug(db))
             .field(&db.origins()[*self])
             .finish()
@@ -221,8 +243,11 @@ pub enum ExprData {
     /// `expr(id: expr, ...)`
     Call(Expr, Vec<NamedExpr>),
 
+    /// `expr.reserve` -- not legal syntax
+    Reserve(Place),
+
     /// `expr.share`
-    Share(Place),
+    Share(Expr),
 
     /// `expr.lease`
     Lease(Place),
@@ -246,10 +271,7 @@ pub enum ExprData {
     ///
     /// * `from_expr`: Identifies the loop from which we are breaking
     /// * `with_value`: The value produced by the loop
-    Break {
-        from_expr: Expr,
-        with_value: Expr,
-    },
+    Break { from_expr: Expr, with_value: Expr },
 
     /// `continue`
     ///
@@ -265,10 +287,20 @@ pub enum ExprData {
     /// `a + b`
     Op(Expr, Op, Expr),
 
+    /// `<op> x`
     Unary(Op, Expr),
 
-    /// `a := b`
-    Assign(Place, Expr),
+    /// `a := b.give` -- it is important that this
+    /// is only used to create temporaries! This is because
+    /// we cannot apply all the potential specifiers to an expression
+    /// (e.g., we cannot lease it). To assign to user-declared variables
+    /// we must use `AssignFromPlace`.
+    AssignTemporary(LocalVariable, Expr),
+
+    /// `a := b` -- used when the specifier (`my`, `our`, etc) is not known
+    /// statically, and we we can't determine whether the place should be
+    /// given, leased, or what
+    AssignFromPlace(TargetPlace, Place),
 
     /// Bring the variables in scope during the expression
     Declare(Vec<LocalVariable>, Expr),
@@ -304,11 +336,12 @@ impl ExprData {
                 .field(&expr.debug(db))
                 .field(&args.debug(db))
                 .finish(),
-            ExprData::Share(p) => f.debug_tuple("Share").field(p).finish(),
-            ExprData::Lease(p) => f.debug_tuple("Lease").field(p).finish(),
-            ExprData::Give(p) => f.debug_tuple("Give").field(p).finish(),
+            ExprData::Reserve(p) => f.debug_tuple("Reserve").field(&p.debug(db)).finish(),
+            ExprData::Share(p) => f.debug_tuple("Share").field(&p.debug(db)).finish(),
+            ExprData::Lease(p) => f.debug_tuple("Lease").field(&p.debug(db)).finish(),
+            ExprData::Give(p) => f.debug_tuple("Give").field(&p.debug(db)).finish(),
             ExprData::Tuple(exprs) => {
-                let mut f = f.debug_tuple("");
+                let mut f = f.debug_tuple("Tuple");
                 for expr in exprs {
                     f.field(&expr.debug(db));
                 }
@@ -346,10 +379,15 @@ impl ExprData {
                 .field(op)
                 .field(&rhs.debug(db))
                 .finish(),
-            ExprData::Assign(place, expr) => f
+            ExprData::AssignTemporary(place, expr) => f
                 .debug_tuple("Assign")
                 .field(&place.debug(db))
                 .field(&expr.debug(db))
+                .finish(),
+            ExprData::AssignFromPlace(target, source) => f
+                .debug_tuple("AssignFromPlace")
+                .field(&target.debug(db))
+                .field(&source.debug(db))
                 .finish(),
             ExprData::Declare(vars, expr) => f
                 .debug_tuple("Declare")
@@ -370,8 +408,8 @@ id!(pub struct Place);
 
 impl DebugWithDb<InIrDb<'_, Tree>> for Place {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>, db: &InIrDb<'_, Tree>) -> std::fmt::Result {
-        f.debug_tuple("")
-            .field(&self)
+        let name = format!("{:?}", self);
+        f.debug_tuple(&name)
             .field(&self.data(db.tables()).debug(db))
             .field(&db.origins()[*self])
             .finish()
@@ -403,6 +441,37 @@ impl DebugWithDb<InIrDb<'_, Tree>> for PlaceData {
     }
 }
 
+id!(pub struct TargetPlace);
+
+impl DebugWithDb<InIrDb<'_, Tree>> for TargetPlace {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>, db: &InIrDb<'_, Tree>) -> std::fmt::Result {
+        let name = format!("{:?}", self);
+        f.debug_tuple(&name)
+            .field(&self.data(db.tables()).debug(db))
+            .field(&db.origins()[*self])
+            .finish()
+    }
+}
+
+#[derive(PartialEq, Eq, Clone, Hash, Debug)]
+pub enum TargetPlaceData {
+    LocalVariable(LocalVariable),
+    Dot(Place, Word),
+}
+
+impl DebugWithDb<InIrDb<'_, Tree>> for TargetPlaceData {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>, db: &InIrDb<'_, Tree>) -> std::fmt::Result {
+        match self {
+            TargetPlaceData::LocalVariable(lv) => DebugWithDb::fmt(lv, f, db),
+            TargetPlaceData::Dot(place, field) => f
+                .debug_tuple("Dot")
+                .field(&place.debug(db))
+                .field(&field.debug(db.db()))
+                .finish(),
+        }
+    }
+}
+
 id!(pub struct NamedExpr);
 
 impl DebugWithDb<InIrDb<'_, Tree>> for NamedExpr {
@@ -419,7 +488,7 @@ pub struct NamedExprData {
 
 impl DebugWithDb<InIrDb<'_, Tree>> for NamedExprData {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>, db: &InIrDb<'_, Tree>) -> std::fmt::Result {
-        f.debug_tuple("")
+        f.debug_tuple("NamedExpr")
             .field(&self.name.debug(db.db()))
             .field(&self.expr.debug(db))
             .finish()
