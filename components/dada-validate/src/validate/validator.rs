@@ -162,17 +162,24 @@ impl<'me> Validator<'me> {
 
     #[tracing::instrument(level = "debug", skip_all)]
     pub(crate) fn give_validated_root_expr(&mut self, expr: syntax::Expr) -> validated::Expr {
-        let expr = self.give_validated_expr(expr);
+        let validated_expr = self.give_validated_expr(expr);
         if let Some(return_type) = self.code.return_type {
-            if let validated::ExprData::Seq(exprs) = expr.data(self.tables) {
+            if let validated::ExprData::Seq(exprs) = validated_expr.data(self.tables) {
                 if exprs.is_empty() {
                     dada_ir::error!(return_type, "must return something",)
                         .primary_label("because return type is not unit")
                         .emit(self.db);
                 }
             }
+        } else {
+            let unit = self.add(validated::ExprData::Tuple(vec![]), expr);
+            if let validated::ExprData::Seq(exprs) = validated_expr.data_mut(self.tables) {
+                exprs.push(unit);
+            } else {
+                return self.add(validated::ExprData::Seq(vec![validated_expr, unit]), expr);
+            }
         }
-        expr
+        validated_expr
     }
 
     #[tracing::instrument(level = "debug", skip(self, expr))]
