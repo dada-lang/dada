@@ -1,42 +1,27 @@
-import React from "react";
+import React, { PropsWithChildren } from "react";
 import AceEditor from "react-ace";
 
 import "ace-builds/src-noconflict/mode-javascript";
 import "ace-builds/src-noconflict/theme-github";
 // import "ace-builds/src-noconflict/theme-twilight";
 
-import { useAppSelector, useAppDispatch } from "../../app/hooks";
-import type { AppDispatch } from "../../app/store";
+import type { Cursor } from "./ide";
 
-import { selectSource, setCursor, setSource } from "./ideSlice";
-import type { Cursor } from "./ideSlice";
-
-type Selection = {
-  cursor: Cursor;
+type OutputProps = {
+  source: string;
+  onCursorChange: (c: Cursor) => void;
+  onSourceChange: (s: string) => void;
 };
 
-function onChange(newValue: string, dispatch: AppDispatch) {
-  dispatch(setSource(newValue));
-}
-
-function onCursorChange(selection: Selection, dispatch: AppDispatch) {
-  dispatch(
-    setCursor({ row: selection.cursor.row, column: selection.cursor.column })
-  );
-}
-
-function Editor() {
-  const source = useAppSelector(selectSource);
-  const dispatch = useAppDispatch();
-
+function Editor(props: PropsWithChildren<OutputProps>) {
   return (
     <AceEditor
       editorProps={{ $blockScrolling: true }}
       fontSize={18}
       name="dada-editor"
-      onChange={(v) => onChange(v, dispatch)}
-      onCursorChange={(selection) => onCursorChange(selection, dispatch)}
-      value={source}
+      onChange={(v) => props.onSourceChange(v)}
+      onCursorChange={(selection) => props.onCursorChange({ row: selection.cursor.row, column: selection.cursor.column })}
+      value={props.source}
       theme="github"
     />
   );

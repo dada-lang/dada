@@ -1,14 +1,11 @@
-import React, { useEffect, useState } from "react";
+import { useEffect, useState } from "react";
 import Col from "react-bootstrap/Col";
 import Row from "react-bootstrap/Row";
 
 import dadaWeb, { compiler } from "dada-web";
 import type { DadaCompiler, InitOutput } from "dada-web";
 
-import { useAppSelector, useAppDispatch } from "../../app/hooks";
-
 import Editor from "./editor";
-import { selectCursor, selectSource, setCompilerState } from "./ideSlice";
 import Output from "./output";
 
 /**
@@ -62,12 +59,17 @@ class DCW {
   }
 }
 
-function Ide() {
-  const dispatch = useAppDispatch();
+export type Cursor = { row: number; column: number };
+
+function Ide(props: { sourceText: string }) {
   const [_module, setModule] = useState<InitOutput | null>(null);
   const [dada, setDada] = useState<DCW | null>(null);
+
+  // First pass: we have to initialize the webassembly and "DCW"
+  // instance.
   useEffect(() => {
     async function initModule() {
+      // Load the web assembly module
       const c = await dadaWeb();
       setModule(c);
       setDada(new DCW());
@@ -75,34 +77,36 @@ function Ide() {
     initModule();
   }, []);
 
-  const source = useAppSelector(selectSource);
-  const cursor = useAppSelector(selectCursor);
+
+  // Second pass: now that `dada != null`, we can do the rest.
+  const [cursor, setCursor] = useState<Cursor>({ row: 0, column: 0 });
+  const [source, setSource] = useState<string>(props.sourceText);
+  const [diagnostics, setDiagnostics] = useState<string>("");
+  const [output, setOutput] = useState<string>("");
+  const [heaps, setHeaps] = useState<[string, string]>(["", ""]);
   useEffect(() => {
     async function updateCompiler() {
       if (!dada) return;
       dada.setSourceText(source);
       dada.setBreakpoint(cursor.row, cursor.column);
       await dada.execute();
-      dispatch(
-        setCompilerState({
-          diagnostics: dada.diagnostics,
-          heaps: [dada.heaps[0], dada.heaps[1]],
-          output: dada.output
-        })
-      );
+      setOutput(dada.output);
+      setHeaps([dada.heaps[0], dada.heaps[1]]);
+      setDiagnostics(dada.diagnostics);
     }
     updateCompiler();
-  }, [cursor, dada, dispatch, source]);
+  }, [cursor, dada, source]);
+
 
   return (
     <Row>
       <Col>
         <h1>Dada Source</h1>
-        <Editor />
+        <Editor source={source} onCursorChange={setCursor} onSourceChange={setSource} />
       </Col>
       <Col>
         <h1>Compiler Output</h1>
-        <Output />
+        <Output output={output} heaps={heaps} />
       </Col>
     </Row>
   );

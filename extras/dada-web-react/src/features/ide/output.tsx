@@ -1,10 +1,6 @@
 import React, { PropsWithChildren } from "react";
 import { Graphviz } from "graphviz-react";
 
-import { useAppSelector } from "../../app/hooks";
-
-import { selectCompilerState } from "./ideSlice";
-
 type StateGraphProps = {
   heap: string;
   name: string;
@@ -21,19 +17,20 @@ const StateGraph = (props: PropsWithChildren<StateGraphProps>) => {
   );
 };
 
-function Output() {
-  const compilerState = useAppSelector(selectCompilerState);
-  const heapBefore = compilerState.heaps[0];
-  const heapAfter = compilerState.heaps[1];
+type OutputProps = {
+  output: string;
+  heaps: [string, string];
+};
 
+function Output(props: PropsWithChildren<OutputProps>) {
   return (
     <>
-      <div className="p-2 bg-light">{compilerState.output}</div>
+      <div className="p-2 bg-light">{props.output}</div>
       <div>
-        <StateGraph heap={heapBefore} name="State before cursor" />
+        <StateGraph heap={props.heaps[0]} name="State before cursor" />
       </div>
       <div>
-        <StateGraph heap={heapAfter} name="State after cursor" />
+        <StateGraph heap={props.heaps[1]} name="State after cursor" />
       </div>
     </>
   );
