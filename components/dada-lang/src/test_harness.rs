@@ -33,6 +33,9 @@ impl Options {
             eyre::bail!("no test paths given; try --dada-path");
         }
 
+        let mut lsp_client = lsp_client::ChildSession::spawn();
+        lsp_client.send_init()?;
+
         const REF_EXTENSIONS: &[&str] = &["ref", "lsp", "bir", "validated", "syntax", "stdout"];
 
         for root in &self.dada_path {
@@ -49,7 +52,7 @@ impl Options {
                         if ext == "dada" {
                             total += 1;
                             let fixmes = self
-                                .test_dada_file(path)
+                                .test_dada_file(&mut lsp_client, path)
                                 .await
                                 .with_context(|| format!("testing `{}`", path.display()))?;
 
@@ -128,8 +131,12 @@ impl Options {
         }
     }
 
-    #[tracing::instrument(level = "debug", skip(self))]
-    async fn test_dada_file(&self, path: &Path) -> eyre::Result<Vec<String>> {
+    #[tracing::instrument(level = "debug", skip(self, lsp_client))]
+    async fn test_dada_file(
+        &self,
+        lsp_client: &mut lsp_client::ChildSession,
+        path: &Path,
+    ) -> eyre::Result<Vec<String>> {
         let expected_queries = &expected_queries(path)?;
         let expected_diagnostics = expected_diagnostics(path)?;
         let path_without_extension = path.with_extension("");
@@ -140,7 +147,7 @@ impl Options {
             expected_queries,
         )
         .await?;
-        self.test_dada_file_in_ide(&path_without_extension, &expected_diagnostics)?;
+        self.test_dada_file_in_ide(lsp_client, &path_without_extension, &expected_diagnostics)?;
         Ok(expected_diagnostics.fixmes)
     }
 
@@ -211,16 +218,15 @@ impl Options {
         errors.into_result()
     }
 
-    #[tracing::instrument(level = "debug", skip(self))]
+    #[tracing::instrument(level = "debug", skip(self, lsp_client))]
     fn test_dada_file_in_ide(
         &self,
+        lsp_client: &mut lsp_client::ChildSession,
         path: &Path,
         expected_diagnostics: &ExpectedDiagnostics,
     ) -> eyre::Result<()> {
-        let mut c = lsp_client::ChildSession::spawn();
-        c.send_init()?;
-        c.send_open(&path.with_extension("dada"))?;
-        let diagnostics = c.receive_errors()?;
+        lsp_client.send_open(&path.with_extension("dada"))?;
+        let diagnostics = lsp_client.receive_errors()?;
 
         let mut errors = Errors::default();
         self.match_diagnostics_against_expectations(
