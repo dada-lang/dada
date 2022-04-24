@@ -136,6 +136,10 @@ function Ide(props: { sourceText: string }) {
     }, [cursor, dada, source]);
 
 
+    useEffect(() => {
+        setSource(props.sourceText);
+    }, [props]);
+
     return (
         <Row>
             <Col>
