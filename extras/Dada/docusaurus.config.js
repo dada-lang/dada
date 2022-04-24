@@ -6,15 +6,15 @@ const darkCodeTheme = require('prism-react-renderer/themes/dracula');
 
 /** @type {import('@docusaurus/types').Config} */
 const config = {
-  title: 'My Site',
-  tagline: 'Dinosaurs are cool',
-  url: 'https://your-docusaurus-test-site.com',
+  title: 'Dada',
+  tagline: 'Dada',
+  url: 'https://dada-lang.org',
   baseUrl: '/',
   onBrokenLinks: 'throw',
   onBrokenMarkdownLinks: 'warn',
   favicon: 'img/favicon.ico',
-  organizationName: 'facebook', // Usually your GitHub org/user name.
-  projectName: 'docusaurus', // Usually your repo name.
+  organizationName: 'dada-lang',
+  projectName: 'dada', // Usually your repo name.
 
   presets: [
     [
@@ -55,7 +55,7 @@ const config = {
             position: 'left',
             label: 'Tutorial',
           },
-          {to: '/blog', label: 'Blog', position: 'left'},
+          { to: '/blog', label: 'Blog', position: 'left' },
           {
             href: 'https://github.com/facebook/docusaurus',
             label: 'GitHub',
@@ -113,6 +113,18 @@ const config = {
         darkTheme: darkCodeTheme,
       },
     }),
+
+  plugins: [
+    async function myPlugin(context, options) {
+      // ...
+      return {
+        name: 'theme-dada-codeblock/components',
+        getThemePath() {
+          return 'src/theme-dada-codeblock/components';
+        },
+      };
+    },
+  ],
 };
 
 module.exports = config;
