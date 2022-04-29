@@ -9,7 +9,7 @@ use super::{
     Value,
 };
 
-pub(crate) trait MachineOp:
+pub trait MachineOp:
     std::ops::IndexMut<Object, Output = ObjectData>
     + std::ops::IndexMut<Permission, Output = PermissionData>
     + std::ops::IndexMut<Reservation, Output = ReservationData>
@@ -325,7 +325,7 @@ impl std::ops::IndexMut<bir::LocalVariable> for Machine {
 }
 
 #[extension_trait::extension_trait]
-pub(crate) impl MachineOpExtMut for &mut dyn MachineOp {
+pub impl MachineOpExtMut for &mut dyn MachineOp {
     fn my_value(&mut self, data: impl Into<ObjectData>) -> Value {
         let permission = self.new_permission(ValidPermissionData::my());
         let object = self.new_object(data.into());

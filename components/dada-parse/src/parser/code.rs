@@ -17,6 +17,7 @@ use dada_ir::{
     format_string::FormatStringSectionData,
     kw::Keyword,
     origin_table::PushOriginIn,
+    return_type::{ReturnType, ReturnTypeKind},
     span::Span,
     storage::Atomic,
     token::Token,
@@ -55,6 +56,40 @@ impl Parser<'_> {
             root_expr,
         };
         Tree::new(self.db, origin, tree_data, spans)
+    }
+
+    pub(crate) fn parse_repl_expr(&mut self, token_tree: TokenTree) -> Option<Tree> {
+        let mut tables = Tables::default();
+        let mut spans = Spans::default();
+
+        let mut code_parser = CodeParser {
+            parser: self,
+            tables: &mut tables,
+            spans: &mut spans,
+        };
+
+        let block = code_parser.parse_expr();
+        if let Some(block) = block {
+            use dada_ir::effect::Effect;
+            let origin = Code {
+                effect: Effect::Default,
+                parameter_tokens: None,
+                return_type: ReturnType::new(
+                    self.db,
+                    ReturnTypeKind::Value,
+                    Span::zero().in_file(self.filename),
+                ),
+                body_tokens: token_tree,
+            };
+            let tree_data = TreeData {
+                tables,
+                parameter_decls: vec![],
+                root_expr: block,
+            };
+            Some(Tree::new(self.db, origin, tree_data, spans))
+        } else {
+            None
+        }
     }
 }
 

@@ -8,6 +8,7 @@ use tracing_subscriber::EnvFilter;
 
 mod check;
 mod ide;
+mod repl;
 mod run;
 mod test_harness;
 
@@ -63,6 +64,7 @@ impl Options {
             Command::Check(command_options) => command_options.main(self)?,
             Command::Test(command_options) => command_options.main(self).await?,
             Command::Run(command_options) => command_options.main(self).await?,
+            Command::Repl(command_options) => command_options.main(self).await?,
         }
         Ok(())
     }
@@ -78,4 +80,5 @@ pub enum Command {
     Test(test_harness::Options),
     /// Run the interpreter
     Run(run::Options),
+    Repl(repl::Options),
 }

@@ -5,7 +5,7 @@ mod lex;
 pub mod prelude;
 
 #[salsa::jar(Db)]
-pub struct Jar();
+pub struct Jar(lex::lex_file);
 
 pub trait Db: salsa::DbWithJar<Jar> + dada_ir::Db {
     fn lex(&self) -> &dyn Db;

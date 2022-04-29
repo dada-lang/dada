@@ -8,6 +8,7 @@ use dada_ir::token_tree::TokenTree;
 use dada_ir::word::Word;
 use std::iter::Peekable;
 
+#[salsa::memoized(in crate::Jar)]
 pub fn lex_file(db: &dyn crate::Db, filename: Filename) -> TokenTree {
     let source_text = dada_ir::manifest::source_text(db, filename);
     lex_text(db, filename, source_text, 0)

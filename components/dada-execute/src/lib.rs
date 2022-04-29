@@ -28,3 +28,4 @@ mod thunk;
 
 pub use error::DiagnosticError;
 pub use run::interpret;
+pub use run::interpret_until_for_repl;

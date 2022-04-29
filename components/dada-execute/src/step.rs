@@ -47,7 +47,7 @@ mod traversal;
 
 pub(crate) struct Stepper<'me> {
     db: &'me dyn crate::Db,
-    machine: &'me mut dyn MachineOp,
+    pub machine: &'me mut dyn MachineOp,
 
     /// Kernel for core operations. This is normally `Some`, but we sometimes
     /// temporarily swap with `None` for callbacks.

@@ -2,7 +2,7 @@
 #![feature(let_else)]
 #![allow(incomplete_features)]
 
-mod code_parser;
+pub mod code_parser;
 mod file_parser;
 mod parameter_parser;
 mod parser;
@@ -12,6 +12,7 @@ mod tokens;
 #[salsa::jar(Db)]
 pub struct Jar(
     code_parser::parse_code,
+    code_parser::parse_repl_expr,
     file_parser::parse_file,
     parameter_parser::parse_parameters,
 );
