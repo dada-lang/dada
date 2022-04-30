@@ -1,6 +1,12 @@
+---
+sidebar_position: 5
+---
+
 # I me, me, mine: The my permission
 
-{{#include ../caveat.md}}
+import Caveat from '../caveat.md'
+
+<Caveat/>
 
 The `my` permission is in many ways the most basic. It declares that a variable has **unique ownership** of an object. Just like owning a house, having ownership means that the variable has full, irrevokable access to that object.
 

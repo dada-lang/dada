@@ -101,11 +101,9 @@ function Ide(props: { sourceText: string }) {
   return (
     <Row>
       <Col>
-        <h1>Dada Source</h1>
         <Editor source={source} onCursorChange={setCursor} onSourceChange={setSource} />
       </Col>
       <Col>
-        <h1>Compiler Output</h1>
         <Output output={output} heaps={heaps} />
       </Col>
     </Row>

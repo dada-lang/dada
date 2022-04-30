@@ -1,3 +1,7 @@
+---
+sidebar_position: 4
+---
+
 # Permissions
 
 In the previous chapter, we saw keywords like `my` and `our` attached to variables. These are examples of **permissions** -- permissions are a key part of Dada. Like Rust, Dada leverages permissions to avoid the need for a garbage collector, while retaining memory safety.

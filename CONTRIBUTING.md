@@ -1,6 +1,6 @@
 Dada is pretty young and informal, but we welcome contributions! 
 
-Keep in mind that Dada is my "spare time, relaxation and exploration" project. Responses may be slow and I am driving the language direction, syntax, and semantics. Naturally I would absolutely love to hear what people think, but I am acting as BDFL and final decision maker for the time being. --nikomatsakis
+Keep in mind that Dada is my "spare time, relaxation and exploration" project. Responses may be slow and I am driving the language direction, syntax, and semantics. Naturally I would absolutely love to hear what people think, but I am acting as Chief Dadaist and final decision maker for the time being. --nikomatsakis
 
 ## Feature gates
 

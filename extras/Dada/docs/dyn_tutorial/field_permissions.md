@@ -1,6 +1,8 @@
 # Permissions on fields
 
-{{#include ../caveat.md}}
+import Caveat from '../caveat.md'
+
+<Caveat/>
 
 Like other variables, class fields have permissions. The `Point` class we've been working with, for example, declares its `x` and `y` fields to have `our` permission:
 

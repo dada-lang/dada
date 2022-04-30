@@ -1,6 +1,8 @@
 # The `any` permission
 
-{{#include ../caveat.md}}
+import Caveat from '../caveat.md'
+
+<Caveat/>
 
 Rather than labeling variables as `my` or `our`, you can also use the `any` keyword. This will permit the variable to store an object with any permission. When using `any`, the `give` and `share` keywords allow you to control the ownership:
 

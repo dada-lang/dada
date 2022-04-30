@@ -2,6 +2,7 @@ import React from 'react';
 import { useEffect, useState } from "react";
 import Col from "react-bootstrap/Col";
 import Row from "react-bootstrap/Row";
+import BrowserOnly from '@docusaurus/BrowserOnly';
 
 import dadaWeb, { compiler } from "dada-web";
 import type { DadaCompiler, InitOutput } from "dada-web";
@@ -141,16 +142,17 @@ function Ide(props: { sourceText: string }) {
     }, [props]);
 
     return (
-        <Row>
-            <Col>
-                <h1>Dada Source</h1>
-                <Editor source={source} onCursorChange={setCursor} onSourceChange={setSource} />
-            </Col>
-            <Col>
-                <h1>Compiler Output</h1>
-                <Output output={output} heaps={heaps} />
-            </Col>
-        </Row>
+        <BrowserOnly>
+            {() => <Row>
+                <Col>
+                    <Editor source={source} onCursorChange={setCursor} onSourceChange={setSource} />
+                </Col>
+                <Col>
+                    <Output output={output} heaps={heaps} />
+                </Col>
+            </Row>
+            }
+        </BrowserOnly>
     );
 }
 

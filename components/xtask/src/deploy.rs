@@ -10,7 +10,9 @@ impl Deploy {
         let manifest_dir = xtask_dir.parent().unwrap().parent().unwrap();
         tracing::debug!("manifest directory: {manifest_dir:?}");
         let book_dir = manifest_dir.join("book");
-        let dada_downloads = manifest_dir.join("target").join("dada-downloads");
+        let target_dir = manifest_dir.join("target");
+        let dada_web_target_dir = target_dir.join("dada-web");
+        let dada_downloads = target_dir.join("dada-downloads");
         xshell::mkdir_p(&dada_downloads)?;
         tracing::debug!("dada download directory: {dada_downloads:?}");
 
@@ -29,11 +31,13 @@ impl Deploy {
 
         {
             let _directory = xshell::pushd(&dada_web_dir)?;
-            xshell::Cmd::new(wasm_pack_path)
+            xshell::Cmd::new(&wasm_pack_path)
                 .arg("build")
                 .arg("--target")
                 .arg("web")
                 .arg("--dev")
+                .arg("--out-dir")
+                .arg(dada_web_target_dir)
                 .run()?;
         }
 

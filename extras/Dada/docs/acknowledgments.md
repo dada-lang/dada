@@ -1,6 +1,6 @@
 # Acknowledgments
 
-Dada is designed by [nikomatsakis] and [wycats].
+Dada is designed and implemented by the [dadaists](https://github.com/orgs/dada-lang/teams/dadaists). [nikomatsakis] is the Chief Dadaist.
 
 Dada started as a "fork" of the ideas in [Lark], which was a joint project by [nikomatsakis], [wycats], and [JT].
 

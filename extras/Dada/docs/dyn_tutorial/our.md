@@ -1,6 +1,8 @@
 # Share and share alike with the `our` permission
 
-{{#include ../caveat.md}}
+import Caveat from '../caveat.md'
+
+<Caveat/>
 
 The `our` permission declares **shared ownership** over an object. As the word *shared* suggests, multiple variables can have shared ownership at the same time. Sharing is really useful, because it lets you copy data easily from one variable to another without losing access to it:
 

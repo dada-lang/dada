@@ -1,6 +1,8 @@
 # Friends don't let friends mutate shared data
 
-{{#include ../caveat.md}}
+import Caveat from '../caveat.md'
+
+<Caveat/>
 
 You may be wondering why you would ever **NOT** use `our` variables! They probably feel more like what you are used to. Many `our` variables can have equal access to the same object at the same time, but that comes with one key limitation: the fields of that object become immutable![^atomic]
 

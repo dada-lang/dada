@@ -1,6 +1,12 @@
+---
+sidebar_position: 2
+---
+
 # Declaring the `Point` class
 
-{{#include ../caveat.md}}
+import Caveat from '../caveat.md'
+
+<Caveat/>
 
 The main data structures in Dada are classes. The full class syntax has various bells and whistles, but let's start off with the simplest form. We'll define a class `Point` for storing `(x, y)` values. It will have two fields, `x` and `y`:
 

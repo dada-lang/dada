@@ -1,6 +1,8 @@
 # Leasing permissions
 
-{{#include ../caveat.md}}
+import Caveat from '../caveat.md'
+
+<Caveat/>
 
 So far in the tutorial, we've worked exclusively with the two **owned** permisions, `my` and `our`. Owned permissions have the property that they are independent from all other variables. When you have owned permission to an object, [nobody can take that away from you](./our.md#why-cant-we-invalidate-other-our-values). (In the case of `our`, you might only have read permission, but that read permisson cannot be revoked.)
 

@@ -27,10 +27,7 @@ function Output(props: PropsWithChildren<OutputProps>) {
     <>
       <div className="p-2 bg-light">{props.output}</div>
       <div>
-        <StateGraph heap={props.heaps[0]} name="State before cursor" />
-      </div>
-      <div>
-        <StateGraph heap={props.heaps[1]} name="State after cursor" />
+        <StateGraph heap={props.heaps[1]} name="Heap state" />
       </div>
     </>
   );
