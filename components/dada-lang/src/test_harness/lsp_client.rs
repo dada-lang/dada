@@ -18,8 +18,8 @@ impl Drop for ChildSession {
 
 impl ChildSession {
     pub fn spawn() -> ChildSession {
-        let child = Command::new("cargo")
-            .arg("dada")
+        let cur_exe = std::env::current_exe().expect("Failed to get current executable path");
+        let child = Command::new(cur_exe)
             .arg("ide")
             .stdin(Stdio::piped())
             .stdout(Stdio::piped())
