@@ -33,7 +33,10 @@ const config = {
             'https://github.com/facebook/docusaurus/tree/main/packages/create-docusaurus/templates/shared/',
         },
         theme: {
-          customCss: require.resolve('./src/css/custom.css'),
+          customCss: [
+            require.resolve('./src/css/custom.css'),
+            require.resolve('./src/css/speech-bubbles.css')
+          ],
         },
       }),
     ],
@@ -43,10 +46,10 @@ const config = {
     /** @type {import('@docusaurus/preset-classic').ThemeConfig} */
     ({
       navbar: {
-        title: 'My Site',
+        title: 'Dada',
         logo: {
           alt: 'My Site Logo',
-          src: 'img/logo.svg',
+          src: 'https://raw.githubusercontent.com/dada-lang/dada-artwork/main/dada.svg',
         },
         items: [
           {
@@ -57,7 +60,7 @@ const config = {
           },
           { to: '/blog', label: 'Blog', position: 'left' },
           {
-            href: 'https://github.com/facebook/docusaurus',
+            href: 'https://github.com/dada-lang/dada',
             label: 'GitHub',
             position: 'right',
           },
