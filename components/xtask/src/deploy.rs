@@ -16,20 +16,10 @@ impl Deploy {
         xshell::mkdir_p(&dada_downloads)?;
         tracing::debug!("dada download directory: {dada_downloads:?}");
 
-        let mdbook_path = download_mdbook(&dada_downloads)?;
         let wasm_pack_path = download_wasm_pack(&dada_downloads)?;
 
         {
-            let _book = xshell::pushd(&book_dir)?;
-            xshell::Cmd::new(mdbook_path).arg("build").run()?;
-        }
-
-        let playground_dir = book_dir.join("book/playground");
-        xshell::mkdir_p(&playground_dir)?;
-
-        let dada_web_dir = xshell::cwd()?.join("components/dada-web");
-
-        {
+            let dada_web_dir = xshell::cwd()?.join("components/dada-web");
             let _directory = xshell::pushd(&dada_web_dir)?;
             xshell::Cmd::new(&wasm_pack_path)
                 .arg("build")
@@ -41,28 +31,13 @@ impl Deploy {
                 .run()?;
         }
 
-        //{
-        //    // FIXME: run curl ourselves, write output directly into final directory?
-        //    let _directory = xshell::pushd(&dada_web_dir.join("ace"))?;
-        //    xshell::cmd!("make").run()?;
-        //}
+        {
+            let _directory = xshell::pushd(&book_dir)?;
+            xshell::Cmd::new("npm").arg("run").arg("build").run()?;
+        }
 
-        copy_all_files(&dada_web_dir, "ace", &playground_dir)?;
-        copy_all_files(&dada_web_dir, "pkg", &playground_dir)?;
-
-        xshell::cp(dada_web_dir.join("index.html"), &playground_dir)?;
-        xshell::cp(dada_web_dir.join("index.css"), &playground_dir)?;
-        xshell::cp(dada_web_dir.join("index.js"), &playground_dir)?;
         Ok(())
     }
-}
-
-fn download_mdbook(dada_downloads: &Path) -> eyre::Result<PathBuf> {
-    let version = "v0.4.15";
-    let url = format!("https://github.com/rust-lang/mdBook/releases/download/{version}/mdbook-{version}-x86_64-unknown-linux-gnu.tar.gz");
-    let filename = format!("mdbook-{version}.tar.gz");
-    download_and_untar(dada_downloads, &url, &filename)?;
-    Ok(dada_downloads.join("mdbook"))
 }
 
 fn download_wasm_pack(dada_downloads: &Path) -> eyre::Result<PathBuf> {
@@ -96,14 +71,4 @@ fn cargo_path(env_var: &str) -> eyre::Result<PathBuf> {
         }
         Err(_) => eyre::bail!("`{}` not set", env_var),
     }
-}
-
-fn copy_all_files(source_dir: &Path, subdir: &str, target_dir: &Path) -> eyre::Result<()> {
-    for f in xshell::read_dir(source_dir.join(subdir))? {
-        assert!(!f.is_dir()); // FIXME
-        let target_subdir = &target_dir.join(subdir);
-        xshell::mkdir_p(target_subdir)?;
-        xshell::cp(f, target_subdir)?;
-    }
-    Ok(())
 }
