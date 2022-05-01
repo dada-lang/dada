@@ -71,6 +71,7 @@ const config = {
             position: 'left',
             label: 'Design Docs',
           },
+          { to: '/playground', label: 'Playground', position: 'right' },
           {
             href: 'https://github.com/dada-lang/dada',
             label: 'GitHub',
