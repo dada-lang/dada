@@ -77,7 +77,6 @@ function Ide(props: { sourceText: string }) {
     initModule();
   }, []);
 
-
   // Second pass: now that `dada != null`, we can do the rest.
   const [cursor, setCursor] = useState<Cursor>({ row: 0, column: 0 });
   const [source, setSource] = useState<string>(props.sourceText);
@@ -96,7 +95,6 @@ function Ide(props: { sourceText: string }) {
     }
     updateCompiler();
   }, [cursor, dada, source]);
-
 
   return (
     <Row>

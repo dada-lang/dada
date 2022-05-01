@@ -51,6 +51,32 @@ const sidebars = {
       }],
     }
   ],
+
+  designDocsSidebar: [
+    {
+      type: 'category',
+      label: 'Design Docs',
+      link: { type: 'doc', id: 'design_docs' },
+      items: [
+        'design_docs/goals',
+        'design_docs/experience',
+        'design_docs/calculus',
+        'design_docs/sketchy_ideas',
+        'design_docs/sharing_synthesized_values',
+      ],
+    }
+  ],
+
+  aboutSidebar: [
+    {
+      type: 'category',
+      label: 'About',
+      link: { type: 'doc', id: 'about' },
+      items: [
+        'about/faq'
+      ],
+    }
+  ]
 };
 
 module.exports = sidebars;

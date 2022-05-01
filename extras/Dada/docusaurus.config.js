@@ -12,7 +12,7 @@ const config = {
   baseUrl: '/',
   onBrokenLinks: 'throw',
   onBrokenMarkdownLinks: 'warn',
-  favicon: 'img/favicon.ico',
+  favicon: 'img/dada.svg',
   organizationName: 'dada-lang',
   projectName: 'dada', // Usually your repo name.
 
@@ -53,7 +53,8 @@ const config = {
         },
         items: [
           {
-            to: '/about',
+            type: 'doc',
+            docId: 'about',
             position: 'left',
             label: 'About',
           },
@@ -64,6 +65,12 @@ const config = {
             label: 'Tutorials',
           },
           { to: '/blog', label: 'Blog', position: 'left' },
+          {
+            type: 'doc',
+            docId: 'design_docs',
+            position: 'left',
+            label: 'Design Docs',
+          },
           {
             href: 'https://github.com/dada-lang/dada',
             label: 'GitHub',

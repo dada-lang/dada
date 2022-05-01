@@ -7,13 +7,17 @@
 
 import React from 'react';
 import CodeBlock from '@theme-init/CodeBlock';
-import Ide from '@site/src/components/Ide';
+import BrowserOnly from '@docusaurus/BrowserOnly';
 
 const withDadaEditor = () => {
   function WrappedComponent(props) {
-    console.log(`WrappedContent: ${JSON.stringify(props)}`);
     if (props.ide) {
-      return <Ide sourceText={props.children} />;
+      return <BrowserOnly fallback={<div>Loading...</div>}>
+        {() => {
+          const Ide = require('@site/src/components/Ide').default;
+          return <Ide sourceText={props.children} />;
+        }}
+      </BrowserOnly>;
     }
     return <CodeBlock {...props} />;
   }

@@ -42,7 +42,7 @@ Over the next few chapters, we're going to look at each of the permissions in de
 * We'll start with the *owned permisions*, [`my`] and [`our`].
 * Then we'll cover the *leased permissions*, [`leased`] and [`shleased`].
 
-[`my`]: ./my.md
-[`our`]: ./our.md
-[`leased`]: ./leased.md
-[`shleased`]: ./shleased.md
+[`my`]: ./my
+[`our`]: ./our
+[`leased`]: ./lease
+[`shleased`]: ./shlease

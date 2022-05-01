@@ -12,7 +12,7 @@ Dada is a thought experiment. What if we were making a language like Rust, but o
 
 As of right now, Dada doesn't really exist, though we have some experimental prototypes:
 
-* There is an experimental operational semantics implemented in [PLT Redex], which you can find at [dada-lang/dada-model](https://github.com/dada-lang/dada-model/). More details are available (or will be eventually) in the [calculus section](./calculus.md) of this site.
+* There is an experimental operational semantics implemented in [PLT Redex], which you can find at [dada-lang/dada-model](https://github.com/dada-lang/dada-model/). More details are available (or will be eventually) in the [Design Docs section](/docs/design_docs) of this site.
 * The interpreter, written in Rust, is found on the [dada-lang/dada](https://github.com/dada-lang/dada) repository. You can try a WebAssembly-based build on the [Dada playground](https://dada-lang.org/playground). More details are available in the "Development Guide" section of this site.
 
 [PLT Redex]: https://redex.racket-lang.org/why-redex.html
@@ -44,10 +44,7 @@ Dada also has some limitations compared to Rust:
 
 ## Curious to learn more?
 
-Check out one of our tutorials:
-
-* [Dynamic Dada](./dyn_tutorial.md)
-* [Dada for Rustaceans](./rustaceans.md)
+Check out one of our [tutorials](/docs/tutorials/).
 
 ## Footnotes
 

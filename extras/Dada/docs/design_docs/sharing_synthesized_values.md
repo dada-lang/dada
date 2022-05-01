@@ -1,4 +1,4 @@
-# Sharing synthesized values
+# Sharing synthesized values (draft)
 
 ### Motivating example: returning synthesized values
 

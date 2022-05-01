@@ -6,7 +6,7 @@ import Caveat from '../caveat.md'
 
 In the [sharing xor mutability][sxm] section, we discussed how `var` fields, when shared, become immutable. We also talked about the dangers of mixing sharing and mutation. The challenge is that *sometimes* you *really do* want to mix sharing and mutation. As a simple example, we might want to have a shared cache that multiple parts of our code can access. How do we do that?
 
-[sxm]: ./sharing_xor_mutability.md
+[sxm]: ./sharing_xor_mutation
 
 For this reason, Dada supports a more dynamic variant of [sharing xor mutability][sxm] called "atomic data". The idea is that we can declare some storage as being `atomic` instead of `var`. Unlike `var` storage, atomic storage can be mutated when shared, but only within a **transaction**. The transaction ensures that all of our changes to that shared data occur as a single unit, without interference from either other variables or other threads.
 
