@@ -23,6 +23,8 @@ function HomepageHeader() {
               <h1 class="dada-left-justify">Welcome to <b>Dada</b>, an experimental new programming language!</h1>
 
               <h3 class="dada-left-justify"><a href="/docs/dyn_tutorial">Care to try our live tutorial?</a></h3>
+              <h3 class="dada-left-justify"><a href="/docs/about">Wondering what the heck Dada is all about?</a></h3>
+              <h3 class="dada-left-justify"><a href="/playground">Jump to the web playground?</a></h3>
             </blockquote>
           </Col>
         </Row>
