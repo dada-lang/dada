@@ -45,7 +45,7 @@ jobs:
         with:
           command: test
 
-  test:
+  deploy:
     name: Deploy
     runs-on: ubuntu-latest
     strategy:
