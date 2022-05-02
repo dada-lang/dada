@@ -59,6 +59,9 @@ jobs:
           profile: minimal
           toolchain: ${{ matrix.rust }}
           override: true
+      - uses: actions/setup-node@v3
+        with:
+          node-version-file: '.nvmrc'
       - uses: actions-rs/cargo@v1.0.3
         with:
           command: xtask 
