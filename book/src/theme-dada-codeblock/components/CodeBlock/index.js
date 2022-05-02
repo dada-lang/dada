@@ -15,7 +15,7 @@ const withDadaEditor = () => {
       return <BrowserOnly fallback={<div>Loading...</div>}>
         {() => {
           const Ide = require('@site/src/components/Ide').default;
-          return <Ide sourceText={props.children} />;
+          return <Ide mini={true} sourceText={props.children} />;
         }}
       </BrowserOnly>;
     }

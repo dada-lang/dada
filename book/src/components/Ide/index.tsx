@@ -99,7 +99,7 @@ class DCW {
 
 export type Cursor = { row: number; column: number };
 
-function Ide(props: { sourceText: string }) {
+function Ide(props: { mini: boolean, sourceText: string }) {
     const queue = new Queue();
     const [_module, setModule] = useState<InitOutput | null>(null);
     const [dada, setDada] = useState<DCW | null>(null);
@@ -120,6 +120,7 @@ function Ide(props: { sourceText: string }) {
     // Second pass: now that `dada != null`, we can do the rest.
     const [cursor, setCursor] = useState<Cursor>({ row: 0, column: 0 });
     const [source, setSource] = useState<string>(props.sourceText);
+    const [status, setStatus] = useState<string>("");
     const [diagnostics, setDiagnostics] = useState<string>("");
     const [output, setOutput] = useState<string>("");
     const [heaps, setHeaps] = useState<[string, string]>(["", ""]);
@@ -135,21 +136,74 @@ function Ide(props: { sourceText: string }) {
         });
     }, [cursor, dada, source]);
 
-
     useEffect(() => {
         setSource(props.sourceText);
     }, [props]);
 
-    return (
-        <Row>
-            <Col>
-                <Editor source={source} onCursorChange={setCursor} onSourceChange={setSource} />
-            </Col>
-            <Col>
-                <Output output={output} heaps={heaps} />
-            </Col>
-        </Row>
-    );
+    if (props.mini) {
+
+
+        return (
+            <Row>
+                <Col>
+                    <Editor source={source} onCursorChange={setCursor} onSourceChange={setSource} />
+                </Col>
+                <Col>
+                    <Output output={output} heaps={heaps} />
+                </Col>
+            </Row>
+        );
+    } else {
+        return (
+            <div>
+                <input type="button" value="share" onClick={() => copyClipboardUrl(source, setStatus)} />
+                <span>{status}</span>
+
+                <Row>
+                    <Col>
+                        <Editor source={source} onCursorChange={setCursor} onSourceChange={setSource} />
+                    </Col>
+                    <Col>
+                        <Output output={output} heaps={heaps} />
+                    </Col>
+                </Row>
+            </div>
+        );
+    }
 }
 
 export default Ide;
+
+async function copyClipboardUrl(source, setStatus) {
+    // get URL of the playground, and clear existing parameters
+    var playgroundUrl = new URL(document.location.href);
+    playgroundUrl.search = "?"; // clear existing parameters
+
+    // set the ?code=xxx parameter
+    playgroundUrl.searchParams.set("code", source);
+
+    // minify
+    let minifiedUrl = await minify(playgroundUrl);
+    await navigator.clipboard.writeText(minifiedUrl.href);
+
+    setStatus("url copied to clipboard");
+}
+
+// Use the is.gd service to minify a URL.
+// If the request fails, returns the unminified URL.
+async function minify(url) {
+    // Use the is.gd 
+    // ?format=simple&url=www.example.com
+
+    let isGdUrl = new URL("https://is.gd/create.php");
+    isGdUrl.searchParams.set("format", "simple");
+    isGdUrl.searchParams.set("url", url.href);
+
+    try {
+        let response = await fetch(isGdUrl);
+        let text = await response.text();
+        return new URL(text);
+    } catch (e) {
+        return url;
+    }
+}
