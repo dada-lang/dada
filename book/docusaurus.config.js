@@ -122,7 +122,7 @@ const config = {
             ],
           },
         ],
-        copyright: `Copyright © ${new Date().getFullYear()} Nicholas Matsakis and the Dadaists team.`,
+        copyright: `Copyright © ${new Date().getFullYear()} the [Dadaists team](https://github.com/orgs/dada-lang/teams/dadaists).`,
       },
       prism: {
         theme: lightCodeTheme,
