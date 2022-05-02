@@ -65,13 +65,13 @@ const config = {
             label: 'Tutorials',
           },
           { to: '/blog', label: 'Blog', position: 'left' },
+          { to: '/playground', label: 'Playground', position: 'left' },
           {
             type: 'doc',
             docId: 'design_docs',
             position: 'left',
             label: 'Design Docs',
           },
-          { to: '/playground', label: 'Playground', position: 'right' },
           {
             href: 'https://github.com/dada-lang/dada',
             label: 'GitHub',
