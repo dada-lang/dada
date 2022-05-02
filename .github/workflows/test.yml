@@ -61,7 +61,8 @@ jobs:
           override: true
       - uses: actions-rs/cargo@v1.0.3
         with:
-          command: xtask deploy
+          command: xtask 
+          args: deploy
 
   rustfmt:
     name: Rustfmt
