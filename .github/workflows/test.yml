@@ -45,6 +45,28 @@ jobs:
         with:
           command: test
 
+  deploy:
+    name: Deploy
+    runs-on: ubuntu-latest
+    strategy:
+      matrix:
+        rust:
+          - nightly
+    steps:
+      - uses: actions/checkout@v2.4.0
+      - uses: actions-rs/toolchain@v1.0.7
+        with:
+          profile: minimal
+          toolchain: ${{ matrix.rust }}
+          override: true
+      - uses: actions/setup-node@v3
+        with:
+          node-version-file: '.nvmrc'
+      - uses: actions-rs/cargo@v1.0.3
+        with:
+          command: xtask 
+          args: deploy
+
   rustfmt:
     name: Rustfmt
     runs-on: ubuntu-latest

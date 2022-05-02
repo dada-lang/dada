@@ -1,0 +1,48 @@
+{
+  "name": "remove-blank-lines",
+  "description": "Remove blank lines from a string.",
+  "keywords": [
+    "remove",
+    "blank",
+    "lines",
+    "from",
+    "a",
+    "string"
+  ],
+  "license": "MIT",
+  "version": "1.4.1",
+  "main": "lib/index.js",
+  "scripts": {
+    "test": "mocha ./test"
+  },
+  "author": "Ionică Bizău <bizauionica@gmail.com> (https://ionicabizau.net)",
+  "contributors": [
+    "Renan Bastos <renanbastos.tec@gmail.com> (http://renanbastos.com.br)"
+  ],
+  "repository": {
+    "type": "git",
+    "url": "git+ssh://git@github.com/IonicaBizau/remove-blank-lines.git"
+  },
+  "bugs": {
+    "url": "https://github.com/IonicaBizau/remove-blank-lines/issues"
+  },
+  "homepage": "https://github.com/IonicaBizau/remove-blank-lines#readme",
+  "files": [
+    "bin/",
+    "app/",
+    "lib/",
+    "dist/",
+    "src/",
+    "scripts/",
+    "resources/",
+    "menu/",
+    "cli.js",
+    "index.js",
+    "bloggify.js",
+    "bloggify.json",
+    "bloggify/"
+  ],
+  "devDependencies": {
+    "mocha": "^7.1.1"
+  }
+}
