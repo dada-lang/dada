@@ -54,7 +54,7 @@ impl Parser<'_> {
             parameter_decls,
             root_expr,
         };
-        Tree::new(self.db, origin, tree_data, spans)
+        Tree::new(self.db, tree_data, spans)
     }
 }
 
