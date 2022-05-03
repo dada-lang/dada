@@ -2,7 +2,10 @@ use crate::{parser::Parser, token_test::SpannedIdentifier};
 
 use dada_ir::{
     class::Class,
-    code::{syntax::op::Op, Code},
+    code::{
+        syntax::{op::Op, Spans, Tables},
+        Code,
+    },
     effect::Effect,
     function::Function,
     item::Item,
@@ -17,16 +20,29 @@ use super::OrReportError;
 impl<'db> Parser<'db> {
     pub(crate) fn parse_source_file(&mut self) -> SourceFile {
         let mut items = vec![];
+        let mut exprs = vec![];
+        let mut tables = Tables::default();
+        let mut spans = Spans::default();
         while self.tokens.peek().is_some() {
             if let Some(item) = self.parse_item() {
                 items.push(item);
+            } else if let Some(expr) = self.parse_top_level_expr(&mut tables, &mut spans) {
+                exprs.push(expr);
             } else {
                 let span = self.tokens.last_span();
                 self.tokens.consume();
                 dada_ir::error!(span.in_file(self.filename), "unexpected token").emit(self.db);
             }
         }
-        SourceFile::new(self.db, self.filename, items)
+
+        let syntax_tree = if !exprs.is_empty() {
+            let start = spans[exprs[0]];
+            Some(self.create_syntax_tree(start, vec![], tables, spans, exprs))
+        } else {
+            None
+        };
+
+        SourceFile::new(self.db, self.filename, items, syntax_tree)
     }
 
     fn parse_item(&mut self) -> Option<Item> {

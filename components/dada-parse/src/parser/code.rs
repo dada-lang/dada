@@ -7,7 +7,7 @@ use crate::{
 use dada_id::InternValue;
 use dada_ir::{
     code::{
-        syntax::op::Op,
+        syntax::{op::Op, LocalVariableDecl},
         syntax::{
             Expr, ExprData, LocalVariableDeclData, LocalVariableDeclSpan, NamedExpr, NamedExprData,
             Spans, Tables, Tree, TreeData,
@@ -46,9 +46,42 @@ impl Parser<'_> {
             .collect::<Vec<_>>();
 
         let start = code_parser.tokens.last_span();
-        let block = code_parser.parse_only_expr_seq();
-        let span = code_parser.span_consumed_since(start);
-        let root_expr = code_parser.add(ExprData::Seq(block), span);
+        let exprs = code_parser.parse_only_expr_seq();
+        self.create_syntax_tree(start, parameter_decls, tables, spans, exprs)
+    }
+
+    pub(crate) fn parse_top_level_expr(
+        &mut self,
+        tables: &mut Tables,
+        spans: &mut Spans,
+    ) -> Option<Expr> {
+        let mut code_parser = CodeParser {
+            parser: self,
+            tables,
+            spans,
+        };
+        code_parser.parse_expr()
+    }
+
+    pub(crate) fn create_syntax_tree(
+        &mut self,
+        start: Span,
+        parameter_decls: Vec<LocalVariableDecl>,
+        mut tables: Tables,
+        mut spans: Spans,
+        exprs: Vec<Expr>,
+    ) -> Tree {
+        let span = self.span_consumed_since(start);
+
+        let root_expr = {
+            let mut code_parser = CodeParser {
+                parser: self,
+                tables: &mut tables,
+                spans: &mut spans,
+            };
+            code_parser.add(ExprData::Seq(exprs), span)
+        };
+
         let tree_data = TreeData {
             tables,
             parameter_decls,

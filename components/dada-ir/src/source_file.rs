@@ -1,3 +1,4 @@
+use crate::code::syntax::Tree;
 use crate::{filename::Filename, item::Item};
 
 salsa::entity2! {
@@ -8,6 +9,9 @@ salsa::entity2! {
 
         /// The items found in the file.
         #[value ref] items: Vec<Item>,
+
+        /// Top-level expressions from this file (if any).
+        syntax_tree: Option<Tree>,
     }
 }
 
