@@ -81,11 +81,9 @@ impl DadaCompiler {
         let diagnostics = self.db.diagnostics(filename);
 
         let mut kernel = BufferKernel::new().stop_at_breakpoint(false);
-        match self.db.function_named(filename, "main") {
-            Some(function) => {
-                kernel
-                    .interpret_and_buffer(&self.db, function, vec![])
-                    .await;
+        match self.db.main_function(filename) {
+            Some(bir) => {
+                kernel.interpret_and_buffer(&self.db, bir, vec![]).await;
             }
             None => {
                 kernel.append(&format!(

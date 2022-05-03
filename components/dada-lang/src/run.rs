@@ -62,9 +62,9 @@ impl Options {
 
         // Find the "main" function
         if should_execute {
-            match db.function_named(filename, "main") {
-                Some(function) => {
-                    dada_execute::interpret(function, &db, &mut Kernel::new(), vec![]).await?;
+            match db.main_function(filename) {
+                Some(bir) => {
+                    dada_execute::interpret(bir, &db, &mut Kernel::new(), vec![]).await?;
                 }
                 None => {
                     return Err(eyre::eyre!(

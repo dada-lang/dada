@@ -1,5 +1,5 @@
-use dada_brew::prelude::*;
-use dada_ir::function::Function;
+use dada_ir::code::bir::Bir;
+use salsa::DebugWithDb;
 
 use crate::{
     kernel::Kernel,
@@ -9,19 +9,18 @@ use crate::{
 
 /// Interprets a given function with the given kernel. Assumes this is the top stack frame.
 /// Prints the result if it is not `()` to stdout.
-#[tracing::instrument(level = "debug", skip(function, db, kernel, arguments))]
+#[tracing::instrument(level = "debug", skip(bir, db, kernel, arguments))]
 pub async fn interpret(
-    function: Function,
+    bir: Bir,
     db: &dyn crate::Db,
     kernel: &mut dyn Kernel,
     arguments: Vec<Value>,
 ) -> eyre::Result<()> {
     tracing::debug!(
-        "function={} arguments={:#?}",
-        function.name(db).as_str(db),
+        "function={:?} arguments={:#?}",
+        bir.origin(db).name(db).debug(db),
         arguments
     );
-    let bir = function.brew(db);
     let machine: &mut Machine = &mut Machine::default();
     machine.push_frame(db, bir, arguments);
     let mut stepper = Stepper::new(db, machine, kernel);

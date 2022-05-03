@@ -1,8 +1,8 @@
-use dada_brew::prelude::MaybeBrewExt;
+use dada_brew::prelude::*;
 use dada_ir::{
+    code::bir::Bir,
     diagnostic::Diagnostic,
     filename::Filename,
-    function::Function,
     item::Item,
     span::{FileSpan, LineColumn, Offset},
     word::Word,
@@ -60,14 +60,14 @@ impl Db {
         dada_check::check_filename::accumulated::<dada_ir::diagnostic::Diagnostics>(self, filename)
     }
 
-    /// Checks `filename` for a "main" function
-    pub fn function_named(&self, filename: Filename, name: &str) -> Option<Function> {
-        let name = Word::from(self, name);
+    /// Checks `filename` for a function with the given name
+    pub fn main_function(&self, filename: Filename) -> Option<Bir> {
+        let name = Word::from(self, "main");
         for item in filename.items(self) {
             if let Item::Function(function) = item {
                 let function_name = function.name(self);
                 if name == function_name.word(self) {
-                    return Some(*function);
+                    return Some(function.brew(self));
                 }
             }
         }

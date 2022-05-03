@@ -52,9 +52,9 @@ impl super::Options {
             &path.join(format!("HeapGraph-{query_index}.bir.ref")),
         )?;
 
-        match db.function_named(filename, "main") {
-            Some(function) => {
-                kernel.interpret_and_buffer(db, function, vec![]).await;
+        match db.main_function(filename) {
+            Some(bir) => {
+                kernel.interpret_and_buffer(db, bir, vec![]).await;
             }
             None => {
                 kernel.append(&format!(

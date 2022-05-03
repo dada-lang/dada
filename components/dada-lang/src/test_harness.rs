@@ -381,10 +381,10 @@ impl Options {
         errors: &mut Errors,
     ) -> eyre::Result<()> {
         let mut diagnostics = vec![];
-        let actual_output = match db.function_named(filename, "main") {
-            Some(function) => {
+        let actual_output = match db.main_function(filename) {
+            Some(bir) => {
                 let mut kernel = BufferKernel::new().track_output_ranges(true);
-                let res = kernel.interpret(db, function, vec![]).await;
+                let res = kernel.interpret(db, bir, vec![]).await;
                 if let Err(err) = res {
                     match err.downcast_ref::<dada_execute::DiagnosticError>() {
                         Some(err) => {
