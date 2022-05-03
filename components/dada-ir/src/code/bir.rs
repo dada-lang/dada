@@ -11,7 +11,7 @@ use crate::{
     origin_table::HasOriginIn,
     prelude::InIrDbExt,
     storage::{Atomic, SpannedSpecifier},
-    word::{SpannedOptionalWord, Word},
+    word::{SpannedOptionalWord, SpannedWord, Word},
 };
 use dada_id::{id, prelude::*, tables};
 use salsa::DebugWithDb;
@@ -36,6 +36,18 @@ impl DebugWithDb<dyn crate::Db + '_> for Bir {
 impl InIrDb<'_, Bir> {
     fn tables(&self) -> &Tables {
         &self.data(self.db()).tables
+    }
+}
+
+impl Bir {
+    /// The filename containing the code which this `Bir` was derived
+    pub fn filename(self, db: &dyn crate::Db) -> Filename {
+        self.origin(db).filename(db)
+    }
+
+    /// The function name from which this code was derived
+    pub fn function_name(self, db: &dyn crate::Db) -> SpannedWord {
+        self.origin(db).name(db)
     }
 }
 

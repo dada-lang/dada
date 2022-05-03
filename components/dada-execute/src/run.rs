@@ -18,7 +18,7 @@ pub async fn interpret(
 ) -> eyre::Result<()> {
     tracing::debug!(
         "function={:?} arguments={:#?}",
-        bir.origin(db).name(db).debug(db),
+        bir.function_name(db).debug(db),
         arguments
     );
     let machine: &mut Machine = &mut Machine::default();
