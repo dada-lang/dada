@@ -2,6 +2,7 @@ import React from 'react';
 import { useEffect, useState } from "react";
 import Col from "react-bootstrap/Col";
 import Row from "react-bootstrap/Row";
+import {default as AnsiUp} from 'ansi_up';
 
 import dadaWeb, { compiler } from "dada-web";
 import type { DadaCompiler, InitOutput } from "dada-web";
@@ -130,7 +131,8 @@ function Ide(props: { mini: boolean, sourceText: string }) {
             dada.setSourceText(source);
             dada.setBreakpoint(cursor.row, cursor.column);
             await dada.execute();
-            setOutput(dada.output);
+            const html = new AnsiUp().ansi_to_html(dada.output);
+            setOutput(html);
             setHeaps([dada.heaps[0], dada.heaps[1]]);
             setDiagnostics(dada.diagnostics);
         });
