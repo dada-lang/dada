@@ -12,3 +12,7 @@
     white-space: pre-wrap;
     overflow: auto;
 }
+
+.heap-cell {
+    margin-top: 20px;
+}
