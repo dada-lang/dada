@@ -12,7 +12,6 @@ use dada_ir::{
     storage::{Atomic, Joint, Leased, SpannedSpecifier, Specifier},
     word::Word,
 };
-use dada_parse::prelude::*;
 use salsa::DebugWithDb;
 
 use crate::{
@@ -600,10 +599,7 @@ impl<'me> Stepper<'me> {
 
     fn span_from_syntax_expr(&self, syntax_expr: syntax::Expr) -> FileSpan {
         let bir = self.machine.pc().bir;
-        let code = bir.origin(self.db);
-        let filename = code.filename(self.db);
-        let syntax_tree = code.syntax_tree(self.db);
-        syntax_tree.spans(self.db)[syntax_expr].in_file(filename)
+        bir.span_of(self.db, syntax_expr)
     }
 }
 

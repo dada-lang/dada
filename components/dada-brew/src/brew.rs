@@ -6,6 +6,7 @@ use dada_ir::{
     },
     storage::Atomic,
 };
+use dada_parse::prelude::*;
 use salsa::DebugWithDb;
 
 use crate::{
@@ -46,7 +47,9 @@ pub fn brew(db: &dyn crate::Db, validated_tree: validated::Tree) -> bir::Bir {
 
     let bir = bir::Bir::new(
         db,
-        function,
+        function.filename(db),
+        function.name(db).word(db),
+        function.syntax_tree(db),
         BirData::new(tables, num_parameters, start_basic_block),
         origins,
     );

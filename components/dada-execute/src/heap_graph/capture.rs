@@ -73,7 +73,7 @@ impl<'me> HeapGraphCapture<'me> {
         let in_flight_value = in_flight_value.map(|p| self.value_edge(p));
 
         let data = StackFrameNodeData {
-            function_name: frame.pc.bir.function_name(self.db).word(self.db),
+            function_name: frame.pc.bir.function_name(self.db),
             span,
             variables,
             in_flight_value,

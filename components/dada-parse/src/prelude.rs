@@ -1,12 +1,11 @@
 use dada_ir::{
     class::Class,
-    code::{bir, syntax, Code},
+    code::{syntax, Code},
     filename::Filename,
     function::Function,
     item::Item,
     parameter::Parameter,
     source_file::SourceFile,
-    span::FileSpan,
 };
 
 #[extension_trait::extension_trait]
@@ -40,21 +39,6 @@ pub impl DadaParseFunctionExt for Function {
 
     fn parameters(self, db: &dyn crate::Db) -> &[Parameter] {
         self.code(db).parameters(db)
-    }
-}
-
-#[extension_trait::extension_trait]
-pub impl DadaBirSpanExt for bir::Bir {
-    /// Given a `syntax_expr` within this BIR, find its span. This operation
-    /// is to be avoided unless reporting a diagnostic or really needed, because
-    /// it induces a dependency on the *precise span* of the expression and hence
-    /// will require re-execution if most anything in the source file changes, even
-    /// just adding whitespace.
-    fn span_of(self, db: &dyn crate::Db, syntax_expr: syntax::Expr) -> FileSpan {
-        let function = self.origin(db);
-        let filename = function.filename(db);
-        let syntax_tree = function.syntax_tree(db);
-        syntax_tree.spans(db)[syntax_expr].in_file(filename)
     }
 }
 

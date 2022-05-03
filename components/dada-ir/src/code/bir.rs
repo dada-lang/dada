@@ -10,8 +10,9 @@ use crate::{
     intrinsic::Intrinsic,
     origin_table::HasOriginIn,
     prelude::InIrDbExt,
+    span::FileSpan,
     storage::{Atomic, SpannedSpecifier},
-    word::{SpannedOptionalWord, SpannedWord, Word},
+    word::{SpannedOptionalWord, Word},
 };
 use dada_id::{id, prelude::*, tables};
 use salsa::DebugWithDb;
@@ -20,8 +21,19 @@ use super::{syntax, validated};
 
 salsa::entity2! {
     entity Bir in crate::Jar {
-        origin: Function,
+        /// Name of file containing the code from which this Bir was created.
+        filename: Filename,
+
+        /// Name of function containing the code from which this Bir was created.
+        function_name: Word,
+
+        /// Syntax tree from which this Bir was created.
+        syntax_tree: syntax::Tree,
+
+        /// The BIR data
         #[value ref] data: BirData,
+
+        /// Origins of expr in the BIR. Used to trace back to a source span.
         #[value ref] origins: Origins,
     }
 }
@@ -40,14 +52,15 @@ impl InIrDb<'_, Bir> {
 }
 
 impl Bir {
-    /// The filename containing the code which this `Bir` was derived
-    pub fn filename(self, db: &dyn crate::Db) -> Filename {
-        self.origin(db).filename(db)
-    }
-
-    /// The function name from which this code was derived
-    pub fn function_name(self, db: &dyn crate::Db) -> SpannedWord {
-        self.origin(db).name(db)
+    /// Given a `syntax_expr` within this BIR, find its span. This operation
+    /// is to be avoided unless reporting a diagnostic or really needed, because
+    /// it induces a dependency on the *precise span* of the expression and hence
+    /// will require re-execution if most anything in the source file changes, even
+    /// just adding whitespace.
+    pub fn span_of(self, db: &dyn crate::Db, syntax_expr: syntax::Expr) -> FileSpan {
+        let filename = self.filename(db);
+        let syntax_tree = self.syntax_tree(db);
+        syntax_tree.spans(db)[syntax_expr].in_file(filename)
     }
 }
 

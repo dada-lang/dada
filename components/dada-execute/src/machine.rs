@@ -10,7 +10,6 @@ use dada_ir::{
     span::FileSpan,
     storage::{Joint, Leased},
 };
-use dada_parse::prelude::*;
 use generational_arena::Arena;
 
 use crate::thunk::RustThunk;
