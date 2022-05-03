@@ -8,13 +8,14 @@ use dada_ir::{
     item::Item,
     kw::Keyword,
     return_type::{ReturnType, ReturnTypeKind},
+    source_file::SourceFile,
     span::Span,
 };
 
 use super::OrReportError;
 
 impl<'db> Parser<'db> {
-    pub(crate) fn parse_items(&mut self) -> Vec<Item> {
+    pub(crate) fn parse_source_file(&mut self) -> SourceFile {
         let mut items = vec![];
         while self.tokens.peek().is_some() {
             if let Some(item) = self.parse_item() {
@@ -25,7 +26,7 @@ impl<'db> Parser<'db> {
                 dada_ir::error!(span.in_file(self.filename), "unexpected token").emit(self.db);
             }
         }
-        items
+        SourceFile::new(self.db, self.filename, items)
     }
 
     fn parse_item(&mut self) -> Option<Item> {

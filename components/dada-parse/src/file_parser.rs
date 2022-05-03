@@ -7,6 +7,5 @@ use dada_ir::{filename::Filename, source_file::SourceFile};
 pub fn parse_file(db: &dyn crate::Db, filename: Filename) -> SourceFile {
     let token_tree = dada_lex::lex_file(db, filename);
     let mut parser = Parser::new(db, token_tree);
-    let items = parser.parse_items();
-    SourceFile::new(db, filename, items)
+    parser.parse_source_file()
 }
