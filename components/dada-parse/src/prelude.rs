@@ -5,6 +5,7 @@ use dada_ir::{
     function::Function,
     item::Item,
     parameter::Parameter,
+    source_file::SourceFile,
 };
 
 #[extension_trait::extension_trait]
@@ -50,7 +51,11 @@ pub impl DadaParseClassExt for Class {
 
 #[extension_trait::extension_trait]
 pub impl DadaParseFilenameExt for Filename {
-    fn items(self, db: &dyn crate::Db) -> &Vec<Item> {
+    fn source_file(self, db: &dyn crate::Db) -> &SourceFile {
         crate::file_parser::parse_file(db, self)
+    }
+
+    fn items(self, db: &dyn crate::Db) -> &Vec<Item> {
+        self.source_file(db).items(db)
     }
 }

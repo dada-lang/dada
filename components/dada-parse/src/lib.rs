@@ -1,6 +1,7 @@
 #![feature(trait_upcasting)]
 #![feature(let_else)]
 #![allow(incomplete_features)]
+#![allow(clippy::manual_map)]
 
 mod code_parser;
 mod file_parser;

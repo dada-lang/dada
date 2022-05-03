@@ -31,8 +31,10 @@ impl<'db> Parser<'db> {
     fn parse_item(&mut self) -> Option<Item> {
         if let Some(class) = self.parse_class() {
             Some(Item::Class(class))
+        } else if let Some(func) = self.parse_function() {
+            Some(Item::Function(func))
         } else {
-            self.parse_function().map(Item::Function)
+            None
         }
     }
 
