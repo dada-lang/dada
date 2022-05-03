@@ -18,6 +18,8 @@ function Editor(props: PropsWithChildren<OutputProps>) {
     <AceEditor
       editorProps={{ $blockScrolling: true }}
       fontSize={18}
+      width="100%"
+      height="82vh"
       name="dada-editor"
       onChange={(v) => props.onSourceChange(v)}
       onCursorChange={(selection) => props.onCursorChange({ row: selection.cursor.row, column: selection.cursor.column })}

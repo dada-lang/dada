@@ -155,18 +155,15 @@ function Ide(props: { mini: boolean, sourceText: string }) {
         );
     } else {
         return (
-            <div>
-                <input type="button" value="share" onClick={() => copyClipboardUrl(source, setStatus)} />
-                <span>{status}</span>
-
-                <Row>
-                    <Col>
-                        <Editor source={source} onCursorChange={setCursor} onSourceChange={setSource} />
-                    </Col>
-                    <Col>
-                        <Output output={output} heaps={heaps} />
-                    </Col>
-                </Row>
+            <div className='ide'>
+                <div className="editor-cell">
+                    <input type="button" value="share" onClick={() => copyClipboardUrl(source, setStatus)} />
+                    <span>{status}</span>
+                    <Editor source={source} onCursorChange={setCursor} onSourceChange={setSource} />
+                </div>
+                <div className="output-cell">
+                    <Output output={output} heaps={heaps} />
+                </div>
             </div>
         );
     }

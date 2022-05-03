@@ -1,3 +1,4 @@
+import "./playground.css"
 import React from 'react';
 import Layout from '@theme/Layout';
 import stripIndent from 'strip-indent';
