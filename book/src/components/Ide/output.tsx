@@ -27,7 +27,7 @@ type OutputProps = {
 function Output(props: PropsWithChildren<OutputProps>) {
   return (
     <>
-      <div className="output p-2 bg-light">{props.output}</div>
+      <div className="output p-2 bg-light" dangerouslySetInnerHTML={{__html: props.output}}></div>
       <StateGraph heap={props.heaps[0]} name="State before selected statement" />
       <StateGraph heap={props.heaps[1]} name="State after selected statement" />
     </>
