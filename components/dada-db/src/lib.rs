@@ -64,21 +64,22 @@ impl Db {
     pub fn main_function(&self, filename: Filename) -> Option<Bir> {
         let source_file = filename.source_file(self);
 
-        // If the user included top-level expressions...
-        if let Some(syntax_tree) = source_file.syntax_tree(self) {
-            panic!("can't handle syntax-tree yet {:?}", syntax_tree.debug(self))
-        } else {
-            // ...otherwise, search for a function named `main`.
-            let name = Word::from(self, "main");
-            for item in filename.items(self) {
-                if let Item::Function(function) = item {
-                    let function_name = function.name(self);
-                    if name == function_name.word(self) {
-                        return Some(function.brew(self));
-                    }
+        // If the user included top-level expressions, brew those.
+        if let Some(bir) = source_file.brew_main(self) {
+            return Some(bir);
+        }
+
+        // Otherwise, search for a function named `main`.
+        let name = Word::from(self, "main");
+        for item in filename.items(self) {
+            if let Item::Function(function) = item {
+                let function_name = function.name(self);
+                if name == function_name.word(self) {
+                    return Some(function.brew(self));
                 }
             }
         }
+
         None
     }
 

@@ -11,7 +11,7 @@ mod validator;
 /// Computes a validated tree for the given code (may produce errors).
 #[salsa::memoized(in crate::Jar)]
 #[tracing::instrument(level = "debug", skip(db))]
-pub fn validate_function(db: &dyn crate::Db, function: Function) -> validated::Tree {
+pub(crate) fn validate_function(db: &dyn crate::Db, function: Function) -> validated::Tree {
     let code = function.code(db);
     let syntax_tree = code.syntax_tree(db);
 
