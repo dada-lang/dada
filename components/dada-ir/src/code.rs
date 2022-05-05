@@ -8,14 +8,14 @@ use crate::{filename::Filename, token_tree::TokenTree};
 #[derive(Copy, Clone, PartialEq, Eq, Hash, Debug)]
 pub struct Code {
     /// Tokens for the parameter list (parsed when we generate the syntax tree).
-    pub parameter_tokens: Option<TokenTree>,
+    pub parameter_tokens: TokenTree,
 
     /// Tokens for the body (parsed when we generate the syntax tree).
     pub body_tokens: TokenTree,
 }
 
 impl Code {
-    pub fn new(parameter_tokens: Option<TokenTree>, body_tokens: TokenTree) -> Self {
+    pub fn new(parameter_tokens: TokenTree, body_tokens: TokenTree) -> Self {
         Self {
             parameter_tokens,
             body_tokens,

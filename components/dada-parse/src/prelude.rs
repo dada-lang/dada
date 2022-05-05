@@ -18,11 +18,7 @@ pub impl DadaParseItemExt for Item {
 #[extension_trait::extension_trait]
 pub impl DadaParseCodeExt for Code {
     fn parameters(self, db: &dyn crate::Db) -> &[Parameter] {
-        if let Some(parameter_tokens) = self.parameter_tokens {
-            crate::parameter_parser::parse_parameters(db, parameter_tokens)
-        } else {
-            &[]
-        }
+        crate::parameter_parser::parse_parameters(db, self.parameter_tokens)
     }
 
     fn syntax_tree(self, db: &dyn crate::Db) -> syntax::Tree {
