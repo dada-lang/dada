@@ -108,14 +108,15 @@ impl<'db> Parser<'db> {
         let (_, body_tokens) = self
             .delimited('{')
             .or_report_error(self, || "expected function body".to_string())?;
-        let code = Code::new(effect, Some(parameter_tokens), return_type, body_tokens);
+        let code = Code::new(Some(parameter_tokens), return_type, body_tokens);
         let start_span = effect_span.unwrap_or(fn_span);
         Some(Function::new(
             self.db,
             func_name,
+            effect,
+            effect_span.unwrap_or(fn_span).in_file(self.filename),
             code,
             self.span_consumed_since(start_span).in_file(self.filename),
-            effect_span.unwrap_or(fn_span).in_file(self.filename),
         ))
     }
 }

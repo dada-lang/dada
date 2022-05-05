@@ -4,9 +4,9 @@ use dada_ir::code::syntax::LocalVariableDecl;
 use dada_ir::code::validated;
 use dada_ir::code::validated::ExprOrigin;
 use dada_ir::code::validated::LocalVariableOrigin;
-use dada_ir::code::Code;
 use dada_ir::diagnostic::ErrorReported;
 use dada_ir::effect::Effect;
+use dada_ir::function::Function;
 use dada_ir::kw::Keyword;
 use dada_ir::origin_table::HasOriginIn;
 use dada_ir::origin_table::PushOriginIn;
@@ -26,7 +26,7 @@ use super::name_lookup::Scope;
 
 pub(crate) struct Validator<'me> {
     db: &'me dyn crate::Db,
-    code: Code,
+    function: Function,
     syntax_tree: &'me syntax::TreeData,
     tables: &'me mut validated::Tables,
     origins: &'me mut validated::Origins,
@@ -54,26 +54,25 @@ impl ExprMode {
 }
 
 impl<'me> Validator<'me> {
-    pub(crate) fn new(
+    pub(crate) fn root(
         db: &'me dyn crate::Db,
-        code: Code,
+        function: Function,
         syntax_tree: syntax::Tree,
         tables: &'me mut validated::Tables,
         origins: &'me mut validated::Origins,
         scope: Scope<'me>,
-        effect_span: impl Fn(&Validator<'_>) -> FileSpan + 'me,
     ) -> Self {
         let syntax_tree = syntax_tree.data(db);
         Self {
             db,
-            code,
+            function,
             syntax_tree,
             tables,
             origins,
             loop_stack: vec![],
             scope,
-            effect: code.effect,
-            effect_span: Rc::new(effect_span),
+            effect: function.effect(db),
+            effect_span: Rc::new(move |_| function.effect_span(db)),
             synthesized: false,
         }
     }
@@ -81,7 +80,7 @@ impl<'me> Validator<'me> {
     fn subscope(&mut self) -> Validator<'_> {
         Validator {
             db: self.db,
-            code: self.code,
+            function: self.function,
             syntax_tree: self.syntax_tree,
             tables: self.tables,
             origins: self.origins,
@@ -140,7 +139,8 @@ impl<'me> Validator<'me> {
     }
 
     fn span(&self, e: impl HasOriginIn<syntax::Spans, Origin = Span>) -> FileSpan {
-        self.code.syntax_tree(self.db).spans(self.db)[e].in_file(self.code.filename(self.db))
+        self.function.syntax_tree(self.db).spans(self.db)[e]
+            .in_file(self.function.filename(self.db))
     }
 
     fn empty_tuple(&mut self, origin: syntax::Expr) -> validated::Expr {
@@ -164,11 +164,11 @@ impl<'me> Validator<'me> {
     #[tracing::instrument(level = "debug", skip_all)]
     pub(crate) fn give_validated_root_expr(&mut self, expr: syntax::Expr) -> validated::Expr {
         let validated_expr = self.give_validated_expr(expr);
-        if self.code.return_type.kind(self.db) == ReturnTypeKind::Value {
+        if self.function.code(self.db).return_type.kind(self.db) == ReturnTypeKind::Value {
             if let validated::ExprData::Seq(exprs) = validated_expr.data(self.tables) {
                 if exprs.is_empty() {
                     dada_ir::error!(
-                        self.code.return_type.span(self.db),
+                        self.function.code(self.db).return_type.span(self.db),
                         "function body cannot be empty",
                     )
                     .primary_label("because function is supposed to return something")
@@ -543,14 +543,17 @@ impl<'me> Validator<'me> {
                 self.add(validated::ExprData::Seq(validated_exprs), expr)
             }
             syntax::ExprData::Return(with_value) => {
-                match (self.code.return_type.kind(self.db), with_value) {
+                match (
+                    self.function.code(self.db).return_type.kind(self.db),
+                    with_value,
+                ) {
                     (ReturnTypeKind::Value, None) => {
                         dada_ir::error!(self.span(expr), "return requires an expression")
                             .primary_label(
                                 "cannot just have `return` without an expression afterwards",
                             )
                             .secondary_label(
-                                self.code.return_type.span(self.db),
+                                self.function.code(self.db).return_type.span(self.db),
                                 "because the function returns a value",
                             )
                             .emit(self.db);
@@ -562,7 +565,7 @@ impl<'me> Validator<'me> {
                         )
                         .primary_label("can only write `return` (without a value) in this function")
                         .secondary_label(
-                            self.code.return_type.span(self.db),
+                            self.function.code(self.db).return_type.span(self.db),
                             "because function doesn't have `->` here",
                         )
                         .emit(self.db);

@@ -20,15 +20,8 @@ pub(crate) fn validate_function(db: &dyn crate::Db, function: Function) -> valid
     let root_definitions = root_definitions(db, code.filename(db));
     let scope = Scope::root(db, root_definitions);
 
-    let mut validator = validator::Validator::new(
-        db,
-        code,
-        syntax_tree,
-        &mut tables,
-        &mut origins,
-        scope,
-        |_| function.effect_span(db),
-    );
+    let mut validator =
+        validator::Validator::root(db, function, syntax_tree, &mut tables, &mut origins, scope);
 
     for parameter in &syntax_tree.data(db).parameter_decls {
         validator.validate_parameter(*parameter);

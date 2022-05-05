@@ -1,4 +1,4 @@
-use crate::{effect::Effect, filename::Filename, return_type::ReturnType, token_tree::TokenTree};
+use crate::{filename::Filename, return_type::ReturnType, token_tree::TokenTree};
 
 /// "Code" represents a block of code attached to a method.
 /// After parsing, it just contains a token tree, but you can...
@@ -7,10 +7,6 @@ use crate::{effect::Effect, filename::Filename, return_type::ReturnType, token_t
 ///   parse it into an `Ast`.
 #[derive(Copy, Clone, PartialEq, Eq, Hash, Debug)]
 pub struct Code {
-    /// Declared effect for the function body -- e.g., `async fn` would have
-    /// this be `async`. This can affect validation and code generation.
-    pub effect: Effect,
-
     /// Tokens for the parameter list (parsed when we generate the syntax tree).
     pub parameter_tokens: Option<TokenTree>,
 
@@ -23,13 +19,11 @@ pub struct Code {
 
 impl Code {
     pub fn new(
-        effect: Effect,
         parameter_tokens: Option<TokenTree>,
         return_type: ReturnType,
         body_tokens: TokenTree,
     ) -> Self {
         Self {
-            effect,
             parameter_tokens,
             return_type,
             body_tokens,

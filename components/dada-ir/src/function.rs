@@ -1,5 +1,6 @@
 use crate::{
     code::Code,
+    effect::Effect,
     filename::Filename,
     span::FileSpan,
     word::{SpannedWord, Word},
@@ -8,14 +9,19 @@ use crate::{
 salsa::entity2! {
     entity Function in crate::Jar {
         #[id] name: SpannedWord,
-        code: Code,
 
-        /// Overall span of the function (including the code)
-        span: FileSpan,
+        /// Declared effect for the function body -- e.g., `async fn` would have
+        /// this be `async`. This can affect validation and code generation.
+        effect: Effect,
 
         /// If this func has a declared effect, this is the span of that keyword (e.g., `async`)
         /// Otherwise, it is the span of the `fn` keyword.
         effect_span: FileSpan,
+
+        code: Code,
+
+        /// Overall span of the function (including the code)
+        span: FileSpan,
     }
 }
 
