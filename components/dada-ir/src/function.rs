@@ -41,7 +41,7 @@ impl<Db: ?Sized + crate::Db> salsa::DebugWithDb<Db> for Function {
 
 impl Function {
     pub fn filename(self, db: &dyn crate::Db) -> Filename {
-        self.unparsed_code(db).filename(db)
+        self.span(db).filename
     }
 }
 
