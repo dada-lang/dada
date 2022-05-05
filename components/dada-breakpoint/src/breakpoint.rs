@@ -1,6 +1,6 @@
 use dada_id::prelude::*;
 use dada_ir::{
-    code::{syntax, Code},
+    code::syntax,
     filename::Filename,
     item::Item,
     origin_table::HasOriginIn,
@@ -13,18 +13,17 @@ use dada_parse::prelude::*;
 /// See [`find`].
 #[derive(Copy, Clone, Debug)]
 pub struct Breakpoint {
+    pub filename: Filename,
     pub item: Item,
-    pub code: Code,
+    pub tree: syntax::Tree,
     pub expr: syntax::Expr,
 }
 
 impl Breakpoint {
     /// Returns the file-span of the breakpoint expression.
     pub fn span(self, db: &dyn crate::Db) -> FileSpan {
-        let tree = self.code.syntax_tree(db);
-        let expr_span = tree.spans(db)[self.expr];
-        let filename = self.code.filename(db);
-        expr_span.in_file(filename)
+        let expr_span = self.tree.spans(db)[self.expr];
+        expr_span.in_file(self.filename)
     }
 }
 
@@ -38,8 +37,9 @@ pub fn find(db: &dyn crate::Db, filename: Filename, position: LineColumn) -> Opt
     let syntax_tree = code.syntax_tree(db);
     let cusp_expr = find_syntax_expr(db, syntax_tree, offset);
     Some(Breakpoint {
+        filename,
         item,
-        code,
+        tree: syntax_tree,
         expr: cusp_expr,
     })
 }

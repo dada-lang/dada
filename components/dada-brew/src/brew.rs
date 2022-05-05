@@ -17,13 +17,16 @@ use crate::{
 #[salsa::memoized(in crate::Jar)]
 pub fn brew(db: &dyn crate::Db, validated_tree: validated::Tree) -> bir::Bir {
     let function = validated_tree.origin(db);
-    let code = function.code(db);
-    let breakpoints = dada_breakpoint::locations::breakpoints_in_code(db, code);
+    let breakpoints = dada_breakpoint::locations::breakpoints_in_tree(
+        db,
+        function.filename(db),
+        function.syntax_tree(db),
+    );
     let mut tables = bir::Tables::default();
     let mut origins = bir::Origins::default();
     let brewery = &mut Brewery::new(
         db,
-        code,
+        function.filename(db),
         &breakpoints,
         validated_tree,
         &mut tables,

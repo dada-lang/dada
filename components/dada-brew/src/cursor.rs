@@ -187,7 +187,7 @@ impl Cursor {
         );
         if !origin.synthesized && self.end_block.is_some() {
             if let Some(breakpoint_index) = brewery.expr_is_breakpoint(origin.syntax_expr) {
-                let filename = brewery.code().filename(brewery.db());
+                let filename = brewery.filename();
                 let statement = brewery.add(
                     bir::StatementData::BreakpointStart(filename, breakpoint_index),
                     origin,
@@ -236,7 +236,7 @@ impl Cursor {
     ) {
         if !origin.synthesized && self.end_block.is_some() {
             if let Some(breakpoint_index) = brewery.expr_is_breakpoint(origin.syntax_expr) {
-                let filename = brewery.code().filename(brewery.db());
+                let filename = brewery.filename();
                 let statement = brewery.add(
                     bir::StatementData::BreakpointEnd(filename, breakpoint_index, expr, place),
                     origin,
