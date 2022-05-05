@@ -116,7 +116,7 @@ impl<'db> Parser<'db> {
             effect,
             effect_span.unwrap_or(fn_span).in_file(self.filename),
             return_type,
-            code,
+            Some(code),
             self.span_consumed_since(start_span).in_file(self.filename),
         ))
     }

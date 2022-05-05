@@ -25,7 +25,12 @@ salsa::entity2! {
         /// The body and parameters of functions are only parsed
         /// on demand by invoking (e.g.) `syntax_tree` from the
         /// `dada_parse` crate.
-        unparsed_code: UnparsedCode,
+        ///
+        /// If this is `None`, then the syntax-tree and parameter
+        /// list that would've been parsed must be set explicitly
+        /// by the creator of the function. This is used for synthesizing
+        /// a 'main' function from a module, for example.
+        unparsed_code: Option<UnparsedCode>,
 
         /// Overall span of the function (including the code)
         span: FileSpan,
