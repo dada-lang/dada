@@ -1,6 +1,5 @@
 use crate::{
     parser::Parser,
-    prelude::*,
     token_test::{Alphabetic, FormatStringLiteral, Identifier, Number},
 };
 
@@ -12,11 +11,11 @@ use dada_ir::{
             Expr, ExprData, LocalVariableDeclData, LocalVariableDeclSpan, NamedExpr, NamedExprData,
             Spans, Tables, Tree, TreeData,
         },
-        UnparsedCode,
     },
     format_string::FormatStringSectionData,
     kw::Keyword,
     origin_table::PushOriginIn,
+    parameter::Parameter,
     span::Span,
     storage::Atomic,
     token::Token,
@@ -28,7 +27,7 @@ use salsa::AsId;
 use super::{parameter::SpannedSpecifierExt, OrReportError, ParseList};
 
 impl Parser<'_> {
-    pub(crate) fn parse_code_body(&mut self, origin: UnparsedCode) -> Tree {
+    pub(crate) fn parse_code_body(&mut self, parameters: &[Parameter]) -> Tree {
         let db = self.db;
         let mut tables = Tables::default();
         let mut spans = Spans::default();
@@ -39,8 +38,7 @@ impl Parser<'_> {
             spans: &mut spans,
         };
 
-        let parameter_decls = origin
-            .parameters(db)
+        let parameter_decls = parameters
             .iter()
             .map(|parameter| code_parser.add(parameter.decl(db), parameter.decl_span(db)))
             .collect::<Vec<_>>();

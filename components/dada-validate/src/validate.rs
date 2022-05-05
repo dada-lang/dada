@@ -12,12 +12,11 @@ mod validator;
 #[salsa::memoized(in crate::Jar)]
 #[tracing::instrument(level = "debug", skip(db))]
 pub(crate) fn validate_function(db: &dyn crate::Db, function: Function) -> validated::Tree {
-    let code = function.unparsed_code(db);
-    let syntax_tree = code.syntax_tree(db);
+    let syntax_tree = function.syntax_tree(db);
 
     let mut tables = validated::Tables::default();
     let mut origins = validated::Origins::default();
-    let root_definitions = root_definitions(db, code.filename(db));
+    let root_definitions = root_definitions(db, function.filename(db));
     let scope = Scope::root(db, root_definitions);
 
     let mut validator =
