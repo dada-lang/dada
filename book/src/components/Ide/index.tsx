@@ -101,9 +101,9 @@ class DCW {
 export type Cursor = { row: number; column: number };
 
 function Ide(props: { mini: boolean, sourceText: string }) {
-    const queue = new Queue();
     const [_module, setModule] = useState<InitOutput | null>(null);
     const [dada, setDada] = useState<DCW | null>(null);
+    const [queue] = useState<Queue>(() => new Queue());
 
     // First pass: we have to initialize the webassembly and "DCW"
     // instance.
