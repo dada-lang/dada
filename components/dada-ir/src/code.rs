@@ -1,4 +1,4 @@
-use crate::{filename::Filename, return_type::ReturnType, token_tree::TokenTree};
+use crate::{filename::Filename, token_tree::TokenTree};
 
 /// "Code" represents a block of code attached to a method.
 /// After parsing, it just contains a token tree, but you can...
@@ -10,22 +10,14 @@ pub struct Code {
     /// Tokens for the parameter list (parsed when we generate the syntax tree).
     pub parameter_tokens: Option<TokenTree>,
 
-    /// Return type of the function.
-    pub return_type: ReturnType,
-
     /// Tokens for the body (parsed when we generate the syntax tree).
     pub body_tokens: TokenTree,
 }
 
 impl Code {
-    pub fn new(
-        parameter_tokens: Option<TokenTree>,
-        return_type: ReturnType,
-        body_tokens: TokenTree,
-    ) -> Self {
+    pub fn new(parameter_tokens: Option<TokenTree>, body_tokens: TokenTree) -> Self {
         Self {
             parameter_tokens,
-            return_type,
             body_tokens,
         }
     }
@@ -39,7 +31,6 @@ impl<Db: ?Sized + crate::Db> salsa::DebugWithDb<Db> for Code {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>, db: &Db) -> std::fmt::Result {
         f.debug_struct("Code")
             .field("parameter_tokens", &self.parameter_tokens.debug(db))
-            .field("return_type", &self.return_type.debug(db))
             .field("body_tokens", &self.body_tokens.debug(db))
             .finish()
     }

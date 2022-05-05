@@ -164,11 +164,11 @@ impl<'me> Validator<'me> {
     #[tracing::instrument(level = "debug", skip_all)]
     pub(crate) fn give_validated_root_expr(&mut self, expr: syntax::Expr) -> validated::Expr {
         let validated_expr = self.give_validated_expr(expr);
-        if self.function.code(self.db).return_type.kind(self.db) == ReturnTypeKind::Value {
+        if self.function.return_type(self.db).kind(self.db) == ReturnTypeKind::Value {
             if let validated::ExprData::Seq(exprs) = validated_expr.data(self.tables) {
                 if exprs.is_empty() {
                     dada_ir::error!(
-                        self.function.code(self.db).return_type.span(self.db),
+                        self.function.return_type(self.db).span(self.db),
                         "function body cannot be empty",
                     )
                     .primary_label("because function is supposed to return something")
@@ -543,17 +543,14 @@ impl<'me> Validator<'me> {
                 self.add(validated::ExprData::Seq(validated_exprs), expr)
             }
             syntax::ExprData::Return(with_value) => {
-                match (
-                    self.function.code(self.db).return_type.kind(self.db),
-                    with_value,
-                ) {
+                match (self.function.return_type(self.db).kind(self.db), with_value) {
                     (ReturnTypeKind::Value, None) => {
                         dada_ir::error!(self.span(expr), "return requires an expression")
                             .primary_label(
                                 "cannot just have `return` without an expression afterwards",
                             )
                             .secondary_label(
-                                self.function.code(self.db).return_type.span(self.db),
+                                self.function.return_type(self.db).span(self.db),
                                 "because the function returns a value",
                             )
                             .emit(self.db);
@@ -565,7 +562,7 @@ impl<'me> Validator<'me> {
                         )
                         .primary_label("can only write `return` (without a value) in this function")
                         .secondary_label(
-                            self.function.code(self.db).return_type.span(self.db),
+                            self.function.return_type(self.db).span(self.db),
                             "because function doesn't have `->` here",
                         )
                         .emit(self.db);

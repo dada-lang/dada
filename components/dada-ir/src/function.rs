@@ -2,6 +2,7 @@ use crate::{
     code::Code,
     effect::Effect,
     filename::Filename,
+    return_type::ReturnType,
     span::FileSpan,
     word::{SpannedWord, Word},
 };
@@ -17,6 +18,9 @@ salsa::entity2! {
         /// If this func has a declared effect, this is the span of that keyword (e.g., `async`)
         /// Otherwise, it is the span of the `fn` keyword.
         effect_span: FileSpan,
+
+        /// Return type of the function.
+        return_type: ReturnType,
 
         code: Code,
 
