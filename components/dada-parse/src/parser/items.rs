@@ -13,6 +13,7 @@ use dada_ir::{
     return_type::{ReturnType, ReturnTypeKind},
     source_file::SourceFile,
     span::Span,
+    word::{SpannedWord, Word},
 };
 
 use super::OrReportError;
@@ -35,14 +36,40 @@ impl<'db> Parser<'db> {
             }
         }
 
-        let syntax_tree = if !exprs.is_empty() {
-            let start = spans[exprs[0]];
-            Some(self.create_syntax_tree(start, vec![], tables, spans, exprs))
+        let main_fn = if !exprs.is_empty() {
+            // Use the span of all the expression as the "span" of the main function -- this isn't
+            // ideal, but it's ok for now. We should go through the cases below and find
+            // the diagnostics, because they probably need some special casing to this
+            // situation.
+            let start_span = spans[exprs[0]];
+            let end_span = spans[*exprs.last().unwrap()];
+            let main_span = start_span.to(end_span).in_file(self.filename);
+
+            // Create the `main` function entity -- its code is already parsed, so use `None` for `unparsed_code`
+            let main_name = Word::from(self.db, "main");
+            let main_name = SpannedWord::new(self.db, main_name, main_span);
+            let return_type = ReturnType::new(self.db, ReturnTypeKind::Unit, main_span);
+            let function = Function::new(
+                self.db,
+                main_name,
+                Effect::Async,
+                main_span,
+                return_type,
+                None,
+                main_span,
+            );
+
+            // Set the syntax-tree and parameters for the main function.
+            let syntax_tree = self.create_syntax_tree(start_span, vec![], tables, spans, exprs);
+            crate::code_parser::parse_function_body::set(self.db, function, syntax_tree);
+            crate::parameter_parser::parse_function_parameters::set(self.db, function, vec![]);
+
+            Some(function)
         } else {
             None
         };
 
-        SourceFile::new(self.db, self.filename, items, syntax_tree)
+        SourceFile::new(self.db, self.filename, items, main_fn)
     }
 
     fn parse_item(&mut self) -> Option<Item> {

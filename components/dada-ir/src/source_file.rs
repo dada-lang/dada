@@ -1,4 +1,4 @@
-use crate::code::syntax::Tree;
+use crate::function::Function;
 use crate::{filename::Filename, item::Item};
 
 salsa::entity2! {
@@ -10,8 +10,11 @@ salsa::entity2! {
         /// The items found in the file.
         #[value ref] items: Vec<Item>,
 
-        /// Top-level expressions from this file (if any).
-        syntax_tree: Option<Tree>,
+        /// Top-level "main" function from this file (if any).
+        ///
+        /// This is not a function declaed with `fn` but rather just
+        /// code the user added at the top of the file.
+        main_fn: Option<Function>,
     }
 }
 
@@ -21,6 +24,7 @@ impl<Db: ?Sized + crate::Db> salsa::DebugWithDb<Db> for SourceFile {
         f.debug_struct("SourceFile")
             .field("filename", &self.filename(db).debug(db))
             .field("items", &self.filename(db).debug(db))
+            .field("main_fn", &self.main_fn(db).debug(db))
             .finish()
     }
 }

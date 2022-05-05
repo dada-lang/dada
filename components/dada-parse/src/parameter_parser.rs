@@ -3,7 +3,7 @@ use crate::parser::Parser;
 use dada_ir::{class::Class, function::Function, parameter::Parameter, token_tree::TokenTree};
 use salsa::DebugWithDb;
 
-#[salsa::memoized(in crate::Jar ref)]
+#[salsa::component(in crate::Jar ref)]
 #[allow(clippy::needless_lifetimes)]
 pub fn parse_function_parameters(db: &dyn crate::Db, function: Function) -> Vec<Parameter> {
     if let Some(unparsed_code) = function.unparsed_code(db) {

@@ -3,7 +3,7 @@ use crate::{parser::Parser, prelude::*};
 use dada_ir::{code::syntax::Tree, function::Function};
 use salsa::DebugWithDb;
 
-#[salsa::memoized(in crate::Jar)]
+#[salsa::component(in crate::Jar)]
 pub fn parse_function_body(db: &dyn crate::Db, function: Function) -> Tree {
     if let Some(unparsed_code) = function.unparsed_code(db) {
         let body = unparsed_code.body_tokens;
