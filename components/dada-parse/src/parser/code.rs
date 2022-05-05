@@ -12,7 +12,7 @@ use dada_ir::{
             Expr, ExprData, LocalVariableDeclData, LocalVariableDeclSpan, NamedExpr, NamedExprData,
             Spans, Tables, Tree, TreeData,
         },
-        Code,
+        UnparsedCode,
     },
     format_string::FormatStringSectionData,
     kw::Keyword,
@@ -28,7 +28,7 @@ use salsa::AsId;
 use super::{parameter::SpannedSpecifierExt, OrReportError, ParseList};
 
 impl Parser<'_> {
-    pub(crate) fn parse_code_body(&mut self, origin: Code) -> Tree {
+    pub(crate) fn parse_code_body(&mut self, origin: UnparsedCode) -> Tree {
         let db = self.db;
         let mut tables = Tables::default();
         let mut spans = Spans::default();

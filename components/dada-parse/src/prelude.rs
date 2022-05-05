@@ -1,6 +1,6 @@
 use dada_ir::{
     class::Class,
-    code::{syntax, Code},
+    code::{syntax, UnparsedCode},
     filename::Filename,
     function::Function,
     item::Item,
@@ -11,12 +11,15 @@ use dada_ir::{
 #[extension_trait::extension_trait]
 pub impl DadaParseItemExt for Item {
     fn syntax_tree(self, db: &dyn crate::Db) -> Option<syntax::Tree> {
-        Some(self.code(db)?.syntax_tree(db))
+        match self {
+            Item::Function(f) => Some(f.syntax_tree(db)),
+            Item::Class(_) => None,
+        }
     }
 }
 
 #[extension_trait::extension_trait]
-pub impl DadaParseCodeExt for Code {
+pub impl DadaParseCodeExt for UnparsedCode {
     fn parameters(self, db: &dyn crate::Db) -> &[Parameter] {
         crate::parameter_parser::parse_parameters(db, self.parameter_tokens)
     }
@@ -30,11 +33,11 @@ pub impl DadaParseCodeExt for Code {
 pub impl DadaParseFunctionExt for Function {
     /// Returns the Ast for a function.
     fn syntax_tree(self, db: &dyn crate::Db) -> syntax::Tree {
-        self.code(db).syntax_tree(db)
+        self.unparsed_code(db).syntax_tree(db)
     }
 
     fn parameters(self, db: &dyn crate::Db) -> &[Parameter] {
-        self.code(db).parameters(db)
+        self.unparsed_code(db).parameters(db)
     }
 }
 

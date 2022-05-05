@@ -6,7 +6,7 @@ use crate::{filename::Filename, token_tree::TokenTree};
 /// * use the `ast` method from the `dada_parse` prelude to
 ///   parse it into an `Ast`.
 #[derive(Copy, Clone, PartialEq, Eq, Hash, Debug)]
-pub struct Code {
+pub struct UnparsedCode {
     /// Tokens for the parameter list (parsed when we generate the syntax tree).
     pub parameter_tokens: TokenTree,
 
@@ -14,7 +14,7 @@ pub struct Code {
     pub body_tokens: TokenTree,
 }
 
-impl Code {
+impl UnparsedCode {
     pub fn new(parameter_tokens: TokenTree, body_tokens: TokenTree) -> Self {
         Self {
             parameter_tokens,
@@ -27,7 +27,7 @@ impl Code {
     }
 }
 
-impl<Db: ?Sized + crate::Db> salsa::DebugWithDb<Db> for Code {
+impl<Db: ?Sized + crate::Db> salsa::DebugWithDb<Db> for UnparsedCode {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>, db: &Db) -> std::fmt::Result {
         f.debug_struct("Code")
             .field("parameter_tokens", &self.parameter_tokens.debug(db))

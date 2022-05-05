@@ -1,5 +1,5 @@
 use crate::{
-    code::Code,
+    code::UnparsedCode,
     effect::Effect,
     filename::Filename,
     return_type::ReturnType,
@@ -22,7 +22,10 @@ salsa::entity2! {
         /// Return type of the function.
         return_type: ReturnType,
 
-        code: Code,
+        /// The body and parameters of functions are only parsed
+        /// on demand by invoking (e.g.) `syntax_tree` from the
+        /// `dada_parse` crate.
+        unparsed_code: UnparsedCode,
 
         /// Overall span of the function (including the code)
         span: FileSpan,
@@ -38,7 +41,7 @@ impl<Db: ?Sized + crate::Db> salsa::DebugWithDb<Db> for Function {
 
 impl Function {
     pub fn filename(self, db: &dyn crate::Db) -> Filename {
-        self.code(db).filename(db)
+        self.unparsed_code(db).filename(db)
     }
 }
 
