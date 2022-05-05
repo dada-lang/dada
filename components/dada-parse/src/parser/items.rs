@@ -104,9 +104,8 @@ impl<'db> Parser<'db> {
         } else {
             (None, Effect::Default)
         };
-        let (fn_span, _) = self
-            .eat(Keyword::Fn)
-            .or_report_error(self, || "expected `fn`".to_string())?;
+        // FIXME: we might consume *just* async here, no bueno
+        let (fn_span, _) = self.eat(Keyword::Fn)?;
         let (_, func_name) = self
             .eat(SpannedIdentifier)
             .or_report_error(self, || "expected function name".to_string())?;
