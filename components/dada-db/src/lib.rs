@@ -65,8 +65,8 @@ impl Db {
         let source_file = filename.source_file(self);
 
         // If the user included top-level expressions, brew those.
-        if let Some(bir) = source_file.brew_main(self) {
-            return Some(bir);
+        if let Some(main_fn) = source_file.main_fn(self) {
+            return Some(main_fn.brew(self));
         }
 
         // Otherwise, search for a function named `main`.

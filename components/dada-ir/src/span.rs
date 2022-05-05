@@ -156,7 +156,7 @@ impl Span {
 
     #[must_use]
     pub fn to(self, other: Span) -> Span {
-        assert!(self == other || self.end <= other.start);
+        assert!(self.start <= other.start && other.end >= self.end);
         Span {
             start: self.start,
             end: other.end,

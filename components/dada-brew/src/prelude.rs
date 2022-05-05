@@ -1,4 +1,4 @@
-use dada_ir::{code::bir, function::Function, item::Item, source_file::SourceFile};
+use dada_ir::{code::bir, function::Function, item::Item};
 use dada_validate::prelude::*;
 
 #[extension_trait::extension_trait]
@@ -6,14 +6,6 @@ pub impl FunctionBrewExt for Function {
     fn brew(self, db: &dyn crate::Db) -> bir::Bir {
         let tree = self.validated_tree(db);
         crate::brew::brew(db, tree)
-    }
-}
-
-#[extension_trait::extension_trait]
-pub impl SourceFileBrewExt for SourceFile {
-    fn brew_main(self, db: &dyn crate::Db) -> Option<bir::Bir> {
-        let tree = self.validated_main(db)?;
-        Some(crate::brew::brew(db, tree))
     }
 }
 
