@@ -11,7 +11,7 @@ use dada_ir::{
     item::Item,
     kw::Keyword,
     return_type::{ReturnType, ReturnTypeKind},
-    source_file::SourceFile,
+    source_file::{self, SourceFile},
     span::Span,
     word::{SpannedWord, Word},
 };
@@ -46,7 +46,7 @@ impl<'db> Parser<'db> {
             let main_span = start_span.to(end_span).in_file(self.filename);
 
             // Create the `main` function entity -- its code is already parsed, so use `None` for `unparsed_code`
-            let main_name = Word::from(self.db, "main");
+            let main_name = Word::from(self.db, source_file::TOP_LEVEL_FN);
             let main_name = SpannedWord::new(self.db, main_name, main_span);
             let return_type = ReturnType::new(self.db, ReturnTypeKind::Unit, main_span);
             let function = Function::new(
@@ -64,6 +64,7 @@ impl<'db> Parser<'db> {
             crate::code_parser::parse_function_body::set(self.db, function, syntax_tree);
             crate::parameter_parser::parse_function_parameters::set(self.db, function, vec![]);
 
+            items.push(Item::Function(function));
             Some(function)
         } else {
             None
@@ -99,13 +100,23 @@ impl<'db> Parser<'db> {
     }
 
     fn parse_function(&mut self) -> Option<Function> {
+        // Look ahead to see if this is a function. It can look like
+        //
+        //     async? fn
+        let is_fn = self.testahead(|parser| {
+            let _ = parser.eat(Keyword::Async); // optional async keyword
+            parser.eat(Keyword::Fn).is_some()
+        });
+        if !is_fn {
+            return None;
+        }
+
         let (effect_span, effect) = if let Some((span, _)) = self.eat(Keyword::Async) {
             (Some(span), Effect::Async)
         } else {
             (None, Effect::Default)
         };
-        // FIXME: we might consume *just* async here, no bueno
-        let (fn_span, _) = self.eat(Keyword::Fn)?;
+        let (fn_span, _) = self.eat(Keyword::Fn).unwrap();
         let (_, func_name) = self
             .eat(SpannedIdentifier)
             .or_report_error(self, || "expected function name".to_string())?;
