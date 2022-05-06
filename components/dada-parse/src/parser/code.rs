@@ -1,22 +1,21 @@
 use crate::{
     parser::Parser,
-    prelude::*,
     token_test::{Alphabetic, FormatStringLiteral, Identifier, Number},
 };
 
 use dada_id::InternValue;
 use dada_ir::{
     code::{
-        syntax::op::Op,
+        syntax::{op::Op, LocalVariableDecl},
         syntax::{
             Expr, ExprData, LocalVariableDeclData, LocalVariableDeclSpan, NamedExpr, NamedExprData,
             Spans, Tables, Tree, TreeData,
         },
-        Code,
     },
     format_string::FormatStringSectionData,
     kw::Keyword,
     origin_table::PushOriginIn,
+    parameter::Parameter,
     span::Span,
     storage::Atomic,
     token::Token,
@@ -28,7 +27,7 @@ use salsa::AsId;
 use super::{parameter::SpannedSpecifierExt, OrReportError, ParseList};
 
 impl Parser<'_> {
-    pub(crate) fn parse_code_body(&mut self, origin: Code) -> Tree {
+    pub(crate) fn parse_code_body(&mut self, parameters: &[Parameter]) -> Tree {
         let db = self.db;
         let mut tables = Tables::default();
         let mut spans = Spans::default();
@@ -39,22 +38,54 @@ impl Parser<'_> {
             spans: &mut spans,
         };
 
-        let parameter_decls = origin
-            .parameters(db)
+        let parameter_decls = parameters
             .iter()
             .map(|parameter| code_parser.add(parameter.decl(db), parameter.decl_span(db)))
             .collect::<Vec<_>>();
 
         let start = code_parser.tokens.last_span();
-        let block = code_parser.parse_only_expr_seq();
-        let span = code_parser.span_consumed_since(start);
-        let root_expr = code_parser.add(ExprData::Seq(block), span);
+        let exprs = code_parser.parse_only_expr_seq();
+        self.create_syntax_tree(start, parameter_decls, tables, spans, exprs)
+    }
+
+    pub(crate) fn parse_top_level_expr(
+        &mut self,
+        tables: &mut Tables,
+        spans: &mut Spans,
+    ) -> Option<Expr> {
+        let mut code_parser = CodeParser {
+            parser: self,
+            tables,
+            spans,
+        };
+        code_parser.parse_expr()
+    }
+
+    pub(crate) fn create_syntax_tree(
+        &mut self,
+        start: Span,
+        parameter_decls: Vec<LocalVariableDecl>,
+        mut tables: Tables,
+        mut spans: Spans,
+        exprs: Vec<Expr>,
+    ) -> Tree {
+        let span = self.span_consumed_since(start);
+
+        let root_expr = {
+            let mut code_parser = CodeParser {
+                parser: self,
+                tables: &mut tables,
+                spans: &mut spans,
+            };
+            code_parser.add(ExprData::Seq(exprs), span)
+        };
+
         let tree_data = TreeData {
             tables,
             parameter_decls,
             root_expr,
         };
-        Tree::new(self.db, origin, tree_data, spans)
+        Tree::new(self.db, tree_data, spans)
     }
 }
 

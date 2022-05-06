@@ -59,6 +59,16 @@ impl<'me> Parser<'me> {
         r
     }
 
+    /// Run `op` to get a true/false but rollback any tokens consumed.
+    /// This is used to probe a few tokens ahead to see if we should
+    /// commit to a given function.
+    fn testahead(&mut self, op: impl FnOnce(&mut Self) -> bool) -> bool {
+        let tokens = self.tokens;
+        let r = op(self);
+        self.tokens = tokens;
+        r
+    }
+
     /// Peek ahead to see if `op` matches the next set of tokens;
     /// if so, return the span and the tokens after skipping the operator.
     fn test_op(&self, op: Op) -> Option<(Span, Tokens<'me>)> {

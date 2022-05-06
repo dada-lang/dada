@@ -6,14 +6,14 @@ use dada_ir::{
     code::{
         bir, syntax,
         validated::{self, ExprOrigin},
-        Code,
     },
+    filename::Filename,
     origin_table::{HasOriginIn, PushOriginIn},
 };
 
 pub struct Brewery<'me> {
     db: &'me dyn crate::Db,
-    code: Code,
+    filename: Filename,
     pub(crate) breakpoints: &'me [syntax::Expr],
     validated_tree_data: &'me validated::TreeData,
     validated_origins: &'me validated::Origins,
@@ -49,7 +49,7 @@ pub struct LoopContext {
 impl<'me> Brewery<'me> {
     pub fn new(
         db: &'me dyn crate::Db,
-        code: Code,
+        filename: Filename,
         breakpoints: &'me [syntax::Expr],
         validated_tree: validated::Tree,
         tables: &'me mut bir::Tables,
@@ -66,7 +66,7 @@ impl<'me> Brewery<'me> {
         );
         Self {
             db,
-            code,
+            filename,
             breakpoints,
             validated_tree_data,
             validated_origins,
@@ -77,10 +77,6 @@ impl<'me> Brewery<'me> {
             dummy_terminator,
             temporaries: vec![],
         }
-    }
-
-    pub fn db(&self) -> &'me dyn crate::Db {
-        self.db
     }
 
     pub fn expr_is_breakpoint(&self, expr: syntax::Expr) -> Option<usize> {
@@ -102,7 +98,7 @@ impl<'me> Brewery<'me> {
     pub fn subbrewery(&mut self) -> Brewery<'_> {
         Brewery {
             db: self.db,
-            code: self.code,
+            filename: self.filename,
             breakpoints: self.breakpoints,
             validated_tree_data: self.validated_tree_data,
             validated_origins: self.validated_origins,
@@ -115,8 +111,8 @@ impl<'me> Brewery<'me> {
         }
     }
 
-    pub fn code(&self) -> Code {
-        self.code
+    pub fn filename(&self) -> Filename {
+        self.filename
     }
 
     pub fn origin<K>(&self, of: K) -> K::Origin

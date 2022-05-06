@@ -10,7 +10,6 @@ use dada_ir::{
     span::FileSpan,
     storage::{Joint, Leased},
 };
-use dada_parse::prelude::*;
 use generational_arena::Arena;
 
 use crate::thunk::RustThunk;
@@ -567,9 +566,6 @@ impl ProgramCounter {
             origins[basic_block_data.terminator]
         };
 
-        let code = self.bir.origin(db);
-        let filename = code.filename(db);
-        let syntax_tree = code.syntax_tree(db);
-        syntax_tree.spans(db)[syntax_expr].in_file(filename)
+        self.bir.span_of(db, syntax_expr)
     }
 }

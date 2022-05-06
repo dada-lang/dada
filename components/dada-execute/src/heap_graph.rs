@@ -62,7 +62,7 @@ id!(pub(crate) struct StackFrameNode);
 #[derive(Debug)]
 pub(crate) struct StackFrameNodeData {
     span: FileSpan,
-    function: Function,
+    function_name: Word,
     variables: Vec<LocalVariableEdge>,
     in_flight_value: Option<ValueEdge>,
 }

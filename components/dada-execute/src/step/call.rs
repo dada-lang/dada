@@ -56,7 +56,7 @@ impl Stepper<'_> {
                 let arguments =
                     self.prepare_arguments_for_parameters(table, parameters, argument_places)?;
 
-                if function.code(self.db).effect.permits_await() {
+                if function.effect(self.db).permits_await() {
                     // If the function can await, then it must be an async function.
                     // Now that we have validated the arguments, return a thunk.
                     let thunk = self.machine.my_value(ThunkFn {

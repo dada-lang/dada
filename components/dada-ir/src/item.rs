@@ -1,4 +1,4 @@
-use crate::{class::Class, code::Code, function::Function, span::FileSpan, word::Word};
+use crate::{class::Class, function::Function, span::FileSpan, word::Word};
 
 #[derive(Copy, Clone, PartialEq, Eq, PartialOrd, Ord, Debug, Hash)]
 pub enum Item {
@@ -32,15 +32,6 @@ impl Item {
         match self {
             Item::Function(_) => "function",
             Item::Class(_) => "class",
-        }
-    }
-
-    /// If this item has a code block associated with it, return it.
-    /// Else return None.
-    pub fn code(self, db: &dyn crate::Db) -> Option<Code> {
-        match self {
-            Item::Function(f) => Some(f.code(db)),
-            Item::Class(_) => None,
         }
     }
 }

@@ -1,0 +1,4 @@
+print("Hi").await #! OUTPUT Hi
+return 22 
+#! ERROR cannot return a value in this function
+#! OUTPUT 22

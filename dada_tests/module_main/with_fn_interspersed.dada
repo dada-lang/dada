@@ -1,0 +1,15 @@
+async fn test() {
+    print("test").await #! OUTPUT test
+}
+
+any x = test()
+
+async fn test2() {
+    print("test2").await #! OUTPUT test2
+}
+
+any y = test2()
+
+x.await
+y.await
+

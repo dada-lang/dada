@@ -103,7 +103,7 @@ impl ChildSession {
             child_stdout.read_exact(&mut digit[..])?;
             let char_digit = digit[0] as char;
 
-            if char_digit.is_digit(10) {
+            if char_digit.is_ascii_digit() {
                 digits.push(char_digit);
             } else {
                 let mut whitespace = [0; 3];

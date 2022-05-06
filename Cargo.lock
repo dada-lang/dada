@@ -249,6 +249,7 @@ dependencies = [
  "dada-ir",
  "dada-parse",
  "dada-validate",
+ "extension-trait",
  "salsa",
  "tracing",
 ]
@@ -937,7 +938,7 @@ dependencies = [
 [[package]]
 name = "salsa-entity-macros"
 version = "0.1.0"
-source = "git+https://github.com/nikomatsakis/salsa/?branch=entity#fcc26ad05e6c49fe86769505c632c1ad64d11333"
+source = "git+https://github.com/nikomatsakis/salsa/?branch=entity#ca70a56077e369ecd91cd455b820c4ef531761ab"
 dependencies = [
  "eyre",
  "heck",
@@ -949,7 +950,7 @@ dependencies = [
 [[package]]
 name = "salsa-entity-mock"
 version = "0.1.0"
-source = "git+https://github.com/nikomatsakis/salsa/?branch=entity#fcc26ad05e6c49fe86769505c632c1ad64d11333"
+source = "git+https://github.com/nikomatsakis/salsa/?branch=entity#ca70a56077e369ecd91cd455b820c4ef531761ab"
 dependencies = [
  "arc-swap",
  "crossbeam",

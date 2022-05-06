@@ -2,7 +2,7 @@
 
 use std::{cmp::Ordering, sync::Arc};
 
-use dada_ir::{filename::Filename, function::Function, span::FileSpan};
+use dada_ir::{code::bir::Bir, filename::Filename, span::FileSpan};
 use salsa::DebugWithDb;
 
 use crate::{
@@ -141,19 +141,19 @@ impl BufferKernel {
     pub async fn interpret(
         &mut self,
         db: &dyn crate::Db,
-        function: Function,
+        bir: Bir,
         arguments: Vec<Value>,
     ) -> eyre::Result<()> {
-        crate::run::interpret(function, db, self, arguments).await
+        crate::run::interpret(bir, db, self, arguments).await
     }
 
     pub async fn interpret_and_buffer(
         &mut self,
         db: &dyn crate::Db,
-        function: Function,
+        bir: Bir,
         arguments: Vec<Value>,
     ) {
-        match crate::run::interpret(function, db, self, arguments).await {
+        match crate::run::interpret(bir, db, self, arguments).await {
             Ok(()) => {}
             Err(e) => {
                 self.append(&e.to_string());

@@ -12,5 +12,6 @@ dada-id = { path = "../dada-id" }
 dada-ir = { path = "../dada-ir" }
 dada-validate = { path = "../dada-validate" }
 dada-parse = { path = "../dada-parse" }
+extension-trait = "1"
 salsa = { path = "../salsa" }
 tracing = "0.1.29"

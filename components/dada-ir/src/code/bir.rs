@@ -10,6 +10,7 @@ use crate::{
     intrinsic::Intrinsic,
     origin_table::HasOriginIn,
     prelude::InIrDbExt,
+    span::FileSpan,
     storage::{Atomic, SpannedSpecifier},
     word::{SpannedOptionalWord, Word},
 };
@@ -20,8 +21,19 @@ use super::{syntax, validated};
 
 salsa::entity2! {
     entity Bir in crate::Jar {
-        origin: Function,
+        /// Name of file containing the code from which this Bir was created.
+        filename: Filename,
+
+        /// Name of function containing the code from which this Bir was created.
+        function_name: Word,
+
+        /// Syntax tree from which this Bir was created.
+        syntax_tree: syntax::Tree,
+
+        /// The BIR data
         #[value ref] data: BirData,
+
+        /// Origins of expr in the BIR. Used to trace back to a source span.
         #[value ref] origins: Origins,
     }
 }
@@ -36,6 +48,19 @@ impl DebugWithDb<dyn crate::Db + '_> for Bir {
 impl InIrDb<'_, Bir> {
     fn tables(&self) -> &Tables {
         &self.data(self.db()).tables
+    }
+}
+
+impl Bir {
+    /// Given a `syntax_expr` within this BIR, find its span. This operation
+    /// is to be avoided unless reporting a diagnostic or really needed, because
+    /// it induces a dependency on the *precise span* of the expression and hence
+    /// will require re-execution if most anything in the source file changes, even
+    /// just adding whitespace.
+    pub fn span_of(self, db: &dyn crate::Db, syntax_expr: syntax::Expr) -> FileSpan {
+        let filename = self.filename(db);
+        let syntax_tree = self.syntax_tree(db);
+        syntax_tree.spans(db)[syntax_expr].in_file(filename)
     }
 }
 

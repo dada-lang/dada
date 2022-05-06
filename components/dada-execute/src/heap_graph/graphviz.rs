@@ -203,7 +203,7 @@ impl HeapGraph {
         let mut field_index = 0;
         for stack_frame_node in &self.stack {
             let stack_frame_data = stack_frame_node.data(&self.tables);
-            let function_name = stack_frame_data.function.name(w.db).as_str(w.db);
+            let function_name = stack_frame_data.function_name.as_str(w.db);
             w.println(format!(r#"<tr><td border="1">{function_name}</td></tr>"#))?;
 
             let include_temporaries = w.include_temporaries;

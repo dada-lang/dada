@@ -1,0 +1,2 @@
+print("Hi").await #! OUTPUT Hi
+return

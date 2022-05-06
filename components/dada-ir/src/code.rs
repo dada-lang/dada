@@ -1,4 +1,4 @@
-use crate::{effect::Effect, filename::Filename, return_type::ReturnType, token_tree::TokenTree};
+use crate::{filename::Filename, token_tree::TokenTree};
 
 /// "Code" represents a block of code attached to a method.
 /// After parsing, it just contains a token tree, but you can...
@@ -6,32 +6,18 @@ use crate::{effect::Effect, filename::Filename, return_type::ReturnType, token_t
 /// * use the `ast` method from the `dada_parse` prelude to
 ///   parse it into an `Ast`.
 #[derive(Copy, Clone, PartialEq, Eq, Hash, Debug)]
-pub struct Code {
-    /// Declared effect for the function body -- e.g., `async fn` would have
-    /// this be `async`. This can affect validation and code generation.
-    pub effect: Effect,
-
+pub struct UnparsedCode {
     /// Tokens for the parameter list (parsed when we generate the syntax tree).
-    pub parameter_tokens: Option<TokenTree>,
-
-    /// Return type of the function.
-    pub return_type: ReturnType,
+    pub parameter_tokens: TokenTree,
 
     /// Tokens for the body (parsed when we generate the syntax tree).
     pub body_tokens: TokenTree,
 }
 
-impl Code {
-    pub fn new(
-        effect: Effect,
-        parameter_tokens: Option<TokenTree>,
-        return_type: ReturnType,
-        body_tokens: TokenTree,
-    ) -> Self {
+impl UnparsedCode {
+    pub fn new(parameter_tokens: TokenTree, body_tokens: TokenTree) -> Self {
         Self {
-            effect,
             parameter_tokens,
-            return_type,
             body_tokens,
         }
     }
@@ -41,11 +27,10 @@ impl Code {
     }
 }
 
-impl<Db: ?Sized + crate::Db> salsa::DebugWithDb<Db> for Code {
+impl<Db: ?Sized + crate::Db> salsa::DebugWithDb<Db> for UnparsedCode {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>, db: &Db) -> std::fmt::Result {
         f.debug_struct("Code")
             .field("parameter_tokens", &self.parameter_tokens.debug(db))
-            .field("return_type", &self.return_type.debug(db))
             .field("body_tokens", &self.body_tokens.debug(db))
             .finish()
     }
