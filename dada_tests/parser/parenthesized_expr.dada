@@ -1,0 +1,6 @@
+async fn main() {
+    x = (1 + 1)
+    print(x).await #! OUTPUT 2
+    x = (1)
+    print(x).await #! OUTPUT 1
+}

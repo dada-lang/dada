@@ -449,7 +449,15 @@ impl CodeParser<'_, '_> {
         } else if let Some((span, token_tree)) = self.delimited('(') {
             let expr =
                 self.with_sub_parser(token_tree, |subparser| subparser.parse_only_expr_seq());
-            Some(self.add(ExprData::Tuple(expr), span))
+
+            Some(self.add(
+                if expr.len() == 1 {
+                    ExprData::Parenthesized(expr[0])
+                } else {
+                    ExprData::Tuple(expr)
+                },
+                span,
+            ))
         } else {
             None
         }
