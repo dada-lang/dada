@@ -1,0 +1,7 @@
+Error: expected expression here
+   ╭─[dada_tests/format-strings/bad-parse-not-expression.dada:1:7]
+   │
+ 1 │ p = "{class Point(our a, our b)}"
+   ·       ────────────┬────────────  
+   ·                   ╰────────────── here
+───╯
