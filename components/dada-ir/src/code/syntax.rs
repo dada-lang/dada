@@ -129,10 +129,10 @@ pub enum ExprData {
     /// `[shared|var|atomic] x = expr`
     Var(LocalVariableDecl, Expr),
 
-    /// `expr`
+    /// `(expr)`
     Parenthesized(Expr),
 
-    /// `(expr)` of len != 1
+    /// `()` or `(a, b, ...)` (i.e., expr seq cannot have length 1)
     Tuple(Vec<Expr>),
 
     /// `if condition { block } [else { block }]`
