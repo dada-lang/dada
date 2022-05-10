@@ -4,9 +4,18 @@
     gap: 20px
 }
 
-.output {
+.execute-output {
     font-family: 'Source Code Pro', monospace;
     height: 30vh;
+    width: 95%;
+    border: 2px solid black;
+    white-space: pre-wrap;
+    overflow: auto;
+}
+
+.ir-output {
+    font-family: 'Source Code Pro', monospace;
+    height: 80vh;
     width: 95%;
     border: 2px solid black;
     white-space: pre-wrap;

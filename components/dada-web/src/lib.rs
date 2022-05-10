@@ -5,6 +5,7 @@ use dada_execute::kernel::BufferKernel;
 use dada_ir::{filename::Filename, span::LineColumn};
 use diagnostics::DadaDiagnostic;
 use range::DadaRange;
+use std::fmt::Write;
 use tracing_wasm::WASMLayerConfigBuilder;
 use wasm_bindgen::prelude::*;
 
@@ -72,6 +73,45 @@ impl DadaCompiler {
     #[wasm_bindgen]
     pub fn without_breakpoint(mut self) -> Self {
         self.db.set_breakpoints(self.filename(), vec![]);
+        self
+    }
+
+    #[wasm_bindgen]
+    pub async fn syntax(mut self) -> Self {
+        let filename = self.filename();
+        self.output = String::new();
+        for item in self.db.items(filename) {
+            if let Some(tree) = self.db.debug_syntax_tree(item) {
+                let _ = write!(self.output, "{:#?}", tree);
+                self.output.push('\n');
+            }
+        }
+        self
+    }
+
+    #[wasm_bindgen]
+    pub async fn validated(mut self) -> Self {
+        let filename = self.filename();
+        self.output = String::new();
+        for item in self.db.items(filename) {
+            if let Some(tree) = self.db.debug_validated_tree(item) {
+                let _ = write!(self.output, "{:#?}", tree);
+                self.output.push('\n');
+            }
+        }
+        self
+    }
+
+    #[wasm_bindgen]
+    pub async fn bir(mut self) -> Self {
+        let filename = self.filename();
+        self.output = String::new();
+        for item in self.db.items(filename) {
+            if let Some(tree) = self.db.debug_bir(item) {
+                let _ = write!(self.output, "{:#?}", tree);
+                self.output.push('\n');
+            }
+        }
         self
     }
 
