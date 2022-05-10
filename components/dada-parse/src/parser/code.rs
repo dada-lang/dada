@@ -120,6 +120,13 @@ impl CodeParser<'_, '_> {
         exprs
     }
 
+    /// Parses a series of expressions; expects to consume all available tokens (and errors if there are extra).
+    fn parse_only_expr(&mut self) -> Option<Expr> {
+        let expr = self.parse_expr()?;
+        self.emit_error_if_more_tokens("extra tokens after end of expression");
+        Some(expr)
+    }
+
     /// Parses a series of named expressions (`id: expr`); expects to consume all available tokens (and errors if there are extra).
     pub(crate) fn parse_only_named_exprs(&mut self) -> Vec<NamedExpr> {
         let exprs = self.parse_list(true, CodeParser::parse_named_expr);
@@ -517,6 +524,12 @@ impl CodeParser<'_, '_> {
         Some(expr)
     }
 
+    fn parse_required_sub_expr(&mut self, token_tree: TokenTree) -> Expr {
+        self.with_sub_parser(token_tree, |sub_parser| sub_parser.parse_only_expr())
+            .or_report_error(self, || "expected expression here".to_string())
+            .or_dummy_expr(self)
+    }
+
     fn parse_format_string(&mut self) -> Option<Expr> {
         let (span, format_string) = self.eat(FormatStringLiteral)?;
 
@@ -529,7 +542,19 @@ impl CodeParser<'_, '_> {
             }
         }
 
-        todo!()
+        let exprs: Vec<Expr> = format_string
+            .data(self.db)
+            .sections
+            .iter()
+            .map(|section| match section.data(self.db) {
+                FormatStringSectionData::Text(word) => {
+                    self.add(ExprData::StringLiteral(*word), span)
+                }
+                FormatStringSectionData::TokenTree(tree) => self.parse_required_sub_expr(*tree),
+            })
+            .collect();
+
+        Some(self.add(ExprData::Concatenate(exprs), span))
     }
 
     fn parse_binop(

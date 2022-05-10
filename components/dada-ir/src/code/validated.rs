@@ -237,6 +237,9 @@ pub enum ExprData {
     /// `"foo"` with no format strings
     StringLiteral(Word),
 
+    /// Concatenates a bunch of strings from a string literal like `"foo{bar}baz"`
+    Concatenate(Vec<Expr>),
+
     /// `expr.await`
     Await(Expr),
 
@@ -346,6 +349,13 @@ impl ExprData {
             ExprData::Give(p) => f.debug_tuple("Give").field(&p.debug(db)).finish(),
             ExprData::Tuple(exprs) => {
                 let mut f = f.debug_tuple("Tuple");
+                for expr in exprs {
+                    f.field(&expr.debug(db));
+                }
+                f.finish()
+            }
+            ExprData::Concatenate(exprs) => {
+                let mut f = f.debug_tuple("Concatenate");
                 for expr in exprs {
                     f.field(&expr.debug(db));
                 }

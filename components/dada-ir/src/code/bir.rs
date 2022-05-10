@@ -464,6 +464,10 @@ pub enum ExprData {
     /// `(a, b, ...)` (i.e., at least 2)
     Tuple(Vec<Place>),
 
+    /// Concatenates a bunch of strings together from a format literal like
+    /// `foo{bar}baz`
+    Concatenate(Vec<Place>),
+
     /// `a + b`
     Op(Place, Op, Place),
 
@@ -490,6 +494,10 @@ impl DebugWithDb<InIrDb<'_, Bir>> for ExprData {
             ExprData::Give(p) => write!(f, "{:?}.give", p.debug(db)),
             ExprData::Unit => write!(f, "()"),
             ExprData::Tuple(vars) => write_parenthesized_places(f, vars, db),
+            ExprData::Concatenate(vars) => {
+                write!(f, "Concatenate")?;
+                write_parenthesized_places(f, vars, db)
+            }
             ExprData::Op(lhs, op, rhs) => {
                 write!(f, "{:?} {} {:?}", lhs.debug(db), op.str(), rhs.debug(db))
             }
