@@ -3,4 +3,5 @@ async fn main() {
     print(x).await #! OUTPUT 2
     x = (1)
     print(x).await #! OUTPUT 1
+    print((3)).await #! OUTPUT 3
 }
