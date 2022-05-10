@@ -173,6 +173,7 @@ impl Cursor {
             | validated::ExprData::Shlease(_)
             | validated::ExprData::Give(_)
             | validated::ExprData::Tuple(_)
+            | validated::ExprData::Concatenate(_)
             | validated::ExprData::Atomic(_) => {
                 let _ = self.brew_expr_to_temporary(brewery, expr);
             }
@@ -372,6 +373,23 @@ impl Cursor {
                 self.push_breakpoint_end(brewery, Some(target), origin);
             }
 
+            validated::ExprData::Concatenate(exprs) => {
+                self.push_breakpoint_start(brewery, origin);
+                if let Some(values) = exprs
+                    .iter()
+                    .map(|expr| self.brew_expr_to_temporary(brewery, *expr))
+                    .collect::<Option<Vec<_>>>()
+                {
+                    assert_eq!(values.len(), exprs.len());
+                    self.push_assignment(
+                        brewery,
+                        target,
+                        bir::ExprData::Concatenate(values),
+                        origin,
+                    );
+                    self.push_breakpoint_end(brewery, Some(target), origin);
+                }
+            }
             validated::ExprData::Tuple(exprs) => {
                 self.push_breakpoint_start(brewery, origin);
                 if let Some(values) = exprs

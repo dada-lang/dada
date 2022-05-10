@@ -1,5 +1,6 @@
 use std::collections::{BTreeMap, BTreeSet};
 use std::path::{Path, PathBuf};
+use std::str::FromStr;
 use std::{env, fs};
 
 use dada_execute::kernel::BufferKernel;
@@ -722,7 +723,8 @@ fn expected_diagnostics(path: &Path) -> eyre::Result<ExpectedDiagnostics> {
     )
     .unwrap();
 
-    let output_marker = regex::Regex::new(r"^(?P<prefix>[^#]*)#!\s*OUTPUT\s+(?P<msg>.*)").unwrap();
+    let output_marker =
+        regex::Regex::new(r"^(?P<prefix>[^#]*)#!(?P<adjust>-\d+)?\s*OUTPUT\s+(?P<msg>.*)").unwrap();
 
     let fixme_issue_marker =
         regex::Regex::new(r"#!\s*FIXME\(#(?P<issue>[0-9]+)\): (?P<message>.+)").unwrap();
@@ -732,6 +734,36 @@ fn expected_diagnostics(path: &Path) -> eyre::Result<ExpectedDiagnostics> {
 
     let any_marker = regex::Regex::new(r"^[^#]*#!").unwrap();
 
+    fn compute_line_number(
+        prefix: &str,
+        adjust: Option<regex::Match<'_>>,
+        last_code_line: u32,
+        line_number: u32,
+    ) -> u32 {
+        let base_line = if prefix.chars().all(char::is_whitespace) {
+            // A comment alone on a line, like `#! ERROR ...`, will apply to the
+            // last code line.
+            last_code_line
+        } else {
+            // A comment at the end of a line, like `foo() #! ERROR`, applies to
+            // that line.
+            line_number
+        };
+
+        // Apply adjustment given by user (if any)
+        match adjust {
+            Some(m) => {
+                if let Some(number_str) = m.as_str().strip_prefix('-') {
+                    let number = u32::from_str(number_str).unwrap();
+                    base_line - number
+                } else {
+                    panic!("unexpected adjust string: {m:?}")
+                }
+            }
+            None => base_line,
+        }
+    }
+
     let mut last_code_line = 1;
     let mut compile_diagnostics = vec![];
     let mut runtime_diagnostics = vec![];
@@ -740,16 +772,7 @@ fn expected_diagnostics(path: &Path) -> eyre::Result<ExpectedDiagnostics> {
     let mut any_output_marker_seen = None;
     for (line, line_number) in file_contents.lines().zip(1..) {
         if let Some(c) = diagnostic_marker.captures(line) {
-            let start_line = if c["prefix"].chars().all(char::is_whitespace) {
-                // A comment alone on a line, like `#! ERROR ...`, will apply to the
-                // last code line.
-                last_code_line
-            } else {
-                // A comment at the end of a line, like `foo() #! ERROR`, applies to
-                // that line.
-                line_number
-            };
-
+            let start_line = compute_line_number(&c["prefix"], None, last_code_line, line_number);
             let highlight = c.name("highlight");
             let start_column = highlight.map(|m| m.start() as u32 + 1);
             let end_line_column = highlight.map(|m| (start_line, m.end() as u32 + 1));
@@ -778,15 +801,8 @@ fn expected_diagnostics(path: &Path) -> eyre::Result<ExpectedDiagnostics> {
         } else if any_output_marker.is_match(line) {
             any_output_marker_seen = Some(line_number);
         } else if let Some(c) = output_marker.captures(line) {
-            let line1 = if c["prefix"].chars().all(char::is_whitespace) {
-                // A comment alone on a line, like `#! ERROR ...`, will apply to the
-                // last code line.
-                last_code_line
-            } else {
-                // A comment at the end of a line, like `foo() #! ERROR`, applies to
-                // that line.
-                line_number
-            };
+            let line1 =
+                compute_line_number(&c["prefix"], c.name("adjust"), last_code_line, line_number);
             let message = Regex::new(&c["msg"])?;
             output.push(ExpectedOutput { line1, message });
         } else if let Some(c) = fixme_issue_marker.captures(line) {

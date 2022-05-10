@@ -1,0 +1,4 @@
+greeting = "Hello"
+name = "world"
+print("{greeting}, {name}!").await
+#! OUTPUT Hello, world!

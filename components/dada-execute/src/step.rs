@@ -33,6 +33,7 @@ mod apply_unary;
 mod assert_invariants;
 mod await_thunk;
 mod call;
+mod concatenate;
 mod gc;
 mod give;
 mod intrinsic;
@@ -546,6 +547,7 @@ impl<'me> Stepper<'me> {
                     permission: self.machine.new_permission(ValidPermissionData::my()),
                 })
             }
+            bir::ExprData::Concatenate(places) => self.concatenate(table, places),
             bir::ExprData::Op(lhs, op, rhs) => {
                 let lhs_traversal = self.traverse_to_object(table, *lhs)?;
                 let rhs_traversal = self.traverse_to_object(table, *rhs)?;

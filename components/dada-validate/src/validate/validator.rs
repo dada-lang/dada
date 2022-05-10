@@ -409,6 +409,14 @@ impl<'me> Validator<'me> {
                 self.add(validated::ExprData::Tuple(validated_exprs), expr)
             }
 
+            syntax::ExprData::Concatenate(exprs) => {
+                let validated_exprs = exprs
+                    .iter()
+                    .map(|expr| self.reserve_validated_expr(*expr))
+                    .collect();
+                self.add(validated::ExprData::Concatenate(validated_exprs), expr)
+            }
+
             syntax::ExprData::If(condition_expr, then_expr, else_expr) => {
                 let validated_condition_expr = self.give_validated_expr(*condition_expr);
                 let validated_then_expr = self.subscope().validate_expr_and_exit(*then_expr, mode);

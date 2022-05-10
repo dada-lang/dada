@@ -123,9 +123,9 @@ impl TreeTraversal<'_> {
 
             syntax::ExprData::Return(base_expr) => self.find_in_children(expr, base_expr),
 
-            syntax::ExprData::Tuple(child_exprs) | syntax::ExprData::Seq(child_exprs) => {
-                self.find_in_children(expr, child_exprs)
-            }
+            syntax::ExprData::Concatenate(child_exprs)
+            | syntax::ExprData::Tuple(child_exprs)
+            | syntax::ExprData::Seq(child_exprs) => self.find_in_children(expr, child_exprs),
 
             syntax::ExprData::Call(func_expr, arg_exprs) => self.find_in_children(
                 expr,

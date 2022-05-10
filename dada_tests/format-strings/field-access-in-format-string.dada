@@ -1,0 +1,5 @@
+class Point(our x, our y)
+
+our p = Point(22, 44)
+print("({p.x}, {p.y})").await
+#! OUTPUT \(22, 44\)

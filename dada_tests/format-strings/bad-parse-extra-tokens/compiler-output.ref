@@ -1,0 +1,7 @@
+Error: extra tokens after end of expression
+   ╭─[dada_tests/format-strings/bad-parse-extra-tokens.dada:1:10]
+   │
+ 1 │ p = "{22 44}"
+   ·          ─┬  
+   ·           ╰── here
+───╯

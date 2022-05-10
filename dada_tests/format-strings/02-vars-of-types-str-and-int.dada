@@ -1,0 +1,4 @@
+type = "widget"
+count = 22
+print("There are {count} values of type `{type}` available.").await
+#! OUTPUT There are 22 values of type `widget` available.
