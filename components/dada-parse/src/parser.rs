@@ -206,6 +206,15 @@ trait OrReportError {
     fn or_report_error<S>(self, parser: &mut Parser<'_>, message: impl FnOnce() -> S) -> Self
     where
         S: ToString;
+
+    fn or_report_error_at<S>(
+        self,
+        parser: &mut Parser<'_>,
+        span: Span,
+        message: impl FnOnce() -> S,
+    ) -> Self
+    where
+        S: ToString;
 }
 
 impl<T> OrReportError for Option<T> {
@@ -213,13 +222,23 @@ impl<T> OrReportError for Option<T> {
     where
         S: ToString,
     {
+        self.or_report_error_at(parser, parser.tokens.peek_span(), message)
+    }
+
+    fn or_report_error_at<S>(
+        self,
+        parser: &mut Parser<'_>,
+        span: Span,
+        message: impl FnOnce() -> S,
+    ) -> Self
+    where
+        S: ToString,
+    {
         if self.is_some() {
             return self;
         }
 
-        parser
-            .error(parser.tokens.peek_span(), message())
-            .emit(parser.db);
+        parser.error(span, message()).emit(parser.db);
 
         None
     }

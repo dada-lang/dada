@@ -525,8 +525,11 @@ impl CodeParser<'_, '_> {
     }
 
     fn parse_required_sub_expr(&mut self, token_tree: TokenTree) -> Expr {
+        let db = self.db;
         self.with_sub_parser(token_tree, |sub_parser| sub_parser.parse_only_expr())
-            .or_report_error(self, || "expected expression here".to_string())
+            .or_report_error_at(self, token_tree.span(db), || {
+                "expected expression here".to_string()
+            })
             .or_dummy_expr(self)
     }
 
