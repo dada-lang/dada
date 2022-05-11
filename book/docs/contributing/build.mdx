@@ -1,0 +1,29 @@
+# How to build Dada
+
+## Building Dada as a standalone executable
+
+You can build Dada just like any other Rust project:
+
+* Install Rust via [rustup](https://rustup.rs/) (note that Dada uses the nightly toolchain)
+* Checkout dada from github
+* Run tests `cargo test`
+
+You can also use the `cargo dada` subcommand:
+
+* Run tests: `cargo dada test` or `cargo dada test --bless`
+* Run an individual file: `cargo dada run file.rs`
+
+## Building the website
+
+The Dada website is a docusaurus project.
+
+### Installation
+
+* Install node.js, we recommend [nvm](https://github.com/nvm-sh/nvm)
+    * You want the version of node found in `.nvmrc`
+    * With nvm, just use `nvm install` to get the correct version of node
+* Run `cargo xtask deploy`
+    * This will compile Dada with webassembly and build a static copy of the site
+* To test the site locally:
+    * You must first run `cargo xtask deploy` to build the webassembly package
+    * You can then `cd book` and run `npm start`

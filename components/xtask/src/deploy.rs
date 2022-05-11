@@ -42,8 +42,18 @@ impl Deploy {
 }
 
 fn download_wasm_pack(dada_downloads: &Path) -> eyre::Result<PathBuf> {
+    let arch = cfg!(target_arch);
+    let vendor = cfg!(target_os);
     let version = "v0.10.2";
-    let prefix = format!("wasm-pack-{version}-x86_64-unknown-linux-musl");
+    let prefix = if cfg!(all(target_os = "linux", target_arch = "x86_64")) {
+        format!("wasm-pack-{version}-x86_64-unknown-linux-musl")
+    } else if cfg!(all(target_os = "macos", target_arch = "x86_64")) {
+        format!("wasm-pack-{version}-x86_64-apple-darwin")
+    } else if cfg!(all(target_os = "windows", target_arch = "x86_64")) {
+        format!("wasm-pack-{version}-x86_64-pc-windows-msvc")
+    } else {
+        eyre::bail!("no wasm-pack binary available for `{arch}` and `{vendor}`")
+    };
     let filename = format!("{prefix}.tar.gz");
     let url =
         format!("https://github.com/rustwasm/wasm-pack/releases/download/{version}/{filename}");

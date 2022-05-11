@@ -612,7 +612,7 @@ impl CodeParser<'_, '_> {
             tables: self.tables,
             spans: self.spans,
         };
-        stacker::maybe_grow(32 * 1024, 1024 * 1024, || op(&mut sub_parser))
+        op(&mut sub_parser)
     }
 }
 
