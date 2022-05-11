@@ -8,7 +8,7 @@ In the previous chapter, we saw keywords like `my` and `our` attached to variabl
 
 ## Running example
 
-As we explain permisions both here and over the next several chapters, we're going to work with variations on this example program. It builds on syntax that we [introduced previously](./class.md), so if anything is confusing you may want to check out that chapter.
+As we explain permissions both here and over the next several chapters, we're going to work with variations on this example program. It builds on syntax that we [introduced previously](./class.md), so if anything is confusing you may want to check out that chapter.
 
 ```
 class Point(our x, our y)
@@ -21,7 +21,7 @@ async fn main() {
 
 ## `my`, `our`, and other permissions
 
-This example already makes use of two permissions, `my` and `our`. There are four permisions in total, and they can be divided along two dimensions:
+This example already makes use of two permissions, `my` and `our`. There are four permissions in total, and they can be divided along two dimensions:
 
 |        | Unique     | Shared       |
 | ------ | ---------- | ------------ |
@@ -39,7 +39,7 @@ The difference between these dimensions:
 
 Over the next few chapters, we're going to look at each of the permissions in detail:
 
-* We'll start with the *owned permisions*, [`my`] and [`our`].
+* We'll start with the *owned permissions*, [`my`] and [`our`].
 * Then we'll cover the *leased permissions*, [`leased`] and [`shleased`].
 
 [`my`]: ./my
