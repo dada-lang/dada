@@ -1,5 +1,6 @@
 import React, { PropsWithChildren } from "react";
 import { Graphviz } from "graphviz-react";
+import { OutputMode } from ".";
 
 type StateGraphProps = {
   heap: string;
@@ -22,16 +23,25 @@ const StateGraph = (props: PropsWithChildren<StateGraphProps>) => {
 type OutputProps = {
   output: string;
   heaps: [string, string];
+  mode: OutputMode;
 };
 
 function Output(props: PropsWithChildren<OutputProps>) {
-  return (
+  const executeTemplate = (
     <>
-      <div className="output p-2 bg-light" dangerouslySetInnerHTML={{__html: props.output}}></div>
+      <div className="execute-output p-2 bg-light" dangerouslySetInnerHTML={{__html: props.output}}></div>
       <StateGraph heap={props.heaps[0]} name="State before selected statement" />
       <StateGraph heap={props.heaps[1]} name="State after selected statement" />
     </>
   );
+
+  const irTemplate = (
+    <>
+      <div className="ir-output p-2 bg-light" dangerouslySetInnerHTML={{__html: props.output}}></div>
+    </>
+  );
+
+  return props.mode === OutputMode.EXECUTE ? executeTemplate : irTemplate;
 }
 
 export default Output;

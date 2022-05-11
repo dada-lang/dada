@@ -65,6 +65,18 @@ class DCW {
         else this.dada = this.dada.without_breakpoint();
     }
 
+    async syntax() {
+        this.dada = await this.dada.syntax();
+    }
+
+    async validated() {
+        this.dada = await this.dada.validated();
+    }
+
+    async bir() {
+        this.dada = await this.dada.bir();
+    }
+
     async execute() {
         this.dada = await this.dada.execute();
     }
@@ -100,10 +112,18 @@ class DCW {
 
 export type Cursor = { row: number; column: number };
 
+export enum OutputMode {
+    EXECUTE = "execute",
+    SYNTAX = "syntax",
+    VALIDATED = "validated",
+    BIR = "bir",
+};
+
 function Ide(props: { mini: boolean, sourceText: string }) {
     const [_module, setModule] = useState<InitOutput | null>(null);
     const [dada, setDada] = useState<DCW | null>(null);
     const [queue] = useState<Queue>(() => new Queue());
+    const [outputMode, setOutputMode] = useState<OutputMode>(OutputMode.EXECUTE);
 
     // First pass: we have to initialize the webassembly and "DCW"
     // instance.
@@ -130,13 +150,26 @@ function Ide(props: { mini: boolean, sourceText: string }) {
             if (!dada) return;
             dada.setSourceText(source);
             dada.setBreakpoint(cursor.row, cursor.column);
-            await dada.execute();
+            switch (outputMode) {
+                case OutputMode.SYNTAX:
+                    await dada.syntax();
+                    break;
+                case OutputMode.VALIDATED:
+                    await dada.validated();
+                    break;
+                case OutputMode.BIR:
+                    await dada.bir();
+                    break;
+                default:
+                    await dada.execute();
+                    break;
+            }
             const html = new AnsiUp().ansi_to_html(dada.output);
             setOutput(html);
             setHeaps([dada.heaps[0], dada.heaps[1]]);
             setDiagnostics(dada.diagnostics);
         });
-    }, [cursor, dada, source]);
+    }, [cursor, dada, source, outputMode]);
 
     useEffect(() => {
         setSource(props.sourceText);
@@ -159,12 +192,29 @@ function Ide(props: { mini: boolean, sourceText: string }) {
         return (
             <div className='ide'>
                 <div className="editor-cell">
-                    <input type="button" value="share" onClick={() => copyClipboardUrl(source, setStatus)} />
-                    <span>{status}</span>
+                    <div className="share">
+                        <input type="button" value="share" onClick={() => copyClipboardUrl(source, setStatus)} />
+                        <span>{status}</span>
+                    </div>
+
+                    <div className="ir-options">
+                        <input type="radio" value="execute" name="ir" onChange={() => setOutputMode(OutputMode.EXECUTE)} defaultChecked/>
+                        <label>execute</label>
+
+                        <input type="radio" value="syntax" name="ir" onChange={() => setOutputMode(OutputMode.SYNTAX)}/>
+                        <label>syntax</label>
+
+                        <input type="radio" value="validated" name="ir" onChange={() => setOutputMode(OutputMode.VALIDATED)}/>
+                        <label>validated</label>
+
+                        <input type="radio" value="bir" name="ir" onChange={() => setOutputMode(OutputMode.BIR)}/>
+                        <label>bir</label>
+                    </div>
+
                     <Editor source={source} onCursorChange={setCursor} onSourceChange={setSource} />
                 </div>
                 <div className="output-cell">
-                    <Output output={output} heaps={heaps} />
+                    <Output output={output} heaps={heaps} mode={outputMode} />
                 </div>
             </div>
         );
