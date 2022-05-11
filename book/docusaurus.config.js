@@ -73,6 +73,12 @@ const config = {
             label: 'Design Docs',
           },
           {
+            type: 'doc',
+            docId: 'contributing',
+            position: 'left',
+            label: 'Contributing',
+          },
+          {
             href: 'https://github.com/dada-lang/dada',
             label: 'GitHub',
             position: 'right',

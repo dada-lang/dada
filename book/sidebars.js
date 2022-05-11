@@ -67,6 +67,19 @@ const sidebars = {
     }
   ],
 
+  contributingSidebar: [
+    {
+      type: 'category',
+      label: 'Contributing',
+      link: { type: 'doc', id: 'contributing' },
+      items: [
+        'contributing/coc',
+        'contributing/guidelines',
+        'contributing/build',
+      ],
+    }
+  ],
+
   aboutSidebar: [
     {
       type: 'category',
