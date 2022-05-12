@@ -189,24 +189,12 @@ impl<'me> Validator<'me> {
 
     #[tracing::instrument(level = "debug", skip(self, expr))]
     fn give_validated_expr(&mut self, expr: syntax::Expr) -> validated::Expr {
-        let result = self.validate_expr_in_mode(expr, ExprMode::give());
-
-        // Check that the validated expression always has the same
-        // origin as the expression we started with.
-        assert_eq!(result.origin_in(self.origins).syntax_expr, expr);
-
-        result
+        self.validate_expr_in_mode(expr, ExprMode::give())
     }
 
     #[tracing::instrument(level = "debug", skip(self, expr))]
     pub(crate) fn reserve_validated_expr(&mut self, expr: syntax::Expr) -> validated::Expr {
-        let result = self.validate_expr_in_mode(expr, ExprMode::Reserve);
-
-        // Check that the validated expression always has the same
-        // origin as the expression we started with.
-        assert_eq!(result.origin_in(self.origins).syntax_expr, expr);
-
-        result
+        self.validate_expr_in_mode(expr, ExprMode::Reserve)
     }
 
     fn validate_expr_in_mode(&mut self, expr: syntax::Expr, mode: ExprMode) -> validated::Expr {
