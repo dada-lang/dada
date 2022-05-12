@@ -204,13 +204,7 @@ where
                 break;
             }
 
-            if ch == '\\' {
-                is_backslash_previous = !is_backslash_previous;
-            } else {
-                is_backslash_previous = false;
-            }
-
-            if ch == '{' {
+            if ch == '{' && !is_backslash_previous {
                 // Format string! Grab a token tree.
                 let tree = self.lex_tokens(Some('}'));
                 buffer.push_tree(tree);
@@ -236,6 +230,12 @@ where
                     break;
                 }
                 continue;
+            }
+
+            if ch == '\\' {
+                is_backslash_previous = !is_backslash_previous;
+            } else {
+                is_backslash_previous = false;
             }
 
             buffer.push_char(ch);

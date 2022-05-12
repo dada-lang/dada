@@ -1,0 +1,5 @@
+x = "\n\n    Hello, world\n"
+y = "\n
+    Hello, world
+"
+print(x == y).await #! OUTPUT true

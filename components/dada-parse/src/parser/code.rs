@@ -544,15 +544,6 @@ impl CodeParser<'_, '_> {
     fn parse_format_string(&mut self) -> Option<Expr> {
         let (span, format_string) = self.eat(FormatStringLiteral)?;
 
-        // Special case for a string with no code like `"foo"`:
-        if format_string.data(self.db).sections.len() == 1 {
-            if let FormatStringSectionData::Text(word) =
-                format_string.data(self.db).sections[0].data(self.db)
-            {
-                return Some(self.add(ExprData::StringLiteral(*word), span));
-            }
-        }
-
         let exprs: Vec<Expr> = format_string
             .data(self.db)
             .sections

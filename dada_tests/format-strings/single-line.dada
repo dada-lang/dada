@@ -1,0 +1,3 @@
+# Check that leading/trailing spaces are not altered if there is only a single line.
+print("  Foo  ").await
+#! OUTPUT \s\sFoo\s\s
