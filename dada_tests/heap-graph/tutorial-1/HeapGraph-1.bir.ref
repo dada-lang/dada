@@ -112,8 +112,21 @@
                 ),
                 (
                     AssignExpr(
-                        temp{10},
+                        temp{11},
                         "The point is FIXME",
+                    ),
+                    Expr(6),
+                ),
+                (
+                    AssignExpr(
+                        temp{10},
+                        Concatenate(temp{11}),
+                    ),
+                    Expr(7),
+                ),
+                (
+                    Clear(
+                        temp{11},
                     ),
                     Expr(6),
                 ),
@@ -138,7 +151,7 @@
                     Clear(
                         temp{10},
                     ),
-                    Expr(6),
+                    Expr(7),
                 ),
                 (
                     Clear(
@@ -161,20 +174,20 @@
                     Clear(
                         temp{8},
                     ),
-                    Expr(7),
+                    Expr(8),
                 ),
                 (
                     Clear(
                         temp{7},
                     ),
-                    Expr(8),
+                    Expr(9),
                 ),
                 (
                     AssignExpr(
                         temp{2},
                         (),
                     ),
-                    Expr(9),
+                    Expr(10),
                 ),
             ],
             Return(

@@ -1,33 +1,37 @@
-#! OUTPUT ANY
-
 async fn main() {
     print("
         Foo
             Bar
     ").await
+    #!-3 OUTPUT ^Foo\n    Bar\n$
 
     print("
         Foo
 
             Bar
     ").await
+    #!-4 OUTPUT Foo\n\n    Bar\n$
 
     print("
 Foo
 Bar
     ").await
+    #!-3 OUTPUT Foo\nBar\n    
 
     print("
     
     
     
-    ")
+    ").await
+    #!-4 OUTPUT ^    \n    \n    \n    \n$
 
     print("    Foo").await
+    #! OUTPUT ^\s\s\s\sFoo\n
 
     print("
         I have forced myself to contradict myself
         in order to avoid conforming to my own taste.
           -- Marcel Duchamp
     ").await
+    #!-4 OUTPUT ^I have forced myself to contradict myself\nin order to avoid conforming to my own taste.\n  -- Marcel Duchamp\n$
 }

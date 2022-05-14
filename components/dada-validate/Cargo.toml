@@ -13,5 +13,6 @@ dada-lex = { path = "../dada-lex" }
 dada-parse = { path = "../dada-parse" }
 eq-float = "=0.1.0"
 extension-trait = "1"
+itertools = "0.10.3"
 salsa = { path = "../salsa" }
 tracing = "0.1.29"

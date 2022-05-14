@@ -24,9 +24,12 @@ use std::str::FromStr;
 use super::name_lookup::Definition;
 use super::name_lookup::Scope;
 
+mod string_literals;
+
 pub(crate) struct Validator<'me> {
     db: &'me dyn crate::Db,
     function: Function,
+    syntax_tree_entity: syntax::Tree,
     syntax_tree: &'me syntax::TreeData,
     tables: &'me mut validated::Tables,
     origins: &'me mut validated::Origins,
@@ -62,11 +65,12 @@ impl<'me> Validator<'me> {
         origins: &'me mut validated::Origins,
         scope: Scope<'me>,
     ) -> Self {
-        let syntax_tree = syntax_tree.data(db);
+        let syntax_tree_data = syntax_tree.data(db);
         Self {
             db,
             function,
-            syntax_tree,
+            syntax_tree: syntax_tree_data,
+            syntax_tree_entity: syntax_tree,
             tables,
             origins,
             loop_stack: vec![],
@@ -81,6 +85,7 @@ impl<'me> Validator<'me> {
         Validator {
             db: self.db,
             function: self.function,
+            syntax_tree_entity: self.syntax_tree_entity,
             syntax_tree: self.syntax_tree,
             tables: self.tables,
             origins: self.origins,
@@ -284,10 +289,14 @@ impl<'me> Validator<'me> {
                 }
             }
 
-            syntax::ExprData::StringLiteral(w) => {
-                let word_str = w.as_str(self.db);
-                let dada_string = convert_to_dada_string(word_str);
-                let word = Word::from(self.db, dada_string);
+            syntax::ExprData::StringLiteral(word) => {
+                // Normally, StringLiterals are embedded within a `Concatenate` and they are
+                // often converted directly by the code in `Self::concatenate`. But in the case
+                // where no margin stripping is required, that code invokes this function,
+                // and so our job is only to deal with escape sequences.
+                let word_str = word.as_str(self.db);
+                let escaped = self.support_escape(expr, word_str);
+                let word = Word::from(self.db, escaped);
                 self.add(validated::ExprData::StringLiteral(word), expr)
             }
 
@@ -397,13 +406,7 @@ impl<'me> Validator<'me> {
                 self.add(validated::ExprData::Tuple(validated_exprs), expr)
             }
 
-            syntax::ExprData::Concatenate(exprs) => {
-                let validated_exprs = exprs
-                    .iter()
-                    .map(|expr| self.reserve_validated_expr(*expr))
-                    .collect();
-                self.add(validated::ExprData::Concatenate(validated_exprs), expr)
-            }
+            syntax::ExprData::Concatenate(exprs) => self.concatenate(expr, exprs),
 
             syntax::ExprData::If(condition_expr, then_expr, else_expr) => {
                 let validated_condition_expr = self.give_validated_expr(*condition_expr);
@@ -1008,80 +1011,6 @@ impl<'me> Validator<'me> {
 
 fn count_bytes_in_common(s1: &[u8], s2: &[u8]) -> usize {
     s1.iter().zip(s2).take_while(|(c1, c2)| c1 == c2).count()
-}
-
-#[track_caller]
-pub fn escape(ch: char) -> char {
-    match ch {
-        'n' => '\n',
-        't' => '\t',
-        'r' => '\r',
-        '\\' => '\\',
-        '"' => '\"',
-        _ => panic!("not a escape: {:?}", ch),
-    }
-}
-
-fn support_escape(s: &str) -> String {
-    let mut buffer = String::new();
-    let mut chars = s.chars().peekable();
-    while let Some(ch) = chars.next() {
-        if ch == '\\' {
-            if let Some(c) = chars.peek() {
-                match c {
-                    'n' | 'r' | 't' | '"' | '\\' => {
-                        buffer.push(escape(*c));
-                        chars.next();
-                        continue;
-                    }
-                    _ => {}
-                }
-            }
-        }
-        buffer.push(ch);
-    }
-    buffer
-}
-
-// Remove leading, trailing whitespace and common indent from multiline strings.
-fn convert_to_dada_string(s: &str) -> String {
-    // If the string has only one line, leave it and return immediately.
-    if s.lines().count() == 1 {
-        return support_escape(s);
-    }
-
-    // Split string into lines and filter out empty lines.
-    let mut non_empty_line_iter = s.lines().filter(|&line| !line.trim().is_empty());
-
-    if let Some(first_line) = non_empty_line_iter.next() {
-        let prefix = first_line
-            .chars()
-            .into_iter()
-            .take_while(|c| c.is_whitespace())
-            .collect::<String>();
-        let common_indent = non_empty_line_iter
-            .map(|s| count_bytes_in_common(prefix.as_bytes(), s.as_bytes()))
-            .min()
-            .unwrap_or(0);
-
-        // Remove the common indent from every line in the original string,
-        // apart from empty lines, which remain as empty.
-        let mut buf = String::new();
-        for (i, line) in s.lines().enumerate() {
-            if i > 0 {
-                buf.push('\n');
-            }
-            if line.trim().is_empty() {
-                buf.push_str(line);
-            } else {
-                buf.push_str(&line[common_indent..]);
-            }
-        }
-
-        // Strip leading/trailing whitespace.
-        return support_escape(buf.trim());
-    }
-    String::new()
 }
 
 trait IntoOrigin: Sized {

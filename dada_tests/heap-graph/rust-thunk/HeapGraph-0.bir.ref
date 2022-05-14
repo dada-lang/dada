@@ -8,7 +8,7 @@
                         "async",
                         0,
                     ),
-                    Expr(2),
+                    Expr(3),
                 ),
                 (
                     AssignExpr(
@@ -19,8 +19,21 @@
                 ),
                 (
                     AssignExpr(
-                        temp{4},
+                        temp{5},
                         "foo",
+                    ),
+                    Expr(1),
+                ),
+                (
+                    AssignExpr(
+                        temp{4},
+                        Concatenate(temp{5}),
+                    ),
+                    Expr(2),
+                ),
+                (
+                    Clear(
+                        temp{5},
                     ),
                     Expr(1),
                 ),
@@ -45,18 +58,18 @@
                     BreakpointEnd(
                         "async",
                         0,
-                        Expr(2),
+                        Expr(3),
                         Some(
                             temp{2},
                         ),
                     ),
-                    Expr(2),
+                    Expr(3),
                 ),
                 (
                     Clear(
                         temp{4},
                     ),
-                    Expr(1),
+                    Expr(2),
                 ),
                 (
                     Clear(
@@ -79,20 +92,20 @@
                     Clear(
                         temp{2},
                     ),
-                    Expr(2),
+                    Expr(3),
                 ),
                 (
                     Clear(
                         temp{1},
                     ),
-                    Expr(3),
+                    Expr(4),
                 ),
                 (
                     AssignExpr(
                         temp{0},
                         (),
                     ),
-                    Expr(4),
+                    Expr(5),
                 ),
             ],
             Return(

@@ -423,6 +423,7 @@ dependencies = [
  "dada-parse",
  "eq-float",
  "extension-trait",
+ "itertools",
  "salsa",
  "tracing",
 ]
@@ -459,6 +460,12 @@ dependencies = [
  "cfg-if 1.0.0",
  "num_cpus",
 ]
+
+[[package]]
+name = "either"
+version = "1.6.1"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "e78d4f1cc4ae33bbfc157ed5d5a5ef3bc29227303d595861deb238fcec4e9457"
 
 [[package]]
 name = "eq-float"
@@ -636,6 +643,15 @@ dependencies = [
  "js-sys",
  "wasm-bindgen",
  "web-sys",
+]
+
+[[package]]
+name = "itertools"
+version = "0.10.3"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "a9a9d19fa1e79b6215ff29b9d6880b706147f16e9b1dbb1e4e5947b5b02bc5e3"
+dependencies = [
+ "either",
 ]
 
 [[package]]

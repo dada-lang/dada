@@ -186,8 +186,21 @@
                 ),
                 (
                     AssignExpr(
-                        temp{16},
+                        temp{17},
                         "Hi",
+                    ),
+                    Expr(11),
+                ),
+                (
+                    AssignExpr(
+                        temp{16},
+                        Concatenate(temp{17}),
+                    ),
+                    Expr(12),
+                ),
+                (
+                    Clear(
+                        temp{17},
                     ),
                     Expr(11),
                 ),
@@ -212,7 +225,7 @@
                     Clear(
                         temp{16},
                     ),
-                    Expr(11),
+                    Expr(12),
                 ),
                 (
                     Clear(
@@ -235,20 +248,20 @@
                     Clear(
                         temp{14},
                     ),
-                    Expr(12),
+                    Expr(13),
                 ),
                 (
                     Clear(
                         temp{13},
                     ),
-                    Expr(13),
+                    Expr(14),
                 ),
                 (
                     AssignExpr(
                         temp{4},
                         (),
                     ),
-                    Expr(14),
+                    Expr(15),
                 ),
             ],
             Return(
