@@ -5,42 +5,32 @@ use crate::{
 
 #[derive(Debug, PartialEq, Eq, Hash)]
 pub struct LineTable {
-    /// Stores the index of the `\n` for each line.
-    /// So `0..line_endings[0]` represents the range of characters for the first line
-    /// and so forth.
-    line_endings: Vec<Offset>,
+    /// Stores the index of the start for each line.
+    /// Always has Offset(0) at position 0.
+    line_starts: Vec<Offset>,
     end_offset: Offset,
 }
 
 impl LineTable {
     fn new(source_text: &str) -> Self {
-        let mut p: usize = 0;
         let mut table = LineTable {
-            line_endings: vec![],
+            line_starts: vec![0u32.into()],
             end_offset: Offset::from(source_text.len()),
         };
-        for line in source_text.lines() {
-            p += line.len();
-            table.line_endings.push(Offset::from(p));
-            p += 1;
+        for (i, c) in source_text.char_indices() {
+            if c == '\n' {
+                table.line_starts.push((i as u32 + 1).into())
+            }
         }
         table
     }
 
-    /// Given a (1-based) line number, find the start of the line.
-    ///
-    /// If `line` is out of range, panics.
     fn line_start(&self, line0: usize) -> Offset {
-        if line0 == 0 {
-            Offset::from(0_u32)
-        } else {
-            let previous_line0 = line0 - 1;
-            self.line_endings[previous_line0] + 1_u32
-        }
+        self.line_starts[line0]
     }
 
     fn num_lines(&self) -> usize {
-        self.line_endings.len() + 1
+        self.line_starts.len()
     }
 
     fn offset(&self, position: LineColumn) -> Offset {
@@ -52,8 +42,10 @@ impl LineTable {
     }
 
     fn line_column(&self, position: Offset) -> LineColumn {
-        match self.line_endings.binary_search(&position) {
-            Ok(line0) | Err(line0) => {
+        match self.line_starts.binary_search(&position) {
+            Ok(line0) => LineColumn::new0(line0, 0u32),
+            Err(next_line0) => {
+                let line0 = next_line0 - 1;
                 let line_start = self.line_start(line0);
                 LineColumn::new0(line0, position - line_start)
             }
