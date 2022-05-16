@@ -34,6 +34,7 @@ impl Deploy {
         {
             let _directory = xshell::pushd(&book_dir)?;
             xshell::Cmd::new("npm").arg("install").run()?;
+            xshell::Cmd::new("npm").arg("run").arg("typecheck").run()?;
             xshell::Cmd::new("npm").arg("run").arg("build").run()?;
         }
 

@@ -38,7 +38,7 @@ class Queue {
 
     async doWork() {
         while (this.queue.length != 0) {
-            let workFunction = this.queue.shift();
+            let workFunction = this.queue.shift()!;
             let promise = workFunction();
             await promise;
         }
@@ -184,7 +184,7 @@ function Ide(props: { mini: boolean, sourceText: string }) {
                     <Editor source={source} onCursorChange={setCursor} onSourceChange={setSource} />
                 </Col>
                 <Col>
-                    <Output output={output} heaps={heaps} />
+                    <Output output={output} heaps={heaps} mode={outputMode} />
                 </Col>
             </Row>
         );
@@ -223,7 +223,7 @@ function Ide(props: { mini: boolean, sourceText: string }) {
 
 export default Ide;
 
-async function copyClipboardUrl(source, setStatus) {
+async function copyClipboardUrl(source: string, setStatus: (status: string) => void) {
     // get URL of the playground, and clear existing parameters
     var playgroundUrl = new URL(document.location.href);
     playgroundUrl.search = "?"; // clear existing parameters
@@ -240,7 +240,7 @@ async function copyClipboardUrl(source, setStatus) {
 
 // Use the is.gd service to minify a URL.
 // If the request fails, returns the unminified URL.
-async function minify(url) {
+async function minify(url: URL) {
     // Use the is.gd 
     // ?format=simple&url=www.example.com
 
@@ -249,7 +249,7 @@ async function minify(url) {
     isGdUrl.searchParams.set("url", url.href);
 
     try {
-        let response = await fetch(isGdUrl);
+        let response = await fetch(isGdUrl.toString());
         let text = await response.text();
         return new URL(text);
     } catch (e) {
