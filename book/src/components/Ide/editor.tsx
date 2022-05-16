@@ -16,6 +16,7 @@ type OutputProps = {
 function Editor(props: PropsWithChildren<OutputProps>) {
   return (
     <AceEditor
+      setOptions={{ newLineMode: "unix" }}
       editorProps={{ $blockScrolling: true }}
       fontSize={18}
       width="100%"
