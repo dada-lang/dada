@@ -27,7 +27,7 @@ my w_a = Widget()
 my w_b = Widget()
 my pair = Pair(w_a, w_b)
 print(pair).await                 # Prints `Pair(Widget(), Widget())`
-print(w_A).await                  # Error: moved!
+print(w_a).await                  # Error: moved!
 ```
 
 Once you create a `Pair`, you can also move values out from its fields. Try moving the cursor in this example to just after the `pair.a`:
