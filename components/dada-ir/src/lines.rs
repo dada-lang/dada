@@ -43,10 +43,6 @@ impl LineTable {
         table
     }
 
-    fn line_start(&self, line0: usize) -> Offset {
-        self.lines[line0].start
-    }
-
     fn num_lines(&self) -> usize {
         self.lines.len()
     }
@@ -55,8 +51,14 @@ impl LineTable {
         if position.line0_usize() >= self.num_lines() {
             return self.end_offset;
         }
-        let line_start = self.line_start(position.line0_usize());
-        (line_start + position.column0()).min(self.end_offset)
+        let line = &self.lines[position.line0_usize()];
+        let mut offset = u32::from(line.start + position.column0());
+        for wc in line.wide_chars.iter() {
+            if u32::from(wc.start) < offset {
+                offset += wc.len() - 1;
+            }
+        }
+        Offset::from(offset).min(self.end_offset)
     }
 
     fn line_column(&self, position: Offset) -> LineColumn {
@@ -129,6 +131,8 @@ mod tests {
             let expected = offset_to_line_column_naive(source_text, offset);
             let actual = line_table.line_column(offset);
             assert_eq!(expected, actual, "at {:?}", offset);
+            let round_trip = line_table.offset(actual);
+            assert_eq!(offset, round_trip);
         }
     }
 
