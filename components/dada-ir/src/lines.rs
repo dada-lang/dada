@@ -90,7 +90,7 @@ pub fn line_column(db: &dyn crate::Db, filename: Filename, position: Offset) -> 
     table.line_column(position)
 }
 
-/// Given a (1-based) line/column tuple, returns a character index.
+/// Given a line/column tuple, returns a character index.
 pub fn offset(db: &dyn crate::Db, filename: Filename, position: LineColumn) -> Offset {
     let table = line_table(db, filename);
     table.offset(position)
