@@ -22,7 +22,7 @@ impl LineTable {
     fn new(source_text: &str) -> Self {
         let mut table = LineTable {
             lines: vec![LineInfo {
-                start: 0u32.into(),
+                start: Offset::from(0u32),
                 wide_chars: Vec::new(),
             }],
             end_offset: Offset::from(source_text.len()),
@@ -30,13 +30,13 @@ impl LineTable {
         for (i, c) in source_text.char_indices() {
             if c == '\n' {
                 table.lines.push(LineInfo {
-                    start: (i + 1).into(),
+                    start: Offset::from(i + 1),
                     wide_chars: Vec::new(),
                 })
             } else if c.len_utf8() > 1 {
                 table.lines.last_mut().unwrap().wide_chars.push(Span {
-                    start: i.into(),
-                    end: (i + c.len_utf8()).into(),
+                    start: Offset::from(i),
+                    end: Offset::from(i + c.len_utf8()),
                 });
             }
         }
@@ -111,7 +111,7 @@ mod tests {
         let mut line: u32 = 0;
         let mut col: u32 = 0;
         for (i, c) in source_text.char_indices() {
-            if i as u32 == position.into() {
+            if Offset::from(i) == position {
                 break;
             }
             if c == '\n' {
@@ -126,8 +126,8 @@ mod tests {
 
     fn check_line_column(source_text: &str) {
         let line_table = LineTable::new(source_text);
-        for (p, _) in source_text.char_indices() {
-            let offset = p.into();
+        for (i, _) in source_text.char_indices() {
+            let offset = Offset::from(i);
             let expected = offset_to_line_column_naive(source_text, offset);
             let actual = line_table.line_column(offset);
             assert_eq!(expected, actual, "at {:?}", offset);
