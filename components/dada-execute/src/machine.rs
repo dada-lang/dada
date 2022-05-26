@@ -275,7 +275,7 @@ object_data_from_impls! {
     Unit(()),
 }
 
-#[derive(Clone, Debug, PartialEq)]
+#[derive(Clone, Debug, PartialEq, Eq)]
 pub struct Instance {
     pub class: Class,
     pub fields: Vec<Value>,
@@ -284,13 +284,13 @@ pub struct Instance {
 /// When you invoke an async function, the result is
 /// a ThunkFn. This stores the arguments that
 /// were provided, waiting for an `await` to execute.
-#[derive(Clone, Debug, PartialEq)]
+#[derive(Clone, Debug, PartialEq, Eq)]
 pub struct ThunkFn {
     pub function: Function,
     pub arguments: Vec<Value>,
 }
 
-#[derive(Clone, Debug, PartialEq)]
+#[derive(Clone, Debug, PartialEq, Eq)]
 pub struct Tuple {
     #[allow(dead_code)]
     pub fields: Vec<Value>,
@@ -323,7 +323,7 @@ impl std::fmt::Debug for Reservation {
     }
 }
 
-#[derive(Clone, Debug, PartialEq)]
+#[derive(Clone, Debug, PartialEq, Eq)]
 pub struct ReservationData {
     /// PC when the reservation was placed.
     pub pc: ProgramCounter,
@@ -352,7 +352,7 @@ impl std::fmt::Debug for Permission {
     }
 }
 
-#[derive(Clone, Debug, PartialEq)]
+#[derive(Clone, Debug, PartialEq, Eq)]
 pub enum PermissionData {
     /// No permission: if the place is non-none, executing this place is
     /// what caused the permission to be revoked. If None, the permission
@@ -406,7 +406,7 @@ impl PermissionData {
 /// The data for a valid permission; each permission
 /// is attached to a particular reference from some
 /// place (memory location) `p` to some object `o`.
-#[derive(Clone, Debug, PartialEq)]
+#[derive(Clone, Debug, PartialEq, Eq)]
 pub struct ValidPermissionData {
     /// A *joint* permission indicates whether this particular
     /// place permits other permissions to `o`.
