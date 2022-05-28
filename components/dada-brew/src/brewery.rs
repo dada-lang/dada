@@ -39,7 +39,7 @@ pub struct Brewery<'me> {
     temporaries: Vec<bir::LocalVariable>,
 }
 
-#[derive(Clone, Copy, Debug, PartialEq, PartialOrd, Hash)]
+#[derive(Clone, Copy, Debug, PartialEq, Eq, PartialOrd, Hash)]
 pub struct LoopContext {
     pub continue_block: bir::BasicBlock,
     pub break_block: bir::BasicBlock,

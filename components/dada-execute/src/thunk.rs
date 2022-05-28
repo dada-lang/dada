@@ -5,7 +5,7 @@ use crate::{machine::Value, step::Stepper};
 /// A "RustThunk" is a thunk implemented in Rust.
 /// These are constructed from intrinsics.
 /// The data interpreter doesn't a
-#[derive(Clone, Debug, PartialEq)]
+#[derive(Clone, Debug, PartialEq, Eq)]
 pub struct RustThunk {
     pub(crate) description: &'static str,
     pub(crate) arguments: Vec<Value>,

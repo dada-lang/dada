@@ -210,7 +210,9 @@ impl DebugWithDb<InIrDb<'_, Tree>> for ExprData {
                 .field(&v.debug(db))
                 .field(&e.debug(db))
                 .finish(),
-            ExprData::Parenthesized(e) => f.debug_tuple("Share").field(&e.debug(db)).finish(),
+            ExprData::Parenthesized(e) => {
+                f.debug_tuple("Parenthesized").field(&e.debug(db)).finish()
+            }
             ExprData::Tuple(e) => f.debug_tuple("Tuple").field(&e.debug(db)).finish(),
             ExprData::If(c, t, e) => f
                 .debug_tuple("If")
