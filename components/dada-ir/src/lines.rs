@@ -1,70 +1,148 @@
 use crate::{
     filename::Filename,
-    span::{LineColumn, Offset},
+    span::{LineColumn, Offset, Span},
 };
 
 #[derive(Debug, PartialEq, Eq, Hash)]
 pub struct LineTable {
-    /// Stores the index of the `\n` for each line.
-    /// So `0..line_endings[0]` represents the range of characters for the first line
-    /// and so forth.
-    line_endings: Vec<Offset>,
+    /// Always has at least one element for the first line
+    lines: Vec<LineInfo>,
     end_offset: Offset,
 }
 
+#[derive(Debug, PartialEq, Eq, Hash)]
+struct LineInfo {
+    /// Offset of line start
+    start: Offset,
+    /// Spans of chars with utf8 length > 1
+    wide_chars: Vec<Span>,
+}
+
 impl LineTable {
-    /// Given a (1-based) line number, find the start of the line.
-    ///
-    /// If `line` is out of range, panics.
-    fn line_start(&self, line0: usize) -> Offset {
-        if line0 == 0 {
-            Offset::from(0_u32)
-        } else {
-            let previous_line0 = line0 - 1;
-            self.line_endings[previous_line0] + 1_u32
+    fn new(source_text: &str) -> Self {
+        let mut table = LineTable {
+            lines: vec![LineInfo {
+                start: Offset::from(0u32),
+                wide_chars: Vec::new(),
+            }],
+            end_offset: Offset::from(source_text.len()),
+        };
+        for (i, c) in source_text.char_indices() {
+            if c == '\n' {
+                table.lines.push(LineInfo {
+                    start: Offset::from(i + 1),
+                    wide_chars: Vec::new(),
+                })
+            } else if c.len_utf8() > 1 {
+                table.lines.last_mut().unwrap().wide_chars.push(Span {
+                    start: Offset::from(i),
+                    end: Offset::from(i + c.len_utf8()),
+                });
+            }
         }
+        table
     }
 
     fn num_lines(&self) -> usize {
-        self.line_endings.len() + 1
+        self.lines.len()
+    }
+
+    fn offset(&self, position: LineColumn) -> Offset {
+        if position.line0_usize() >= self.num_lines() {
+            return self.end_offset;
+        }
+        let line = &self.lines[position.line0_usize()];
+        let mut offset = u32::from(line.start + position.column0());
+        for wc in line.wide_chars.iter() {
+            if u32::from(wc.start) < offset {
+                offset += wc.len() - 1;
+            }
+        }
+        Offset::from(offset).min(self.end_offset)
+    }
+
+    fn line_column(&self, position: Offset) -> LineColumn {
+        match self.lines.binary_search_by_key(&position, |l| l.start) {
+            Ok(line0) => LineColumn::new0(line0, 0u32),
+            Err(next_line0) => {
+                let line0 = next_line0 - 1;
+                let line = &self.lines[line0];
+                // not quite column yet, because there may be wide characters between line start and position
+                // at this point it's the byte offset from line start
+                // we need to adjust for it
+                let mut column0 = position - line.start;
+                for wc in line.wide_chars.iter() {
+                    if wc.start >= position {
+                        break;
+                    }
+                    // e.g.: 🙂 will have len 4, but we count it as 1 character, so we substract 3
+                    column0 -= wc.len() - 1;
+                }
+                LineColumn::new0(line0, column0)
+            }
+        }
     }
 }
 
 /// Converts a character index `position` into a line and column tuple.
 pub fn line_column(db: &dyn crate::Db, filename: Filename, position: Offset) -> LineColumn {
     let table = line_table(db, filename);
-    match table.line_endings.binary_search(&position) {
-        Ok(line0) | Err(line0) => {
-            let line_start = table.line_start(line0);
-            LineColumn::new0(line0, position - line_start)
-        }
-    }
+    table.line_column(position)
 }
 
-/// Given a (1-based) line/column tuple, returns a character index.
+/// Given a line/column tuple, returns a character index.
 pub fn offset(db: &dyn crate::Db, filename: Filename, position: LineColumn) -> Offset {
     let table = line_table(db, filename);
-
-    if position.line0_usize() >= table.num_lines() {
-        return table.end_offset;
-    }
-    let line_start = table.line_start(position.line0_usize());
-    (line_start + position.column0()).min(table.end_offset)
+    table.offset(position)
 }
 
 #[salsa::memoized(in crate::Jar ref)]
 #[allow(clippy::needless_lifetimes)]
 fn line_table(db: &dyn crate::Db, filename: Filename) -> LineTable {
     let source_text = crate::manifest::source_text(db, filename);
-    let mut p: usize = 0;
-    let mut table = LineTable {
-        line_endings: vec![],
-        end_offset: Offset::from(source_text.len()),
-    };
-    for line in source_text.lines() {
-        p += line.len();
-        table.line_endings.push(Offset::from(p));
-        p += 1;
+    LineTable::new(source_text)
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    fn offset_to_line_column_naive(source_text: &str, position: Offset) -> LineColumn {
+        let mut line: u32 = 0;
+        let mut col: u32 = 0;
+        for (i, c) in source_text.char_indices() {
+            if Offset::from(i) == position {
+                break;
+            }
+            if c == '\n' {
+                line += 1;
+                col = 0;
+            } else {
+                col += 1;
+            }
+        }
+        LineColumn::new0(line, col)
     }
-    table
+
+    fn check_line_column(source_text: &str) {
+        let line_table = LineTable::new(source_text);
+        for (i, _) in source_text.char_indices() {
+            let offset = Offset::from(i);
+            let expected = offset_to_line_column_naive(source_text, offset);
+            let actual = line_table.line_column(offset);
+            assert_eq!(expected, actual, "at {:?}", offset);
+            let round_trip = line_table.offset(actual);
+            assert_eq!(offset, round_trip);
+        }
+    }
+
+    #[test]
+    fn crlf_line_endings() {
+        check_line_column("foo\r\nb🙂ar\r\nbaz")
+    }
+
+    #[test]
+    fn lf_line_endings() {
+        check_line_column("foo\nb🙂ar\nbaz")
+    }
 }
