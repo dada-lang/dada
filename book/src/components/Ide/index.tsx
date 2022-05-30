@@ -193,22 +193,37 @@ function Ide(props: { mini: boolean, sourceText: string }) {
             <div className='ide'>
                 <div className="editor-cell">
                     <div className="share">
-                        <input type="button" value="share" onClick={() => copyClipboardUrl(source, setStatus)} />
+                        <input type="button" value="share"
+                            onClick={() => copyClipboardUrl(source, setStatus)} />
                         <span>{status}</span>
                     </div>
 
                     <div className="ir-options">
-                        <input type="radio" value="execute" name="ir" onChange={() => setOutputMode(OutputMode.EXECUTE)} defaultChecked/>
-                        <label>execute</label>
+                        <label>
+                            <input type="radio" value="execute"                          name="ir"
+                                onChange={() => setOutputMode(OutputMode.EXECUTE)}
+                                defaultChecked />
+                            <span>execute</span>
+                        </label>
 
-                        <input type="radio" value="syntax" name="ir" onChange={() => setOutputMode(OutputMode.SYNTAX)}/>
-                        <label>syntax</label>
+                        <label>
+                            <input type="radio" value="syntax" name="ir"
+                                onChange={() => setOutputMode(OutputMode.SYNTAX)} />
+                            <span>syntax</span>
+                        </label>
 
-                        <input type="radio" value="validated" name="ir" onChange={() => setOutputMode(OutputMode.VALIDATED)}/>
-                        <label>validated</label>
+                        <label>
+                        <input
+                            type="radio" value="validated" name="ir"
+                            onChange={() => setOutputMode(OutputMode.VALIDATED)} />
+                            <span>validated</span>
+                        </label>
 
-                        <input type="radio" value="bir" name="ir" onChange={() => setOutputMode(OutputMode.BIR)}/>
-                        <label>bir</label>
+                        <label>
+                        <input type="radio" value="bir" name="ir"
+                            onChange={() => setOutputMode(OutputMode.BIR)} />
+                            <span>bir</span>
+                        </label>
                     </div>
 
                     <Editor source={source} onCursorChange={setCursor} onSourceChange={setSource} />
