@@ -33,7 +33,7 @@ class Point(our x, our y)
 # This function is declared as `async` because it
 # awaits the result of print.
 async fn print_point(p) {
-    print("The point is `{p}`).await
+    print("The point is: {p}").await
 }
 
 # This function is not declared as `async` because it
@@ -50,8 +50,8 @@ p.x += 1
 print_point(p).await
 
 # prints:
-# The point is `Point(x: 22, y: 44)`
-# The point is `Point(x: 34, y: 44)`
+# The point is: Point(x: 22, y: 44)
+# The point is: Point(x: 34, y: 44)
 ```
 
 Some things to note here:
@@ -60,7 +60,7 @@ Some things to note here:
 * The `my p = ...` statement declares a local variable `p` using another permission, `my`. 
     * `my` declares a variable that has *unique* access to its object: in this case, we just created the `Point`, so nobody else could possibly be referencing it, so that makes sense. If that doesn't make sense yet, don't worry, we're going to talk all about `my` in the next section.
 * You create a class by invoking its constructor function `Point(22, 44)`.
-* Strings can embed expressions with `{}`, and they get "stringified", so `"The point is `{p}`"` embeds `p` into the string.
+* Strings can embed expressions with `{}`, and they get "stringified", so `"The point is {p}"` embeds `p` into the string.
     * The default stringifier prints the values of each field.
 * You write `:=` to reassign variables or fields (just `=` is for declaring a new variable).
     * You can also use the `+=`, `-=`, `*=`, `/=`, `%=` operators you may be familiar with from other languages.
