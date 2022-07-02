@@ -2,7 +2,10 @@ use std::path::{Path, PathBuf};
 use structopt::StructOpt;
 
 #[derive(StructOpt)]
-pub struct Deploy {}
+pub struct Deploy {
+    #[structopt(long)]
+    check: bool,
+}
 
 impl Deploy {
     pub fn main(&self) -> eyre::Result<()> {
@@ -34,7 +37,13 @@ impl Deploy {
         {
             let _directory = xshell::pushd(&book_dir)?;
             xshell::Cmd::new("npm").arg("install").run()?;
-            xshell::Cmd::new("npm").arg("run").arg("typecheck").run()?;
+            if self.check {
+                xshell::Cmd::new("npm").arg("run").arg("typecheck").run()?;
+                xshell::Cmd::new("npm")
+                    .arg("run")
+                    .arg("format:check")
+                    .run()?;
+            }
             xshell::Cmd::new("npm").arg("run").arg("build").run()?;
         }
 
