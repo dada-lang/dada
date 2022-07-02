@@ -22,6 +22,8 @@ impl Deploy {
             let dada_web_dir = xshell::cwd()?.join("components/dada-web");
             let _directory = xshell::pushd(&dada_web_dir)?;
             xshell::Cmd::new(&wasm_pack_path)
+                // prevent wasm-pack from invalidating cargo build cache, and viceversa
+                .env("CARGO_TARGET_DIR", target_dir.join("wasm-pack"))
                 .arg("build")
                 .arg("--target")
                 .arg("web")
