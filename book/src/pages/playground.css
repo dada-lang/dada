@@ -1,47 +1,47 @@
 .execute-output {
-    background-color: var(--ifm-color-emphasis-100);
-    font-family: 'Source Code Pro', monospace;
-    height: 30vh;
-    width: 95%;
-    padding: 8px 10px;
-    border-left: 4px solid var(--ifm-color-emphasis-500);
-    white-space: pre-wrap;
-    overflow: auto;
+  background-color: var(--ifm-color-emphasis-100);
+  font-family: "Source Code Pro", monospace;
+  height: 30vh;
+  width: 95%;
+  padding: 8px 10px;
+  border-left: 4px solid var(--ifm-color-emphasis-500);
+  white-space: pre-wrap;
+  overflow: auto;
 }
 
 .ide {
-    display: grid;
-    grid-template-columns: 1fr 1fr;
-    gap: 20px
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 20px;
 }
 
 .ide .editor-cell .share {
-    padding-left: 0.5rem;
+  padding-left: 0.5rem;
 }
 
 .ide .editor-cell .ir-options {
-    padding-left: 0.5rem;
+  padding-left: 0.5rem;
 }
 
 .ir-options label:hover {
-    cursor: pointer;
+  cursor: pointer;
 }
 
 .ir-output {
-    background-color: var(--ifm-color-emphasis-100);
-    font-family: 'Source Code Pro', monospace;
-    height: 80vh;
-    width: 95%;
-    padding: 8px 10px;
-    border-left: 4px solid var(--ifm-color-emphasis-500);
-    white-space: pre-wrap;
-    overflow: auto;
+  background-color: var(--ifm-color-emphasis-100);
+  font-family: "Source Code Pro", monospace;
+  height: 80vh;
+  width: 95%;
+  padding: 8px 10px;
+  border-left: 4px solid var(--ifm-color-emphasis-500);
+  white-space: pre-wrap;
+  overflow: auto;
 }
 
 .heap-cell {
-    margin-top: 20px;
+  margin-top: 20px;
 }
 
 .main-wrapper main h1 {
-    padding-left: 0.5rem;
+  padding-left: 0.5rem;
 }
