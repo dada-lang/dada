@@ -125,6 +125,12 @@ function Ide(props: { mini: boolean; sourceText: string }) {
   const [queue] = useState<Queue>(() => new Queue());
   const [outputMode, setOutputMode] = useState<OutputMode>(OutputMode.EXECUTE);
 
+  // Guess an appropriate number of lines based on the initial
+  // source.
+  let numSourceLines = props.sourceText.split(/\n|\r/).length;
+  let minLines = Math.min(Math.max(numSourceLines, 5), 50);
+  console.log(`numSourceLines = ${numSourceLines}, minLines = ${minLines}`);
+
   // First pass: we have to initialize the webassembly and "DCW"
   // instance.
   useEffect(() => {
@@ -183,8 +189,8 @@ function Ide(props: { mini: boolean; sourceText: string }) {
             source={source}
             onCursorChange={setCursor}
             onSourceChange={setSource}
-            minLines={3}
-            maxLines={10}
+            minLines={minLines}
+            maxLines={minLines}
           />
         </Row>
         <Row>
