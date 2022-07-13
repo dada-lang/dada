@@ -125,8 +125,7 @@ impl<'me> HeapGraphCapture<'me> {
             | ObjectData::Float(_)
             | ObjectData::String(_)
             | ObjectData::Unit(_) => {
-                let string =
-                    DefaultStringify::stringify_object(&*self.machine, self.db, "", object);
+                let string = DefaultStringify::stringify_object(self.machine, self.db, "", object);
                 self.data_target(db, object, &string)
             }
         }

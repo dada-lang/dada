@@ -97,7 +97,6 @@ pub fn offset(db: &dyn crate::Db, filename: Filename, position: LineColumn) -> O
 }
 
 #[salsa::memoized(in crate::Jar ref)]
-#[allow(clippy::needless_lifetimes)]
 fn line_table(db: &dyn crate::Db, filename: Filename) -> LineTable {
     let source_text = crate::manifest::source_text(db, filename);
     LineTable::new(source_text)
