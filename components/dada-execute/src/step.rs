@@ -559,7 +559,7 @@ impl<'me> Stepper<'me> {
             }
             bir::ExprData::Error => {
                 let span = self.span_from_bir(expr);
-                return Err(error!(span, "compilation error").eyre(self.db));
+                Err(error!(span, "compilation error").eyre(self.db))
             }
         }
     }
