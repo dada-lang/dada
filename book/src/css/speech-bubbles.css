@@ -128,7 +128,6 @@ is to other properties or values in creating the effect */
   border-color: transparent #f3961c;
 }
 
-
 /* ============================================================================================================================
 == BUBBLE WITH A RIGHT-ANGLED TRIANGLE
 ** ============================================================================================================================ */
@@ -239,7 +238,6 @@ is to other properties or values in creating the effect */
   /* vary these values to change the angle of the vertex */
   border-color: transparent #075698;
 }
-
 
 /* ============================================================================================================================
 == BUBBLE WITH AN OBTUSE TRIANGLE
@@ -430,7 +428,6 @@ is to other properties or values in creating the effect */
   border-color: #fff transparent;
 }
 
-
 /* ============================================================================================================================
 == BUBBLE WITH A BORDER AND TRIANGLE
 ** ============================================================================================================================ */
@@ -576,7 +573,6 @@ is to other properties or values in creating the effect */
   border-color: transparent #fff;
 }
 
-
 /* ============================================================================================================================
 == PINCHED SPEECH BUBBLE (more CSS3)
 ** ============================================================================================================================ */
@@ -622,7 +618,7 @@ is to other properties or values in creating the effect */
 }
 
 /* creates the other rounded rectangle */
-.pinched> :first-child:before {
+.pinched > :first-child:before {
   content: "";
   position: absolute;
   top: -20px;
@@ -635,7 +631,6 @@ is to other properties or values in creating the effect */
   -moz-border-radius-bottomleft: 15px;
   border-bottom-left-radius: 15px;
 }
-
 
 /* ============================================================================================================================
 == OVAL SPEECH BUBBLE (more CSS3)
@@ -716,7 +711,6 @@ is to other properties or values in creating the effect */
   -o-transform: translate(-30px, -2px);
   transform: translate(-30px, -2px);
 }
-
 
 /* ============================================================================================================================
 == OVAL THOUGHT BUBBLE (more CSS3)
@@ -890,7 +884,7 @@ is to other properties or values in creating the effect */
   width: 0;
 }
 
-.oval-quotes+p {
+.oval-quotes + p {
   position: relative;
   /* part of the IE8 width compromise */
   width: 150px;
@@ -898,7 +892,6 @@ is to other properties or values in creating the effect */
   font-size: 18px;
   font-weight: bold;
 }
-
 
 /* ============================================================================================================================
 == RECTANGLE-BORDER STYLE WITH CURVE
@@ -961,7 +954,7 @@ is to other properties or values in creating the effect */
 }
 
 /* creates a small circle to produce a rounded point where the two curves meet */
-.rectangle-speech-border> :first-child:before {
+.rectangle-speech-border > :first-child:before {
   content: "";
   position: absolute;
   bottom: -40px;
@@ -976,7 +969,7 @@ is to other properties or values in creating the effect */
 }
 
 /* creates a white rectangle to cover part of the oval border*/
-.rectangle-speech-border> :first-child:after {
+.rectangle-speech-border > :first-child:after {
   content: "";
   position: absolute;
   bottom: -10px;
@@ -1058,7 +1051,7 @@ is to other properties or values in creating the effect */
 }
 
 /* creates a small circle to produce a rounded point where the two curves meet */
-.oval-speech-border> :first-child:before {
+.oval-speech-border > :first-child:before {
   content: "";
   position: absolute;
   z-index: 1;
@@ -1075,7 +1068,7 @@ is to other properties or values in creating the effect */
 }
 
 /* creates a white rectangle to cover part of the oval border*/
-.oval-speech-border> :first-child:after {
+.oval-speech-border > :first-child:after {
   content: "";
   position: absolute;
   z-index: 1;

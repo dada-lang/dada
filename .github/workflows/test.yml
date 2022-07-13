@@ -65,7 +65,7 @@ jobs:
       - uses: actions-rs/cargo@v1.0.3
         with:
           command: xtask 
-          args: deploy
+          args: deploy --check
 
   rustfmt:
     name: Rustfmt
