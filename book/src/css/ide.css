@@ -1,0 +1,39 @@
+.dada-editor {
+  background-color: #eeeeee;
+}
+
+.dada-output {
+  font-family: "Source Code Pro", monospace;
+  height: 100%;
+  width: 100%;
+  white-space: pre-wrap;
+  overflow: auto;
+  background-color: var(--ifm-color-emphasis-100);
+}
+
+.dada-ir-output {
+  font-family: "Source Code Pro", monospace;
+  width: 100%;
+  background-color: var(--ifm-color-emphasis-100);
+  border: 4px solid var(--ifm-color-emphasis-500);
+  white-space: pre-wrap;
+  overflow: auto;
+}
+
+.ide {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 20px;
+}
+
+.heap-cell {
+  margin-top: 20px;
+  width: 100%;
+}
+
+.ide-header {
+  font-family: "Amatic SC", cursive;
+  background-color: var(--ifm-color-primary-dark);
+  color: var(--ifm-color-primary-lightest);
+  width: 100%;
+}

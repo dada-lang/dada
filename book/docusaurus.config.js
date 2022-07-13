@@ -36,6 +36,7 @@ const config = {
         theme: {
           customCss: [
             require.resolve("./src/css/custom.css"),
+            require.resolve("./src/css/ide.css"),
             require.resolve("./src/css/speech-bubbles.css"),
           ],
         },

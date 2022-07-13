@@ -3,6 +3,7 @@ import { useEffect, useState } from "react";
 import Col from "react-bootstrap/Col";
 import Row from "react-bootstrap/Row";
 import { default as AnsiUp } from "ansi_up";
+import Container from "react-bootstrap/Container";
 
 import dadaWeb, { compiler } from "dada-web";
 import type { DadaCompiler, InitOutput } from "dada-web";
@@ -175,18 +176,29 @@ function Ide(props: { mini: boolean; sourceText: string }) {
 
   if (props.mini) {
     return (
-      <Row>
-        <Col>
+      <Container>
+        <Row className={"ide-header"}>Source Code</Row>
+        <Row>
           <Editor
             source={source}
             onCursorChange={setCursor}
             onSourceChange={setSource}
+            minLines={3}
+            maxLines={10}
           />
-        </Col>
-        <Col>
-          <Output output={output} heaps={heaps} mode={outputMode} />
-        </Col>
-      </Row>
+        </Row>
+        <Row>
+          <span className={"ide-header"}>Output</span>
+        </Row>
+        <Row>
+          <Output
+            output={output}
+            heaps={heaps}
+            mode={OutputMode.EXECUTE}
+            mini={props.mini}
+          />
+        </Row>
+      </Container>
     );
   } else {
     return (
@@ -248,10 +260,17 @@ function Ide(props: { mini: boolean; sourceText: string }) {
             source={source}
             onCursorChange={setCursor}
             onSourceChange={setSource}
+            minLines={undefined}
+            maxLines={undefined}
           />
         </div>
         <div className="output-cell">
-          <Output output={output} heaps={heaps} mode={outputMode} />
+          <Output
+            output={output}
+            heaps={heaps}
+            mode={outputMode}
+            mini={false}
+          />
         </div>
       </div>
     );

@@ -10,6 +10,8 @@ import type { Cursor } from ".";
 
 type OutputProps = {
   source: string;
+  minLines: number | undefined;
+  maxLines: number | undefined;
   onCursorChange: (c: Cursor) => void;
   onSourceChange: (s: string) => void;
 };
@@ -24,6 +26,8 @@ function Editor(props: PropsWithChildren<OutputProps>) {
       width="100%"
       height="82vh"
       name="dada-editor"
+      minLines={props.minLines}
+      maxLines={props.maxLines}
       onChange={(v) => props.onSourceChange(v)}
       onCursorChange={(selection) =>
         props.onCursorChange({
