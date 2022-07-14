@@ -1,9 +1,9 @@
 class Point(any x, any y)
 
 async fn main() {
-    any p = Point(x: 22, y: 44)
+    p = Point(x: 22, y: 44)
     #?                         ^ HeapGraph
-    any q = p
+    q = p
     #?       ^ HeapGraph
 
     x = p.x

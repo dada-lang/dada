@@ -827,11 +827,6 @@ impl<'me> Validator<'me> {
                     let place_expr = self.add(validated::ExprData::Reserve(place), origin);
                     self.seq(opt_assign_expr, place_expr)
                 }
-                ExprMode::Specifier(Specifier::Our) => {
-                    let given_expr = self.add(validated::ExprData::Give(place), origin);
-                    let shared_expr = self.add(validated::ExprData::Share(given_expr), origin);
-                    self.seq(opt_assign_expr, shared_expr)
-                }
                 ExprMode::Specifier(Specifier::Shleased) => {
                     let place_expr = self.add(validated::ExprData::Shlease(place), origin);
                     self.seq(opt_assign_expr, place_expr)

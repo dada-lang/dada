@@ -1,13 +1,13 @@
 class Pair(any a, any b)
 
 async fn main() {
-    any temp = Pair(22, 44).share
-    any pair = Pair(temp, 66)
+    temp = Pair(22, 44).share
+    pair = Pair(temp, 66)
     #           ^^^^
     # Temp is shared, so this clones
 
     # Leasing from `pair.a` creates a third owner.
-    any p = pair.a.lease
+    p = pair.a.lease
 
     # Overwriting `pair.a` removes one handle to
     # the shared pair, but `p` is unaffected.

@@ -1,10 +1,10 @@
 class Pair(any a, any b)
 
 async fn main() {
-    any pair1 = Pair(22, 44)
-    any pair2 = Pair(pair1.lease.share, 66)
+    pair1 = Pair(22, 44)
+    pair2 = Pair(pair1.lease.share, 66)
 
-    any p = pair2.a.lease
+    p = pair2.a.lease
 
     pair2.a := Pair(23, 45)
 

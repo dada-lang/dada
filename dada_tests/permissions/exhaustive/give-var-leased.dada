@@ -1,8 +1,8 @@
 class Pair(any a, any b)
 
 async fn main() {
-    any p = Pair(22, 44).lease
-    any q = p.give                    # Giving a leased thing: subleases
+    p = Pair(22, 44).lease
+    q = p.give                    # Giving a leased thing: subleases
 
     # Accessing `q`: ok
     print(q).await #! OUTPUT leased Pair\(22, 44\)

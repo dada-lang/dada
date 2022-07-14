@@ -1,7 +1,7 @@
 class Point()
 
 async fn main() {
-    any p = Point()
+    p = Point()
     leased q = p
 
     # Check that the leased value can be used until `p` is used again

@@ -1,9 +1,9 @@
-class Point(our x, our y)
+class Point(x, y)
 
 async fn main() {
-    any p = Point(Point(22, 44), 66)
+    p = Point(Point(22, 44), 66)
     print(p).await
-    #! OUTPUT Point\(our Point\(22, 44\), 66\)
+    #! OUTPUT Point\(my Point\(22, 44\), 66\)
 
     print(22 + 44i).await #! OUTPUT 66_i
     print(22i + 44).await #! OUTPUT 66_i

@@ -1,7 +1,7 @@
-class Point(our x, our y)
+class Point(x, y)
 
 async fn main() {
-    our p = Point(22, 44)
+    p = Point(22, 44).share
     # Test that we execute `test(p)` (and hence see its output)
     # before we detect the error here
     test(p).await.x += 1 #! RUN ERROR cannot write to shared fields

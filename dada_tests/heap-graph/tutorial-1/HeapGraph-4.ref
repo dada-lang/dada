@@ -27,7 +27,7 @@ digraph {
         <tr><td port="1"><font color="slategray">y: "44"</font></td></tr>
       </table>>
     ];
-    "afterstack":0 -> "afternode0" [label="shleased", style="solid", penwidth=1.0, arrowtype="empty", color="blue"];
+    "afterstack":0 -> "afternode0" [label="my", style="solid", penwidth=3.0, arrowtype="normal", color="red"];
   }
   subgraph cluster_before {
     label=<<b>before</b>>
@@ -53,7 +53,7 @@ digraph {
         <tr><td port="1"><font color="slategray">y: "44"</font></td></tr>
       </table>>
     ];
-    "beforestack":0 -> "beforenode0" [label="shleased", style="solid", penwidth=1.0, arrowtype="empty", color="blue"];
+    "beforestack":0 -> "beforenode0" [label="my", style="solid", penwidth=3.0, arrowtype="normal", color="red"];
   }
 }
 The point is FIXME

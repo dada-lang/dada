@@ -1,7 +1,7 @@
-class Point(our x, our y)
+class Point(x, y)
 
 async fn main() {
-    any p = Point(22, 44)
+    p = Point(22, 44)
     test(p) += 1 
     #! ERROR you can only assign to local variables and fields, not arbitrary expressions
     #! RUN ERROR compilation error encountered

@@ -4,7 +4,7 @@
 # isn't enough to truly capture the flexibility of
 # Rust's shared borrows.
 
-class Accumulator(any list)
+class Accumulator(list)
 class List()
 
 # This function takes a `shleased` accumulator and returns a
@@ -22,9 +22,9 @@ async fn main() {
     # // works fine!
     # ```
     
-    any a = Accumulator(list: List())
-    l1 = get_list(a)
-    l2 = get_list(a)
+    a = Accumulator(list: List())
+    l1 = get_list(a.shlease)
+    l2 = get_list(a.shlease)
     print(l2).await #! OUTPUT List\(\)
     print(l1).await #! OUTPUT shleased List
     print(l2).await #! OUTPUT shleased List

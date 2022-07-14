@@ -1,10 +1,10 @@
-class Point(our x, our y)
+class Point(x, y)
 
 async fn main() {
-    our p = Point(22, 33)
+    p = Point(22, 33).share
 
     # Under current semantics, leasing an `our`
     # yields another `our` value (not, e.g., shleased),
     # so this code works.
-    our x = p.x.lease
+    x = p.x.lease.share
 }

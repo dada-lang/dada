@@ -1,5 +1,5 @@
 our Point(22, 44)
 leased OurLeased(our Point(22, 44))
 leased OurLeased(our Point(22, 44))
-our Point(44, 66)
+leased Point(44, 66)
 leased OurLeased(our Point(22, 44))

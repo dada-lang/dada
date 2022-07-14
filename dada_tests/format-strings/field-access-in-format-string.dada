@@ -1,5 +1,5 @@
-class Point(our x, our y)
+class Point(any x, any y)
 
-our p = Point(22, 44)
+p = Point(22, 44).share
 print("({p.x}, {p.y})").await
 #! OUTPUT \(22, 44\)

@@ -11,7 +11,7 @@
 # But I'm pretty sure it's there.
 
 class Accumulator(any atomic list)
-class List(our field)
+class List(field)
 
 fn foo(leased accumulator) -> # shleased List
 {
@@ -20,7 +20,7 @@ fn foo(leased accumulator) -> # shleased List
 }
 
 async fn main() {
-    any a = Accumulator(list: List(22))
+    a = Accumulator(list: List(22))
 
     # get a shared lease to the list,
     # but it is still owned by `a`
@@ -29,7 +29,7 @@ async fn main() {
     # share `a`, which currently revokes
     # the lease `a`, and hence `l`
     # becomes inaccessible
-    our s = a
+    s = a.share
 
     print(l).await #! RUN ERROR your lease to this object was cancelled
 

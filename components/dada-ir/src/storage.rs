@@ -19,13 +19,12 @@ impl SpannedSpecifier {
     /// Creates a new `SpannedSpecifier` for a variable/field that didn't
     /// have an explicit specifier.
     pub fn new_defaulted(db: &dyn crate::Db, name_span: FileSpan) -> Self {
-        Self::new(db, Specifier::Shleased, true, name_span)
+        Self::new(db, Specifier::Any, true, name_span)
     }
 }
 
 #[derive(PartialEq, Eq, PartialOrd, Ord, Copy, Clone, Hash, Debug)]
 pub enum Specifier {
-    Our,
     Leased,
     Shleased,
     Any,
@@ -39,7 +38,7 @@ impl Specifier {
     pub fn must_be_unique(self) -> bool {
         match self {
             Specifier::Leased => true,
-            Specifier::Our | Specifier::Shleased => false,
+            Specifier::Shleased => false,
             Specifier::Any => false,
         }
     }
@@ -50,7 +49,6 @@ impl Specifier {
     /// [`Specifier::Any`] returns false.
     pub fn must_be_owned(self) -> bool {
         match self {
-            Specifier::Our => true,
             Specifier::Shleased | Specifier::Leased => false,
             Specifier::Any => false,
         }
@@ -60,7 +58,6 @@ impl Specifier {
 impl std::fmt::Display for Specifier {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
         match self {
-            Specifier::Our => write!(f, "our"),
             Specifier::Shleased => write!(f, "shleased"),
             Specifier::Leased => write!(f, "leased"),
             Specifier::Any => write!(f, "any"),

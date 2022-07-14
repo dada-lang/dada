@@ -1,4 +1,4 @@
 our Point(22, 44)
 our Point(22, 44)
-our Point(33, 55)
+my Point(33, 55)
 our Point(44, 66)

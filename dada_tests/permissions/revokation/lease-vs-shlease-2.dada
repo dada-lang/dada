@@ -1,7 +1,7 @@
-class Data(our field)
+class Data(field)
 
 async fn main() {
-    any m = Data(22)
+    m = Data(22)
     shleased s = m
     print(m.field).await #! OUTPUT 22
     print(s.field).await #! OUTPUT 22

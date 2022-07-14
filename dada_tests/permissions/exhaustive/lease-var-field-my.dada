@@ -1,8 +1,8 @@
 class Pair(any a, any b)
 
 async fn main() {
-    any p = Pair(Pair(22, 44), 66)
-    any q = p.a.lease
+    p = Pair(Pair(22, 44), 66)
+    q = p.a.lease
     print(q).await #! OUTPUT leased Pair\(22, 44\)
     print(p).await #! OUTPUT my Pair\(my Pair\(22, 44\), 66\)
     print(q).await #! RUN ERROR your lease to this object was cancelled

@@ -1,9 +1,9 @@
 class Pair(any a, any b)
 
 async fn main() {
-    any pair = Pair(Pair(22, 44), 66)
+    pair = Pair(Pair(22, 44), 66)
 
-    any p = pair.a.lease
+    p = pair.a.lease
 
     # This write causes the `Pair(22, 44)`
     # to have no owner. It gets collected by the GC...

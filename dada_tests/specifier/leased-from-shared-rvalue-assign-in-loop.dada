@@ -1,4 +1,4 @@
-class Point(our x, our y)
+class Point(x, y)
 
 async fn main() {
     # Leasing an `our` value just takes ownership

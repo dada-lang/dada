@@ -1,4 +1,4 @@
-class Point(our x, our y)
+class Point(x, y)
 
 async fn main() {
     # Leases a temporary that lives as long as `p`

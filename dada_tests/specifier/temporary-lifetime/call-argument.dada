@@ -1,7 +1,7 @@
 class Object(any data)
 
 async fn main() {
-    any o = lease_me(Object(22)).data
+    o = lease_me(Object(22)).data
     #! RUN ERROR your lease to this object was cancelled
     #
     # What happens here:

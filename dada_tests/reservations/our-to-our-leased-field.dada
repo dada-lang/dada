@@ -1,11 +1,11 @@
-class Point(any a, any b)
+class Point(a, b)
 
 class OurLeased(shleased f)
 
 async fn main() {
-    our p = Point(22, 44)           # create `(22, 44)` with shared ownership
+    p = Point(22, 44).share         # create `(22, 44)` with shared ownership
     print(p.lease).await            #! OUTPUT Point\(22, 44\)
-    any q = OurLeased(p)            # `OurLeased` takes 2nd ownership of `(22, 44)`
+    q = OurLeased(p)                # `OurLeased` takes 2nd ownership of `(22, 44)`
     print(q.lease).await            #! OUTPUT OurLeased\(our Point\(22, 44\)\)
     p := Point(44, 66)              # reassigning `p` doesn't invalidate `q.f`
     
