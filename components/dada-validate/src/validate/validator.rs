@@ -48,7 +48,7 @@ pub enum ExprMode {
 
 impl ExprMode {
     fn give() -> Self {
-        Self::Specifier(Specifier::My)
+        Self::Specifier(Specifier::Any)
     }
 
     fn leased() -> Self {
@@ -443,7 +443,7 @@ impl<'me> Validator<'me> {
                 let validated_body_expr = self
                     .subscope()
                     .with_loop_expr(loop_expr)
-                    .validate_expr_and_exit(*body_expr, ExprMode::Specifier(Specifier::My));
+                    .validate_expr_and_exit(*body_expr, ExprMode::give());
 
                 self.tables[loop_expr] = validated::ExprData::Loop(validated_body_expr);
 
@@ -815,7 +815,7 @@ impl<'me> Validator<'me> {
     ) -> validated::Expr {
         match data {
             Ok((opt_assign_expr, place)) => match mode {
-                ExprMode::Specifier(Specifier::My) | ExprMode::Specifier(Specifier::Any) => {
+                ExprMode::Specifier(Specifier::Any) => {
                     let place_expr = self.add(validated::ExprData::Give(place), origin);
                     self.seq(opt_assign_expr, place_expr)
                 }

@@ -1,7 +1,7 @@
 class Pair(any a, any b)
 
 async fn main() {
-    my pair = Pair(22, 44)
+    any pair = Pair(22, 44)
     print(pair.lease).await #! OUTPUT Pair\(22, 44\)
 
     our pair1 = pair

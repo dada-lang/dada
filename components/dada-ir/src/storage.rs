@@ -25,7 +25,6 @@ impl SpannedSpecifier {
 
 #[derive(PartialEq, Eq, PartialOrd, Ord, Copy, Clone, Hash, Debug)]
 pub enum Specifier {
-    My,
     Our,
     Leased,
     Shleased,
@@ -39,7 +38,7 @@ impl Specifier {
     /// [`Specifier::Any`] returns false.
     pub fn must_be_unique(self) -> bool {
         match self {
-            Specifier::My | Specifier::Leased => true,
+            Specifier::Leased => true,
             Specifier::Our | Specifier::Shleased => false,
             Specifier::Any => false,
         }
@@ -51,7 +50,7 @@ impl Specifier {
     /// [`Specifier::Any`] returns false.
     pub fn must_be_owned(self) -> bool {
         match self {
-            Specifier::Our | Specifier::My => true,
+            Specifier::Our => true,
             Specifier::Shleased | Specifier::Leased => false,
             Specifier::Any => false,
         }
@@ -62,7 +61,6 @@ impl std::fmt::Display for Specifier {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
         match self {
             Specifier::Our => write!(f, "our"),
-            Specifier::My => write!(f, "my"),
             Specifier::Shleased => write!(f, "shleased"),
             Specifier::Leased => write!(f, "leased"),
             Specifier::Any => write!(f, "any"),
