@@ -13,8 +13,8 @@ digraph {
           <table border="0">
           <tr><td border="1">main</td></tr>
           <tr><td port="0"><font color="slategray">p</font></td></tr>
-          <tr><td port="2"><font color="slategray">q</font></td></tr>
-          <tr><td port="20"><font color="black">(in-flight): "66"</font></td></tr>
+          <tr><td port="1"><font color="slategray">q</font></td></tr>
+          <tr><td port="16"><font color="black">(in-flight): "66"</font></td></tr>
           </table>
         >;
       ];
@@ -41,7 +41,7 @@ digraph {
           <table border="0">
           <tr><td border="1">main</td></tr>
           <tr><td port="0"><font color="slategray">p</font></td></tr>
-          <tr><td port="2"><font color="slategray">q</font></td></tr>
+          <tr><td port="1"><font color="slategray">q</font></td></tr>
           </table>
         >;
       ];

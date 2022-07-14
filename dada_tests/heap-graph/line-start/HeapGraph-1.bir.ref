@@ -4,34 +4,41 @@
         BasicBlock(0): BasicBlockData(
             [
                 (
+                    BreakpoingStart(
+                        "class",
+                        0,
+                    ),
+                    Expr(4),
+                ),
+                (
                     AssignExpr(
-                        temp{6},
+                        temp{3},
                         Class(Id { value: 1 }).reserve,
                     ),
                     Expr(0),
                 ),
                 (
                     AssignExpr(
-                        temp{7},
+                        temp{4},
                         22,
                     ),
                     Expr(1),
                 ),
                 (
                     AssignExpr(
-                        temp{8},
+                        temp{5},
                         44,
                     ),
                     Expr(2),
                 ),
             ],
             Assign(
-                temp{1},
+                p{0},
                 Call(
-                    temp{6},
+                    temp{3},
                     [
-                        temp{7},
-                        temp{8},
+                        temp{4},
+                        temp{5},
                     ],
                     [
                         None,
@@ -45,35 +52,21 @@
             [
                 (
                     Clear(
-                        temp{8},
+                        temp{5},
                     ),
                     Expr(2),
                 ),
                 (
                     Clear(
-                        temp{7},
+                        temp{4},
                     ),
                     Expr(1),
                 ),
                 (
                     Clear(
-                        temp{6},
+                        temp{3},
                     ),
                     Expr(0),
-                ),
-                (
-                    BreakpoingStart(
-                        "class",
-                        0,
-                    ),
-                    Expr(4),
-                ),
-                (
-                    AssignPlace(
-                        p{0},
-                        temp{1},
-                    ),
-                    Expr(4),
                 ),
                 (
                     BreakpointEnd(
@@ -86,46 +79,33 @@
                 ),
                 (
                     AssignExpr(
-                        temp{5},
-                        (),
-                    ),
-                    Expr(4),
-                ),
-                (
-                    Clear(
-                        temp{5},
-                    ),
-                    Expr(4),
-                ),
-                (
-                    AssignExpr(
-                        temp{10},
+                        temp{6},
                         Class(Id { value: 1 }).reserve,
                     ),
                     Expr(5),
                 ),
                 (
                     AssignExpr(
-                        temp{11},
+                        temp{7},
                         p{0}.reserve,
                     ),
                     Expr(6),
                 ),
                 (
                     AssignExpr(
-                        temp{12},
+                        temp{8},
                         66,
                     ),
                     Expr(7),
                 ),
             ],
             Assign(
-                temp{3},
+                q{1},
                 Call(
-                    temp{10},
+                    temp{6},
                     [
-                        temp{11},
-                        temp{12},
+                        temp{7},
+                        temp{8},
                     ],
                     [
                         None,
@@ -139,52 +119,32 @@
             [
                 (
                     Clear(
-                        temp{12},
+                        temp{8},
                     ),
                     Expr(7),
                 ),
                 (
                     Clear(
-                        temp{11},
+                        temp{7},
                     ),
                     Expr(6),
                 ),
                 (
                     Clear(
-                        temp{10},
+                        temp{6},
                     ),
                     Expr(5),
                 ),
                 (
-                    AssignPlace(
-                        q{2},
-                        temp{3},
-                    ),
-                    Expr(9),
-                ),
-                (
                     AssignExpr(
-                        temp{9},
-                        (),
-                    ),
-                    Expr(9),
-                ),
-                (
-                    Clear(
-                        temp{9},
-                    ),
-                    Expr(9),
-                ),
-                (
-                    AssignExpr(
-                        temp{4},
+                        temp{2},
                         (),
                     ),
                     Expr(10),
                 ),
             ],
             Return(
-                temp{4},
+                temp{2},
             ),
         ),
     },

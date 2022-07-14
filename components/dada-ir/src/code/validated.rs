@@ -296,17 +296,8 @@ pub enum ExprData {
     /// `<op> x`
     Unary(Op, Expr),
 
-    /// `a := b.give` -- it is important that this
-    /// is only used to create temporaries! This is because
-    /// we cannot apply all the potential specifiers to an expression
-    /// (e.g., we cannot lease it). To assign to user-declared variables
-    /// we must use `AssignFromPlace`.
-    AssignTemporary(LocalVariable, Expr),
-
-    /// `a := b` -- used when the specifier (`my`, `our`, etc) is not known
-    /// statically, and we we can't determine whether the place should be
-    /// given, leased, or what
-    AssignFromPlace(TargetPlace, Place),
+    /// `a = b` or `a := b`
+    Assign(TargetPlace, Expr),
 
     /// Bring the variables in scope during the expression
     Declare(Vec<LocalVariable>, Expr),
@@ -393,15 +384,10 @@ impl ExprData {
                 .field(op)
                 .field(&rhs.debug(db))
                 .finish(),
-            ExprData::AssignTemporary(place, expr) => f
+            ExprData::Assign(place, expr) => f
                 .debug_tuple("Assign")
                 .field(&place.debug(db))
                 .field(&expr.debug(db))
-                .finish(),
-            ExprData::AssignFromPlace(target, source) => f
-                .debug_tuple("AssignFromPlace")
-                .field(&target.debug(db))
-                .field(&source.debug(db))
                 .finish(),
             ExprData::Declare(vars, expr) => f
                 .debug_tuple("Declare")

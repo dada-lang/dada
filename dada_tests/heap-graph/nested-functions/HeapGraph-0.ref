@@ -14,9 +14,9 @@ digraph {
           <tr><td border="1">main</td></tr>
           <tr><td port="0"><font color="slategray">name: "Fellow Dadaist"</font></td></tr>
           <tr><td border="1">helper</td></tr>
-          <tr><td port="17"><font color="black">p</font></td></tr>
-          <tr><td port="19"><font color="slategray">q</font></td></tr>
-          <tr><td port="30"><font color="black">(in-flight)</font></td></tr>
+          <tr><td port="15"><font color="black">p</font></td></tr>
+          <tr><td port="16"><font color="black">q</font></td></tr>
+          <tr><td port="24"><font color="black">(in-flight)</font></td></tr>
           </table>
         >;
       ];
@@ -37,7 +37,8 @@ digraph {
         <tr><td port="1"><font color="slategray">y: "44"</font></td></tr>
       </table>>
     ];
-    "stack":30 -> "afternode0" [label="my", style="solid", penwidth=3.0, arrowtype="normal", color="red"];
+    "afterstack":16 -> "afternode0" [label="my", style="solid", penwidth=3.0, arrowtype="normal", color="red"];
+    "stack":24 -> "afternode0" [label="my", style="solid", penwidth=3.0, arrowtype="normal", color="red"];
     "afternode0":0 -> "afternode1" [label="my", style="solid", penwidth=3.0, arrowtype="normal", color="red"];
   }
   subgraph cluster_before {
@@ -52,8 +53,8 @@ digraph {
           <tr><td border="1">main</td></tr>
           <tr><td port="0"><font color="slategray">name: "Fellow Dadaist"</font></td></tr>
           <tr><td border="1">helper</td></tr>
-          <tr><td port="17"><font color="black">p</font></td></tr>
-          <tr><td port="19"><font color="slategray">q</font></td></tr>
+          <tr><td port="15"><font color="black">p</font></td></tr>
+          <tr><td port="16"><font color="slategray">q</font></td></tr>
           </table>
         >;
       ];
@@ -67,7 +68,7 @@ digraph {
         <tr><td port="1"><font color="slategray">y: "44"</font></td></tr>
       </table>>
     ];
-    "beforestack":17 -> "beforenode0" [label="my", style="solid", penwidth=3.0, arrowtype="normal", color="red"];
+    "beforestack":15 -> "beforenode0" [label="my", style="solid", penwidth=3.0, arrowtype="normal", color="red"];
   }
 }
 Hello

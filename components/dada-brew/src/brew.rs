@@ -113,38 +113,12 @@ impl Cursor {
                 self.terminate_and_diverge(brewery, bir::TerminatorData::Error, origin)
             }
 
-            validated::ExprData::AssignTemporary(place, value_expr) => {
-                // temporaries are always created with "any" specifier, which ensures
-                // that we will never have to apply specifier to `value_expr`
-                assert_eq!(brewery.validated_tables()[*place].specifier, None);
-
-                // we only ever use this for temporaries, user-created values use `AssignFromPlace`
-                assert!(matches!(
-                    brewery.origin(*place),
-                    validated::LocalVariableOrigin::Temporary(_)
-                ));
-
-                self.push_breakpoint_start(brewery, origin);
-                let place = self.brew_target_variable(brewery, *place, origin);
-                self.brew_expr_and_assign_to(brewery, place, *value_expr);
-                self.push_breakpoint_end(brewery, None::<bir::Place>, origin)
-            }
-
-            validated::ExprData::AssignFromPlace(target_place, source_place) => {
+            validated::ExprData::Assign(target_place, value_expr) => {
                 let (target_place, target_origins) = self.brew_target_place(brewery, *target_place);
-                let (source_place, source_origins) = self.brew_place(brewery, *source_place);
-                self.push_breakpoint_starts(
-                    brewery,
-                    target_origins.iter().chain(source_origins.iter()).copied(),
-                    origin,
-                );
-                self.push_assignment_from_place(brewery, target_place, source_place, origin);
-                self.push_breakpoint_ends(
-                    brewery,
-                    None::<bir::Place>,
-                    target_origins.into_iter().chain(source_origins),
-                    origin,
-                )
+
+                self.push_breakpoint_starts(brewery, target_origins.iter().copied(), origin);
+                self.brew_expr_and_assign_to(brewery, target_place, *value_expr);
+                self.push_breakpoint_ends(brewery, None::<bir::Place>, target_origins, origin)
             }
 
             validated::ExprData::Declare(vars, subexpr) => {
@@ -445,7 +419,7 @@ impl Cursor {
                 }
             }
 
-            validated::ExprData::AssignTemporary(..) | validated::ExprData::AssignFromPlace(..) => {
+            validated::ExprData::Assign(..) => {
                 self.brew_expr_for_side_effects(brewery, expr);
                 self.push_assignment(brewery, target, bir::ExprData::Unit, origin);
             }

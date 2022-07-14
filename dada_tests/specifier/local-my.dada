@@ -1,4 +1,4 @@
-class Pair(any a, any b)
+class Pair(a, b)
 
 async fn main() {
     pair = Pair(22, 44)
@@ -9,5 +9,5 @@ async fn main() {
     print(pair1).await #! OUTPUT Pair\(22, 44\)
     print(pair2).await #! OUTPUT Pair\(22, 44\)
 
-    print(pair).await #! RUN ERROR your lease to this object was cancelled
+    print(pair).await #! OUTPUT Pair\(22, 44\)
 }

@@ -5,33 +5,33 @@
             [
                 (
                     AssignExpr(
-                        temp{7},
+                        temp{4},
                         Class(Id { value: 1 }).reserve,
                     ),
                     Expr(0),
                 ),
                 (
                     AssignExpr(
-                        temp{8},
+                        temp{5},
                         22,
                     ),
                     Expr(1),
                 ),
                 (
                     AssignExpr(
-                        temp{9},
+                        temp{6},
                         44,
                     ),
                     Expr(2),
                 ),
             ],
             Assign(
-                temp{6},
+                temp{3},
                 Call(
-                    temp{7},
+                    temp{4},
                     [
-                        temp{8},
-                        temp{9},
+                        temp{5},
+                        temp{6},
                     ],
                     [
                         None,
@@ -45,19 +45,19 @@
             [
                 (
                     Clear(
-                        temp{9},
+                        temp{6},
                     ),
                     Expr(2),
                 ),
                 (
                     Clear(
-                        temp{8},
+                        temp{5},
                     ),
                     Expr(1),
                 ),
                 (
                     Clear(
-                        temp{7},
+                        temp{4},
                     ),
                     Expr(0),
                 ),
@@ -70,8 +70,8 @@
                 ),
                 (
                     AssignExpr(
-                        temp{1},
-                        temp{6}.share,
+                        p{0},
+                        temp{3}.share,
                     ),
                     Expr(4),
                 ),
@@ -81,66 +81,46 @@
                         0,
                         Expr(4),
                         Some(
-                            temp{1},
+                            p{0},
                         ),
                     ),
                     Expr(4),
                 ),
                 (
                     Clear(
-                        temp{6},
+                        temp{3},
                     ),
                     Expr(3),
                 ),
                 (
-                    AssignPlace(
-                        p{0},
-                        temp{1},
-                    ),
-                    Expr(5),
-                ),
-                (
                     AssignExpr(
-                        temp{5},
-                        (),
-                    ),
-                    Expr(5),
-                ),
-                (
-                    Clear(
-                        temp{5},
-                    ),
-                    Expr(5),
-                ),
-                (
-                    AssignExpr(
-                        temp{12},
+                        temp{8},
                         Class(Id { value: 1 }).reserve,
                     ),
                     Expr(6),
                 ),
                 (
                     AssignExpr(
-                        temp{13},
+                        temp{9},
                         p{0}.reserve,
                     ),
                     Expr(7),
                 ),
                 (
                     AssignExpr(
-                        temp{14},
+                        temp{10},
                         66,
                     ),
                     Expr(8),
                 ),
             ],
             Assign(
-                temp{11},
+                temp{7},
                 Call(
-                    temp{12},
+                    temp{8},
                     [
-                        temp{13},
-                        temp{14},
+                        temp{9},
+                        temp{10},
                     ],
                     [
                         None,
@@ -154,89 +134,69 @@
             [
                 (
                     Clear(
-                        temp{14},
+                        temp{10},
                     ),
                     Expr(8),
                 ),
                 (
                     Clear(
-                        temp{13},
+                        temp{9},
                     ),
                     Expr(7),
                 ),
                 (
                     Clear(
-                        temp{12},
+                        temp{8},
                     ),
                     Expr(6),
                 ),
                 (
                     AssignExpr(
-                        temp{3},
-                        temp{11}.share,
+                        q{1},
+                        temp{7}.share,
                     ),
                     Expr(10),
                 ),
                 (
                     Clear(
-                        temp{11},
+                        temp{7},
                     ),
                     Expr(9),
                 ),
                 (
-                    AssignPlace(
-                        q{2},
-                        temp{3},
-                    ),
-                    Expr(11),
-                ),
-                (
                     AssignExpr(
-                        temp{10},
-                        (),
-                    ),
-                    Expr(11),
-                ),
-                (
-                    Clear(
-                        temp{10},
-                    ),
-                    Expr(11),
-                ),
-                (
-                    AssignExpr(
-                        temp{17},
+                        temp{13},
                         Print.reserve,
                     ),
                     Expr(12),
                 ),
                 (
                     AssignExpr(
-                        temp{19},
+                        temp{15},
                         "Hi",
                     ),
                     Expr(13),
                 ),
                 (
                     AssignExpr(
-                        temp{18},
-                        Concatenate(temp{19}),
+                        temp{14},
+                        Concatenate(temp{15}),
                     ),
                     Expr(14),
                 ),
                 (
                     Clear(
-                        temp{19},
+                        temp{15},
                     ),
                     Expr(13),
                 ),
             ],
             Assign(
-                temp{16},
+                temp{12},
                 Call(
-                    temp{17},
+                    temp{13},
                     [
-                        temp{18},
+                        temp{14},
                     ],
                     [
                         None,
@@ -249,21 +209,21 @@
             [
                 (
                     Clear(
-                        temp{18},
+                        temp{14},
                     ),
                     Expr(14),
                 ),
                 (
                     Clear(
-                        temp{17},
+                        temp{13},
                     ),
                     Expr(12),
                 ),
             ],
             Assign(
-                temp{15},
+                temp{11},
                 Await(
-                    temp{16},
+                    temp{12},
                 ),
                 BasicBlock(4),
             ),
@@ -272,26 +232,26 @@
             [
                 (
                     Clear(
-                        temp{16},
+                        temp{12},
                     ),
                     Expr(15),
                 ),
                 (
                     Clear(
-                        temp{15},
+                        temp{11},
                     ),
                     Expr(16),
                 ),
                 (
                     AssignExpr(
-                        temp{4},
+                        temp{2},
                         (),
                     ),
                     Expr(17),
                 ),
             ],
             Return(
-                temp{4},
+                temp{2},
             ),
         ),
     },

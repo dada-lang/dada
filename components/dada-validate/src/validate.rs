@@ -17,7 +17,7 @@ pub(crate) fn validate_function(db: &dyn crate::Db, function: Function) -> valid
     let mut tables = validated::Tables::default();
     let mut origins = validated::Origins::default();
     let root_definitions = root_definitions(db, function.filename(db));
-    let scope = Scope::root(db, root_definitions);
+    let scope = Scope::root(db, &root_definitions);
 
     let mut validator =
         validator::Validator::root(db, function, syntax_tree, &mut tables, &mut origins, scope);
@@ -27,7 +27,7 @@ pub(crate) fn validate_function(db: &dyn crate::Db, function: Function) -> valid
     }
     let num_parameters = validator.num_local_variables();
 
-    let root_expr = validator.give_validated_root_expr(syntax_tree.data(db).root_expr);
+    let root_expr = validator.validate_root_expr(syntax_tree.data(db).root_expr);
     std::mem::drop(validator);
     let data = validated::TreeData::new(tables, num_parameters, root_expr);
     validated::Tree::new(db, function, data, origins)
