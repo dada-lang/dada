@@ -89,8 +89,6 @@ impl<'db> Parser<'db> {
         };
         if let Some((shleased_span, _)) = self.eat(Keyword::Shleased) {
             some_specifier(Specifier::Shleased, shleased_span)
-        } else if let Some((leased_span, _)) = self.eat(Keyword::Leased) {
-            some_specifier(Specifier::Leased, leased_span)
         } else if let Some((any_span, _)) = self.eat(Keyword::Any) {
             some_specifier(Specifier::Any, any_span)
         } else {

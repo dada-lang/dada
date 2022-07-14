@@ -2,7 +2,7 @@ class Point(x, y)
 
 async fn main() {
     # Leases a temporary that lives as long as `p`
-    leased p = Point(22, 44)
+    p = Point(22, 44).lease
 
     i = 0
     while i < 1 {

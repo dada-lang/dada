@@ -1,9 +1,0 @@
-class Point(x, y)
-
-async fn main() {
-    p = Point(22, 33).share
-
-    # Leasing an `our` does not yield a `leased` value
-    # (`leased` implies unique access).
-    leased x = p.x.lease #! RUN ERROR more permissions needed
-}

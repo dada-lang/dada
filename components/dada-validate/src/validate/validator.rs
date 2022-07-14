@@ -14,7 +14,6 @@ use dada_ir::return_type::ReturnTypeKind;
 use dada_ir::span::FileSpan;
 use dada_ir::span::Span;
 use dada_ir::storage::Atomic;
-use dada_ir::storage::Specifier;
 use dada_ir::word::Word;
 use dada_lex::prelude::*;
 use dada_parse::prelude::*;
@@ -42,18 +41,9 @@ pub(crate) struct Validator<'me> {
 
 #[derive(Copy, Clone, Debug)]
 pub enum ExprMode {
-    Specifier(Specifier),
+    Given,
+    Leased,
     Reserve,
-}
-
-impl ExprMode {
-    fn give() -> Self {
-        Self::Specifier(Specifier::Any)
-    }
-
-    fn leased() -> Self {
-        Self::Specifier(Specifier::Leased)
-    }
 }
 
 impl<'me> Validator<'me> {
@@ -194,7 +184,7 @@ impl<'me> Validator<'me> {
 
     #[tracing::instrument(level = "debug", skip(self, expr))]
     fn give_validated_expr(&mut self, expr: syntax::Expr) -> validated::Expr {
-        self.validate_expr_in_mode(expr, ExprMode::give())
+        self.validate_expr_in_mode(expr, ExprMode::Given)
     }
 
     #[tracing::instrument(level = "debug", skip(self, expr))]
@@ -443,7 +433,7 @@ impl<'me> Validator<'me> {
                 let validated_body_expr = self
                     .subscope()
                     .with_loop_expr(loop_expr)
-                    .validate_expr_and_exit(*body_expr, ExprMode::give());
+                    .validate_expr_and_exit(*body_expr, ExprMode::Given);
 
                 self.tables[loop_expr] = validated::ExprData::Loop(validated_body_expr);
 
@@ -605,7 +595,7 @@ impl<'me> Validator<'me> {
 
         // `temp_leased_owner = owner.lease` (if this is a field)
         let (lease_owner_expr, validated_target_place) =
-            self.validate_expr_as_target_place(lhs_expr, ExprMode::leased())?;
+            self.validate_expr_as_target_place(lhs_expr, ExprMode::Leased)?;
 
         // `temp_value = x + <rhs>` or `temp_value = temp_leased_owner.x + <rhs>`
         let (temporary_assign_expr, temporary_place) = {
@@ -699,7 +689,7 @@ impl<'me> Validator<'me> {
             // we simply move/copy out from `temp` immediately and it has no
             // ill-effect.
             let (temp_initializer_expr, temp_place) =
-                self.validate_expr_in_temporary(initializer_expr, ExprMode::give());
+                self.validate_expr_in_temporary(initializer_expr, ExprMode::Given);
             let assignment_expr = self.add(
                 validated::ExprData::AssignFromPlace(target_place, temp_place),
                 origin,
@@ -815,20 +805,16 @@ impl<'me> Validator<'me> {
     ) -> validated::Expr {
         match data {
             Ok((opt_assign_expr, place)) => match mode {
-                ExprMode::Specifier(Specifier::Any) => {
+                ExprMode::Given => {
                     let place_expr = self.add(validated::ExprData::Give(place), origin);
                     self.seq(opt_assign_expr, place_expr)
                 }
-                ExprMode::Specifier(Specifier::Leased) => {
+                ExprMode::Leased => {
                     let place_expr = self.add(validated::ExprData::Lease(place), origin);
                     self.seq(opt_assign_expr, place_expr)
                 }
                 ExprMode::Reserve => {
                     let place_expr = self.add(validated::ExprData::Reserve(place), origin);
-                    self.seq(opt_assign_expr, place_expr)
-                }
-                ExprMode::Specifier(Specifier::Shleased) => {
-                    let place_expr = self.add(validated::ExprData::Shlease(place), origin);
                     self.seq(opt_assign_expr, place_expr)
                 }
             },
@@ -905,7 +891,7 @@ impl<'me> Validator<'me> {
             syntax::ExprData::Error => Err(ErrorReported),
             _ => {
                 let (assign_expr, temporary_place) =
-                    self.validate_expr_in_temporary(expr, ExprMode::give());
+                    self.validate_expr_in_temporary(expr, ExprMode::Given);
                 Ok((Some(assign_expr), temporary_place))
             }
         }

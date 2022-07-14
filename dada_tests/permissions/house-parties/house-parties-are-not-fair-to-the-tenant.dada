@@ -13,7 +13,7 @@
 class Accumulator(any atomic list)
 class List(field)
 
-fn foo(leased accumulator) -> # shleased List
+fn foo(accumulator) -> # shleased List
 {
     #! FIXME: Reading an atomic field without atomic section should not be allowed
     accumulator.list.lease.share
@@ -24,7 +24,7 @@ async fn main() {
 
     # get a shared lease to the list,
     # but it is still owned by `a`
-    l = foo(a)
+    l = foo(a.lease)
 
     # share `a`, which currently revokes
     # the lease `a`, and hence `l`
