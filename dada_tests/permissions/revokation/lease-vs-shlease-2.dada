@@ -2,7 +2,7 @@ class Data(field)
 
 async fn main() {
     m = Data(22)
-    shleased s = m
+    s = m.shlease
     print(m.field).await #! OUTPUT 22
     print(s.field).await #! OUTPUT 22
 }

@@ -1,5 +1,0 @@
-class Point()
-
-async fn main() {
-    shleased p = Point()
-}

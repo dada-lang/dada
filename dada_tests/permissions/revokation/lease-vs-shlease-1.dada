@@ -3,7 +3,7 @@ class Data(field)
 async fn main() {
     m = Data(22)
     l = m.lease
-    shleased s = l
+    s = l.shlease
     print(m.field).await #! OUTPUT 22
     print(s.field).await #! RUN ERROR your lease to this object was cancelled
 }

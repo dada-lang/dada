@@ -5,7 +5,7 @@ async fn main() {
 
     # leasing an "our" thing becomes a second
     # owner (lessors are always exclusive)
-    shleased q = p
+    q = p.shlease
     print(q).await #! OUTPUT Point\(22, 44\)
 
     # reassigning `p` does not invalidate `q`.

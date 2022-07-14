@@ -284,7 +284,6 @@ impl<'me> Stepper<'me> {
         tracing::debug!(?specifier);
 
         let value = match specifier {
-            Specifier::Shleased => self.shlease_place(table, source_place)?,
             Specifier::Any => self.give_place(table, source_place)?,
         };
 
