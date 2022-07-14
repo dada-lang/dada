@@ -38,15 +38,17 @@ impl Deploy {
 
         {
             let _directory = xshell::pushd(&book_dir)?;
-            xshell::Cmd::new("npm").arg("install").run()?;
+            let npm = if cfg!(target_os = "windows") {
+                "npm.cmd"
+            } else {
+                "npm"
+            };
+            xshell::Cmd::new(npm).arg("install").run()?;
             if self.check {
-                xshell::Cmd::new("npm").arg("run").arg("typecheck").run()?;
-                xshell::Cmd::new("npm")
-                    .arg("run")
-                    .arg("format:check")
-                    .run()?;
+                xshell::Cmd::new(npm).arg("run").arg("typecheck").run()?;
+                xshell::Cmd::new(npm).arg("run").arg("format:check").run()?;
             }
-            xshell::Cmd::new("npm").arg("run").arg("build").run()?;
+            xshell::Cmd::new(npm).arg("run").arg("build").run()?;
         }
 
         Ok(())
