@@ -24,7 +24,7 @@ use dada_ir::{
 };
 use salsa::AsId;
 
-use super::{parameter::SpannedSpecifierExt, OrReportError, ParseList};
+use super::{OrReportError, ParseList};
 
 impl Parser<'_> {
     pub(crate) fn parse_code_body(&mut self, parameters: &[Parameter]) -> Tree {
@@ -475,9 +475,7 @@ impl CodeParser<'_, '_> {
     fn parse_local_variable_decl(&mut self) -> Option<Expr> {
         // Look for `[mode] x = `. If we see that, we are committed to this
         // being a local variable declaration. Otherwise, we roll fully back.
-        let (specifier, atomic_span, atomic, name_span, name) = self.lookahead(|this| {
-            let specifier = this.parse_permission_specifier();
-
+        let (atomic_span, atomic, name_span, name) = self.lookahead(|this| {
             // A storage mode like `shared` or `var` *could* be a variable declaration,
             // but if we see `atomic` it might not be, so check for the `x = ` next.
             let (atomic_span, atomic) = if let Some(span) = this.parse_atomic() {
@@ -490,15 +488,12 @@ impl CodeParser<'_, '_> {
 
             this.eat_op(Op::Equal)?;
 
-            Some((specifier, atomic_span, atomic, name_span, name))
+            Some((atomic_span, atomic, name_span, name))
         })?;
-
-        let specifier = specifier.or_defaulted(self, name_span);
 
         let local_variable_decl = self.add(
             LocalVariableDeclData {
                 atomic,
-                specifier,
                 name,
                 ty: None, // FIXME-- should permit `ty: Ty = ...`
             },

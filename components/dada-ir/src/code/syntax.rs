@@ -3,7 +3,7 @@ use crate::{
     in_ir_db::InIrDb,
     in_ir_db::InIrDbExt,
     span::Span,
-    storage::{Atomic, SpannedSpecifier},
+    storage::Atomic,
     word::{SpannedOptionalWord, Word},
 };
 use dada_id::{id, prelude::*, tables};
@@ -266,7 +266,6 @@ impl DebugWithDb<InIrDb<'_, Tree>> for LocalVariableDecl {
 
 #[derive(PartialEq, Eq, PartialOrd, Ord, Clone, Hash, Debug)]
 pub struct LocalVariableDeclData {
-    pub specifier: SpannedSpecifier,
     pub atomic: Atomic,
     pub name: Word,
     pub ty: Option<crate::ty::Ty>,
@@ -275,7 +274,6 @@ pub struct LocalVariableDeclData {
 impl DebugWithDb<InIrDb<'_, Tree>> for LocalVariableDeclData {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>, db: &InIrDb<'_, Tree>) -> std::fmt::Result {
         f.debug_struct("LocalVariableDeclData")
-            .field("specifier", &self.specifier.specifier(db.db()))
             .field("atomic", &self.atomic)
             .field("name", &self.name.debug(db.db()))
             .field("ty", &self.ty.debug(db.db()))

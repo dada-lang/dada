@@ -158,7 +158,6 @@ impl<'me> Validator<'me> {
         let local_variable = self.add(
             validated::LocalVariableData {
                 name: Some(decl_data.name),
-                specifier: Some(decl_data.specifier),
                 atomic: decl_data.atomic,
             },
             validated::LocalVariableOrigin::Parameter(decl),
@@ -401,7 +400,6 @@ impl<'me> Validator<'me> {
                 let local_variable = self.add(
                     validated::LocalVariableData {
                         name: Some(decl_data.name),
-                        specifier: Some(decl_data.specifier),
                         atomic: decl_data.atomic,
                     },
                     validated::LocalVariableOrigin::LocalVariable(*decl),
@@ -911,7 +909,6 @@ impl<'me> Validator<'me> {
         let local_variable = self.add(
             validated::LocalVariableData {
                 name: None,
-                specifier: None,
                 atomic: Atomic::No,
             },
             validated::LocalVariableOrigin::Temporary(origin.syntax_expr),

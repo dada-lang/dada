@@ -42,7 +42,6 @@ pub struct Jar(
     manifest::source_text,
     parameter::Parameter,
     source_file::SourceFile,
-    storage::SpannedSpecifier,
     token_tree::TokenTree,
     ty::Ty,
     word::Word,

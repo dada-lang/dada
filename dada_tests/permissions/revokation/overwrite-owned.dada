@@ -1,4 +1,4 @@
-class Pair(any a, any b)
+class Pair(a, b)
 
 async fn main() {
     pair = Pair(Pair(22, 44), 66)

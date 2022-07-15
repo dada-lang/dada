@@ -10,7 +10,7 @@
 # atomic fields etc, it's hard to demonstrate this danger. =)
 # But I'm pretty sure it's there.
 
-class Accumulator(any atomic list)
+class Accumulator(atomic list)
 class List(field)
 
 fn foo(accumulator) -> # shleased List

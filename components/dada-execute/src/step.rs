@@ -9,7 +9,6 @@ use dada_ir::{
     in_ir_db::InIrDbExt,
     origin_table::HasOriginIn,
     span::FileSpan,
-    storage::{Atomic, Joint, Leased, SpannedSpecifier, Specifier},
     word::Word,
 };
 use salsa::DebugWithDb;
@@ -192,9 +191,6 @@ impl<'me> Stepper<'me> {
                 let value = self.eval_expr(table, *expr)?;
                 self.assign_value_to_place(table, *place, value)?;
             }
-            bir::StatementData::AssignPlace(target_place, source_place) => {
-                self.assign_place_to_place(table, *target_place, *source_place)?;
-            }
             bir::StatementData::Clear(lv) => {
                 let permission = self.machine.expired_permission(None);
                 let object = self.machine.unit_object();
@@ -231,27 +227,6 @@ impl<'me> Stepper<'me> {
         })
     }
 
-    fn assign_place_to_place(
-        &mut self,
-        table: &bir::Tables,
-        target_place: bir::TargetPlace,
-        source_place: bir::Place,
-    ) -> eyre::Result<()> {
-        let target_traversal = self.evaluate_target_place(table, target_place)?;
-
-        assert_ne!(
-            target_traversal.accumulated_permissions.atomic,
-            Atomic::Yes,
-            "atomics not yet implemented"
-        );
-
-        let specifier = self.specifier(target_traversal.address);
-
-        let value = self.prepare_value_for_specifier(table, specifier, source_place)?;
-
-        self.assign_value_to_traversal(target_traversal, value)
-    }
-
     fn evaluate_target_place(
         &mut self,
         table: &bir::Tables,
@@ -267,60 +242,6 @@ impl<'me> Stepper<'me> {
                 self.traverse_to_object_field(target_place, owner_traversal, *name)
             }
         }
-    }
-
-    #[tracing::instrument(level = "Debug", skip(self, table))]
-    fn prepare_value_for_specifier(
-        &mut self,
-        table: &bir::Tables,
-        specifier: Option<impl IntoSpecifierAndSpan>,
-        source_place: bir::Place,
-    ) -> eyre::Result<Value> {
-        let (specifier, specifier_span) = match specifier {
-            Some(i) => i.into_specifier_and_span(self.db),
-            None => return self.give_place(table, source_place),
-        };
-
-        tracing::debug!(?specifier);
-
-        let value = match specifier {
-            Specifier::Any => self.give_place(table, source_place)?,
-        };
-
-        let permission = &self.machine[value.permission];
-        let valid = permission
-            .valid()
-            .expect("value to be stored has expired permision");
-
-        if let (true, Leased::Yes) = (specifier.must_be_owned(), valid.leased) {
-            let source_place_span = self.span_from_bir(source_place);
-            return Err(error!(source_place_span, "more permissions needed")
-                .primary_label(format!(
-                    "this value is `{}`, which is leased, not owned",
-                    valid.as_str()
-                ))
-                .secondary_label(
-                    specifier_span,
-                    format!("`{specifier}` requires owned values"),
-                )
-                .eyre(self.db));
-        }
-
-        if let (true, Joint::Yes) = (specifier.must_be_unique(), valid.joint) {
-            let source_place_span = self.span_from_bir(source_place);
-            return Err(error!(source_place_span, "more permissions needed")
-                .primary_label(format!(
-                    "this value is `{}`, which is shared, not unique",
-                    valid.as_str()
-                ))
-                .secondary_label(
-                    specifier_span,
-                    format!("`{specifier}` requires unique access"),
-                )
-                .eyre(self.db));
-        }
-
-        Ok(value)
     }
 
     fn assign_value_to_place(
@@ -598,21 +519,5 @@ impl<'me> Stepper<'me> {
     fn span_from_syntax_expr(&self, syntax_expr: syntax::Expr) -> FileSpan {
         let bir = self.machine.pc().bir;
         bir.span_of(self.db, syntax_expr)
-    }
-}
-
-trait IntoSpecifierAndSpan: std::fmt::Debug {
-    fn into_specifier_and_span(self, db: &dyn crate::Db) -> (Specifier, FileSpan);
-}
-
-impl IntoSpecifierAndSpan for (Specifier, FileSpan) {
-    fn into_specifier_and_span(self, _db: &dyn crate::Db) -> (Specifier, FileSpan) {
-        self
-    }
-}
-
-impl IntoSpecifierAndSpan for SpannedSpecifier {
-    fn into_specifier_and_span(self, db: &dyn crate::Db) -> (Specifier, FileSpan) {
-        (self.specifier(db), self.span(db))
     }
 }

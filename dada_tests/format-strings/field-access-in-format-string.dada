@@ -1,4 +1,4 @@
-class Point(any x, any y)
+class Point(x, y)
 
 p = Point(22, 44).share
 print("({p.x}, {p.y})").await

@@ -1,4 +1,4 @@
-class Object(any data)
+class Object(data)
 
 async fn main() {
     # This is equivalent to `if { .. } else { .. }.lease`.
