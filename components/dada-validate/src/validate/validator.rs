@@ -223,10 +223,10 @@ impl<'me> Validator<'me> {
     fn validate_expr_in_mode(&mut self, expr: syntax::Expr, mode: ExprMode) -> validated::Expr {
         tracing::trace!("expr.data = {:?}", expr.data(self.syntax_tables()));
         match expr.data(self.syntax_tables()) {
-            syntax::ExprData::Dot(..) | syntax::ExprData::Id(_) => {
-                let place = self.validate_expr_as_place(expr);
-                self.place_to_expr(place, expr.synthesized(), mode)
-            }
+            syntax::ExprData::Dot(..) | syntax::ExprData::Id(_) => self
+                .with_expr_validated_as_place(expr, &mut |this, place| {
+                    this.place_to_expr(place, expr.synthesized(), mode)
+                }),
 
             syntax::ExprData::BooleanLiteral(b) => {
                 self.add(validated::ExprData::BooleanLiteral(*b), expr)
@@ -606,6 +606,7 @@ impl<'me> Validator<'me> {
         //
         // {
         //     temp_leased_owner = owner.lease
+        //     temp_value = <rhs>
         //     temp_value = temp_leased_owner.x + <rhs>
         //     temp_leased_owner.x = temp_value.give
         // }
@@ -786,26 +787,14 @@ impl<'me> Validator<'me> {
 
     fn place_to_expr(
         &mut self,
-        data: Result<(Option<validated::Expr>, validated::Place), ErrorReported>,
+        place: validated::Place,
         origin: ExprOrigin,
         mode: ExprMode,
     ) -> validated::Expr {
-        match data {
-            Ok((opt_assign_expr, place)) => match mode {
-                ExprMode::Default => {
-                    let place_expr = self.add(validated::ExprData::Give(place), origin);
-                    self.seq(opt_assign_expr, place_expr)
-                }
-                ExprMode::Leased => {
-                    let place_expr = self.add(validated::ExprData::Lease(place), origin);
-                    self.seq(opt_assign_expr, place_expr)
-                }
-                ExprMode::Reserve => {
-                    let place_expr = self.add(validated::ExprData::Reserve(place), origin);
-                    self.seq(opt_assign_expr, place_expr)
-                }
-            },
-            Err(ErrorReported) => self.add(validated::ExprData::Error, origin),
+        match mode {
+            ExprMode::Default => self.add(validated::ExprData::Give(place), origin),
+            ExprMode::Leased => self.add(validated::ExprData::Lease(place), origin),
+            ExprMode::Reserve => self.add(validated::ExprData::Reserve(place), origin),
         }
     }
 
@@ -815,12 +804,9 @@ impl<'me> Validator<'me> {
         target_expr: syntax::Expr,
         perm_variant: impl Fn(validated::Place) -> validated::ExprData,
     ) -> validated::Expr {
-        let validated_data = try {
-            let (opt_temporary_expr, place) = self.validate_expr_as_place(target_expr)?;
-            let permission_expr = self.add(perm_variant(place), perm_expr);
-            self.seq(opt_temporary_expr, permission_expr)
-        };
-        self.or_error(validated_data, perm_expr)
+        self.with_expr_validated_as_place(target_expr, &mut |this, place| {
+            this.add(perm_variant(place), perm_expr)
+        })
     }
 
     fn is_place_expression(&self, expr: syntax::Expr) -> bool {
@@ -833,14 +819,19 @@ impl<'me> Validator<'me> {
         }
     }
 
-    fn validate_expr_as_place(
+    /// Validates `expr` as a place. Invokes `op` with the place to
+    /// produce the final expression. Doesn't directly return that
+    /// expression because it may introduce temporaries
+    /// that are referenced by the place given to op, and if `expr`
+    /// is malformed may return an error expression.
+    fn with_expr_validated_as_place(
         &mut self,
         expr: syntax::Expr,
-    ) -> Result<(Option<validated::Expr>, validated::Place), ErrorReported> {
+        op: &mut dyn FnMut(&mut Self, validated::Place) -> validated::Expr,
+    ) -> validated::Expr {
         match expr.data(self.syntax_tables()) {
-            syntax::ExprData::Id(name) => Ok((
-                None,
-                match self.scope.lookup(*name) {
+            syntax::ExprData::Id(name) => {
+                let place = match self.scope.lookup(*name) {
                     Some(Definition::Class(c)) => self.add(validated::PlaceData::Class(c), expr),
                     Some(Definition::Function(f)) => {
                         self.add(validated::PlaceData::Function(f), expr)
@@ -852,34 +843,32 @@ impl<'me> Validator<'me> {
                         self.add(validated::PlaceData::Intrinsic(i), expr)
                     }
                     None => {
-                        return Err(dada_ir::error!(
+                        let ErrorReported = dada_ir::error!(
                             self.span(expr),
                             "can't find anything named `{}`",
                             name.as_str(self.db)
                         )
-                        .emit(self.db))
+                        .emit(self.db);
+                        return self.add(validated::ExprData::Error, expr);
                     }
-                },
-            )),
+                };
+                op(self, place)
+            }
             syntax::ExprData::Dot(owner_expr, field) => {
-                let (opt_temporary_expr, validated_owner_place) =
-                    self.validate_expr_as_place(*owner_expr)?;
-                Ok((
-                    opt_temporary_expr,
-                    self.add(
-                        validated::PlaceData::Dot(validated_owner_place, *field),
-                        expr,
-                    ),
-                ))
+                self.with_expr_validated_as_place(*owner_expr, &mut |this, owner_place| {
+                    let dot_place = this.add(validated::PlaceData::Dot(owner_place, *field), expr);
+                    op(this, dot_place)
+                })
             }
             syntax::ExprData::Parenthesized(parenthesized_expr) => {
-                self.validate_expr_as_place(*parenthesized_expr)
+                self.with_expr_validated_as_place(*parenthesized_expr, op)
             }
-            syntax::ExprData::Error => Err(ErrorReported),
+            syntax::ExprData::Error => self.add(validated::ExprData::Error, expr),
             _ => {
                 let (assign_expr, temporary_place) =
                     self.validate_expr_in_temporary(expr, ExprMode::Default);
-                Ok((Some(assign_expr), temporary_place))
+                let expr = op(self, temporary_place);
+                self.seq(Some(assign_expr), expr)
             }
         }
     }
