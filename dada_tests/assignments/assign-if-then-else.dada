@@ -1,0 +1,7 @@
+class Point(x, y)
+p = Point(22, 44)
+q = Point(66, 88)
+t = true
+if t { p } else { q }.x += 1
+print(p).await #! RUN ERROR your lease to this object
+print(q).await

@@ -425,10 +425,10 @@ impl<'me> Validator<'me> {
 
             syntax::ExprData::If(condition_expr, then_expr, else_expr) => {
                 let validated_condition_expr = self.validate_expr(*condition_expr);
-                let validated_then_expr = self.subscope().validate_expr_and_exit(*then_expr, mode);
+                let validated_then_expr = self.subscope().validate_expr_and_exit(*then_expr);
                 let validated_else_expr = match else_expr {
                     None => self.empty_tuple(expr),
-                    Some(else_expr) => self.subscope().validate_expr_and_exit(*else_expr, mode),
+                    Some(else_expr) => self.subscope().validate_expr_and_exit(*else_expr),
                 };
                 self.add(
                     validated::ExprData::If(
@@ -446,7 +446,7 @@ impl<'me> Validator<'me> {
                     .with_effect(Effect::Atomic, |this| {
                         this.span(expr).leading_keyword(this.db, Keyword::Atomic)
                     })
-                    .validate_expr_and_exit(*atomic_expr, mode);
+                    .validate_expr_and_exit(*atomic_expr);
                 self.add(validated::ExprData::Atomic(validated_atomic_expr), expr)
             }
 
@@ -458,7 +458,7 @@ impl<'me> Validator<'me> {
                 let validated_body_expr = self
                     .subscope()
                     .with_loop_expr(loop_expr)
-                    .validate_expr_and_exit(*body_expr, ExprMode::Default);
+                    .validate_expr_and_exit(*body_expr);
 
                 self.tables[loop_expr] = validated::ExprData::Loop(validated_body_expr);
 
@@ -481,7 +481,7 @@ impl<'me> Validator<'me> {
                 let validated_body_expr = self
                     .subscope()
                     .with_loop_expr(loop_expr)
-                    .validate_expr_and_exit(*body_expr, mode);
+                    .validate_expr_and_exit(*body_expr);
 
                 let if_break_expr = {
                     // break
@@ -742,8 +742,8 @@ impl<'me> Validator<'me> {
 
     /// Validate the expression and then exit the subscope (consumes self).
     /// See [`Self::exit`].
-    fn validate_expr_and_exit(mut self, expr: syntax::Expr, mode: ExprMode) -> validated::Expr {
-        let validated_expr = self.validate_expr_in_mode(expr, mode);
+    fn validate_expr_and_exit(mut self, expr: syntax::Expr) -> validated::Expr {
+        let validated_expr = self.validate_expr(expr);
         self.exit(validated_expr)
     }
 

@@ -1,0 +1,5 @@
+class Point(x, y)
+p = Point(22, 44)
+t = true
+atomic { p }.x += 1
+print(p).await #! RUN ERROR your lease to this object
