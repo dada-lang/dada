@@ -6,7 +6,7 @@
                 (
                     AssignExpr(
                         temp{3},
-                        Class(Id { value: 1 }).reserve,
+                        Class(Id { value: 1 }).give,
                     ),
                     Expr(0),
                 ),
@@ -64,7 +64,7 @@
                 (
                     AssignExpr(
                         temp{6},
-                        Class(Id { value: 1 }).reserve,
+                        Class(Id { value: 1 }).give,
                     ),
                     Expr(5),
                 ),
@@ -78,7 +78,7 @@
                 (
                     AssignExpr(
                         temp{7},
-                        p{0}.reserve,
+                        p{0}.give,
                     ),
                     Expr(6),
                 ),

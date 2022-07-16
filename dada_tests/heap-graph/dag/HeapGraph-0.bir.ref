@@ -13,7 +13,7 @@
                 (
                     AssignExpr(
                         temp{4},
-                        Class(Id { value: 1 }).reserve,
+                        Class(Id { value: 1 }).give,
                     ),
                     Expr(0),
                 ),
@@ -84,21 +84,21 @@
                 (
                     AssignExpr(
                         temp{7},
-                        Class(Id { value: 1 }).reserve,
+                        Class(Id { value: 1 }).give,
                     ),
                     Expr(6),
                 ),
                 (
                     AssignExpr(
                         temp{8},
-                        p{0}.reserve,
+                        p{0}.give,
                     ),
                     Expr(7),
                 ),
                 (
                     AssignExpr(
                         temp{9},
-                        p{0}.reserve,
+                        p{0}.give,
                     ),
                     Expr(8),
                 ),

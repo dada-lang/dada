@@ -6,7 +6,7 @@
                 (
                     AssignExpr(
                         temp{2},
-                        Class(Id { value: 1 }).reserve,
+                        Class(Id { value: 1 }).give,
                     ),
                     Expr(0),
                 ),
@@ -75,7 +75,7 @@
                 (
                     AssignExpr(
                         temp{7},
-                        Print.reserve,
+                        Print.give,
                     ),
                     Expr(5),
                 ),

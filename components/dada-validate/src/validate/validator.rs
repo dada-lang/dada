@@ -220,11 +220,6 @@ impl<'me> Validator<'me> {
         }
     }
 
-    #[tracing::instrument(level = "debug", skip(self, expr))]
-    pub(crate) fn reserve_validated_expr(&mut self, expr: syntax::Expr) -> validated::Expr {
-        self.validate_expr_in_mode(expr, ExprMode::Reserve)
-    }
-
     fn validate_expr_in_mode(&mut self, expr: syntax::Expr, mode: ExprMode) -> validated::Expr {
         tracing::trace!("expr.data = {:?}", expr.data(self.syntax_tables()));
         match expr.data(self.syntax_tables()) {
@@ -356,7 +351,7 @@ impl<'me> Validator<'me> {
             }
 
             syntax::ExprData::Call(func_expr, named_exprs) => {
-                let validated_func_expr = self.reserve_validated_expr(*func_expr);
+                let validated_func_expr = self.validate_expr(*func_expr);
                 let validated_named_exprs = self.validate_named_exprs(named_exprs);
                 let mut name_required = false;
                 for named_expr in &validated_named_exprs {
@@ -421,7 +416,7 @@ impl<'me> Validator<'me> {
             syntax::ExprData::Tuple(element_exprs) => {
                 let validated_exprs = element_exprs
                     .iter()
-                    .map(|expr| self.reserve_validated_expr(*expr))
+                    .map(|expr| self.validate_expr(*expr))
                     .collect();
                 self.add(validated::ExprData::Tuple(validated_exprs), expr)
             }
@@ -940,7 +935,7 @@ impl<'me> Validator<'me> {
 
     fn validate_named_expr(&mut self, named_expr: syntax::NamedExpr) -> validated::NamedExpr {
         let syntax::NamedExprData { name, expr } = named_expr.data(self.syntax_tables());
-        let validated_expr = self.reserve_validated_expr(*expr);
+        let validated_expr = self.validate_expr(*expr);
         self.add(
             validated::NamedExprData {
                 name: *name,

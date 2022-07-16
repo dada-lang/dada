@@ -26,7 +26,7 @@
                 (
                     AssignExpr(
                         temp{5},
-                        helper.reserve,
+                        helper.give,
                     ),
                     Expr(3),
                 ),
@@ -75,7 +75,7 @@
                 (
                     AssignExpr(
                         temp{8},
-                        Print.reserve,
+                        Print.give,
                     ),
                     Expr(6),
                 ),
@@ -154,14 +154,14 @@
                 (
                     AssignExpr(
                         temp{13},
-                        Print.reserve,
+                        Print.give,
                     ),
                     Expr(11),
                 ),
                 (
                     AssignExpr(
                         temp{14},
-                        name{0}.reserve,
+                        name{0}.give,
                     ),
                     Expr(12),
                 ),
@@ -237,7 +237,7 @@
                 (
                     AssignExpr(
                         temp{3},
-                        Class(Id { value: 1 }).reserve,
+                        Class(Id { value: 1 }).give,
                     ),
                     Expr(0),
                 ),
@@ -302,14 +302,14 @@
                 (
                     AssignExpr(
                         temp{6},
-                        Class(Id { value: 1 }).reserve,
+                        Class(Id { value: 1 }).give,
                     ),
                     Expr(5),
                 ),
                 (
                     AssignExpr(
                         temp{7},
-                        p{0}.reserve,
+                        p{0}.give,
                     ),
                     Expr(6),
                 ),

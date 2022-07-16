@@ -13,7 +13,7 @@
                 (
                     AssignExpr(
                         temp{6},
-                        Class(Id { value: 1 }).reserve,
+                        Class(Id { value: 1 }).give,
                     ),
                     Expr(0),
                 ),
