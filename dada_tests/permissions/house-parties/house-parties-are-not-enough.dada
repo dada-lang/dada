@@ -26,6 +26,6 @@ async fn main() {
     l1 = get_list(a.shlease)
     l2 = get_list(a.shlease)
     print(l2).await #! OUTPUT List\(\)
-    print(l1).await #! OUTPUT shleased List
-    print(l2).await #! OUTPUT shleased List
+    print(l1).await #! OUTPUT List
+    print(l2).await #! OUTPUT List
 }

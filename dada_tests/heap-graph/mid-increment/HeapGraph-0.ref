@@ -55,4 +55,4 @@ digraph {
     "beforestack":1 -> "beforenode0" [label="leased", style="solid", penwidth=1.0, arrowtype="empty", color="red"];
   }
 }
-leased Point(23, 44)
+Point(23, 44)

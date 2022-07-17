@@ -5,14 +5,14 @@ class OurLeased(f)
 async fn main() {
     p = Point(22, 44).share   # create a shared point `(22, 44)`
     q = OurLeased(p.shlease)  # `q.f` becomes 2nd owner of `(22, 44)`
-    print(q.lease).await      #! OUTPUT OurLeased\(our Point\(22, 44\)\)
+    print(q.lease).await      #! OUTPUT OurLeased\(Point\(22, 44\)\)
 
     p := Point(44, 66).share  # `p` is shared owner of `(44, 66)`
     q.f := p.share            # `q.f` becomes 2nd owner of `(44, 66)`
-    print(q.lease).await      #! OUTPUT OurLeased\(our Point\(44, 66\)\)
+    print(q.lease).await      #! OUTPUT OurLeased\(Point\(44, 66\)\)
     p := Point(11, 55)        # overwriting `p` doesn't invalidate `q.f`
     
-    print(q.lease).await      #! OUTPUT OurLeased\(our Point\(44, 66\)\)
+    print(q.lease).await      #! OUTPUT OurLeased\(Point\(44, 66\)\)
     print(p.lease).await      #! OUTPUT Point\(11, 55\)
-    print(q.lease).await      #! OUTPUT OurLeased\(our Point\(44, 66\)\)
+    print(q.lease).await      #! OUTPUT OurLeased\(Point\(44, 66\)\)
 }

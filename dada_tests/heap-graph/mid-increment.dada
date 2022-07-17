@@ -6,5 +6,5 @@ async fn main() {
     #? @ +1:10 HeapGraph
     q.x += 1
     print(q).await
-    #! OUTPUT leased Point\(23, 44\)
+    #! OUTPUT Point\(23, 44\)
 }

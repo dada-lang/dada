@@ -1,9 +1,6 @@
-use dada_ir::{
-    storage::{Joint, Leased},
-    word::Word,
-};
+use dada_ir::word::Word;
 
-use crate::machine::{ObjectData, Permission, PermissionData, Value};
+use crate::machine::{ObjectData, PermissionData, Value};
 
 use super::{op::MachineOp, Object};
 
@@ -12,19 +9,18 @@ pub(crate) impl<T: ?Sized + MachineOp> DefaultStringify for T {
     /// Converts a given value into a string. This should
     /// eventually be customizable.
     fn stringify_value(&self, db: &dyn crate::Db, value: Value) -> String {
-        let Some(p) = self.permission_str(value.permission) else {
+        if let PermissionData::Expired(_) = self[value.permission] {
             return "(expired)".to_string();
-        };
-
-        self.stringify_object(db, p, value.object)
+        } else {
+            self.stringify_object(db, value.object)
+        }
     }
 
     // FIXME: There is no way for *users* to write a fn that "inspects" the permission
     // like this. We should maybe just not print them, but it's kind of useful...?
-    fn stringify_object(&self, db: &dyn crate::Db, permission: &str, object: Object) -> String {
+    fn stringify_object(&self, db: &dyn crate::Db, object: Object) -> String {
         tracing::debug!(
-            "stringify(permission = {:?}, object = {:?}, object-data = {:?})",
-            permission,
+            "stringify(object = {:?}, object-data = {:?})",
             object,
             self[object]
         );
@@ -38,35 +34,22 @@ pub(crate) impl<T: ?Sized + MachineOp> DefaultStringify for T {
             ObjectData::Unit(_) => "()".to_string(),
             ObjectData::Intrinsic(i) => i.as_str(db).to_string(),
             ObjectData::Function(f) => f.name(db).as_str(db).to_string(),
-            ObjectData::ThunkFn(f) => self.object_string(
-                db,
-                permission,
-                Some(f.function.name(db).word(db)),
-                &f.arguments,
-            ),
+            ObjectData::ThunkFn(f) => {
+                self.object_string(db, Some(f.function.name(db).word(db)), &f.arguments)
+            }
             ObjectData::Instance(i) => {
-                self.object_string(db, permission, Some(i.class.name(db).word(db)), &i.fields)
+                self.object_string(db, Some(i.class.name(db).word(db)), &i.fields)
             }
             ObjectData::Class(c) => c.name(db).as_str(db).to_string(),
-            ObjectData::ThunkRust(r) => format!("{permission} {r:?}"),
-            ObjectData::Tuple(t) => self.object_string(db, permission, None, &t.fields),
+            ObjectData::ThunkRust(r) => format!("{r:?}"),
+            ObjectData::Tuple(t) => self.object_string(db, None, &t.fields),
             ObjectData::Reservation(r) => format!("{r:?}"), // can prob do better than this :)
         }
     }
 
-    fn object_string(
-        &self,
-        db: &dyn crate::Db,
-        permission: &str,
-        name: Option<Word>,
-        fields: &[Value],
-    ) -> String {
+    fn object_string(&self, db: &dyn crate::Db, name: Option<Word>, fields: &[Value]) -> String {
         let mut output = String::new();
-        output.push_str(permission);
         if let Some(name) = name {
-            if !permission.is_empty() {
-                output.push(' ');
-            }
             output.push_str(name.as_str(db));
         }
         output.push('(');
@@ -78,17 +61,5 @@ pub(crate) impl<T: ?Sized + MachineOp> DefaultStringify for T {
         }
         output.push(')');
         output
-    }
-
-    fn permission_str(&self, permission: Permission) -> Option<&str> {
-        match &self[permission] {
-            PermissionData::Expired(_) => None,
-            PermissionData::Valid(valid) => Some(match (valid.joint, valid.leased) {
-                (Joint::No, Leased::No) => "my",
-                (Joint::Yes, Leased::No) => "our",
-                (Joint::No, Leased::Yes) => "leased",
-                (Joint::Yes, Leased::Yes) => "shleased",
-            }),
-        }
     }
 }

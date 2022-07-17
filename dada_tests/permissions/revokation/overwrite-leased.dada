@@ -13,10 +13,10 @@ async fn main() {
 
     # `p` is still a valid leased object, and it points to
     # `pair1`.
-    print(p).await #! OUTPUT leased Pair\(22, 44\)
+    print(p).await #! OUTPUT Pair\(22, 44\)
 
     # we can output `pair1`
-    print(pair1).await #! OUTPUT my Pair\(22, 44\)
+    print(pair1).await #! OUTPUT Pair\(22, 44\)
 
     # and that will cancel `p`
     print(p).await #! RUN ERROR your lease to this object was cancelled

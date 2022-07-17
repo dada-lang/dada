@@ -9,5 +9,5 @@ async fn main() {
     # `p` is not disturbed by this write
     pair.a := Pair(23, 45)
 
-    print(p).await #! OUTPUT our Pair\(22, 44\)
+    print(p).await #! OUTPUT Pair\(22, 44\)
 }

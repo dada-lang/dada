@@ -3,7 +3,7 @@ class Point(x, y)
 async fn main() {
     p = Point(Point(22, 44), 66)
     print(p).await
-    #! OUTPUT Point\(my Point\(22, 44\), 66\)
+    #! OUTPUT Point\(Point\(22, 44\), 66\)
 
     print(22 + 44i).await #! OUTPUT 66_i
     print(22i + 44).await #! OUTPUT 66_i

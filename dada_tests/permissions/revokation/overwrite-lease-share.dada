@@ -8,5 +8,5 @@ async fn main() {
 
     pair2.a := Pair(23, 45)
 
-    print(p).await #! OUTPUT shleased Pair\(22, 44\)
+    print(p).await #! OUTPUT Pair\(22, 44\)
 }

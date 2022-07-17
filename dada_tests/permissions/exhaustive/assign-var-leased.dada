@@ -4,7 +4,7 @@ async fn main() {
     p = Pair(22, 44).lease
     q = p
     print(q).await
-    #! OUTPUT leased Pair\(22, 44\)
+    #! OUTPUT Pair\(22, 44\)
     print(p).await
-    #! OUTPUT leased Pair\(22, 44\)
+    #! OUTPUT Pair\(22, 44\)
 }
