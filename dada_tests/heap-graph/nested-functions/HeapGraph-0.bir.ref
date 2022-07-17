@@ -26,7 +26,7 @@
                 (
                     AssignExpr(
                         temp{5},
-                        helper.give,
+                        helper.shlease,
                     ),
                     Expr(3),
                 ),
@@ -75,7 +75,7 @@
                 (
                     AssignExpr(
                         temp{8},
-                        Print.give,
+                        Print.shlease,
                     ),
                     Expr(6),
                 ),
@@ -154,14 +154,14 @@
                 (
                     AssignExpr(
                         temp{13},
-                        Print.give,
+                        Print.shlease,
                     ),
                     Expr(11),
                 ),
                 (
                     AssignExpr(
                         temp{14},
-                        name{0}.give,
+                        name{0}.shlease,
                     ),
                     Expr(12),
                 ),
@@ -237,7 +237,7 @@
                 (
                     AssignExpr(
                         temp{3},
-                        Class(Id { value: 1 }).give,
+                        Class(Id { value: 1 }).shlease,
                     ),
                     Expr(0),
                 ),
@@ -302,14 +302,14 @@
                 (
                     AssignExpr(
                         temp{6},
-                        Class(Id { value: 1 }).give,
+                        Class(Id { value: 1 }).shlease,
                     ),
                     Expr(5),
                 ),
                 (
                     AssignExpr(
                         temp{7},
-                        p{0}.give,
+                        p{0}.shlease,
                     ),
                     Expr(6),
                 ),

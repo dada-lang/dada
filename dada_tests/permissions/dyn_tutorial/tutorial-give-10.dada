@@ -7,5 +7,4 @@ async fn main() {
     #?       ^ HeapGraph
 
     x = p.x
-    #!  ^ RUN ERROR your lease to this object was cancelled
 }

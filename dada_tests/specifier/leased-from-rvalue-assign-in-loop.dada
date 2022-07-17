@@ -16,5 +16,5 @@ async fn main() {
     }
 
     # The value stored in `p` has expired
-    print(p).await #! RUN ERROR your lease to this object was cancelled
+    print(p).await #! OUTPUT Point\(44, 66\)
 }

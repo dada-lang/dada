@@ -6,8 +6,8 @@ fn next(c) -> {
 }
 
 fn next_and(c, d) -> {
-    next(c)
-    d
+    next(c.give)
+    d.give
 }
 
 c = Counter(0)

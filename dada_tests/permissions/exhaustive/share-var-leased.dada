@@ -10,7 +10,7 @@ async fn main() {
     print(q).await #! OUTPUT Pair\(22, 44\)
 
     # Accessing `p`: ok, but cancels subleases
-    print(p).await #! OUTPUT Pair\(22, 44\)
+    print(p.give).await #! OUTPUT Pair\(22, 44\)
 
     # Accessing `q` again: error
     print(q).await #! RUN ERROR your lease to this object was cancelled

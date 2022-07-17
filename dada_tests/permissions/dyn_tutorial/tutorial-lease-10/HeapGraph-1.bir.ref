@@ -6,7 +6,7 @@
                 (
                     AssignExpr(
                         temp{4},
-                        Class(Id { value: 1 }).give,
+                        Class(Id { value: 1 }).shlease,
                     ),
                     Expr(0),
                 ),
@@ -144,14 +144,14 @@
                 (
                     AssignExpr(
                         temp{12},
-                        Print.give,
+                        Print.shlease,
                     ),
                     Expr(12),
                 ),
                 (
                     AssignExpr(
                         temp{13},
-                        p{0}.x.give,
+                        p{0}.x.shlease,
                     ),
                     Expr(14),
                 ),

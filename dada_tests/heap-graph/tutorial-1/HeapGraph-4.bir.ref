@@ -6,7 +6,7 @@
                 (
                     AssignExpr(
                         temp{2},
-                        Class(Id { value: 1 }).give,
+                        Class(Id { value: 1 }).shlease,
                     ),
                     Expr(0),
                 ),
@@ -73,9 +73,27 @@
                     Expr(5),
                 ),
                 (
+                    BreakpoingStart(
+                        "class",
+                        0,
+                    ),
+                    Expr(5),
+                ),
+                (
                     AssignExpr(
                         temp{7},
-                        Print.give,
+                        Print.shlease,
+                    ),
+                    Expr(5),
+                ),
+                (
+                    BreakpointEnd(
+                        "class",
+                        0,
+                        Expr(5),
+                        Some(
+                            temp{7},
+                        ),
                     ),
                     Expr(5),
                 ),

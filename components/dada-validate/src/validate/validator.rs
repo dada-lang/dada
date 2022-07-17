@@ -197,7 +197,7 @@ impl<'me> Validator<'me> {
         match expr.data(self.syntax_tables()) {
             syntax::ExprData::Dot(..) | syntax::ExprData::Id(_) => self
                 .with_expr_validated_as_place(expr, &mut |this, place| {
-                    this.place_to_expr(place, expr.synthesized())
+                    this.add(validated::ExprData::Shlease(place), expr)
                 }),
 
             syntax::ExprData::BooleanLiteral(b) => {
@@ -750,10 +750,6 @@ impl<'me> Validator<'me> {
             exprs.push(final_expr);
             self.add(validated::ExprData::Seq(exprs), origin)
         }
-    }
-
-    fn place_to_expr(&mut self, place: validated::Place, origin: ExprOrigin) -> validated::Expr {
-        self.add(validated::ExprData::Give(place), origin)
     }
 
     fn validate_permission_expr(

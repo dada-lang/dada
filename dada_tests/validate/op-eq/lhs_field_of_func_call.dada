@@ -8,5 +8,5 @@ async fn main() {
 
 async fn test(p) -> {
     print("Hi").await #! OUTPUT Hi
-    p
+    p.give
 }

@@ -28,7 +28,8 @@ digraph {
         <tr><td port="1"><font color="slategray">y: "44"</font></td></tr>
       </table>>
     ];
-    "afterstack":1 -> "afternode0" [label="my", style="solid", penwidth=3.0, arrowtype="normal", color="red"];
+    "afterstack":0 -> "afternode0" [label="my", style="dotted", penwidth=3.0, arrowtype="normal", color="red"];
+    "afterstack":1 -> "afternode0" [label="shleased", style="solid", penwidth=1.0, arrowtype="empty", color="blue"];
   }
   subgraph cluster_before {
     label=<<b>before</b>>
@@ -59,13 +60,3 @@ digraph {
     "beforestack":0 -> "beforenode0" [label="my", style="solid", penwidth=3.0, arrowtype="normal", color="red"];
   }
 }
-[31mError:[0m your lease to this object was cancelled
-   [38;5;246m╭[0m[38;5;246m─[0m[38;5;246m[[0mclass:9:9[38;5;246m][0m
-   [38;5;246m│[0m
- [38;5;246m6 │[0m [38;5;249m [0m[38;5;249m [0m[38;5;249m [0m[38;5;249m [0m[38;5;249mq[0m[38;5;249m [0m[38;5;249m=[0m[38;5;249m [0mp
- [38;5;246m  ·[0m         ┬  
- [38;5;246m  ·[0m         ╰── lease was cancelled here
- [38;5;246m9 │[0m [38;5;249m [0m[38;5;249m [0m[38;5;249m [0m[38;5;249m [0m[38;5;249mx[0m[38;5;249m [0m[38;5;249m=[0m[38;5;249m [0mp[38;5;249m.[0m[38;5;249mx[0m
- [38;5;246m  ·[0m         ┬  
- [38;5;246m  ·[0m         ╰── cancelled lease used here
-[38;5;246m───╯[0m
