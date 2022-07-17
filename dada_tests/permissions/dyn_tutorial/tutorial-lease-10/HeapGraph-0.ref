@@ -14,7 +14,7 @@ digraph {
           <tr><td border="1">main</td></tr>
           <tr><td port="0"><font color="slategray">p</font></td></tr>
           <tr><td port="1"><font color="slategray">q</font></td></tr>
-          <tr><td port="15"><font color="black">(in-flight): "1"</font></td></tr>
+          <tr><td port="14"><font color="black">(in-flight): "1"</font></td></tr>
           </table>
         >;
       ];
@@ -29,7 +29,7 @@ digraph {
       </table>>
     ];
     "afterstack":0 -> "afternode0" [label="my", style="dotted", penwidth=3.0, arrowtype="normal", color="red"];
-    "afterstack":1 -> "afternode0" [label="leased", style="dotted", penwidth=1.0, arrowtype="empty", color="red"];
+    "afterstack":1 -> "afternode0" [label="leased", style="solid", penwidth=1.0, arrowtype="empty", color="red"];
   }
   subgraph cluster_before {
     label=<<b>before</b>>
@@ -57,7 +57,7 @@ digraph {
       </table>>
     ];
     "beforestack":0 -> "beforenode0" [label="my", style="dotted", penwidth=3.0, arrowtype="normal", color="red"];
-    "beforestack":1 -> "beforenode0" [label="leased", style="dotted", penwidth=1.0, arrowtype="empty", color="red"];
+    "beforestack":1 -> "beforenode0" [label="leased", style="solid", penwidth=1.0, arrowtype="empty", color="red"];
   }
 }
 23

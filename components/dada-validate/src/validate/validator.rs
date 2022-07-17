@@ -47,14 +47,6 @@ pub enum ExprMode {
 
     /// In `a.f = <expr>`, `a` is evaluated in "leased" mode
     Leased,
-
-    /// We sometimes "reserve" an expression before actually using it;
-    /// this ensures that it remains valid even as subsequent things are executed.
-    ///
-    /// Example: `foo(<expr>, <expr2>)` reserves `<expr>`
-    ///
-    /// This logic may be removed, not sure yet.
-    Reserve,
 }
 
 impl<'me> Validator<'me> {
@@ -399,7 +391,12 @@ impl<'me> Validator<'me> {
                     expr.synthesized(),
                 );
 
-                self.validated_assignment(target_place, *initializer_expr, expr)
+                let validated_initializer_expr = self.validate_expr(*initializer_expr);
+
+                self.add(
+                    validated::ExprData::Assign(target_place, validated_initializer_expr),
+                    expr,
+                )
             }
 
             syntax::ExprData::Parenthesized(parenthesized_expr) => {
@@ -525,14 +522,9 @@ impl<'me> Validator<'me> {
 
             syntax::ExprData::OpEq(..) => self.validate_op_eq(expr),
 
-            syntax::ExprData::Assign(lhs_expr, rhs_expr) => self
-                .with_expr_validated_as_target_place(
-                    *lhs_expr,
-                    ExprMode::Reserve,
-                    &mut |this, validated_lhs_place| {
-                        this.validated_assignment(validated_lhs_place, *rhs_expr, expr)
-                    },
-                ),
+            syntax::ExprData::Assign(lhs_expr, rhs_expr) => {
+                self.validate_assign_expr(expr, *lhs_expr, *rhs_expr)
+            }
 
             syntax::ExprData::Error => self.add(validated::ExprData::Error, expr),
             syntax::ExprData::Seq(exprs) => {
@@ -671,19 +663,6 @@ impl<'me> Validator<'me> {
         self.seq(Some(temporary_assign_expr), assign_field_expr)
     }
 
-    fn validated_assignment(
-        &mut self,
-        target_place: validated::TargetPlace,
-        initializer_expr: syntax::Expr,
-        origin: syntax::Expr,
-    ) -> validated::Expr {
-        let validated_expr = self.validate_expr(initializer_expr);
-        self.add(
-            validated::ExprData::Assign(target_place, validated_expr),
-            origin,
-        )
-    }
-
     fn with_expr_validated_as_target_place(
         &mut self,
         expr: syntax::Expr,
@@ -692,14 +671,13 @@ impl<'me> Validator<'me> {
     ) -> validated::Expr {
         match expr.data(self.syntax_tables()) {
             syntax::ExprData::Dot(owner, field_name) => {
-                let (assign_expr, owner_place) =
-                    self.validate_expr_in_temporary(*owner, owner_mode);
-                let place = self.add(
-                    validated::TargetPlaceData::Dot(owner_place, *field_name),
-                    expr,
-                );
-                let expr = op(self, place);
-                self.seq(Some(assign_expr), expr)
+                self.with_expr_validated_as_place(*owner, &mut |this, owner_place| {
+                    let target_place = this.add(
+                        validated::TargetPlaceData::Dot(owner_place, *field_name),
+                        expr,
+                    );
+                    op(this, target_place)
+                })
             }
 
             syntax::ExprData::Id(name) => match self.scope.lookup(*name) {
@@ -801,7 +779,6 @@ impl<'me> Validator<'me> {
         match mode {
             ExprMode::Default => self.add(validated::ExprData::Give(place), origin),
             ExprMode::Leased => self.add(validated::ExprData::Lease(place), origin),
-            ExprMode::Reserve => self.add(validated::ExprData::Reserve(place), origin),
         }
     }
 
@@ -973,6 +950,25 @@ impl<'me> Validator<'me> {
                 unreachable!("unexpected op")
             }
         }
+    }
+
+    pub(crate) fn validate_assign_expr(
+        &mut self,
+        assign_expr: syntax::Expr,
+        lhs_expr: syntax::Expr,
+        initializer_expr: syntax::Expr,
+    ) -> validated::Expr {
+        self.with_expr_validated_as_target_place(
+            lhs_expr,
+            ExprMode::Leased,
+            &mut |this, target_place| {
+                let validated_expr = this.validate_expr(initializer_expr);
+                this.add(
+                    validated::ExprData::Assign(target_place, validated_expr),
+                    assign_expr,
+                )
+            },
+        )
     }
 }
 
