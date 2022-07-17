@@ -40,12 +40,6 @@ pub(crate) struct Validator<'me> {
     synthesized: bool,
 }
 
-#[derive(Copy, Clone, Debug)]
-pub enum ExprMode {
-    /// When you do `a = <expr>`, `<expr>` is evaluated in "default" mode
-    Default,
-}
-
 impl<'me> Validator<'me> {
     pub(crate) fn root(
         db: &'me dyn crate::Db,
@@ -173,15 +167,6 @@ impl<'me> Validator<'me> {
         validated_expr
     }
 
-    /// Validates an expression into a value:
-    ///
-    /// * If `E` is a place expression, like `a.b`, this is equivalent to `a.b.shlease`
-    /// * If `E` is a value expression, like `foo()`, this just evalutes it
-    #[tracing::instrument(level = "debug", skip(self, expr))]
-    fn validate_expr(&mut self, expr: syntax::Expr) -> validated::Expr {
-        self.validate_expr_in_mode(expr, ExprMode::Default)
-    }
-
     /// Given an expression `E`, takes ownership of its value:
     ///
     /// * If `E` is a place expression, like `a.b`, this is equivalent to `a.b.give`
@@ -202,12 +187,17 @@ impl<'me> Validator<'me> {
         }
     }
 
-    fn validate_expr_in_mode(&mut self, expr: syntax::Expr, mode: ExprMode) -> validated::Expr {
+    /// Validates an expression into a value:
+    ///
+    /// * If `E` is a place expression, like `a.b`, this is equivalent to `a.b.shlease`
+    /// * If `E` is a value expression, like `foo()`, this just evalutes it
+    #[tracing::instrument(level = "debug", skip(self, expr))]
+    fn validate_expr(&mut self, expr: syntax::Expr) -> validated::Expr {
         tracing::trace!("expr.data = {:?}", expr.data(self.syntax_tables()));
         match expr.data(self.syntax_tables()) {
             syntax::ExprData::Dot(..) | syntax::ExprData::Id(_) => self
                 .with_expr_validated_as_place(expr, &mut |this, place| {
-                    this.place_to_expr(place, expr.synthesized(), mode)
+                    this.place_to_expr(place, expr.synthesized())
                 }),
 
             syntax::ExprData::BooleanLiteral(b) => {
@@ -397,7 +387,7 @@ impl<'me> Validator<'me> {
             }
 
             syntax::ExprData::Parenthesized(parenthesized_expr) => {
-                self.validate_expr_in_mode(*parenthesized_expr, mode)
+                self.validate_expr(*parenthesized_expr)
             }
 
             syntax::ExprData::Tuple(element_exprs) => {
@@ -762,15 +752,8 @@ impl<'me> Validator<'me> {
         }
     }
 
-    fn place_to_expr(
-        &mut self,
-        place: validated::Place,
-        origin: ExprOrigin,
-        mode: ExprMode,
-    ) -> validated::Expr {
-        match mode {
-            ExprMode::Default => self.add(validated::ExprData::Give(place), origin),
-        }
+    fn place_to_expr(&mut self, place: validated::Place, origin: ExprOrigin) -> validated::Expr {
+        self.add(validated::ExprData::Give(place), origin)
     }
 
     fn validate_permission_expr(
@@ -840,8 +823,7 @@ impl<'me> Validator<'me> {
             }
             syntax::ExprData::Error => self.add(validated::ExprData::Error, expr),
             _ => {
-                let (assign_expr, temporary_place) =
-                    self.validate_expr_in_temporary(expr, ExprMode::Default);
+                let (assign_expr, temporary_place) = self.validate_expr_in_temporary(expr);
                 let expr = op(self, temporary_place);
                 self.seq(Some(assign_expr), expr)
             }
@@ -852,9 +834,8 @@ impl<'me> Validator<'me> {
     fn validate_expr_in_temporary(
         &mut self,
         expr: syntax::Expr,
-        mode: ExprMode,
     ) -> (validated::Expr, validated::Place) {
-        let validated_expr = self.validate_expr_in_mode(expr, mode);
+        let validated_expr = self.validate_expr(expr);
         self.store_validated_expr_in_temporary(validated_expr)
     }
 
