@@ -44,9 +44,6 @@ pub(crate) struct Validator<'me> {
 pub enum ExprMode {
     /// When you do `a = <expr>`, `<expr>` is evaluated in "default" mode
     Default,
-
-    /// In `a.f = <expr>`, `a` is evaluated in "leased" mode
-    Leased,
 }
 
 impl<'me> Validator<'me> {
@@ -593,19 +590,15 @@ impl<'me> Validator<'me> {
         };
 
         // `temp_leased_owner = owner.lease` (if this is a field)
-        self.with_expr_validated_as_target_place(
-            lhs_expr,
-            ExprMode::Leased,
-            &mut |this, validated_target_place| {
-                this.validate_op_eq_with_target_place(
-                    op_eq_expr,
-                    lhs_expr,
-                    op,
-                    rhs_expr,
-                    validated_target_place,
-                )
-            },
-        )
+        self.with_expr_validated_as_target_place(lhs_expr, &mut |this, validated_target_place| {
+            this.validate_op_eq_with_target_place(
+                op_eq_expr,
+                lhs_expr,
+                op,
+                rhs_expr,
+                validated_target_place,
+            )
+        })
     }
 
     fn validate_op_eq_with_target_place(
@@ -666,7 +659,6 @@ impl<'me> Validator<'me> {
     fn with_expr_validated_as_target_place(
         &mut self,
         expr: syntax::Expr,
-        owner_mode: ExprMode,
         op: &mut dyn FnMut(&mut Self, validated::TargetPlace) -> validated::Expr,
     ) -> validated::Expr {
         match expr.data(self.syntax_tables()) {
@@ -711,7 +703,7 @@ impl<'me> Validator<'me> {
             },
 
             syntax::ExprData::Parenthesized(target_expr) => {
-                self.with_expr_validated_as_target_place(*target_expr, owner_mode, op)
+                self.with_expr_validated_as_target_place(*target_expr, op)
             }
 
             _ => {
@@ -778,7 +770,6 @@ impl<'me> Validator<'me> {
     ) -> validated::Expr {
         match mode {
             ExprMode::Default => self.add(validated::ExprData::Give(place), origin),
-            ExprMode::Leased => self.add(validated::ExprData::Lease(place), origin),
         }
     }
 
@@ -958,17 +949,13 @@ impl<'me> Validator<'me> {
         lhs_expr: syntax::Expr,
         initializer_expr: syntax::Expr,
     ) -> validated::Expr {
-        self.with_expr_validated_as_target_place(
-            lhs_expr,
-            ExprMode::Leased,
-            &mut |this, target_place| {
-                let validated_expr = this.validate_expr(initializer_expr);
-                this.add(
-                    validated::ExprData::Assign(target_place, validated_expr),
-                    assign_expr,
-                )
-            },
-        )
+        self.with_expr_validated_as_target_place(lhs_expr, &mut |this, target_place| {
+            let validated_expr = this.validate_expr(initializer_expr);
+            this.add(
+                validated::ExprData::Assign(target_place, validated_expr),
+                assign_expr,
+            )
+        })
     }
 }
 
