@@ -256,8 +256,7 @@ impl Stepper<'_> {
                     self.push_reachable_via_fields(&v.fields, &mut reachable, &mut queue);
                 }
 
-                ObjectData::Reservation(_)
-                | ObjectData::Bool(_)
+                ObjectData::Bool(_)
                 | ObjectData::Class(_)
                 | ObjectData::Float(_)
                 | ObjectData::Function(_)

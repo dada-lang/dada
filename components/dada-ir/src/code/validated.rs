@@ -241,9 +241,6 @@ pub enum ExprData {
     /// `expr(id: expr, ...)`
     Call(Expr, Vec<NamedExpr>),
 
-    /// `expr.reserve` -- not legal syntax
-    Reserve(Place),
-
     /// `<value>.share`
     Share(Expr),
 
@@ -328,7 +325,6 @@ impl ExprData {
                 .field(&expr.debug(db))
                 .field(&args.debug(db))
                 .finish(),
-            ExprData::Reserve(p) => f.debug_tuple("Reserve").field(&p.debug(db)).finish(),
             ExprData::Share(p) => f.debug_tuple("Share").field(&p.debug(db)).finish(),
             ExprData::Lease(p) => f.debug_tuple("Lease").field(&p.debug(db)).finish(),
             ExprData::Shlease(p) => f.debug_tuple("Shlease").field(&p.debug(db)).finish(),

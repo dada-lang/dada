@@ -27,7 +27,6 @@ impl Stepper<'_> {
         place: bir::Place,
     ) -> eyre::Result<Value> {
         let object_traversal = self.traverse_to_object(table, place)?;
-        let object_traversal = self.confirm_reservation_if_any(table, object_traversal)?;
         self.give_traversal(table, object_traversal)
     }
 

@@ -1,9 +1,6 @@
-use dada_ir::{error, storage::Joint};
+use dada_ir::storage::Joint;
 
-use crate::{
-    error::DiagnosticBuilderExt,
-    machine::{Permission, PermissionData, ValidPermissionData},
-};
+use crate::machine::{Permission, PermissionData, ValidPermissionData};
 
 use super::Stepper;
 
@@ -14,25 +11,7 @@ impl Stepper<'_> {
         let pc = self.machine.opt_pc();
         let p = std::mem::replace(&mut self.machine[permission], PermissionData::Expired(pc));
 
-        if let PermissionData::Valid(ValidPermissionData {
-            tenants,
-            reservations,
-            ..
-        }) = p
-        {
-            if let Some(reservation) = reservations.into_iter().next() {
-                let data = &self.machine[reservation];
-                let error_pc = pc.unwrap_or(data.pc);
-                let error_span = error_pc.span(self.db);
-                return Err(error!(
-                    error_span,
-                    "you can't overwrite this value, it is reserved right now"
-                )
-                .primary_label("attempting to invalidate reservation here")
-                .secondary_label(data.pc.span(self.db), "reservation was placed here")
-                .eyre(self.db));
-            }
-
+        if let PermissionData::Valid(ValidPermissionData { tenants, .. }) = p {
             for tenant in tenants {
                 self.revoke(tenant)?;
             }

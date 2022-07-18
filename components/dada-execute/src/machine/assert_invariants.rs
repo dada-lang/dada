@@ -1,23 +1,9 @@
 use dada_collections::Map;
-use dada_ir::{
-    code::bir,
-    in_ir_db::InIrDbExt,
-    storage::{Joint, Leased},
-};
-use salsa::DebugWithDb;
+use dada_ir::storage::{Joint, Leased};
 
-use crate::{
-    ext::DadaExecuteClassExt,
-    machine::{
-        op::MachineOp, Frame, Object, ObjectData, Permission, PermissionData, Reservation, Value,
-    },
-};
-
-use super::ReservationData;
+use crate::machine::{op::MachineOp, Frame, Object, ObjectData, Permission, PermissionData, Value};
 
 pub(super) struct AssertInvariants<'me> {
-    db: &'me dyn crate::Db,
-
     machine: &'me dyn MachineOp,
 
     /// Every permission ought to be associated with "at most one" object.
@@ -25,9 +11,8 @@ pub(super) struct AssertInvariants<'me> {
 }
 
 impl<'me> AssertInvariants<'me> {
-    pub(super) fn new(db: &'me dyn crate::Db, machine: &'me dyn MachineOp) -> Self {
+    pub(super) fn new(_db: &'me dyn crate::Db, machine: &'me dyn MachineOp) -> Self {
         Self {
-            db,
             machine,
             permission_map: Default::default(),
         }
@@ -65,10 +50,6 @@ impl<'me> AssertInvariants<'me> {
             ObjectData::ThunkRust(f) => self.assert_values_ok(&f.arguments)?,
             ObjectData::Tuple(t) => self.assert_values_ok(&t.fields)?,
 
-            ObjectData::Reservation(r) => {
-                let _object = self.assert_reservation_ok(*r)?;
-            }
-
             ObjectData::Class(_)
             | ObjectData::Function(_)
             | ObjectData::Intrinsic(_)
@@ -87,111 +68,6 @@ impl<'me> AssertInvariants<'me> {
 
     fn assert_permission_ok(&mut self, _permission: Permission) -> eyre::Result<()> {
         Ok(())
-    }
-
-    /// Asserts that the reservation is ok and returns the reserved object.
-    pub(super) fn assert_reservation_ok(
-        &mut self,
-        reservation: Reservation,
-    ) -> eyre::Result<Object> {
-        let ReservationData {
-            pc: _,
-            frame_index,
-            place,
-        } = self.machine[reservation];
-        self.assert_reserved_place(reservation, &self.machine[frame_index], place)
-    }
-
-    /// Assert that the place `place` found in a reservation `reservation`
-    /// is in fact reserved. We expect to find `reservation` in each permission
-    /// and we expect this to be a unique place.
-    fn assert_reserved_place(
-        &mut self,
-        reservation: Reservation,
-        frame: &Frame,
-        place: bir::Place,
-    ) -> eyre::Result<Object> {
-        let bir = frame.pc.bir;
-        let table = &bir.data(self.db).tables;
-        match &table[place] {
-            bir::PlaceData::Class(_)
-            | bir::PlaceData::Function(_)
-            | bir::PlaceData::Intrinsic(_) => {
-                eyre::bail!(
-                    "reserved place `{:?}` bottoms out in a constant `{:?}`",
-                    reservation,
-                    table[place],
-                );
-            }
-
-            bir::PlaceData::LocalVariable(lv) => {
-                let value = frame.locals[*lv];
-                self.assert_reserved_value(reservation, value)
-            }
-
-            bir::PlaceData::Dot(owner, field) => {
-                let object = self.assert_reserved_place(reservation, frame, *owner)?;
-                match &self.machine[object] {
-                    ObjectData::Instance(instance) => {
-                        let Some(index) = instance.class.field_index(self.db, *field) else {
-                            eyre::bail!(
-                                "reservation `{:?}` references place `{:?}` with invalid field `{:?}` for object `{:?}`",
-                                reservation,
-                                place.debug(&bir.in_ir_db(self.db)),
-                                field.debug(self.db),
-                                instance,
-                            );
-                            };
-                        let value = instance.fields[index];
-                        self.assert_reserved_value(reservation, value)
-                    }
-
-                    data => {
-                        eyre::bail!(
-                            "reservation `{:?}` reserved object with unexpected data `{:?}` at place `{:?}`",
-                            reservation,
-                            data,
-                            place.debug(&bir.in_ir_db(self.db)),
-                        );
-                    }
-                }
-            }
-        }
-    }
-
-    fn assert_reserved_value(
-        &mut self,
-        reservation: Reservation,
-        value: Value,
-    ) -> eyre::Result<Object> {
-        let Value { object, permission } = value;
-
-        let Some(valid) = self.machine[permission].valid() else {
-            eyre::bail!(
-                "reservation `{:?}` references expired permission `{:?}`",
-                reservation,
-                permission,
-            );
-        };
-
-        if let Joint::Yes = valid.joint {
-            eyre::bail!(
-                "reservation `{:?}` references joint permission `{:?}`",
-                reservation,
-                permission,
-            );
-        }
-
-        if !valid.reservations.contains(&reservation) {
-            eyre::bail!(
-                "reservation `{:?}` not found in reservation list `{:?}` for permission `{:?}`",
-                reservation,
-                valid.reservations,
-                permission,
-            );
-        }
-
-        Ok(object)
     }
 
     fn assert_values_ok(&mut self, values: &[Value]) -> eyre::Result<()> {

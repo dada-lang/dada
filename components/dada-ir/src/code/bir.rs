@@ -418,11 +418,6 @@ pub enum ExprData {
     /// `"foo"` with no format strings
     StringLiteral(Word),
 
-    /// `expr.reserve`
-    ///
-    /// not (presently) actual syntax, emitted as part of lowering
-    Reserve(Place),
-
     /// `expr.share`
     Share(Place),
 
@@ -464,7 +459,6 @@ impl DebugWithDb<InIrDb<'_, Bir>> for ExprData {
             ExprData::SignedIntegerLiteral(w) => write!(f, "{}", w),
             ExprData::StringLiteral(w) => write!(f, "{:?}", w.as_str(db.db())),
             ExprData::FloatLiteral(w) => write!(f, "{}", w),
-            ExprData::Reserve(p) => write!(f, "{:?}.reserve", p.debug(db)),
             ExprData::Share(p) => write!(f, "{:?}.share", p.debug(db)),
             ExprData::Lease(p) => write!(f, "{:?}.lease", p.debug(db)),
             ExprData::Shlease(p) => write!(f, "{:?}.shlease", p.debug(db)),

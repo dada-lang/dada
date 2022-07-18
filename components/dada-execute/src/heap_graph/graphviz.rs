@@ -3,8 +3,8 @@ use dada_id::InternKey;
 use dada_parse::prelude::*;
 
 use super::{
-    DataNode, HeapGraph, ObjectType, PermissionNode, PermissionNodeLabel, PermissionNodeSource,
-    ValueEdge, ValueEdgeData, ValueEdgeTarget,
+    DataNode, HeapGraph, ObjectType, PermissionNode, PermissionNodeLabel, ValueEdge, ValueEdgeData,
+    ValueEdgeTarget,
 };
 
 const UNCHANGED: &str = "slategray";
@@ -148,7 +148,6 @@ impl HeapGraph {
 
             let (penwidth, arrowtype) = match permission_data.label {
                 PermissionNodeLabel::My | PermissionNodeLabel::Our => ("3.0", "normal"),
-                PermissionNodeLabel::Reserved => ("1.0", "odot"),
                 PermissionNodeLabel::Expired
                 | PermissionNodeLabel::Leased
                 | PermissionNodeLabel::Shared => ("1.0", "empty"),
@@ -157,7 +156,6 @@ impl HeapGraph {
             let color = match permission_data.label {
                 PermissionNodeLabel::My | PermissionNodeLabel::Leased => "red",
                 PermissionNodeLabel::Shared | PermissionNodeLabel::Our => "blue",
-                PermissionNodeLabel::Reserved => "grey",
                 PermissionNodeLabel::Expired => "grey",
             };
 
@@ -456,22 +454,12 @@ impl HeapGraph {
             return true;
         };
 
-        match permission.data(&self.tables).source {
-            PermissionNodeSource::Permission(machine_permission) => {
-                Some(&self.machine[machine_permission])
-                    != diff_against
-                        .machine
-                        .heap
-                        .permission_data(machine_permission)
-            }
-            PermissionNodeSource::Reservation(machine_reservation) => {
-                Some(&self.machine[machine_reservation])
-                    != diff_against
-                        .machine
-                        .heap
-                        .reservation_data(machine_reservation)
-            }
-        }
+        let machine_permission = permission.data(&self.tables).source;
+        Some(&self.machine[machine_permission])
+            != diff_against
+                .machine
+                .heap
+                .permission_data(machine_permission)
     }
 }
 

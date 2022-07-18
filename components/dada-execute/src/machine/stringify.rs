@@ -43,7 +43,6 @@ pub(crate) impl<T: ?Sized + MachineOp> DefaultStringify for T {
             ObjectData::Class(c) => c.name(db).as_str(db).to_string(),
             ObjectData::ThunkRust(r) => format!("{r:?}"),
             ObjectData::Tuple(t) => self.object_string(db, None, &t.fields),
-            ObjectData::Reservation(r) => format!("{r:?}"), // can prob do better than this :)
         }
     }
 
