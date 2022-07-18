@@ -62,8 +62,4 @@ p.x += 1
 
 # Print the new value.
 print_point(p).await
-
-# prints:
-# The point is: Point(x: 22, y: 44)
-# The point is: Point(x: 34, y: 44)
 ```
