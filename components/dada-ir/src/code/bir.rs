@@ -418,14 +418,14 @@ pub enum ExprData {
     /// `"foo"` with no format strings
     StringLiteral(Word),
 
-    /// `expr.share`
-    Share(Place),
+    /// `<value>.share`
+    IntoShared(Place),
+
+    /// `<place>.share`
+    Shlease(Place),
 
     /// `expr.lease`
     Lease(Place),
-
-    /// `expr.shlease`
-    Shlease(Place),
 
     /// `expr.give`
     Give(Place),
@@ -459,9 +459,9 @@ impl DebugWithDb<InIrDb<'_, Bir>> for ExprData {
             ExprData::SignedIntegerLiteral(w) => write!(f, "{}", w),
             ExprData::StringLiteral(w) => write!(f, "{:?}", w.as_str(db.db())),
             ExprData::FloatLiteral(w) => write!(f, "{}", w),
-            ExprData::Share(p) => write!(f, "{:?}.share", p.debug(db)),
+            ExprData::IntoShared(e) => write!(f, "{:?}.share", e.debug(db)),
+            ExprData::Shlease(p) => write!(f, "{:?}.share", p.debug(db)),
             ExprData::Lease(p) => write!(f, "{:?}.lease", p.debug(db)),
-            ExprData::Shlease(p) => write!(f, "{:?}.shlease", p.debug(db)),
             ExprData::Give(p) => write!(f, "{:?}.give", p.debug(db)),
             ExprData::Unit => write!(f, "()"),
             ExprData::Tuple(vars) => write_parenthesized_places(f, vars, db),

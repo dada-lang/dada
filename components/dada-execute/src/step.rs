@@ -35,10 +35,10 @@ mod call;
 mod concatenate;
 mod gc;
 mod give;
+mod into_shared;
 mod intrinsic;
 mod lease;
 mod revoke;
-mod share;
 mod shlease;
 mod tenant;
 mod traversal;
@@ -447,7 +447,7 @@ impl<'me> Stepper<'me> {
                 object: self.machine.new_object(ObjectData::Unit(())),
                 permission: self.machine.new_permission(ValidPermissionData::our()),
             }),
-            bir::ExprData::Share(place) => self.share_place(table, *place),
+            bir::ExprData::IntoShared(place) => self.into_shared_place(table, *place),
             bir::ExprData::Lease(place) => self.lease_place(table, *place),
             bir::ExprData::Shlease(place) => self.shlease_place(table, *place),
             bir::ExprData::Give(place) => self.give_place(table, *place),

@@ -348,7 +348,7 @@ impl<'me> Validator<'me> {
                     self.validate_permission_expr(expr, *target_expr, validated::ExprData::Shlease)
                 } else {
                     let validated_target_expr = self.validate_expr(*target_expr);
-                    self.add(validated::ExprData::Share(validated_target_expr), expr)
+                    self.add(validated::ExprData::IntoShared(validated_target_expr), expr)
                 }
             }
 

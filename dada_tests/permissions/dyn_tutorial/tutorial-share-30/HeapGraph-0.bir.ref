@@ -13,7 +13,7 @@
                 (
                     AssignExpr(
                         temp{5},
-                        Class(Id { value: 1 }).shlease,
+                        Class(Id { value: 1 }).share,
                     ),
                     Expr(0),
                 ),
@@ -95,7 +95,7 @@
                 (
                     AssignExpr(
                         r{2},
-                        q{1}.shlease,
+                        q{1}.share,
                     ),
                     Expr(9),
                 ),

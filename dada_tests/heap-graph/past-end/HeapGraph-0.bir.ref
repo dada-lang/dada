@@ -6,7 +6,7 @@
                 (
                     AssignExpr(
                         temp{3},
-                        Print.shlease,
+                        Print.share,
                     ),
                     Expr(0),
                 ),

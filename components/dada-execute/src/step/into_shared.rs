@@ -33,17 +33,20 @@ impl Stepper<'_> {
     ///
     /// * Sharing a shared thing is effectively "cloning" it, in the Rust sense
     #[tracing::instrument(level = "Debug", skip(self, table))]
-    pub(super) fn share_place(
+    pub(super) fn into_shared_place(
         &mut self,
         table: &bir::Tables,
         place: bir::Place,
     ) -> eyre::Result<Value> {
         let object_traversal = self.traverse_to_object(table, place)?;
-        self.share_traversal(object_traversal)
+        self.into_shared_traversal(object_traversal)
     }
 
     #[tracing::instrument(level = "debug", skip(self))]
-    pub(super) fn share_traversal(&mut self, traversal: ObjectTraversal) -> eyre::Result<Value> {
+    pub(super) fn into_shared_traversal(
+        &mut self,
+        traversal: ObjectTraversal,
+    ) -> eyre::Result<Value> {
         // Sharing counts as a read of the data being shared.
         self.read(&traversal)?;
 

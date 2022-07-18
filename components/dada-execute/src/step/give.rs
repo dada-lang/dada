@@ -50,7 +50,7 @@ impl Stepper<'_> {
         // * Sharing preserves the ownership properties, just like give
         // * Sharing always results in a shared permission, but since input is shared, this also preserves desired properties
         if let Joint::Yes = object_traversal.accumulated_permissions.joint {
-            return self.share_traversal(object_traversal);
+            return self.into_shared_traversal(object_traversal);
         }
 
         // Giving something that is leased is handled via leasing.

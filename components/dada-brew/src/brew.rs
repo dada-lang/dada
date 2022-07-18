@@ -141,7 +141,7 @@ impl Cursor {
             | validated::ExprData::FloatLiteral(_)
             | validated::ExprData::StringLiteral(_)
             | validated::ExprData::Call(_, _)
-            | validated::ExprData::Share(_)
+            | validated::ExprData::IntoShared(_)
             | validated::ExprData::Lease(_)
             | validated::ExprData::Shlease(_)
             | validated::ExprData::Give(_)
@@ -249,10 +249,10 @@ impl Cursor {
                 );
             }
 
-            validated::ExprData::Share(operand) => {
+            validated::ExprData::IntoShared(operand) => {
                 if let Some(temp) = self.brew_expr_to_temporary(brewery, *operand) {
                     self.push_breakpoint_start(brewery, origin);
-                    self.push_assignment(brewery, target, bir::ExprData::Share(temp), origin);
+                    self.push_assignment(brewery, target, bir::ExprData::IntoShared(temp), origin);
                     self.push_breakpoint_end(brewery, Some(target), origin);
                 }
             }
