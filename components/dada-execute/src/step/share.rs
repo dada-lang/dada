@@ -28,7 +28,7 @@ impl Stepper<'_> {
     /// * `place` may be used for reads without invalidating the resulting value `v`
     /// * `place` remains valid and unchanged; writing to `place` may invalidate the result `v`.
     #[tracing::instrument(level = "Debug", skip(self, table))]
-    pub(super) fn shlease_place(
+    pub(super) fn share_place(
         &mut self,
         table: &bir::Tables,
         place: bir::Place,

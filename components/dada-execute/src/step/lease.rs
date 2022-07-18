@@ -135,7 +135,7 @@ impl Stepper<'_> {
         //                    :
         //                    : tenant
         //                    v
-        //                  --shleased--> b
+        //                  --shared----> b
         //                  ============= resulting permission
         // ```
         //

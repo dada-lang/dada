@@ -197,7 +197,7 @@ impl<'me> Validator<'me> {
         match expr.data(self.syntax_tables()) {
             syntax::ExprData::Dot(..) | syntax::ExprData::Id(_) => self
                 .with_expr_validated_as_place(expr, &mut |this, place| {
-                    this.add(validated::ExprData::Shlease(place), expr)
+                    this.add(validated::ExprData::Share(place), expr)
                 }),
 
             syntax::ExprData::BooleanLiteral(b) => {
@@ -345,7 +345,7 @@ impl<'me> Validator<'me> {
 
             syntax::ExprData::Share(target_expr) => {
                 if self.is_place_expression(*target_expr) {
-                    self.validate_permission_expr(expr, *target_expr, validated::ExprData::Shlease)
+                    self.validate_permission_expr(expr, *target_expr, validated::ExprData::Share)
                 } else {
                     let validated_target_expr = self.validate_expr(*target_expr);
                     self.add(validated::ExprData::IntoShared(validated_target_expr), expr)

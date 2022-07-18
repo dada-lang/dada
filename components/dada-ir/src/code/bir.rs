@@ -422,7 +422,7 @@ pub enum ExprData {
     IntoShared(Place),
 
     /// `<place>.share`
-    Shlease(Place),
+    Share(Place),
 
     /// `expr.lease`
     Lease(Place),
@@ -460,7 +460,7 @@ impl DebugWithDb<InIrDb<'_, Bir>> for ExprData {
             ExprData::StringLiteral(w) => write!(f, "{:?}", w.as_str(db.db())),
             ExprData::FloatLiteral(w) => write!(f, "{}", w),
             ExprData::IntoShared(e) => write!(f, "{:?}.share", e.debug(db)),
-            ExprData::Shlease(p) => write!(f, "{:?}.share", p.debug(db)),
+            ExprData::Share(p) => write!(f, "{:?}.share", p.debug(db)),
             ExprData::Lease(p) => write!(f, "{:?}.lease", p.debug(db)),
             ExprData::Give(p) => write!(f, "{:?}.give", p.debug(db)),
             ExprData::Unit => write!(f, "()"),

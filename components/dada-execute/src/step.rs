@@ -39,7 +39,7 @@ mod into_shared;
 mod intrinsic;
 mod lease;
 mod revoke;
-mod shlease;
+mod share;
 mod tenant;
 mod traversal;
 
@@ -449,7 +449,7 @@ impl<'me> Stepper<'me> {
             }),
             bir::ExprData::IntoShared(place) => self.into_shared_place(table, *place),
             bir::ExprData::Lease(place) => self.lease_place(table, *place),
-            bir::ExprData::Shlease(place) => self.shlease_place(table, *place),
+            bir::ExprData::Share(place) => self.share_place(table, *place),
             bir::ExprData::Give(place) => self.give_place(table, *place),
             bir::ExprData::Tuple(places) => {
                 let fields = places

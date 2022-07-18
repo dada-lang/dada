@@ -26,7 +26,7 @@ impl Stepper<'_> {
     /// * The shared result has the same ownership/lease properties as original path:
     ///   * If original path was owned, shared result is owned (sharing a `my Foo` gives an `our Foo`).
     ///   * If original path was leased, shared result is leased and lives as long as original lease would
-    ///     (sharing a `leased(p) Foo` gives a `shleased(p) Foo`).
+    ///     (sharing a `leased(p) Foo` gives a `shared(p) Foo`).
     /// * After sharing, the original path can be read (or shared again) without disturbing the share.
     ///
     /// Implication:

@@ -143,7 +143,7 @@ impl Cursor {
             | validated::ExprData::Call(_, _)
             | validated::ExprData::IntoShared(_)
             | validated::ExprData::Lease(_)
-            | validated::ExprData::Shlease(_)
+            | validated::ExprData::Share(_)
             | validated::ExprData::Give(_)
             | validated::ExprData::Tuple(_)
             | validated::ExprData::Concatenate(_)
@@ -264,10 +264,10 @@ impl Cursor {
                 self.push_breakpoint_ends(brewery, Some(target), origins, origin);
             }
 
-            validated::ExprData::Shlease(place) => {
+            validated::ExprData::Share(place) => {
                 let (place, origins) = self.brew_place(brewery, *place);
                 self.push_breakpoint_starts(brewery, origins.iter().copied(), origin);
-                self.push_assignment(brewery, target, bir::ExprData::Shlease(place), origin);
+                self.push_assignment(brewery, target, bir::ExprData::Share(place), origin);
                 self.push_breakpoint_ends(brewery, Some(target), origins, origin);
             }
 
