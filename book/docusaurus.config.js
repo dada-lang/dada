@@ -130,7 +130,7 @@ const config = {
             ],
           },
         ],
-        copyright: `Copyright © ${new Date().getFullYear()} the [Dadaists team](https://github.com/orgs/dada-lang/teams/dadaists).`,
+        copyright: `Copyright © ${new Date().getFullYear()} the <a href="https://github.com/orgs/dada-lang/teams/dadaists">Dadaists team</a>.`,
       },
       prism: {
         theme: lightCodeTheme,
