@@ -189,7 +189,7 @@ impl<'me> Validator<'me> {
 
     /// Validates an expression into a value:
     ///
-    /// * If `E` is a place expression, like `a.b`, this is equivalent to `a.b.shlease`
+    /// * If `E` is a place expression, like `a.b`, this is equivalent to `a.b.share`
     /// * If `E` is a value expression, like `foo()`, this just evalutes it
     #[tracing::instrument(level = "debug", skip(self, expr))]
     fn validate_expr(&mut self, expr: syntax::Expr) -> validated::Expr {
@@ -354,10 +354,6 @@ impl<'me> Validator<'me> {
 
             syntax::ExprData::Lease(target_expr) => {
                 self.validate_permission_expr(expr, *target_expr, validated::ExprData::Lease)
-            }
-
-            syntax::ExprData::Shlease(target_expr) => {
-                self.validate_permission_expr(expr, *target_expr, validated::ExprData::Shlease)
             }
 
             syntax::ExprData::Give(target_expr) => self.give_validated_expr(expr, *target_expr),

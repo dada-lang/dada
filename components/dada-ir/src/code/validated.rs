@@ -244,14 +244,14 @@ pub enum ExprData {
     /// `expr.reserve` -- not legal syntax
     Reserve(Place),
 
-    /// `expr.share`
+    /// `<value>.share`
     Share(Expr),
+
+    /// `<place>.share`
+    Shlease(Place),
 
     /// `expr.lease`
     Lease(Place),
-
-    /// `expr.shlease`
-    Shlease(Place),
 
     /// `expr.give`
     Give(Place),

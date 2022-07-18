@@ -124,9 +124,6 @@ pub enum ExprData {
     /// `expr.lease`
     Lease(Expr),
 
-    /// `expr.shlease`
-    Shlease(Expr),
-
     /// `expr.give`
     Give(Expr),
 
@@ -203,7 +200,6 @@ impl DebugWithDb<InIrDb<'_, Tree>> for ExprData {
                 .finish(),
             ExprData::Share(e) => f.debug_tuple("Share").field(&e.debug(db)).finish(),
             ExprData::Lease(e) => f.debug_tuple("Lease").field(&e.debug(db)).finish(),
-            ExprData::Shlease(e) => f.debug_tuple("Shlease").field(&e.debug(db)).finish(),
             ExprData::Give(e) => f.debug_tuple("Give").field(&e.debug(db)).finish(),
             ExprData::Var(v, e) => f
                 .debug_tuple("Var")

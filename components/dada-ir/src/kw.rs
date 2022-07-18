@@ -60,8 +60,6 @@ define_keywords! {
     Return => "return",
     Share => "share",
     Shared => "shared",
-    Shlease => "shlease",
-    Shleased => "shleased",
     True => "true",
     Our => "our",
     While => "while",
