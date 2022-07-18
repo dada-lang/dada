@@ -4,6 +4,8 @@ import Col from "react-bootstrap/Col";
 import Row from "react-bootstrap/Row";
 import { default as AnsiUp } from "ansi_up";
 import Container from "react-bootstrap/Container";
+import Stack from "react-bootstrap/Stack";
+import Button from "react-bootstrap/Button";
 
 import dadaWeb, { compiler } from "dada-web";
 import type { DadaCompiler, InitOutput } from "dada-web";
@@ -113,7 +115,9 @@ class DCW {
 export type Cursor = { row: number; column: number };
 
 export enum OutputMode {
+  NONE = "none",
   EXECUTE = "execute",
+  DEBUG = "debug",
   SYNTAX = "syntax",
   VALIDATED = "validated",
   BIR = "bir",
@@ -123,7 +127,9 @@ function Ide(props: { mini: boolean; sourceText: string }) {
   const [_module, setModule] = useState<InitOutput | null>(null);
   const [dada, setDada] = useState<DCW | null>(null);
   const [queue] = useState<Queue>(() => new Queue());
-  const [outputMode, setOutputMode] = useState<OutputMode>(OutputMode.EXECUTE);
+  const [outputMode, setOutputMode] = useState<OutputMode>(
+    props.mini ? OutputMode.NONE : OutputMode.DEBUG
+  );
 
   // Guess an appropriate number of lines based on the initial
   // source.
@@ -182,8 +188,26 @@ function Ide(props: { mini: boolean; sourceText: string }) {
 
   if (props.mini) {
     return (
-      <Container>
-        <Row className={"ide-header"}>Source Code</Row>
+      <Container fluid={true}>
+        <Row className={"ide-header"} xs={12}>
+          <Col>Source Code</Col>
+          <Col>
+            <Button
+              variant="primary"
+              onClick={() => setOutputMode(OutputMode.EXECUTE)}
+            >
+              Run
+            </Button>
+          </Col>
+          <Col>
+            <Button
+              variant="secondary"
+              onClick={() => setOutputMode(OutputMode.DEBUG)}
+            >
+              Debug
+            </Button>
+          </Col>
+        </Row>
         <Row>
           <Editor
             source={source}
@@ -200,7 +224,7 @@ function Ide(props: { mini: boolean; sourceText: string }) {
           <Output
             output={output}
             heaps={heaps}
-            mode={OutputMode.EXECUTE}
+            mode={outputMode}
             mini={props.mini}
           />
         </Row>
