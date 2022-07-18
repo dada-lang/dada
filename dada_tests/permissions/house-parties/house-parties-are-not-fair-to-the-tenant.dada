@@ -13,7 +13,7 @@
 class Accumulator(atomic list)
 class List(field)
 
-fn foo(accumulator) -> # shleased List
+fn foo(accumulator) -> # shared List
 {
     #! FIXME: Reading an atomic field without atomic section should not be allowed
     accumulator.list.lease.share

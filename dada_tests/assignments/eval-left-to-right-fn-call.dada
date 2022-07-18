@@ -16,4 +16,4 @@ d = Counter(22)
 # `next_and` is evaluated first, so `next`
 # returns 2
 next_and(c.lease, d.lease).value := next(c.lease)
-print(d.shlease).await #! OUTPUT Counter\(2\)
+print(d.share).await #! OUTPUT Counter\(2\)

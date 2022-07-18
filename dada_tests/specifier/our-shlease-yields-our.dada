@@ -4,7 +4,7 @@ async fn main() {
     p = Point(22, 33).share
 
     # Under current semantics, shleasing an `our`
-    # yields another `our` value (not, e.g., shleased),
+    # yields another `our` value (not, e.g., shared),
     # so this code works.
-    x = p.x.shlease.share
+    x = p.x.share
 }

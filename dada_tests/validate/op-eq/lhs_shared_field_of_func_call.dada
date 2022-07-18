@@ -4,7 +4,7 @@ async fn main() {
     p = Point(22, 44).share
     # Test that we execute `test(p)` (and hence see its output)
     # before we detect the error here
-    test(p.shlease).await.x += 1 #! RUN ERROR cannot write to shared fields
+    test(p.share).await.x += 1 #! RUN ERROR cannot write to shared fields
     print(p).await
 }
 

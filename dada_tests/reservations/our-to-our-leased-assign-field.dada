@@ -4,7 +4,7 @@ class OurLeased(f)
 
 async fn main() {
     p = Point(22, 44).share   # create a shared point `(22, 44)`
-    q = OurLeased(p.shlease)  # `q.f` becomes 2nd owner of `(22, 44)`
+    q = OurLeased(p.share)  # `q.f` becomes 2nd owner of `(22, 44)`
     print(q.lease).await      #! OUTPUT OurLeased\(Point\(22, 44\)\)
 
     p := Point(44, 66).share  # `p` is shared owner of `(44, 66)`

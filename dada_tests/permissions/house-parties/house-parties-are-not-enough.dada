@@ -7,8 +7,8 @@
 class Accumulator(list)
 class List()
 
-# This function takes a `shleased` accumulator and returns a
-# `shleased` result. (Though, if given an `our` accumulator,
+# This function takes a `shared` accumulator and returns a
+# `shared` result. (Though, if given an `our` accumulator,
 # it will return an `our` list, given current rules.)
 fn get_list(accumulator) -> {
     accumulator.list.share
@@ -23,8 +23,8 @@ async fn main() {
     # ```
     
     a = Accumulator(list: List())
-    l1 = get_list(a.shlease)
-    l2 = get_list(a.shlease)
+    l1 = get_list(a.share)
+    l2 = get_list(a.share)
     print(l2).await #! OUTPUT List\(\)
     print(l1).await #! OUTPUT List
     print(l2).await #! OUTPUT List
