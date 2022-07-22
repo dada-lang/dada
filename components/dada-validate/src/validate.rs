@@ -17,7 +17,7 @@ pub(crate) fn validate_function(db: &dyn crate::Db, function: Function) -> valid
     let mut tables = validated::Tables::default();
     let mut origins = validated::Origins::default();
     let root_definitions = root_definitions(db, function.filename(db));
-    let scope = Scope::root(db, &root_definitions);
+    let scope = Scope::root(db, root_definitions);
 
     let mut validator =
         validator::Validator::root(db, function, syntax_tree, &mut tables, &mut origins, scope);

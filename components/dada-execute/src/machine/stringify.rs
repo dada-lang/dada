@@ -10,7 +10,7 @@ pub(crate) impl<T: ?Sized + MachineOp> DefaultStringify for T {
     /// eventually be customizable.
     fn stringify_value(&self, db: &dyn crate::Db, value: Value) -> String {
         if let PermissionData::Expired(_) = self[value.permission] {
-            return "(expired)".to_string();
+            "(expired)".to_string()
         } else {
             self.stringify_object(db, value.object)
         }
