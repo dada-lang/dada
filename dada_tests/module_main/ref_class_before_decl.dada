@@ -1,4 +1,4 @@
-any p = Pair(22, 44)
+p = Pair(22, 44)
 print(p).await #! OUTPUT Pair\(22, 44\)
 
-class Pair(any a, any b)
+class Pair(a, b)

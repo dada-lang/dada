@@ -1,4 +1,4 @@
-use dada_ir::{code::bir, error, parameter::Parameter, storage::SpannedSpecifier};
+use dada_ir::{code::bir, error, parameter::Parameter};
 
 use crate::{
     error::DiagnosticBuilderExt,
@@ -24,19 +24,6 @@ pub(super) enum Address {
 }
 
 impl Stepper<'_> {
-    pub(super) fn specifier(&self, address: Address) -> Option<SpannedSpecifier> {
-        match address {
-            Address::Local(local) => {
-                let bir = self.machine.pc().bir;
-                let local_decl = &bir.data(self.db).tables[local];
-                local_decl.specifier
-            }
-            Address::Constant(_) => None,
-            Address::Field(_, _, Some(field)) => Some(field.decl(self.db).specifier),
-            Address::Field(_, _, None) => None,
-        }
-    }
-
     /// Read the value at `address`; does not account for permissions at all.
     pub(super) fn peek(&self, address: Address) -> Value {
         match address {

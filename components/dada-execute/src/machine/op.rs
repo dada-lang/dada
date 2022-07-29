@@ -5,14 +5,12 @@ use dada_ir::code::bir;
 
 use super::{
     assert_invariants::AssertInvariants, Frame, FrameIndex, Machine, Object, ObjectData,
-    Permission, PermissionData, ProgramCounter, Reservation, ReservationData, ValidPermissionData,
-    Value,
+    Permission, PermissionData, ProgramCounter, ValidPermissionData, Value,
 };
 
 pub(crate) trait MachineOp:
     std::ops::IndexMut<Object, Output = ObjectData>
     + std::ops::IndexMut<Permission, Output = PermissionData>
-    + std::ops::IndexMut<Reservation, Output = ReservationData>
     + std::ops::IndexMut<bir::LocalVariable, Output = Value>
     + std::ops::Index<FrameIndex, Output = Frame>
     + Debug
@@ -40,12 +38,6 @@ pub(crate) trait MachineOp:
     fn new_permission(&mut self, data: ValidPermissionData) -> Permission;
     fn expired_permission(&mut self, origin: Option<ProgramCounter>) -> Permission;
     fn all_permissions(&self) -> Vec<Permission>;
-
-    fn reservation(&self, reservation: Reservation) -> &ReservationData;
-    fn reservation_mut(&mut self, reservation: Reservation) -> &mut ReservationData;
-    fn new_reservation(&mut self, data: ReservationData) -> Reservation;
-    fn all_reservations(&self) -> Vec<Reservation>;
-    fn take_reservation(&mut self, reservation: Reservation) -> ReservationData;
 
     // Access locals from the top-most stack frame (panics if stack is empty).
     fn local(&self, local_variable: bir::LocalVariable) -> &Value;
@@ -209,32 +201,6 @@ impl MachineOp for Machine {
         self.heap.new_permission(PermissionData::Expired(place))
     }
 
-    #[track_caller]
-    fn reservation(&self, reservation: Reservation) -> &ReservationData {
-        self.heap.reservations.get(reservation.index).unwrap()
-    }
-
-    #[track_caller]
-    fn reservation_mut(&mut self, reservation: Reservation) -> &mut ReservationData {
-        self.heap.reservations.get_mut(reservation.index).unwrap()
-    }
-
-    fn new_reservation(&mut self, data: ReservationData) -> Reservation {
-        self.heap.new_reservation(data)
-    }
-
-    #[track_caller]
-    fn take_reservation(&mut self, reservation: Reservation) -> ReservationData {
-        self.heap
-            .reservations
-            .remove(reservation.index)
-            .unwrap_or_else(|| panic!("reservation not found: {reservation:?}"))
-    }
-
-    fn all_reservations(&self) -> Vec<Reservation> {
-        self.heap.all_reservations()
-    }
-
     fn local(&self, local_variable: bir::LocalVariable) -> &Value {
         &self.stack.frames.last().unwrap().locals[local_variable]
     }
@@ -296,20 +262,6 @@ impl std::ops::IndexMut<Permission> for Machine {
     }
 }
 
-impl std::ops::Index<Reservation> for Machine {
-    type Output = ReservationData;
-
-    fn index(&self, index: Reservation) -> &Self::Output {
-        self.reservation(index)
-    }
-}
-
-impl std::ops::IndexMut<Reservation> for Machine {
-    fn index_mut(&mut self, index: Reservation) -> &mut Self::Output {
-        self.reservation_mut(index)
-    }
-}
-
 impl std::ops::Index<bir::LocalVariable> for Machine {
     type Output = Value;
 
@@ -343,16 +295,5 @@ pub(crate) impl MachineOpExtMut for &mut dyn MachineOp {
 pub(crate) impl MachineOpExt for &dyn MachineOp {
     fn assert_invariants(self, db: &dyn crate::Db) -> eyre::Result<()> {
         AssertInvariants::new(db, self).assert_all_ok()
-    }
-
-    /// Given a reservation, peeks to find the reserved object;
-    /// returns Err if the machine invariants on the reservation are not meant
-    /// (indicates a bug in Dada somewhere).
-    fn peek_reservation(
-        self,
-        db: &dyn crate::Db,
-        reservation: Reservation,
-    ) -> eyre::Result<Object> {
-        AssertInvariants::new(db, self).assert_reservation_ok(reservation)
     }
 }

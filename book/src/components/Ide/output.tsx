@@ -3,6 +3,7 @@ import { Graphviz } from "graphviz-react";
 import { OutputMode } from ".";
 import Col from "react-bootstrap/Col";
 import Row from "react-bootstrap/Row";
+import { Stack } from "react-bootstrap";
 
 type StateGraphProps = {
   heap: string;
@@ -14,7 +15,7 @@ const StateGraph = (props: PropsWithChildren<StateGraphProps>) => {
 
   return (
     <div className="heap-cell">
-      <h2>{props.name}</h2>
+      <h3>{props.name}</h3>
       <div className="heap">
         <Graphviz dot={props.heap} options={{ height: "200px", fit: true }} />
       </div>
@@ -30,35 +31,74 @@ type OutputProps = {
 };
 
 function Output(props: PropsWithChildren<OutputProps>) {
-  const executeTemplate = props.mini ? (
-    <div
-      className="dada-output p-2 bg-light"
-      dangerouslySetInnerHTML={{ __html: props.output }}
-    ></div>
-  ) : (
-    <>
+  if (props.mini) {
+    const outputTemplate = (
       <div
         className="dada-output p-2 bg-light"
         dangerouslySetInnerHTML={{ __html: props.output }}
       ></div>
-      <StateGraph
-        heap={props.heaps[0]}
-        name="State before selected statement"
-      />
-      <StateGraph heap={props.heaps[1]} name="State after selected statement" />
-    </>
-  );
+    );
 
-  const irTemplate = (
-    <>
-      <div
-        className="dada-ir-output p-2 bg-light"
-        dangerouslySetInnerHTML={{ __html: props.output }}
-      ></div>
-    </>
-  );
+    switch (props.mode) {
+      case OutputMode.EXECUTE:
+        return outputTemplate;
+      case OutputMode.DEBUG:
+        return (
+          <Row>
+            <Col>{outputTemplate}</Col>
+            <Col>
+              <StateGraph heap={props.heaps[1]} name="State at cursor" />
+            </Col>
+          </Row>
+        );
+      case OutputMode.NONE:
+        return <div className="dada-ir-output p-2 bg-light"></div>;
+      default:
+        return outputTemplate;
+    }
+  } else {
+    const executeTemplate = (
+      <>
+        <div
+          className="dada-output p-2 bg-light"
+          dangerouslySetInnerHTML={{ __html: props.output }}
+        ></div>
+      </>
+    );
 
-  return props.mode === OutputMode.EXECUTE ? executeTemplate : irTemplate;
+    const debugTemplate = (
+      <>
+        <div
+          className="dada-output p-2 bg-light"
+          dangerouslySetInnerHTML={{ __html: props.output }}
+        ></div>
+        <StateGraph
+          heap={props.heaps[1]}
+          name="State after selected statement"
+        />
+      </>
+    );
+
+    const irTemplate = (
+      <>
+        <div
+          className="dada-ir-output p-2 bg-light"
+          dangerouslySetInnerHTML={{ __html: props.output }}
+        ></div>
+      </>
+    );
+
+    switch (props.mode) {
+      case OutputMode.EXECUTE:
+        return executeTemplate;
+      case OutputMode.DEBUG:
+        return debugTemplate;
+      case OutputMode.NONE:
+        return <div className="dada-ir-output p-2 bg-light"></div>;
+      default:
+        return irTemplate;
+    }
+  }
 }
 
 export default Output;

@@ -111,7 +111,6 @@ impl TreeTraversal<'_> {
             | syntax::ExprData::Dot(base_expr, _)
             | syntax::ExprData::Share(base_expr)
             | syntax::ExprData::Lease(base_expr)
-            | syntax::ExprData::Shlease(base_expr)
             | syntax::ExprData::Give(base_expr)
             | syntax::ExprData::Await(base_expr)
             | syntax::ExprData::Loop(base_expr)

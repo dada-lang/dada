@@ -1,7 +1,7 @@
-class Object(any data)
+class Object(data)
 
 async fn main() {
     # This is equivalent to `if { .. } else { .. }.lease`.
-    leased o = if true { Object(true) } else { Object(false) }
+    o = if true { Object(true) } else { Object(false) }.lease
     print(o).await  #! OUTPUT Object\(true\)
 }

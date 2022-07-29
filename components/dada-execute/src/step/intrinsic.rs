@@ -1,4 +1,4 @@
-use dada_ir::{error, intrinsic::Intrinsic, storage::Specifier, word::Word};
+use dada_ir::{error, intrinsic::Intrinsic, word::Word};
 use eyre::Context;
 
 use crate::{
@@ -14,7 +14,6 @@ pub(crate) type IntrinsicFn = fn(&mut Stepper<'_>, Vec<Value>) -> eyre::Result<V
 
 pub(crate) struct IntrinsicDefinition {
     pub(crate) argument_names: Vec<Word>,
-    pub(crate) argument_specifiers: Vec<Specifier>,
     pub(crate) function: IntrinsicFn,
 }
 
@@ -23,7 +22,6 @@ impl IntrinsicDefinition {
         match intrinsic {
             Intrinsic::Print => IntrinsicDefinition {
                 argument_names: vec![Word::from(db, "message")],
-                argument_specifiers: vec![Specifier::Any],
                 function: |s, v| s.intrinsic_print(v),
                 // FIXME: Stepper::intrinsic_write doesn't type check, why?
             },

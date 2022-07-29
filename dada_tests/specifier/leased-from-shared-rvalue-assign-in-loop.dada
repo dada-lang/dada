@@ -1,10 +1,10 @@
-class Point(our x, our y)
+class Point(x, y)
 
 async fn main() {
     # Leasing an `our` value just takes ownership
     # of it, so `p` becomes (shared) owner of this
     # point here.
-    shleased p = Point(22, 44).share
+    p = Point(22, 44).share
 
     i = 0
     while i < 1 {

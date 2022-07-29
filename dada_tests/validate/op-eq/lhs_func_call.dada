@@ -1,14 +1,14 @@
-class Point(our x, our y)
+class Point(x, y)
 
 async fn main() {
-    my p = Point(22, 44)
-    test(p) += 1 
+    p = Point(22, 44)
+    test(p.lease) += 1 
     #! ERROR you can only assign to local variables and fields, not arbitrary expressions
     #! RUN ERROR compilation error encountered
     print(p).await
 }
 
-async fn test(leased p) -> {
+async fn test(p) -> {
     print("Hi").await
     p
 }

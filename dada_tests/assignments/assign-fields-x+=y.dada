@@ -1,0 +1,4 @@
+class Point(x, y)
+p = Point(22, 44)
+p.x += p.y
+print(p).await #! OUTPUT Point\(66, 44\)

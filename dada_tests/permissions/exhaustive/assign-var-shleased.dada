@@ -1,0 +1,9 @@
+class Pair(a, b)
+
+async fn main() {
+    p0 = Pair(22, 44)
+    p = p0.share
+    q = p
+    print(p).await
+    #! OUTPUT Pair\(22, 44\)
+}

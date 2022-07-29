@@ -15,7 +15,7 @@ impl Stepper<'_> {
     ) -> eyre::Result<Value> {
         let mut string = String::new();
         for place in places {
-            let value = self.shlease_place(table, *place)?;
+            let value = self.share_place(table, *place)?;
             string.push_str(&self.machine.stringify_value(self.db, value));
         }
 

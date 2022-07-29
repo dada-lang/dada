@@ -11,7 +11,7 @@ use crate::{
     origin_table::HasOriginIn,
     prelude::InIrDbExt,
     span::FileSpan,
-    storage::{Atomic, SpannedSpecifier},
+    storage::Atomic,
     word::{SpannedOptionalWord, Word},
 };
 use dada_id::{id, prelude::*, tables};
@@ -178,12 +178,6 @@ pub struct LocalVariableData {
     /// introduced by the compiler.
     pub name: Option<Word>,
 
-    /// Specifier given this variable by the user
-    /// (possibly defaulted). If this is `None`,
-    /// then this is a temporary introduced by the compiler,
-    /// and it gets the specifier `Any`.
-    pub specifier: Option<SpannedSpecifier>,
-
     pub atomic: Atomic,
 }
 
@@ -259,17 +253,6 @@ pub enum StatementData {
     /// or (b) the rhs is an rvalue, like `22`, and so is always given.
     AssignExpr(TargetPlace, Expr),
 
-    /// Captures an assignment like
-    ///
-    /// ```notrust
-    /// foo.bar := baz
-    /// ```
-    ///
-    /// This case is challenging because, until we know
-    /// the declared type of `bar` at runtime, we don't
-    /// know whether to give `baz`, lease it, or what.
-    AssignPlace(TargetPlace, Place),
-
     /// Clears the value from the given local variable.
     Clear(LocalVariable),
 
@@ -305,12 +288,6 @@ impl DebugWithDb<InIrDb<'_, Bir>> for StatementData {
                 .debug_tuple("AssignExpr")
                 .field(&place.debug(db))
                 .field(&expr.debug(db))
-                .finish(),
-
-            StatementData::AssignPlace(target, source) => f
-                .debug_tuple("AssignPlace")
-                .field(&target.debug(db))
-                .field(&source.debug(db))
                 .finish(),
 
             StatementData::Clear(lv) => f.debug_tuple("Clear").field(&lv.debug(db)).finish(),
@@ -441,19 +418,14 @@ pub enum ExprData {
     /// `"foo"` with no format strings
     StringLiteral(Word),
 
-    /// `expr.reserve`
-    ///
-    /// not (presently) actual syntax, emitted as part of lowering
-    Reserve(Place),
+    /// `<value>.share`
+    IntoShared(Place),
 
-    /// `expr.share`
+    /// `<place>.share`
     Share(Place),
 
     /// `expr.lease`
     Lease(Place),
-
-    /// `expr.shlease`
-    Shlease(Place),
 
     /// `expr.give`
     Give(Place),
@@ -487,10 +459,9 @@ impl DebugWithDb<InIrDb<'_, Bir>> for ExprData {
             ExprData::SignedIntegerLiteral(w) => write!(f, "{}", w),
             ExprData::StringLiteral(w) => write!(f, "{:?}", w.as_str(db.db())),
             ExprData::FloatLiteral(w) => write!(f, "{}", w),
-            ExprData::Reserve(p) => write!(f, "{:?}.reserve", p.debug(db)),
+            ExprData::IntoShared(e) => write!(f, "{:?}.share", e.debug(db)),
             ExprData::Share(p) => write!(f, "{:?}.share", p.debug(db)),
             ExprData::Lease(p) => write!(f, "{:?}.lease", p.debug(db)),
-            ExprData::Shlease(p) => write!(f, "{:?}.shlease", p.debug(db)),
             ExprData::Give(p) => write!(f, "{:?}.give", p.debug(db)),
             ExprData::Unit => write!(f, "()"),
             ExprData::Tuple(vars) => write_parenthesized_places(f, vars, db),

@@ -1,10 +1,10 @@
-class Pair(any a, any b)
+class Pair(a, b)
 
 async fn main() {
     # FIXME: Debatable when the underlying pair should be freed.
     p = Pair(22, 44).lease.share
     q = p.give
-    print(p).await #! OUTPUT shleased Pair\(22, 44\)
-    print(q).await #! OUTPUT shleased Pair\(22, 44\)
-    print(p).await #! OUTPUT shleased Pair\(22, 44\)
+    print(p).await #! OUTPUT Pair\(22, 44\)
+    print(q).await #! OUTPUT Pair\(22, 44\)
+    print(p).await #! OUTPUT Pair\(22, 44\)
 }

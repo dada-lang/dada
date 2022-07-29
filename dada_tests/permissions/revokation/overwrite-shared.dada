@@ -1,15 +1,15 @@
-class Pair(any a, any b)
+class Pair(a, b)
 
 async fn main() {
-    any pair = Pair(Pair(22, 44).share, 66)
+    pair = Pair(Pair(22, 44).share, 66)
     #           ^^^^^^^^^^^^^^^^^^
     # This created a jointly owned value but
     # puts `pair` is the sole owner of it.
 
     # Leasing from `pair.a` clones it, since `pair.a` is "our"
-    any p = pair.a.lease
+    p = pair.a.lease
 
     # Since `p` is owned, overwriting `pair.a` has no effect on it.
     pair.a := Pair(23, 45)
-    print(p).await #! OUTPUT our Pair\(22, 44\)
+    print(p).await #! OUTPUT Pair\(22, 44\)
 }

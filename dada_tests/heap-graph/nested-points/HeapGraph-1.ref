@@ -13,21 +13,19 @@ digraph {
           <table border="0">
           <tr><td border="1">main</td></tr>
           <tr><td port="0"><font color="black">p</font></td></tr>
-          <tr><td port="2"><font color="slategray">q</font></td></tr>
+          <tr><td port="1"><font color="slategray">q</font></td></tr>
           </table>
         >;
       ];
     }
     afternode0 [
-      color = "slategray",
-      fontcolor = "slategray",
       label = <<table border="0">
         <tr><td border="1">Point</td></tr>
-        <tr><td port="0"><font color="slategray">x: "22"</font></td></tr>
-        <tr><td port="1"><font color="slategray">y: "44"</font></td></tr>
+        <tr><td port="0"><font color="black">x: "22"</font></td></tr>
+        <tr><td port="1"><font color="black">y: "44"</font></td></tr>
       </table>>
     ];
-    "afterstack":0 -> "afternode0" [label="shleased", style="solid", penwidth=1.0, arrowtype="empty", color="blue"];
+    "afterstack":0 -> "afternode0" [label="my", style="solid", penwidth=3.0, arrowtype="normal", color="red"];
   }
   subgraph cluster_before {
     label=<<b>before</b>>
@@ -40,7 +38,7 @@ digraph {
           <table border="0">
           <tr><td border="1">main</td></tr>
           <tr><td port="0"><font color="slategray">p</font></td></tr>
-          <tr><td port="2"><font color="slategray">q</font></td></tr>
+          <tr><td port="1"><font color="slategray">q</font></td></tr>
           </table>
         >;
       ];

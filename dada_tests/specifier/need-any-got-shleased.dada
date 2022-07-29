@@ -1,5 +1,5 @@
 class Point()
 
 async fn main() {
-    any p = Point().lease.share
+    p = Point().lease.share
 }

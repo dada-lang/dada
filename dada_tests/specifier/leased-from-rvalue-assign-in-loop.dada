@@ -1,8 +1,8 @@
-class Point(our x, our y)
+class Point(x, y)
 
 async fn main() {
     # Leases a temporary that lives as long as `p`
-    leased p = Point(22, 44)
+    p = Point(22, 44).lease
 
     i = 0
     while i < 1 {
@@ -16,5 +16,5 @@ async fn main() {
     }
 
     # The value stored in `p` has expired
-    print(p).await #! RUN ERROR your lease to this object was cancelled
+    print(p).await #! OUTPUT Point\(44, 66\)
 }

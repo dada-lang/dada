@@ -36,7 +36,6 @@ impl Stepper<'_> {
         place: bir::Place,
     ) -> eyre::Result<Value> {
         let object_traversal = self.traverse_to_object(table, place)?;
-        let object_traversal = self.confirm_reservation_if_any(table, object_traversal)?;
         self.lease_traversal(object_traversal)
     }
 
@@ -136,7 +135,7 @@ impl Stepper<'_> {
         //                    :
         //                    : tenant
         //                    v
-        //                  --shleased--> b
+        //                  --shared----> b
         //                  ============= resulting permission
         // ```
         //

@@ -1,5 +1,0 @@
-class Point()
-
-async fn main() {
-    my p = Point().lease.share #! RUN ERROR more permissions needed
-}

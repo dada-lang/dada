@@ -1,12 +1,12 @@
-class Point(our x, our y)
+class Point(x, y)
 
 async fn main() {
-    my p = Point(22, 44)
-    test(p).await.x += 1
+    p = Point(22, 44)
+    test(p.lease).await.x += 1
     print(p).await #! OUTPUT Point\(23, 44\)
 }
 
-async fn test(leased p) -> {
+async fn test(p) -> {
     print("Hi").await #! OUTPUT Hi
-    p
+    p.give
 }

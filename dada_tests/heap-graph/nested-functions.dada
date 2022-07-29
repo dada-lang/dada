@@ -1,6 +1,6 @@
 #! OUTPUT ANY
 
-class Point(any x, any y)
+class Point(x, y)
 
 async fn main() {
     name = "Fellow Dadaist"

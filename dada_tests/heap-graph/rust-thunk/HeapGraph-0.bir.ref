@@ -13,7 +13,7 @@
                 (
                     AssignExpr(
                         temp{3},
-                        Print.reserve,
+                        Print.share,
                     ),
                     Expr(0),
                 ),

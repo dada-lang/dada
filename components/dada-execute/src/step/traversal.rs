@@ -17,8 +17,7 @@ use crate::{
     error::DiagnosticBuilderExt,
     ext::DadaExecuteClassExt,
     machine::{
-        op::MachineOpExtMut, Object, ObjectData, Permission, PermissionData, ProgramCounter,
-        ReservationData, Value,
+        op::MachineOpExtMut, Object, ObjectData, Permission, PermissionData, ProgramCounter, Value,
     },
 };
 
@@ -214,48 +213,6 @@ impl Stepper<'_> {
             accumulated_permissions,
             address: Address::Field(owner_object, field_index, Some(field)),
         })
-    }
-
-    /// If `traversal` reaches a reservation, then "confirm" the reservation by
-    /// traversing to the place that was reversal, removing the reservation from
-    /// each permission along the way, and returning that traversal.
-    ///
-    /// Otherwise return `traversal` unchanged.
-    #[tracing::instrument(level = "Debug", skip(self, table))]
-    pub(super) fn confirm_reservation_if_any(
-        &mut self,
-        table: &bir::Tables,
-        traversal: ObjectTraversal,
-    ) -> eyre::Result<ObjectTraversal> {
-        let ObjectData::Reservation(_) = self.machine[traversal.object] else {
-            return Ok(traversal);
-        };
-
-        let (Joint::No, Leased::No) = (traversal.accumulated_permissions.joint, traversal.accumulated_permissions.leased) else {
-            // our codegen doesn't ever share or lease a temporary containing a reservation
-            panic!("expected to find reservation in a `my` location");
-        };
-
-        let object = self.take_object(traversal)?;
-        let ObjectData::Reservation(reservation) = self.machine[object] else {
-            panic!("object data changed from a reservation");
-        };
-        let ReservationData {
-            pc: _,
-            frame_index,
-            place: reserved_place,
-        } = self.machine.take_reservation(reservation);
-
-        assert_eq!(
-            frame_index,
-            self.machine.top_frame_index().unwrap(),
-            "reservation `{reservation:?}` escaped its frame"
-        );
-
-        // the reservation should ensure that this place is still valid
-        let retraversal = self.traverse_to_object(table, reserved_place).unwrap();
-        self.remove_reservations(reservation, &retraversal.accumulated_permissions.traversed)?;
-        Ok(retraversal)
     }
 
     fn object_field(
