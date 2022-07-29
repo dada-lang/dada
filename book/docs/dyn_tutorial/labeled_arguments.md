@@ -4,7 +4,7 @@ sidebar_position: 3
 
 # Aside: Labeled arguments
 
-Before we go further with the tutorial, it's worth nothing that Dada supports _labeled arguments_. That means that instead of writing `Point(22, 44)` one can also give labels to each argument, like `Point(x: 22, y: 44)`:
+Before we go further with the tutorial, it's worth noting that Dada supports _labeled arguments_. That means that instead of writing `Point(22, 44)` one can also give labels to each argument, like `Point(x: 22, y: 44)`:
 
 ```dada ide
 class Point(x, y)
