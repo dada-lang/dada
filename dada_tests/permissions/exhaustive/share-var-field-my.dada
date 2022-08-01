@@ -1,8 +1,8 @@
-class Pair(any a, any b)
+class Pair(a, b)
 
 async fn main() {
-    any p = Pair(Pair(22, 44), 66)
-    any q = p.a.share
-    print(p).await #! OUTPUT my Pair\(\(expired\), 66\)
-    print(q).await #! OUTPUT our Pair\(22, 44\)
+    p = Pair(Pair(22, 44), 66)
+    q = p.a.share
+    print(q).await #! OUTPUT Pair\(22, 44\)
+    print(p).await #! OUTPUT Pair\(Pair\(22, 44\), 66\)
 }

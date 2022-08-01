@@ -1,5 +1,6 @@
 use dada_id::prelude::*;
 use dada_ir::code::syntax;
+use dada_ir::code::syntax::op::Op;
 use dada_ir::code::syntax::LocalVariableDecl;
 use dada_ir::code::validated;
 use dada_ir::code::validated::ExprOrigin;
@@ -14,7 +15,6 @@ use dada_ir::return_type::ReturnTypeKind;
 use dada_ir::span::FileSpan;
 use dada_ir::span::Span;
 use dada_ir::storage::Atomic;
-use dada_ir::storage::Specifier;
 use dada_ir::word::Word;
 use dada_lex::prelude::*;
 use dada_parse::prelude::*;
@@ -38,22 +38,6 @@ pub(crate) struct Validator<'me> {
     effect: Effect,
     effect_span: Rc<dyn Fn(&Validator<'_>) -> FileSpan + 'me>,
     synthesized: bool,
-}
-
-#[derive(Copy, Clone, Debug)]
-pub enum ExprMode {
-    Specifier(Specifier),
-    Reserve,
-}
-
-impl ExprMode {
-    fn give() -> Self {
-        Self::Specifier(Specifier::My)
-    }
-
-    fn leased() -> Self {
-        Self::Specifier(Specifier::Leased)
-    }
 }
 
 impl<'me> Validator<'me> {
@@ -135,14 +119,6 @@ impl<'me> Validator<'me> {
         key
     }
 
-    fn or_error(
-        &mut self,
-        data: Result<validated::Expr, ErrorReported>,
-        origin: syntax::Expr,
-    ) -> validated::Expr {
-        data.unwrap_or_else(|ErrorReported| self.add(validated::ExprData::Error, origin))
-    }
-
     fn span(&self, e: impl HasOriginIn<syntax::Spans, Origin = Span>) -> FileSpan {
         self.function.syntax_tree(self.db).spans(self.db)[e]
             .in_file(self.function.filename(self.db))
@@ -158,7 +134,6 @@ impl<'me> Validator<'me> {
         let local_variable = self.add(
             validated::LocalVariableData {
                 name: Some(decl_data.name),
-                specifier: Some(decl_data.specifier),
                 atomic: decl_data.atomic,
             },
             validated::LocalVariableOrigin::Parameter(decl),
@@ -167,8 +142,8 @@ impl<'me> Validator<'me> {
     }
 
     #[tracing::instrument(level = "debug", skip_all)]
-    pub(crate) fn give_validated_root_expr(&mut self, expr: syntax::Expr) -> validated::Expr {
-        let validated_expr = self.give_validated_expr(expr);
+    pub(crate) fn validate_root_expr(&mut self, expr: syntax::Expr) -> validated::Expr {
+        let validated_expr = self.validate_expr(expr);
         if self.function.return_type(self.db).kind(self.db) == ReturnTypeKind::Value {
             if let validated::ExprData::Seq(exprs) = validated_expr.data(self.tables) {
                 if exprs.is_empty() {
@@ -192,23 +167,38 @@ impl<'me> Validator<'me> {
         validated_expr
     }
 
+    /// Given an expression `E`, takes ownership of its value:
+    ///
+    /// * If `E` is a place expression, like `a.b`, this is equivalent to `a.b.give`
+    /// * If `E` is a value expression, like `foo()`, this just evalutes `E`
+    ///
+    /// The `move_expr` argument indicates the expression causing the move (e.g., the `give` expr
+    /// or the `await` expr).
     #[tracing::instrument(level = "debug", skip(self, expr))]
-    fn give_validated_expr(&mut self, expr: syntax::Expr) -> validated::Expr {
-        self.validate_expr_in_mode(expr, ExprMode::give())
+    fn give_validated_expr(
+        &mut self,
+        moving_expr: syntax::Expr,
+        expr: syntax::Expr,
+    ) -> validated::Expr {
+        if self.is_place_expression(expr) {
+            self.validate_permission_expr(moving_expr, expr, validated::ExprData::Give)
+        } else {
+            self.validate_expr(expr)
+        }
     }
 
+    /// Validates an expression into a value:
+    ///
+    /// * If `E` is a place expression, like `a.b`, this is equivalent to `a.b.share`
+    /// * If `E` is a value expression, like `foo()`, this just evalutes it
     #[tracing::instrument(level = "debug", skip(self, expr))]
-    pub(crate) fn reserve_validated_expr(&mut self, expr: syntax::Expr) -> validated::Expr {
-        self.validate_expr_in_mode(expr, ExprMode::Reserve)
-    }
-
-    fn validate_expr_in_mode(&mut self, expr: syntax::Expr, mode: ExprMode) -> validated::Expr {
+    fn validate_expr(&mut self, expr: syntax::Expr) -> validated::Expr {
         tracing::trace!("expr.data = {:?}", expr.data(self.syntax_tables()));
         match expr.data(self.syntax_tables()) {
-            syntax::ExprData::Dot(..) | syntax::ExprData::Id(_) => {
-                let place = self.validate_expr_as_place(expr);
-                self.place_to_expr(place, expr.synthesized(), mode)
-            }
+            syntax::ExprData::Dot(..) | syntax::ExprData::Id(_) => self
+                .with_expr_validated_as_place(expr, &mut |this, place| {
+                    this.add(validated::ExprData::Share(place), expr)
+                }),
 
             syntax::ExprData::BooleanLiteral(b) => {
                 self.add(validated::ExprData::BooleanLiteral(*b), expr)
@@ -328,12 +318,12 @@ impl<'me> Validator<'me> {
                     }
                 }
 
-                let validated_future_expr = self.give_validated_expr(*future_expr);
+                let validated_future_expr = self.give_validated_expr(expr, *future_expr);
                 self.add(validated::ExprData::Await(validated_future_expr), expr)
             }
 
             syntax::ExprData::Call(func_expr, named_exprs) => {
-                let validated_func_expr = self.reserve_validated_expr(*func_expr);
+                let validated_func_expr = self.validate_expr(*func_expr);
                 let validated_named_exprs = self.validate_named_exprs(named_exprs);
                 let mut name_required = false;
                 for named_expr in &validated_named_exprs {
@@ -354,32 +344,25 @@ impl<'me> Validator<'me> {
             }
 
             syntax::ExprData::Share(target_expr) => {
-                let validated_target_expr = self.give_validated_expr(*target_expr);
-                self.add(validated::ExprData::Share(validated_target_expr), expr)
+                if self.is_place_expression(*target_expr) {
+                    self.validate_permission_expr(expr, *target_expr, validated::ExprData::Share)
+                } else {
+                    let validated_target_expr = self.validate_expr(*target_expr);
+                    self.add(validated::ExprData::IntoShared(validated_target_expr), expr)
+                }
             }
 
             syntax::ExprData::Lease(target_expr) => {
                 self.validate_permission_expr(expr, *target_expr, validated::ExprData::Lease)
             }
 
-            syntax::ExprData::Shlease(target_expr) => {
-                self.validate_permission_expr(expr, *target_expr, validated::ExprData::Shlease)
-            }
-
-            syntax::ExprData::Give(target_expr) => {
-                if self.is_place_expression(*target_expr) {
-                    self.validate_permission_expr(expr, *target_expr, validated::ExprData::Give)
-                } else {
-                    self.give_validated_expr(*target_expr)
-                }
-            }
+            syntax::ExprData::Give(target_expr) => self.give_validated_expr(expr, *target_expr),
 
             syntax::ExprData::Var(decl, initializer_expr) => {
                 let decl_data = decl.data(self.syntax_tables());
                 let local_variable = self.add(
                     validated::LocalVariableData {
                         name: Some(decl_data.name),
-                        specifier: Some(decl_data.specifier),
                         atomic: decl_data.atomic,
                     },
                     validated::LocalVariableOrigin::LocalVariable(*decl),
@@ -391,17 +374,22 @@ impl<'me> Validator<'me> {
                     expr.synthesized(),
                 );
 
-                self.validated_assignment(target_place, *initializer_expr, expr)
+                let validated_initializer_expr = self.validate_expr(*initializer_expr);
+
+                self.add(
+                    validated::ExprData::Assign(target_place, validated_initializer_expr),
+                    expr,
+                )
             }
 
             syntax::ExprData::Parenthesized(parenthesized_expr) => {
-                self.validate_expr_in_mode(*parenthesized_expr, mode)
+                self.validate_expr(*parenthesized_expr)
             }
 
             syntax::ExprData::Tuple(element_exprs) => {
                 let validated_exprs = element_exprs
                     .iter()
-                    .map(|expr| self.reserve_validated_expr(*expr))
+                    .map(|expr| self.validate_expr(*expr))
                     .collect();
                 self.add(validated::ExprData::Tuple(validated_exprs), expr)
             }
@@ -409,11 +397,11 @@ impl<'me> Validator<'me> {
             syntax::ExprData::Concatenate(exprs) => self.concatenate(expr, exprs),
 
             syntax::ExprData::If(condition_expr, then_expr, else_expr) => {
-                let validated_condition_expr = self.give_validated_expr(*condition_expr);
-                let validated_then_expr = self.subscope().validate_expr_and_exit(*then_expr, mode);
+                let validated_condition_expr = self.validate_expr(*condition_expr);
+                let validated_then_expr = self.subscope().validate_expr_and_exit(*then_expr);
                 let validated_else_expr = match else_expr {
                     None => self.empty_tuple(expr),
-                    Some(else_expr) => self.subscope().validate_expr_and_exit(*else_expr, mode),
+                    Some(else_expr) => self.subscope().validate_expr_and_exit(*else_expr),
                 };
                 self.add(
                     validated::ExprData::If(
@@ -431,7 +419,7 @@ impl<'me> Validator<'me> {
                     .with_effect(Effect::Atomic, |this| {
                         this.span(expr).leading_keyword(this.db, Keyword::Atomic)
                     })
-                    .validate_expr_and_exit(*atomic_expr, mode);
+                    .validate_expr_and_exit(*atomic_expr);
                 self.add(validated::ExprData::Atomic(validated_atomic_expr), expr)
             }
 
@@ -443,7 +431,7 @@ impl<'me> Validator<'me> {
                 let validated_body_expr = self
                     .subscope()
                     .with_loop_expr(loop_expr)
-                    .validate_expr_and_exit(*body_expr, ExprMode::Specifier(Specifier::My));
+                    .validate_expr_and_exit(*body_expr);
 
                 self.tables[loop_expr] = validated::ExprData::Loop(validated_body_expr);
 
@@ -460,13 +448,13 @@ impl<'me> Validator<'me> {
                 let loop_expr = self.add(validated::ExprData::Error, expr);
 
                 // lower the condition C
-                let validated_condition_expr = self.give_validated_expr(*condition_expr);
+                let validated_condition_expr = self.validate_expr(*condition_expr);
 
                 // lower the body E, in a subscope so that `break` breaks out from `loop_expr`
                 let validated_body_expr = self
                     .subscope()
                     .with_loop_expr(loop_expr)
-                    .validate_expr_and_exit(*body_expr, mode);
+                    .validate_expr_and_exit(*body_expr);
 
                 let if_break_expr = {
                     // break
@@ -497,8 +485,8 @@ impl<'me> Validator<'me> {
             }
 
             syntax::ExprData::Op(lhs_expr, op, rhs_expr) => {
-                let validated_lhs_expr = self.give_validated_expr(*lhs_expr);
-                let validated_rhs_expr = self.give_validated_expr(*rhs_expr);
+                let validated_lhs_expr = self.validate_expr(*lhs_expr);
+                let validated_rhs_expr = self.validate_expr(*rhs_expr);
                 let validated_op = self.validated_op(*op);
                 self.add(
                     validated::ExprData::Op(validated_lhs_expr, validated_op, validated_rhs_expr),
@@ -507,7 +495,7 @@ impl<'me> Validator<'me> {
             }
 
             syntax::ExprData::Unary(op, rhs_expr) => {
-                let validated_rhs_expr = self.give_validated_expr(*rhs_expr);
+                let validated_rhs_expr = self.validate_expr(*rhs_expr);
                 let validated_op = self.validated_op(*op);
                 self.add(
                     validated::ExprData::Unary(validated_op, validated_rhs_expr),
@@ -515,30 +503,16 @@ impl<'me> Validator<'me> {
                 )
             }
 
-            syntax::ExprData::OpEq(..) => {
-                let result = self.validate_op_eq(expr);
-                self.or_error(result, expr)
-            }
+            syntax::ExprData::OpEq(..) => self.validate_op_eq(expr),
 
             syntax::ExprData::Assign(lhs_expr, rhs_expr) => {
-                let result = try {
-                    let (validated_lhs_opt_temp_expr, validated_lhs_place) =
-                        self.validate_expr_as_target_place(*lhs_expr, ExprMode::Reserve)?;
-
-                    let assign_expr =
-                        self.validated_assignment(validated_lhs_place, *rhs_expr, expr);
-
-                    self.seq(validated_lhs_opt_temp_expr, assign_expr)
-                };
-                self.or_error(result, expr)
+                self.validate_assign_expr(expr, *lhs_expr, *rhs_expr)
             }
 
             syntax::ExprData::Error => self.add(validated::ExprData::Error, expr),
             syntax::ExprData::Seq(exprs) => {
-                let validated_exprs: Vec<_> = exprs
-                    .iter()
-                    .map(|expr| self.give_validated_expr(*expr))
-                    .collect();
+                let validated_exprs: Vec<_> =
+                    exprs.iter().map(|expr| self.validate_expr(*expr)).collect();
                 self.add(validated::ExprData::Seq(validated_exprs), expr)
             }
             syntax::ExprData::Return(with_value) => {
@@ -569,7 +543,7 @@ impl<'me> Validator<'me> {
                     _ => {}
                 }
                 let validated_expr = if let Some(return_expr) = with_value {
-                    self.give_validated_expr(*return_expr)
+                    self.validate_expr(*return_expr)
                 } else {
                     self.empty_tuple(expr)
                 };
@@ -578,10 +552,7 @@ impl<'me> Validator<'me> {
         }
     }
 
-    fn validate_op_eq(
-        &mut self,
-        op_eq_expr: syntax::Expr,
-    ) -> Result<validated::Expr, ErrorReported> {
+    fn validate_op_eq(&mut self, op_eq_expr: syntax::Expr) -> validated::Expr {
         // if user wrote `x += <rhs>`, we generate
         //
         // {
@@ -593,8 +564,9 @@ impl<'me> Validator<'me> {
         //
         // {
         //     temp_leased_owner = owner.lease
+        //     temp_value = <rhs>
         //     temp_value = temp_leased_owner.x + <rhs>
-        //     temp_leased_owner.x = temp2
+        //     temp_leased_owner.x = temp_value.give
         // }
         //
         // below, we will leave comments for the more complex version.
@@ -604,9 +576,25 @@ impl<'me> Validator<'me> {
         };
 
         // `temp_leased_owner = owner.lease` (if this is a field)
-        let (lease_owner_expr, validated_target_place) =
-            self.validate_expr_as_target_place(lhs_expr, ExprMode::leased())?;
+        self.with_expr_validated_as_target_place(lhs_expr, &mut |this, validated_target_place| {
+            this.validate_op_eq_with_target_place(
+                op_eq_expr,
+                lhs_expr,
+                op,
+                rhs_expr,
+                validated_target_place,
+            )
+        })
+    }
 
+    fn validate_op_eq_with_target_place(
+        &mut self,
+        op_eq_expr: syntax::Expr,
+        lhs_expr: syntax::Expr,
+        op: Op,
+        rhs_expr: syntax::Expr,
+        validated_target_place: validated::TargetPlace,
+    ) -> validated::Expr {
         // `temp_value = x + <rhs>` or `temp_value = temp_leased_owner.x + <rhs>`
         let (temporary_assign_expr, temporary_place) = {
             let validated_op = self.validated_op(op);
@@ -628,7 +616,7 @@ impl<'me> Validator<'me> {
             };
 
             // <rhs>
-            let validated_rhs_expr = self.give_validated_expr(rhs_expr);
+            let validated_rhs_expr = self.validate_expr(rhs_expr);
 
             // `x + <rhs>` or `temp_leased_owner.x + <rhs>`
             let validated_op_expr = self.add(
@@ -639,134 +627,87 @@ impl<'me> Validator<'me> {
             self.store_validated_expr_in_temporary(validated_op_expr)
         };
 
+        //
+        let temporary_give = self.add(
+            validated::ExprData::Give(temporary_place),
+            op_eq_expr.synthesized(),
+        );
+
         // `x = temp_value` or `temp_leased_owner.x = temp_value`
-        let assign_field_expr = {
-            self.add(
-                validated::ExprData::AssignFromPlace(validated_target_place, temporary_place),
-                op_eq_expr,
-            )
-        };
+        let assign_field_expr = self.add(
+            validated::ExprData::Assign(validated_target_place, temporary_give),
+            op_eq_expr,
+        );
 
-        Ok(self.seq(
-            lease_owner_expr
-                .into_iter()
-                .chain(Some(temporary_assign_expr)),
-            assign_field_expr,
-        ))
+        self.seq(Some(temporary_assign_expr), assign_field_expr)
     }
 
-    fn validated_assignment(
-        &mut self,
-        target_place: validated::TargetPlace,
-        initializer_expr: syntax::Expr,
-        origin: syntax::Expr,
-    ) -> validated::Expr {
-        if self.is_place_expression(initializer_expr) {
-            // Compile
-            //
-            //     Specifier x = <place>
-            //
-            // to
-            //
-            //     x = <place>
-            //
-            // directly.
-            let result = try {
-                let (validated_opt_temp_expr, validated_initializer_place) =
-                    self.validate_expr_as_place(initializer_expr)?;
-                let assignment_expr = self.add(
-                    validated::ExprData::AssignFromPlace(target_place, validated_initializer_place),
-                    origin,
-                );
-                self.seq(validated_opt_temp_expr, assignment_expr)
-            };
-            self.or_error(result, origin)
-        } else {
-            // Compile
-            //
-            //     Specifier x = <rvalue>
-            //
-            // to
-            //
-            //     temp = <rvalue>
-            //     x = temp
-            //
-            // This temporary lives as long as `x` does.
-            //
-            // The reason for introducing this temporary is because
-            // some specifiers (notably `lease`) need a place
-            // to "borrow" from. For other specifiers (e.g., `my`, `our`, `any`)
-            // we simply move/copy out from `temp` immediately and it has no
-            // ill-effect.
-            let (temp_initializer_expr, temp_place) =
-                self.validate_expr_in_temporary(initializer_expr, ExprMode::give());
-            let assignment_expr = self.add(
-                validated::ExprData::AssignFromPlace(target_place, temp_place),
-                origin,
-            );
-            self.seq(Some(temp_initializer_expr), assignment_expr)
-        }
-    }
-
-    fn validate_expr_as_target_place(
+    fn with_expr_validated_as_target_place(
         &mut self,
         expr: syntax::Expr,
-        owner_mode: ExprMode,
-    ) -> Result<(Option<validated::Expr>, validated::TargetPlace), ErrorReported> {
+        op: &mut dyn FnMut(&mut Self, validated::TargetPlace) -> validated::Expr,
+    ) -> validated::Expr {
         match expr.data(self.syntax_tables()) {
             syntax::ExprData::Dot(owner, field_name) => {
-                let (assign_expr, owner_place) =
-                    self.validate_expr_in_temporary(*owner, owner_mode);
-                let place = self.add(
-                    validated::TargetPlaceData::Dot(owner_place, *field_name),
-                    expr,
-                );
-                Ok((Some(assign_expr), place))
+                self.with_expr_validated_as_place(*owner, &mut |this, owner_place| {
+                    let target_place = this.add(
+                        validated::TargetPlaceData::Dot(owner_place, *field_name),
+                        expr,
+                    );
+                    op(this, target_place)
+                })
             }
 
             syntax::ExprData::Id(name) => match self.scope.lookup(*name) {
                 Some(Definition::LocalVariable(lv)) => {
                     let place = self.add(validated::TargetPlaceData::LocalVariable(lv), expr);
-                    Ok((None, place))
+                    op(self, place)
                 }
 
                 Some(definition @ Definition::Function(_))
                 | Some(definition @ Definition::Class(_))
-                | Some(definition @ Definition::Intrinsic(_)) => Err(dada_ir::error!(
-                    self.span(expr),
-                    "you can only assign to local variables or fields, not {} like `{}`",
-                    definition.plural_description(),
-                    name.as_str(self.db),
-                )
-                .emit(self.db)),
+                | Some(definition @ Definition::Intrinsic(_)) => {
+                    let ErrorReported = dada_ir::error!(
+                        self.span(expr),
+                        "you can only assign to local variables or fields, not {} like `{}`",
+                        definition.plural_description(),
+                        name.as_str(self.db),
+                    )
+                    .emit(self.db);
+                    self.add(validated::ExprData::Error, expr)
+                }
 
-                None => Err(dada_ir::error!(
-                    self.span(expr),
-                    "can't find anything named `{}`",
-                    name.as_str(self.db)
-                )
-                .emit(self.db)),
+                None => {
+                    let ErrorReported = dada_ir::error!(
+                        self.span(expr),
+                        "can't find anything named `{}`",
+                        name.as_str(self.db)
+                    )
+                    .emit(self.db);
+                    self.add(validated::ExprData::Error, expr)
+                }
             },
 
             syntax::ExprData::Parenthesized(target_expr) => {
-                self.validate_expr_as_target_place(*target_expr, owner_mode)
+                self.with_expr_validated_as_target_place(*target_expr, op)
             }
 
             _ => {
-                let _ = self.give_validated_expr(expr);
-                Err(dada_ir::error!(
+                let _ = self.validate_expr(expr);
+                let ErrorReported = dada_ir::error!(
                     self.span(expr),
                     "you can only assign to local variables and fields, not arbitrary expressions",
                 )
-                .emit(self.db))
+                .emit(self.db);
+                self.add(validated::ExprData::Error, expr)
             }
         }
     }
 
     /// Validate the expression and then exit the subscope (consumes self).
     /// See [`Self::exit`].
-    fn validate_expr_and_exit(mut self, expr: syntax::Expr, mode: ExprMode) -> validated::Expr {
-        let validated_expr = self.validate_expr_in_mode(expr, mode);
+    fn validate_expr_and_exit(mut self, expr: syntax::Expr) -> validated::Expr {
+        let validated_expr = self.validate_expr(expr);
         self.exit(validated_expr)
     }
 
@@ -807,52 +748,15 @@ impl<'me> Validator<'me> {
         }
     }
 
-    fn place_to_expr(
-        &mut self,
-        data: Result<(Option<validated::Expr>, validated::Place), ErrorReported>,
-        origin: ExprOrigin,
-        mode: ExprMode,
-    ) -> validated::Expr {
-        match data {
-            Ok((opt_assign_expr, place)) => match mode {
-                ExprMode::Specifier(Specifier::My) | ExprMode::Specifier(Specifier::Any) => {
-                    let place_expr = self.add(validated::ExprData::Give(place), origin);
-                    self.seq(opt_assign_expr, place_expr)
-                }
-                ExprMode::Specifier(Specifier::Leased) => {
-                    let place_expr = self.add(validated::ExprData::Lease(place), origin);
-                    self.seq(opt_assign_expr, place_expr)
-                }
-                ExprMode::Reserve => {
-                    let place_expr = self.add(validated::ExprData::Reserve(place), origin);
-                    self.seq(opt_assign_expr, place_expr)
-                }
-                ExprMode::Specifier(Specifier::Our) => {
-                    let given_expr = self.add(validated::ExprData::Give(place), origin);
-                    let shared_expr = self.add(validated::ExprData::Share(given_expr), origin);
-                    self.seq(opt_assign_expr, shared_expr)
-                }
-                ExprMode::Specifier(Specifier::Shleased) => {
-                    let place_expr = self.add(validated::ExprData::Shlease(place), origin);
-                    self.seq(opt_assign_expr, place_expr)
-                }
-            },
-            Err(ErrorReported) => self.add(validated::ExprData::Error, origin),
-        }
-    }
-
     fn validate_permission_expr(
         &mut self,
         perm_expr: syntax::Expr,
         target_expr: syntax::Expr,
         perm_variant: impl Fn(validated::Place) -> validated::ExprData,
     ) -> validated::Expr {
-        let validated_data = try {
-            let (opt_temporary_expr, place) = self.validate_expr_as_place(target_expr)?;
-            let permission_expr = self.add(perm_variant(place), perm_expr);
-            self.seq(opt_temporary_expr, permission_expr)
-        };
-        self.or_error(validated_data, perm_expr)
+        self.with_expr_validated_as_place(target_expr, &mut |this, place| {
+            this.add(perm_variant(place), perm_expr)
+        })
     }
 
     fn is_place_expression(&self, expr: syntax::Expr) -> bool {
@@ -865,14 +769,19 @@ impl<'me> Validator<'me> {
         }
     }
 
-    fn validate_expr_as_place(
+    /// Validates `expr` as a place. Invokes `op` with the place to
+    /// produce the final expression. Doesn't directly return that
+    /// expression because it may introduce temporaries
+    /// that are referenced by the place given to op, and if `expr`
+    /// is malformed may return an error expression.
+    fn with_expr_validated_as_place(
         &mut self,
         expr: syntax::Expr,
-    ) -> Result<(Option<validated::Expr>, validated::Place), ErrorReported> {
+        op: &mut dyn FnMut(&mut Self, validated::Place) -> validated::Expr,
+    ) -> validated::Expr {
         match expr.data(self.syntax_tables()) {
-            syntax::ExprData::Id(name) => Ok((
-                None,
-                match self.scope.lookup(*name) {
+            syntax::ExprData::Id(name) => {
+                let place = match self.scope.lookup(*name) {
                     Some(Definition::Class(c)) => self.add(validated::PlaceData::Class(c), expr),
                     Some(Definition::Function(f)) => {
                         self.add(validated::PlaceData::Function(f), expr)
@@ -884,34 +793,31 @@ impl<'me> Validator<'me> {
                         self.add(validated::PlaceData::Intrinsic(i), expr)
                     }
                     None => {
-                        return Err(dada_ir::error!(
+                        let ErrorReported = dada_ir::error!(
                             self.span(expr),
                             "can't find anything named `{}`",
                             name.as_str(self.db)
                         )
-                        .emit(self.db))
+                        .emit(self.db);
+                        return self.add(validated::ExprData::Error, expr);
                     }
-                },
-            )),
+                };
+                op(self, place)
+            }
             syntax::ExprData::Dot(owner_expr, field) => {
-                let (opt_temporary_expr, validated_owner_place) =
-                    self.validate_expr_as_place(*owner_expr)?;
-                Ok((
-                    opt_temporary_expr,
-                    self.add(
-                        validated::PlaceData::Dot(validated_owner_place, *field),
-                        expr,
-                    ),
-                ))
+                self.with_expr_validated_as_place(*owner_expr, &mut |this, owner_place| {
+                    let dot_place = this.add(validated::PlaceData::Dot(owner_place, *field), expr);
+                    op(this, dot_place)
+                })
             }
             syntax::ExprData::Parenthesized(parenthesized_expr) => {
-                self.validate_expr_as_place(*parenthesized_expr)
+                self.with_expr_validated_as_place(*parenthesized_expr, op)
             }
-            syntax::ExprData::Error => Err(ErrorReported),
+            syntax::ExprData::Error => self.add(validated::ExprData::Error, expr),
             _ => {
-                let (assign_expr, temporary_place) =
-                    self.validate_expr_in_temporary(expr, ExprMode::give());
-                Ok((Some(assign_expr), temporary_place))
+                let (assign_expr, temporary_place) = self.validate_expr_in_temporary(expr);
+                let expr = op(self, temporary_place);
+                self.seq(Some(assign_expr), expr)
             }
         }
     }
@@ -920,9 +826,8 @@ impl<'me> Validator<'me> {
     fn validate_expr_in_temporary(
         &mut self,
         expr: syntax::Expr,
-        mode: ExprMode,
     ) -> (validated::Expr, validated::Place) {
-        let validated_expr = self.validate_expr_in_mode(expr, mode);
+        let validated_expr = self.validate_expr(expr);
         self.store_validated_expr_in_temporary(validated_expr)
     }
 
@@ -936,15 +841,18 @@ impl<'me> Validator<'me> {
         let local_variable = self.add(
             validated::LocalVariableData {
                 name: None,
-                specifier: None,
                 atomic: Atomic::No,
             },
             validated::LocalVariableOrigin::Temporary(origin.syntax_expr),
         );
         self.scope.insert_temporary(local_variable);
 
+        let target_place = self.add(
+            validated::TargetPlaceData::LocalVariable(local_variable),
+            origin,
+        );
         let assign_expr = self.add(
-            validated::ExprData::AssignTemporary(local_variable, validated_expr),
+            validated::ExprData::Assign(target_place, validated_expr),
             origin,
         );
 
@@ -964,7 +872,7 @@ impl<'me> Validator<'me> {
 
     fn validate_named_expr(&mut self, named_expr: syntax::NamedExpr) -> validated::NamedExpr {
         let syntax::NamedExprData { name, expr } = named_expr.data(self.syntax_tables());
-        let validated_expr = self.reserve_validated_expr(*expr);
+        let validated_expr = self.validate_expr(*expr);
         self.add(
             validated::NamedExprData {
                 name: *name,
@@ -1006,6 +914,21 @@ impl<'me> Validator<'me> {
                 unreachable!("unexpected op")
             }
         }
+    }
+
+    pub(crate) fn validate_assign_expr(
+        &mut self,
+        assign_expr: syntax::Expr,
+        lhs_expr: syntax::Expr,
+        initializer_expr: syntax::Expr,
+    ) -> validated::Expr {
+        self.with_expr_validated_as_target_place(lhs_expr, &mut |this, target_place| {
+            let validated_expr = this.validate_expr(initializer_expr);
+            this.add(
+                validated::ExprData::Assign(target_place, validated_expr),
+                assign_expr,
+            )
+        })
     }
 }
 

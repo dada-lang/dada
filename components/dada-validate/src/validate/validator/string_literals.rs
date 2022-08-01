@@ -10,10 +10,7 @@ impl Validator<'_> {
         // See https://dada-lang.org/docs/reference/string-literals for full details.
 
         let validated_exprs = if !self.should_strip_margin(exprs) {
-            exprs
-                .iter()
-                .map(|expr| self.reserve_validated_expr(*expr))
-                .collect()
+            exprs.iter().map(|expr| self.validate_expr(*expr)).collect()
         } else {
             self.strip_margin_from_exprs(exprs)
         };
@@ -119,7 +116,7 @@ impl Validator<'_> {
                 let word = Word::from(self.db, escaped);
                 validated_exprs.push(self.add(validated::ExprData::StringLiteral(word), *expr));
             } else {
-                validated_exprs.push(self.reserve_validated_expr(*expr));
+                validated_exprs.push(self.validate_expr(*expr));
             }
         }
         validated_exprs

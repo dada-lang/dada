@@ -1,0 +1,5 @@
+class Point(x, y)
+p = Point(22, 44)
+t = true
+atomic { p.lease }.x += 1
+print(p).await #! OUTPUT Point\(23, 44\)

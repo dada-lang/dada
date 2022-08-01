@@ -1,0 +1,19 @@
+class Counter(value)
+
+fn next(c) -> {
+    c.value += 1
+    c.value
+}
+
+fn next_and(c, d) -> {
+    next(c.give)
+    d.give
+}
+
+c = Counter(0)
+d = Counter(22)
+
+# `next_and` is evaluated first, so `next`
+# returns 2
+next_and(c.lease, d.lease).value := next(c.lease)
+print(d.share).await #! OUTPUT Counter\(2\)

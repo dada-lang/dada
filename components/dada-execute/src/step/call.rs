@@ -14,7 +14,7 @@ use crate::{
     step::intrinsic::IntrinsicDefinition,
 };
 
-use super::{IntoSpecifierAndSpan, Stepper};
+use super::Stepper;
 
 pub(super) enum CallResult {
     Returned(Value),
@@ -41,8 +41,7 @@ impl Stepper<'_> {
             &ObjectData::Class(c) => {
                 let fields = c.fields(self.db);
                 self.match_labels(terminator, labels, fields)?;
-                let arguments =
-                    self.prepare_arguments_for_parameters(table, fields, argument_places)?;
+                let arguments = self.prepare_arguments(table, argument_places)?;
                 let instance = Instance {
                     class: c,
                     fields: arguments,
@@ -53,8 +52,7 @@ impl Stepper<'_> {
                 let parameters = function.parameters(self.db);
                 self.match_labels(terminator, labels, parameters)?;
 
-                let arguments =
-                    self.prepare_arguments_for_parameters(table, parameters, argument_places)?;
+                let arguments = self.prepare_arguments(table, argument_places)?;
 
                 if function.effect(self.db).permits_await() {
                     // If the function can await, then it must be an async function.
@@ -75,15 +73,7 @@ impl Stepper<'_> {
             &ObjectData::Intrinsic(intrinsic) => {
                 let definition = IntrinsicDefinition::for_intrinsic(self.db, intrinsic);
                 self.match_labels(callee, labels, &definition.argument_names)?;
-                let callee_span = self.span_from_bir(callee);
-                let arguments = self.prepare_arguments(
-                    table,
-                    definition
-                        .argument_specifiers
-                        .iter()
-                        .map(|specifier| (*specifier, callee_span)),
-                    argument_places,
-                )?;
+                let arguments = self.prepare_arguments(table, argument_places)?;
                 let value = (definition.function)(self, arguments)?;
                 Ok(CallResult::Returned(value))
             }
@@ -100,34 +90,14 @@ impl Stepper<'_> {
     }
 
     /// Prepare the arguments according to the given specifiers.
-    fn prepare_arguments_for_parameters(
-        &mut self,
-        table: &bir::Tables,
-        parameters: &[Parameter],
-        argument_places: &[bir::Place],
-    ) -> eyre::Result<Vec<Value>> {
-        self.prepare_arguments(
-            table,
-            parameters
-                .iter()
-                .map(|parameter| parameter.decl(self.db).specifier),
-            argument_places,
-        )
-    }
-
-    /// Prepare the arguments according to the given specifiers.
     fn prepare_arguments(
         &mut self,
         table: &bir::Tables,
-        specifiers: impl Iterator<Item = impl IntoSpecifierAndSpan>,
         argument_places: &[bir::Place],
     ) -> eyre::Result<Vec<Value>> {
         argument_places
             .iter()
-            .zip(specifiers)
-            .map(|(argument_place, specifier)| {
-                self.prepare_value_for_specifier(table, Some(specifier), *argument_place)
-            })
+            .map(|argument_place| self.give_place(table, *argument_place))
             .collect()
     }
 

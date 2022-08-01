@@ -1,9 +1,9 @@
-class Data(our field)
+class Data(field)
 
 async fn main() {
-    my m = Data(22)
-    leased l = m
-    shleased s = l
+    m = Data(22)
+    l = m.lease
+    s = l.share
     print(m.field).await #! OUTPUT 22
     print(s.field).await #! RUN ERROR your lease to this object was cancelled
 }

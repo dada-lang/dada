@@ -151,19 +151,6 @@ impl Cursor {
         }
     }
 
-    pub(crate) fn push_assignment_from_place(
-        &mut self,
-        brewery: &mut Brewery<'_>,
-        target: bir::TargetPlace,
-        source: bir::Place,
-        origin: ExprOrigin,
-    ) {
-        if self.end_block.is_some() {
-            let statement = brewery.add(bir::StatementData::AssignPlace(target, source), origin);
-            self.push_statement(brewery, statement);
-        }
-    }
-
     /// If any of the origins in `origins`, or `origin`, is a breakpoint expression,
     /// push a "breakpoint-start" statement onto the current basic block.
     pub(crate) fn push_breakpoint_starts(

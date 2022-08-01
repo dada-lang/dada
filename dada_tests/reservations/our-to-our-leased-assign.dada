@@ -1,15 +1,15 @@
-class Point(any a, any b)
+class Point(a, b)
 
 async fn main() {
-    our p = Point(22, 44)
+    p = Point(22, 44).share
 
     # leasing an "our" thing becomes a second
     # owner (lessors are always exclusive)
-    shleased q = p
+    q = p.share
     print(q).await #! OUTPUT Point\(22, 44\)
 
     # reassigning `p` does not invalidate `q`.
-    p := Point(44, 66)
+    p := Point(44, 66).share
     print(q).await #! OUTPUT Point\(22, 44\)
 
     # reassigning `q` creates a second owner for the `(44, 66)` point

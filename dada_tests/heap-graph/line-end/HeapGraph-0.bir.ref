@@ -12,7 +12,7 @@
                 ),
                 (
                     AssignExpr(
-                        temp{1},
+                        x{0},
                         22,
                     ),
                     Expr(0),
@@ -23,68 +23,28 @@
                         0,
                         Expr(0),
                         Some(
-                            temp{1},
+                            x{0},
                         ),
                     ),
                     Expr(0),
                 ),
                 (
-                    AssignPlace(
-                        x{0},
-                        temp{1},
-                    ),
-                    Expr(1),
-                ),
-                (
                     AssignExpr(
-                        temp{5},
-                        (),
-                    ),
-                    Expr(1),
-                ),
-                (
-                    Clear(
-                        temp{5},
-                    ),
-                    Expr(1),
-                ),
-                (
-                    AssignExpr(
-                        temp{3},
+                        y{1},
                         44,
                     ),
                     Expr(2),
                 ),
                 (
-                    AssignPlace(
-                        y{2},
-                        temp{3},
-                    ),
-                    Expr(3),
-                ),
-                (
                     AssignExpr(
-                        temp{6},
-                        (),
-                    ),
-                    Expr(3),
-                ),
-                (
-                    Clear(
-                        temp{6},
-                    ),
-                    Expr(3),
-                ),
-                (
-                    AssignExpr(
-                        temp{4},
+                        temp{2},
                         (),
                     ),
                     Expr(4),
                 ),
             ],
             Return(
-                temp{4},
+                temp{2},
             ),
         ),
     },

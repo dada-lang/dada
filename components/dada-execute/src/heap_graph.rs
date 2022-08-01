@@ -10,7 +10,7 @@ use dada_ir::{
     class::Class, code::bir::LocalVariable, function::Function, span::FileSpan, word::Word,
 };
 
-use crate::machine::{op::MachineOp, Machine, Object, Permission, Reservation, Value};
+use crate::machine::{op::MachineOp, Machine, Object, Permission, Value};
 
 mod capture;
 mod graphviz;
@@ -120,7 +120,7 @@ id!(pub(crate) struct PermissionNode);
 
 #[derive(Debug)]
 pub(crate) struct PermissionNodeData {
-    source: PermissionNodeSource,
+    source: Permission,
 
     label: PermissionNodeLabel,
 
@@ -132,19 +132,12 @@ pub(crate) struct PermissionNodeData {
     lessor: Option<PermissionNode>,
 }
 
-#[derive(Debug)]
-pub(crate) enum PermissionNodeSource {
-    Permission(Permission),
-    Reservation(Reservation),
-}
-
 #[derive(Copy, Clone, Debug)]
 pub(crate) enum PermissionNodeLabel {
     My,
     Our,
     Leased,
-    Shleased,
-    Reserved,
+    Shared,
     Expired,
 }
 
@@ -154,8 +147,7 @@ impl PermissionNodeLabel {
             PermissionNodeLabel::My => "my",
             PermissionNodeLabel::Our => "our",
             PermissionNodeLabel::Leased => "leased",
-            PermissionNodeLabel::Shleased => "shleased",
-            PermissionNodeLabel::Reserved => "reserved",
+            PermissionNodeLabel::Shared => "Shared",
             PermissionNodeLabel::Expired => "expired",
         }
     }

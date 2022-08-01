@@ -1,5 +1,5 @@
 class Point()
 
 async fn main() {
-    any p = Point().share
+    p = Point().share
 }

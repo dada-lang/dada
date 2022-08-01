@@ -2,7 +2,7 @@ import React, { PropsWithChildren } from "react";
 import AceEditor from "react-ace";
 import { useColorMode } from "@docusaurus/theme-common";
 
-import "ace-builds/src-noconflict/mode-rust";
+import "ace-builds/src-noconflict/mode-python";
 import "ace-builds/src-noconflict/theme-github";
 import "ace-builds/src-noconflict/theme-twilight";
 
@@ -20,7 +20,7 @@ function Editor(props: PropsWithChildren<OutputProps>) {
   const { colorMode } = useColorMode();
   return (
     <AceEditor
-      mode="rust"
+      mode="python" // need a dada mode!
       editorProps={{ $blockScrolling: true }}
       fontSize={18}
       width="100%"

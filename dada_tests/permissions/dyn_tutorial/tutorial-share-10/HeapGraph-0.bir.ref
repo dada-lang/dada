@@ -5,33 +5,33 @@
             [
                 (
                     AssignExpr(
-                        temp{9},
-                        Class(Id { value: 1 }).reserve,
+                        temp{7},
+                        Class(Id { value: 1 }).share,
                     ),
                     Expr(0),
                 ),
                 (
                     AssignExpr(
-                        temp{10},
+                        temp{8},
                         22,
                     ),
                     Expr(1),
                 ),
                 (
                     AssignExpr(
-                        temp{11},
+                        temp{9},
                         44,
                     ),
                     Expr(2),
                 ),
             ],
             Assign(
-                temp{8},
+                temp{6},
                 Call(
-                    temp{9},
+                    temp{7},
                     [
-                        temp{10},
-                        temp{11},
+                        temp{8},
+                        temp{9},
                     ],
                     [
                         Some(
@@ -49,54 +49,34 @@
             [
                 (
                     Clear(
-                        temp{11},
+                        temp{9},
                     ),
                     Expr(2),
                 ),
                 (
                     Clear(
-                        temp{10},
+                        temp{8},
                     ),
                     Expr(1),
                 ),
                 (
                     Clear(
-                        temp{9},
+                        temp{7},
                     ),
                     Expr(0),
                 ),
                 (
                     AssignExpr(
-                        temp{1},
-                        temp{8}.share,
+                        p{0},
+                        temp{6}.share,
                     ),
                     Expr(4),
                 ),
                 (
                     Clear(
-                        temp{8},
+                        temp{6},
                     ),
                     Expr(3),
-                ),
-                (
-                    AssignPlace(
-                        p{0},
-                        temp{1},
-                    ),
-                    Expr(5),
-                ),
-                (
-                    AssignExpr(
-                        temp{7},
-                        (),
-                    ),
-                    Expr(5),
-                ),
-                (
-                    Clear(
-                        temp{7},
-                    ),
-                    Expr(5),
                 ),
                 (
                     BreakpoingStart(
@@ -106,11 +86,11 @@
                     Expr(7),
                 ),
                 (
-                    AssignPlace(
-                        q{2},
-                        p{0},
+                    AssignExpr(
+                        q{1},
+                        p{0}.share,
                     ),
-                    Expr(7),
+                    Expr(6),
                 ),
                 (
                     BreakpointEnd(
@@ -122,36 +102,36 @@
                     Expr(7),
                 ),
                 (
-                    AssignPlace(
-                        x{3},
-                        p{0}.x,
+                    AssignExpr(
+                        x{2},
+                        p{0}.x.share,
                     ),
-                    Expr(10),
-                ),
-                (
-                    AssignPlace(
-                        x{4},
-                        q{2}.x,
-                    ),
-                    Expr(13),
-                ),
-                (
-                    AssignPlace(
-                        x{5},
-                        p{0}.x,
-                    ),
-                    Expr(16),
+                    Expr(9),
                 ),
                 (
                     AssignExpr(
-                        temp{6},
+                        x{3},
+                        q{1}.x.share,
+                    ),
+                    Expr(12),
+                ),
+                (
+                    AssignExpr(
+                        x{4},
+                        p{0}.x.share,
+                    ),
+                    Expr(15),
+                ),
+                (
+                    AssignExpr(
+                        temp{5},
                         (),
                     ),
                     Expr(17),
                 ),
             ],
             Return(
-                temp{6},
+                temp{5},
             ),
         ),
     },

@@ -9,7 +9,7 @@ use crate::{
     in_ir_db::InIrDb,
     intrinsic::Intrinsic,
     prelude::InIrDbExt,
-    storage::{Atomic, SpannedSpecifier},
+    storage::Atomic,
     word::{SpannedOptionalWord, Word},
 };
 use dada_id::{id, prelude::*, tables};
@@ -190,11 +190,6 @@ pub struct LocalVariableData {
     /// semantics.
     pub name: Option<Word>,
 
-    /// If `Some`, then contains specifier given by the
-    /// user. If `None`, this is a temporary, and its
-    /// specifier is effectively [`Specifier::Any`].
-    pub specifier: Option<SpannedSpecifier>,
-
     pub atomic: Atomic,
 }
 
@@ -246,17 +241,14 @@ pub enum ExprData {
     /// `expr(id: expr, ...)`
     Call(Expr, Vec<NamedExpr>),
 
-    /// `expr.reserve` -- not legal syntax
-    Reserve(Place),
+    /// `<value>.share`
+    IntoShared(Expr),
 
-    /// `expr.share`
-    Share(Expr),
+    /// `<place>.share`
+    Share(Place),
 
     /// `expr.lease`
     Lease(Place),
-
-    /// `expr.shlease`
-    Shlease(Place),
 
     /// `expr.give`
     Give(Place),
@@ -296,17 +288,8 @@ pub enum ExprData {
     /// `<op> x`
     Unary(Op, Expr),
 
-    /// `a := b.give` -- it is important that this
-    /// is only used to create temporaries! This is because
-    /// we cannot apply all the potential specifiers to an expression
-    /// (e.g., we cannot lease it). To assign to user-declared variables
-    /// we must use `AssignFromPlace`.
-    AssignTemporary(LocalVariable, Expr),
-
-    /// `a := b` -- used when the specifier (`my`, `our`, etc) is not known
-    /// statically, and we we can't determine whether the place should be
-    /// given, leased, or what
-    AssignFromPlace(TargetPlace, Place),
+    /// `a = b` or `a := b`
+    Assign(TargetPlace, Expr),
 
     /// Bring the variables in scope during the expression
     Declare(Vec<LocalVariable>, Expr),
@@ -342,10 +325,9 @@ impl ExprData {
                 .field(&expr.debug(db))
                 .field(&args.debug(db))
                 .finish(),
-            ExprData::Reserve(p) => f.debug_tuple("Reserve").field(&p.debug(db)).finish(),
-            ExprData::Share(p) => f.debug_tuple("Share").field(&p.debug(db)).finish(),
+            ExprData::IntoShared(p) => f.debug_tuple("IntoShared").field(&p.debug(db)).finish(),
             ExprData::Lease(p) => f.debug_tuple("Lease").field(&p.debug(db)).finish(),
-            ExprData::Shlease(p) => f.debug_tuple("Shlease").field(&p.debug(db)).finish(),
+            ExprData::Share(p) => f.debug_tuple("Share").field(&p.debug(db)).finish(),
             ExprData::Give(p) => f.debug_tuple("Give").field(&p.debug(db)).finish(),
             ExprData::Tuple(exprs) => {
                 let mut f = f.debug_tuple("Tuple");
@@ -393,15 +375,10 @@ impl ExprData {
                 .field(op)
                 .field(&rhs.debug(db))
                 .finish(),
-            ExprData::AssignTemporary(place, expr) => f
+            ExprData::Assign(place, expr) => f
                 .debug_tuple("Assign")
                 .field(&place.debug(db))
                 .field(&expr.debug(db))
-                .finish(),
-            ExprData::AssignFromPlace(target, source) => f
-                .debug_tuple("AssignFromPlace")
-                .field(&target.debug(db))
-                .field(&source.debug(db))
                 .finish(),
             ExprData::Declare(vars, expr) => f
                 .debug_tuple("Declare")

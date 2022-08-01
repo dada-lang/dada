@@ -1,18 +1,14 @@
-class Object(any data)
+class Object(data)
 
 async fn main() {
-    any o = lease_me(Object(22)).data
-    #! RUN ERROR your lease to this object was cancelled
-    #
+    o = lease_me(Object(22).lease).data
     # What happens here:
-    # * the `Object(22)` is stored into a temporary that is dropped as soon
-    #   as the call completes.
-    #
-    #! FIXME: This seems kind of annoying!
+    # * the `Object(22)` is stored into a temporary that is dropped, but we've already read
+    #   the data field out of it
 
-    print(o).await
+    print(o).await #! OUTPUT 22
 }
 
-fn lease_me(leased p) -> {
+fn lease_me(p) -> {
     p
 }
