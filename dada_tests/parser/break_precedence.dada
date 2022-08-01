@@ -1,0 +1,6 @@
+fn main() {
+    loop {
+        break * 3
+        #!    ^ ERROR extra tokens after end of expression
+    }
+}

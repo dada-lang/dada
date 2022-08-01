@@ -1,0 +1,7 @@
+Error: extra tokens after end of expression
+   ╭─[dada_tests/parser/break_precedence.dada:3:15]
+   │
+ 3 │         break * 3
+   ·               ┬  
+   ·               ╰── here
+───╯

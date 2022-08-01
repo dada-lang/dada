@@ -515,6 +515,28 @@ impl<'me> Validator<'me> {
                     exprs.iter().map(|expr| self.validate_expr(*expr)).collect();
                 self.add(validated::ExprData::Seq(validated_exprs), expr)
             }
+            syntax::ExprData::Break(with_value) => {
+                let validated_data = match self.loop_stack.pop() {
+                    Some(loop_expr) => {
+                        let validated_expr = if let Some(break_expr) = with_value {
+                            self.validate_expr(*break_expr)
+                        } else {
+                            self.empty_tuple(expr)
+                        };
+                        validated::ExprData::Break {
+                            from_expr: loop_expr,
+                            with_value: validated_expr,
+                        }
+                    }
+                    None => {
+                        dada_ir::error!(self.span(expr), "cannot `break` outside of a loop")
+                            .primary_label("`break` outside of a loop here")
+                            .emit(self.db);
+                        validated::ExprData::Error
+                    }
+                };
+                self.add(validated_data, expr)
+            }
             syntax::ExprData::Return(with_value) => {
                 match (self.function.return_type(self.db).kind(self.db), with_value) {
                     (ReturnTypeKind::Value, None) => {

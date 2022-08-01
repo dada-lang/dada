@@ -47,6 +47,7 @@ define_keywords! {
     Async => "async",
     Atomic => "atomic",
     Await => "await",
+    Break => "break",
     Class => "class",
     Else => "else",
     False => "false",
