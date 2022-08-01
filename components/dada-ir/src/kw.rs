@@ -49,6 +49,7 @@ define_keywords! {
     Await => "await",
     Break => "break",
     Class => "class",
+    Continue => "continue",
     Else => "else",
     False => "false",
     Fn => "fn",

@@ -1,0 +1,7 @@
+Error: cannot `continue` outside of a loop
+   ╭─[dada_tests/validate/continue_outside_loop.dada:2:5]
+   │
+ 2 │     continue
+   ·     ────┬───  
+   ·         ╰───── `continue` outside of a loop here
+───╯

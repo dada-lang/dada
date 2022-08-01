@@ -101,6 +101,7 @@ impl TreeTraversal<'_> {
 
         match expr.data(self.tables) {
             syntax::ExprData::Error
+            | syntax::ExprData::Continue
             | syntax::ExprData::Id(_)
             | syntax::ExprData::BooleanLiteral(_)
             | syntax::ExprData::IntegerLiteral(..)

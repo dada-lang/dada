@@ -213,6 +213,11 @@ impl CodeParser<'_, '_> {
             return Some(expr);
         }
 
+        if let Some((continue_span, _)) = self.eat(Keyword::Continue) {
+            let span = self.span_consumed_since(continue_span);
+            return Some(self.add(ExprData::Continue, span));
+        }
+
         if let Some((break_span, _)) = self.eat(Keyword::Break) {
             match self.parse_expr() {
                 Some(expr) => {

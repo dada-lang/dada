@@ -515,6 +515,18 @@ impl<'me> Validator<'me> {
                     exprs.iter().map(|expr| self.validate_expr(*expr)).collect();
                 self.add(validated::ExprData::Seq(validated_exprs), expr)
             }
+            syntax::ExprData::Continue => {
+                let validated_data = match self.loop_stack.pop() {
+                    Some(loop_expr) => validated::ExprData::Continue(loop_expr),
+                    None => {
+                        dada_ir::error!(self.span(expr), "cannot `continue` outside of a loop")
+                            .primary_label("`continue` outside of a loop here")
+                            .emit(self.db);
+                        validated::ExprData::Error
+                    }
+                };
+                self.add(validated_data, expr)
+            }
             syntax::ExprData::Break(with_value) => {
                 let validated_data = match self.loop_stack.pop() {
                     Some(loop_expr) => {

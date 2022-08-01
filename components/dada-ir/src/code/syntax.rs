@@ -162,6 +162,9 @@ pub enum ExprData {
     /// `a := b`
     Assign(Expr, Expr),
 
+    /// continue
+    Continue,
+
     /// break
     Break(Option<Expr>),
 
@@ -245,6 +248,7 @@ impl DebugWithDb<InIrDb<'_, Tree>> for ExprData {
                 .field(&r.debug(db))
                 .finish(),
             ExprData::Error => f.debug_tuple("Error").finish(),
+            ExprData::Continue => f.debug_tuple("Continue").finish(),
             ExprData::Break(e) => f.debug_tuple("Break").field(&e.debug(db)).finish(),
             ExprData::Return(e) => f.debug_tuple("Return").field(&e.debug(db)).finish(),
             ExprData::Unary(o, e) => f
