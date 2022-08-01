@@ -3,7 +3,7 @@ class Point(x, y)
 async fn main() {
     p = Point(x: 22, y: 44)
     #?                         ^ HeapGraph
-    q = p.give
+    q = p
     #?       ^ HeapGraph
 
     x = p.x
