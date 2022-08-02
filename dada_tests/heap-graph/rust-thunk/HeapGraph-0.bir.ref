@@ -5,7 +5,9 @@
             [
                 (
                     BreakpoingStart(
-                        "async",
+                        SourceFile(
+                            "dada_tests/heap-graph/rust-thunk.dada",
+                        ),
                         0,
                     ),
                     Expr(3),
@@ -56,7 +58,9 @@
             [
                 (
                     BreakpointEnd(
-                        "async",
+                        SourceFile(
+                            "dada_tests/heap-graph/rust-thunk.dada",
+                        ),
                         0,
                         Expr(3),
                         Some(

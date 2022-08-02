@@ -1,4 +1,4 @@
-use crate::{filename::Filename, token_tree::TokenTree};
+use crate::{input_file::InputFile, token_tree::TokenTree};
 
 /// "Code" represents a block of code attached to a method.
 /// After parsing, it just contains a token tree, but you can...
@@ -22,8 +22,8 @@ impl UnparsedCode {
         }
     }
 
-    pub fn filename(self, db: &dyn crate::Db) -> Filename {
-        self.body_tokens.filename(db)
+    pub fn input_file(self, db: &dyn crate::Db) -> InputFile {
+        self.body_tokens.input_file(db)
     }
 }
 

@@ -1,22 +1,21 @@
 use crate::{
-    filename::Filename,
+    input_file::InputFile,
     span::{FileSpan, Span},
     token::Token,
-    Jar,
 };
 
-salsa::entity2! {
-    entity TokenTree in Jar {
-        filename: Filename,
-        span: Span,
-        #[value ref] tokens: Vec<Token>,
-    }
+#[salsa::tracked]
+pub struct TokenTree {
+    input_file: InputFile,
+    span: Span,
+    #[return_ref]
+    tokens: Vec<Token>,
 }
 
 impl<Db: ?Sized + crate::Db> salsa::DebugWithDb<Db> for TokenTree {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>, db: &Db) -> std::fmt::Result {
         let db = db.as_dyn_ir_db();
-        let file_span: FileSpan = self.span(db).in_file(self.filename(db));
+        let file_span: FileSpan = self.span(db).in_file(self.input_file(db));
         write!(f, "Tokens({:?})", file_span.into_debug(db))
     }
 }

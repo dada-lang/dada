@@ -63,8 +63,8 @@ impl DadaDiagnostic {
 #[wasm_bindgen]
 impl DadaLabel {
     pub(crate) fn from(db: &dada_db::Db, span: FileSpan, message: &str) -> Self {
-        let start = DadaLineColumn::from(db, span.filename, span.start);
-        let end = DadaLineColumn::from(db, span.filename, span.end);
+        let start = DadaLineColumn::from(db, span.input_file, span.start);
+        let end = DadaLineColumn::from(db, span.input_file, span.end);
         DadaLabel {
             start,
             end,

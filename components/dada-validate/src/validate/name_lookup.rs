@@ -1,6 +1,6 @@
 use dada_collections::Map;
 use dada_ir::{
-    class::Class, code::validated, filename::Filename, function::Function, intrinsic::Intrinsic,
+    class::Class, code::validated, function::Function, input_file::InputFile, intrinsic::Intrinsic,
     item::Item, word::Word,
 };
 use dada_parse::prelude::*;
@@ -108,8 +108,8 @@ impl<'me> Scope<'me> {
 }
 
 impl RootDefinitions {
-    pub fn new(db: &dyn crate::Db, filename: Filename) -> Self {
-        let items = filename.items(db);
+    pub fn new(db: &dyn crate::Db, input_file: InputFile) -> Self {
+        let items = input_file.items(db);
         let mut names: Map<Word, Definition> = Map::default();
 
         // Populate the names table with the global definitions to start

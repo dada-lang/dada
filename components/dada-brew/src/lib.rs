@@ -4,7 +4,7 @@
 #![feature(try_blocks)]
 #![allow(incomplete_features)]
 
-#[salsa::jar(Db)]
+#[salsa::jar(db = Db)]
 pub struct Jar(brew::brew);
 
 pub trait Db:

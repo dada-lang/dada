@@ -1,7 +1,7 @@
 use dada_id::prelude::*;
 use dada_ir::{
     code::syntax,
-    filename::Filename,
+    input_file::InputFile,
     item::Item,
     origin_table::HasOriginIn,
     span::{FileSpan, LineColumn, Offset},
@@ -13,7 +13,7 @@ use dada_parse::prelude::*;
 /// See [`find`].
 #[derive(Copy, Clone, Debug)]
 pub struct Breakpoint {
-    pub filename: Filename,
+    pub input_file: InputFile,
     pub item: Item,
     pub tree: syntax::Tree,
     pub expr: syntax::Expr,
@@ -23,28 +23,28 @@ impl Breakpoint {
     /// Returns the file-span of the breakpoint expression.
     pub fn span(self, db: &dyn crate::Db) -> FileSpan {
         let expr_span = self.tree.spans(db)[self.expr];
-        expr_span.in_file(self.filename)
+        expr_span.in_file(self.input_file)
     }
 }
 
 /// Given a cursor position, finds the breakpoint associated with that cursor
 /// (if any). This is the expression that the cursor is on.
-pub fn find(db: &dyn crate::Db, filename: Filename, position: LineColumn) -> Option<Breakpoint> {
-    let offset = dada_ir::lines::offset(db, filename, position);
+pub fn find(db: &dyn crate::Db, input_file: InputFile, position: LineColumn) -> Option<Breakpoint> {
+    let offset = dada_ir::lines::offset(db, input_file, position);
 
-    let item = find_item(db, filename, offset)?;
+    let item = find_item(db, input_file, offset)?;
     let syntax_tree = item.syntax_tree(db)?;
     let cusp_expr = find_syntax_expr(db, syntax_tree, offset);
     Some(Breakpoint {
-        filename,
+        input_file,
         item,
         tree: syntax_tree,
         expr: cusp_expr,
     })
 }
 
-pub fn find_item(db: &dyn crate::Db, filename: Filename, offset: Offset) -> Option<Item> {
-    filename
+pub fn find_item(db: &dyn crate::Db, input_file: InputFile, offset: Offset) -> Option<Item> {
+    input_file
         .items(db)
         .iter()
         .find(|item| item.span(db).contains(offset))

@@ -32,7 +32,7 @@ impl<'db> Parser<'db> {
             } else {
                 let span = self.tokens.last_span();
                 self.tokens.consume();
-                dada_ir::error!(span.in_file(self.filename), "unexpected token").emit(self.db);
+                dada_ir::error!(span.in_file(self.input_file), "unexpected token").emit(self.db);
             }
         }
 
@@ -43,10 +43,10 @@ impl<'db> Parser<'db> {
             // situation.
             let start_span = spans[exprs[0]];
             let end_span = spans[*exprs.last().unwrap()];
-            let main_span = start_span.to(end_span).in_file(self.filename);
+            let main_span = start_span.to(end_span).in_file(self.input_file);
 
             // Create the `main` function entity -- its code is already parsed, so use `None` for `unparsed_code`
-            let main_name = Word::from(self.db, source_file::TOP_LEVEL_FN);
+            let main_name = Word::intern(self.db, source_file::TOP_LEVEL_FN);
             let main_name = SpannedWord::new(self.db, main_name, main_span);
             let return_type = ReturnType::new(self.db, ReturnTypeKind::Unit, main_span);
             let function = Function::new(
@@ -61,8 +61,8 @@ impl<'db> Parser<'db> {
 
             // Set the syntax-tree and parameters for the main function.
             let syntax_tree = self.create_syntax_tree(start_span, vec![], tables, spans, exprs);
-            crate::code_parser::parse_function_body::set(self.db, function, syntax_tree);
-            crate::parameter_parser::parse_function_parameters::set(self.db, function, vec![]);
+            crate::code_parser::parse_function_body::specify(self.db, function, syntax_tree);
+            crate::parameter_parser::parse_function_parameters::specify(self.db, function, vec![]);
 
             items.push(Item::Function(function));
             Some(function)
@@ -70,7 +70,7 @@ impl<'db> Parser<'db> {
             None
         };
 
-        SourceFile::new(self.db, self.filename, items, main_fn)
+        SourceFile::new(self.db, self.input_file, items, main_fn)
     }
 
     fn parse_item(&mut self) -> Option<Item> {
@@ -95,7 +95,8 @@ impl<'db> Parser<'db> {
             self.db,
             class_name,
             field_tokens,
-            self.span_consumed_since(class_span).in_file(self.filename),
+            self.span_consumed_since(class_span)
+                .in_file(self.input_file),
         ))
     }
 
@@ -131,7 +132,7 @@ impl<'db> Parser<'db> {
                     start: self.tokens.last_span().end,
                     end: self.tokens.peek_span().start,
                 })
-                .in_file(self.filename);
+                .in_file(self.input_file);
             ReturnType::new(
                 self.db,
                 if right_arrow.is_some() {
@@ -151,10 +152,11 @@ impl<'db> Parser<'db> {
             self.db,
             func_name,
             effect,
-            effect_span.unwrap_or(fn_span).in_file(self.filename),
+            effect_span.unwrap_or(fn_span).in_file(self.input_file),
             return_type,
             Some(code),
-            self.span_consumed_since(start_span).in_file(self.filename),
+            self.span_consumed_since(start_span)
+                .in_file(self.input_file),
         ))
     }
 }

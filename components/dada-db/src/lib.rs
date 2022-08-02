@@ -2,10 +2,10 @@ use dada_brew::prelude::*;
 use dada_ir::{
     code::bir::Bir,
     diagnostic::Diagnostic,
-    filename::Filename,
+    input_file::InputFile,
     item::Item,
     span::{FileSpan, LineColumn, Offset},
-    word::Word,
+    word::{ToString, Word},
 };
 use dada_parse::prelude::*;
 use dada_validate::prelude::*;
@@ -42,27 +42,26 @@ impl salsa::ParallelDatabase for Db {
 }
 
 impl Db {
-    pub fn update_file(&mut self, filename: Filename, source_text: String) {
-        dada_ir::manifest::source_text::set(self, filename, source_text)
-    }
-
-    pub fn file_source(&self, filename: Filename) -> &String {
-        dada_ir::manifest::source_text(self, filename)
+    pub fn new_input_file(&mut self, name: impl ToString, source_text: String) -> InputFile {
+        let name = Word::intern(self, name);
+        InputFile::new(self, name, source_text)
     }
 
     /// Set the breakpoints within the given file where the interpreter stops and executes callbacks.
-    pub fn set_breakpoints(&mut self, filename: Filename, locations: Vec<LineColumn>) {
-        dada_breakpoint::locations::breakpoint_locations::set(self, filename, locations);
+    pub fn set_breakpoints(&mut self, input_file: InputFile, locations: Vec<LineColumn>) {
+        dada_breakpoint::locations::breakpoint_locations::set(self, input_file, locations);
     }
 
-    /// Checks `filename` for compilation errors and returns all relevant diagnostics.
-    pub fn diagnostics(&self, filename: Filename) -> Vec<Diagnostic> {
-        dada_check::check_filename::accumulated::<dada_ir::diagnostic::Diagnostics>(self, filename)
+    /// Checks `input_file` for compilation errors and returns all relevant diagnostics.
+    pub fn diagnostics(&self, input_file: InputFile) -> Vec<Diagnostic> {
+        dada_check::check_input_file::accumulated::<dada_ir::diagnostic::Diagnostics>(
+            self, input_file,
+        )
     }
 
-    /// Checks `filename` for a function with the given name
-    pub fn main_function(&self, filename: Filename) -> Option<Bir> {
-        let source_file = filename.source_file(self);
+    /// Checks `input_file` for a function with the given name
+    pub fn main_function(&self, input_file: InputFile) -> Option<Bir> {
+        let source_file = input_file.source_file(self);
 
         // If the user included top-level expressions, brew those.
         if let Some(main_fn) = source_file.main_fn(self) {
@@ -70,8 +69,8 @@ impl Db {
         }
 
         // Otherwise, search for a function named `main`.
-        let name = Word::from(self, "main");
-        for item in filename.items(self) {
+        let name = Word::intern(self, "main");
+        for item in input_file.items(self) {
             if let Item::Function(function) = item {
                 let function_name = function.name(self);
                 if name == function_name.word(self) {
@@ -83,12 +82,12 @@ impl Db {
         None
     }
 
-    /// Parses `filename` and returns a list of the items within.
-    pub fn items(&self, filename: Filename) -> Vec<Item> {
-        filename.items(self).clone()
+    /// Parses `input_file` and returns a list of the items within.
+    pub fn items(&self, input_file: InputFile) -> Vec<Item> {
+        input_file.items(self).clone()
     }
 
-    /// Parses `filename` and returns a list of the items within.
+    /// Parses `input_file` and returns a list of the items within.
     pub fn debug_syntax_tree(&self, item: Item) -> Option<impl std::fmt::Debug + '_> {
         Some(item.syntax_tree(self)?.into_debug(self))
     }
@@ -104,14 +103,14 @@ impl Db {
     }
 
     /// Converts a given offset in a given file into line/column information.
-    pub fn line_column(&self, filename: Filename, offset: Offset) -> LineColumn {
-        dada_ir::lines::line_column(self, filename, offset)
+    pub fn line_column(&self, input_file: InputFile, offset: Offset) -> LineColumn {
+        dada_ir::lines::line_column(self, input_file, offset)
     }
 
     /// Converts a `FileSpan` into its constituent parts.
-    pub fn line_columns(&self, span: FileSpan) -> (Filename, LineColumn, LineColumn) {
-        let start = self.line_column(span.filename, span.start);
-        let end = self.line_column(span.filename, span.end);
-        (span.filename, start, end)
+    pub fn line_columns(&self, span: FileSpan) -> (InputFile, LineColumn, LineColumn) {
+        let start = self.line_column(span.input_file, span.start);
+        let end = self.line_column(span.input_file, span.end);
+        (span.input_file, start, end)
     }
 }

@@ -2,7 +2,7 @@
 
 use std::{cmp::Ordering, sync::Arc};
 
-use dada_ir::{code::bir::Bir, filename::Filename, span::FileSpan};
+use dada_ir::{code::bir::Bir, input_file::InputFile, span::FileSpan};
 use salsa::DebugWithDb;
 
 use crate::{
@@ -33,7 +33,7 @@ pub trait Kernel: Send + Sync {
     fn breakpoint_start(
         &mut self,
         db: &dyn crate::Db,
-        breakpoint_filename: Filename,
+        breakpoint_input_file: InputFile,
         breakpoint_index: usize,
         generate_heap_graph: &mut dyn FnMut() -> HeapGraph,
     ) -> eyre::Result<()>;
@@ -42,7 +42,7 @@ pub trait Kernel: Send + Sync {
     fn breakpoint_end(
         &mut self,
         db: &dyn crate::Db,
-        breakpoint_filename: Filename,
+        breakpoint_input_file: InputFile,
         breakpoint_index: usize,
         breakpoint_span: FileSpan,
         generate_heap_graph: &mut dyn FnMut() -> HeapGraph,
@@ -62,7 +62,7 @@ pub struct BufferKernel {
     buffer_pcs: Vec<OutputRange>,
 
     /// When we start a breakpoint, we push an entry here.
-    started_breakpoints: Vec<(Filename, usize, HeapGraph)>,
+    started_breakpoints: Vec<(InputFile, usize, HeapGraph)>,
 
     /// When we end a breakpoint, we construct a `BreakpointHeapGraph` and
     /// either invoke `breakpoint_callback` or else buffer it here.
@@ -83,7 +83,7 @@ impl OutputRange {
 }
 
 pub struct BreakpointRecord {
-    pub breakpoint_filename: Filename,
+    pub breakpoint_input_file: InputFile,
     pub breakpoint_index: usize,
     pub breakpoint_span: FileSpan,
     pub heap_at_start: HeapGraph,
@@ -289,16 +289,16 @@ impl Kernel for BufferKernel {
     fn breakpoint_start(
         &mut self,
         db: &dyn crate::Db,
-        filename: Filename,
+        input_file: InputFile,
         index: usize,
         generate_heap_graph: &mut dyn FnMut() -> HeapGraph,
     ) -> eyre::Result<()> {
         tracing::debug!(
-            "breakpoint_start(filename={:?}, index={:?})",
-            filename.debug(db),
+            "breakpoint_start(input_file={:?}, index={:?})",
+            input_file.debug(db),
             index
         );
-        let tuple = (filename, index, generate_heap_graph());
+        let tuple = (input_file, index, generate_heap_graph());
         self.started_breakpoints.push(tuple);
         Ok(())
     }
@@ -306,30 +306,30 @@ impl Kernel for BufferKernel {
     fn breakpoint_end(
         &mut self,
         db: &dyn crate::Db,
-        filename: Filename,
+        input_file: InputFile,
         index: usize,
         span: FileSpan,
         generate_heap_graph: &mut dyn FnMut() -> HeapGraph,
     ) -> eyre::Result<()> {
         tracing::debug!(
-            "breakpoint_end(filename={:?}, index={:?})",
-            filename.debug(db),
+            "breakpoint_end(input_file={:?}, index={:?})",
+            input_file.debug(db),
             index
         );
 
-        let Some((breakpoint_filename, breakpoint_index, heap_at_start)) =
+        let Some((breakpoint_input_file, breakpoint_index, heap_at_start)) =
             self.started_breakpoints.pop()
         else {
             panic!(
                 "breakpoint {index} for `{}` at `{:?}` not found",
-                filename.as_str(db),
+                input_file.name_str(db),
                 span.debug(db),
             )
         };
-        assert_eq!(filename, breakpoint_filename);
+        assert_eq!(input_file, breakpoint_input_file);
         assert_eq!(index, breakpoint_index);
         let breakpoint_record = BreakpointRecord {
-            breakpoint_filename,
+            breakpoint_input_file,
             breakpoint_index,
             breakpoint_span: span,
             heap_at_start,

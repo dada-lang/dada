@@ -1,28 +1,26 @@
-use dada_ir::filename::Filename;
-use dada_ir::format_string::{
-    FormatString, FormatStringData, FormatStringSection, FormatStringSectionData,
-};
+use dada_ir::format_string::{FormatString, FormatStringSection, FormatStringSectionData};
+use dada_ir::input_file::InputFile;
 use dada_ir::span::{FileSpan, Offset, Span};
 use dada_ir::token::Token;
 use dada_ir::token_tree::TokenTree;
 use dada_ir::word::Word;
 use std::iter::Peekable;
 
-pub fn lex_file(db: &dyn crate::Db, filename: Filename) -> TokenTree {
-    let source_text = dada_ir::manifest::source_text(db, filename);
-    lex_text(db, filename, source_text, 0)
+pub fn lex_file(db: &dyn crate::Db, input_file: InputFile) -> TokenTree {
+    let source_text = input_file.source_text(db);
+    lex_text(db, input_file, source_text, 0)
 }
 
 pub(crate) fn lex_filespan(db: &dyn crate::Db, span: FileSpan) -> TokenTree {
-    let source_text = dada_ir::manifest::source_text(db, span.filename);
+    let source_text = span.input_file.source_text(db);
     let start = usize::from(span.start);
     let end = usize::from(span.end);
-    lex_text(db, span.filename, &source_text[start..end], start)
+    lex_text(db, span.input_file, &source_text[start..end], start)
 }
 
 fn lex_text(
     db: &dyn crate::Db,
-    filename: Filename,
+    input_file: InputFile,
     source_text: &str,
     start_offset: usize,
 ) -> TokenTree {
@@ -33,7 +31,7 @@ fn lex_text(
         .peekable();
     let mut lexer = Lexer {
         db,
-        filename,
+        input_file,
         chars,
         file_len: start_offset + source_text.len(),
     };
@@ -61,7 +59,7 @@ where
     I: Iterator<Item = (usize, char)>,
 {
     db: &'me dyn crate::Db,
-    filename: Filename,
+    input_file: InputFile,
     chars: &'me mut Peekable<I>,
     file_len: usize,
 }
@@ -157,7 +155,7 @@ where
 
         TokenTree::new(
             self.db,
-            self.filename,
+            self.input_file,
             Span::from(start_pos, end_pos),
             tokens,
         )
@@ -190,7 +188,7 @@ where
     /// Like [`Self::accumulate_string`], but interns the result.
     fn accumulate(&mut self, ch0: char, matches: impl Fn(char) -> bool) -> Word {
         let string = self.accumulate_string(ch0, matches);
-        Word::from(self.db, string)
+        Word::intern(self.db, string)
     }
 
     /// Invoked after consuming a `"`
@@ -223,7 +221,7 @@ where
                             start: ch_offset,
                             end,
                         }
-                        .in_file(self.filename),
+                        .in_file(self.input_file),
                         "format string missing closing brace in code section"
                     )
                     .emit(self.db);
@@ -245,11 +243,7 @@ where
 
         let end = Offset::from(self.peek_offset());
 
-        FormatStringData {
-            len: end - start,
-            sections: buffer.sections,
-        }
-        .intern(self.db)
+        FormatString::new(self.db, end - start, buffer.sections)
     }
 }
 
@@ -274,15 +268,17 @@ impl<'me> StringFormatBuffer<'me> {
 
     fn push_tree(&mut self, token_tree: TokenTree) {
         self.flush_text();
-        self.sections
-            .push(FormatStringSectionData::TokenTree(token_tree).intern(self.db));
+        self.sections.push(FormatStringSection::new(
+            self.db,
+            FormatStringSectionData::TokenTree(token_tree),
+        ));
     }
 
     fn flush_text(&mut self) {
         let text = std::mem::take(&mut self.text);
         if !text.is_empty() {
-            let word = Word::from(self.db, text);
-            let section = FormatStringSectionData::Text(word).intern(self.db);
+            let word = Word::intern(self.db, text);
+            let section = FormatStringSection::new(self.db, FormatStringSectionData::Text(word));
             self.sections.push(section);
         }
     }

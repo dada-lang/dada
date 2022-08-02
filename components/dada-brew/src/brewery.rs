@@ -7,13 +7,13 @@ use dada_ir::{
         bir, syntax,
         validated::{self, ExprOrigin},
     },
-    filename::Filename,
+    input_file::InputFile,
     origin_table::{HasOriginIn, PushOriginIn},
 };
 
 pub struct Brewery<'me> {
     db: &'me dyn crate::Db,
-    filename: Filename,
+    input_file: InputFile,
     pub(crate) breakpoints: &'me [syntax::Expr],
     validated_tree_data: &'me validated::TreeData,
     validated_origins: &'me validated::Origins,
@@ -49,7 +49,7 @@ pub struct LoopContext {
 impl<'me> Brewery<'me> {
     pub fn new(
         db: &'me dyn crate::Db,
-        filename: Filename,
+        input_file: InputFile,
         breakpoints: &'me [syntax::Expr],
         validated_tree: validated::Tree,
         tables: &'me mut bir::Tables,
@@ -66,7 +66,7 @@ impl<'me> Brewery<'me> {
         );
         Self {
             db,
-            filename,
+            input_file,
             breakpoints,
             validated_tree_data,
             validated_origins,
@@ -98,7 +98,7 @@ impl<'me> Brewery<'me> {
     pub fn subbrewery(&mut self) -> Brewery<'_> {
         Brewery {
             db: self.db,
-            filename: self.filename,
+            input_file: self.input_file,
             breakpoints: self.breakpoints,
             validated_tree_data: self.validated_tree_data,
             validated_origins: self.validated_origins,
@@ -111,8 +111,8 @@ impl<'me> Brewery<'me> {
         }
     }
 
-    pub fn filename(&self) -> Filename {
-        self.filename
+    pub fn input_file(&self) -> InputFile {
+        self.input_file
     }
 
     pub fn origin<K>(&self, of: K) -> K::Origin

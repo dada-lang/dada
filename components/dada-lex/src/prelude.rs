@@ -10,7 +10,7 @@ use extension_trait::extension_trait;
 pub impl DadaLexFileSpanExt for FileSpan {
     /// Get the text for a span
     fn text(self, db: &dyn crate::Db) -> &str {
-        let source_text = dada_ir::manifest::source_text(db, self.filename);
+        let source_text = self.input_file.source_text(db);
         let start = usize::from(self.start);
         let end = usize::from(self.end);
         &source_text[start..end]
@@ -44,7 +44,7 @@ fn find_keyword(
 ) -> FileSpan {
     for (span, token) in tokens {
         match token {
-            Token::Alphabetic(w) if w == kw.word(db) => return span.in_file(filespan.filename),
+            Token::Alphabetic(w) if w == kw.word(db) => return span.in_file(filespan.input_file),
             _ => continue,
         }
     }

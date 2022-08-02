@@ -4,7 +4,7 @@
 
 mod format;
 
-#[salsa::jar(Db)]
+#[salsa::jar(db = Db)]
 pub struct Jar();
 
 pub trait Db: salsa::DbWithJar<Jar> + dada_ir::Db {}

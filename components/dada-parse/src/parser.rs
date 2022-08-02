@@ -3,7 +3,7 @@ use std::string::ToString;
 use crate::{token_test::*, tokens::Tokens};
 
 use dada_ir::{
-    code::syntax::op::Op, diagnostic::DiagnosticBuilder, filename::Filename, span::Span,
+    code::syntax::op::Op, diagnostic::DiagnosticBuilder, input_file::InputFile, span::Span,
     token::Token, token_tree::TokenTree,
 };
 
@@ -14,25 +14,25 @@ mod ty;
 
 pub(crate) struct Parser<'me> {
     db: &'me dyn crate::Db,
-    filename: Filename,
+    input_file: InputFile,
     tokens: Tokens<'me>,
 }
 
 impl<'me> Parser<'me> {
     pub(crate) fn new(db: &'me dyn crate::Db, token_tree: TokenTree) -> Self {
         let tokens = Tokens::new(db, token_tree);
-        let filename = token_tree.filename(db);
+        let input_file = token_tree.input_file(db);
         Self {
             db,
             tokens,
-            filename,
+            input_file,
         }
     }
 
     /// Returns `Some` if the next pending token matches `is`, along
     /// with the narrowed view of the next token.
     fn peek<TT: TokenTest>(&mut self, test: TT) -> Option<TT::Narrow> {
-        let span = self.tokens.peek_span().in_file(self.filename);
+        let span = self.tokens.peek_span().in_file(self.input_file);
         test.test(self.db, self.tokens.peek()?, span)
     }
 
@@ -156,7 +156,7 @@ impl<'me> Parser<'me> {
 
     fn tighten_span(&self, mut span: Span) -> Span {
         let strip_from_start = span
-            .snippet(self.db, self.filename)
+            .snippet(self.db, self.input_file)
             .char_indices()
             .take_while(|(_, ch)| ch.is_whitespace())
             .map(|(offset, _)| offset)
@@ -165,7 +165,7 @@ impl<'me> Parser<'me> {
         span.start = span.start + strip_from_start;
 
         if let Some(new_len) = span
-            .snippet(self.db, self.filename)
+            .snippet(self.db, self.input_file)
             .char_indices()
             .rev()
             .take_while(|(_, ch)| ch.is_whitespace())
@@ -198,7 +198,7 @@ impl<'me> Parser<'me> {
     }
 
     fn error(&self, span: Span, message: impl ToString) -> DiagnosticBuilder {
-        dada_ir::error!(span.in_file(self.filename), "{}", message.to_string())
+        dada_ir::error!(span.in_file(self.input_file), "{}", message.to_string())
     }
 }
 

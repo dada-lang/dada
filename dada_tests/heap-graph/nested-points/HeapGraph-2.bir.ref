@@ -70,14 +70,18 @@
                 ),
                 (
                     BreakpoingStart(
-                        "class",
+                        SourceFile(
+                            "dada_tests/heap-graph/nested-points.dada",
+                        ),
                         0,
                     ),
                     Expr(6),
                 ),
                 (
                     BreakpoingStart(
-                        "class",
+                        SourceFile(
+                            "dada_tests/heap-graph/nested-points.dada",
+                        ),
                         0,
                     ),
                     Expr(6),
@@ -91,7 +95,9 @@
                 ),
                 (
                     BreakpointEnd(
-                        "class",
+                        SourceFile(
+                            "dada_tests/heap-graph/nested-points.dada",
+                        ),
                         0,
                         Expr(6),
                         Some(
@@ -102,7 +108,9 @@
                 ),
                 (
                     BreakpointEnd(
-                        "class",
+                        SourceFile(
+                            "dada_tests/heap-graph/nested-points.dada",
+                        ),
                         0,
                         Expr(6),
                         Some(

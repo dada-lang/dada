@@ -1,6 +1,6 @@
 use dada_ir::code::validated;
-use dada_ir::filename::Filename;
 use dada_ir::function::Function;
+use dada_ir::input_file::InputFile;
 use dada_parse::prelude::*;
 
 use self::name_lookup::Scope;
@@ -9,14 +9,14 @@ mod name_lookup;
 mod validator;
 
 /// Computes a validated tree for the given code (may produce errors).
-#[salsa::memoized(in crate::Jar)]
+#[salsa::tracked]
 #[tracing::instrument(level = "debug", skip(db))]
 pub(crate) fn validate_function(db: &dyn crate::Db, function: Function) -> validated::Tree {
     let syntax_tree = function.syntax_tree(db);
 
     let mut tables = validated::Tables::default();
     let mut origins = validated::Origins::default();
-    let root_definitions = root_definitions(db, function.filename(db));
+    let root_definitions = root_definitions(db, function.input_file(db));
     let scope = Scope::root(db, root_definitions);
 
     let mut validator =
@@ -36,8 +36,8 @@ pub(crate) fn validate_function(db: &dyn crate::Db, function: Function) -> valid
 /// Compute the root definitions for the module. This is not memoized to
 /// save effort but rather because it may generate errors and we don't want to issue those
 /// errors multiple times.
-#[salsa::memoized(in crate::Jar ref)]
+#[salsa::tracked(return_ref)]
 #[allow(clippy::needless_lifetimes)]
-pub fn root_definitions(db: &dyn crate::Db, filename: Filename) -> name_lookup::RootDefinitions {
-    name_lookup::RootDefinitions::new(db, filename)
+pub fn root_definitions(db: &dyn crate::Db, input_file: InputFile) -> name_lookup::RootDefinitions {
+    name_lookup::RootDefinitions::new(db, input_file)
 }

@@ -396,7 +396,7 @@ checksum = "08d43f7aa6b08d49f382cde6a7982047c3426db949b1424bc4b7ec9ae12c6ce2"
 name = "salsa"
 version = "0.1.0"
 dependencies = [
- "salsa-entity-mock",
+ "salsa-2022",
 ]
 
 [[package]]
@@ -412,7 +412,7 @@ dependencies = [
 ]
 
 [[package]]
-name = "salsa-entity-mock"
+name = "salsa-2022"
 version = "0.1.0"
 source = "git+https://github.com/nikomatsakis/salsa/?branch=entity#c1772dc978cd2c7b6efdc1b3435c4d2e69dc3ef2"
 dependencies = [

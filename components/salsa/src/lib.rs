@@ -1,1 +1,1 @@
-pub use salsa_entity_mock::*;
+pub use salsa_2022::*;

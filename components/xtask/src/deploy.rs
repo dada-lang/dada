@@ -68,10 +68,10 @@ fn download_wasm_pack(dada_downloads: &Path) -> eyre::Result<PathBuf> {
     } else {
         eyre::bail!("no wasm-pack binary available for `{arch}` and `{vendor}`")
     };
-    let filename = format!("{prefix}.tar.gz");
+    let input_file = format!("{prefix}.tar.gz");
     let url =
-        format!("https://github.com/rustwasm/wasm-pack/releases/download/{version}/{filename}");
-    download_and_untar(dada_downloads, &url, &filename)?;
+        format!("https://github.com/rustwasm/wasm-pack/releases/download/{version}/{input_file}");
+    download_and_untar(dada_downloads, &url, &input_file)?;
     Ok(dada_downloads.join(&prefix).join("wasm-pack"))
 }
 

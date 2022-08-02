@@ -5,7 +5,7 @@ use std::{env, fs};
 
 use dada_execute::kernel::BufferKernel;
 use dada_execute::machine::ProgramCounter;
-use dada_ir::{filename::Filename, item::Item};
+use dada_ir::{input_file::InputFile, item::Item};
 use eyre::Context;
 use lsp_types::Diagnostic;
 use regex::Regex;
@@ -163,9 +163,8 @@ impl Options {
         let source_path = path.with_extension("dada");
         let contents = std::fs::read_to_string(&source_path)
             .with_context(|| format!("reading `{}`", &source_path.display()))?;
-        let filename = dada_ir::filename::Filename::from(&db, &source_path);
-        db.update_file(filename, contents);
-        let diagnostics = db.diagnostics(filename);
+        let input_file = db.new_input_file(&source_path, contents);
+        let diagnostics = db.diagnostics(input_file);
 
         let mut errors = Errors::default();
         self.match_diagnostics_against_expectations(
@@ -185,25 +184,25 @@ impl Options {
         )?;
         self.check_compiled(
             &db,
-            &[filename],
+            &[input_file],
             |item| db.debug_syntax_tree(item),
             &path.join("syntax.debug"),
         )?;
         self.check_compiled(
             &db,
-            &[filename],
+            &[input_file],
             |item| db.debug_validated_tree(item),
             &path.join("validated.debug"),
         )?;
         self.check_compiled(
             &db,
-            &[filename],
+            &[input_file],
             |item| db.debug_bir(item),
             &path.join("bir.debug"),
         )?;
         self.check_interpreted(
             &db,
-            filename,
+            input_file,
             &path.join("stdout.ref"),
             &expected_diagnostics.runtime,
             &expected_diagnostics.output,
@@ -212,7 +211,7 @@ impl Options {
         .await?;
 
         for (query, query_index) in expected_queries.iter().zip(0..) {
-            self.perform_query_on_db(&mut db, path, filename, query, query_index, &mut errors)
+            self.perform_query_on_db(&mut db, path, input_file, query, query_index, &mut errors)
                 .await?;
         }
 
@@ -244,14 +243,14 @@ impl Options {
         &self,
         db: &mut dada_db::Db,
         path: &Path,
-        filename: Filename,
+        input_file: InputFile,
         query: &Query,
         query_index: usize,
         errors: &mut Errors,
     ) -> eyre::Result<()> {
         match query.kind {
             QueryKind::HeapGraph => self
-                .perform_heap_graph_query_on_db(db, path, query_index, filename, query, errors)
+                .perform_heap_graph_query_on_db(db, path, query_index, input_file, query, errors)
                 .await
                 .with_context(|| format!("heap query from line `{}`", query.line)),
         }
@@ -351,16 +350,16 @@ impl Options {
     fn check_compiled<D>(
         &self,
         db: &dada_db::Db,
-        filenames: &[Filename],
+        input_files: &[InputFile],
         mut item_op: impl FnMut(Item) -> Option<D>,
         bir_path: &Path,
     ) -> eyre::Result<()>
     where
         D: std::fmt::Debug,
     {
-        let items: Vec<Item> = filenames
+        let items: Vec<Item> = input_files
             .iter()
-            .flat_map(|filename| db.items(*filename))
+            .flat_map(|input_file| db.items(*input_file))
             .collect();
 
         let birs = items
@@ -375,14 +374,14 @@ impl Options {
     async fn check_interpreted(
         &self,
         db: &dada_db::Db,
-        filename: Filename,
+        input_file: InputFile,
         ref_path: &Path,
         expected_diagnostics: &[ExpectedDiagnostic],
         expected_outputs: &Option<Vec<ExpectedOutput>>,
         errors: &mut Errors,
     ) -> eyre::Result<()> {
         let mut diagnostics = vec![];
-        let actual_output = match db.main_function(filename) {
+        let actual_output = match db.main_function(input_file) {
             Some(bir) => {
                 let mut kernel = BufferKernel::new().track_output_ranges(true);
                 let res = kernel.interpret(db, bir, vec![]).await;
@@ -400,7 +399,7 @@ impl Options {
                 if let Some(expected_outputs) = expected_outputs {
                     self.match_output_against_expectations(
                         db,
-                        filename,
+                        input_file,
                         kernel.buffer_with_pcs(),
                         expected_outputs,
                         errors,
@@ -410,7 +409,7 @@ impl Options {
                 kernel.take_buffer()
             }
             None => {
-                format!("no `main` function in `{}`", filename.as_str(db))
+                format!("no `main` function in `{}`", input_file.name_str(db))
             }
         };
         self.match_diagnostics_against_expectations(
@@ -426,7 +425,7 @@ impl Options {
     fn match_output_against_expectations<'a>(
         &self,
         db: &dada_db::Db,
-        filename: Filename,
+        input_file: InputFile,
         output_with_pcs: impl Iterator<Item = (&'a str, Option<ProgramCounter>)>,
         expected_outputs: &[ExpectedOutput],
         errors: &mut Errors,
@@ -454,7 +453,7 @@ impl Options {
             .chain(expected_outputs.iter().map(|e| e.line1))
             .collect();
 
-        let filename = filename.as_str(db);
+        let input_file = input_file.name_str(db);
 
         for line1 in line1s {
             let mut expected_on_this_line = expected_outputs
@@ -472,14 +471,15 @@ impl Options {
             while let (Some(e), Some(a)) =
                 (expected_on_this_line.peek(), actual_on_this_line.peek())
             {
-                actual_diffs.push(format!(" {filename}:{line1}: {a:?}"));
+                actual_diffs.push(format!(" {input_file}:{line1}: {a:?}"));
 
                 if e.is_match(a) {
                     // If the regex is a match, push the actual output so that the diff shows them the same.
-                    expected_diffs.push(format!(" {filename}:{line1}: {a:?}"));
+                    expected_diffs.push(format!(" {input_file}:{line1}: {a:?}"));
                 } else {
                     // Else push the regex.
-                    expected_diffs.push(format!(" {filename}:{line1}: something matching `{e:?}`"));
+                    expected_diffs
+                        .push(format!(" {input_file}:{line1}: something matching `{e:?}`"));
                 }
 
                 expected_on_this_line.next();
@@ -487,11 +487,11 @@ impl Options {
             }
 
             for e in expected_on_this_line {
-                expected_diffs.push(format!(" {filename}:{line1}: something matching `{e:?}`"));
+                expected_diffs.push(format!(" {input_file}:{line1}: something matching `{e:?}`"));
             }
 
             for a in actual_on_this_line {
-                actual_diffs.push(format!(" {filename}:{line1}: {a:?}"));
+                actual_diffs.push(format!(" {input_file}:{line1}: {a:?}"));
             }
         }
 
@@ -985,10 +985,10 @@ impl ActualDiagnostic for dada_ir::diagnostic::Diagnostic {
     }
 
     fn summary(&self, db: &Self::Db) -> String {
-        let (filename, start, end) = db.line_columns(self.span);
+        let (input_file, start, end) = db.line_columns(self.span);
         format!(
             " {}:{}:{}:{}:{}: {} {} [from db]",
-            filename.as_str(db),
+            input_file.name_str(db),
             start.line1(),
             start.column1(),
             end.line1(),

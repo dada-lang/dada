@@ -113,7 +113,7 @@ impl Validator<'_> {
 
                 // Finally, expand escapes.
                 let escaped = self.support_escape(*expr, without_margin);
-                let word = Word::from(self.db, escaped);
+                let word = Word::intern(self.db, escaped);
                 validated_exprs.push(self.add(validated::ExprData::StringLiteral(word), *expr));
             } else {
                 validated_exprs.push(self.validate_expr(*expr));

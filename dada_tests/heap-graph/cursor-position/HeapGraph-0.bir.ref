@@ -63,7 +63,9 @@
                 ),
                 (
                     BreakpoingStart(
-                        "class",
+                        SourceFile(
+                            "dada_tests/heap-graph/cursor-position.dada",
+                        ),
                         0,
                     ),
                     Expr(4),
@@ -77,7 +79,9 @@
                 ),
                 (
                     BreakpointEnd(
-                        "class",
+                        SourceFile(
+                            "dada_tests/heap-graph/cursor-position.dada",
+                        ),
                         0,
                         Expr(4),
                         Some(

@@ -62,41 +62,11 @@ define_operators! {
     Dot => ".",
 }
 
-#[derive(Debug, PartialEq, Eq)]
-pub struct BinaryOp {
-    pub binary_op: Op,
-    pub assign_op: Op,
-}
-
 impl Op {
     /// Operators that can be adjacent to other operators. e.g. we can have `<<`
     /// and parse that as two left angle brackets. Note that we *cannot* parse
     /// that as two "less than" operators.
     pub const ACCEPT_ADJACENT: &'static [Op] = &[Op::LeftAngle, Op::RightAngle];
-}
-
-/// Returns a table mapping binary operators like `+` to their `+=` form.
-#[salsa::memoized(in crate::Jar ref)]
-#[allow(clippy::needless_lifetimes)]
-pub fn binary_ops(_db: &dyn crate::Db) -> Vec<BinaryOp> {
-    vec![
-        BinaryOp {
-            binary_op: Op::Plus,
-            assign_op: Op::PlusEqual,
-        },
-        BinaryOp {
-            binary_op: Op::Minus,
-            assign_op: Op::MinusEqual,
-        },
-        BinaryOp {
-            binary_op: Op::Times,
-            assign_op: Op::TimesEqual,
-        },
-        BinaryOp {
-            binary_op: Op::DividedBy,
-            assign_op: Op::DividedByEqual,
-        },
-    ]
 }
 
 /// Check that the operator strings have the longest strings first.

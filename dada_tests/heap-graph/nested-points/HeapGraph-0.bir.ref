@@ -5,7 +5,9 @@
             [
                 (
                     BreakpoingStart(
-                        "class",
+                        SourceFile(
+                            "dada_tests/heap-graph/nested-points.dada",
+                        ),
                         0,
                     ),
                     Expr(3),
@@ -52,7 +54,9 @@
             [
                 (
                     BreakpointEnd(
-                        "class",
+                        SourceFile(
+                            "dada_tests/heap-graph/nested-points.dada",
+                        ),
                         0,
                         Expr(3),
                         Some(

@@ -1,11 +1,11 @@
 use crate::parser::Parser;
 
-use dada_ir::{filename::Filename, source_file::SourceFile};
+use dada_ir::{input_file::InputFile, source_file::SourceFile};
 
-#[salsa::memoized(in crate::Jar ref)]
+#[salsa::tracked(return_ref)]
 #[allow(clippy::needless_lifetimes)]
-pub fn parse_file(db: &dyn crate::Db, filename: Filename) -> SourceFile {
-    let token_tree = dada_lex::lex_file(db, filename);
+pub fn parse_file(db: &dyn crate::Db, input_file: InputFile) -> SourceFile {
+    let token_tree = dada_lex::lex_file(db, input_file);
     let mut parser = Parser::new(db, token_tree);
     parser.parse_source_file()
 }

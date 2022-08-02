@@ -5,7 +5,9 @@
             [
                 (
                     BreakpoingStart(
-                        "class",
+                        SourceFile(
+                            "dada_tests/permissions/dyn_tutorial/tutorial-share-20.dada",
+                        ),
                         0,
                     ),
                     Expr(15),
@@ -115,7 +117,9 @@
                 ),
                 (
                     BreakpointEnd(
-                        "class",
+                        SourceFile(
+                            "dada_tests/permissions/dyn_tutorial/tutorial-share-20.dada",
+                        ),
                         0,
                         Expr(15),
                         Some(

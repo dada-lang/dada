@@ -5,15 +5,14 @@ pub mod class;
 pub mod code;
 pub mod diagnostic;
 pub mod effect;
-pub mod filename;
 pub mod format_string;
 pub mod function;
 pub mod in_ir_db;
+pub mod input_file;
 pub mod intrinsic;
 pub mod item;
 pub mod kw;
 pub mod lines;
-pub mod manifest;
 pub mod parameter;
 pub mod prelude;
 pub mod return_type;
@@ -25,11 +24,10 @@ pub mod token_tree;
 pub mod ty;
 pub mod word;
 
-#[salsa::jar(Db)]
+#[salsa::jar(db = Db)]
 pub struct Jar(
     code::bir::Bir,
     code::syntax::Tree,
-    code::syntax::op::binary_ops,
     code::validated::Tree,
     class::Class,
     diagnostic::Diagnostics,
@@ -37,9 +35,9 @@ pub struct Jar(
     format_string::FormatStringSection,
     function::Function,
     function::Variable,
-    kw::keywords,
+    kw::Keywords,
+    kw::keywords_map,
     lines::line_table,
-    manifest::source_text,
     parameter::Parameter,
     source_file::SourceFile,
     token_tree::TokenTree,
@@ -48,6 +46,7 @@ pub struct Jar(
     word::SpannedWord,
     word::SpannedOptionalWord,
     return_type::ReturnType,
+    input_file::InputFile,
 );
 
 pub trait Db: salsa::DbWithJar<Jar> {

@@ -1,5 +1,5 @@
 use crate::{
-    filename::Filename,
+    input_file::InputFile,
     span::{LineColumn, Offset, Span},
 };
 
@@ -85,20 +85,20 @@ impl LineTable {
 }
 
 /// Converts a character index `position` into a line and column tuple.
-pub fn line_column(db: &dyn crate::Db, filename: Filename, position: Offset) -> LineColumn {
-    let table = line_table(db, filename);
+pub fn line_column(db: &dyn crate::Db, input_file: InputFile, position: Offset) -> LineColumn {
+    let table = line_table(db, input_file);
     table.line_column(position)
 }
 
 /// Given a line/column tuple, returns a character index.
-pub fn offset(db: &dyn crate::Db, filename: Filename, position: LineColumn) -> Offset {
-    let table = line_table(db, filename);
+pub fn offset(db: &dyn crate::Db, input_file: InputFile, position: LineColumn) -> Offset {
+    let table = line_table(db, input_file);
     table.offset(position)
 }
 
-#[salsa::memoized(in crate::Jar ref)]
-fn line_table(db: &dyn crate::Db, filename: Filename) -> LineTable {
-    let source_text = crate::manifest::source_text(db, filename);
+#[salsa::tracked(return_ref)]
+pub fn line_table(db: &dyn crate::Db, input_file: InputFile) -> LineTable {
+    let source_text = input_file.source_text(db);
     LineTable::new(source_text)
 }
 

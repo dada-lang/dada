@@ -2,7 +2,7 @@
 
 use dada_error_format::format_diagnostics;
 use dada_execute::kernel::BufferKernel;
-use dada_ir::{filename::Filename, span::LineColumn};
+use dada_ir::{input_file::InputFile, span::LineColumn};
 use diagnostics::DadaDiagnostic;
 use range::DadaRange;
 use std::fmt::Write;
@@ -30,6 +30,8 @@ pub fn start() -> Result<(), JsValue> {
 pub struct DadaCompiler {
     db: dada_db::Db,
 
+    input_file: Option<InputFile>,
+
     /// Current diagnostics emitted by the compiler.
     diagnostics: Vec<dada_ir::diagnostic::Diagnostic>,
 
@@ -50,37 +52,40 @@ pub fn compiler() -> DadaCompiler {
 
 #[wasm_bindgen]
 impl DadaCompiler {
-    fn filename(&self) -> Filename {
-        Filename::from(&self.db, "input.dada")
+    #[wasm_bindgen]
+    pub fn with_source_text(mut self, source_text: String) -> Self {
+        // FIXME: reset the database for now
+        tracing::debug!("with_source_text: {source_text:?}");
+        self.db = Default::default();
+        self.input_file = Some(
+            self.db
+                .new_input_file("source.dada".to_string(), source_text),
+        );
+        self
     }
 
-    #[wasm_bindgen]
-    pub fn with_source_text(mut self, source: String) -> Self {
-        // FIXME: reset the database for now
-        tracing::debug!("with_source_text: {source:?}");
-        self.db = Default::default();
-        self.db.update_file(self.filename(), source);
-        self
+    fn input_file(&self) -> InputFile {
+        self.input_file.expect("no source text set")
     }
 
     #[wasm_bindgen]
     pub fn with_breakpoint(mut self, line0: u32, column0: u32) -> Self {
         self.db
-            .set_breakpoints(self.filename(), vec![LineColumn::new0(line0, column0)]);
+            .set_breakpoints(self.input_file(), vec![LineColumn::new0(line0, column0)]);
         self
     }
 
     #[wasm_bindgen]
     pub fn without_breakpoint(mut self) -> Self {
-        self.db.set_breakpoints(self.filename(), vec![]);
+        self.db.set_breakpoints(self.input_file(), vec![]);
         self
     }
 
     #[wasm_bindgen]
     pub async fn syntax(mut self) -> Self {
-        let filename = self.filename();
+        let input_file = self.input_file();
         self.output = String::new();
-        for item in self.db.items(filename) {
+        for item in self.db.items(input_file) {
             if let Some(tree) = self.db.debug_syntax_tree(item) {
                 let _ = write!(self.output, "{:#?}", tree);
                 self.output.push('\n');
@@ -91,9 +96,9 @@ impl DadaCompiler {
 
     #[wasm_bindgen]
     pub async fn validated(mut self) -> Self {
-        let filename = self.filename();
+        let input_file = self.input_file();
         self.output = String::new();
-        for item in self.db.items(filename) {
+        for item in self.db.items(input_file) {
             if let Some(tree) = self.db.debug_validated_tree(item) {
                 let _ = write!(self.output, "{:#?}", tree);
                 self.output.push('\n');
@@ -104,9 +109,9 @@ impl DadaCompiler {
 
     #[wasm_bindgen]
     pub async fn bir(mut self) -> Self {
-        let filename = self.filename();
+        let input_file = self.input_file();
         self.output = String::new();
-        for item in self.db.items(filename) {
+        for item in self.db.items(input_file) {
             if let Some(tree) = self.db.debug_bir(item) {
                 let _ = write!(self.output, "{:#?}", tree);
                 self.output.push('\n');
@@ -117,18 +122,18 @@ impl DadaCompiler {
 
     #[wasm_bindgen]
     pub async fn execute(mut self) -> Self {
-        let filename = self.filename();
-        let diagnostics = self.db.diagnostics(filename);
+        let input_file = self.input_file();
+        let diagnostics = self.db.diagnostics(input_file);
 
         let mut kernel = BufferKernel::new().stop_at_breakpoint(false);
-        match self.db.main_function(filename) {
+        match self.db.main_function(input_file) {
             Some(bir) => {
                 kernel.interpret_and_buffer(&self.db, bir, vec![]).await;
             }
             None => {
                 kernel.append(&format!(
                     "no `main` function in `{}`",
-                    filename.as_str(&self.db)
+                    input_file.name_str(&self.db)
                 ));
             }
         };

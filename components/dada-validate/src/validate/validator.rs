@@ -121,7 +121,7 @@ impl<'me> Validator<'me> {
 
     fn span(&self, e: impl HasOriginIn<syntax::Spans, Origin = Span>) -> FileSpan {
         self.function.syntax_tree(self.db).spans(self.db)[e]
-            .in_file(self.function.filename(self.db))
+            .in_file(self.function.input_file(self.db))
     }
 
     fn empty_tuple(&mut self, origin: syntax::Expr) -> validated::Expr {
@@ -286,7 +286,7 @@ impl<'me> Validator<'me> {
                 // and so our job is only to deal with escape sequences.
                 let word_str = word.as_str(self.db);
                 let escaped = self.support_escape(expr, word_str);
-                let word = Word::from(self.db, escaped);
+                let word = Word::intern(self.db, escaped);
                 self.add(validated::ExprData::StringLiteral(word), expr)
             }
 

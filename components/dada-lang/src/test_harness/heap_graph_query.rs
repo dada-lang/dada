@@ -1,7 +1,7 @@
 use std::path::Path;
 
 use dada_execute::kernel::BufferKernel;
-use dada_ir::filename::Filename;
+use dada_ir::input_file::InputFile;
 use dada_ir::span::LineColumn;
 use salsa::DebugWithDb;
 
@@ -16,20 +16,22 @@ impl super::Options {
         in_db: &mut dada_db::Db,
         path: &Path,
         query_index: usize,
-        filename: Filename,
+        input_file: InputFile,
         query: &Query,
         errors: &mut Errors,
     ) -> eyre::Result<()> {
         assert!(matches!(query.kind, QueryKind::HeapGraph));
 
         // FIXME: total hack to workaround a salsa bug:
+        let in_name = input_file.name_str(in_db).to_string();
+        let in_source = input_file.source_text(in_db).clone();
         let db = &mut dada_db::Db::default();
-        db.update_file(filename, in_db.file_source(filename).clone());
-        db.set_breakpoints(filename, vec![LineColumn::new1(query.line, query.column)]);
+        let input_file = db.new_input_file(in_name, in_source);
+        db.set_breakpoints(input_file, vec![LineColumn::new1(query.line, query.column)]);
 
         let breakpoint = dada_breakpoint::breakpoint::find(
             db,
-            filename,
+            input_file,
             LineColumn::new1(query.line, query.column),
         );
         tracing::debug!("breakpoint={:?}", breakpoint);
@@ -47,19 +49,19 @@ impl super::Options {
 
         self.check_compiled(
             db,
-            &[filename],
+            &[input_file],
             |item| db.debug_bir(item),
             &path.join(format!("HeapGraph-{query_index}.bir.ref")),
         )?;
 
-        match db.main_function(filename) {
+        match db.main_function(input_file) {
             Some(bir) => {
                 kernel.interpret_and_buffer(db, bir, vec![]).await;
             }
             None => {
                 kernel.append(&format!(
                     "no `main` function in `{}`\n",
-                    filename.as_str(db)
+                    input_file.name_str(db)
                 ));
             }
         }
@@ -76,7 +78,7 @@ impl super::Options {
         }
 
         // clear the breakpoints when we're done
-        db.set_breakpoints(filename, vec![]);
+        db.set_breakpoints(input_file, vec![]);
 
         Ok(())
     }

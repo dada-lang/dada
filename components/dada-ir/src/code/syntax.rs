@@ -9,17 +9,18 @@ use crate::{
 use dada_id::{id, prelude::*, tables};
 use salsa::DebugWithDb;
 
-salsa::entity2! {
-    entity Tree in crate::Jar {
-        #[value ref] data: TreeData,
-        #[value ref] spans: Spans,
-    }
+#[salsa::tracked]
+pub struct Tree {
+    #[return_ref]
+    data: TreeData,
+    #[return_ref]
+    spans: Spans,
 }
 
 impl DebugWithDb<dyn crate::Db> for Tree {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>, db: &dyn crate::Db) -> std::fmt::Result {
         f.debug_struct("syntax::Tree")
-            .field("data", &self.data(db).debug(&self.in_ir_db(db)))
+            .field("info", &self.data(db).debug(&self.in_ir_db(db)))
             .finish()
     }
 }

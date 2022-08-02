@@ -22,7 +22,7 @@ macro_rules! intrinsic {
             }
 
             pub fn name(self, db: &dyn $crate::Db) -> Word {
-                Word::from(db, self.as_str(db))
+                Word::intern(db, self.as_str(db))
             }
         }
     }

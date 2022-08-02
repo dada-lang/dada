@@ -3,7 +3,7 @@
 #![feature(try_blocks)]
 #![allow(incomplete_features)]
 
-#[salsa::jar(Db)]
+#[salsa::jar(db = Db)]
 pub struct Jar(ext::class_field_names);
 
 pub trait Db:
