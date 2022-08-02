@@ -516,8 +516,8 @@ impl<'me> Validator<'me> {
                 self.add(validated::ExprData::Seq(validated_exprs), expr)
             }
             syntax::ExprData::Continue => {
-                let validated_data = match self.loop_stack.pop() {
-                    Some(loop_expr) => validated::ExprData::Continue(loop_expr),
+                let validated_data = match self.loop_stack.last() {
+                    Some(loop_expr) => validated::ExprData::Continue(*loop_expr),
                     None => {
                         dada_ir::error!(self.span(expr), "cannot `continue` outside of a loop")
                             .primary_label("`continue` outside of a loop here")
@@ -528,18 +528,17 @@ impl<'me> Validator<'me> {
                 self.add(validated_data, expr)
             }
             syntax::ExprData::Break(with_value) => {
-                let validated_data = match self.loop_stack.pop() {
-                    Some(loop_expr) => {
-                        let validated_expr = if let Some(break_expr) = with_value {
-                            self.validate_expr(*break_expr)
-                        } else {
-                            self.empty_tuple(expr)
-                        };
-                        validated::ExprData::Break {
-                            from_expr: loop_expr,
-                            with_value: validated_expr,
-                        }
-                    }
+                let validated_expr = if let Some(break_expr) = with_value {
+                    self.validate_expr(*break_expr)
+                } else {
+                    self.empty_tuple(expr)
+                };
+
+                let validated_data = match self.loop_stack.last() {
+                    Some(loop_expr) => validated::ExprData::Break {
+                        from_expr: *loop_expr,
+                        with_value: validated_expr,
+                    },
                     None => {
                         dada_ir::error!(self.span(expr), "cannot `break` outside of a loop")
                             .primary_label("`break` outside of a loop here")
