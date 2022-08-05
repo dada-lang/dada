@@ -6,5 +6,5 @@ edition = "2021"
 # See more keys and their definitions at https://doc.rust-lang.org/cargo/reference/manifest.html
 
 [dependencies]
-salsa-entity-mock = { git = "https://github.com/nikomatsakis/salsa/", branch = "dada" }
-# salsa-entity-mock = { path = "../../../salsa/components/salsa-entity-mock" }
+salsa-2022 = { git = "https://github.com/salsa-rs/salsa/", branch = "master" }
+# salsa-2022 = { path = "../../../salsa/components/salsa-2022" }

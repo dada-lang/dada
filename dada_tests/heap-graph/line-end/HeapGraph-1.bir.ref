@@ -5,7 +5,9 @@
             [
                 (
                     BreakpoingStart(
-                        "async",
+                        SourceFile(
+                            "dada_tests/heap-graph/line-end.dada",
+                        ),
                         0,
                     ),
                     Expr(4),
@@ -33,7 +35,9 @@
                 ),
                 (
                     BreakpointEnd(
-                        "async",
+                        SourceFile(
+                            "dada_tests/heap-graph/line-end.dada",
+                        ),
                         0,
                         Expr(4),
                         Some(

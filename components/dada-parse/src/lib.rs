@@ -10,7 +10,7 @@ mod parser;
 mod token_test;
 mod tokens;
 
-#[salsa::jar(Db)]
+#[salsa::jar(db = Db)]
 pub struct Jar(
     code_parser::parse_function_body,
     file_parser::parse_file,

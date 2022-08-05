@@ -3,9 +3,10 @@
 
 use crate::{token_tree::TokenTree, word::Word};
 
-#[salsa::interned(FormatString in crate::Jar)]
+#[salsa::interned]
 #[derive(Clone, Debug, PartialEq, Eq, Hash)]
-pub struct FormatStringData {
+#[allow(clippy::len_without_is_empty)]
+pub struct FormatString {
     pub len: u32,
 
     /// List of sections from a string like `"foo{bar}baz" -- that example would
@@ -14,25 +15,23 @@ pub struct FormatStringData {
 }
 
 impl FormatString {
-    #[allow(clippy::len_without_is_empty)]
-    pub fn len(&self, db: &dyn crate::Db) -> u32 {
-        self.data(db).len
+    /// True if the format string is empty.
+    pub fn is_empty(self, db: &dyn crate::Db) -> bool {
+        self.len(db) == 0
     }
 }
 
-impl<Db: ?Sized + crate::Db> salsa::DebugWithDb<Db> for FormatString {
-    fn fmt(&self, f: &mut std::fmt::Formatter<'_>, db: &Db) -> std::fmt::Result {
-        salsa::DebugWithDb::fmt(self.data(db), f, db)
+impl salsa::DebugWithDb<dyn crate::Db + '_> for FormatString {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>, db: &dyn crate::Db) -> std::fmt::Result {
+        salsa::DebugWithDb::fmt(&self.sections(db), f, db)
     }
 }
 
-impl<Db: ?Sized + crate::Db> salsa::DebugWithDb<Db> for FormatStringData {
-    fn fmt(&self, f: &mut std::fmt::Formatter<'_>, db: &Db) -> std::fmt::Result {
-        salsa::DebugWithDb::fmt(&self.sections, f, db)
-    }
+#[salsa::interned]
+pub struct FormatStringSection {
+    data: FormatStringSectionData,
 }
 
-#[salsa::interned(FormatStringSection in crate::Jar)]
 #[derive(Clone, Debug, PartialEq, Eq, Hash)]
 pub enum FormatStringSectionData {
     /// Plain text to be emitted directly.
@@ -52,14 +51,14 @@ impl FormatStringSection {
     }
 }
 
-impl<Db: ?Sized + crate::Db> salsa::DebugWithDb<Db> for FormatStringSection {
-    fn fmt(&self, f: &mut std::fmt::Formatter<'_>, db: &Db) -> std::fmt::Result {
-        salsa::DebugWithDb::fmt(self.data(db), f, db)
+impl salsa::DebugWithDb<dyn crate::Db + '_> for FormatStringSection {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>, db: &dyn crate::Db) -> std::fmt::Result {
+        salsa::DebugWithDb::fmt(&self.data(db), f, db)
     }
 }
 
-impl<Db: ?Sized + crate::Db> salsa::DebugWithDb<Db> for FormatStringSectionData {
-    fn fmt(&self, f: &mut std::fmt::Formatter<'_>, db: &Db) -> std::fmt::Result {
+impl salsa::DebugWithDb<dyn crate::Db + '_> for FormatStringSectionData {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>, db: &dyn crate::Db) -> std::fmt::Result {
         match self {
             FormatStringSectionData::Text(word) => {
                 f.debug_tuple("Text").field(&word.debug(db)).finish()

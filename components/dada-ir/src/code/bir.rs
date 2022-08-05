@@ -4,9 +4,9 @@
 use crate::{
     class::Class,
     code::validated::op::Op,
-    filename::Filename,
     function::Function,
     in_ir_db::InIrDb,
+    input_file::InputFile,
     intrinsic::Intrinsic,
     origin_table::HasOriginIn,
     prelude::InIrDbExt,
@@ -19,23 +19,24 @@ use salsa::DebugWithDb;
 
 use super::{syntax, validated};
 
-salsa::entity2! {
-    entity Bir in crate::Jar {
-        /// Name of file containing the code from which this Bir was created.
-        filename: Filename,
+#[salsa::tracked]
+pub struct Bir {
+    /// Name of file containing the code from which this Bir was created.
+    input_file: InputFile,
 
-        /// Name of function containing the code from which this Bir was created.
-        function_name: Word,
+    /// Name of function containing the code from which this Bir was created.
+    function_name: Word,
 
-        /// Syntax tree from which this Bir was created.
-        syntax_tree: syntax::Tree,
+    /// Syntax tree from which this Bir was created.
+    syntax_tree: syntax::Tree,
 
-        /// The BIR data
-        #[value ref] data: BirData,
+    /// The BIR data
+    #[return_ref]
+    data: BirData,
 
-        /// Origins of expr in the BIR. Used to trace back to a source span.
-        #[value ref] origins: Origins,
-    }
+    /// Origins of expr in the BIR. Used to trace back to a source span.
+    #[return_ref]
+    origins: Origins,
 }
 
 impl DebugWithDb<dyn crate::Db + '_> for Bir {
@@ -58,9 +59,9 @@ impl Bir {
     /// will require re-execution if most anything in the source file changes, even
     /// just adding whitespace.
     pub fn span_of(self, db: &dyn crate::Db, syntax_expr: syntax::Expr) -> FileSpan {
-        let filename = self.filename(db);
+        let input_file = self.input_file(db);
         let syntax_tree = self.syntax_tree(db);
-        syntax_tree.spans(db)[syntax_expr].in_file(filename)
+        syntax_tree.spans(db)[syntax_expr].in_file(input_file)
     }
 }
 
@@ -262,7 +263,7 @@ pub enum StatementData {
     /// It indicates the moment when one of the breakpoint expressions
     /// in the given file (identified by the usize index) is about
     /// to start executon.
-    BreakpointStart(Filename, usize),
+    BreakpointStart(InputFile, usize),
 
     /// In terms of the semantics, this is a no-op.
     /// It is used by the time traveling debugger.
@@ -278,7 +279,7 @@ pub enum StatementData {
     ///
     /// Any side-effects from the breakpoint will have taken place
     /// when this statement executes.
-    BreakpointEnd(Filename, usize, syntax::Expr, Option<Place>),
+    BreakpointEnd(InputFile, usize, syntax::Expr, Option<Place>),
 }
 
 impl DebugWithDb<InIrDb<'_, Bir>> for StatementData {
@@ -292,15 +293,15 @@ impl DebugWithDb<InIrDb<'_, Bir>> for StatementData {
 
             StatementData::Clear(lv) => f.debug_tuple("Clear").field(&lv.debug(db)).finish(),
 
-            StatementData::BreakpointStart(filename, index) => f
+            StatementData::BreakpointStart(input_file, index) => f
                 .debug_tuple("BreakpoingStart")
-                .field(&filename.debug(db.db()))
+                .field(&input_file.debug(db.db()))
                 .field(index)
                 .finish(),
 
-            StatementData::BreakpointEnd(filename, index, e, p) => f
+            StatementData::BreakpointEnd(input_file, index, e, p) => f
                 .debug_tuple("BreakpointEnd")
-                .field(&filename.debug(db.db()))
+                .field(&input_file.debug(db.db()))
                 .field(index)
                 .field(e)
                 .field(&p.debug(db))

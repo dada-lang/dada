@@ -1,5 +1,5 @@
 use dada_ir::{
-    filename::Filename,
+    input_file::InputFile,
     span::{FileSpan, Offset},
 };
 use wasm_bindgen::prelude::*;
@@ -20,8 +20,8 @@ pub struct DadaLineColumn {
 
 #[wasm_bindgen]
 impl DadaLineColumn {
-    pub(crate) fn from(db: &dada_db::Db, filename: Filename, position: Offset) -> Self {
-        let lc = dada_ir::lines::line_column(db, filename, position);
+    pub(crate) fn from(db: &dada_db::Db, input_file: InputFile, position: Offset) -> Self {
+        let lc = dada_ir::lines::line_column(db, input_file, position);
         Self {
             line0: lc.line0(),
             column0: lc.column0(),
@@ -33,8 +33,8 @@ impl DadaLineColumn {
 impl DadaRange {
     pub(crate) fn from(db: &dada_db::Db, span: FileSpan) -> Self {
         Self {
-            start: DadaLineColumn::from(db, span.filename, span.start),
-            end: DadaLineColumn::from(db, span.filename, span.end),
+            start: DadaLineColumn::from(db, span.input_file, span.start),
+            end: DadaLineColumn::from(db, span.input_file, span.end),
         }
     }
 }

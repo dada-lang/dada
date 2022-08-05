@@ -195,18 +195,18 @@ impl<'me> Stepper<'me> {
                 let object = self.machine.unit_object();
                 *self.machine.local_mut(*lv) = Value { object, permission };
             }
-            bir::StatementData::BreakpointStart(filename, index) => {
+            bir::StatementData::BreakpointStart(input_file, index) => {
                 let kernel = self.kernel.take().unwrap();
-                let result = kernel.breakpoint_start(self.db, *filename, *index, &mut || {
+                let result = kernel.breakpoint_start(self.db, *input_file, *index, &mut || {
                     HeapGraph::new(self.db, self.machine, None)
                 });
                 self.kernel = Some(kernel);
                 result?
             }
-            bir::StatementData::BreakpointEnd(filename, index, expr, in_flight_place) => {
+            bir::StatementData::BreakpointEnd(input_file, index, expr, in_flight_place) => {
                 let span = self.span_from_syntax_expr(*expr);
                 let kernel = self.kernel.take().unwrap();
-                let result = kernel.breakpoint_end(self.db, *filename, *index, span, &mut || {
+                let result = kernel.breakpoint_end(self.db, *input_file, *index, span, &mut || {
                     let in_flight_value = try { self.peek_place(table, (*in_flight_place)?)? };
                     HeapGraph::new(self.db, self.machine, in_flight_value)
                 });

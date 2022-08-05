@@ -1,16 +1,15 @@
-use crate::filename::Filename;
+use crate::input_file::InputFile;
 
 #[derive(Copy, Clone, Debug, PartialEq, Eq, Hash)]
 pub struct FileSpan {
-    pub filename: Filename,
+    pub input_file: InputFile,
     pub start: Offset,
     pub end: Offset,
 }
 
 impl FileSpan {
     pub fn snippet<'db>(&self, db: &'db dyn crate::Db) -> &'db str {
-        &crate::manifest::source_text(db, self.filename)
-            [usize::from(self.start)..usize::from(self.end)]
+        &self.input_file.source_text(db)[usize::from(self.start)..usize::from(self.end)]
     }
 
     /// True if the given character falls within this span.
@@ -22,12 +21,12 @@ impl FileSpan {
 impl<Db: ?Sized + crate::Db> salsa::DebugWithDb<Db> for FileSpan {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>, db: &Db) -> std::fmt::Result {
         let db = db.as_dyn_ir_db();
-        let start = crate::lines::line_column(db, self.filename, self.start);
-        let end = crate::lines::line_column(db, self.filename, self.end);
+        let start = crate::lines::line_column(db, self.input_file, self.start);
+        let end = crate::lines::line_column(db, self.input_file, self.end);
         write!(
             f,
             "{}:{}:{}:{}:{}",
-            self.filename.as_str(db),
+            self.input_file.name_str(db),
             start.line1(),
             start.column1(),
             end.line1(),
@@ -118,16 +117,16 @@ impl Span {
         this
     }
 
-    pub fn in_file(self, filename: Filename) -> FileSpan {
+    pub fn in_file(self, input_file: InputFile) -> FileSpan {
         FileSpan {
-            filename,
+            input_file,
             start: self.start,
             end: self.end,
         }
     }
 
-    pub fn snippet<'db>(&self, db: &'db dyn crate::Db, filename: Filename) -> &'db str {
-        self.in_file(filename).snippet(db)
+    pub fn snippet<'db>(&self, db: &'db dyn crate::Db, input_file: InputFile) -> &'db str {
+        self.in_file(input_file).snippet(db)
     }
 
     /// Returns a 0-length span at the start of this span

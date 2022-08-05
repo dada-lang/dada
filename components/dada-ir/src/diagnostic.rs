@@ -1,7 +1,7 @@
 use salsa::DebugWithDb;
 
 use crate::{
-    filename::Filename,
+    input_file::InputFile,
     span::{FileSpan, Span},
 };
 
@@ -35,7 +35,7 @@ pub struct Label {
     pub message: String,
 }
 
-#[salsa::accumulator(in crate::Jar)]
+#[salsa::accumulator]
 pub struct Diagnostics(Diagnostic);
 
 /// Convenience macro for avoiding `format!`
@@ -158,7 +158,7 @@ impl DiagnosticBuilder {
     /// is assumed to be in the same file as the primary location).
     #[must_use = "you have not emitted the diagnostic"]
     pub fn secondary_label(mut self, span: impl IntoFileSpan, message: impl ToString) -> Self {
-        let span = span.maybe_in_file(self.span.filename);
+        let span = span.maybe_in_file(self.span.input_file);
         self.labels.push(Label {
             span,
             message: message.to_string(),
@@ -201,17 +201,17 @@ impl DiagnosticBuilder {
 }
 
 pub trait IntoFileSpan {
-    fn maybe_in_file(self, default_file: Filename) -> FileSpan;
+    fn maybe_in_file(self, default_file: InputFile) -> FileSpan;
 }
 
 impl IntoFileSpan for FileSpan {
-    fn maybe_in_file(self, _default_file: Filename) -> FileSpan {
+    fn maybe_in_file(self, _default_file: InputFile) -> FileSpan {
         self
     }
 }
 
 impl IntoFileSpan for Span {
-    fn maybe_in_file(self, default_file: Filename) -> FileSpan {
+    fn maybe_in_file(self, default_file: InputFile) -> FileSpan {
         self.in_file(default_file)
     }
 }

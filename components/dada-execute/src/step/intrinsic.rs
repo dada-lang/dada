@@ -21,7 +21,7 @@ impl IntrinsicDefinition {
     pub(crate) fn for_intrinsic(db: &dyn crate::Db, intrinsic: Intrinsic) -> IntrinsicDefinition {
         match intrinsic {
             Intrinsic::Print => IntrinsicDefinition {
-                argument_names: vec![Word::from(db, "message")],
+                argument_names: vec![Word::intern(db, "message")],
                 function: |s, v| s.intrinsic_print(v),
                 // FIXME: Stepper::intrinsic_write doesn't type check, why?
             },

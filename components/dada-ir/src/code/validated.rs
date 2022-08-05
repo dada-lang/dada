@@ -17,12 +17,13 @@ use salsa::DebugWithDb;
 
 use super::syntax;
 
-salsa::entity2! {
-    entity Tree in crate::Jar {
-        origin: Function,
-        #[value ref] data: TreeData,
-        #[value ref] origins: Origins,
-    }
+#[salsa::tracked]
+pub struct Tree {
+    origin: Function,
+    #[return_ref]
+    data: TreeData,
+    #[return_ref]
+    origins: Origins,
 }
 
 impl DebugWithDb<dyn crate::Db + '_> for Tree {

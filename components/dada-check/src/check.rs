@@ -1,12 +1,12 @@
-use dada_ir::{filename::Filename, item::Item};
+use dada_ir::{input_file::InputFile, item::Item};
 use dada_parse::prelude::*;
 use dada_validate::prelude::*;
 
-#[salsa::memoized(in crate::Jar)]
-pub fn check_filename(db: &dyn crate::Db, filename: Filename) {
-    let items = filename.items(db);
+#[salsa::tracked]
+pub fn check_input_file(db: &dyn crate::Db, input_file: InputFile) {
+    let items = input_file.items(db);
 
-    filename.validate_root(db);
+    input_file.validate_root(db);
 
     for &item in items {
         match item {

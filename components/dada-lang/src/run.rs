@@ -27,17 +27,16 @@ impl Options {
 
         let contents = std::fs::read_to_string(&self.path)
             .with_context(|| format!("reading `{}`", self.path.display()))?;
-        let filename = dada_ir::filename::Filename::from(&db, &self.path);
-        db.update_file(filename, contents);
+        let input_file = db.new_input_file(&self.path, contents);
 
-        for diagnostic in db.diagnostics(filename) {
+        for diagnostic in db.diagnostics(input_file) {
             dada_error_format::print_diagnostic(&db, &diagnostic)?;
         }
 
         let mut should_execute = true;
 
         if let Some(name_regex) = &self.validated {
-            for item in db.items(filename) {
+            for item in db.items(input_file) {
                 let name = item.name(&db).as_str(&db);
                 if name_regex.is_match(name) {
                     if let Some(tree) = db.debug_validated_tree(item) {
@@ -49,7 +48,7 @@ impl Options {
         }
 
         if let Some(name_regex) = &self.bir {
-            for item in db.items(filename) {
+            for item in db.items(input_file) {
                 let name = item.name(&db).as_str(&db);
                 if name_regex.is_match(name) {
                     if let Some(tree) = db.debug_bir(item) {
@@ -62,7 +61,7 @@ impl Options {
 
         // Find the "main" function
         if should_execute {
-            match db.main_function(filename) {
+            match db.main_function(input_file) {
                 Some(bir) => {
                     dada_execute::interpret(bir, &db, &mut Kernel::new(), vec![]).await?;
                 }
@@ -102,7 +101,7 @@ impl dada_execute::kernel::Kernel for Kernel {
     fn breakpoint_start(
         &mut self,
         _db: &dyn dada_execute::Db,
-        _breakpoint_filename: dada_ir::filename::Filename,
+        _breakpoint_input_file: dada_ir::input_file::InputFile,
         _breakpoint_index: usize,
         _generate_heap_graph: &mut dyn FnMut() -> HeapGraph,
     ) -> eyre::Result<()> {
@@ -112,7 +111,7 @@ impl dada_execute::kernel::Kernel for Kernel {
     fn breakpoint_end(
         &mut self,
         _db: &dyn dada_execute::Db,
-        _breakpoint_filename: dada_ir::filename::Filename,
+        _breakpoint_input_file: dada_ir::input_file::InputFile,
         _breakpoint_index: usize,
         _breakpoint_span: FileSpan,
         _generate_heap_graph: &mut dyn FnMut() -> HeapGraph,

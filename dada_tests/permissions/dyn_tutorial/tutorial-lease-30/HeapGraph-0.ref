@@ -1,4 +1,4 @@
-# Breakpoint: Expr(14) at class:7:5:7:12
+# Breakpoint: Expr(14) at dada_tests/permissions/dyn_tutorial/tutorial-lease-30.dada:7:5:7:12
 digraph {
   node[shape = "note"];
   rankdir = "LR";
@@ -63,11 +63,12 @@ digraph {
   }
 }
 [31mError:[0m your lease to this object was cancelled
-   [38;5;246m╭[0m[38;5;246m─[0m[38;5;246m[[0mclass:9:9[38;5;246m][0m
+   [38;5;246m╭[0m[38;5;246m─[0m[38;5;246m[[0mdada_tests/permissions/dyn_tutorial/tutorial-lease-30.dada:9:9[38;5;246m][0m
    [38;5;246m│[0m
  [38;5;246m7 │[0m [38;5;249m [0m[38;5;249m [0m[38;5;249m [0m[38;5;249m [0m[38;5;249mx[0m[38;5;249m [0m[38;5;249m=[0m[38;5;249m [0mp.x
  [38;5;246m  ·[0m         ─┬─  
  [38;5;246m  ·[0m          ╰─── lease was cancelled here
+ [38;5;246m  ·[0m 
  [38;5;246m9 │[0m [38;5;249m [0m[38;5;249m [0m[38;5;249m [0m[38;5;249m [0m[38;5;249mx[0m[38;5;249m [0m[38;5;249m=[0m[38;5;249m [0mq[38;5;249m.[0m[38;5;249mx[0m
  [38;5;246m  ·[0m         ┬  
  [38;5;246m  ·[0m         ╰── cancelled lease used here

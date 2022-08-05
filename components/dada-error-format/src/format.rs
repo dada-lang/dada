@@ -1,7 +1,7 @@
 use std::io::Cursor;
 
 use ariadne::{Config, Label, Report, ReportKind, Source};
-use dada_ir::filename::Filename;
+use dada_ir::input_file::InputFile;
 
 /// Options for controlling error formatting when they are printed.
 #[derive(Clone, Copy)]
@@ -55,7 +55,7 @@ fn ariadne_diagnostic(
 ) -> eyre::Result<ariadne::Report<ASpan>> {
     let mut builder = Report::<ASpan>::build(
         ReportKind::Error,
-        diagnostic.span.filename,
+        diagnostic.span.input_file,
         diagnostic.span.start.into(),
     )
     .with_message(&diagnostic.message)
@@ -70,7 +70,7 @@ fn ariadne_diagnostic(
 
 struct SourceCache<'me> {
     db: &'me dyn crate::Db,
-    map: dada_collections::Map<Filename, Source>,
+    map: dada_collections::Map<InputFile, Source>,
 }
 
 impl<'me> SourceCache<'me> {
@@ -82,16 +82,16 @@ impl<'me> SourceCache<'me> {
     }
 }
 
-impl ariadne::Cache<Filename> for SourceCache<'_> {
-    fn fetch(&mut self, id: &Filename) -> Result<&Source, Box<dyn std::fmt::Debug + '_>> {
+impl ariadne::Cache<InputFile> for SourceCache<'_> {
+    fn fetch(&mut self, id: &InputFile) -> Result<&Source, Box<dyn std::fmt::Debug + '_>> {
         Ok(self.map.entry(*id).or_insert_with(|| {
-            let source_text = dada_ir::manifest::source_text(self.db, *id);
+            let source_text = id.source_text(self.db);
             Source::from(source_text)
         }))
     }
 
-    fn display<'a>(&self, id: &'a Filename) -> Option<Box<dyn std::fmt::Display + 'a>> {
-        let s = id.as_str(self.db).to_string();
+    fn display<'a>(&self, id: &'a InputFile) -> Option<Box<dyn std::fmt::Display + 'a>> {
+        let s = id.name(self.db).as_str(self.db).to_string();
         Some(Box::new(s))
     }
 }
@@ -99,10 +99,10 @@ impl ariadne::Cache<Filename> for SourceCache<'_> {
 struct ASpan(dada_ir::span::FileSpan);
 
 impl ariadne::Span for ASpan {
-    type SourceId = Filename;
+    type SourceId = InputFile;
 
     fn source(&self) -> &Self::SourceId {
-        &self.0.filename
+        &self.0.input_file
     }
 
     fn start(&self) -> usize {

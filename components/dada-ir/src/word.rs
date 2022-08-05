@@ -1,23 +1,19 @@
 use crate::span::FileSpan;
 
-use super::{Db, Jar};
-
-#[salsa::interned(Word in Jar)]
+#[salsa::interned]
 #[derive(Clone, Debug, PartialEq, Eq, Hash)]
-pub struct WordData {
+pub struct Word {
+    #[return_ref]
     pub string: String,
 }
 
 impl Word {
-    pub fn from<DB: ?Sized + Db>(db: &DB, string: impl ToString) -> Self {
-        WordData {
-            string: string.to_string(),
-        }
-        .intern(db)
+    pub fn intern(db: &dyn crate::Db, string: impl ToString) -> Self {
+        Word::new(db, string.to_string())
     }
 
-    pub fn as_str<DB: ?Sized + Db>(self, db: &DB) -> &str {
-        &self.data(db).string
+    pub fn as_str(self, db: &dyn crate::Db) -> &str {
+        self.string(db)
     }
 
     #[allow(clippy::len_without_is_empty)]
@@ -26,9 +22,9 @@ impl Word {
     }
 }
 
-impl<Db: ?Sized + crate::Db> salsa::DebugWithDb<Db> for Word {
-    fn fmt(&self, f: &mut std::fmt::Formatter<'_>, db: &Db) -> std::fmt::Result {
-        std::fmt::Debug::fmt(self.as_str(db), f)
+impl salsa::DebugWithDb<dyn crate::Db + '_> for Word {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>, db: &dyn crate::Db) -> std::fmt::Result {
+        std::fmt::Debug::fmt(self.string(db), f)
     }
 }
 
@@ -60,14 +56,14 @@ impl ToString for &std::path::PathBuf {
     }
 }
 
-salsa::entity2! {
-    /// A "spanned word" is a `Word` that also carries a span. Useful for things like
-    /// argument names etc where we want to carry the span through many phases
-    /// of compilation.
-    entity SpannedWord in crate::Jar {
-        #[id] word: Word,
-        span: FileSpan,
-    }
+#[salsa::tracked]
+/// A "spanned word" is a `Word` that also carries a span. Useful for things like
+/// argument names etc where we want to carry the span through many phases
+/// of compilation.
+pub struct SpannedWord {
+    #[id]
+    word: Word,
+    span: FileSpan,
 }
 
 impl SpannedWord {
@@ -82,14 +78,14 @@ impl<Db: ?Sized + crate::Db> salsa::DebugWithDb<Db> for SpannedWord {
     }
 }
 
-salsa::entity2! {
-    /// An optional SpannedOptionalWord is an identifier that may not be persent; it still carries
-    /// a span for where the label *would have gone* had it been present (as compared to
-    /// an `Option<Label>`).
-    entity SpannedOptionalWord in crate::Jar {
-        #[id] word: Option<Word>,
-        span: FileSpan,
-    }
+#[salsa::tracked]
+/// An optional SpannedOptionalWord is an identifier that may not be persent; it still carries
+/// a span for where the label *would have gone* had it been present (as compared to
+/// an `Option<Label>`).
+pub struct SpannedOptionalWord {
+    #[id]
+    word: Option<Word>,
+    span: FileSpan,
 }
 
 impl SpannedOptionalWord {

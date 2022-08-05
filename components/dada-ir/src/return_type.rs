@@ -1,15 +1,14 @@
 use crate::span::FileSpan;
 
-salsa::entity2! {
-    /// Represents the return type of a function.
-    ///
-    /// If `kind` is [ReturnTypeKind::Value] `span` is the span of `->`.
-    ///
-    /// If `kind` is [ReturnTypeKind::Unit] `span` is the span between parameters and body.
-    entity ReturnType in crate::Jar {
-        kind: ReturnTypeKind,
-        span: FileSpan,
-    }
+#[salsa::tracked]
+/// Represents the return type of a function.
+///
+/// If `kind` is [ReturnTypeKind::Value] `span` is the span of `->`.
+///
+/// If `kind` is [ReturnTypeKind::Unit] `span` is the span between parameters and body.
+pub struct ReturnType {
+    kind: ReturnTypeKind,
+    span: FileSpan,
 }
 
 #[derive(Copy, Clone, PartialEq, Eq, Hash, Debug)]

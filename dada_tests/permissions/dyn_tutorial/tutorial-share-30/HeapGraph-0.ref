@@ -1,4 +1,4 @@
-# Breakpoint: Expr(11) at class:4:4:6:10
+# Breakpoint: Expr(11) at dada_tests/permissions/dyn_tutorial/tutorial-share-30.dada:4:4:6:10
 digraph {
   node[shape = "note"];
   rankdir = "LR";

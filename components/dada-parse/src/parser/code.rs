@@ -170,7 +170,7 @@ impl CodeParser<'_, '_> {
         } else {
             label_span = self.tokens.peek_span().span_at_start();
             expr = self.parse_expr()?;
-            label = SpannedOptionalWord::new(self.db, None, label_span.in_file(self.filename));
+            label = SpannedOptionalWord::new(self.db, None, label_span.in_file(self.input_file));
         };
 
         Some(self.add(
@@ -186,7 +186,7 @@ impl CodeParser<'_, '_> {
             let _colon_span = this.eat_op(Op::Colon)?;
             Some((
                 name_span,
-                SpannedOptionalWord::new(this.db, Some(name), name_span.in_file(this.filename)),
+                SpannedOptionalWord::new(this.db, Some(name), name_span.in_file(this.input_file)),
             ))
         })
     }
@@ -536,14 +536,13 @@ impl CodeParser<'_, '_> {
         let (span, format_string) = self.eat(FormatStringLiteral)?;
 
         let exprs: Vec<Expr> = format_string
-            .data(self.db)
-            .sections
+            .sections(self.db)
             .iter()
             .map(|section| match section.data(self.db) {
                 FormatStringSectionData::Text(word) => {
-                    self.add(ExprData::StringLiteral(*word), span)
+                    self.add(ExprData::StringLiteral(word), span)
                 }
-                FormatStringSectionData::TokenTree(tree) => self.parse_required_sub_expr(*tree),
+                FormatStringSectionData::TokenTree(tree) => self.parse_required_sub_expr(tree),
             })
             .collect();
 

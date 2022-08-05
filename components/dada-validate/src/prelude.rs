@@ -1,7 +1,7 @@
-use dada_ir::{code::validated, filename::Filename, function::Function, item::Item};
+use dada_ir::{code::validated, function::Function, input_file::InputFile, item::Item};
 
 #[extension_trait::extension_trait]
-pub impl DadaValidateFilenameExt for Filename {
+pub impl DadaValidateInputFileExt for InputFile {
     fn validate_root(self, db: &dyn crate::Db) {
         crate::validate::root_definitions(db, self);
     }

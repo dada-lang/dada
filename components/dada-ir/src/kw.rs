@@ -30,7 +30,7 @@ macro_rules! define_keywords {
             }
 
             pub fn word(self, db: &dyn crate::Db) -> Word {
-                Word::from(db, self.str())
+                Word::intern(db, self.str())
             }
         }
     }
@@ -65,8 +65,15 @@ define_keywords! {
     While => "while",
 }
 
-#[salsa::memoized(in crate::Jar ref)]
-#[allow(clippy::needless_lifetimes)]
-pub fn keywords(db: &dyn crate::Db) -> Map<Word, Keyword> {
+pub fn keywords(db: &dyn crate::Db) -> &Map<Word, Keyword> {
+    keywords_map(db, Keywords::new(db))
+}
+
+// Hack to make a global constant
+#[salsa::interned]
+pub struct Keywords {}
+
+#[salsa::tracked(return_ref)]
+pub(crate) fn keywords_map(db: &dyn crate::Db, _k: Keywords) -> Map<Word, Keyword> {
     Keyword::all().map(|kw| (kw.word(db), kw)).collect()
 }

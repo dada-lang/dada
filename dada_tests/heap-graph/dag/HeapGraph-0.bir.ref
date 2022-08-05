@@ -5,7 +5,9 @@
             [
                 (
                     BreakpoingStart(
-                        "class",
+                        SourceFile(
+                            "dada_tests/heap-graph/dag.dada",
+                        ),
                         0,
                     ),
                     Expr(11),
@@ -148,7 +150,9 @@
                 ),
                 (
                     BreakpointEnd(
-                        "class",
+                        SourceFile(
+                            "dada_tests/heap-graph/dag.dada",
+                        ),
                         0,
                         Expr(11),
                         Some(

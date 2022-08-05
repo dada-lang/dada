@@ -1,6 +1,10 @@
 use salsa::DebugWithDb;
 
-#[salsa::interned(Ty in super::Jar)]
+#[salsa::interned]
+pub struct Ty {
+    data: TyData,
+}
+
 #[derive(PartialEq, Eq, Clone, Copy, PartialOrd, Ord, Hash)]
 pub enum TyData {}
 

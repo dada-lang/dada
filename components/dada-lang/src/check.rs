@@ -28,12 +28,11 @@ impl Options {
         for path in &self.paths {
             let contents = std::fs::read_to_string(path)
                 .with_context(|| format!("reading `{}`", path.display()))?;
-            let filename = dada_ir::filename::Filename::from(&db, path);
-            db.update_file(filename, contents);
-            all_diagnostics.extend(db.diagnostics(filename));
+            let input_file = db.new_input_file(path, contents);
+            all_diagnostics.extend(db.diagnostics(input_file));
 
             if self.log_syntax_tree {
-                for item in db.items(filename) {
+                for item in db.items(input_file) {
                     if let Some(tree) = db.debug_syntax_tree(item) {
                         tracing::info!("syntax tree for {:?} is {:#?}", item.debug(&db), tree);
                     }
@@ -41,7 +40,7 @@ impl Options {
             }
 
             if self.log_validated_tree {
-                for item in db.items(filename) {
+                for item in db.items(input_file) {
                     if let Some(tree) = db.debug_validated_tree(item) {
                         tracing::info!("validated tree for {:?} is {:#?}", item.debug(&db), tree);
                     }
@@ -49,7 +48,7 @@ impl Options {
             }
 
             if self.log_bir {
-                for item in db.items(filename) {
+                for item in db.items(input_file) {
                     if let Some(tree) = db.debug_bir(item) {
                         tracing::info!("BIR for {:?} is {:#?}", item.debug(&db), tree);
                     }

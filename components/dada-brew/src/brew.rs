@@ -14,19 +14,19 @@ use crate::{
     cursor::Cursor,
 };
 
-#[salsa::memoized(in crate::Jar)]
+#[salsa::tracked]
 pub fn brew(db: &dyn crate::Db, validated_tree: validated::Tree) -> bir::Bir {
     let function = validated_tree.origin(db);
     let breakpoints = dada_breakpoint::locations::breakpoints_in_tree(
         db,
-        function.filename(db),
+        function.input_file(db),
         function.syntax_tree(db),
     );
     let mut tables = bir::Tables::default();
     let mut origins = bir::Origins::default();
     let brewery = &mut Brewery::new(
         db,
-        function.filename(db),
+        function.input_file(db),
         &breakpoints,
         validated_tree,
         &mut tables,
@@ -50,7 +50,7 @@ pub fn brew(db: &dyn crate::Db, validated_tree: validated::Tree) -> bir::Bir {
 
     let bir = bir::Bir::new(
         db,
-        function.filename(db),
+        function.input_file(db),
         function.name(db).word(db),
         function.syntax_tree(db),
         BirData::new(tables, num_parameters, start_basic_block),

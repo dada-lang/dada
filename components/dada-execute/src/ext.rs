@@ -14,7 +14,7 @@ pub impl DadaExecuteClassExt for Class {
     }
 }
 
-#[salsa::memoized(in crate::Jar ref)]
+#[salsa::tracked(return_ref)]
 #[allow(clippy::needless_lifetimes)]
 pub fn class_field_names(db: &dyn crate::Db, class: Class) -> Vec<Word> {
     class.fields(db).iter().map(|p| p.name(db)).collect()
