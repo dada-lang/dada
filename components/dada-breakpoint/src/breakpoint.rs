@@ -101,6 +101,7 @@ impl TreeTraversal<'_> {
 
         match expr.data(self.tables) {
             syntax::ExprData::Error
+            | syntax::ExprData::Continue
             | syntax::ExprData::Id(_)
             | syntax::ExprData::BooleanLiteral(_)
             | syntax::ExprData::IntegerLiteral(..)
@@ -120,7 +121,9 @@ impl TreeTraversal<'_> {
                 self.find_in_children(expr, Some(base_expr))
             }
 
-            syntax::ExprData::Return(base_expr) => self.find_in_children(expr, base_expr),
+            syntax::ExprData::Break(base_expr) | syntax::ExprData::Return(base_expr) => {
+                self.find_in_children(expr, base_expr)
+            }
 
             syntax::ExprData::Concatenate(child_exprs)
             | syntax::ExprData::Tuple(child_exprs)

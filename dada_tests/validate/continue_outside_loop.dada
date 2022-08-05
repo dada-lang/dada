@@ -1,0 +1,5 @@
+async fn main() {
+    continue
+    #! ERROR cannot `continue` outside of a loop
+    #! RUN ERROR compilation error encountered
+}
