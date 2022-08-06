@@ -13,6 +13,9 @@ pub struct ErrorReported;
 #[derive(Clone, PartialEq, Eq, Hash, Debug)]
 #[non_exhaustive]
 pub struct Diagnostic {
+    /// This is only used for testing the reference grammar.
+    /// If it's true it means that the reference grammar should also emit an error.
+    pub is_grammar_error: bool,
     pub severity: Severity,
     pub span: FileSpan,
     pub message: String,
@@ -51,6 +54,15 @@ macro_rules! diag {
 macro_rules! error {
     ($span:expr, $($message:tt)*) => {
         $crate::diagnostic::Diagnostic::builder($crate::diagnostic::Severity::Error, $span, format!($($message)*))
+    }
+}
+
+/// Convenience macro for avoiding `format!`
+/// Use this when the error should also be emitted by the reference grammar
+#[macro_export]
+macro_rules! grammar_error {
+    ($span:expr, $($message:tt)*) => {
+        $crate::diagnostic::Diagnostic::builder($crate::diagnostic::Severity::Error, $span, format!($($message)*)).is_grammar_error()
     }
 }
 
@@ -119,6 +131,8 @@ pub struct DiagnosticBuilder {
     /// label ("here") when the diagnostic is emitted. Set to false
     /// if user adds an explicit primary label or calls [`Self::skip_primary_label`].
     add_primary_label: bool,
+
+    is_grammar_error: bool,
 }
 
 impl DiagnosticBuilder {
@@ -130,7 +144,14 @@ impl DiagnosticBuilder {
             labels: vec![],
             children: vec![],
             add_primary_label: true,
+            is_grammar_error: false,
         }
+    }
+
+    #[must_use = "you have not emitted the diagnostic"]
+    pub fn is_grammar_error(mut self) -> Self {
+        self.is_grammar_error = true;
+        self
     }
 
     /// Replaces the "primary label", which is always placed on the source
@@ -186,6 +207,7 @@ impl DiagnosticBuilder {
         }
 
         Diagnostic {
+            is_grammar_error: self.is_grammar_error,
             severity: self.severity,
             span: self.span,
             message: self.message,

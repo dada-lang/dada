@@ -216,7 +216,7 @@ where
                             .map(|pair| pair.0)
                             .unwrap_or(self.file_len),
                     );
-                    dada_ir::error!(
+                    dada_ir::grammar_error!(
                         Span {
                             start: ch_offset,
                             end,

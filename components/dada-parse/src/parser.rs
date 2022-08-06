@@ -198,7 +198,7 @@ impl<'me> Parser<'me> {
     }
 
     fn error(&self, span: Span, message: impl ToString) -> DiagnosticBuilder {
-        dada_ir::error!(span.in_file(self.input_file), "{}", message.to_string())
+        dada_ir::grammar_error!(span.in_file(self.input_file), "{}", message.to_string())
     }
 }
 
