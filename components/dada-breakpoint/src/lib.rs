@@ -5,7 +5,7 @@
 #![allow(incomplete_features)]
 
 #[salsa::jar(db = Db)]
-pub struct Jar(locations::breakpoint_locations);
+pub struct Jar();
 
 pub trait Db: salsa::DbWithJar<Jar> + dada_ir::Db + dada_parse::Db {}
 

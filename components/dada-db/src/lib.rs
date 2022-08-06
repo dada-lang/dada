@@ -44,12 +44,12 @@ impl salsa::ParallelDatabase for Db {
 impl Db {
     pub fn new_input_file(&mut self, name: impl ToString, source_text: String) -> InputFile {
         let name = Word::intern(self, name);
-        InputFile::new(self, name, source_text)
+        InputFile::new(self, name, source_text, vec![])
     }
 
     /// Set the breakpoints within the given file where the interpreter stops and executes callbacks.
     pub fn set_breakpoints(&mut self, input_file: InputFile, locations: Vec<LineColumn>) {
-        dada_breakpoint::locations::breakpoint_locations::set(self, input_file, locations);
+        input_file.set_breakpoint_locations(self, locations);
     }
 
     /// Checks `input_file` for compilation errors and returns all relevant diagnostics.

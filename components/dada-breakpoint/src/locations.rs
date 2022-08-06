@@ -1,15 +1,4 @@
-use dada_ir::{code::syntax, input_file::InputFile, span::LineColumn};
-
-/// Salsa input: the set of breakpoint locations.
-///
-/// Defaults to empty set if not explicitly set.
-///
-/// Does this belong here? I can't decide.
-#[salsa::tracked(return_ref)]
-#[allow(clippy::needless_lifetimes)]
-pub fn breakpoint_locations(_db: &dyn crate::Db, _input_file: InputFile) -> Vec<LineColumn> {
-    vec![] // default: none
-}
+use dada_ir::{code::syntax, input_file::InputFile};
 
 /// Returns all the breakpoints set for a given chunk of code.
 pub fn breakpoints_in_tree(
@@ -17,7 +6,7 @@ pub fn breakpoints_in_tree(
     input_file: InputFile,
     tree: syntax::Tree,
 ) -> Vec<syntax::Expr> {
-    let locations = breakpoint_locations(db, input_file);
+    let locations = input_file.breakpoint_locations(db);
     locations
         .iter()
         .flat_map(|l| crate::breakpoint::find(db, input_file, *l))

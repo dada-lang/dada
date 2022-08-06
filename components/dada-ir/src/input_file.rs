@@ -1,13 +1,18 @@
 use salsa::DebugWithDb;
 
-use crate::word::Word;
+use crate::{span::LineColumn, word::Word};
 
 #[salsa::input]
 pub struct InputFile {
     name: Word,
 
+    /// The raw contents of this input file, as a string.
     #[return_ref]
     source_text: String,
+
+    /// The locations of any breakpoints set in this file.
+    #[return_ref]
+    breakpoint_locations: Vec<LineColumn>,
 }
 
 impl InputFile {
