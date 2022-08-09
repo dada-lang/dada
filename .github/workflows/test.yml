@@ -102,3 +102,10 @@ jobs:
         with:
           command: clippy
           args: -- -Dwarnings
+
+    typos:
+      name: Typos
+      runs-on: ubuntu-latest
+      steps:
+        - uses: actions/checkout@2.4.0
+        - uses: crate-ci/typos@1.0.4
