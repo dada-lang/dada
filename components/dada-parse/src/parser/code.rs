@@ -342,6 +342,10 @@ impl CodeParser<'_, '_> {
                     let span = self.spans[expr].to(id_span);
                     expr = self.add(ExprData::Dot(expr, id), span);
                     continue;
+                } else if let Some((num_span, num)) = self.eat(Number) {
+                    let span = self.spans[expr].to(num_span);
+                    expr = self.add(ExprData::Dot(expr, num), span);
+                    continue;
                 } else if let Some((kw_span, _)) = self.eat(Keyword::Await) {
                     let span = self.spans[expr].to(kw_span);
                     expr = self.add(ExprData::Await(expr), span);
@@ -360,7 +364,7 @@ impl CodeParser<'_, '_> {
                     continue;
                 } else {
                     self.parser
-                        .error_at_current_token("expected identifier after `.`")
+                        .error_at_current_token("expected identifier or tuple index after `.`")
                         .emit(self.db);
                     continue;
                 }

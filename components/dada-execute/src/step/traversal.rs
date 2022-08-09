@@ -1,12 +1,12 @@
 use dada_id::prelude::*;
 use dada_ir::{
-    class::Class,
     code::{
         bir::{self, LocalVariable},
         syntax,
     },
     error,
     origin_table::HasOriginIn,
+    parameter::Parameter,
     span::FileSpan,
     storage::{Atomic, Joint, Leased},
     word::Word,
@@ -134,21 +134,21 @@ impl Stepper<'_> {
                 Ok(self.traverse_to_constant(ObjectData::Intrinsic(*i)))
             }
             bir::PlaceData::Dot(owner_place, field_name) => {
-                let db = self.db;
                 let ObjectTraversal {
                     mut accumulated_permissions,
                     object: owner_object,
                 } = self.traverse_to_object(table, *owner_place)?;
-                let (owner_class, field_index) =
+                let (with_field, field_index) =
                     self.object_field(place, owner_object, *field_name)?;
 
                 // Take the field mode into account
-                let field = owner_class.fields(db)[field_index];
-                accumulated_permissions.atomic |= field.decl(db).atomic;
+                if let Some(field) = with_field {
+                    accumulated_permissions.atomic |= field.decl(self.db).atomic;
+                }
 
                 Ok(PlaceTraversal {
                     accumulated_permissions,
-                    address: Address::Field(owner_object, field_index, Some(field)),
+                    address: Address::Field(owner_object, field_index, with_field),
                 })
             }
         }
@@ -203,15 +203,16 @@ impl Stepper<'_> {
             mut accumulated_permissions,
             object: owner_object,
         } = object_traversal;
-        let (owner_class, field_index) = self.object_field(place, owner_object, field_name)?;
+        let (with_field, field_index) = self.object_field(place, owner_object, field_name)?;
 
         // Take the field mode into account
-        let field = owner_class.fields(self.db)[field_index];
-        accumulated_permissions.atomic |= field.decl(self.db).atomic;
+        if let Some(field) = with_field {
+            accumulated_permissions.atomic |= field.decl(self.db).atomic;
+        }
 
         Ok(PlaceTraversal {
             accumulated_permissions,
-            address: Address::Field(owner_object, field_index, Some(field)),
+            address: Address::Field(owner_object, field_index, with_field),
         })
     }
 
@@ -220,7 +221,7 @@ impl Stepper<'_> {
         place: impl HasOriginIn<bir::Origins, Origin = syntax::Expr>,
         owner_object: Object,
         field_name: Word,
-    ) -> eyre::Result<(Class, usize)> {
+    ) -> eyre::Result<(Option<Parameter>, usize)> {
         // FIXME: Execute this before we create the mutable ref to `self.machine`,
         // even though we might not need it. The borrow checker is grumpy the ref
         // to self.machine is returned from the function and so it fails to analyze
@@ -230,7 +231,8 @@ impl Stepper<'_> {
         match &mut self.machine[owner_object] {
             ObjectData::Instance(instance) => {
                 if let Some(index) = instance.class.field_index(self.db, field_name) {
-                    Ok((instance.class, index))
+                    let field = instance.class.fields(self.db)[index];
+                    Ok((Some(field), index))
                 } else {
                     Err(Self::no_such_field(
                         self.db,
@@ -238,6 +240,25 @@ impl Stepper<'_> {
                         instance.class,
                         field_name,
                     ))
+                }
+            }
+            ObjectData::Tuple(tuple) => {
+                let no_such_field = || {
+                    error!(
+                        place_span,
+                        "no field named `{}`",
+                        field_name.as_str(self.db)
+                    )
+                    .eyre(self.db)
+                };
+                if let Ok(index) = field_name.as_str(self.db).parse::<usize>() {
+                    if index < tuple.fields.len() {
+                        Ok((None, index))
+                    } else {
+                        Err(no_such_field())
+                    }
+                } else {
+                    Err(no_such_field())
                 }
             }
             owner_data => Err(Self::unexpected_kind(

@@ -1,0 +1,10 @@
+async fn main() {
+    tuple = ("a", "b", 3)
+    last = tuple.2
+
+    print("{tuple.0}").await #! OUTPUT a
+    print("{tuple.1}").await #! OUTPUT b
+    print("{last}").await #! OUTPUT 3
+    print("{tuple.3}").await #! RUN ERROR no field named `3`
+    #print("{tuple.01}").await #! RUN ERROR no field named `01`
+}
