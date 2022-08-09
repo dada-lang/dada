@@ -243,23 +243,13 @@ impl Stepper<'_> {
                 }
             }
             ObjectData::Tuple(tuple) => {
-                let no_such_field = || {
-                    error!(
-                        place_span,
-                        "no field named `{}`",
-                        field_name.as_str(self.db)
-                    )
-                    .eyre(self.db)
-                };
-                if let Ok(index) = field_name.as_str(self.db).parse::<usize>() {
-                    if index < tuple.fields.len() {
-                        Ok((None, index))
-                    } else {
-                        Err(no_such_field())
+                let field_name_str = field_name.as_str(self.db);
+                for (index, _) in tuple.fields.iter().enumerate() {
+                    if index.to_string() == field_name_str {
+                        return Ok((None, index));
                     }
-                } else {
-                    Err(no_such_field())
                 }
+                Err(error!(place_span, "no field named `{}`", field_name_str).eyre(self.db))
             }
             owner_data => Err(Self::unexpected_kind(
                 self.db,
