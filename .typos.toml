@@ -1,4 +1,4 @@
 [files]
 extend-exclude = ["components/dada-web/ace/", "book/src/css/speech-bubbles.css", "book/package-lock.json"]
-[default.extend-words]
+[type.md.extend-words]
 fo = "fo"
