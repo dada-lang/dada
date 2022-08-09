@@ -141,7 +141,7 @@ impl Stepper<'_> {
                 let (with_field, field_index) =
                     self.object_field(place, owner_object, *field_name)?;
 
-                // Take the field mode into account
+                // If this is a field of a user-declared class, take the field mode into account
                 if let Some(field) = with_field {
                     accumulated_permissions.atomic |= field.decl(self.db).atomic;
                 }
@@ -205,7 +205,7 @@ impl Stepper<'_> {
         } = object_traversal;
         let (with_field, field_index) = self.object_field(place, owner_object, field_name)?;
 
-        // Take the field mode into account
+        // If this is a field of a user-declared class, take the field mode into account
         if let Some(field) = with_field {
             accumulated_permissions.atomic |= field.decl(self.db).atomic;
         }
