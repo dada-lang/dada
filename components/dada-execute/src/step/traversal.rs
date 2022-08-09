@@ -47,7 +47,7 @@ pub(super) struct AccumulatedPermissions {
 }
 
 impl AccumulatedPermissions {
-    /// Returns the permisions one would have when accessing
+    /// Returns the permissions one would have when accessing
     /// a uniquely owned location with the given "atomic"-ness.
     pub fn unique(atomic: Atomic) -> Self {
         AccumulatedPermissions {

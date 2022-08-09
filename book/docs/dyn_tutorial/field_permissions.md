@@ -68,7 +68,7 @@ my w_a = pair.a                       # Error: `pair.a` has `our` permission
 print(w_a).await
 ```
 
-This might seem surprising, but think about it: if you have `our` permission, then there can be other variables that have `our` permision as well, and you can't *both* have `my` permission to the fields. Otherwise, in an example like this, both `w_a1` and `w_a2` would have `my` permission to the same `Widget`, and that can't be:
+This might seem surprising, but think about it: if you have `our` permission, then there can be other variables that have `our` permission as well, and you can't *both* have `my` permission to the fields. Otherwise, in an example like this, both `w_a1` and `w_a2` would have `my` permission to the same `Widget`, and that can't be:
 
 ```
 class Widget()
