@@ -1,2 +1,4 @@
 [files]
-extend-exclude = ["components/dada-web/ace/"]
+extend-exclude = ["components/dada-web/ace/", "book/src/css/speech-bubbles.css"]
+[default.extend-words]
+fo = "fo"
