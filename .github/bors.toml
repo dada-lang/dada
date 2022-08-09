@@ -4,5 +4,6 @@ status = [
   "Rustfmt",
   "Clippy (nightly)",
   "Deploy (nightly)"
+  "Typos"
 ]
 delete_merged_branches = true
