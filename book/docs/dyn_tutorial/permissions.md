@@ -43,13 +43,13 @@ q = p
 # ───┘
 # put your cursor here -- you will see a diagram below
 # that shows that while `p` and `q` reference the same
-# point, `q` has read permisions (indicated with a blue
+# point, `q` has read permissions (indicated with a blue
 # line).
 ```
 
 ## Requesting write permission
 
-You can explicitly request write permision by using the `lease` keyword, like `p.lease`. If you use the debugger and position it after `q = p.lease`, you will see that `q` is given write permission this time. As a result, `q.x := 23` succeeds and, when we print the variable `p`, we see the new value.
+You can explicitly request write permission by using the `lease` keyword, like `p.lease`. If you use the debugger and position it after `q = p.lease`, you will see that `q` is given write permission this time. As a result, `q.x := 23` succeeds and, when we print the variable `p`, we see the new value.
 
 ```dada ide
 class Point(x, y)

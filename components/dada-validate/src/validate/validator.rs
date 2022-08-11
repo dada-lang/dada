@@ -170,7 +170,7 @@ impl<'me> Validator<'me> {
     /// Given an expression `E`, takes ownership of its value:
     ///
     /// * If `E` is a place expression, like `a.b`, this is equivalent to `a.b.give`
-    /// * If `E` is a value expression, like `foo()`, this just evalutes `E`
+    /// * If `E` is a value expression, like `foo()`, this just evaluates `E`
     ///
     /// The `move_expr` argument indicates the expression causing the move (e.g., the `give` expr
     /// or the `await` expr).
@@ -190,7 +190,7 @@ impl<'me> Validator<'me> {
     /// Validates an expression into a value:
     ///
     /// * If `E` is a place expression, like `a.b`, this is equivalent to `a.b.share`
-    /// * If `E` is a value expression, like `foo()`, this just evalutes it
+    /// * If `E` is a value expression, like `foo()`, this just evaluates it
     #[tracing::instrument(level = "debug", skip(self, expr))]
     fn validate_expr(&mut self, expr: syntax::Expr) -> validated::Expr {
         tracing::trace!("expr.data = {:?}", expr.data(self.syntax_tables()));

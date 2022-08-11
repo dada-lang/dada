@@ -40,7 +40,7 @@ When you assign to the `my q` variable, you are actually **giving** ownership fr
 
 ## Visualizing permissions with the debugger
 
-Dada comes equipped with a visual debugger that can help you to understand how permisions work. Let's try it! Position the cursor at the end of the first line:
+Dada comes equipped with a visual debugger that can help you to understand how permissions work. Let's try it! Position the cursor at the end of the first line:
 
 ```
 class Point(our x, our y)

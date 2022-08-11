@@ -75,7 +75,7 @@ impl LineTable {
                     if wc.start >= position {
                         break;
                     }
-                    // e.g.: 🙂 will have len 4, but we count it as 1 character, so we substract 3
+                    // e.g.: 🙂 will have len 4, but we count it as 1 character, so we subtract 3
                     column0 -= wc.len() - 1;
                 }
                 LineColumn::new0(line0, column0)
