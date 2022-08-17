@@ -50,7 +50,7 @@ impl LspServer {
 
     fn server_capabilities() -> ServerCapabilities {
         ServerCapabilities {
-            text_document_sync: Some(TextDocumentSyncCapability::Kind(TextDocumentSyncKind::Full)),
+            text_document_sync: Some(TextDocumentSyncCapability::Kind(TextDocumentSyncKind::FULL)),
             ..ServerCapabilities::default()
         }
     }
