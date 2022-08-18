@@ -26,11 +26,10 @@ pub fn start() -> Result<(), JsValue> {
 }
 
 #[wasm_bindgen]
-#[derive(Default)]
 pub struct DadaCompiler {
     db: dada_db::Db,
 
-    input_file: Option<InputFile>,
+    input_file: InputFile,
 
     /// Current diagnostics emitted by the compiler.
     diagnostics: Vec<dada_ir::diagnostic::Diagnostic>,
@@ -50,42 +49,48 @@ pub fn compiler() -> DadaCompiler {
     Default::default()
 }
 
+impl Default for DadaCompiler {
+    fn default() -> Self {
+        let mut db = dada_db::Db::default();
+        let input_file = db.new_input_file("input.dada", String::new());
+        Self {
+            db,
+            input_file,
+            diagnostics: Default::default(),
+            output: Default::default(),
+            heap_capture: Default::default(),
+            breakpoint_ranges: Default::default(),
+        }
+    }
+}
+
 #[wasm_bindgen]
 impl DadaCompiler {
     #[wasm_bindgen]
     pub fn with_source_text(mut self, source_text: String) -> Self {
-        // FIXME: reset the database for now
         tracing::debug!("with_source_text: {source_text:?}");
-        self.db = Default::default();
-        self.input_file = Some(
-            self.db
-                .new_input_file("source.dada".to_string(), source_text),
-        );
+        self.input_file.set_source_text(&mut self.db, source_text);
         self
-    }
-
-    fn input_file(&self) -> InputFile {
-        self.input_file.expect("no source text set")
     }
 
     #[wasm_bindgen]
     pub fn with_breakpoint(mut self, line0: u32, column0: u32) -> Self {
-        self.db
-            .set_breakpoints(self.input_file(), vec![LineColumn::new0(line0, column0)]);
+        self.input_file
+            .set_breakpoint_locations(&mut self.db, vec![LineColumn::new0(line0, column0)]);
         self
     }
 
     #[wasm_bindgen]
     pub fn without_breakpoint(mut self) -> Self {
-        self.db.set_breakpoints(self.input_file(), vec![]);
+        self.input_file
+            .set_breakpoint_locations(&mut self.db, vec![]);
         self
     }
 
     #[wasm_bindgen]
     pub async fn syntax(mut self) -> Self {
-        let input_file = self.input_file();
         self.output = String::new();
-        for item in self.db.items(input_file) {
+        for item in self.db.items(self.input_file) {
             if let Some(tree) = self.db.debug_syntax_tree(item) {
                 let _ = write!(self.output, "{:#?}", tree);
                 self.output.push('\n');
@@ -96,9 +101,8 @@ impl DadaCompiler {
 
     #[wasm_bindgen]
     pub async fn validated(mut self) -> Self {
-        let input_file = self.input_file();
         self.output = String::new();
-        for item in self.db.items(input_file) {
+        for item in self.db.items(self.input_file) {
             if let Some(tree) = self.db.debug_validated_tree(item) {
                 let _ = write!(self.output, "{:#?}", tree);
                 self.output.push('\n');
@@ -109,9 +113,8 @@ impl DadaCompiler {
 
     #[wasm_bindgen]
     pub async fn bir(mut self) -> Self {
-        let input_file = self.input_file();
         self.output = String::new();
-        for item in self.db.items(input_file) {
+        for item in self.db.items(self.input_file) {
             if let Some(tree) = self.db.debug_bir(item) {
                 let _ = write!(self.output, "{:#?}", tree);
                 self.output.push('\n');
@@ -122,18 +125,17 @@ impl DadaCompiler {
 
     #[wasm_bindgen]
     pub async fn execute(mut self) -> Self {
-        let input_file = self.input_file();
-        let diagnostics = self.db.diagnostics(input_file);
+        let diagnostics = self.db.diagnostics(self.input_file);
 
         let mut kernel = BufferKernel::new().stop_at_breakpoint(false);
-        match self.db.main_function(input_file) {
+        match self.db.main_function(self.input_file) {
             Some(bir) => {
                 kernel.interpret_and_buffer(&self.db, bir, vec![]).await;
             }
             None => {
                 kernel.append(&format!(
                     "no `main` function in `{}`",
-                    input_file.name_str(&self.db)
+                    self.input_file.name_str(&self.db)
                 ));
             }
         };
