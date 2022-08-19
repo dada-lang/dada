@@ -244,8 +244,8 @@ impl Stepper<'_> {
             }
             ObjectData::Tuple(tuple) => {
                 let field_name_str = field_name.as_str(self.db);
-                for (index, _) in tuple.fields.iter().enumerate() {
-                    if index.to_string() == field_name_str {
+                if let Ok(index) = field_name_str.parse::<usize>() {
+                    if index < tuple.fields.len() && field_name_str == index.to_string() {
                         return Ok((None, index));
                     }
                 }
