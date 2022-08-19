@@ -10,10 +10,10 @@ use crate::test_harness::QueryKind;
 use super::{Errors, Query};
 
 impl super::Options {
-    #[tracing::instrument(level = "Debug", skip(self, in_db, errors))]
+    #[tracing::instrument(level = "Debug", skip(self, db, errors))]
     pub(super) async fn perform_heap_graph_query_on_db(
         &self,
-        in_db: &mut dada_db::Db,
+        db: &mut dada_db::Db,
         path: &Path,
         query_index: usize,
         input_file: InputFile,
@@ -22,11 +22,7 @@ impl super::Options {
     ) -> eyre::Result<()> {
         assert!(matches!(query.kind, QueryKind::HeapGraph));
 
-        // FIXME: total hack to workaround a salsa bug:
-        let in_name = input_file.name_str(in_db).to_string();
-        let in_source = input_file.source_text(in_db).clone();
-        let db = &mut dada_db::Db::default();
-        let input_file = db.new_input_file(in_name, in_source);
+        assert!(input_file.breakpoint_locations(db).is_empty());
         db.set_breakpoints(input_file, vec![LineColumn::new1(query.line, query.column)]);
 
         let breakpoint = dada_breakpoint::breakpoint::find(
