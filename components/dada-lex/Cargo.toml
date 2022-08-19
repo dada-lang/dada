@@ -10,4 +10,4 @@ dada-ir = { path = "../dada-ir" }
 dada-collections = { path = "../dada-collections" }
 extension-trait = "1"
 salsa = { path = "../salsa" }
-tracing = "0.1.29"
+tracing = "0.1.36"

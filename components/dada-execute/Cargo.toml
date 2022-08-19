@@ -6,9 +6,9 @@ edition = "2021"
 # See more keys and their definitions at https://doc.rust-lang.org/cargo/reference/manifest.html
 
 [dependencies]
-arc-swap = "1.5.0"
-async-trait = "0.1.52"
-crossbeam = "0.8.1"
+arc-swap = "1.5.1"
+async-trait = "0.1.57"
+crossbeam = "0.8.2"
 dada-breakpoint = { path = "../dada-breakpoint" }
 dada-brew = { path = "../dada-brew" }
 dada-collections = { path = "../dada-collections" }
@@ -16,12 +16,12 @@ dada-error-format = { path = "../dada-error-format" }
 dada-id = { path = "../dada-id" }
 dada-ir = { path = "../dada-ir" }
 dada-parse = { path = "../dada-parse" }
-eyre = "0.6.7"
-extension-trait = "1.0.0"
+eyre = "0.6.8"
+extension-trait = "1.0.1"
 generational-arena = "0.2.8"
-html-escape = "0.2.9"
+html-escape = "0.2.11"
 salsa = { path = "../salsa" }
-parking_lot = "0.11.2"
+parking_lot = "0.12.1"
 thiserror = "1"
 tracing = "0.1"
 typed-arena = "2.0.1"
