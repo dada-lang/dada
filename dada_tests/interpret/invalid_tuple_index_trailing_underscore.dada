@@ -1,0 +1,4 @@
+async fn main() {
+    tuple = ("a", "b", 3)
+    print("{tuple.1_}").await #! RUN ERROR no field named `1_`
+}
