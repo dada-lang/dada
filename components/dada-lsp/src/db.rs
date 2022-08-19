@@ -112,13 +112,11 @@ impl DadaLspMethods for dada_db::Db {
     fn lsp_diagnostic(&self, dada_diagnostic: dada_ir::diagnostic::Diagnostic) -> Diagnostic {
         let range = self.lsp_range(dada_diagnostic.span);
         let severity = Some(match dada_diagnostic.severity {
-            dada_ir::diagnostic::Severity::Help => DiagnosticSeverity::Hint,
-            dada_ir::diagnostic::Severity::Note => DiagnosticSeverity::Information,
-            dada_ir::diagnostic::Severity::Warning => DiagnosticSeverity::Warning,
-            dada_ir::diagnostic::Severity::Error => DiagnosticSeverity::Error,
+            dada_ir::diagnostic::Severity::Help => DiagnosticSeverity::HINT,
+            dada_ir::diagnostic::Severity::Note => DiagnosticSeverity::INFORMATION,
+            dada_ir::diagnostic::Severity::Warning => DiagnosticSeverity::WARNING,
+            dada_ir::diagnostic::Severity::Error => DiagnosticSeverity::ERROR,
         });
-        let code = None;
-        let source = None;
         let message = dada_diagnostic.message.clone();
         let related_information = Some(
             dada_diagnostic
@@ -130,15 +128,16 @@ impl DadaLspMethods for dada_db::Db {
                 })
                 .collect(),
         );
-        let tags = None;
         Diagnostic {
             range,
             severity,
-            code,
-            source,
+            code: None,
+            source: None,
             message,
             related_information,
-            tags,
+            tags: None,
+            code_description: None,
+            data: None,
         }
     }
 }

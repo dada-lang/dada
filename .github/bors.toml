@@ -3,6 +3,7 @@ status = [
   "Test (nightly)",
   "Rustfmt",
   "Clippy (nightly)",
-  "Deploy (nightly)"
+  "Deploy (nightly)",
+  "Typos"
 ]
 delete_merged_branches = true

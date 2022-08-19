@@ -3,14 +3,16 @@ edition = "2021"
 name = "dada-web"
 version = "0.1.0"
 [dependencies]
-async-trait = "0.1.52"
+async-trait = "0.1.57"
 console_error_panic_hook = "0.1.7"
 dada-breakpoint = { path = "../dada-breakpoint" }
-eyre = "0.6.7"
+eyre = "0.6.8"
+# this is here to prevent generated wasm from requiring an "env" import
+# when we stop indirectly depending on parking_lot 0.11, it should be posible to remove this line
 parking_lot = { version = "0.11.2", features = ["wasm-bindgen"] }
-tracing = "0.1.29"
+tracing = "0.1.36"
 tracing-wasm = "0.2.1"
-wasm-bindgen = "0.2.78"
+wasm-bindgen = "0.2.82"
 wasm-bindgen-futures = "*"
 
 [dependencies.dada-collections]

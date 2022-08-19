@@ -10,4 +10,4 @@ eq-float = "=0.1.0"
 salsa = { path = "../salsa" }
 dada-id = { path = "../dada-id" }
 dada-collections = { path = "../dada-collections" }
-tracing = "0.1.29"
+tracing = "0.1.36"

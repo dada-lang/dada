@@ -51,7 +51,7 @@ tables! {
     pub(crate) struct Tables {
         stack_frame_nodes: alloc StackFrameNode => StackFrameNodeData,
         objects: alloc ObjectNode => ObjectNodeData,
-        datas: alloc DataNode => DataNodeData,
+        data_nodes: alloc DataNode => DataNodeData,
         permissions: alloc PermissionNode => PermissionNodeData,
         value_edges: alloc ValueEdge => ValueEdgeData,
     }

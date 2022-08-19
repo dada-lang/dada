@@ -135,10 +135,12 @@ impl ChildSession {
                     text_document: None,
                     window: None,
                     experimental: None,
+                    general: None,
                 },
                 trace: None,
                 workspace_folders: None,
                 client_info: None,
+                locale: None,
             },
         )?;
 
@@ -226,7 +228,8 @@ pub enum LspCommand {
     #[serde(rename = "completionItem/resolve")]
     completionItemResolve {
         id: usize,
-        params: lsp_types::CompletionItem,
+        // box to address clippy::large_enum_variant
+        params: Box<lsp_types::CompletionItem>,
     },
 }
 
