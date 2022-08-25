@@ -1,0 +1,75 @@
+async fn main() {
+    if true {
+        print(1).await
+        #! OUTPUT 1
+    } else if true {
+        print(2).await
+    }
+
+    if false {
+        print(3).await
+    } else if false {
+        print(4).await
+    }
+
+    if true {
+        print(5).await
+        #! OUTPUT 5
+    } else if false {
+        print(6).await
+    }
+
+    if false {
+        print(7).await
+    } else if true {
+        print(8).await
+        #! OUTPUT 8
+    }
+
+    if true {
+        print(9).await
+        #! OUTPUT 9
+    } else if true {
+        print(10).await
+    } else {
+        print(11).await
+    }
+
+    if false {
+        print(12).await
+    } else if false {
+        print(13).await
+    } else {
+        print(14).await
+        #! OUTPUT 14
+    }
+
+    if true {
+        print(15).await
+        #! OUTPUT 15
+    } else if false {
+        print(16).await
+    } else {
+        print(17).await
+    }
+
+    if false {
+        print(18).await
+    } else if true {
+        print(19).await
+        #! OUTPUT 19
+    } else {
+        print(20).await
+    }
+
+    if false {
+        print(21).await
+    } else if false {
+        print(22).await
+    } else if true {
+        print(23).await
+        #! OUTPUT 23
+    } else if true {
+        print(24).await
+    }
+}

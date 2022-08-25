@@ -442,18 +442,7 @@ impl CodeParser<'_, '_> {
             tracing::debug!("atomic");
             Some(self.add(ExprData::Atomic(body_expr), span))
         } else if let Some((if_span, _)) = self.eat(Keyword::If) {
-            if let Some(condition) = self.parse_condition() {
-                let then_expr = self.parse_required_block_expr(Keyword::If);
-                let else_expr = self
-                    .eat(Keyword::Else)
-                    .map(|_| self.parse_required_block_expr(Keyword::Else));
-                let span = self.span_consumed_since(if_span);
-                Some(self.add(ExprData::If(condition, then_expr, else_expr), span))
-            } else {
-                self.error_at_current_token("expected `if` condition")
-                    .emit(self.db);
-                None
-            }
+            self.parse_if_expr(if_span)
         } else if let Some((loop_span, _)) = self.eat(Keyword::Loop) {
             let body = self.parse_required_block_expr(Keyword::Loop);
             let span = self.span_consumed_since(loop_span);
@@ -527,6 +516,33 @@ impl CodeParser<'_, '_> {
             ExprData::Var(local_variable_decl, value),
             self.span_consumed_since(atomic_span),
         ))
+    }
+
+    /// Parses an `if` expression (`if` token already eaten).
+    fn parse_if_expr(&mut self, if_span: Span) -> Option<Expr> {
+        if let Some(condition) = self.parse_condition() {
+            let then_expr = self.parse_required_block_expr(Keyword::If);
+            let else_expr = if self.eat(Keyword::Else).is_some() {
+                self.parse_else_expr()
+            } else {
+                None
+            };
+            let span = self.span_consumed_since(if_span);
+            Some(self.add(ExprData::If(condition, then_expr, else_expr), span))
+        } else {
+            self.error_at_current_token("expected `if` condition")
+                .emit(self.db);
+            None
+        }
+    }
+
+    /// Parses an `else` expression (`else` token already eaten).
+    fn parse_else_expr(&mut self) -> Option<Expr> {
+        if let Some((if_span, _)) = self.eat(Keyword::If) {
+            self.parse_if_expr(if_span)
+        } else {
+            Some(self.parse_required_block_expr(Keyword::Else))
+        }
     }
 
     fn parse_required_block_expr(&mut self, after: impl std::fmt::Display) -> Expr {
