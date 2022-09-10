@@ -19,9 +19,11 @@ use super::syntax;
 
 #[salsa::tracked]
 pub struct Tree {
-    origin: Function,
+    function: Function,
+
     #[return_ref]
     data: TreeData,
+
     #[return_ref]
     origins: Origins,
 }

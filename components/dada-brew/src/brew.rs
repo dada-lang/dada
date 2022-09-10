@@ -16,7 +16,7 @@ use crate::{
 
 #[salsa::tracked]
 pub fn brew(db: &dyn crate::Db, validated_tree: validated::Tree) -> bir::Bir {
-    let function = validated_tree.origin(db);
+    let function = validated_tree.function(db);
     let breakpoints = dada_breakpoint::locations::breakpoints_in_tree(
         db,
         function.input_file(db),
