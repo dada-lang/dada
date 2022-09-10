@@ -9,6 +9,8 @@ use crate::{
 use dada_id::{id, prelude::*, tables};
 use salsa::DebugWithDb;
 
+/// The "syntax tree" is the parsed form of a function body.
+/// It maps more-or-less directly to what the user typed.
 #[salsa::tracked]
 pub struct Tree {
     #[return_ref]
