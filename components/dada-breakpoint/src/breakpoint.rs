@@ -62,13 +62,14 @@ pub fn find_item(db: &dyn crate::Db, input_file: InputFile, offset: Offset) -> O
 ///
 /// Returns None if the cursor does not lie in the syntax tree at all.
 fn find_syntax_expr(db: &dyn crate::Db, syntax_tree: syntax::Tree, offset: Offset) -> syntax::Expr {
+    let tables = syntax_tree.tables(db);
     let spans = syntax_tree.spans(db);
-    let data = syntax_tree.data(db);
     let traversal = TreeTraversal {
         spans,
-        tables: &data.tables,
+        tables,
         offset,
     };
+    let data = syntax_tree.data(db);
     traversal.find(data.root_expr).unwrap_or(data.root_expr)
 }
 

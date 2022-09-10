@@ -70,7 +70,7 @@ impl Validator<'_> {
             return false;
         }
 
-        if let syntax::ExprData::StringLiteral(word) = exprs[0].data(self.syntax_tables()) {
+        if let syntax::ExprData::StringLiteral(word) = exprs[0].data(self.syntax_tables) {
             let word_str = word.as_str(self.db);
             word_str.starts_with('\n')
         } else {
@@ -83,7 +83,7 @@ impl Validator<'_> {
 
         let mut validated_exprs = Vec::with_capacity(exprs.len());
         for (expr, index) in exprs.iter().zip(0..) {
-            if let syntax::ExprData::StringLiteral(word) = expr.data(self.syntax_tables()) {
+            if let syntax::ExprData::StringLiteral(word) = expr.data(self.syntax_tables) {
                 let word_str = word.as_str(self.db);
                 let without_margin = self.strip_margin_from_str(margin, word_str);
                 let mut without_margin = &without_margin[..];
@@ -129,7 +129,7 @@ impl Validator<'_> {
     fn compute_margin(&self, exprs: &[syntax::Expr]) -> usize {
         let mut dummy_string = String::new();
         for expr in exprs {
-            if let syntax::ExprData::StringLiteral(s) = expr.data(self.syntax_tables()) {
+            if let syntax::ExprData::StringLiteral(s) = expr.data(self.syntax_tables) {
                 dummy_string.push_str(s.as_str(self.db));
             } else {
                 dummy_string.push_str("{...}");

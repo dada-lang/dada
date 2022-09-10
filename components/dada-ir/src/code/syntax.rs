@@ -13,8 +13,15 @@ use salsa::DebugWithDb;
 /// It maps more-or-less directly to what the user typed.
 #[salsa::tracked]
 pub struct Tree {
+    /// Identifies the root expression in the function body.
     #[return_ref]
     data: TreeData,
+
+    /// Interning tables for expressions and the like.
+    #[return_ref]
+    tables: Tables,
+
+    /// The span information for each node in the tree.
     #[return_ref]
     spans: Spans,
 }
@@ -29,16 +36,13 @@ impl DebugWithDb<dyn crate::Db> for Tree {
 
 impl InIrDb<'_, Tree> {
     fn tables(&self) -> &Tables {
-        &self.data(self.db()).tables
+        Tree::tables(**self, self.db())
     }
 }
 
 /// Stores the ast for a function.
 #[derive(Clone, Debug, PartialEq, Eq)]
 pub struct TreeData {
-    /// Interning tables for expressions and the like.
-    pub tables: Tables,
-
     /// Parameter declarations
     pub parameter_decls: Vec<LocalVariableDecl>,
 

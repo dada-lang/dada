@@ -81,11 +81,10 @@ impl Parser<'_> {
         };
 
         let tree_data = TreeData {
-            tables,
             parameter_decls,
             root_expr,
         };
-        Tree::new(self.db, tree_data, spans)
+        Tree::new(self.db, tree_data, tables, spans)
     }
 }
 

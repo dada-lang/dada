@@ -29,8 +29,8 @@ mod string_literals;
 pub(crate) struct Validator<'me> {
     db: &'me dyn crate::Db,
     function: Function,
-    syntax_tree_entity: syntax::Tree,
-    syntax_tree: &'me syntax::TreeData,
+    syntax_tree: syntax::Tree,
+    pub(crate) syntax_tables: &'me syntax::Tables,
     tables: &'me mut validated::Tables,
     origins: &'me mut validated::Origins,
     loop_stack: Vec<validated::Expr>,
@@ -49,12 +49,11 @@ impl<'me> Validator<'me> {
         origins: &'me mut validated::Origins,
         scope: Scope<'me>,
     ) -> Self {
-        let syntax_tree_data = syntax_tree.data(db);
         Self {
             db,
             function,
-            syntax_tree: syntax_tree_data,
-            syntax_tree_entity: syntax_tree,
+            syntax_tables: syntax_tree.tables(db),
+            syntax_tree,
             tables,
             origins,
             loop_stack: vec![],
@@ -69,8 +68,8 @@ impl<'me> Validator<'me> {
         Validator {
             db: self.db,
             function: self.function,
-            syntax_tree_entity: self.syntax_tree_entity,
             syntax_tree: self.syntax_tree,
+            syntax_tables: self.syntax_tables,
             tables: self.tables,
             origins: self.origins,
             loop_stack: self.loop_stack.clone(),
@@ -100,10 +99,6 @@ impl<'me> Validator<'me> {
         self
     }
 
-    pub(crate) fn syntax_tables(&self) -> &'me syntax::Tables {
-        &self.syntax_tree.tables
-    }
-
     pub(crate) fn num_local_variables(&self) -> usize {
         usize::from(validated::LocalVariable::max_key(self.tables))
     }
@@ -130,7 +125,7 @@ impl<'me> Validator<'me> {
 
     #[tracing::instrument(level = "debug", skip_all)]
     pub(crate) fn validate_parameter(&mut self, decl: LocalVariableDecl) {
-        let decl_data = decl.data(self.syntax_tables());
+        let decl_data = decl.data(self.syntax_tables);
         let local_variable = self.add(
             validated::LocalVariableData {
                 name: Some(decl_data.name),
@@ -193,8 +188,8 @@ impl<'me> Validator<'me> {
     /// * If `E` is a value expression, like `foo()`, this just evaluates it
     #[tracing::instrument(level = "debug", skip(self, expr))]
     fn validate_expr(&mut self, expr: syntax::Expr) -> validated::Expr {
-        tracing::trace!("expr.data = {:?}", expr.data(self.syntax_tables()));
-        match expr.data(self.syntax_tables()) {
+        tracing::trace!("expr.data = {:?}", expr.data(self.syntax_tables));
+        match expr.data(self.syntax_tables) {
             syntax::ExprData::Dot(..) | syntax::ExprData::Id(_) => self
                 .with_expr_validated_as_place(expr, &mut |this, place| {
                     this.add(validated::ExprData::Share(place), expr)
@@ -359,7 +354,7 @@ impl<'me> Validator<'me> {
             syntax::ExprData::Give(target_expr) => self.give_validated_expr(expr, *target_expr),
 
             syntax::ExprData::Var(decl, initializer_expr) => {
-                let decl_data = decl.data(self.syntax_tables());
+                let decl_data = decl.data(self.syntax_tables);
                 let local_variable = self.add(
                     validated::LocalVariableData {
                         name: Some(decl_data.name),
@@ -604,7 +599,7 @@ impl<'me> Validator<'me> {
         //
         // below, we will leave comments for the more complex version.
 
-        let syntax::ExprData::OpEq(lhs_expr, op, rhs_expr) = self.syntax_tables()[op_eq_expr] else {
+        let syntax::ExprData::OpEq(lhs_expr, op, rhs_expr) = self.syntax_tables[op_eq_expr] else {
             panic!("validated_op_eq invoked on something that was not an op-eq expr")
         };
 
@@ -680,7 +675,7 @@ impl<'me> Validator<'me> {
         expr: syntax::Expr,
         op: &mut dyn FnMut(&mut Self, validated::TargetPlace) -> validated::Expr,
     ) -> validated::Expr {
-        match expr.data(self.syntax_tables()) {
+        match expr.data(self.syntax_tables) {
             syntax::ExprData::Dot(owner, field_name) => {
                 self.with_expr_validated_as_place(*owner, &mut |this, owner_place| {
                     let target_place = this.add(
@@ -793,7 +788,7 @@ impl<'me> Validator<'me> {
     }
 
     fn is_place_expression(&self, expr: syntax::Expr) -> bool {
-        match expr.data(self.syntax_tables()) {
+        match expr.data(self.syntax_tables) {
             syntax::ExprData::Id(_) | syntax::ExprData::Dot(..) => true,
             syntax::ExprData::Parenthesized(parenthesized_expr) => {
                 self.is_place_expression(*parenthesized_expr)
@@ -812,7 +807,7 @@ impl<'me> Validator<'me> {
         expr: syntax::Expr,
         op: &mut dyn FnMut(&mut Self, validated::Place) -> validated::Expr,
     ) -> validated::Expr {
-        match expr.data(self.syntax_tables()) {
+        match expr.data(self.syntax_tables) {
             syntax::ExprData::Id(name) => {
                 let place = match self.scope.lookup(*name) {
                     Some(Definition::Class(c)) => self.add(validated::PlaceData::Class(c), expr),
@@ -904,7 +899,7 @@ impl<'me> Validator<'me> {
     }
 
     fn validate_named_expr(&mut self, named_expr: syntax::NamedExpr) -> validated::NamedExpr {
-        let syntax::NamedExprData { name, expr } = named_expr.data(self.syntax_tables());
+        let syntax::NamedExprData { name, expr } = named_expr.data(self.syntax_tables);
         let validated_expr = self.validate_expr(*expr);
         self.add(
             validated::NamedExprData {
