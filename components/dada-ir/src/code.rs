@@ -7,19 +7,13 @@ use crate::{input_file::InputFile, token_tree::TokenTree};
 ///   parse it into an `Ast`.
 #[derive(Copy, Clone, PartialEq, Eq, Hash, Debug)]
 pub struct UnparsedCode {
-    /// Tokens for the parameter list (parsed when we generate the syntax tree).
-    pub parameter_tokens: TokenTree,
-
     /// Tokens for the body (parsed when we generate the syntax tree).
     pub body_tokens: TokenTree,
 }
 
 impl UnparsedCode {
-    pub fn new(parameter_tokens: TokenTree, body_tokens: TokenTree) -> Self {
-        Self {
-            parameter_tokens,
-            body_tokens,
-        }
+    pub fn new(body_tokens: TokenTree) -> Self {
+        Self { body_tokens }
     }
 
     pub fn input_file(self, db: &dyn crate::Db) -> InputFile {
@@ -30,7 +24,6 @@ impl UnparsedCode {
 impl<Db: ?Sized + crate::Db> salsa::DebugWithDb<Db> for UnparsedCode {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>, db: &Db) -> std::fmt::Result {
         f.debug_struct("Code")
-            .field("parameter_tokens", &self.parameter_tokens.debug(db))
             .field("body_tokens", &self.body_tokens.debug(db))
             .finish()
     }

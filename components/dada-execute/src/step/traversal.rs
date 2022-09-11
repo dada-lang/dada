@@ -11,7 +11,6 @@ use dada_ir::{
     storage::{Atomic, Joint, Leased},
     word::Word,
 };
-use dada_parse::prelude::DadaParseClassExt;
 
 use crate::{
     error::DiagnosticBuilderExt,

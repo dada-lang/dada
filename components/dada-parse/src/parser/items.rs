@@ -14,6 +14,7 @@ use dada_ir::{
     function::Function,
     item::Item,
     kw::Keyword,
+    parameter::Parameter,
     return_type::{ReturnType, ReturnTypeKind},
     source_file::{self, SourceFile},
     span::Span,
@@ -58,6 +59,7 @@ impl<'db> Parser<'db> {
                 main_name,
                 Effect::Async,
                 main_span,
+                vec![],
                 return_type,
                 None,
                 main_span,
@@ -66,7 +68,6 @@ impl<'db> Parser<'db> {
             // Set the syntax-tree and parameters for the main function.
             let syntax_tree = self.create_syntax_tree(start_span, tables, spans, exprs);
             crate::code_parser::parse_function_body::specify(self.db, function, syntax_tree);
-            crate::parameter_parser::parse_function_parameters::specify(self.db, function, vec![]);
 
             items.push(Item::Function(function));
             Some(function)
@@ -92,13 +93,13 @@ impl<'db> Parser<'db> {
         let (_, class_name) = self
             .eat(SpannedIdentifier)
             .or_report_error(self, || "expected a class name")?;
-        let (_, field_tokens) = self
-            .delimited('(')
+        let fields = self
+            .parse_parameter_list()
             .or_report_error(self, || "expected class parameters")?;
         Some(Class::new(
             self.db,
             class_name,
-            field_tokens,
+            fields,
             self.span_consumed_since(class_span)
                 .in_file(self.input_file),
         ))
@@ -125,38 +126,22 @@ impl<'db> Parser<'db> {
         let (_, func_name) = self
             .eat(SpannedIdentifier)
             .or_report_error(self, || "expected function name".to_string())?;
-        let (_, parameter_tokens) = self
-            .delimited('(')
+
+        let parameters = self
+            .parse_parameter_list()
             .or_report_error(self, || "expected function parameters".to_string())?;
-        let return_type = {
-            let right_arrow = self.eat_op(Op::RightArrow);
-            let span = right_arrow
-                .unwrap_or_else(|| Span {
-                    // span between last non skipped token and next non skippable token
-                    start: self.tokens.last_span().end,
-                    end: self.tokens.peek_span().start,
-                })
-                .in_file(self.input_file);
-            ReturnType::new(
-                self.db,
-                if right_arrow.is_some() {
-                    ReturnTypeKind::Value
-                } else {
-                    ReturnTypeKind::Unit
-                },
-                span,
-            )
-        };
+        let return_type = self.parse_return_type();
         let (_, body_tokens) = self
             .delimited('{')
             .or_report_error(self, || "expected function body".to_string())?;
-        let code = UnparsedCode::new(parameter_tokens, body_tokens);
+        let code = UnparsedCode::new(body_tokens);
         let start_span = effect_span.unwrap_or(fn_span);
         Some(Function::new(
             self.db,
             func_name,
             effect,
             effect_span.unwrap_or(fn_span).in_file(self.input_file),
+            parameters,
             return_type,
             Some(code),
             self.span_consumed_since(start_span)
@@ -177,6 +162,35 @@ impl<'db> Parser<'db> {
         let start = code_parser.tokens.last_span();
         let exprs = code_parser.parse_only_expr_seq();
         self.create_syntax_tree(start, tables, spans, exprs)
+    }
+
+    /// Parses a list of parameters delimited by `()`.
+    fn parse_parameter_list(&mut self) -> Option<Vec<Parameter>> {
+        let (_, parameter_tokens) = self.delimited('(')?;
+
+        let mut subparser = Parser::new(self.db, parameter_tokens);
+        Some(subparser.parse_only_parameters())
+    }
+
+    /// Parses an (optional) return type declaration from a function.
+    fn parse_return_type(&mut self) -> ReturnType {
+        let right_arrow = self.eat_op(Op::RightArrow);
+        let span = right_arrow
+            .unwrap_or_else(|| Span {
+                // span between last non skipped token and next non skippable token
+                start: self.tokens.last_span().end,
+                end: self.tokens.peek_span().start,
+            })
+            .in_file(self.input_file);
+        ReturnType::new(
+            self.db,
+            if right_arrow.is_some() {
+                ReturnTypeKind::Value
+            } else {
+                ReturnTypeKind::Unit
+            },
+            span,
+        )
     }
 
     fn parse_top_level_expr(&mut self, tables: &mut Tables, spans: &mut Spans) -> Option<Expr> {

@@ -1,5 +1,4 @@
 use dada_ir::{class::Class, word::Word};
-use dada_parse::prelude::*;
 
 #[extension_trait::extension_trait]
 pub impl DadaExecuteClassExt for Class {

@@ -1,7 +1,10 @@
+#![allow(clippy::too_many_arguments)] // omg clippy, mind your own business
+
 use crate::{
     code::UnparsedCode,
     effect::Effect,
     input_file::InputFile,
+    parameter::Parameter,
     return_type::ReturnType,
     span::FileSpan,
     word::{SpannedWord, Word},
@@ -19,6 +22,10 @@ pub struct Function {
     /// If this func has a declared effect, this is the span of that keyword (e.g., `async`)
     /// Otherwise, it is the span of the `fn` keyword.
     effect_span: FileSpan,
+
+    /// List of function parameters
+    #[return_ref]
+    parameters: Vec<Parameter>,
 
     /// Return type of the function.
     return_type: ReturnType,

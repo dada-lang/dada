@@ -6,7 +6,6 @@ use dada_ir::{
     parameter::Parameter,
     word::{SpannedOptionalWord, Word},
 };
-use dada_parse::prelude::*;
 
 use crate::{
     error::DiagnosticBuilderExt,

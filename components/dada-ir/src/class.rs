@@ -1,10 +1,12 @@
-use crate::{span::FileSpan, token_tree::TokenTree, word::SpannedWord};
+use crate::{parameter::Parameter, span::FileSpan, word::SpannedWord};
 
 #[salsa::tracked]
 pub struct Class {
     #[id]
     name: SpannedWord,
-    field_tokens: TokenTree,
+
+    #[return_ref]
+    fields: Vec<Parameter>,
 
     /// Overall span of the class (including any body)
     span: FileSpan,
