@@ -9,6 +9,31 @@ use crate::{
 use dada_id::{id, prelude::*, tables};
 use salsa::DebugWithDb;
 
+/// The "syntax signature" is the parsed form of a function signature,
+/// including e.g. its parameter types.
+#[salsa::tracked]
+pub struct Signature {
+    /// Identifies the root expression in the function body.
+    #[return_ref]
+    data: SignatureData,
+
+    /// Interning tables for expressions and the like.
+    #[return_ref]
+    tables: Tables,
+
+    /// The span information for each node in the tree.
+    #[return_ref]
+    spans: Spans,
+}
+
+/// Stores the ast for a function.
+#[derive(Clone, Debug, PartialEq, Eq)]
+pub struct SignatureData {
+    parameters: Vec<LocalVariableDecl>,
+
+    return_type: ReturnTypeDecl,
+}
+
 /// The "syntax tree" is the parsed form of a function body.
 /// It maps more-or-less directly to what the user typed.
 #[salsa::tracked]
@@ -63,6 +88,7 @@ tables! {
         exprs: alloc Expr => ExprData,
         named_exprs: alloc NamedExpr => NamedExprData,
         local_variable_decls: alloc LocalVariableDecl => LocalVariableDeclData,
+        return_type_decl: alloc ReturnTypeDecl => ReturnTypeDeclData,
     }
 }
 
@@ -77,6 +103,7 @@ origin_table! {
         expr_spans: Expr => Span,
         named_expr_spans: NamedExpr => Span,
         local_variable_decl_spans: LocalVariableDecl => LocalVariableDeclSpan,
+        return_type_decl: ReturnTypeDecl => Span,
     }
 }
 
@@ -293,6 +320,20 @@ impl DebugWithDb<InIrDb<'_, Tree>> for LocalVariableDeclData {
 pub struct LocalVariableDeclSpan {
     pub atomic_span: Span,
     pub name_span: Span,
+}
+
+id!(pub struct ReturnTypeDecl);
+
+/// Represents a function return type declaration.
+#[derive(PartialEq, Eq, PartialOrd, Ord, Clone, Hash, Debug)]
+pub enum ReturnTypeDeclData {
+    /// No return type -- means unit.
+    ///
+    /// The associated span is where a return type *would* be placed.
+    Unit,
+
+    /// Just `->` with no explicit type given.
+    Value,
 }
 
 id!(pub struct NamedExpr);
