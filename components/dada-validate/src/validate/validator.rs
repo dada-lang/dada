@@ -1,7 +1,6 @@
 use dada_id::prelude::*;
 use dada_ir::code::syntax;
 use dada_ir::code::syntax::op::Op;
-use dada_ir::code::syntax::LocalVariableDecl;
 use dada_ir::code::validated;
 use dada_ir::code::validated::ExprOrigin;
 use dada_ir::code::validated::LocalVariableOrigin;
@@ -11,6 +10,7 @@ use dada_ir::function::Function;
 use dada_ir::kw::Keyword;
 use dada_ir::origin_table::HasOriginIn;
 use dada_ir::origin_table::PushOriginIn;
+use dada_ir::parameter::Parameter;
 use dada_ir::return_type::ReturnTypeKind;
 use dada_ir::span::FileSpan;
 use dada_ir::span::Span;
@@ -124,8 +124,8 @@ impl<'me> Validator<'me> {
     }
 
     #[tracing::instrument(level = "debug", skip_all)]
-    pub(crate) fn validate_parameter(&mut self, decl: LocalVariableDecl) {
-        let decl_data = decl.data(self.syntax_tables);
+    pub(crate) fn validate_parameter(&mut self, decl: Parameter) {
+        let decl_data = decl.decl(self.db);
         let local_variable = self.add(
             validated::LocalVariableData {
                 name: Some(decl_data.name),

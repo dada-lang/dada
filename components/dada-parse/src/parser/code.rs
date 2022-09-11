@@ -6,7 +6,7 @@ use crate::{
 use dada_id::InternValue;
 use dada_ir::{
     code::{
-        syntax::{op::Op, LocalVariableDecl},
+        syntax::op::Op,
         syntax::{
             Expr, ExprData, LocalVariableDeclData, LocalVariableDeclSpan, NamedExpr, NamedExprData,
             Spans, Tables, Tree, TreeData,
@@ -15,7 +15,6 @@ use dada_ir::{
     format_string::FormatStringSectionData,
     kw::Keyword,
     origin_table::PushOriginIn,
-    parameter::Parameter,
     span::Span,
     storage::Atomic,
     token::Token,
@@ -27,8 +26,7 @@ use salsa::AsId;
 use super::{OrReportError, ParseList};
 
 impl Parser<'_> {
-    pub(crate) fn parse_code_body(&mut self, parameters: &[Parameter]) -> Tree {
-        let db = self.db;
+    pub(crate) fn parse_code_body(&mut self) -> Tree {
         let mut tables = Tables::default();
         let mut spans = Spans::default();
 
@@ -38,14 +36,9 @@ impl Parser<'_> {
             spans: &mut spans,
         };
 
-        let parameter_decls = parameters
-            .iter()
-            .map(|parameter| code_parser.add(parameter.decl(db), parameter.decl_span(db)))
-            .collect::<Vec<_>>();
-
         let start = code_parser.tokens.last_span();
         let exprs = code_parser.parse_only_expr_seq();
-        self.create_syntax_tree(start, parameter_decls, tables, spans, exprs)
+        self.create_syntax_tree(start, tables, spans, exprs)
     }
 
     pub(crate) fn parse_top_level_expr(
@@ -64,7 +57,6 @@ impl Parser<'_> {
     pub(crate) fn create_syntax_tree(
         &mut self,
         start: Span,
-        parameter_decls: Vec<LocalVariableDecl>,
         mut tables: Tables,
         mut spans: Spans,
         exprs: Vec<Expr>,
@@ -80,10 +72,7 @@ impl Parser<'_> {
             code_parser.add(ExprData::Seq(exprs), span)
         };
 
-        let tree_data = TreeData {
-            parameter_decls,
-            root_expr,
-        };
+        let tree_data = TreeData { root_expr };
         Tree::new(self.db, tree_data, tables, spans)
     }
 }

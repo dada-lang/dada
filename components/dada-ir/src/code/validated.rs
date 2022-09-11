@@ -8,6 +8,7 @@ use crate::{
     function::Function,
     in_ir_db::InIrDb,
     intrinsic::Intrinsic,
+    parameter::Parameter,
     prelude::InIrDbExt,
     storage::Atomic,
     word::{SpannedOptionalWord, Word},
@@ -202,7 +203,7 @@ pub struct LocalVariableData {
 pub enum LocalVariableOrigin {
     Temporary(syntax::Expr),
     LocalVariable(syntax::LocalVariableDecl),
-    Parameter(syntax::LocalVariableDecl),
+    Parameter(Parameter),
 }
 
 id!(pub struct Expr);

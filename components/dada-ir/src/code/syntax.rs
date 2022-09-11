@@ -43,9 +43,6 @@ impl InIrDb<'_, Tree> {
 /// Stores the ast for a function.
 #[derive(Clone, Debug, PartialEq, Eq)]
 pub struct TreeData {
-    /// Parameter declarations
-    pub parameter_decls: Vec<LocalVariableDecl>,
-
     /// The root
     pub root_expr: Expr,
 }

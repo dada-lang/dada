@@ -12,6 +12,7 @@ mod validator;
 #[salsa::tracked]
 #[tracing::instrument(level = "debug", skip(db))]
 pub(crate) fn validate_function(db: &dyn crate::Db, function: Function) -> validated::Tree {
+    let parameters = function.parameters(db);
     let syntax_tree = function.syntax_tree(db);
 
     let mut tables = validated::Tables::default();
@@ -22,7 +23,7 @@ pub(crate) fn validate_function(db: &dyn crate::Db, function: Function) -> valid
     let mut validator =
         validator::Validator::root(db, function, syntax_tree, &mut tables, &mut origins, scope);
 
-    for parameter in &syntax_tree.data(db).parameter_decls {
+    for parameter in parameters {
         validator.validate_parameter(*parameter);
     }
     let num_parameters = validator.num_local_variables();

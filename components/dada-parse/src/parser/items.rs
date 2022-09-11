@@ -60,7 +60,7 @@ impl<'db> Parser<'db> {
             );
 
             // Set the syntax-tree and parameters for the main function.
-            let syntax_tree = self.create_syntax_tree(start_span, vec![], tables, spans, exprs);
+            let syntax_tree = self.create_syntax_tree(start_span, tables, spans, exprs);
             crate::code_parser::parse_function_body::specify(self.db, function, syntax_tree);
             crate::parameter_parser::parse_function_parameters::specify(self.db, function, vec![]);
 
