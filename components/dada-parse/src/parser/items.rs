@@ -7,7 +7,7 @@ use crate::{parser::Parser, token_test::SpannedIdentifier};
 use dada_ir::{
     class::Class,
     code::{
-        syntax::{op::Op, Spans, Tables},
+        syntax::{op::Op, Expr, ExprData, Spans, Tables, Tree, TreeData},
         UnparsedCode,
     },
     effect::Effect,
@@ -20,7 +20,7 @@ use dada_ir::{
     word::{SpannedWord, Word},
 };
 
-use super::OrReportError;
+use super::{CodeParser, OrReportError};
 
 impl<'db> Parser<'db> {
     pub(crate) fn parse_source_file(&mut self) -> SourceFile {
@@ -162,5 +162,51 @@ impl<'db> Parser<'db> {
             self.span_consumed_since(start_span)
                 .in_file(self.input_file),
         ))
+    }
+
+    pub(crate) fn parse_code_body(&mut self) -> Tree {
+        let mut tables = Tables::default();
+        let mut spans = Spans::default();
+
+        let mut code_parser = CodeParser {
+            parser: self,
+            tables: &mut tables,
+            spans: &mut spans,
+        };
+
+        let start = code_parser.tokens.last_span();
+        let exprs = code_parser.parse_only_expr_seq();
+        self.create_syntax_tree(start, tables, spans, exprs)
+    }
+
+    fn parse_top_level_expr(&mut self, tables: &mut Tables, spans: &mut Spans) -> Option<Expr> {
+        let mut code_parser = CodeParser {
+            parser: self,
+            tables,
+            spans,
+        };
+        code_parser.parse_expr()
+    }
+
+    fn create_syntax_tree(
+        &mut self,
+        start: Span,
+        mut tables: Tables,
+        mut spans: Spans,
+        exprs: Vec<Expr>,
+    ) -> Tree {
+        let span = self.span_consumed_since(start);
+
+        let root_expr = {
+            let mut code_parser = CodeParser {
+                parser: self,
+                tables: &mut tables,
+                spans: &mut spans,
+            };
+            code_parser.add(ExprData::Seq(exprs), span)
+        };
+
+        let tree_data = TreeData { root_expr };
+        Tree::new(self.db, tree_data, tables, spans)
     }
 }

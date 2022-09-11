@@ -2,20 +2,39 @@ use std::string::ToString;
 
 use crate::{token_test::*, tokens::Tokens};
 
+use dada_id::InternValue;
 use dada_ir::{
-    code::syntax::op::Op, diagnostic::DiagnosticBuilder, input_file::InputFile, span::Span,
-    token::Token, token_tree::TokenTree,
+    code::syntax::{op::Op, LocalVariableDeclSpan, Spans, Tables},
+    diagnostic::DiagnosticBuilder,
+    input_file::InputFile,
+    origin_table::PushOriginIn,
+    span::Span,
+    token::Token,
+    token_tree::TokenTree,
 };
+use salsa::AsId;
 
 mod code;
 mod items;
 mod parameter;
 mod ty;
 
+/// The base parser: tracks the input tokens and input file.
+///
+/// When we start to parse the details of a function or class, we instantiate a [`CodeParser`].
 pub(crate) struct Parser<'me> {
     db: &'me dyn crate::Db,
     input_file: InputFile,
     tokens: Tokens<'me>,
+}
+
+/// CodeParser: wraps a `Parser` and adds a `tables`/`spans` into which we can allocate
+/// expression nodes and other bits of syntax tree. Code parsers are created to parse expressions,
+/// function signatures, function bodies, etc.
+struct CodeParser<'me, 'db> {
+    parser: &'me mut Parser<'db>,
+    tables: &'me mut Tables,
+    spans: &'me mut Spans,
 }
 
 impl<'me> Parser<'me> {
@@ -202,6 +221,21 @@ impl<'me> Parser<'me> {
     }
 }
 
+impl CodeParser<'_, '_> {
+    fn add<D, K>(&mut self, data: D, mut span: K::Origin) -> K
+    where
+        D: std::hash::Hash + Eq + std::fmt::Debug,
+        D: InternValue<Table = Tables, Key = K>,
+        K: PushOriginIn<Spans> + AsId,
+        K::Origin: TightenSpan,
+    {
+        let key = self.tables.add(data);
+        span = span.tighten_span(self);
+        self.spans.push(key, span);
+        key
+    }
+}
+
 trait OrReportError {
     fn or_report_error<S>(self, parser: &mut Parser<'_>, message: impl FnOnce() -> S) -> Self
     where
@@ -290,5 +324,48 @@ impl ParseList for Parser<'_> {
 
     fn eat_comma(&mut self) -> bool {
         self.eat(Token::Comma).is_some()
+    }
+}
+
+impl ParseList for CodeParser<'_, '_> {
+    fn skipped_newline(&self) -> bool {
+        Parser::skipped_newline(self)
+    }
+
+    fn eat_comma(&mut self) -> bool {
+        Parser::eat_comma(self)
+    }
+}
+
+impl<'db> std::ops::Deref for CodeParser<'_, 'db> {
+    type Target = Parser<'db>;
+
+    fn deref(&self) -> &Self::Target {
+        self.parser
+    }
+}
+
+impl<'db> std::ops::DerefMut for CodeParser<'_, 'db> {
+    fn deref_mut(&mut self) -> &mut Self::Target {
+        self.parser
+    }
+}
+
+trait TightenSpan {
+    fn tighten_span(self, parser: &Parser<'_>) -> Self;
+}
+
+impl TightenSpan for Span {
+    fn tighten_span(self, parser: &Parser<'_>) -> Self {
+        parser.tighten_span(self)
+    }
+}
+
+impl TightenSpan for LocalVariableDeclSpan {
+    fn tighten_span(self, parser: &Parser<'_>) -> Self {
+        LocalVariableDeclSpan {
+            atomic_span: self.atomic_span.tighten_span(parser),
+            name_span: self.name_span.tighten_span(parser),
+        }
     }
 }
