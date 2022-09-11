@@ -34,9 +34,9 @@ pub struct Function {
     /// on demand by invoking (e.g.) `syntax_tree` from the
     /// `dada_parse` crate.
     ///
-    /// If this is `None`, then the syntax-tree and parameter
-    /// list that would've been parsed must be set explicitly
-    /// by the creator of the function. This is used for synthesizing
+    /// If this is `None`, then the syntax-tree that would've
+    /// been parsed must be specified explicitly by the
+    /// creator of the function. This is used for synthesizing
     /// a 'main' function from a module, for example.
     unparsed_code: Option<UnparsedCode>,
 
