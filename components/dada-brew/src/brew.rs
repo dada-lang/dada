@@ -487,7 +487,7 @@ impl Cursor {
     ///
     /// This vector is used to add cusp operations (they all show the value
     /// of `a.b.c` in its entirety, though).
-    ///
+    #[allow(clippy::only_used_in_recursion)]
     pub(crate) fn brew_place(
         &mut self,
         brewery: &mut Brewery<'_>,
