@@ -7,6 +7,7 @@ use dada_ir::{
     code::syntax::{op::Op, LocalVariableDeclSpan, Spans, Tables},
     diagnostic::DiagnosticBuilder,
     input_file::InputFile,
+    kw::Keyword,
     origin_table::PushOriginIn,
     span::Span,
     token::Token,
@@ -218,6 +219,14 @@ impl<'me> Parser<'me> {
 
     fn error(&self, span: Span, message: impl ToString) -> DiagnosticBuilder {
         dada_ir::error!(span.in_file(self.input_file), "{}", message.to_string())
+    }
+
+    fn parse_atomic(&mut self) -> Option<Span> {
+        if let Some((span, _)) = self.eat(Keyword::Atomic) {
+            Some(span)
+        } else {
+            None
+        }
     }
 }
 

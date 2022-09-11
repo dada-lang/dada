@@ -3,9 +3,7 @@ use crate::{parser::Parser, token_test::Identifier};
 use dada_ir::{
     code::syntax::op::Op,
     code::syntax::{LocalVariableDeclData, LocalVariableDeclSpan},
-    kw::Keyword,
     parameter::Parameter,
-    span::Span,
     storage::Atomic,
 };
 
@@ -61,14 +59,6 @@ impl<'db> Parser<'db> {
                     .emit(self.db);
             }
 
-            None
-        }
-    }
-
-    pub(crate) fn parse_atomic(&mut self) -> Option<Span> {
-        if let Some((span, _)) = self.eat(Keyword::Atomic) {
-            Some(span)
-        } else {
             None
         }
     }
