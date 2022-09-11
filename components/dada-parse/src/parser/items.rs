@@ -1,3 +1,7 @@
+//! Contains the methods to parse entire files or items.
+//!
+//! Does not parse the bodies of functions etc.
+
 use crate::{parser::Parser, token_test::SpannedIdentifier};
 
 use dada_ir::{
