@@ -14,7 +14,7 @@ use dada_ir::{
 };
 use salsa::AsId;
 
-mod code;
+mod expr;
 mod items;
 mod parameter;
 mod ty;
