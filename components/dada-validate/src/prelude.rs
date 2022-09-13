@@ -1,4 +1,6 @@
-use dada_ir::{code::validated, function::Function, input_file::InputFile, item::Item};
+use dada_ir::{
+    code::validated, function::Function, input_file::InputFile, item::Item, parameter::Parameter,
+};
 
 #[extension_trait::extension_trait]
 pub impl DadaValidateInputFileExt for InputFile {
@@ -9,6 +11,10 @@ pub impl DadaValidateInputFileExt for InputFile {
 
 #[extension_trait::extension_trait]
 pub impl DadaValidateFunctionExt for Function {
+    fn parameters(self, db: &dyn crate::Db) -> &Vec<Parameter> {
+        crate::validate::validate_parameter(db, self)
+    }
+
     fn validated_tree(self, db: &dyn crate::Db) -> validated::Tree {
         crate::validate::validate_function(db, self)
     }

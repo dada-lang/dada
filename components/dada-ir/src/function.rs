@@ -25,7 +25,7 @@ pub struct Function {
 
     /// List of function parameters
     #[return_ref]
-    parameters: Vec<Parameter>,
+    _parameters: Vec<Parameter>,
 
     /// Return type of the function.
     return_type: ReturnType,

@@ -1,6 +1,8 @@
+use crate::prelude::*;
 use dada_ir::code::validated;
 use dada_ir::function::Function;
 use dada_ir::input_file::InputFile;
+use dada_ir::parameter::Parameter;
 use dada_parse::prelude::*;
 
 use self::name_lookup::Scope;
@@ -32,6 +34,11 @@ pub(crate) fn validate_function(db: &dyn crate::Db, function: Function) -> valid
     std::mem::drop(validator);
     let data = validated::TreeData::new(tables, num_parameters, root_expr);
     validated::Tree::new(db, function, data, origins)
+}
+
+#[salsa::tracked(return_ref)]
+pub(crate) fn validate_parameter(db: &dyn crate::Db, function: Function) -> Vec<Parameter> {
+    return function._parameters(db).clone();
 }
 
 /// Compute the root definitions for the module. This is not memoized to

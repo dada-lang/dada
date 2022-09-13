@@ -7,12 +7,22 @@
 pub struct Jar(ext::class_field_names);
 
 pub trait Db:
-    salsa::DbWithJar<Jar> + dada_ir::Db + dada_parse::Db + dada_brew::Db + dada_error_format::Db
+    salsa::DbWithJar<Jar>
+    + dada_ir::Db
+    + dada_parse::Db
+    + dada_brew::Db
+    + dada_error_format::Db
+    + dada_validate::Db
 {
 }
 
 impl<T> Db for T where
-    T: salsa::DbWithJar<Jar> + dada_ir::Db + dada_parse::Db + dada_brew::Db + dada_error_format::Db
+    T: salsa::DbWithJar<Jar>
+        + dada_ir::Db
+        + dada_parse::Db
+        + dada_brew::Db
+        + dada_error_format::Db
+        + dada_validate::Db
 {
 }
 
