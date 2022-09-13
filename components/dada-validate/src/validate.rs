@@ -1,6 +1,5 @@
-use crate::prelude::*;
 use dada_ir::class::Class;
-use dada_ir::code::validated;
+use dada_ir::code::{syntax, validated};
 use dada_ir::function::{Function, FunctionSignature};
 use dada_ir::input_file::InputFile;
 use dada_ir::parameter::Parameter;
@@ -15,7 +14,6 @@ mod validator;
 #[salsa::tracked]
 #[tracing::instrument(level = "debug", skip(db))]
 pub(crate) fn validate_function(db: &dyn crate::Db, function: Function) -> validated::Tree {
-    let parameters = function.parameters(db);
     let syntax_tree = function.syntax_tree(db);
 
     let mut tables = validated::Tables::default();
@@ -26,8 +24,11 @@ pub(crate) fn validate_function(db: &dyn crate::Db, function: Function) -> valid
     let mut validator =
         validator::Validator::root(db, function, syntax_tree, &mut tables, &mut origins, scope);
 
-    for parameter in parameters {
-        validator.validate_parameter(*parameter);
+    match function.signature(db) {
+        FunctionSignature::Syntax(s) => {
+            validator.validate_signature(s);
+        }
+        FunctionSignature::Main => {}
     }
     let num_parameters = validator.num_local_variables();
 
@@ -45,13 +46,26 @@ pub(crate) fn validate_function_parameters(
     match function.signature(db) {
         FunctionSignature::Main => vec![],
 
-        FunctionSignature::Syntax(s) => s.data(db).parameters.clone(),
+        FunctionSignature::Syntax(s) => signature_parameters(db, s),
     }
 }
 
 #[salsa::tracked(return_ref)]
 pub(crate) fn validate_class_fields(db: &dyn crate::Db, class: Class) -> Vec<Parameter> {
-    class.signature(db).data(db).parameters.clone()
+    signature_parameters(db, class.signature(db))
+}
+
+fn signature_parameters(db: &dyn crate::Db, signature: &syntax::Signature) -> Vec<Parameter> {
+    let tables = signature.tables(db);
+    signature
+        .data(db)
+        .parameters
+        .iter()
+        .map(|&lv| {
+            let lv_data = &tables[lv];
+            Parameter::new(db, lv_data.name, lv_data.atomic)
+        })
+        .collect()
 }
 
 /// Compute the root definitions for the module. This is not memoized to

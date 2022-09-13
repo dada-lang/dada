@@ -5,6 +5,7 @@ pub struct Class {
     #[id]
     name: SpannedWord,
 
+    #[return_ref]
     signature: syntax::Signature,
 
     /// Overall span of the class (including any body)

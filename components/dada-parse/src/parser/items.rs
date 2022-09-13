@@ -14,7 +14,6 @@ use dada_ir::{
     function::{Function, FunctionSignature},
     item::Item,
     kw::Keyword,
-    parameter::Parameter,
     return_type::{ReturnType, ReturnTypeKind},
     source_file::{self, SourceFile},
     span::Span,
@@ -94,9 +93,10 @@ impl<'db> Parser<'db> {
             .eat(SpannedIdentifier)
             .or_report_error(self, || "expected a class name")?;
 
-        let signature_tables = syntax::Tables::default();
-        let signature_spans = syntax::Spans::default();
-        let parameters = self
+        let mut signature_tables = syntax::Tables::default();
+        let mut signature_spans = syntax::Spans::default();
+        let mut signature_parser = self.code_parser(&mut signature_tables, &mut signature_spans);
+        let parameters = signature_parser
             .parse_parameter_list()
             .or_report_error(self, || "expected class parameters".to_string())?;
         let signature_data = syntax::SignatureData { parameters };
@@ -134,12 +134,15 @@ impl<'db> Parser<'db> {
             .eat(SpannedIdentifier)
             .or_report_error(self, || "expected function name".to_string())?;
 
-        let signature_tables = syntax::Tables::default();
-        let signature_spans = syntax::Spans::default();
-        let parameters = self
+        let mut signature_tables = syntax::Tables::default();
+        let mut signature_spans = syntax::Spans::default();
+        let mut signature_parser = self.code_parser(&mut signature_tables, &mut signature_spans);
+        let parameters = signature_parser
             .parse_parameter_list()
-            .or_report_error(self, || "expected function parameters".to_string())?;
-        let return_type = self.parse_return_type();
+            .or_report_error(&mut signature_parser, || {
+                "expected function parameters".to_string()
+            })?;
+        let return_type = signature_parser.parse_return_type();
         let (_, body_tokens) = self
             .delimited('{')
             .or_report_error(self, || "expected function body".to_string())?;
@@ -174,14 +177,6 @@ impl<'db> Parser<'db> {
         let start = code_parser.tokens.last_span();
         let exprs = code_parser.parse_only_expr_seq();
         self.create_syntax_tree(start, tables, spans, exprs)
-    }
-
-    /// Parses a list of parameters delimited by `()`.
-    fn parse_parameter_list(&mut self) -> Option<Vec<Parameter>> {
-        let (_, parameter_tokens) = self.delimited('(')?;
-
-        let mut subparser = Parser::new(self.db, parameter_tokens);
-        Some(subparser.parse_only_parameters())
     }
 
     /// Parses an (optional) return type declaration from a function.

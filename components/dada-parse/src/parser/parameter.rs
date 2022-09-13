@@ -2,21 +2,32 @@ use crate::{parser::Parser, token_test::Identifier};
 
 use dada_ir::{
     code::syntax::op::Op,
-    code::syntax::{LocalVariableDeclData, LocalVariableDeclSpan},
-    parameter::Parameter,
+    code::syntax::{LocalVariableDecl, LocalVariableDeclData, LocalVariableDeclSpan},
     storage::Atomic,
 };
 
-use super::ParseList;
+use super::{CodeParser, ParseList};
 
-impl<'db> Parser<'db> {
-    pub(crate) fn parse_only_parameters(&mut self) -> Vec<Parameter> {
-        let p = self.parse_list(true, Parser::parse_parameter);
+impl CodeParser<'_, '_> {
+    /// Parses a list of parameters delimited by `()`.
+    pub(crate) fn parse_parameter_list(&mut self) -> Option<Vec<LocalVariableDecl>> {
+        let (_, parameter_tokens) = self.delimited('(')?;
+        let mut subparser = Parser::new(self.db, parameter_tokens);
+        let mut subcodeparser = CodeParser {
+            parser: &mut subparser,
+            tables: self.tables,
+            spans: self.spans,
+        };
+        Some(subcodeparser.parse_only_parameters())
+    }
+
+    fn parse_only_parameters(&mut self) -> Vec<LocalVariableDecl> {
+        let p = self.parse_list(true, CodeParser::parse_parameter);
         self.emit_error_if_more_tokens("extra tokens after parameters");
         p
     }
 
-    fn parse_parameter(&mut self) -> Option<Parameter> {
+    fn parse_parameter(&mut self) -> Option<LocalVariableDecl> {
         let opt_storage_mode = self.parse_atomic();
         if let Some((name_span, name)) = self.eat(Identifier) {
             let opt_ty = if let Some(colon_span) = self.eat_op(Op::Colon) {
@@ -38,18 +49,19 @@ impl<'db> Parser<'db> {
                 None => (name_span, Atomic::No),
             };
 
-            let decl = LocalVariableDeclData {
-                atomic,
-                name,
-                ty: opt_ty,
-            };
+            let decl = self.add(
+                LocalVariableDeclData {
+                    atomic,
+                    name,
+                    ty: opt_ty,
+                },
+                LocalVariableDeclSpan {
+                    atomic_span,
+                    name_span,
+                },
+            );
 
-            let _decl_span = LocalVariableDeclSpan {
-                atomic_span,
-                name_span,
-            };
-
-            Some(Parameter::new(self.db, name, decl))
+            Some(decl)
         } else {
             // No identifier == no parameter; if there's a storage mode,
             // that's an error.

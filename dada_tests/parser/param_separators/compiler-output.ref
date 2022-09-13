@@ -1,13 +1,4 @@
 Error: expected type after `:`
-    ╭─[dada_tests/parser/param_separators.dada:35:7]
-    │
- 35 │     a:, #! ERROR expected type after `:`
-    ·      ┬┬  
-    ·      ╰─── `:` is here
-    ·       │  
-    ·       ╰── here
-────╯
-Error: expected type after `:`
     ╭─[dada_tests/parser/param_separators.dada:13:13]
     │
  13 │ fn param5(a:, b,) {
@@ -15,4 +6,13 @@ Error: expected type after `:`
     ·            ╰─── `:` is here
     ·             │  
     ·             ╰── here
+────╯
+Error: expected type after `:`
+    ╭─[dada_tests/parser/param_separators.dada:35:7]
+    │
+ 35 │     a:, #! ERROR expected type after `:`
+    ·      ┬┬  
+    ·      ╰─── `:` is here
+    ·       │  
+    ·       ╰── here
 ────╯

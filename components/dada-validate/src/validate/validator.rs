@@ -10,7 +10,6 @@ use dada_ir::function::Function;
 use dada_ir::kw::Keyword;
 use dada_ir::origin_table::HasOriginIn;
 use dada_ir::origin_table::PushOriginIn;
-use dada_ir::parameter::Parameter;
 use dada_ir::return_type::ReturnTypeKind;
 use dada_ir::span::FileSpan;
 use dada_ir::span::Span;
@@ -123,17 +122,22 @@ impl<'me> Validator<'me> {
         self.add(validated::ExprData::Tuple(vec![]), origin)
     }
 
-    #[tracing::instrument(level = "debug", skip_all)]
-    pub(crate) fn validate_parameter(&mut self, decl: Parameter) {
-        let decl_data = decl.decl(self.db);
-        let local_variable = self.add(
-            validated::LocalVariableData {
-                name: Some(decl_data.name),
-                atomic: decl_data.atomic,
-            },
-            validated::LocalVariableOrigin::Parameter(decl),
-        );
-        self.scope.insert(decl_data.name, local_variable);
+    pub(crate) fn validate_signature(&mut self, signature: &syntax::Signature) {
+        // NB: The signature uses a distinct set of syntax tables.
+        let tables = signature.tables(self.db);
+        let data = signature.data(self.db);
+        for &lv in &data.parameters {
+            let lv_data = &tables[lv];
+
+            let local_variable = self.add(
+                validated::LocalVariableData {
+                    name: Some(lv_data.name),
+                    atomic: lv_data.atomic,
+                },
+                validated::LocalVariableOrigin::Parameter(lv),
+            );
+            self.scope.insert(lv_data.name, local_variable);
+        }
     }
 
     #[tracing::instrument(level = "debug", skip_all)]

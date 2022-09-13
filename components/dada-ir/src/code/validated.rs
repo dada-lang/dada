@@ -8,7 +8,6 @@ use crate::{
     function::Function,
     in_ir_db::InIrDb,
     intrinsic::Intrinsic,
-    parameter::Parameter,
     prelude::InIrDbExt,
     storage::Atomic,
     word::{SpannedOptionalWord, Word},
@@ -201,9 +200,16 @@ pub struct LocalVariableData {
 
 #[derive(PartialEq, Eq, Copy, Clone, Hash, Debug)]
 pub enum LocalVariableOrigin {
+    /// Temporary introduces to hold the value of the given expression.
     Temporary(syntax::Expr),
+
+    /// A local variable declared in the function.
     LocalVariable(syntax::LocalVariableDecl),
-    Parameter(Parameter),
+
+    /// A local variable declared in the function signature.
+    ///
+    /// Note that this uses a distinct set of syntax tables/spans!
+    Parameter(syntax::LocalVariableDecl),
 }
 
 id!(pub struct Expr);

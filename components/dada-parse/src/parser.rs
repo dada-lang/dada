@@ -4,7 +4,7 @@ use crate::{token_test::*, tokens::Tokens};
 
 use dada_id::InternValue;
 use dada_ir::{
-    code::syntax::{op::Op, LocalVariableDeclSpan, Spans, Tables},
+    code::syntax::{self, op::Op, LocalVariableDeclSpan, Spans, Tables},
     diagnostic::DiagnosticBuilder,
     input_file::InputFile,
     kw::Keyword,
@@ -226,6 +226,18 @@ impl<'me> Parser<'me> {
             Some(span)
         } else {
             None
+        }
+    }
+
+    fn code_parser<'a>(
+        &'a mut self,
+        tables: &'a mut syntax::Tables,
+        spans: &'a mut syntax::Spans,
+    ) -> CodeParser<'a, 'me> {
+        CodeParser {
+            parser: self,
+            tables,
+            spans,
         }
     }
 }

@@ -143,7 +143,7 @@ impl Stepper<'_> {
 
                 // If this is a field of a user-declared class, take the field mode into account
                 if let Some(field) = with_field {
-                    accumulated_permissions.atomic |= field.decl(self.db).atomic;
+                    accumulated_permissions.atomic |= field.atomic(self.db);
                 }
 
                 Ok(PlaceTraversal {
@@ -207,7 +207,7 @@ impl Stepper<'_> {
 
         // If this is a field of a user-declared class, take the field mode into account
         if let Some(field) = with_field {
-            accumulated_permissions.atomic |= field.decl(self.db).atomic;
+            accumulated_permissions.atomic |= field.atomic(self.db);
         }
 
         Ok(PlaceTraversal {
