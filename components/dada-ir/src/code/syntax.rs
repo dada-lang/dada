@@ -7,23 +7,21 @@ use crate::{
     word::{SpannedOptionalWord, Word},
 };
 use dada_id::{id, prelude::*, tables};
+use derive_new::new;
 use salsa::DebugWithDb;
 
 /// The "syntax signature" is the parsed form of a function signature,
 /// including e.g. its parameter types.
-#[salsa::tracked]
+#[derive(new, Clone, Debug, PartialEq, Eq)]
 pub struct Signature {
     /// Identifies the root expression in the function body.
-    #[return_ref]
-    data: SignatureData,
+    pub data: SignatureData,
 
     /// Interning tables for expressions and the like.
-    #[return_ref]
-    tables: Tables,
+    pub tables: Tables,
 
     /// The span information for each node in the tree.
-    #[return_ref]
-    spans: Spans,
+    pub spans: Spans,
 }
 
 /// Stores the ast for a function.

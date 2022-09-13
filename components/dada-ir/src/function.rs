@@ -44,6 +44,7 @@ pub struct Function {
 }
 
 #[derive(Clone, PartialEq, Eq, Debug)]
+#[allow(clippy::large_enum_variant)]
 pub enum FunctionSignature {
     /// The signature is derived from the following syntax written by the user.
     Syntax(Signature),

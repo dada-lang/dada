@@ -124,8 +124,7 @@ impl<'me> Validator<'me> {
 
     pub(crate) fn validate_signature(&mut self, signature: &syntax::Signature) {
         // NB: The signature uses a distinct set of syntax tables.
-        let tables = signature.tables(self.db);
-        let data = signature.data(self.db);
+        let syntax::Signature { tables, data, .. } = signature;
         for &lv in &data.parameters {
             let lv_data = &tables[lv];
 

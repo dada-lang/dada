@@ -100,8 +100,7 @@ impl<'db> Parser<'db> {
             .parse_parameter_list()
             .or_report_error(self, || "expected class parameters".to_string())?;
         let signature_data = syntax::SignatureData { parameters };
-        let signature =
-            syntax::Signature::new(self.db, signature_data, signature_tables, signature_spans);
+        let signature = syntax::Signature::new(signature_data, signature_tables, signature_spans);
 
         Some(Class::new(
             self.db,
@@ -149,8 +148,7 @@ impl<'db> Parser<'db> {
         let code = UnparsedCode::new(body_tokens);
         let start_span = effect_span.unwrap_or(fn_span);
         let signature_data = syntax::SignatureData { parameters };
-        let signature =
-            syntax::Signature::new(self.db, signature_data, signature_tables, signature_spans);
+        let signature = syntax::Signature::new(signature_data, signature_tables, signature_spans);
         Some(Function::new(
             self.db,
             func_name,

@@ -27,7 +27,6 @@ pub mod word;
 #[salsa::jar(db = Db)]
 pub struct Jar(
     code::bir::Bir,
-    code::syntax::Signature,
     code::syntax::Tree,
     code::validated::Tree,
     class::Class,
