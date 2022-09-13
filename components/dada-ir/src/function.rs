@@ -1,10 +1,9 @@
 #![allow(clippy::too_many_arguments)] // omg clippy, mind your own business
 
 use crate::{
-    code::UnparsedCode,
+    code::{syntax::Signature, UnparsedCode},
     effect::Effect,
     input_file::InputFile,
-    parameter::Parameter,
     return_type::ReturnType,
     span::FileSpan,
     word::{SpannedWord, Word},
@@ -23,9 +22,9 @@ pub struct Function {
     /// Otherwise, it is the span of the `fn` keyword.
     effect_span: FileSpan,
 
-    /// List of function parameters
+    /// The function signature.
     #[return_ref]
-    _parameters: Vec<Parameter>,
+    signature: FunctionSignature,
 
     /// Return type of the function.
     return_type: ReturnType,
@@ -42,6 +41,15 @@ pub struct Function {
 
     /// Overall span of the function (including the code)
     span: FileSpan,
+}
+
+#[derive(Clone, PartialEq, Eq, Debug)]
+pub enum FunctionSignature {
+    /// The signature is derived from the following syntax written by the user.
+    Syntax(Signature),
+
+    /// The signature is the generated signature of the main function.
+    Main,
 }
 
 impl<Db: ?Sized + crate::Db> salsa::DebugWithDb<Db> for Function {

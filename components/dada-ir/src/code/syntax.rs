@@ -2,6 +2,7 @@ use crate::{
     code::syntax::op::Op,
     in_ir_db::InIrDb,
     in_ir_db::InIrDbExt,
+    parameter::Parameter,
     span::Span,
     storage::Atomic,
     word::{SpannedOptionalWord, Word},
@@ -29,9 +30,7 @@ pub struct Signature {
 /// Stores the ast for a function.
 #[derive(Clone, Debug, PartialEq, Eq)]
 pub struct SignatureData {
-    parameters: Vec<LocalVariableDecl>,
-
-    return_type: ReturnTypeDecl,
+    pub parameters: Vec<Parameter>,
 }
 
 /// The "syntax tree" is the parsed form of a function body.

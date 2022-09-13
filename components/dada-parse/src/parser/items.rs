@@ -7,11 +7,11 @@ use crate::{parser::Parser, token_test::SpannedIdentifier};
 use dada_ir::{
     class::Class,
     code::{
-        syntax::{op::Op, Expr, ExprData, Spans, Tables, Tree, TreeData},
+        syntax::{self, op::Op, Expr, ExprData, Spans, Tables, Tree, TreeData},
         UnparsedCode,
     },
     effect::Effect,
-    function::Function,
+    function::{Function, FunctionSignature},
     item::Item,
     kw::Keyword,
     parameter::Parameter,
@@ -59,7 +59,7 @@ impl<'db> Parser<'db> {
                 main_name,
                 Effect::Async,
                 main_span,
-                vec![],
+                FunctionSignature::Main,
                 return_type,
                 None,
                 main_span,
@@ -127,6 +127,8 @@ impl<'db> Parser<'db> {
             .eat(SpannedIdentifier)
             .or_report_error(self, || "expected function name".to_string())?;
 
+        let signature_tables = syntax::Tables::default();
+        let signature_spans = syntax::Spans::default();
         let parameters = self
             .parse_parameter_list()
             .or_report_error(self, || "expected function parameters".to_string())?;
@@ -136,12 +138,15 @@ impl<'db> Parser<'db> {
             .or_report_error(self, || "expected function body".to_string())?;
         let code = UnparsedCode::new(body_tokens);
         let start_span = effect_span.unwrap_or(fn_span);
+        let signature_data = syntax::SignatureData { parameters };
+        let signature =
+            syntax::Signature::new(self.db, signature_data, signature_tables, signature_spans);
         Some(Function::new(
             self.db,
             func_name,
             effect,
             effect_span.unwrap_or(fn_span).in_file(self.input_file),
-            parameters,
+            FunctionSignature::Syntax(signature),
             return_type,
             Some(code),
             self.span_consumed_since(start_span)

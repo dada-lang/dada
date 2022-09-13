@@ -1,6 +1,6 @@
 use crate::prelude::*;
 use dada_ir::code::validated;
-use dada_ir::function::Function;
+use dada_ir::function::{Function, FunctionSignature};
 use dada_ir::input_file::InputFile;
 use dada_ir::parameter::Parameter;
 use dada_parse::prelude::*;
@@ -38,7 +38,11 @@ pub(crate) fn validate_function(db: &dyn crate::Db, function: Function) -> valid
 
 #[salsa::tracked(return_ref)]
 pub(crate) fn validate_parameter(db: &dyn crate::Db, function: Function) -> Vec<Parameter> {
-    return function._parameters(db).clone();
+    match function.signature(db) {
+        FunctionSignature::Main => vec![],
+
+        FunctionSignature::Syntax(s) => s.data(db).parameters.clone(),
+    }
 }
 
 /// Compute the root definitions for the module. This is not memoized to
