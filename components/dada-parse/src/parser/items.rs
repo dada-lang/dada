@@ -93,13 +93,20 @@ impl<'db> Parser<'db> {
         let (_, class_name) = self
             .eat(SpannedIdentifier)
             .or_report_error(self, || "expected a class name")?;
-        let fields = self
+
+        let signature_tables = syntax::Tables::default();
+        let signature_spans = syntax::Spans::default();
+        let parameters = self
             .parse_parameter_list()
-            .or_report_error(self, || "expected class parameters")?;
+            .or_report_error(self, || "expected class parameters".to_string())?;
+        let signature_data = syntax::SignatureData { parameters };
+        let signature =
+            syntax::Signature::new(self.db, signature_data, signature_tables, signature_spans);
+
         Some(Class::new(
             self.db,
             class_name,
-            fields,
+            signature,
             self.span_consumed_since(class_span)
                 .in_file(self.input_file),
         ))

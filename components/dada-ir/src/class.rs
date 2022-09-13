@@ -1,12 +1,11 @@
-use crate::{parameter::Parameter, span::FileSpan, word::SpannedWord};
+use crate::{code::syntax, span::FileSpan, word::SpannedWord};
 
 #[salsa::tracked]
 pub struct Class {
     #[id]
     name: SpannedWord,
 
-    #[return_ref]
-    fields: Vec<Parameter>,
+    signature: syntax::Signature,
 
     /// Overall span of the class (including any body)
     span: FileSpan,
