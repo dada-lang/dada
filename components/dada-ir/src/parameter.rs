@@ -6,5 +6,4 @@ pub struct Parameter {
     #[id]
     name: Word,
     decl: crate::code::syntax::LocalVariableDeclData,
-    decl_span: crate::code::syntax::LocalVariableDeclSpan,
 }

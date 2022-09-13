@@ -44,12 +44,12 @@ impl<'db> Parser<'db> {
                 ty: opt_ty,
             };
 
-            let decl_span = LocalVariableDeclSpan {
+            let _decl_span = LocalVariableDeclSpan {
                 atomic_span,
                 name_span,
             };
 
-            Some(Parameter::new(self.db, name, decl, decl_span))
+            Some(Parameter::new(self.db, name, decl))
         } else {
             // No identifier == no parameter; if there's a storage mode,
             // that's an error.
