@@ -7,7 +7,8 @@ use dada_ir::{
     code::{
         syntax::op::Op,
         syntax::{
-            Expr, ExprData, LocalVariableDeclData, LocalVariableDeclSpan, NamedExpr, NamedExprData,
+            AtomicKeywordData, Expr, ExprData, LocalVariableDeclData, LocalVariableDeclSpan,
+            NamedExpr, NamedExprData,
         },
     },
     format_string::FormatStringSectionData,
@@ -336,10 +337,11 @@ impl CodeParser<'_, '_> {
             // { ... }
             Some(expr)
         } else if let Some((kw_span, _)) = self.eat(Keyword::Atomic) {
+            let atomic_kw = self.add(AtomicKeywordData, kw_span);
             let body_expr = self.parse_required_block_expr(Keyword::Atomic);
             let span = self.span_consumed_since(kw_span);
             tracing::debug!("atomic");
-            Some(self.add(ExprData::Atomic(body_expr), span))
+            Some(self.add(ExprData::Atomic(atomic_kw, body_expr), span))
         } else if let Some((if_span, _)) = self.eat(Keyword::If) {
             self.parse_if_expr(if_span)
         } else if let Some((loop_span, _)) = self.eat(Keyword::Loop) {

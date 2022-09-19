@@ -85,6 +85,7 @@ tables! {
         named_exprs: alloc NamedExpr => NamedExprData,
         local_variable_decls: alloc LocalVariableDecl => LocalVariableDeclData,
         return_type_decl: alloc ReturnTypeDecl => ReturnTypeDeclData,
+        atomic_keyword: alloc AtomicKeyword => AtomicKeywordData,
     }
 }
 
@@ -100,6 +101,7 @@ origin_table! {
         named_expr_spans: NamedExpr => Span,
         local_variable_decl_spans: LocalVariableDecl => LocalVariableDeclSpan,
         return_type_decl: ReturnTypeDecl => Span,
+        atomic_keyword: AtomicKeyword => Span,
     }
 }
 
@@ -167,7 +169,7 @@ pub enum ExprData {
     If(Expr, Expr, Option<Expr>),
 
     /// `atomic { block }`
-    Atomic(Expr),
+    Atomic(AtomicKeyword, Expr),
 
     /// `loop { block }`
     Loop(Expr),
@@ -249,7 +251,7 @@ impl DebugWithDb<InIrDb<'_, Tree>> for ExprData {
                 .field(&t.debug(db))
                 .field(&e.debug(db))
                 .finish(),
-            ExprData::Atomic(e) => f.debug_tuple("Atomic").field(&e.debug(db)).finish(),
+            ExprData::Atomic(_, e) => f.debug_tuple("Atomic").field(&e.debug(db)).finish(),
             ExprData::Loop(e) => f.debug_tuple("Loop").field(&e.debug(db)).finish(),
             ExprData::While(c, e) => f
                 .debug_tuple("While")
@@ -355,3 +357,15 @@ impl DebugWithDb<InIrDb<'_, Tree>> for NamedExprData {
 }
 
 pub mod op;
+
+// Represents an atomic keyword. Used to carry the span.
+id!(pub struct AtomicKeyword);
+
+impl DebugWithDb<InIrDb<'_, Tree>> for AtomicKeyword {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>, _db: &InIrDb<'_, Tree>) -> std::fmt::Result {
+        write!(f, "atomic")
+    }
+}
+
+#[derive(PartialEq, Eq, PartialOrd, Ord, Clone, Hash, Debug)]
+pub struct AtomicKeywordData;

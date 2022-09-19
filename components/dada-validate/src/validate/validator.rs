@@ -411,12 +411,10 @@ impl<'me> Validator<'me> {
                 )
             }
 
-            syntax::ExprData::Atomic(atomic_expr) => {
+            syntax::ExprData::Atomic(atomic_keyword, atomic_expr) => {
                 let validated_atomic_expr = self
                     .subscope()
-                    .with_effect(Effect::Atomic, |this| {
-                        this.span(expr).leading_keyword(this.db, Keyword::Atomic)
-                    })
+                    .with_effect(Effect::Atomic, |this| this.span(*atomic_keyword))
                     .validate_expr_and_exit(*atomic_expr);
                 self.add(validated::ExprData::Atomic(validated_atomic_expr), expr)
             }
