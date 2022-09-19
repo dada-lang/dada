@@ -1,10 +1,6 @@
 use dada_ir::{
-    format_string::FormatString,
-    kw::Keyword,
-    span::FileSpan,
-    token::Token,
-    token_tree::TokenTree,
-    word::{SpannedWord, Word},
+    format_string::FormatString, kw::Keyword, span::FileSpan, token::Token, token_tree::TokenTree,
+    word::Word,
 };
 
 /// Represents some kind of "condition test" that can be applied to a single token
@@ -70,18 +66,6 @@ impl TokenTest for Alphabetic {
 
     fn test(self, _db: &dyn crate::Db, token: Token, _span: FileSpan) -> Option<Word> {
         token.alphabetic()
-    }
-}
-
-/// An `Alphabetic` that is not a keyword
-#[derive(Debug)]
-pub(crate) struct SpannedIdentifier;
-impl TokenTest for SpannedIdentifier {
-    type Narrow = SpannedWord;
-
-    fn test(self, db: &dyn crate::Db, token: Token, span: FileSpan) -> Option<SpannedWord> {
-        let word = Identifier.test(db, token, span)?;
-        Some(SpannedWord::new(db, word, span))
     }
 }
 

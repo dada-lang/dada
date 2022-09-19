@@ -489,7 +489,7 @@ impl<'me> Stepper<'me> {
 
     fn no_such_field(db: &dyn crate::Db, span: FileSpan, class: Class, name: Word) -> eyre::Report {
         let class_name = class.name(db).as_str(db);
-        let class_span = class.name(db).span(db);
+        let class_span = class.name_span(db).in_file(class.input_file(db));
         error!(
             span,
             "the class `{}` has no field named `{}`",

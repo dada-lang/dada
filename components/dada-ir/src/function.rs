@@ -5,14 +5,18 @@ use crate::{
     effect::Effect,
     input_file::InputFile,
     return_type::ReturnType,
-    span::FileSpan,
-    word::{SpannedWord, Word},
+    span::Span,
+    word::Word,
 };
 
 #[salsa::tracked]
 pub struct Function {
     #[id]
-    name: SpannedWord,
+    name: Word,
+
+    input_file: InputFile,
+
+    name_span: Span,
 
     /// Declared effect for the function body -- e.g., `async fn` would have
     /// this be `async`. This can affect validation and code generation.
@@ -20,7 +24,7 @@ pub struct Function {
 
     /// If this func has a declared effect, this is the span of that keyword (e.g., `async`)
     /// Otherwise, it is the span of the `fn` keyword.
-    effect_span: FileSpan,
+    effect_span: Span,
 
     /// The function signature.
     #[return_ref]
@@ -40,7 +44,7 @@ pub struct Function {
     unparsed_code: Option<UnparsedCode>,
 
     /// Overall span of the function (including the code)
-    span: FileSpan,
+    span: Span,
 }
 
 #[derive(Clone, PartialEq, Eq, Debug)]
@@ -57,12 +61,6 @@ impl<Db: ?Sized + crate::Db> salsa::DebugWithDb<Db> for Function {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>, db: &Db) -> std::fmt::Result {
         let db = db.as_dyn_ir_db();
         write!(f, "{}", self.name(db).as_str(db))
-    }
-}
-
-impl Function {
-    pub fn input_file(self, db: &dyn crate::Db) -> InputFile {
-        self.span(db).input_file
     }
 }
 

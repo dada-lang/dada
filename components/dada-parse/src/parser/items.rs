@@ -2,7 +2,7 @@
 //!
 //! Does not parse the bodies of functions etc.
 
-use crate::{parser::Parser, token_test::SpannedIdentifier};
+use crate::{parser::Parser, token_test::Identifier};
 
 use dada_ir::{
     class::Class,
@@ -17,7 +17,7 @@ use dada_ir::{
     return_type::{ReturnType, ReturnTypeKind},
     source_file::{self, SourceFile},
     span::Span,
-    word::{SpannedWord, Word},
+    word::Word,
 };
 
 use super::{CodeParser, OrReportError};
@@ -47,15 +47,16 @@ impl<'db> Parser<'db> {
             // situation.
             let start_span = spans[exprs[0]];
             let end_span = spans[*exprs.last().unwrap()];
-            let main_span = start_span.to(end_span).in_file(self.input_file);
+            let main_span = start_span.to(end_span);
 
             // Create the `main` function entity -- its code is already parsed, so use `None` for `unparsed_code`
             let main_name = Word::intern(self.db, source_file::TOP_LEVEL_FN);
-            let main_name = SpannedWord::new(self.db, main_name, main_span);
             let return_type = ReturnType::new(self.db, ReturnTypeKind::Unit, main_span);
             let function = Function::new(
                 self.db,
                 main_name,
+                self.input_file,
+                main_span,
                 Effect::Async,
                 main_span,
                 FunctionSignature::Main,
@@ -89,8 +90,8 @@ impl<'db> Parser<'db> {
 
     fn parse_class(&mut self) -> Option<Class> {
         let (class_span, _) = self.eat(Keyword::Class)?;
-        let (_, class_name) = self
-            .eat(SpannedIdentifier)
+        let (class_name_span, class_name) = self
+            .eat(Identifier)
             .or_report_error(self, || "expected a class name")?;
 
         let mut signature_tables = syntax::Tables::default();
@@ -105,9 +106,10 @@ impl<'db> Parser<'db> {
         Some(Class::new(
             self.db,
             class_name,
+            self.input_file,
+            class_name_span,
             signature,
-            self.span_consumed_since(class_span)
-                .in_file(self.input_file),
+            self.span_consumed_since(class_span),
         ))
     }
 
@@ -129,8 +131,8 @@ impl<'db> Parser<'db> {
             (None, Effect::Default)
         };
         let (fn_span, _) = self.eat(Keyword::Fn).unwrap();
-        let (_, func_name) = self
-            .eat(SpannedIdentifier)
+        let (func_name_span, func_name) = self
+            .eat(Identifier)
             .or_report_error(self, || "expected function name".to_string())?;
 
         let mut signature_tables = syntax::Tables::default();
@@ -152,13 +154,14 @@ impl<'db> Parser<'db> {
         Some(Function::new(
             self.db,
             func_name,
+            self.input_file,
+            func_name_span,
             effect,
-            effect_span.unwrap_or(fn_span).in_file(self.input_file),
+            effect_span.unwrap_or(fn_span),
             FunctionSignature::Syntax(signature),
             return_type,
             Some(code),
-            self.span_consumed_since(start_span)
-                .in_file(self.input_file),
+            self.span_consumed_since(start_span),
         ))
     }
 
@@ -180,13 +183,11 @@ impl<'db> Parser<'db> {
     /// Parses an (optional) return type declaration from a function.
     fn parse_return_type(&mut self) -> ReturnType {
         let right_arrow = self.eat_op(Op::RightArrow);
-        let span = right_arrow
-            .unwrap_or_else(|| Span {
-                // span between last non skipped token and next non skippable token
-                start: self.tokens.last_span().end,
-                end: self.tokens.peek_span().start,
-            })
-            .in_file(self.input_file);
+        let span = right_arrow.unwrap_or_else(|| Span {
+            // span between last non skipped token and next non skippable token
+            start: self.tokens.last_span().end,
+            end: self.tokens.peek_span().start,
+        });
         ReturnType::new(
             self.db,
             if right_arrow.is_some() {

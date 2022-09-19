@@ -1,4 +1,4 @@
-use crate::span::FileSpan;
+use crate::span::Span;
 
 #[salsa::tracked]
 /// Represents the return type of a function.
@@ -8,7 +8,7 @@ use crate::span::FileSpan;
 /// If `kind` is [ReturnTypeKind::Unit] `span` is the span between parameters and body.
 pub struct ReturnType {
     kind: ReturnTypeKind,
-    span: FileSpan,
+    span: Span,
 }
 
 #[derive(Copy, Clone, PartialEq, Eq, Hash, Debug)]
@@ -20,11 +20,6 @@ pub enum ReturnTypeKind {
 impl<Db: ?Sized + crate::Db> salsa::DebugWithDb<Db> for ReturnType {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>, db: &Db) -> std::fmt::Result {
         let db = db.as_dyn_ir_db();
-        write!(
-            f,
-            "ReturnType({:?}, {:?})",
-            self.kind(db),
-            self.span(db).into_debug(db)
-        )
+        write!(f, "ReturnType({:?}, {:?})", self.kind(db), self.span(db))
     }
 }

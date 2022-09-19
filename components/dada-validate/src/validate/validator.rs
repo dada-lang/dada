@@ -58,7 +58,9 @@ impl<'me> Validator<'me> {
             loop_stack: vec![],
             scope,
             effect: function.effect(db),
-            effect_span: Rc::new(move |_| function.effect_span(db)),
+            effect_span: Rc::new(move |_| {
+                function.effect_span(db).in_file(function.input_file(db))
+            }),
             synthesized: false,
         }
     }
@@ -145,8 +147,12 @@ impl<'me> Validator<'me> {
         if self.function.return_type(self.db).kind(self.db) == ReturnTypeKind::Value {
             if let validated::ExprData::Seq(exprs) = validated_expr.data(self.tables) {
                 if exprs.is_empty() {
+                    let input_file = self.function.input_file(self.db);
                     dada_ir::error!(
-                        self.function.return_type(self.db).span(self.db),
+                        self.function
+                            .return_type(self.db)
+                            .span(self.db)
+                            .in_file(input_file),
                         "function body cannot be empty",
                     )
                     .primary_label("because function is supposed to return something")

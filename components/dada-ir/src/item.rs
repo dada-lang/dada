@@ -9,22 +9,22 @@ pub enum Item {
 impl Item {
     pub fn span(self, db: &dyn crate::Db) -> FileSpan {
         match self {
-            Item::Function(f) => f.span(db),
-            Item::Class(c) => c.span(db),
+            Item::Function(f) => f.span(db).in_file(f.input_file(db)),
+            Item::Class(c) => c.span(db).in_file(c.input_file(db)),
         }
     }
 
     pub fn name(self, db: &dyn crate::Db) -> Word {
         match self {
-            Item::Function(f) => f.name(db).word(db),
-            Item::Class(c) => c.name(db).word(db),
+            Item::Function(f) => f.name(db),
+            Item::Class(c) => c.name(db),
         }
     }
 
     pub fn name_span(self, db: &dyn crate::Db) -> FileSpan {
         match self {
-            Item::Function(f) => f.name(db).span(db),
-            Item::Class(c) => c.name(db).span(db),
+            Item::Function(f) => f.name_span(db).in_file(f.input_file(db)),
+            Item::Class(c) => c.name_span(db).in_file(c.input_file(db)),
         }
     }
 

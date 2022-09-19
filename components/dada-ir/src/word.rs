@@ -57,28 +57,6 @@ impl ToString for &std::path::PathBuf {
 }
 
 #[salsa::tracked]
-/// A "spanned word" is a `Word` that also carries a span. Useful for things like
-/// argument names etc where we want to carry the span through many phases
-/// of compilation.
-pub struct SpannedWord {
-    #[id]
-    word: Word,
-    span: FileSpan,
-}
-
-impl SpannedWord {
-    pub fn as_str(self, db: &dyn crate::Db) -> &str {
-        self.word(db).as_str(db)
-    }
-}
-
-impl<Db: ?Sized + crate::Db> salsa::DebugWithDb<Db> for SpannedWord {
-    fn fmt(&self, f: &mut std::fmt::Formatter<'_>, db: &Db) -> std::fmt::Result {
-        std::fmt::Debug::fmt(&self.as_str(db.as_dyn_ir_db()), f)
-    }
-}
-
-#[salsa::tracked]
 /// An optional SpannedOptionalWord is an identifier that may not be persent; it still carries
 /// a span for where the label *would have gone* had it been present (as compared to
 /// an `Option<Label>`).

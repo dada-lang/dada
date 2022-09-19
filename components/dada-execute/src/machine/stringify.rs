@@ -35,11 +35,9 @@ pub(crate) impl<T: ?Sized + MachineOp> DefaultStringify for T {
             ObjectData::Intrinsic(i) => i.as_str(db).to_string(),
             ObjectData::Function(f) => f.name(db).as_str(db).to_string(),
             ObjectData::ThunkFn(f) => {
-                self.object_string(db, Some(f.function.name(db).word(db)), &f.arguments)
+                self.object_string(db, Some(f.function.name(db)), &f.arguments)
             }
-            ObjectData::Instance(i) => {
-                self.object_string(db, Some(i.class.name(db).word(db)), &i.fields)
-            }
+            ObjectData::Instance(i) => self.object_string(db, Some(i.class.name(db)), &i.fields),
             ObjectData::Class(c) => c.name(db).as_str(db).to_string(),
             ObjectData::ThunkRust(r) => format!("{r:?}"),
             ObjectData::Tuple(t) => self.object_string(db, None, &t.fields),

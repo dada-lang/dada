@@ -1,15 +1,19 @@
-use crate::{code::syntax, span::FileSpan, word::SpannedWord};
+use crate::{code::syntax, input_file::InputFile, span::Span, word::Word};
 
 #[salsa::tracked]
 pub struct Class {
     #[id]
-    name: SpannedWord,
+    name: Word,
+
+    input_file: InputFile,
+
+    name_span: Span,
 
     #[return_ref]
     signature: syntax::Signature,
 
     /// Overall span of the class (including any body)
-    span: FileSpan,
+    span: Span,
 }
 
 impl<Db: ?Sized + crate::Db> salsa::DebugWithDb<Db> for Class {
