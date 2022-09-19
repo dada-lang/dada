@@ -9,8 +9,8 @@ pub enum Item {
 impl Item {
     pub fn span(self, db: &dyn crate::Db) -> FileSpan {
         match self {
-            Item::Function(f) => f.span(db).in_file(f.input_file(db)),
-            Item::Class(c) => c.span(db).in_file(c.input_file(db)),
+            Item::Function(f) => f.span(db).anchor_to(db, f),
+            Item::Class(c) => c.span(db).anchor_to(db, c),
         }
     }
 
@@ -23,8 +23,8 @@ impl Item {
 
     pub fn name_span(self, db: &dyn crate::Db) -> FileSpan {
         match self {
-            Item::Function(f) => f.name_span(db).in_file(f.input_file(db)),
-            Item::Class(c) => c.name_span(db).in_file(c.input_file(db)),
+            Item::Function(f) => f.name_span(db).anchor_to(db, f),
+            Item::Class(c) => c.name_span(db).anchor_to(db, c),
         }
     }
 

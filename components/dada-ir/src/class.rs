@@ -1,4 +1,9 @@
-use crate::{code::syntax, input_file::InputFile, span::Span, word::Word};
+use crate::{
+    code::syntax,
+    input_file::InputFile,
+    span::{Anchored, Span},
+    word::Word,
+};
 
 #[salsa::tracked]
 pub struct Class {
@@ -14,6 +19,12 @@ pub struct Class {
 
     /// Overall span of the class (including any body)
     span: Span,
+}
+
+impl Anchored for Class {
+    fn input_file(&self, db: &dyn crate::Db) -> InputFile {
+        Class::input_file(*self, db)
+    }
 }
 
 impl<Db: ?Sized + crate::Db> salsa::DebugWithDb<Db> for Class {

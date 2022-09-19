@@ -70,7 +70,11 @@ impl CodeParser<'_, '_> {
         } else {
             label_span = self.tokens.peek_span().span_at_start();
             expr = self.parse_expr()?;
-            label = SpannedOptionalWord::new(self.db, None, label_span.in_file(self.input_file));
+            label = SpannedOptionalWord::new(
+                self.db,
+                None,
+                label_span.anchor_to(self.db, self.input_file),
+            );
         };
 
         Some(self.add(
@@ -86,7 +90,11 @@ impl CodeParser<'_, '_> {
             let _colon_span = this.eat_op(Op::Colon)?;
             Some((
                 name_span,
-                SpannedOptionalWord::new(this.db, Some(name), name_span.in_file(this.input_file)),
+                SpannedOptionalWord::new(
+                    this.db,
+                    Some(name),
+                    name_span.anchor_to(this.db, this.input_file),
+                ),
             ))
         })
     }

@@ -1,5 +1,21 @@
 use crate::input_file::InputFile;
 
+/// An "anchored" element is one that knows which input file it is in.
+/// Eventually, the plan is to have it also know its *offset* within
+/// that file (often stored relative to some other anchored thing).
+pub trait Anchored {
+    fn input_file(&self, db: &dyn crate::Db) -> InputFile;
+}
+
+impl<A: ?Sized> Anchored for &A
+where
+    A: Anchored,
+{
+    fn input_file(&self, db: &dyn crate::Db) -> InputFile {
+        A::input_file(self, db)
+    }
+}
+
 #[derive(Copy, Clone, Debug, PartialEq, Eq, Hash)]
 pub struct FileSpan {
     pub input_file: InputFile,
@@ -117,7 +133,8 @@ impl Span {
         this
     }
 
-    pub fn in_file(self, input_file: InputFile) -> FileSpan {
+    pub fn anchor_to(self, db: &dyn crate::Db, anchored: impl Anchored) -> FileSpan {
+        let input_file = anchored.input_file(db);
         FileSpan {
             input_file,
             start: self.start,
@@ -125,8 +142,8 @@ impl Span {
         }
     }
 
-    pub fn snippet<'db>(&self, db: &'db dyn crate::Db, input_file: InputFile) -> &'db str {
-        self.in_file(input_file).snippet(db)
+    pub fn snippet<'db>(&self, db: &'db dyn crate::Db, anchored: impl Anchored) -> &'db str {
+        self.anchor_to(db, anchored).snippet(db)
     }
 
     /// Returns a 0-length span at the start of this span

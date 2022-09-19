@@ -10,7 +10,7 @@ use crate::{
     intrinsic::Intrinsic,
     origin_table::HasOriginIn,
     prelude::InIrDbExt,
-    span::FileSpan,
+    span::{Anchored, FileSpan},
     storage::Atomic,
     word::{SpannedOptionalWord, Word},
 };
@@ -39,6 +39,12 @@ pub struct Bir {
     origins: Origins,
 }
 
+impl Anchored for Bir {
+    fn input_file(&self, db: &dyn crate::Db) -> InputFile {
+        Bir::input_file(*self, db)
+    }
+}
+
 impl DebugWithDb<dyn crate::Db + '_> for Bir {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>, db: &dyn crate::Db) -> std::fmt::Result {
         let self_in_ir_db = &self.in_ir_db(db.as_dyn_ir_db());
@@ -59,9 +65,8 @@ impl Bir {
     /// will require re-execution if most anything in the source file changes, even
     /// just adding whitespace.
     pub fn span_of(self, db: &dyn crate::Db, syntax_expr: syntax::Expr) -> FileSpan {
-        let input_file = self.input_file(db);
         let syntax_tree = self.syntax_tree(db);
-        syntax_tree.spans(db)[syntax_expr].in_file(input_file)
+        syntax_tree.spans(db)[syntax_expr].anchor_to(db, self)
     }
 }
 

@@ -5,7 +5,7 @@ use crate::{
     effect::Effect,
     input_file::InputFile,
     return_type::ReturnType,
-    span::Span,
+    span::{Anchored, Span},
     word::Word,
 };
 
@@ -45,6 +45,12 @@ pub struct Function {
 
     /// Overall span of the function (including the code)
     span: Span,
+}
+
+impl Anchored for Function {
+    fn input_file(&self, db: &dyn crate::Db) -> InputFile {
+        Function::input_file(*self, db)
+    }
 }
 
 #[derive(Clone, PartialEq, Eq, Debug)]

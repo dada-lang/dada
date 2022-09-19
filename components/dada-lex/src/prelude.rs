@@ -44,7 +44,9 @@ fn find_keyword(
 ) -> FileSpan {
     for (span, token) in tokens {
         match token {
-            Token::Alphabetic(w) if w == kw.word(db) => return span.in_file(filespan.input_file),
+            Token::Alphabetic(w) if w == kw.word(db) => {
+                return span.anchor_to(db, filespan.input_file)
+            }
             _ => continue,
         }
     }

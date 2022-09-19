@@ -23,7 +23,7 @@ impl Breakpoint {
     /// Returns the file-span of the breakpoint expression.
     pub fn span(self, db: &dyn crate::Db) -> FileSpan {
         let expr_span = self.tree.spans(db)[self.expr];
-        expr_span.in_file(self.input_file)
+        expr_span.anchor_to(db, self.input_file)
     }
 }
 
