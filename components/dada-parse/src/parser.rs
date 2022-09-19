@@ -1,6 +1,9 @@
 use std::string::ToString;
 
-use crate::{token_test::*, tokens::Tokens};
+use crate::{
+    token_test::{AnyTree, TokenTest},
+    tokens::Tokens,
+};
 
 use dada_id::InternValue;
 use dada_ir::{
