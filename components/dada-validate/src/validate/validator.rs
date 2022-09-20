@@ -325,18 +325,6 @@ impl<'me> Validator<'me> {
             syntax::ExprData::Call(func_expr, named_exprs) => {
                 let validated_func_expr = self.validate_expr(*func_expr);
                 let validated_named_exprs = self.validate_named_exprs(named_exprs);
-                let mut name_required = false;
-                for named_expr in &validated_named_exprs {
-                    let name = named_expr.data(self.tables).name;
-                    if name.word(self.db).is_some() {
-                        name_required = true;
-                    } else if name_required {
-                        dada_ir::error!(name.span(self.db), "parameter name required",)
-                            .primary_label("parameter name required here")
-                            .emit(self.db);
-                    }
-                }
-
                 self.add(
                     validated::ExprData::Call(validated_func_expr, validated_named_exprs),
                     expr,
@@ -895,22 +883,43 @@ impl<'me> Validator<'me> {
         &mut self,
         named_exprs: &[syntax::NamedExpr],
     ) -> Vec<validated::NamedExpr> {
+        let mut name_required = false;
+
         named_exprs
             .iter()
-            .map(|named_expr| self.validate_named_expr(*named_expr))
+            .map(|&named_expr| {
+                // Once an explicit name is given for one expression,
+                // explicit names must be given for all subsequent expressions.
+                let name = named_expr.data(self.syntax_tables).name;
+                if name.is_some() {
+                    name_required = true;
+                } else if name_required {
+                    dada_ir::error!(self.span(named_expr), "parameter name required",)
+                        .primary_label("parameter name required here")
+                        .emit(self.db);
+                }
+
+                self.validate_named_expr(named_expr)
+            })
             .collect()
     }
 
     fn validate_named_expr(&mut self, named_expr: syntax::NamedExpr) -> validated::NamedExpr {
         let syntax::NamedExprData { name, expr } = named_expr.data(self.syntax_tables);
+        let validated_name = name.map(|n| self.validate_name(n));
         let validated_expr = self.validate_expr(*expr);
         self.add(
             validated::NamedExprData {
-                name: *name,
+                name: validated_name,
                 expr: validated_expr,
             },
             named_expr,
         )
+    }
+
+    fn validate_name(&mut self, name: syntax::Name) -> validated::Name {
+        let syntax::NameData { word } = name.data(self.syntax_tables);
+        self.add(validated::NameData { word: *word }, name)
     }
 
     fn validated_op(&self, op: syntax::op::Op) -> validated::op::Op {
@@ -992,6 +1001,18 @@ impl IntoOrigin for syntax::Expr {
 
     fn synthesized(self) -> Self::Origin {
         ExprOrigin::synthesized(self)
+    }
+}
+
+impl IntoOrigin for syntax::Name {
+    type Origin = syntax::Name;
+
+    fn into_origin(self) -> Self::Origin {
+        self
+    }
+
+    fn synthesized(self) -> Self::Origin {
+        panic!("cannot force names to be synthesized")
     }
 }
 

@@ -513,6 +513,13 @@ impl<'me> Stepper<'me> {
         self.span_from_syntax_expr(syntax_expr)
     }
 
+    fn span_from_bir_name(&self, name: bir::Name) -> FileSpan {
+        let bir = self.machine.pc().bir;
+        let origins = bir.origins(self.db);
+        let syntax_name = origins[name];
+        bir.span_of(self.db, syntax_name)
+    }
+
     fn span_from_syntax_expr(&self, syntax_expr: syntax::Expr) -> FileSpan {
         let bir = self.machine.pc().bir;
         bir.span_of(self.db, syntax_expr)

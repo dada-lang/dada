@@ -4,7 +4,7 @@ use dada_ir::{
     error,
     origin_table::HasOriginIn,
     parameter::Parameter,
-    word::{SpannedOptionalWord, Word},
+    word::Word,
 };
 use dada_validate::prelude::*;
 
@@ -28,7 +28,7 @@ impl Stepper<'_> {
         terminator: bir::Terminator,
         callee: bir::Place,
         argument_places: &[bir::Place],
-        labels: &[SpannedOptionalWord],
+        labels: &[Option<bir::Name>],
     ) -> eyre::Result<CallResult> {
         let function_value = self.give_place(table, callee)?;
 
@@ -40,7 +40,7 @@ impl Stepper<'_> {
         match &self.machine[function_value.object] {
             &ObjectData::Class(c) => {
                 let fields = c.fields(self.db);
-                self.match_labels(terminator, labels, fields)?;
+                self.match_labels(table, terminator, labels, fields)?;
                 let arguments = self.prepare_arguments(table, argument_places)?;
                 let instance = Instance {
                     class: c,
@@ -50,7 +50,7 @@ impl Stepper<'_> {
             }
             &ObjectData::Function(function) => {
                 let parameters = function.parameters(self.db);
-                self.match_labels(terminator, labels, parameters)?;
+                self.match_labels(table, terminator, labels, parameters)?;
 
                 let arguments = self.prepare_arguments(table, argument_places)?;
 
@@ -72,7 +72,7 @@ impl Stepper<'_> {
             }
             &ObjectData::Intrinsic(intrinsic) => {
                 let definition = IntrinsicDefinition::for_intrinsic(self.db, intrinsic);
-                self.match_labels(callee, labels, &definition.argument_names)?;
+                self.match_labels(table, callee, labels, &definition.argument_names)?;
                 let arguments = self.prepare_arguments(table, argument_places)?;
                 let value = (definition.function)(self, arguments)?;
                 Ok(CallResult::Returned(value))
@@ -103,18 +103,20 @@ impl Stepper<'_> {
 
     fn match_labels(
         &self,
+        table: &bir::Tables,
         call_terminator: impl HasOriginIn<bir::Origins, Origin = syntax::Expr>,
-        actual_labels: &[SpannedOptionalWord],
+        actual_labels: &[Option<bir::Name>],
         expected_names: &[impl ExpectedName],
     ) -> eyre::Result<()> {
         let db = self.db;
 
         for (actual_label, expected_name) in actual_labels.iter().zip(expected_names) {
             let expected_name = expected_name.as_word(db);
-            if let Some(actual_word) = actual_label.word(db) {
+            if let &Some(actual_label) = actual_label {
+                let actual_word = table[actual_label].word;
                 if expected_name != actual_word {
                     return Err(error!(
-                        actual_label.span(db),
+                        self.span_from_bir_name(actual_label),
                         "expected to find an argument named `{}`, but found the name `{}`",
                         expected_name.as_str(db),
                         actual_word.as_str(db),

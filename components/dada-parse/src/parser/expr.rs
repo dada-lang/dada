@@ -7,8 +7,8 @@ use dada_ir::{
     code::{
         syntax::op::Op,
         syntax::{
-            AtomicKeywordData, Expr, ExprData, LocalVariableDeclData, LocalVariableDeclSpan,
-            NamedExpr, NamedExprData,
+            AtomicKeywordData, Expr, ExprData, LocalVariableDeclData, LocalVariableDeclSpan, Name,
+            NameData, NamedExpr, NamedExprData,
         },
     },
     format_string::FormatStringSectionData,
@@ -17,7 +17,6 @@ use dada_ir::{
     storage::Atomic,
     token::Token,
     token_tree::TokenTree,
-    word::SpannedOptionalWord,
 };
 
 use super::{CodeParser, OrReportError, ParseList};
@@ -58,44 +57,26 @@ impl CodeParser<'_, '_> {
 
     ///
     fn parse_named_expr(&mut self) -> Option<NamedExpr> {
-        let (label_span, label, expr);
-
-        if let Some(spanned_label) = self.parse_label() {
+        let name = self.parse_label();
+        let expr = if name.is_some() {
             // If they provided `foo: ` then the expression is mandatory
-            (label_span, label) = spanned_label;
-            expr = self
-                .parse_expr()
+            self.parse_expr()
                 .or_report_error(self, || "expected expression")
-                .or_dummy_expr(self);
+                .or_dummy_expr(self)
         } else {
-            label_span = self.tokens.peek_span().span_at_start();
-            expr = self.parse_expr()?;
-            label = SpannedOptionalWord::new(
-                self.db,
-                None,
-                label_span.anchor_to(self.db, self.input_file),
-            );
+            self.parse_expr()?
         };
 
-        Some(self.add(
-            NamedExprData { name: label, expr },
-            self.span_consumed_since(label_span),
-        ))
+        let span = self.span_consumed_since_parsing(name, expr);
+        Some(self.add(NamedExprData { name, expr }, span))
     }
 
     /// Parse a `foo:` label.
-    fn parse_label(&mut self) -> Option<(Span, SpannedOptionalWord)> {
+    fn parse_label(&mut self) -> Option<Name> {
         self.lookahead(|this| {
-            let (name_span, name) = this.eat(Identifier)?;
+            let (word_span, word) = this.eat(Identifier)?;
             let _colon_span = this.eat_op(Op::Colon)?;
-            Some((
-                name_span,
-                SpannedOptionalWord::new(
-                    this.db,
-                    Some(name),
-                    name_span.anchor_to(this.db, this.input_file),
-                ),
-            ))
+            Some(this.add(NameData { word }, word_span))
         })
     }
 
@@ -344,7 +325,7 @@ impl CodeParser<'_, '_> {
         } else if let Some(expr) = self.parse_block_expr() {
             // { ... }
             Some(expr)
-        } else if let Some((kw_span, _)) = self.eat(Keyword::Atomic) {
+        } else if let Some(kw_span) = self.parse_atomic() {
             let atomic_kw = self.add(AtomicKeywordData, kw_span);
             let body_expr = self.parse_required_block_expr(Keyword::Atomic);
             let span = self.span_consumed_since(kw_span);

@@ -1,10 +1,7 @@
 use dada_id::prelude::*;
-use dada_ir::{
-    code::{
-        bir, syntax,
-        validated::{self, ExprOrigin},
-    },
-    word::SpannedOptionalWord,
+use dada_ir::code::{
+    bir, syntax,
+    validated::{self, ExprOrigin},
 };
 
 use crate::brewery::Brewery;
@@ -246,10 +243,17 @@ impl Cursor {
         &mut self,
         brewery: &mut Brewery,
         arg: validated::NamedExpr,
-    ) -> Option<(bir::Place, SpannedOptionalWord)> {
+    ) -> Option<(bir::Place, Option<bir::Name>)> {
         let validated::NamedExprData { name, expr } = arg.data(brewery.validated_tables());
+        let name = name.map(|n| self.brew_name(brewery, n));
         let place = self.brew_expr_to_temporary(brewery, *expr)?;
-        Some((place, *name))
+        Some((place, name))
+    }
+
+    fn brew_name(&mut self, brewery: &mut Brewery, name: validated::Name) -> bir::Name {
+        let validated::NameData { word } = name.data(brewery.validated_tables());
+        let origin = brewery.origin(name);
+        brewery.add(bir::NameData { word: *word }, origin)
     }
 }
 

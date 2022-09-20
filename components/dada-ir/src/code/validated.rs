@@ -3,14 +3,8 @@
 //! desugared and easy to work with.
 
 use crate::{
-    class::Class,
-    code::validated::op::Op,
-    function::Function,
-    in_ir_db::InIrDb,
-    intrinsic::Intrinsic,
-    prelude::InIrDbExt,
-    storage::Atomic,
-    word::{SpannedOptionalWord, Word},
+    class::Class, code::validated::op::Op, function::Function, in_ir_db::InIrDb,
+    intrinsic::Intrinsic, prelude::InIrDbExt, storage::Atomic, word::Word,
 };
 use dada_id::{id, prelude::*, tables};
 use salsa::DebugWithDb;
@@ -95,6 +89,7 @@ tables! {
         named_exprs: alloc NamedExpr => NamedExprData,
         places: alloc Place => PlaceData,
         target_places: alloc TargetPlace => TargetPlaceData,
+        names: alloc Name => NameData,
     }
 }
 
@@ -111,6 +106,7 @@ origin_table! {
         target_place_spans: TargetPlace => ExprOrigin,
         named_exprs: NamedExpr => syntax::NamedExpr,
         local_variables: LocalVariable => LocalVariableOrigin,
+        names: Name => syntax::Name,
     }
 }
 
@@ -485,17 +481,30 @@ impl DebugWithDb<InIrDb<'_, Tree>> for NamedExpr {
 
 #[derive(PartialEq, Eq, Clone, Hash, Debug)]
 pub struct NamedExprData {
-    pub name: SpannedOptionalWord,
+    pub name: Option<Name>,
     pub expr: Expr,
 }
 
 impl DebugWithDb<InIrDb<'_, Tree>> for NamedExprData {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>, db: &InIrDb<'_, Tree>) -> std::fmt::Result {
         f.debug_tuple("NamedExpr")
-            .field(&self.name.debug(db.db()))
+            .field(&self.name.debug(db))
             .field(&self.expr.debug(db))
             .finish()
     }
 }
 
 pub mod op;
+
+id!(pub struct Name);
+
+impl DebugWithDb<InIrDb<'_, Tree>> for Name {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>, db: &InIrDb<'_, Tree>) -> std::fmt::Result {
+        self.data(db.tables()).word.fmt(f, db.db())
+    }
+}
+
+#[derive(PartialEq, Eq, Clone, Hash, Debug)]
+pub struct NameData {
+    pub word: Word,
+}

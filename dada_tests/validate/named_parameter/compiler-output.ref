@@ -2,6 +2,6 @@ Error: parameter name required
    ╭─[dada_tests/validate/named_parameter.dada:8:9]
    │
  8 │         "b", #! ERROR parameter name required
-   ·         │ 
-   ·         ╰─ parameter name required here
+   ·         ─┬─  
+   ·          ╰─── parameter name required here
 ───╯

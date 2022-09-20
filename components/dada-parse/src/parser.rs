@@ -11,7 +11,7 @@ use dada_ir::{
     diagnostic::DiagnosticBuilder,
     input_file::InputFile,
     kw::Keyword,
-    origin_table::PushOriginIn,
+    origin_table::{HasOriginIn, PushOriginIn},
     span::Span,
     token::Token,
     token_tree::TokenTree,
@@ -67,19 +67,6 @@ impl<'me> Parser<'me> {
         let narrow = self.peek(test)?;
         self.tokens.consume();
         Some((span, narrow))
-    }
-
-    /// Run `op` -- if it returns `None`, then no tokens are consumed.
-    /// If it returns `Some`, then the tokens are consumed.
-    /// Use sparingly, and try not to report errors or have side-effects in `op`.
-    fn lookahead<R>(&mut self, op: impl FnOnce(&mut Self) -> Option<R>) -> Option<R> {
-        let tokens = self.tokens;
-        let r = op(self);
-        if r.is_none() {
-            // Restore tokens that `op` may have consumed.
-            self.tokens = tokens;
-        }
-        r
     }
 
     /// Run `op` to get a true/false but rollback any tokens consumed.
@@ -261,6 +248,59 @@ impl CodeParser<'_, '_> {
         span = span.tighten_span(self);
         self.spans.push(key, span);
         key
+    }
+
+    /// Returns a span that starts at `optional` (if present) and
+    /// `required` (otherwise) and ends at the current point.
+    fn span_consumed_since_parsing<O, R>(&self, optional: O, required: R) -> Span
+    where
+        O: OptionalHasSpan,
+        R: HasOriginIn<Spans, Origin = Span>,
+    {
+        if let Some(start) = optional.to_optional_span(self.spans) {
+            self.span_consumed_since(start)
+        } else {
+            let start = self.spans[required];
+            self.span_consumed_since(start)
+        }
+    }
+
+    /// Run `op` -- if it returns `None`, then no tokens are consumed.
+    /// If it returns `Some`, then the tokens are consumed.
+    /// Use sparingly, and try not to report errors or have side-effects in `op`.
+    fn lookahead<R>(&mut self, op: impl FnOnce(&mut Self) -> Option<R>) -> Option<R> {
+        let tokens = self.tokens;
+        let r = op(self);
+        if r.is_none() {
+            // Restore tokens that `op` may have consumed.
+            self.tokens = tokens;
+        }
+        r
+    }
+}
+
+trait OptionalHasSpan {
+    fn to_optional_span(self, spans: &Spans) -> Option<Span>;
+}
+
+impl<T> OptionalHasSpan for Option<T>
+where
+    T: HasOriginIn<Spans, Origin = Span>,
+{
+    fn to_optional_span(self, spans: &Spans) -> Option<Span> {
+        self.map(|s| spans[s])
+    }
+}
+
+impl<A, B> OptionalHasSpan for (A, B)
+where
+    A: OptionalHasSpan,
+    B: OptionalHasSpan,
+{
+    fn to_optional_span(self, spans: &Spans) -> Option<Span> {
+        let (a, b) = self;
+        a.to_optional_span(spans)
+            .or_else(|| b.to_optional_span(spans))
     }
 }
 

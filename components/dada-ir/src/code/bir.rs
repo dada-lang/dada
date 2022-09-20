@@ -10,9 +10,9 @@ use crate::{
     intrinsic::Intrinsic,
     origin_table::HasOriginIn,
     prelude::InIrDbExt,
-    span::{Anchored, FileSpan},
+    span::{Anchored, FileSpan, Span},
     storage::Atomic,
-    word::{SpannedOptionalWord, Word},
+    word::Word,
 };
 use dada_id::{id, prelude::*, tables};
 use salsa::DebugWithDb;
@@ -59,14 +59,18 @@ impl InIrDb<'_, Bir> {
 }
 
 impl Bir {
-    /// Given a `syntax_expr` within this BIR, find its span. This operation
+    /// Given a `syntax_node` within this BIR, find its span. This operation
     /// is to be avoided unless reporting a diagnostic or really needed, because
     /// it induces a dependency on the *precise span* of the expression and hence
     /// will require re-execution if most anything in the source file changes, even
     /// just adding whitespace.
-    pub fn span_of(self, db: &dyn crate::Db, syntax_expr: syntax::Expr) -> FileSpan {
+    pub fn span_of(
+        self,
+        db: &dyn crate::Db,
+        syntax_node: impl HasOriginIn<syntax::Spans, Origin = Span>,
+    ) -> FileSpan {
         let syntax_tree = self.syntax_tree(db);
-        syntax_tree.spans(db)[syntax_expr].anchor_to(db, self)
+        syntax_tree.spans(db)[syntax_node].anchor_to(db, self)
     }
 }
 
@@ -145,6 +149,7 @@ tables! {
         exprs: alloc Expr => ExprData,
         places: alloc Place => PlaceData,
         target_places: alloc TargetPlace => TargetPlaceData,
+        name: alloc Name => NameData,
     }
 }
 
@@ -163,6 +168,7 @@ origin_table! {
         expr: Expr => syntax::Expr,
         place: Place => syntax::Expr,
         target_place: TargetPlace => syntax::Expr,
+        name: Name => syntax::Name,
     }
 }
 
@@ -375,7 +381,7 @@ pub enum TerminatorExpr {
     Call {
         function: Place,
         arguments: Vec<Place>,
-        labels: Vec<SpannedOptionalWord>,
+        labels: Vec<Option<Name>>,
     },
 }
 
@@ -391,7 +397,7 @@ impl DebugWithDb<InIrDb<'_, Bir>> for TerminatorExpr {
                 .debug_tuple("Call")
                 .field(&function.debug(db))
                 .field(&arguments.debug(db))
-                .field(&labels.debug(db.db()))
+                .field(&labels.debug(db))
                 .finish(),
         }
     }
@@ -552,4 +558,17 @@ impl DebugWithDb<InIrDb<'_, Bir>> for TargetPlaceData {
             TargetPlaceData::Dot(p, id) => write!(f, "{:?}.{}", p.debug(db), id.as_str(db.db())),
         }
     }
+}
+
+id!(pub struct Name);
+
+impl DebugWithDb<InIrDb<'_, Bir>> for Name {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>, db: &InIrDb<'_, Bir>) -> std::fmt::Result {
+        write!(f, "{:?}", self.data(db.tables()).word.debug(db.db()))
+    }
+}
+
+#[derive(PartialEq, Eq, Clone, Hash, Debug)]
+pub struct NameData {
+    pub word: Word,
 }

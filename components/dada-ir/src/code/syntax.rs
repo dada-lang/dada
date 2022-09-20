@@ -1,10 +1,6 @@
 use crate::{
-    code::syntax::op::Op,
-    in_ir_db::InIrDb,
-    in_ir_db::InIrDbExt,
-    span::Span,
-    storage::Atomic,
-    word::{SpannedOptionalWord, Word},
+    code::syntax::op::Op, in_ir_db::InIrDb, in_ir_db::InIrDbExt, span::Span, storage::Atomic,
+    word::Word,
 };
 use dada_id::{id, prelude::*, tables};
 use derive_new::new;
@@ -86,6 +82,7 @@ tables! {
         local_variable_decls: alloc LocalVariableDecl => LocalVariableDeclData,
         return_type_decl: alloc ReturnTypeDecl => ReturnTypeDeclData,
         atomic_keyword: alloc AtomicKeyword => AtomicKeywordData,
+        name: alloc Name => NameData,
     }
 }
 
@@ -102,6 +99,7 @@ origin_table! {
         local_variable_decl_spans: LocalVariableDecl => LocalVariableDeclSpan,
         return_type_decl: ReturnTypeDecl => Span,
         atomic_keyword: AtomicKeyword => Span,
+        name: Name => Span,
     }
 }
 
@@ -344,13 +342,13 @@ impl DebugWithDb<InIrDb<'_, Tree>> for NamedExpr {
 
 #[derive(PartialEq, Eq, PartialOrd, Ord, Clone, Hash, Debug)]
 pub struct NamedExprData {
-    pub name: SpannedOptionalWord,
+    pub name: Option<Name>,
     pub expr: Expr,
 }
 
 impl DebugWithDb<InIrDb<'_, Tree>> for NamedExprData {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>, db: &InIrDb<'_, Tree>) -> std::fmt::Result {
-        f.debug_tuple(&format!("{:?}", self.name.word(db.db()).debug(db.db())))
+        f.debug_tuple(&format!("{:?}", self.name.debug(db)))
             .field(&self.expr.debug(db))
             .finish()
     }
@@ -369,3 +367,16 @@ impl DebugWithDb<InIrDb<'_, Tree>> for AtomicKeyword {
 
 #[derive(PartialEq, Eq, PartialOrd, Ord, Clone, Hash, Debug)]
 pub struct AtomicKeywordData;
+
+// Represents the name of something (an identifier).
+id!(pub struct Name);
+
+impl DebugWithDb<InIrDb<'_, Tree>> for Name {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>, db: &InIrDb<'_, Tree>) -> std::fmt::Result {
+        self.data(db.tables()).word.fmt(f, db.db())
+    }
+}
+#[derive(PartialEq, Eq, PartialOrd, Ord, Clone, Hash, Debug)]
+pub struct NameData {
+    pub word: Word,
+}
