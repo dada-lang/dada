@@ -2,8 +2,9 @@
 //!
 //! Does not parse the bodies of functions etc.
 
-use crate::{parser::Parser, token_test::Identifier};
+use crate::parser::Parser;
 
+use dada_id::InternKey;
 use dada_ir::{
     class::Class,
     code::{
@@ -57,7 +58,6 @@ impl<'db> Parser<'db> {
                 self.db,
                 main_name,
                 self.input_file,
-                main_span,
                 Effect::Async,
                 main_span,
                 FunctionSignature::Main,
@@ -91,24 +91,26 @@ impl<'db> Parser<'db> {
 
     fn parse_class(&mut self) -> Option<Class> {
         let (class_span, _) = self.eat(Keyword::Class)?;
-        let (class_name_span, class_name) = self
-            .eat(Identifier)
-            .or_report_error(self, || "expected a class name")?;
 
         let mut signature_tables = syntax::Tables::default();
         let mut signature_spans = syntax::Spans::default();
         let mut signature_parser = self.code_parser(&mut signature_tables, &mut signature_spans);
+
+        let name = signature_parser
+            .parse_name()
+            .or_report_error(&mut signature_parser, || "expected a class name")?;
         let parameters = signature_parser
             .parse_parameter_list()
-            .or_report_error(self, || "expected class parameters".to_string())?;
-        let signature_data = syntax::SignatureData { parameters };
+            .or_report_error(&mut signature_parser, || {
+                "expected class parameters".to_string()
+            })?;
+        let signature_data = syntax::SignatureData { name, parameters };
         let signature = syntax::Signature::new(signature_data, signature_tables, signature_spans);
 
         Some(Class::new(
             self.db,
-            class_name,
+            name.data(&signature.tables).word,
             self.input_file,
-            class_name_span,
             signature,
             self.span_consumed_since(class_span),
         ))
@@ -132,13 +134,15 @@ impl<'db> Parser<'db> {
             (None, Effect::Default)
         };
         let (fn_span, _) = self.eat(Keyword::Fn).unwrap();
-        let (func_name_span, func_name) = self
-            .eat(Identifier)
-            .or_report_error(self, || "expected function name".to_string())?;
 
         let mut signature_tables = syntax::Tables::default();
         let mut signature_spans = syntax::Spans::default();
         let mut signature_parser = self.code_parser(&mut signature_tables, &mut signature_spans);
+        let name = signature_parser
+            .parse_name()
+            .or_report_error(&mut signature_parser, || {
+                "expected function name".to_string()
+            })?;
         let parameters = signature_parser
             .parse_parameter_list()
             .or_report_error(&mut signature_parser, || {
@@ -150,13 +154,12 @@ impl<'db> Parser<'db> {
             .or_report_error(self, || "expected function body".to_string())?;
         let code = UnparsedCode::new(body_tokens);
         let start_span = effect_span.unwrap_or(fn_span);
-        let signature_data = syntax::SignatureData { parameters };
+        let signature_data = syntax::SignatureData { name, parameters };
         let signature = syntax::Signature::new(signature_data, signature_tables, signature_spans);
         Some(Function::new(
             self.db,
-            func_name,
+            name.data(&signature.tables).word,
             self.input_file,
-            func_name_span,
             effect,
             effect_span.unwrap_or(fn_span),
             FunctionSignature::Syntax(signature),

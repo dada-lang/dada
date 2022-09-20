@@ -23,6 +23,10 @@ pub struct Signature {
 /// Stores the ast for a function.
 #[derive(Clone, Debug, PartialEq, Eq)]
 pub struct SignatureData {
+    /// The name of the function.
+    pub name: Name,
+
+    /// The parameters to the function.
     pub parameters: Vec<LocalVariableDecl>,
 }
 

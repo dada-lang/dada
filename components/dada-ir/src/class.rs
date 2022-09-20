@@ -12,13 +12,18 @@ pub struct Class {
 
     input_file: InputFile,
 
-    name_span: Span,
-
     #[return_ref]
     signature: syntax::Signature,
 
     /// Overall span of the class (including any body)
     span: Span,
+}
+
+impl Class {
+    pub fn name_span(self, db: &dyn crate::Db) -> Span {
+        let signature = self.signature(db);
+        signature.spans[signature.data.name]
+    }
 }
 
 impl Anchored for Class {

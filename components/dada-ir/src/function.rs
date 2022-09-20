@@ -16,8 +16,6 @@ pub struct Function {
 
     input_file: InputFile,
 
-    name_span: Span,
-
     /// Declared effect for the function body -- e.g., `async fn` would have
     /// this be `async`. This can affect validation and code generation.
     effect: Effect,
@@ -47,12 +45,6 @@ pub struct Function {
     span: Span,
 }
 
-impl Anchored for Function {
-    fn input_file(&self, db: &dyn crate::Db) -> InputFile {
-        Function::input_file(*self, db)
-    }
-}
-
 #[derive(Clone, PartialEq, Eq, Debug)]
 #[allow(clippy::large_enum_variant)]
 pub enum FunctionSignature {
@@ -61,6 +53,30 @@ pub enum FunctionSignature {
 
     /// The signature is the generated signature of the main function.
     Main,
+}
+
+impl Anchored for Function {
+    fn input_file(&self, db: &dyn crate::Db) -> InputFile {
+        Function::input_file(*self, db)
+    }
+}
+
+impl Function {
+    /// Returns the span of the function name.
+    ///
+    /// If this is a synthesized function (i.e., `main`),
+    /// then we just return the entire source from
+    /// which the function was synthesized.
+    pub fn name_span(self, db: &dyn crate::Db) -> Span {
+        match self.signature(db) {
+            FunctionSignature::Syntax(s) => {
+                let name = s.data.name;
+                s.spans[name]
+            }
+
+            FunctionSignature::Main => self.span(db),
+        }
+    }
 }
 
 impl<Db: ?Sized + crate::Db> salsa::DebugWithDb<Db> for Function {
