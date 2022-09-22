@@ -20,7 +20,7 @@ use salsa::AsId;
 
 mod expr;
 mod items;
-mod parameter;
+mod signature;
 mod ty;
 
 /// The base parser: tracks the input tokens and input file.
