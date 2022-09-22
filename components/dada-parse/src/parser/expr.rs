@@ -6,20 +6,16 @@ use crate::{
 use dada_ir::{
     code::{
         syntax::op::Op,
-        syntax::{
-            AtomicKeywordData, Expr, ExprData, LocalVariableDeclData, LocalVariableDeclSpan, Name,
-            NameData, NamedExpr, NamedExprData,
-        },
+        syntax::{Expr, ExprData, LocalVariableDeclData, Name, NameData, NamedExpr, NamedExprData},
     },
     format_string::FormatStringSectionData,
     kw::Keyword,
     span::Span,
-    storage::Atomic,
     token::Token,
     token_tree::TokenTree,
 };
 
-use super::{CodeParser, OrReportError, ParseList};
+use super::{CodeParser, OrReportError, ParseList, SpanFallover};
 
 impl CodeParser<'_, '_> {
     /// Parses a series of expressions; expects to consume all available tokens (and errors if there are extra).
@@ -67,7 +63,7 @@ impl CodeParser<'_, '_> {
             self.parse_expr()?
         };
 
-        let span = self.span_consumed_since_parsing(name, expr);
+        let span = self.span_consumed_since_parsing(name.or_parsing(expr));
         Some(self.add(NamedExprData { name, expr }, span))
     }
 
@@ -331,10 +327,9 @@ impl CodeParser<'_, '_> {
         } else if let Some(expr) = self.parse_block_expr() {
             // { ... }
             Some(expr)
-        } else if let Some(kw_span) = self.parse_atomic() {
-            let atomic_kw = self.add(AtomicKeywordData, kw_span);
+        } else if let Some(atomic_kw) = self.parse_atomic() {
             let body_expr = self.parse_required_block_expr(Keyword::Atomic);
-            let span = self.span_consumed_since(kw_span);
+            let span = self.span_consumed_since_parsing(atomic_kw);
             tracing::debug!("atomic");
             Some(self.add(ExprData::Atomic(atomic_kw, body_expr), span))
         } else if let Some((if_span, _)) = self.eat(Keyword::If) {
@@ -375,32 +370,23 @@ impl CodeParser<'_, '_> {
     fn parse_local_variable_decl(&mut self) -> Option<Expr> {
         // Look for `[mode] x = `. If we see that, we are committed to this
         // being a local variable declaration. Otherwise, we roll fully back.
-        let (atomic_span, atomic, name_span, name) = self.lookahead(|this| {
-            // A storage mode like `shared` or `var` *could* be a variable declaration,
-            // but if we see `atomic` it might not be, so check for the `x = ` next.
-            let (atomic_span, atomic) = if let Some(span) = this.parse_atomic() {
-                (span, Atomic::Yes)
-            } else {
-                (this.tokens.peek_span(), Atomic::No)
-            };
-
-            let (name_span, name) = this.eat(Identifier)?;
+        let (atomic, name) = self.lookahead(|this| {
+            let atomic = this.parse_atomic();
+            let name = this.parse_name()?;
 
             this.eat_op(Op::Equal)?;
 
-            Some((atomic_span, atomic, name_span, name))
+            Some((atomic, name))
         })?;
 
+        let lv_span = self.span_consumed_since_parsing(atomic.or_parsing(name));
         let local_variable_decl = self.add(
             LocalVariableDeclData {
                 atomic,
                 name,
                 ty: None, // FIXME-- should permit `ty: Ty = ...`
             },
-            LocalVariableDeclSpan {
-                atomic_span,
-                name_span,
-            },
+            lv_span,
         );
 
         let value = self
@@ -408,9 +394,10 @@ impl CodeParser<'_, '_> {
             .or_report_error(self, || "expected value for local variable".to_string())
             .or_dummy_expr(self);
 
+        let var_span = self.span_consumed_since_parsing(local_variable_decl);
         Some(self.add(
             ExprData::Var(local_variable_decl, value),
-            self.span_consumed_since(atomic_span),
+            self.span_consumed_since(var_span),
         ))
     }
 

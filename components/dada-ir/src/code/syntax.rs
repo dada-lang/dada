@@ -1,7 +1,4 @@
-use crate::{
-    code::syntax::op::Op, in_ir_db::InIrDb, in_ir_db::InIrDbExt, span::Span, storage::Atomic,
-    word::Word,
-};
+use crate::{code::syntax::op::Op, in_ir_db::InIrDb, in_ir_db::InIrDbExt, span::Span, word::Word};
 use dada_id::{id, prelude::*, tables};
 use derive_new::new;
 use salsa::DebugWithDb;
@@ -12,6 +9,12 @@ use salsa::DebugWithDb;
 pub struct Signature {
     /// The name of the function.
     pub name: Name,
+
+    /// The keyword declaring the function.
+    pub fn_decl: FnDecl,
+
+    /// The "effect" of the fn (i.e., is it declared as async, atomic?), if any.
+    pub effect: Option<EffectKeyword>,
 
     /// The parameters to the function.
     pub parameters: Vec<LocalVariableDecl>,
@@ -79,6 +82,8 @@ tables! {
         local_variable_decls: alloc LocalVariableDecl => LocalVariableDeclData,
         return_type_decl: alloc ReturnTypeDecl => ReturnTypeDeclData,
         atomic_keyword: alloc AtomicKeyword => AtomicKeywordData,
+        async_keyword: alloc AsyncKeyword => AsyncKeywordData,
+        fn_decl: alloc FnDecl => FnDeclData,
         name: alloc Name => NameData,
     }
 }
@@ -93,9 +98,11 @@ origin_table! {
     pub struct Spans {
         expr_spans: Expr => Span,
         named_expr_spans: NamedExpr => Span,
-        local_variable_decl_spans: LocalVariableDecl => LocalVariableDeclSpan,
+        local_variable_decl_spans: LocalVariableDecl => Span,
         return_type_decl: ReturnTypeDecl => Span,
         atomic_keyword: AtomicKeyword => Span,
+        async_keyword: AsyncKeyword => Span,
+        fn_decl: FnDecl => Span,
         name: Name => Span,
     }
 }
@@ -294,8 +301,8 @@ impl DebugWithDb<InIrDb<'_, Tree>> for LocalVariableDecl {
 
 #[derive(PartialEq, Eq, PartialOrd, Ord, Clone, Hash, Debug)]
 pub struct LocalVariableDeclData {
-    pub atomic: Atomic,
-    pub name: Word,
+    pub atomic: Option<AtomicKeyword>,
+    pub name: Name,
     pub ty: Option<crate::ty::Ty>,
 }
 
@@ -303,16 +310,10 @@ impl DebugWithDb<InIrDb<'_, Tree>> for LocalVariableDeclData {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>, db: &InIrDb<'_, Tree>) -> std::fmt::Result {
         f.debug_struct("LocalVariableDeclData")
             .field("atomic", &self.atomic)
-            .field("name", &self.name.debug(db.db()))
+            .field("name", &self.name.debug(db))
             .field("ty", &self.ty.debug(db.db()))
             .finish()
     }
-}
-
-#[derive(PartialEq, Eq, Clone, Hash, Debug)]
-pub struct LocalVariableDeclSpan {
-    pub atomic_span: Span,
-    pub name_span: Span,
 }
 
 id!(pub struct ReturnTypeDecl);
@@ -352,6 +353,45 @@ impl DebugWithDb<InIrDb<'_, Tree>> for NamedExprData {
 }
 
 pub mod op;
+
+// Represents the `fn` or `class` keyword that defined the function. Used primarily to carry the span.
+id!(pub struct FnDecl);
+
+impl DebugWithDb<InIrDb<'_, Tree>> for FnDecl {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>, db: &InIrDb<'_, Tree>) -> std::fmt::Result {
+        match self.data(db.tables()) {
+            FnDeclData::Fn => write!(f, "fn"),
+            FnDeclData::Class => write!(f, "class"),
+        }
+    }
+}
+
+#[derive(PartialEq, Eq, PartialOrd, Ord, Copy, Clone, Hash, Debug)]
+pub enum FnDeclData {
+    /// The `fn` in a `fn foo()` declaration
+    Fn,
+
+    /// The `class` in a `class Foo()` declaration
+    Class,
+}
+
+#[derive(PartialEq, Eq, PartialOrd, Ord, Copy, Clone, Hash, Debug)]
+pub enum EffectKeyword {
+    Async(AsyncKeyword),
+    Atomic(AtomicKeyword),
+}
+
+// Represents an `async` keyword. Used to carry the span.
+id!(pub struct AsyncKeyword);
+
+impl DebugWithDb<InIrDb<'_, Tree>> for AsyncKeyword {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>, _db: &InIrDb<'_, Tree>) -> std::fmt::Result {
+        write!(f, "atomic")
+    }
+}
+
+#[derive(PartialEq, Eq, PartialOrd, Ord, Clone, Hash, Debug)]
+pub struct AsyncKeywordData;
 
 // Represents an atomic keyword. Used to carry the span.
 id!(pub struct AtomicKeyword);

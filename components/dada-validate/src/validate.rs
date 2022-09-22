@@ -1,8 +1,10 @@
+use dada_id::InternKey;
 use dada_ir::class::Class;
 use dada_ir::code::{syntax, validated};
 use dada_ir::function::{Function, FunctionSignature};
 use dada_ir::input_file::InputFile;
 use dada_ir::parameter::Parameter;
+use dada_ir::storage::Atomic;
 use dada_parse::prelude::*;
 
 use self::name_lookup::Scope;
@@ -61,8 +63,13 @@ fn signature_parameters(db: &dyn crate::Db, signature: &syntax::Signature) -> Ve
         .parameters
         .iter()
         .map(|&lv| {
-            let lv_data = &tables[lv];
-            Parameter::new(db, lv_data.name, lv_data.atomic)
+            let lv_data = lv.data(tables);
+            let atomic = match lv_data.atomic {
+                Some(_) => Atomic::Yes,
+                None => Atomic::No,
+            };
+            let name = lv_data.name.data(tables).word;
+            Parameter::new(db, name, atomic)
         })
         .collect()
 }

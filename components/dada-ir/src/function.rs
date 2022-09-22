@@ -1,7 +1,10 @@
 #![allow(clippy::too_many_arguments)] // omg clippy, mind your own business
 
 use crate::{
-    code::{syntax::Signature, UnparsedCode},
+    code::{
+        syntax::{EffectKeyword, Signature},
+        UnparsedCode,
+    },
     effect::Effect,
     input_file::InputFile,
     return_type::ReturnType,
@@ -15,14 +18,6 @@ pub struct Function {
     name: Word,
 
     input_file: InputFile,
-
-    /// Declared effect for the function body -- e.g., `async fn` would have
-    /// this be `async`. This can affect validation and code generation.
-    effect: Effect,
-
-    /// If this func has a declared effect, this is the span of that keyword (e.g., `async`)
-    /// Otherwise, it is the span of the `fn` keyword.
-    effect_span: Span,
 
     /// The function signature.
     #[return_ref]
@@ -70,6 +65,35 @@ impl Function {
     pub fn name_span(self, db: &dyn crate::Db) -> Span {
         match self.signature(db) {
             FunctionSignature::Syntax(s) => s.spans[s.name],
+
+            FunctionSignature::Main => self.span(db),
+        }
+    }
+
+    /// Returns the "effect" of the function -- is it async? atomic? Default?
+    pub fn effect(self, db: &dyn crate::Db) -> Effect {
+        match self.signature(db) {
+            FunctionSignature::Syntax(s) => match s.effect {
+                Some(EffectKeyword::Async(_)) => Effect::Async,
+                Some(EffectKeyword::Atomic(_)) => Effect::Atomic,
+                None => Effect::Default,
+            },
+
+            FunctionSignature::Main => Effect::Async,
+        }
+    }
+
+    /// Returns the span where the effect was declared (if any).
+    /// If there is no declared effect (e.g., just `fn foo()`), returns the span of the `fn` keyword.
+    ///
+    /// (In the case of a synthetic main function, returns the span of the entire function.)
+    pub fn effect_span(self, db: &dyn crate::Db) -> Span {
+        match self.signature(db) {
+            FunctionSignature::Syntax(s) => match s.effect {
+                Some(EffectKeyword::Async(k)) => s.spans[k],
+                Some(EffectKeyword::Atomic(k)) => s.spans[k],
+                None => s.spans[s.fn_decl],
+            },
 
             FunctionSignature::Main => self.span(db),
         }

@@ -7,10 +7,9 @@ use crate::{
 
 use dada_id::InternValue;
 use dada_ir::{
-    code::syntax::{self, op::Op, LocalVariableDeclSpan, Spans, Tables},
+    code::syntax::{self, op::Op, Spans, Tables},
     diagnostic::DiagnosticBuilder,
     input_file::InputFile,
-    kw::Keyword,
     origin_table::{HasOriginIn, PushOriginIn},
     span::Span,
     token::Token,
@@ -57,6 +56,11 @@ impl<'me> Parser<'me> {
     fn peek<TT: TokenTest>(&mut self, test: TT) -> Option<TT::Narrow> {
         let span = self.tokens.peek_span().anchor_to(self.db, self.input_file);
         test.test(self.db, self.tokens.peek()?, span)
+    }
+
+    /// Span of the next pending token, or the span of EOF if there is no next token.
+    fn peek_span(&mut self) -> Span {
+        self.tokens.peek_span()
     }
 
     /// If the next pending token matches `test`, consumes it and
@@ -215,14 +219,6 @@ impl<'me> Parser<'me> {
         )
     }
 
-    fn parse_atomic(&mut self) -> Option<Span> {
-        if let Some((span, _)) = self.eat(Keyword::Atomic) {
-            Some(span)
-        } else {
-            None
-        }
-    }
-
     fn code_parser<'a>(
         &'a mut self,
         tables: &'a mut syntax::Tables,
@@ -252,17 +248,12 @@ impl CodeParser<'_, '_> {
 
     /// Returns a span that starts at `optional` (if present) and
     /// `required` (otherwise) and ends at the current point.
-    fn span_consumed_since_parsing<O, R>(&self, optional: O, required: R) -> Span
+    fn span_consumed_since_parsing<N>(&self, element: N) -> Span
     where
-        O: OptionalHasSpan,
-        R: HasOriginIn<Spans, Origin = Span>,
+        N: HasSpan,
     {
-        if let Some(start) = optional.to_optional_span(self.spans) {
-            self.span_consumed_since(start)
-        } else {
-            let start = self.spans[required];
-            self.span_consumed_since(start)
-        }
+        let start = element.to_span(self.spans);
+        self.span_consumed_since(start)
     }
 
     /// Run `op` -- if it returns `None`, then no tokens are consumed.
@@ -279,28 +270,74 @@ impl CodeParser<'_, '_> {
     }
 }
 
-trait OptionalHasSpan {
+/// Crate used with `span_consumed_since_parsing` to cover the case
+/// where the start of some declaration has some optional keywords.
+trait SpanFallover: OptionalHasSpan {
+    fn or_parsing<N>(self, n: N) -> SpanFalloverLink<Self, N>
+    where
+        N: HasOriginIn<Spans, Origin = Span>,
+    {
+        SpanFalloverLink { o: self, n }
+    }
+}
+
+impl<N> SpanFallover for N where N: OptionalHasSpan {}
+
+struct SpanFalloverLink<O, N>
+where
+    O: OptionalHasSpan,
+{
+    o: O,
+    n: N,
+}
+
+impl<O, N> HasSpan for SpanFalloverLink<O, N>
+where
+    O: OptionalHasSpan,
+    N: HasSpan,
+{
+    fn to_span(self, spans: &Spans) -> Span {
+        self.o
+            .to_optional_span(spans)
+            .unwrap_or_else(|| self.n.to_span(spans))
+    }
+}
+
+impl<O, N> OptionalHasSpan for SpanFalloverLink<O, N>
+where
+    O: OptionalHasSpan,
+    N: OptionalHasSpan,
+{
+    fn to_optional_span(self, spans: &Spans) -> Option<Span> {
+        self.o
+            .to_optional_span(spans)
+            .or_else(|| self.n.to_optional_span(spans))
+    }
+}
+
+trait HasSpan: Sized {
+    fn to_span(self, spans: &Spans) -> Span;
+}
+
+impl<N> HasSpan for N
+where
+    N: HasOriginIn<Spans, Origin = Span>,
+{
+    fn to_span(self, spans: &Spans) -> Span {
+        spans[self]
+    }
+}
+
+trait OptionalHasSpan: Sized {
     fn to_optional_span(self, spans: &Spans) -> Option<Span>;
 }
 
 impl<T> OptionalHasSpan for Option<T>
 where
-    T: HasOriginIn<Spans, Origin = Span>,
+    T: HasSpan,
 {
     fn to_optional_span(self, spans: &Spans) -> Option<Span> {
-        self.map(|s| spans[s])
-    }
-}
-
-impl<A, B> OptionalHasSpan for (A, B)
-where
-    A: OptionalHasSpan,
-    B: OptionalHasSpan,
-{
-    fn to_optional_span(self, spans: &Spans) -> Option<Span> {
-        let (a, b) = self;
-        a.to_optional_span(spans)
-            .or_else(|| b.to_optional_span(spans))
+        self.map(|s| s.to_span(spans))
     }
 }
 
@@ -426,14 +463,5 @@ trait TightenSpan {
 impl TightenSpan for Span {
     fn tighten_span(self, parser: &Parser<'_>) -> Self {
         parser.tighten_span(self)
-    }
-}
-
-impl TightenSpan for LocalVariableDeclSpan {
-    fn tighten_span(self, parser: &Parser<'_>) -> Self {
-        LocalVariableDeclSpan {
-            atomic_span: self.atomic_span.tighten_span(parser),
-            name_span: self.name_span.tighten_span(parser),
-        }
     }
 }

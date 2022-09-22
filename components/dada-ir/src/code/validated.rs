@@ -168,7 +168,10 @@ impl DebugWithDb<InIrDb<'_, Tree>> for LocalVariable {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>, db: &InIrDb<'_, Tree>) -> std::fmt::Result {
         let id = u32::from(*self);
         let data = self.data(db.tables());
-        let name = data.name.map(|n| n.as_str(db.db())).unwrap_or("temp");
+        let name = data
+            .name
+            .map(|n| n.data(db.tables()).word.as_str(db.db()))
+            .unwrap_or("temp");
         write!(f, "{name}{{{id}}}")
     }
 }
@@ -189,7 +192,7 @@ pub struct LocalVariableData {
     /// temporaries because validation temporaries are
     /// considered roots for the GC in the official
     /// semantics.
-    pub name: Option<Word>,
+    pub name: Option<Name>,
 
     pub atomic: Atomic,
 }

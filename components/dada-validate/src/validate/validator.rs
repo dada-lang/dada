@@ -1,6 +1,7 @@
 use dada_id::prelude::*;
 use dada_ir::code::syntax;
 use dada_ir::code::syntax::op::Op;
+use dada_ir::code::syntax::AtomicKeyword;
 use dada_ir::code::validated;
 use dada_ir::code::validated::ExprOrigin;
 use dada_ir::code::validated::LocalVariableOrigin;
@@ -128,15 +129,17 @@ impl<'me> Validator<'me> {
         } = signature;
         for &lv in parameters {
             let lv_data = &tables[lv];
-
+            let atomic = lv_data.atomic.map(|_| Atomic::Yes).unwrap_or(Atomic::No);
+            let name = self.validate_name_in_tables(lv_data.name, tables);
             let local_variable = self.add(
                 validated::LocalVariableData {
-                    name: Some(lv_data.name),
-                    atomic: lv_data.atomic,
+                    name: Some(name),
+                    atomic,
                 },
                 validated::LocalVariableOrigin::Parameter(lv),
             );
-            self.scope.insert(lv_data.name, local_variable);
+            let word = name.data(self.tables).word;
+            self.scope.insert(word, local_variable);
         }
     }
 
@@ -350,14 +353,17 @@ impl<'me> Validator<'me> {
 
             syntax::ExprData::Var(decl, initializer_expr) => {
                 let decl_data = decl.data(self.syntax_tables);
+                let name = self.validate_name(decl_data.name);
+                let atomic = decl_data.atomic.map(|_| Atomic::Yes).unwrap_or(Atomic::No);
                 let local_variable = self.add(
                     validated::LocalVariableData {
-                        name: Some(decl_data.name),
-                        atomic: decl_data.atomic,
+                        name: Some(name),
+                        atomic,
                     },
                     validated::LocalVariableOrigin::LocalVariable(*decl),
                 );
-                self.scope.insert(decl_data.name, local_variable);
+                let word = name.data(self.tables).word;
+                self.scope.insert(word, local_variable);
 
                 let target_place = self.add(
                     validated::TargetPlaceData::LocalVariable(local_variable),
@@ -919,8 +925,19 @@ impl<'me> Validator<'me> {
         )
     }
 
+    /// Create the validated node for a name that appears in the function body.
     fn validate_name(&mut self, name: syntax::Name) -> validated::Name {
-        let syntax::NameData { word } = name.data(self.syntax_tables);
+        self.validate_name_in_tables(name, self.syntax_tables)
+    }
+
+    /// Create the validated node for a name that appears in the signature or function body,
+    /// you have to supply the appropriate syntax tables.
+    fn validate_name_in_tables(
+        &mut self,
+        name: syntax::Name,
+        syntax_tables: &syntax::Tables,
+    ) -> validated::Name {
+        let syntax::NameData { word } = name.data(syntax_tables);
         self.add(validated::NameData { word: *word }, name)
     }
 
@@ -1057,5 +1074,17 @@ impl IntoOrigin for LocalVariableOrigin {
             // we can't make other variables be synthesized
             _ => panic!("cannot force local variable origin to be synthesized"),
         }
+    }
+}
+
+impl IntoOrigin for AtomicKeyword {
+    type Origin = AtomicKeyword;
+
+    fn into_origin(self) -> Self::Origin {
+        self
+    }
+
+    fn synthesized(self) -> Self::Origin {
+        panic!("cannot force atomic keyword to be synthesized")
     }
 }

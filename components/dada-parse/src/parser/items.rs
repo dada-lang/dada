@@ -11,7 +11,6 @@ use dada_ir::{
         syntax::{self, op::Op, Expr, ExprData, Spans, Tables, Tree, TreeData},
         UnparsedCode,
     },
-    effect::Effect,
     function::{Function, FunctionSignature},
     item::Item,
     kw::Keyword,
@@ -58,8 +57,6 @@ impl<'db> Parser<'db> {
                 self.db,
                 main_name,
                 self.input_file,
-                Effect::Async,
-                main_span,
                 FunctionSignature::Main,
                 return_type,
                 None,
@@ -90,12 +87,14 @@ impl<'db> Parser<'db> {
     }
 
     fn parse_class(&mut self) -> Option<Class> {
-        let (class_span, _) = self.eat(Keyword::Class)?;
+        let start_span = self.peek_span();
+        self.peek(Keyword::Class)?;
 
         let mut signature_tables = syntax::Tables::default();
         let mut signature_spans = syntax::Spans::default();
         let mut signature_parser = self.code_parser(&mut signature_tables, &mut signature_spans);
 
+        let fn_decl = signature_parser.parse_class().unwrap();
         let name = signature_parser
             .parse_name()
             .or_report_error(&mut signature_parser, || "expected a class name")?;
@@ -104,14 +103,21 @@ impl<'db> Parser<'db> {
             .or_report_error(&mut signature_parser, || {
                 "expected class parameters".to_string()
             })?;
-        let signature = syntax::Signature::new(name, parameters, signature_tables, signature_spans);
+        let signature = syntax::Signature::new(
+            name,
+            fn_decl,
+            None,
+            parameters,
+            signature_tables,
+            signature_spans,
+        );
 
         Some(Class::new(
             self.db,
             name.data(&signature.tables).word,
             self.input_file,
             signature,
-            self.span_consumed_since(class_span),
+            self.span_consumed_since(start_span),
         ))
     }
 
@@ -127,16 +133,13 @@ impl<'db> Parser<'db> {
             return None;
         }
 
-        let (effect_span, effect) = if let Some((span, _)) = self.eat(Keyword::Async) {
-            (Some(span), Effect::Async)
-        } else {
-            (None, Effect::Default)
-        };
-        let (fn_span, _) = self.eat(Keyword::Fn).unwrap();
+        let start_span = self.peek_span();
 
         let mut signature_tables = syntax::Tables::default();
         let mut signature_spans = syntax::Spans::default();
         let mut signature_parser = self.code_parser(&mut signature_tables, &mut signature_spans);
+        let effect = signature_parser.parse_effect();
+        let fn_kw = signature_parser.parse_fn().unwrap(); // we peeked above, it should be there
         let name = signature_parser
             .parse_name()
             .or_report_error(&mut signature_parser, || {
@@ -152,14 +155,18 @@ impl<'db> Parser<'db> {
             .delimited('{')
             .or_report_error(self, || "expected function body".to_string())?;
         let code = UnparsedCode::new(body_tokens);
-        let start_span = effect_span.unwrap_or(fn_span);
-        let signature = syntax::Signature::new(name, parameters, signature_tables, signature_spans);
+        let signature = syntax::Signature::new(
+            name,
+            fn_kw,
+            effect,
+            parameters,
+            signature_tables,
+            signature_spans,
+        );
         Some(Function::new(
             self.db,
             name.data(&signature.tables).word,
             self.input_file,
-            effect,
-            effect_span.unwrap_or(fn_span),
             FunctionSignature::Syntax(signature),
             return_type,
             Some(code),
@@ -232,3 +239,5 @@ impl<'db> Parser<'db> {
         Tree::new(self.db, tree_data, tables, spans)
     }
 }
+
+impl CodeParser<'_, '_> {}

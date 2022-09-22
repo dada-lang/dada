@@ -1,14 +1,47 @@
-use crate::{parser::Parser, token_test::Identifier};
+use crate::parser::Parser;
 
 use dada_ir::{
     code::syntax::op::Op,
-    code::syntax::{LocalVariableDecl, LocalVariableDeclData, LocalVariableDeclSpan},
-    storage::Atomic,
+    code::syntax::{
+        AsyncKeyword, AsyncKeywordData, AtomicKeyword, AtomicKeywordData, EffectKeyword, FnDecl,
+        FnDeclData, LocalVariableDecl, LocalVariableDeclData,
+    },
+    kw::Keyword,
 };
 
-use super::{CodeParser, ParseList};
+use super::{CodeParser, ParseList, SpanFallover};
 
 impl CodeParser<'_, '_> {
+    pub(crate) fn parse_fn(&mut self) -> Option<FnDecl> {
+        let (kw_span, _) = self.eat(Keyword::Fn)?;
+        Some(self.add(FnDeclData::Fn, kw_span))
+    }
+
+    pub(crate) fn parse_class(&mut self) -> Option<FnDecl> {
+        let (kw_span, _) = self.eat(Keyword::Class)?;
+        Some(self.add(FnDeclData::Class, kw_span))
+    }
+
+    pub(crate) fn parse_effect(&mut self) -> Option<EffectKeyword> {
+        if let Some(k) = self.parse_atomic() {
+            Some(EffectKeyword::Atomic(k))
+        } else if let Some(k) = self.parse_async() {
+            Some(EffectKeyword::Async(k))
+        } else {
+            None
+        }
+    }
+
+    pub(crate) fn parse_atomic(&mut self) -> Option<AtomicKeyword> {
+        let (kw_span, _) = self.eat(Keyword::Atomic)?;
+        Some(self.add(AtomicKeywordData, kw_span))
+    }
+
+    pub(crate) fn parse_async(&mut self) -> Option<AsyncKeyword> {
+        let (kw_span, _) = self.eat(Keyword::Async)?;
+        Some(self.add(AsyncKeywordData, kw_span))
+    }
+
     /// Parses a list of parameters delimited by `()`.
     pub(crate) fn parse_parameter_list(&mut self) -> Option<Vec<LocalVariableDecl>> {
         let (_, parameter_tokens) = self.delimited('(')?;
@@ -28,50 +61,47 @@ impl CodeParser<'_, '_> {
     }
 
     fn parse_parameter(&mut self) -> Option<LocalVariableDecl> {
-        let opt_storage_mode = self.parse_atomic();
-        if let Some((name_span, name)) = self.eat(Identifier) {
-            let opt_ty = if let Some(colon_span) = self.eat_op(Op::Colon) {
-                let opt_ty = self.parse_ty();
+        // Parse an optional "atomic" keyword.
+        let atomic = self.parse_atomic();
 
-                if opt_ty.is_none() {
-                    self.error_at_current_token(&"expected type after `:`".to_string())
-                        .secondary_label(colon_span, "`:` is here".to_string())
-                        .emit(self.db);
-                }
-
-                opt_ty
-            } else {
-                None
-            };
-
-            let (atomic_span, atomic) = match opt_storage_mode {
-                Some(span) => (span, Atomic::Yes),
-                None => (name_span, Atomic::No),
-            };
-
-            let decl = self.add(
-                LocalVariableDeclData {
-                    atomic,
-                    name,
-                    ty: opt_ty,
-                },
-                LocalVariableDeclSpan {
-                    atomic_span,
-                    name_span,
-                },
-            );
-
-            Some(decl)
-        } else {
-            // No identifier == no parameter; if there's a storage mode,
-            // that's an error.
-            if let Some(span) = opt_storage_mode {
+        // Parse the name: if there is no name, then return None, but if we saw the atomic
+        // keyword, we can report an error.
+        let Some(name) = self.parse_name() else {
+            if let Some(atomic) = atomic {
+                let atomic_span = self.spans[atomic];
                 self.error_at_current_token("expected parameter name after `atomic`")
-                    .secondary_label(span, "`atomic` specified here")
+                    .secondary_label(atomic_span, "`atomic` specified here")
                     .emit(self.db);
             }
 
+            return None;
+        };
+
+        // Parse the type.
+        let opt_ty = if let Some(colon_span) = self.eat_op(Op::Colon) {
+            let opt_ty = self.parse_ty();
+
+            if opt_ty.is_none() {
+                self.error_at_current_token(&"expected type after `:`".to_string())
+                    .secondary_label(colon_span, "`:` is here".to_string())
+                    .emit(self.db);
+            }
+
+            opt_ty
+        } else {
             None
-        }
+        };
+
+        let span = self.span_consumed_since_parsing(atomic.or_parsing(name));
+        let decl = self.add(
+            LocalVariableDeclData {
+                atomic,
+                name,
+                ty: opt_ty,
+            },
+            span,
+        );
+
+        Some(decl)
     }
 }
