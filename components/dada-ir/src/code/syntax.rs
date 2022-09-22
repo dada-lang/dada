@@ -10,24 +10,17 @@ use salsa::DebugWithDb;
 /// including e.g. its parameter types.
 #[derive(new, Clone, Debug, PartialEq, Eq)]
 pub struct Signature {
-    /// Identifies the root expression in the function body.
-    pub data: SignatureData,
+    /// The name of the function.
+    pub name: Name,
+
+    /// The parameters to the function.
+    pub parameters: Vec<LocalVariableDecl>,
 
     /// Interning tables for expressions and the like.
     pub tables: Tables,
 
     /// The span information for each node in the tree.
     pub spans: Spans,
-}
-
-/// Stores the ast for a function.
-#[derive(Clone, Debug, PartialEq, Eq)]
-pub struct SignatureData {
-    /// The name of the function.
-    pub name: Name,
-
-    /// The parameters to the function.
-    pub parameters: Vec<LocalVariableDecl>,
 }
 
 /// The "syntax tree" is the parsed form of a function body.

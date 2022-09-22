@@ -69,10 +69,7 @@ impl Function {
     /// which the function was synthesized.
     pub fn name_span(self, db: &dyn crate::Db) -> Span {
         match self.signature(db) {
-            FunctionSignature::Syntax(s) => {
-                let name = s.data.name;
-                s.spans[name]
-            }
+            FunctionSignature::Syntax(s) => s.spans[s.name],
 
             FunctionSignature::Main => self.span(db),
         }

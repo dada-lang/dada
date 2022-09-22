@@ -58,7 +58,6 @@ pub(crate) fn validate_class_fields(db: &dyn crate::Db, class: Class) -> Vec<Par
 fn signature_parameters(db: &dyn crate::Db, signature: &syntax::Signature) -> Vec<Parameter> {
     let tables = &signature.tables;
     signature
-        .data
         .parameters
         .iter()
         .map(|&lv| {

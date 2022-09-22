@@ -22,7 +22,7 @@ pub struct Class {
 impl Class {
     pub fn name_span(self, db: &dyn crate::Db) -> Span {
         let signature = self.signature(db);
-        signature.spans[signature.data.name]
+        signature.spans[signature.name]
     }
 }
 
