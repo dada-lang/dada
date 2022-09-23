@@ -1,6 +1,9 @@
 #![feature(trait_upcasting)]
 #![feature(try_blocks)]
 #![allow(incomplete_features)]
+// Per rust-lang/rust-clippy#8574, gives false warnings.
+// Also see rust-lang/rust-clippy#9522.
+#![allow(clippy::or_fun_call)]
 
 #[salsa::jar(db = Db)]
 pub struct Jar(ext::class_field_names);
