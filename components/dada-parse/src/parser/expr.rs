@@ -76,12 +76,6 @@ impl CodeParser<'_, '_> {
         })
     }
 
-    /// Parse a `foo` name.
-    pub(super) fn parse_name(&mut self) -> Option<Name> {
-        let (word_span, word) = self.eat(Identifier)?;
-        Some(self.add(NameData { word }, word_span))
-    }
-
     /// ```text
     /// Expr := Id
     ///       | UnaryOp Expr

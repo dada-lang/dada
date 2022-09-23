@@ -19,6 +19,7 @@ use salsa::AsId;
 
 mod expr;
 mod items;
+mod path;
 mod signature;
 mod ty;
 
