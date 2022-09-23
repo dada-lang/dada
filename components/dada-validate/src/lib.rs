@@ -2,7 +2,6 @@
 
 #![feature(trait_upcasting)]
 #![feature(try_blocks)]
-#![feature(let_else)]
 #![allow(incomplete_features)]
 
 mod validate;

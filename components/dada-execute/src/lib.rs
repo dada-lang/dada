@@ -1,4 +1,3 @@
-#![feature(let_else)]
 #![feature(trait_upcasting)]
 #![feature(try_blocks)]
 #![allow(incomplete_features)]
