@@ -221,7 +221,7 @@ where
                             start: ch_offset,
                             end,
                         }
-                        .in_file(self.input_file),
+                        .anchor_to(self.db, self.input_file),
                         "format string missing closing brace in code section"
                     )
                     .emit(self.db);

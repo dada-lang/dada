@@ -3,111 +3,19 @@ use crate::{
     token_test::{Alphabetic, FormatStringLiteral, Identifier, Number},
 };
 
-use dada_id::InternValue;
 use dada_ir::{
     code::{
-        syntax::{op::Op, LocalVariableDecl},
-        syntax::{
-            Expr, ExprData, LocalVariableDeclData, LocalVariableDeclSpan, NamedExpr, NamedExprData,
-            Spans, Tables, Tree, TreeData,
-        },
+        syntax::op::Op,
+        syntax::{Expr, ExprData, LocalVariableDeclData, Name, NameData, NamedExpr, NamedExprData},
     },
     format_string::FormatStringSectionData,
     kw::Keyword,
-    origin_table::PushOriginIn,
-    parameter::Parameter,
     span::Span,
-    storage::Atomic,
     token::Token,
     token_tree::TokenTree,
-    word::SpannedOptionalWord,
 };
-use salsa::AsId;
 
-use super::{OrReportError, ParseList};
-
-impl Parser<'_> {
-    pub(crate) fn parse_code_body(&mut self, parameters: &[Parameter]) -> Tree {
-        let db = self.db;
-        let mut tables = Tables::default();
-        let mut spans = Spans::default();
-
-        let mut code_parser = CodeParser {
-            parser: self,
-            tables: &mut tables,
-            spans: &mut spans,
-        };
-
-        let parameter_decls = parameters
-            .iter()
-            .map(|parameter| code_parser.add(parameter.decl(db), parameter.decl_span(db)))
-            .collect::<Vec<_>>();
-
-        let start = code_parser.tokens.last_span();
-        let exprs = code_parser.parse_only_expr_seq();
-        self.create_syntax_tree(start, parameter_decls, tables, spans, exprs)
-    }
-
-    pub(crate) fn parse_top_level_expr(
-        &mut self,
-        tables: &mut Tables,
-        spans: &mut Spans,
-    ) -> Option<Expr> {
-        let mut code_parser = CodeParser {
-            parser: self,
-            tables,
-            spans,
-        };
-        code_parser.parse_expr()
-    }
-
-    pub(crate) fn create_syntax_tree(
-        &mut self,
-        start: Span,
-        parameter_decls: Vec<LocalVariableDecl>,
-        mut tables: Tables,
-        mut spans: Spans,
-        exprs: Vec<Expr>,
-    ) -> Tree {
-        let span = self.span_consumed_since(start);
-
-        let root_expr = {
-            let mut code_parser = CodeParser {
-                parser: self,
-                tables: &mut tables,
-                spans: &mut spans,
-            };
-            code_parser.add(ExprData::Seq(exprs), span)
-        };
-
-        let tree_data = TreeData {
-            tables,
-            parameter_decls,
-            root_expr,
-        };
-        Tree::new(self.db, tree_data, spans)
-    }
-}
-
-struct CodeParser<'me, 'db> {
-    parser: &'me mut Parser<'db>,
-    tables: &'me mut Tables,
-    spans: &'me mut Spans,
-}
-
-impl<'db> std::ops::Deref for CodeParser<'_, 'db> {
-    type Target = Parser<'db>;
-
-    fn deref(&self) -> &Self::Target {
-        self.parser
-    }
-}
-
-impl<'db> std::ops::DerefMut for CodeParser<'_, 'db> {
-    fn deref_mut(&mut self) -> &mut Self::Target {
-        self.parser
-    }
-}
+use super::{CodeParser, OrReportError, ParseList, SpanFallover};
 
 impl CodeParser<'_, '_> {
     /// Parses a series of expressions; expects to consume all available tokens (and errors if there are extra).
@@ -128,27 +36,14 @@ impl CodeParser<'_, '_> {
     }
 
     /// Parses a series of named expressions (`id: expr`); expects to consume all available tokens (and errors if there are extra).
-    pub(crate) fn parse_only_named_exprs(&mut self) -> Vec<NamedExpr> {
+    fn parse_only_named_exprs(&mut self) -> Vec<NamedExpr> {
         let exprs = self.parse_list(true, CodeParser::parse_named_expr);
         self.emit_error_if_more_tokens("extra tokens after end of arguments");
         exprs
     }
 
-    fn add<D, K>(&mut self, data: D, mut span: K::Origin) -> K
-    where
-        D: std::hash::Hash + Eq + std::fmt::Debug,
-        D: InternValue<Table = Tables, Key = K>,
-        K: PushOriginIn<Spans> + AsId,
-        K::Origin: TightenSpan,
-    {
-        let key = self.tables.add(data);
-        span = span.tighten_span(self);
-        self.spans.push(key, span);
-        key
-    }
-
     /// Parses an if/while condition -- this can be any sort of expression but a block.
-    pub(crate) fn parse_condition(&mut self) -> Option<Expr> {
+    fn parse_condition(&mut self) -> Option<Expr> {
         if self.peek(Token::Delimiter('{')).is_some() {
             None
         } else {
@@ -157,38 +52,34 @@ impl CodeParser<'_, '_> {
     }
 
     ///
-    pub(crate) fn parse_named_expr(&mut self) -> Option<NamedExpr> {
-        let (label_span, label, expr);
-
-        if let Some(spanned_label) = self.parse_label() {
+    fn parse_named_expr(&mut self) -> Option<NamedExpr> {
+        let name = self.parse_label();
+        let expr = if name.is_some() {
             // If they provided `foo: ` then the expression is mandatory
-            (label_span, label) = spanned_label;
-            expr = self
-                .parse_expr()
+            self.parse_expr()
                 .or_report_error(self, || "expected expression")
-                .or_dummy_expr(self);
+                .or_dummy_expr(self)
         } else {
-            label_span = self.tokens.peek_span().span_at_start();
-            expr = self.parse_expr()?;
-            label = SpannedOptionalWord::new(self.db, None, label_span.in_file(self.input_file));
+            self.parse_expr()?
         };
 
-        Some(self.add(
-            NamedExprData { name: label, expr },
-            self.span_consumed_since(label_span),
-        ))
+        let span = self.span_consumed_since_parsing(name.or_parsing(expr));
+        Some(self.add(NamedExprData { name, expr }, span))
     }
 
     /// Parse a `foo:` label.
-    pub(crate) fn parse_label(&mut self) -> Option<(Span, SpannedOptionalWord)> {
+    fn parse_label(&mut self) -> Option<Name> {
         self.lookahead(|this| {
-            let (name_span, name) = this.eat(Identifier)?;
+            let (word_span, word) = this.eat(Identifier)?;
             let _colon_span = this.eat_op(Op::Colon)?;
-            Some((
-                name_span,
-                SpannedOptionalWord::new(this.db, Some(name), name_span.in_file(this.input_file)),
-            ))
+            Some(this.add(NameData { word }, word_span))
         })
+    }
+
+    /// Parse a `foo` name.
+    pub(super) fn parse_name(&mut self) -> Option<Name> {
+        let (word_span, word) = self.eat(Identifier)?;
+        Some(self.add(NameData { word }, word_span))
     }
 
     /// ```text
@@ -243,7 +134,7 @@ impl CodeParser<'_, '_> {
         self.parse_expr_6()
     }
 
-    pub(crate) fn parse_expr_6(&mut self) -> Option<Expr> {
+    fn parse_expr_6(&mut self) -> Option<Expr> {
         let mut expr = self.parse_expr_5()?;
 
         loop {
@@ -268,7 +159,7 @@ impl CodeParser<'_, '_> {
         Some(expr)
     }
 
-    pub(crate) fn parse_expr_5(&mut self) -> Option<Expr> {
+    fn parse_expr_5(&mut self) -> Option<Expr> {
         let mut expr = self.parse_expr_4()?;
 
         loop {
@@ -293,7 +184,7 @@ impl CodeParser<'_, '_> {
         Some(expr)
     }
 
-    pub(crate) fn parse_expr_4(&mut self) -> Option<Expr> {
+    fn parse_expr_4(&mut self) -> Option<Expr> {
         let mut expr = self.parse_expr_3()?;
 
         loop {
@@ -309,7 +200,7 @@ impl CodeParser<'_, '_> {
         Some(expr)
     }
 
-    pub(crate) fn parse_expr_3(&mut self) -> Option<Expr> {
+    fn parse_expr_3(&mut self) -> Option<Expr> {
         let mut expr = self.parse_expr_2()?;
 
         loop {
@@ -326,14 +217,14 @@ impl CodeParser<'_, '_> {
         Some(expr)
     }
 
-    pub(crate) fn parse_expr_2(&mut self) -> Option<Expr> {
+    fn parse_expr_2(&mut self) -> Option<Expr> {
         if let Some(expr) = self.parse_unary(&[Op::Minus], Self::parse_expr_2) {
             return Some(expr);
         }
         self.parse_expr_1()
     }
 
-    pub(crate) fn parse_expr_1(&mut self) -> Option<Expr> {
+    fn parse_expr_1(&mut self) -> Option<Expr> {
         let mut expr = self.parse_expr_0()?;
 
         loop {
@@ -385,7 +276,7 @@ impl CodeParser<'_, '_> {
         Some(expr)
     }
 
-    pub(crate) fn parse_expr_0(&mut self) -> Option<Expr> {
+    fn parse_expr_0(&mut self) -> Option<Expr> {
         tracing::debug!("parse_expr_0: peek = {:?}", self.tokens.peek());
         if let Some((true_span, _)) = self.eat(Keyword::True) {
             Some(self.add(ExprData::BooleanLiteral(true), true_span))
@@ -436,11 +327,11 @@ impl CodeParser<'_, '_> {
         } else if let Some(expr) = self.parse_block_expr() {
             // { ... }
             Some(expr)
-        } else if let Some((kw_span, _)) = self.eat(Keyword::Atomic) {
+        } else if let Some(atomic_kw) = self.parse_atomic() {
             let body_expr = self.parse_required_block_expr(Keyword::Atomic);
-            let span = self.span_consumed_since(kw_span);
+            let span = self.span_consumed_since_parsing(atomic_kw);
             tracing::debug!("atomic");
-            Some(self.add(ExprData::Atomic(body_expr), span))
+            Some(self.add(ExprData::Atomic(atomic_kw, body_expr), span))
         } else if let Some((if_span, _)) = self.eat(Keyword::If) {
             self.parse_if_expr(if_span)
         } else if let Some((loop_span, _)) = self.eat(Keyword::Loop) {
@@ -479,32 +370,23 @@ impl CodeParser<'_, '_> {
     fn parse_local_variable_decl(&mut self) -> Option<Expr> {
         // Look for `[mode] x = `. If we see that, we are committed to this
         // being a local variable declaration. Otherwise, we roll fully back.
-        let (atomic_span, atomic, name_span, name) = self.lookahead(|this| {
-            // A storage mode like `shared` or `var` *could* be a variable declaration,
-            // but if we see `atomic` it might not be, so check for the `x = ` next.
-            let (atomic_span, atomic) = if let Some(span) = this.parse_atomic() {
-                (span, Atomic::Yes)
-            } else {
-                (this.tokens.peek_span(), Atomic::No)
-            };
-
-            let (name_span, name) = this.eat(Identifier)?;
+        let (atomic, name) = self.lookahead(|this| {
+            let atomic = this.parse_atomic();
+            let name = this.parse_name()?;
 
             this.eat_op(Op::Equal)?;
 
-            Some((atomic_span, atomic, name_span, name))
+            Some((atomic, name))
         })?;
 
+        let lv_span = self.span_consumed_since_parsing(atomic.or_parsing(name));
         let local_variable_decl = self.add(
             LocalVariableDeclData {
                 atomic,
                 name,
                 ty: None, // FIXME-- should permit `ty: Ty = ...`
             },
-            LocalVariableDeclSpan {
-                atomic_span,
-                name_span,
-            },
+            lv_span,
         );
 
         let value = self
@@ -512,9 +394,10 @@ impl CodeParser<'_, '_> {
             .or_report_error(self, || "expected value for local variable".to_string())
             .or_dummy_expr(self);
 
+        let var_span = self.span_consumed_since_parsing(local_variable_decl);
         Some(self.add(
             ExprData::Var(local_variable_decl, value),
-            self.span_consumed_since(atomic_span),
+            self.span_consumed_since(var_span),
         ))
     }
 
@@ -647,34 +530,5 @@ trait OrDummyExpr {
 impl OrDummyExpr for Option<Expr> {
     fn or_dummy_expr(self, parser: &mut CodeParser<'_, '_>) -> Expr {
         self.unwrap_or_else(|| parser.add(ExprData::Error, parser.tokens.peek_span()))
-    }
-}
-
-impl ParseList for CodeParser<'_, '_> {
-    fn skipped_newline(&self) -> bool {
-        Parser::skipped_newline(self)
-    }
-
-    fn eat_comma(&mut self) -> bool {
-        Parser::eat_comma(self)
-    }
-}
-
-trait TightenSpan {
-    fn tighten_span(self, parser: &Parser<'_>) -> Self;
-}
-
-impl TightenSpan for Span {
-    fn tighten_span(self, parser: &Parser<'_>) -> Self {
-        parser.tighten_span(self)
-    }
-}
-
-impl TightenSpan for LocalVariableDeclSpan {
-    fn tighten_span(self, parser: &Parser<'_>) -> Self {
-        LocalVariableDeclSpan {
-            atomic_span: self.atomic_span.tighten_span(parser),
-            name_span: self.name_span.tighten_span(parser),
-        }
     }
 }

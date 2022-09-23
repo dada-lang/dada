@@ -1,6 +1,10 @@
-use dada_ir::code::validated;
-use dada_ir::function::Function;
+use dada_id::InternKey;
+use dada_ir::class::Class;
+use dada_ir::code::{syntax, validated};
+use dada_ir::function::{Function, FunctionSignature};
 use dada_ir::input_file::InputFile;
+use dada_ir::parameter::Parameter;
+use dada_ir::storage::Atomic;
 use dada_parse::prelude::*;
 
 use self::name_lookup::Scope;
@@ -22,8 +26,11 @@ pub(crate) fn validate_function(db: &dyn crate::Db, function: Function) -> valid
     let mut validator =
         validator::Validator::root(db, function, syntax_tree, &mut tables, &mut origins, scope);
 
-    for parameter in &syntax_tree.data(db).parameter_decls {
-        validator.validate_parameter(*parameter);
+    match function.signature(db) {
+        FunctionSignature::Syntax(s) => {
+            validator.validate_signature(s);
+        }
+        FunctionSignature::Main => {}
     }
     let num_parameters = validator.num_local_variables();
 
@@ -31,6 +38,40 @@ pub(crate) fn validate_function(db: &dyn crate::Db, function: Function) -> valid
     std::mem::drop(validator);
     let data = validated::TreeData::new(tables, num_parameters, root_expr);
     validated::Tree::new(db, function, data, origins)
+}
+
+#[salsa::tracked(return_ref)]
+pub(crate) fn validate_function_parameters(
+    db: &dyn crate::Db,
+    function: Function,
+) -> Vec<Parameter> {
+    match function.signature(db) {
+        FunctionSignature::Main => vec![],
+
+        FunctionSignature::Syntax(s) => signature_parameters(db, s),
+    }
+}
+
+#[salsa::tracked(return_ref)]
+pub(crate) fn validate_class_fields(db: &dyn crate::Db, class: Class) -> Vec<Parameter> {
+    signature_parameters(db, class.signature(db))
+}
+
+fn signature_parameters(db: &dyn crate::Db, signature: &syntax::Signature) -> Vec<Parameter> {
+    let tables = &signature.tables;
+    signature
+        .parameters
+        .iter()
+        .map(|&lv| {
+            let lv_data = lv.data(tables);
+            let atomic = match lv_data.atomic {
+                Some(_) => Atomic::Yes,
+                None => Atomic::No,
+            };
+            let name = lv_data.name.data(tables).word;
+            Parameter::new(db, name, atomic)
+        })
+        .collect()
 }
 
 /// Compute the root definitions for the module. This is not memoized to

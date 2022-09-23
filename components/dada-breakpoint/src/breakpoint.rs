@@ -23,7 +23,7 @@ impl Breakpoint {
     /// Returns the file-span of the breakpoint expression.
     pub fn span(self, db: &dyn crate::Db) -> FileSpan {
         let expr_span = self.tree.spans(db)[self.expr];
-        expr_span.in_file(self.input_file)
+        expr_span.anchor_to(db, self.input_file)
     }
 }
 
@@ -62,13 +62,14 @@ pub fn find_item(db: &dyn crate::Db, input_file: InputFile, offset: Offset) -> O
 ///
 /// Returns None if the cursor does not lie in the syntax tree at all.
 fn find_syntax_expr(db: &dyn crate::Db, syntax_tree: syntax::Tree, offset: Offset) -> syntax::Expr {
+    let tables = syntax_tree.tables(db);
     let spans = syntax_tree.spans(db);
-    let data = syntax_tree.data(db);
     let traversal = TreeTraversal {
         spans,
-        tables: &data.tables,
+        tables,
         offset,
     };
+    let data = syntax_tree.data(db);
     traversal.find(data.root_expr).unwrap_or(data.root_expr)
 }
 
@@ -115,7 +116,7 @@ impl TreeTraversal<'_> {
             | syntax::ExprData::Give(base_expr)
             | syntax::ExprData::Await(base_expr)
             | syntax::ExprData::Loop(base_expr)
-            | syntax::ExprData::Atomic(base_expr)
+            | syntax::ExprData::Atomic(_, base_expr)
             | syntax::ExprData::Unary(_, base_expr)
             | syntax::ExprData::Parenthesized(base_expr) => {
                 self.find_in_children(expr, Some(base_expr))

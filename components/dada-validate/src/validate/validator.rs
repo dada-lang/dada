@@ -1,7 +1,7 @@
 use dada_id::prelude::*;
 use dada_ir::code::syntax;
 use dada_ir::code::syntax::op::Op;
-use dada_ir::code::syntax::LocalVariableDecl;
+use dada_ir::code::syntax::AtomicKeyword;
 use dada_ir::code::validated;
 use dada_ir::code::validated::ExprOrigin;
 use dada_ir::code::validated::LocalVariableOrigin;
@@ -29,8 +29,8 @@ mod string_literals;
 pub(crate) struct Validator<'me> {
     db: &'me dyn crate::Db,
     function: Function,
-    syntax_tree_entity: syntax::Tree,
-    syntax_tree: &'me syntax::TreeData,
+    syntax_tree: syntax::Tree,
+    pub(crate) syntax_tables: &'me syntax::Tables,
     tables: &'me mut validated::Tables,
     origins: &'me mut validated::Origins,
     loop_stack: Vec<validated::Expr>,
@@ -49,18 +49,17 @@ impl<'me> Validator<'me> {
         origins: &'me mut validated::Origins,
         scope: Scope<'me>,
     ) -> Self {
-        let syntax_tree_data = syntax_tree.data(db);
         Self {
             db,
             function,
-            syntax_tree: syntax_tree_data,
-            syntax_tree_entity: syntax_tree,
+            syntax_tables: syntax_tree.tables(db),
+            syntax_tree,
             tables,
             origins,
             loop_stack: vec![],
             scope,
             effect: function.effect(db),
-            effect_span: Rc::new(move |_| function.effect_span(db)),
+            effect_span: Rc::new(move |_| function.effect_span(db).anchor_to(db, function)),
             synthesized: false,
         }
     }
@@ -69,8 +68,8 @@ impl<'me> Validator<'me> {
         Validator {
             db: self.db,
             function: self.function,
-            syntax_tree_entity: self.syntax_tree_entity,
             syntax_tree: self.syntax_tree,
+            syntax_tables: self.syntax_tables,
             tables: self.tables,
             origins: self.origins,
             loop_stack: self.loop_stack.clone(),
@@ -100,10 +99,6 @@ impl<'me> Validator<'me> {
         self
     }
 
-    pub(crate) fn syntax_tables(&self) -> &'me syntax::Tables {
-        &self.syntax_tree.tables
-    }
-
     pub(crate) fn num_local_variables(&self) -> usize {
         usize::from(validated::LocalVariable::max_key(self.tables))
     }
@@ -120,25 +115,32 @@ impl<'me> Validator<'me> {
     }
 
     fn span(&self, e: impl HasOriginIn<syntax::Spans, Origin = Span>) -> FileSpan {
-        self.function.syntax_tree(self.db).spans(self.db)[e]
-            .in_file(self.function.input_file(self.db))
+        self.function.syntax_tree(self.db).spans(self.db)[e].anchor_to(self.db, self.function)
     }
 
     fn empty_tuple(&mut self, origin: syntax::Expr) -> validated::Expr {
         self.add(validated::ExprData::Tuple(vec![]), origin)
     }
 
-    #[tracing::instrument(level = "debug", skip_all)]
-    pub(crate) fn validate_parameter(&mut self, decl: LocalVariableDecl) {
-        let decl_data = decl.data(self.syntax_tables());
-        let local_variable = self.add(
-            validated::LocalVariableData {
-                name: Some(decl_data.name),
-                atomic: decl_data.atomic,
-            },
-            validated::LocalVariableOrigin::Parameter(decl),
-        );
-        self.scope.insert(decl_data.name, local_variable);
+    pub(crate) fn validate_signature(&mut self, signature: &syntax::Signature) {
+        // NB: The signature uses a distinct set of syntax tables.
+        let syntax::Signature {
+            tables, parameters, ..
+        } = signature;
+        for &lv in parameters {
+            let lv_data = &tables[lv];
+            let atomic = lv_data.atomic.map(|_| Atomic::Yes).unwrap_or(Atomic::No);
+            let name = self.validate_name_in_tables(lv_data.name, tables);
+            let local_variable = self.add(
+                validated::LocalVariableData {
+                    name: Some(name),
+                    atomic,
+                },
+                validated::LocalVariableOrigin::Parameter(lv),
+            );
+            let word = name.data(self.tables).word;
+            self.scope.insert(word, local_variable);
+        }
     }
 
     #[tracing::instrument(level = "debug", skip_all)]
@@ -148,7 +150,10 @@ impl<'me> Validator<'me> {
             if let validated::ExprData::Seq(exprs) = validated_expr.data(self.tables) {
                 if exprs.is_empty() {
                     dada_ir::error!(
-                        self.function.return_type(self.db).span(self.db),
+                        self.function
+                            .return_type(self.db)
+                            .span(self.db)
+                            .anchor_to(self.db, self.function),
                         "function body cannot be empty",
                     )
                     .primary_label("because function is supposed to return something")
@@ -193,8 +198,8 @@ impl<'me> Validator<'me> {
     /// * If `E` is a value expression, like `foo()`, this just evaluates it
     #[tracing::instrument(level = "debug", skip(self, expr))]
     fn validate_expr(&mut self, expr: syntax::Expr) -> validated::Expr {
-        tracing::trace!("expr.data = {:?}", expr.data(self.syntax_tables()));
-        match expr.data(self.syntax_tables()) {
+        tracing::trace!("expr.data = {:?}", expr.data(self.syntax_tables));
+        match expr.data(self.syntax_tables) {
             syntax::ExprData::Dot(..) | syntax::ExprData::Id(_) => self
                 .with_expr_validated_as_place(expr, &mut |this, place| {
                     this.add(validated::ExprData::Share(place), expr)
@@ -325,18 +330,6 @@ impl<'me> Validator<'me> {
             syntax::ExprData::Call(func_expr, named_exprs) => {
                 let validated_func_expr = self.validate_expr(*func_expr);
                 let validated_named_exprs = self.validate_named_exprs(named_exprs);
-                let mut name_required = false;
-                for named_expr in &validated_named_exprs {
-                    let name = named_expr.data(self.tables).name;
-                    if name.word(self.db).is_some() {
-                        name_required = true;
-                    } else if name_required {
-                        dada_ir::error!(name.span(self.db), "parameter name required",)
-                            .primary_label("parameter name required here")
-                            .emit(self.db);
-                    }
-                }
-
                 self.add(
                     validated::ExprData::Call(validated_func_expr, validated_named_exprs),
                     expr,
@@ -359,15 +352,18 @@ impl<'me> Validator<'me> {
             syntax::ExprData::Give(target_expr) => self.give_validated_expr(expr, *target_expr),
 
             syntax::ExprData::Var(decl, initializer_expr) => {
-                let decl_data = decl.data(self.syntax_tables());
+                let decl_data = decl.data(self.syntax_tables);
+                let name = self.validate_name(decl_data.name);
+                let atomic = decl_data.atomic.map(|_| Atomic::Yes).unwrap_or(Atomic::No);
                 let local_variable = self.add(
                     validated::LocalVariableData {
-                        name: Some(decl_data.name),
-                        atomic: decl_data.atomic,
+                        name: Some(name),
+                        atomic,
                     },
                     validated::LocalVariableOrigin::LocalVariable(*decl),
                 );
-                self.scope.insert(decl_data.name, local_variable);
+                let word = name.data(self.tables).word;
+                self.scope.insert(word, local_variable);
 
                 let target_place = self.add(
                     validated::TargetPlaceData::LocalVariable(local_variable),
@@ -413,12 +409,10 @@ impl<'me> Validator<'me> {
                 )
             }
 
-            syntax::ExprData::Atomic(atomic_expr) => {
+            syntax::ExprData::Atomic(atomic_keyword, atomic_expr) => {
                 let validated_atomic_expr = self
                     .subscope()
-                    .with_effect(Effect::Atomic, |this| {
-                        this.span(expr).leading_keyword(this.db, Keyword::Atomic)
-                    })
+                    .with_effect(Effect::Atomic, |this| this.span(*atomic_keyword))
                     .validate_expr_and_exit(*atomic_expr);
                 self.add(validated::ExprData::Atomic(validated_atomic_expr), expr)
             }
@@ -604,7 +598,7 @@ impl<'me> Validator<'me> {
         //
         // below, we will leave comments for the more complex version.
 
-        let syntax::ExprData::OpEq(lhs_expr, op, rhs_expr) = self.syntax_tables()[op_eq_expr] else {
+        let syntax::ExprData::OpEq(lhs_expr, op, rhs_expr) = self.syntax_tables[op_eq_expr] else {
             panic!("validated_op_eq invoked on something that was not an op-eq expr")
         };
 
@@ -680,7 +674,7 @@ impl<'me> Validator<'me> {
         expr: syntax::Expr,
         op: &mut dyn FnMut(&mut Self, validated::TargetPlace) -> validated::Expr,
     ) -> validated::Expr {
-        match expr.data(self.syntax_tables()) {
+        match expr.data(self.syntax_tables) {
             syntax::ExprData::Dot(owner, field_name) => {
                 self.with_expr_validated_as_place(*owner, &mut |this, owner_place| {
                     let target_place = this.add(
@@ -793,7 +787,7 @@ impl<'me> Validator<'me> {
     }
 
     fn is_place_expression(&self, expr: syntax::Expr) -> bool {
-        match expr.data(self.syntax_tables()) {
+        match expr.data(self.syntax_tables) {
             syntax::ExprData::Id(_) | syntax::ExprData::Dot(..) => true,
             syntax::ExprData::Parenthesized(parenthesized_expr) => {
                 self.is_place_expression(*parenthesized_expr)
@@ -812,7 +806,7 @@ impl<'me> Validator<'me> {
         expr: syntax::Expr,
         op: &mut dyn FnMut(&mut Self, validated::Place) -> validated::Expr,
     ) -> validated::Expr {
-        match expr.data(self.syntax_tables()) {
+        match expr.data(self.syntax_tables) {
             syntax::ExprData::Id(name) => {
                 let place = match self.scope.lookup(*name) {
                     Some(Definition::Class(c)) => self.add(validated::PlaceData::Class(c), expr),
@@ -897,22 +891,54 @@ impl<'me> Validator<'me> {
         &mut self,
         named_exprs: &[syntax::NamedExpr],
     ) -> Vec<validated::NamedExpr> {
+        let mut name_required = false;
+
         named_exprs
             .iter()
-            .map(|named_expr| self.validate_named_expr(*named_expr))
+            .map(|&named_expr| {
+                // Once an explicit name is given for one expression,
+                // explicit names must be given for all subsequent expressions.
+                let name = named_expr.data(self.syntax_tables).name;
+                if name.is_some() {
+                    name_required = true;
+                } else if name_required {
+                    dada_ir::error!(self.span(named_expr), "parameter name required",)
+                        .primary_label("parameter name required here")
+                        .emit(self.db);
+                }
+
+                self.validate_named_expr(named_expr)
+            })
             .collect()
     }
 
     fn validate_named_expr(&mut self, named_expr: syntax::NamedExpr) -> validated::NamedExpr {
-        let syntax::NamedExprData { name, expr } = named_expr.data(self.syntax_tables());
+        let syntax::NamedExprData { name, expr } = named_expr.data(self.syntax_tables);
+        let validated_name = name.map(|n| self.validate_name(n));
         let validated_expr = self.validate_expr(*expr);
         self.add(
             validated::NamedExprData {
-                name: *name,
+                name: validated_name,
                 expr: validated_expr,
             },
             named_expr,
         )
+    }
+
+    /// Create the validated node for a name that appears in the function body.
+    fn validate_name(&mut self, name: syntax::Name) -> validated::Name {
+        self.validate_name_in_tables(name, self.syntax_tables)
+    }
+
+    /// Create the validated node for a name that appears in the signature or function body,
+    /// you have to supply the appropriate syntax tables.
+    fn validate_name_in_tables(
+        &mut self,
+        name: syntax::Name,
+        syntax_tables: &syntax::Tables,
+    ) -> validated::Name {
+        let syntax::NameData { word } = name.data(syntax_tables);
+        self.add(validated::NameData { word: *word }, name)
     }
 
     fn validated_op(&self, op: syntax::op::Op) -> validated::op::Op {
@@ -997,6 +1023,18 @@ impl IntoOrigin for syntax::Expr {
     }
 }
 
+impl IntoOrigin for syntax::Name {
+    type Origin = syntax::Name;
+
+    fn into_origin(self) -> Self::Origin {
+        self
+    }
+
+    fn synthesized(self) -> Self::Origin {
+        panic!("cannot force names to be synthesized")
+    }
+}
+
 impl IntoOrigin for syntax::NamedExpr {
     type Origin = syntax::NamedExpr;
 
@@ -1036,5 +1074,17 @@ impl IntoOrigin for LocalVariableOrigin {
             // we can't make other variables be synthesized
             _ => panic!("cannot force local variable origin to be synthesized"),
         }
+    }
+}
+
+impl IntoOrigin for AtomicKeyword {
+    type Origin = AtomicKeyword;
+
+    fn into_origin(self) -> Self::Origin {
+        self
+    }
+
+    fn synthesized(self) -> Self::Origin {
+        panic!("cannot force atomic keyword to be synthesized")
     }
 }

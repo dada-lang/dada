@@ -1,6 +1,6 @@
 use crate::{
     input_file::InputFile,
-    span::{FileSpan, Span},
+    span::{Anchored, FileSpan, Span},
     token::Token,
 };
 
@@ -12,10 +12,16 @@ pub struct TokenTree {
     tokens: Vec<Token>,
 }
 
+impl Anchored for TokenTree {
+    fn input_file(&self, db: &dyn crate::Db) -> InputFile {
+        TokenTree::input_file(*self, db)
+    }
+}
+
 impl<Db: ?Sized + crate::Db> salsa::DebugWithDb<Db> for TokenTree {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>, db: &Db) -> std::fmt::Result {
         let db = db.as_dyn_ir_db();
-        let file_span: FileSpan = self.span(db).in_file(self.input_file(db));
+        let file_span: FileSpan = self.span(db).anchor_to(db, self);
         write!(f, "Tokens({:?})", file_span.into_debug(db))
     }
 }

@@ -16,7 +16,7 @@ use crate::{
 
 #[salsa::tracked]
 pub fn brew(db: &dyn crate::Db, validated_tree: validated::Tree) -> bir::Bir {
-    let function = validated_tree.origin(db);
+    let function = validated_tree.function(db);
     let breakpoints = dada_breakpoint::locations::breakpoints_in_tree(
         db,
         function.input_file(db),
@@ -51,7 +51,7 @@ pub fn brew(db: &dyn crate::Db, validated_tree: validated::Tree) -> bir::Bir {
     let bir = bir::Bir::new(
         db,
         function.input_file(db),
-        function.name(db).word(db),
+        function.name(db),
         function.syntax_tree(db),
         BirData::new(tables, num_parameters, start_basic_block),
         origins,
@@ -487,7 +487,7 @@ impl Cursor {
     ///
     /// This vector is used to add cusp operations (they all show the value
     /// of `a.b.c` in its entirety, though).
-    ///
+    #[allow(clippy::only_used_in_recursion)]
     pub(crate) fn brew_place(
         &mut self,
         brewery: &mut Brewery<'_>,

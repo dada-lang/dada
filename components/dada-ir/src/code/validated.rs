@@ -3,25 +3,23 @@
 //! desugared and easy to work with.
 
 use crate::{
-    class::Class,
-    code::validated::op::Op,
-    function::Function,
-    in_ir_db::InIrDb,
-    intrinsic::Intrinsic,
-    prelude::InIrDbExt,
-    storage::Atomic,
-    word::{SpannedOptionalWord, Word},
+    class::Class, code::validated::op::Op, function::Function, in_ir_db::InIrDb,
+    intrinsic::Intrinsic, prelude::InIrDbExt, storage::Atomic, word::Word,
 };
 use dada_id::{id, prelude::*, tables};
 use salsa::DebugWithDb;
 
 use super::syntax;
 
+/// The "validated" form of a particular [syntax tree](`crate::code::syntax::Tree`).
 #[salsa::tracked]
 pub struct Tree {
-    origin: Function,
+    /// The function that this tree is associated with.
+    function: Function,
+
     #[return_ref]
     data: TreeData,
+
     #[return_ref]
     origins: Origins,
 }
@@ -91,6 +89,7 @@ tables! {
         named_exprs: alloc NamedExpr => NamedExprData,
         places: alloc Place => PlaceData,
         target_places: alloc TargetPlace => TargetPlaceData,
+        names: alloc Name => NameData,
     }
 }
 
@@ -107,6 +106,7 @@ origin_table! {
         target_place_spans: TargetPlace => ExprOrigin,
         named_exprs: NamedExpr => syntax::NamedExpr,
         local_variables: LocalVariable => LocalVariableOrigin,
+        names: Name => syntax::Name,
     }
 }
 
@@ -168,7 +168,10 @@ impl DebugWithDb<InIrDb<'_, Tree>> for LocalVariable {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>, db: &InIrDb<'_, Tree>) -> std::fmt::Result {
         let id = u32::from(*self);
         let data = self.data(db.tables());
-        let name = data.name.map(|n| n.as_str(db.db())).unwrap_or("temp");
+        let name = data
+            .name
+            .map(|n| n.data(db.tables()).word.as_str(db.db()))
+            .unwrap_or("temp");
         write!(f, "{name}{{{id}}}")
     }
 }
@@ -189,15 +192,22 @@ pub struct LocalVariableData {
     /// temporaries because validation temporaries are
     /// considered roots for the GC in the official
     /// semantics.
-    pub name: Option<Word>,
+    pub name: Option<Name>,
 
     pub atomic: Atomic,
 }
 
 #[derive(PartialEq, Eq, Copy, Clone, Hash, Debug)]
 pub enum LocalVariableOrigin {
+    /// Temporary introduces to hold the value of the given expression.
     Temporary(syntax::Expr),
+
+    /// A local variable declared in the function.
     LocalVariable(syntax::LocalVariableDecl),
+
+    /// A local variable declared in the function signature.
+    ///
+    /// Note that this uses a distinct set of syntax tables/spans!
     Parameter(syntax::LocalVariableDecl),
 }
 
@@ -474,17 +484,30 @@ impl DebugWithDb<InIrDb<'_, Tree>> for NamedExpr {
 
 #[derive(PartialEq, Eq, Clone, Hash, Debug)]
 pub struct NamedExprData {
-    pub name: SpannedOptionalWord,
+    pub name: Option<Name>,
     pub expr: Expr,
 }
 
 impl DebugWithDb<InIrDb<'_, Tree>> for NamedExprData {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>, db: &InIrDb<'_, Tree>) -> std::fmt::Result {
         f.debug_tuple("NamedExpr")
-            .field(&self.name.debug(db.db()))
+            .field(&self.name.debug(db))
             .field(&self.expr.debug(db))
             .finish()
     }
 }
 
 pub mod op;
+
+id!(pub struct Name);
+
+impl DebugWithDb<InIrDb<'_, Tree>> for Name {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>, db: &InIrDb<'_, Tree>) -> std::fmt::Result {
+        self.data(db.tables()).word.fmt(f, db.db())
+    }
+}
+
+#[derive(PartialEq, Eq, Clone, Hash, Debug)]
+pub struct NameData {
+    pub word: Word,
+}

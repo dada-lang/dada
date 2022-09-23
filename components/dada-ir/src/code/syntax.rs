@@ -1,18 +1,44 @@
-use crate::{
-    code::syntax::op::Op,
-    in_ir_db::InIrDb,
-    in_ir_db::InIrDbExt,
-    span::Span,
-    storage::Atomic,
-    word::{SpannedOptionalWord, Word},
-};
+use crate::{code::syntax::op::Op, in_ir_db::InIrDb, in_ir_db::InIrDbExt, span::Span, word::Word};
 use dada_id::{id, prelude::*, tables};
+use derive_new::new;
 use salsa::DebugWithDb;
 
+/// The "syntax signature" is the parsed form of a function signature,
+/// including e.g. its parameter types.
+#[derive(new, Clone, Debug, PartialEq, Eq)]
+pub struct Signature {
+    /// The name of the function.
+    pub name: Name,
+
+    /// The keyword declaring the function.
+    pub fn_decl: FnDecl,
+
+    /// The "effect" of the fn (i.e., is it declared as async, atomic?), if any.
+    pub effect: Option<EffectKeyword>,
+
+    /// The parameters to the function.
+    pub parameters: Vec<LocalVariableDecl>,
+
+    /// Interning tables for expressions and the like.
+    pub tables: Tables,
+
+    /// The span information for each node in the tree.
+    pub spans: Spans,
+}
+
+/// The "syntax tree" is the parsed form of a function body.
+/// It maps more-or-less directly to what the user typed.
 #[salsa::tracked]
 pub struct Tree {
+    /// Identifies the root expression in the function body.
     #[return_ref]
     data: TreeData,
+
+    /// Interning tables for expressions and the like.
+    #[return_ref]
+    tables: Tables,
+
+    /// The span information for each node in the tree.
     #[return_ref]
     spans: Spans,
 }
@@ -27,19 +53,13 @@ impl DebugWithDb<dyn crate::Db> for Tree {
 
 impl InIrDb<'_, Tree> {
     fn tables(&self) -> &Tables {
-        &self.data(self.db()).tables
+        Tree::tables(**self, self.db())
     }
 }
 
 /// Stores the ast for a function.
 #[derive(Clone, Debug, PartialEq, Eq)]
 pub struct TreeData {
-    /// Interning tables for expressions and the like.
-    pub tables: Tables,
-
-    /// Parameter declarations
-    pub parameter_decls: Vec<LocalVariableDecl>,
-
     /// The root
     pub root_expr: Expr,
 }
@@ -60,6 +80,11 @@ tables! {
         exprs: alloc Expr => ExprData,
         named_exprs: alloc NamedExpr => NamedExprData,
         local_variable_decls: alloc LocalVariableDecl => LocalVariableDeclData,
+        return_type_decl: alloc ReturnTypeDecl => ReturnTypeDeclData,
+        atomic_keyword: alloc AtomicKeyword => AtomicKeywordData,
+        async_keyword: alloc AsyncKeyword => AsyncKeywordData,
+        fn_decl: alloc FnDecl => FnDeclData,
+        name: alloc Name => NameData,
     }
 }
 
@@ -73,7 +98,12 @@ origin_table! {
     pub struct Spans {
         expr_spans: Expr => Span,
         named_expr_spans: NamedExpr => Span,
-        local_variable_decl_spans: LocalVariableDecl => LocalVariableDeclSpan,
+        local_variable_decl_spans: LocalVariableDecl => Span,
+        return_type_decl: ReturnTypeDecl => Span,
+        atomic_keyword: AtomicKeyword => Span,
+        async_keyword: AsyncKeyword => Span,
+        fn_decl: FnDecl => Span,
+        name: Name => Span,
     }
 }
 
@@ -141,7 +171,7 @@ pub enum ExprData {
     If(Expr, Expr, Option<Expr>),
 
     /// `atomic { block }`
-    Atomic(Expr),
+    Atomic(AtomicKeyword, Expr),
 
     /// `loop { block }`
     Loop(Expr),
@@ -223,7 +253,7 @@ impl DebugWithDb<InIrDb<'_, Tree>> for ExprData {
                 .field(&t.debug(db))
                 .field(&e.debug(db))
                 .finish(),
-            ExprData::Atomic(e) => f.debug_tuple("Atomic").field(&e.debug(db)).finish(),
+            ExprData::Atomic(_, e) => f.debug_tuple("Atomic").field(&e.debug(db)).finish(),
             ExprData::Loop(e) => f.debug_tuple("Loop").field(&e.debug(db)).finish(),
             ExprData::While(c, e) => f
                 .debug_tuple("While")
@@ -271,8 +301,8 @@ impl DebugWithDb<InIrDb<'_, Tree>> for LocalVariableDecl {
 
 #[derive(PartialEq, Eq, PartialOrd, Ord, Clone, Hash, Debug)]
 pub struct LocalVariableDeclData {
-    pub atomic: Atomic,
-    pub name: Word,
+    pub atomic: Option<AtomicKeyword>,
+    pub name: Name,
     pub ty: Option<crate::ty::Ty>,
 }
 
@@ -280,16 +310,24 @@ impl DebugWithDb<InIrDb<'_, Tree>> for LocalVariableDeclData {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>, db: &InIrDb<'_, Tree>) -> std::fmt::Result {
         f.debug_struct("LocalVariableDeclData")
             .field("atomic", &self.atomic)
-            .field("name", &self.name.debug(db.db()))
+            .field("name", &self.name.debug(db))
             .field("ty", &self.ty.debug(db.db()))
             .finish()
     }
 }
 
-#[derive(PartialEq, Eq, Clone, Hash, Debug)]
-pub struct LocalVariableDeclSpan {
-    pub atomic_span: Span,
-    pub name_span: Span,
+id!(pub struct ReturnTypeDecl);
+
+/// Represents a function return type declaration.
+#[derive(PartialEq, Eq, PartialOrd, Ord, Clone, Hash, Debug)]
+pub enum ReturnTypeDeclData {
+    /// No return type -- means unit.
+    ///
+    /// The associated span is where a return type *would* be placed.
+    Unit,
+
+    /// Just `->` with no explicit type given.
+    Value,
 }
 
 id!(pub struct NamedExpr);
@@ -302,16 +340,80 @@ impl DebugWithDb<InIrDb<'_, Tree>> for NamedExpr {
 
 #[derive(PartialEq, Eq, PartialOrd, Ord, Clone, Hash, Debug)]
 pub struct NamedExprData {
-    pub name: SpannedOptionalWord,
+    pub name: Option<Name>,
     pub expr: Expr,
 }
 
 impl DebugWithDb<InIrDb<'_, Tree>> for NamedExprData {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>, db: &InIrDb<'_, Tree>) -> std::fmt::Result {
-        f.debug_tuple(&format!("{:?}", self.name.word(db.db()).debug(db.db())))
+        f.debug_tuple(&format!("{:?}", self.name.debug(db)))
             .field(&self.expr.debug(db))
             .finish()
     }
 }
 
 pub mod op;
+
+// Represents the `fn` or `class` keyword that defined the function. Used primarily to carry the span.
+id!(pub struct FnDecl);
+
+impl DebugWithDb<InIrDb<'_, Tree>> for FnDecl {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>, db: &InIrDb<'_, Tree>) -> std::fmt::Result {
+        match self.data(db.tables()) {
+            FnDeclData::Fn => write!(f, "fn"),
+            FnDeclData::Class => write!(f, "class"),
+        }
+    }
+}
+
+#[derive(PartialEq, Eq, PartialOrd, Ord, Copy, Clone, Hash, Debug)]
+pub enum FnDeclData {
+    /// The `fn` in a `fn foo()` declaration
+    Fn,
+
+    /// The `class` in a `class Foo()` declaration
+    Class,
+}
+
+#[derive(PartialEq, Eq, PartialOrd, Ord, Copy, Clone, Hash, Debug)]
+pub enum EffectKeyword {
+    Async(AsyncKeyword),
+    Atomic(AtomicKeyword),
+}
+
+// Represents an `async` keyword. Used to carry the span.
+id!(pub struct AsyncKeyword);
+
+impl DebugWithDb<InIrDb<'_, Tree>> for AsyncKeyword {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>, _db: &InIrDb<'_, Tree>) -> std::fmt::Result {
+        write!(f, "atomic")
+    }
+}
+
+#[derive(PartialEq, Eq, PartialOrd, Ord, Clone, Hash, Debug)]
+pub struct AsyncKeywordData;
+
+// Represents an atomic keyword. Used to carry the span.
+id!(pub struct AtomicKeyword);
+
+impl DebugWithDb<InIrDb<'_, Tree>> for AtomicKeyword {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>, _db: &InIrDb<'_, Tree>) -> std::fmt::Result {
+        write!(f, "atomic")
+    }
+}
+
+#[derive(PartialEq, Eq, PartialOrd, Ord, Clone, Hash, Debug)]
+pub struct AtomicKeywordData;
+
+// Represents the name of something (an identifier).
+id!(pub struct Name);
+
+impl DebugWithDb<InIrDb<'_, Tree>> for Name {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>, db: &InIrDb<'_, Tree>) -> std::fmt::Result {
+        self.data(db.tables()).word.fmt(f, db.db())
+    }
+}
+#[derive(PartialEq, Eq, PartialOrd, Ord, Clone, Hash, Debug)]
+pub struct NameData {
+    pub word: Word,
+}

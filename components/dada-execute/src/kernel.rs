@@ -236,6 +236,7 @@ impl BufferKernel {
 
     /// Returns an iterator over the text emitted at a given point along with
     /// the program counter responsible (if available).
+    #[allow(clippy::unused_peekable)] // https://github.com/rust-lang/rust-clippy/issues/9462
     pub fn buffer_with_pcs(&self) -> impl Iterator<Item = (&str, Option<ProgramCounter>)> {
         let mut offset = 0;
         let mut buffer_pcs = self.buffer_pcs.iter().peekable();

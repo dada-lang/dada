@@ -263,7 +263,7 @@ impl Options {
         errors: &mut Errors,
     ) -> eyre::Result<()> {
         let sanitized_output = self.maybe_bless_ref_file(actual_output, ref_path)?;
-        let ref_contents = std::fs::read_to_string(&ref_path)
+        let ref_contents = std::fs::read_to_string(ref_path)
             .with_context(|| format!("reading `{}`", ref_path.display()))?;
         if ref_contents != sanitized_output {
             errors.push(RefOutputDoesNotMatch {
@@ -1091,7 +1091,7 @@ fn maybe_sanitize_and_bless_file(
 /// Bless file on-demand
 fn maybe_bless_file(ref_path: &Path, actual_diagnostics: &str, bless: bool) -> eyre::Result<()> {
     if bless {
-        std::fs::write(&ref_path, actual_diagnostics)
+        std::fs::write(ref_path, actual_diagnostics)
             .with_context(|| format!("writing `{}`", ref_path.display()))?;
     }
 

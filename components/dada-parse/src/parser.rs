@@ -1,21 +1,43 @@
 use std::string::ToString;
 
-use crate::{token_test::*, tokens::Tokens};
-
-use dada_ir::{
-    code::syntax::op::Op, diagnostic::DiagnosticBuilder, input_file::InputFile, span::Span,
-    token::Token, token_tree::TokenTree,
+use crate::{
+    token_test::{AnyTree, TokenTest},
+    tokens::Tokens,
 };
 
-mod code;
+use dada_id::InternValue;
+use dada_ir::{
+    code::syntax::{self, op::Op, Spans, Tables},
+    diagnostic::DiagnosticBuilder,
+    input_file::InputFile,
+    origin_table::{HasOriginIn, PushOriginIn},
+    span::Span,
+    token::Token,
+    token_tree::TokenTree,
+};
+use salsa::AsId;
+
+mod expr;
 mod items;
-mod parameter;
+mod signature;
 mod ty;
 
+/// The base parser: tracks the input tokens and input file.
+///
+/// When we start to parse the details of a function or class, we instantiate a [`CodeParser`].
 pub(crate) struct Parser<'me> {
     db: &'me dyn crate::Db,
     input_file: InputFile,
     tokens: Tokens<'me>,
+}
+
+/// CodeParser: wraps a `Parser` and adds a `tables`/`spans` into which we can allocate
+/// expression nodes and other bits of syntax tree. Code parsers are created to parse expressions,
+/// function signatures, function bodies, etc.
+struct CodeParser<'me, 'db> {
+    parser: &'me mut Parser<'db>,
+    tables: &'me mut Tables,
+    spans: &'me mut Spans,
 }
 
 impl<'me> Parser<'me> {
@@ -32,8 +54,13 @@ impl<'me> Parser<'me> {
     /// Returns `Some` if the next pending token matches `is`, along
     /// with the narrowed view of the next token.
     fn peek<TT: TokenTest>(&mut self, test: TT) -> Option<TT::Narrow> {
-        let span = self.tokens.peek_span().in_file(self.input_file);
+        let span = self.tokens.peek_span().anchor_to(self.db, self.input_file);
         test.test(self.db, self.tokens.peek()?, span)
+    }
+
+    /// Span of the next pending token, or the span of EOF if there is no next token.
+    fn peek_span(&mut self) -> Span {
+        self.tokens.peek_span()
     }
 
     /// If the next pending token matches `test`, consumes it and
@@ -44,19 +71,6 @@ impl<'me> Parser<'me> {
         let narrow = self.peek(test)?;
         self.tokens.consume();
         Some((span, narrow))
-    }
-
-    /// Run `op` -- if it returns `None`, then no tokens are consumed.
-    /// If it returns `Some`, then the tokens are consumed.
-    /// Use sparingly, and try not to report errors or have side-effects in `op`.
-    fn lookahead<R>(&mut self, op: impl FnOnce(&mut Self) -> Option<R>) -> Option<R> {
-        let tokens = self.tokens;
-        let r = op(self);
-        if r.is_none() {
-            // Restore tokens that `op` may have consumed.
-            self.tokens = tokens;
-        }
-        r
     }
 
     /// Run `op` to get a true/false but rollback any tokens consumed.
@@ -198,7 +212,132 @@ impl<'me> Parser<'me> {
     }
 
     fn error(&self, span: Span, message: impl ToString) -> DiagnosticBuilder {
-        dada_ir::error!(span.in_file(self.input_file), "{}", message.to_string())
+        dada_ir::error!(
+            span.anchor_to(self.db, self.input_file),
+            "{}",
+            message.to_string()
+        )
+    }
+
+    fn code_parser<'a>(
+        &'a mut self,
+        tables: &'a mut syntax::Tables,
+        spans: &'a mut syntax::Spans,
+    ) -> CodeParser<'a, 'me> {
+        CodeParser {
+            parser: self,
+            tables,
+            spans,
+        }
+    }
+}
+
+impl CodeParser<'_, '_> {
+    fn add<D, K>(&mut self, data: D, mut span: K::Origin) -> K
+    where
+        D: std::hash::Hash + Eq + std::fmt::Debug,
+        D: InternValue<Table = Tables, Key = K>,
+        K: PushOriginIn<Spans> + AsId,
+        K::Origin: TightenSpan,
+    {
+        let key = self.tables.add(data);
+        span = span.tighten_span(self);
+        self.spans.push(key, span);
+        key
+    }
+
+    /// Returns a span that starts at `optional` (if present) and
+    /// `required` (otherwise) and ends at the current point.
+    fn span_consumed_since_parsing<N>(&self, element: N) -> Span
+    where
+        N: HasSpan,
+    {
+        let start = element.to_span(self.spans);
+        self.span_consumed_since(start)
+    }
+
+    /// Run `op` -- if it returns `None`, then no tokens are consumed.
+    /// If it returns `Some`, then the tokens are consumed.
+    /// Use sparingly, and try not to report errors or have side-effects in `op`.
+    fn lookahead<R>(&mut self, op: impl FnOnce(&mut Self) -> Option<R>) -> Option<R> {
+        let tokens = self.tokens;
+        let r = op(self);
+        if r.is_none() {
+            // Restore tokens that `op` may have consumed.
+            self.tokens = tokens;
+        }
+        r
+    }
+}
+
+/// Crate used with `span_consumed_since_parsing` to cover the case
+/// where the start of some declaration has some optional keywords.
+trait SpanFallover: OptionalHasSpan {
+    fn or_parsing<N>(self, n: N) -> SpanFalloverLink<Self, N>
+    where
+        N: HasOriginIn<Spans, Origin = Span>,
+    {
+        SpanFalloverLink { o: self, n }
+    }
+}
+
+impl<N> SpanFallover for N where N: OptionalHasSpan {}
+
+struct SpanFalloverLink<O, N>
+where
+    O: OptionalHasSpan,
+{
+    o: O,
+    n: N,
+}
+
+impl<O, N> HasSpan for SpanFalloverLink<O, N>
+where
+    O: OptionalHasSpan,
+    N: HasSpan,
+{
+    fn to_span(self, spans: &Spans) -> Span {
+        self.o
+            .to_optional_span(spans)
+            .unwrap_or_else(|| self.n.to_span(spans))
+    }
+}
+
+impl<O, N> OptionalHasSpan for SpanFalloverLink<O, N>
+where
+    O: OptionalHasSpan,
+    N: OptionalHasSpan,
+{
+    fn to_optional_span(self, spans: &Spans) -> Option<Span> {
+        self.o
+            .to_optional_span(spans)
+            .or_else(|| self.n.to_optional_span(spans))
+    }
+}
+
+trait HasSpan: Sized {
+    fn to_span(self, spans: &Spans) -> Span;
+}
+
+impl<N> HasSpan for N
+where
+    N: HasOriginIn<Spans, Origin = Span>,
+{
+    fn to_span(self, spans: &Spans) -> Span {
+        spans[self]
+    }
+}
+
+trait OptionalHasSpan: Sized {
+    fn to_optional_span(self, spans: &Spans) -> Option<Span>;
+}
+
+impl<T> OptionalHasSpan for Option<T>
+where
+    T: HasSpan,
+{
+    fn to_optional_span(self, spans: &Spans) -> Option<Span> {
+        self.map(|s| s.to_span(spans))
     }
 }
 
@@ -290,5 +429,39 @@ impl ParseList for Parser<'_> {
 
     fn eat_comma(&mut self) -> bool {
         self.eat(Token::Comma).is_some()
+    }
+}
+
+impl ParseList for CodeParser<'_, '_> {
+    fn skipped_newline(&self) -> bool {
+        Parser::skipped_newline(self)
+    }
+
+    fn eat_comma(&mut self) -> bool {
+        Parser::eat_comma(self)
+    }
+}
+
+impl<'db> std::ops::Deref for CodeParser<'_, 'db> {
+    type Target = Parser<'db>;
+
+    fn deref(&self) -> &Self::Target {
+        self.parser
+    }
+}
+
+impl<'db> std::ops::DerefMut for CodeParser<'_, 'db> {
+    fn deref_mut(&mut self) -> &mut Self::Target {
+        self.parser
+    }
+}
+
+trait TightenSpan {
+    fn tighten_span(self, parser: &Parser<'_>) -> Self;
+}
+
+impl TightenSpan for Span {
+    fn tighten_span(self, parser: &Parser<'_>) -> Self {
+        parser.tighten_span(self)
     }
 }

@@ -225,7 +225,9 @@ fn map_variables(
                 tables,
                 origins,
                 bir::LocalVariableData {
-                    name: validated_var_data.name,
+                    name: validated_var_data
+                        .name
+                        .map(|n| n.data(validated_tables).word),
                     atomic: validated_var_data.atomic,
                 },
                 validated_var_origin,

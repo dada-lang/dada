@@ -1,5 +1,3 @@
-use crate::span::FileSpan;
-
 #[salsa::interned]
 #[derive(Clone, Debug, PartialEq, Eq, Hash)]
 pub struct Word {
@@ -53,49 +51,5 @@ impl ToString for &std::path::Path {
 impl ToString for &std::path::PathBuf {
     fn to_string(self) -> String {
         self.display().to_string()
-    }
-}
-
-#[salsa::tracked]
-/// A "spanned word" is a `Word` that also carries a span. Useful for things like
-/// argument names etc where we want to carry the span through many phases
-/// of compilation.
-pub struct SpannedWord {
-    #[id]
-    word: Word,
-    span: FileSpan,
-}
-
-impl SpannedWord {
-    pub fn as_str(self, db: &dyn crate::Db) -> &str {
-        self.word(db).as_str(db)
-    }
-}
-
-impl<Db: ?Sized + crate::Db> salsa::DebugWithDb<Db> for SpannedWord {
-    fn fmt(&self, f: &mut std::fmt::Formatter<'_>, db: &Db) -> std::fmt::Result {
-        std::fmt::Debug::fmt(&self.as_str(db.as_dyn_ir_db()), f)
-    }
-}
-
-#[salsa::tracked]
-/// An optional SpannedOptionalWord is an identifier that may not be persent; it still carries
-/// a span for where the label *would have gone* had it been present (as compared to
-/// an `Option<Label>`).
-pub struct SpannedOptionalWord {
-    #[id]
-    word: Option<Word>,
-    span: FileSpan,
-}
-
-impl SpannedOptionalWord {
-    pub fn as_str(self, db: &dyn crate::Db) -> Option<&str> {
-        Some(self.word(db)?.as_str(db))
-    }
-}
-
-impl<Db: ?Sized + crate::Db> salsa::DebugWithDb<Db> for SpannedOptionalWord {
-    fn fmt(&self, f: &mut std::fmt::Formatter<'_>, db: &Db) -> std::fmt::Result {
-        std::fmt::Debug::fmt(&self.as_str(db.as_dyn_ir_db()), f)
     }
 }

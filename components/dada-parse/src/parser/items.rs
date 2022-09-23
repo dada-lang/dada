@@ -1,22 +1,26 @@
-use crate::{parser::Parser, token_test::SpannedIdentifier};
+//! Contains the methods to parse entire files or items.
+//!
+//! Does not parse the bodies of functions etc.
 
+use crate::parser::Parser;
+
+use dada_id::InternKey;
 use dada_ir::{
     class::Class,
     code::{
-        syntax::{op::Op, Spans, Tables},
+        syntax::{self, op::Op, Expr, ExprData, Spans, Tables, Tree, TreeData},
         UnparsedCode,
     },
-    effect::Effect,
-    function::Function,
+    function::{Function, FunctionSignature},
     item::Item,
     kw::Keyword,
     return_type::{ReturnType, ReturnTypeKind},
     source_file::{self, SourceFile},
     span::Span,
-    word::{SpannedWord, Word},
+    word::Word,
 };
 
-use super::OrReportError;
+use super::{CodeParser, OrReportError};
 
 impl<'db> Parser<'db> {
     pub(crate) fn parse_source_file(&mut self) -> SourceFile {
@@ -32,7 +36,8 @@ impl<'db> Parser<'db> {
             } else {
                 let span = self.tokens.last_span();
                 self.tokens.consume();
-                dada_ir::error!(span.in_file(self.input_file), "unexpected token").emit(self.db);
+                dada_ir::error!(span.anchor_to(self.db, self.input_file), "unexpected token")
+                    .emit(self.db);
             }
         }
 
@@ -43,26 +48,24 @@ impl<'db> Parser<'db> {
             // situation.
             let start_span = spans[exprs[0]];
             let end_span = spans[*exprs.last().unwrap()];
-            let main_span = start_span.to(end_span).in_file(self.input_file);
+            let main_span = start_span.to(end_span);
 
             // Create the `main` function entity -- its code is already parsed, so use `None` for `unparsed_code`
             let main_name = Word::intern(self.db, source_file::TOP_LEVEL_FN);
-            let main_name = SpannedWord::new(self.db, main_name, main_span);
             let return_type = ReturnType::new(self.db, ReturnTypeKind::Unit, main_span);
             let function = Function::new(
                 self.db,
                 main_name,
-                Effect::Async,
-                main_span,
+                self.input_file,
+                FunctionSignature::Main,
                 return_type,
                 None,
                 main_span,
             );
 
             // Set the syntax-tree and parameters for the main function.
-            let syntax_tree = self.create_syntax_tree(start_span, vec![], tables, spans, exprs);
+            let syntax_tree = self.create_syntax_tree(start_span, tables, spans, exprs);
             crate::code_parser::parse_function_body::specify(self.db, function, syntax_tree);
-            crate::parameter_parser::parse_function_parameters::specify(self.db, function, vec![]);
 
             items.push(Item::Function(function));
             Some(function)
@@ -84,19 +87,37 @@ impl<'db> Parser<'db> {
     }
 
     fn parse_class(&mut self) -> Option<Class> {
-        let (class_span, _) = self.eat(Keyword::Class)?;
-        let (_, class_name) = self
-            .eat(SpannedIdentifier)
-            .or_report_error(self, || "expected a class name")?;
-        let (_, field_tokens) = self
-            .delimited('(')
-            .or_report_error(self, || "expected class parameters")?;
+        let start_span = self.peek_span();
+        self.peek(Keyword::Class)?;
+
+        let mut signature_tables = syntax::Tables::default();
+        let mut signature_spans = syntax::Spans::default();
+        let mut signature_parser = self.code_parser(&mut signature_tables, &mut signature_spans);
+
+        let fn_decl = signature_parser.parse_class().unwrap();
+        let name = signature_parser
+            .parse_name()
+            .or_report_error(&mut signature_parser, || "expected a class name")?;
+        let parameters = signature_parser
+            .parse_parameter_list()
+            .or_report_error(&mut signature_parser, || {
+                "expected class parameters".to_string()
+            })?;
+        let signature = syntax::Signature::new(
+            name,
+            fn_decl,
+            None,
+            parameters,
+            signature_tables,
+            signature_spans,
+        );
+
         Some(Class::new(
             self.db,
-            class_name,
-            field_tokens,
-            self.span_consumed_since(class_span)
-                .in_file(self.input_file),
+            name.data(&signature.tables).word,
+            self.input_file,
+            signature,
+            self.span_consumed_since(start_span),
         ))
     }
 
@@ -112,51 +133,111 @@ impl<'db> Parser<'db> {
             return None;
         }
 
-        let (effect_span, effect) = if let Some((span, _)) = self.eat(Keyword::Async) {
-            (Some(span), Effect::Async)
-        } else {
-            (None, Effect::Default)
-        };
-        let (fn_span, _) = self.eat(Keyword::Fn).unwrap();
-        let (_, func_name) = self
-            .eat(SpannedIdentifier)
-            .or_report_error(self, || "expected function name".to_string())?;
-        let (_, parameter_tokens) = self
-            .delimited('(')
-            .or_report_error(self, || "expected function parameters".to_string())?;
-        let return_type = {
-            let right_arrow = self.eat_op(Op::RightArrow);
-            let span = right_arrow
-                .unwrap_or_else(|| Span {
-                    // span between last non skipped token and next non skippable token
-                    start: self.tokens.last_span().end,
-                    end: self.tokens.peek_span().start,
-                })
-                .in_file(self.input_file);
-            ReturnType::new(
-                self.db,
-                if right_arrow.is_some() {
-                    ReturnTypeKind::Value
-                } else {
-                    ReturnTypeKind::Unit
-                },
-                span,
-            )
-        };
+        let start_span = self.peek_span();
+
+        let mut signature_tables = syntax::Tables::default();
+        let mut signature_spans = syntax::Spans::default();
+        let mut signature_parser = self.code_parser(&mut signature_tables, &mut signature_spans);
+        let effect = signature_parser.parse_effect();
+        let fn_kw = signature_parser.parse_fn().unwrap(); // we peeked above, it should be there
+        let name = signature_parser
+            .parse_name()
+            .or_report_error(&mut signature_parser, || {
+                "expected function name".to_string()
+            })?;
+        let parameters = signature_parser
+            .parse_parameter_list()
+            .or_report_error(&mut signature_parser, || {
+                "expected function parameters".to_string()
+            })?;
+        let return_type = signature_parser.parse_return_type();
         let (_, body_tokens) = self
             .delimited('{')
             .or_report_error(self, || "expected function body".to_string())?;
-        let code = UnparsedCode::new(parameter_tokens, body_tokens);
-        let start_span = effect_span.unwrap_or(fn_span);
+        let code = UnparsedCode::new(body_tokens);
+        let signature = syntax::Signature::new(
+            name,
+            fn_kw,
+            effect,
+            parameters,
+            signature_tables,
+            signature_spans,
+        );
         Some(Function::new(
             self.db,
-            func_name,
-            effect,
-            effect_span.unwrap_or(fn_span).in_file(self.input_file),
+            name.data(&signature.tables).word,
+            self.input_file,
+            FunctionSignature::Syntax(signature),
             return_type,
             Some(code),
-            self.span_consumed_since(start_span)
-                .in_file(self.input_file),
+            self.span_consumed_since(start_span),
         ))
     }
+
+    pub(crate) fn parse_code_body(&mut self) -> Tree {
+        let mut tables = Tables::default();
+        let mut spans = Spans::default();
+
+        let mut code_parser = CodeParser {
+            parser: self,
+            tables: &mut tables,
+            spans: &mut spans,
+        };
+
+        let start = code_parser.tokens.last_span();
+        let exprs = code_parser.parse_only_expr_seq();
+        self.create_syntax_tree(start, tables, spans, exprs)
+    }
+
+    /// Parses an (optional) return type declaration from a function.
+    fn parse_return_type(&mut self) -> ReturnType {
+        let right_arrow = self.eat_op(Op::RightArrow);
+        let span = right_arrow.unwrap_or_else(|| Span {
+            // span between last non skipped token and next non skippable token
+            start: self.tokens.last_span().end,
+            end: self.tokens.peek_span().start,
+        });
+        ReturnType::new(
+            self.db,
+            if right_arrow.is_some() {
+                ReturnTypeKind::Value
+            } else {
+                ReturnTypeKind::Unit
+            },
+            span,
+        )
+    }
+
+    fn parse_top_level_expr(&mut self, tables: &mut Tables, spans: &mut Spans) -> Option<Expr> {
+        let mut code_parser = CodeParser {
+            parser: self,
+            tables,
+            spans,
+        };
+        code_parser.parse_expr()
+    }
+
+    fn create_syntax_tree(
+        &mut self,
+        start: Span,
+        mut tables: Tables,
+        mut spans: Spans,
+        exprs: Vec<Expr>,
+    ) -> Tree {
+        let span = self.span_consumed_since(start);
+
+        let root_expr = {
+            let mut code_parser = CodeParser {
+                parser: self,
+                tables: &mut tables,
+                spans: &mut spans,
+            };
+            code_parser.add(ExprData::Seq(exprs), span)
+        };
+
+        let tree_data = TreeData { root_expr };
+        Tree::new(self.db, tree_data, tables, spans)
+    }
 }
+
+impl CodeParser<'_, '_> {}

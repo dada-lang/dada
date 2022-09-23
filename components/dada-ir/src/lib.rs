@@ -43,8 +43,6 @@ pub struct Jar(
     token_tree::TokenTree,
     ty::Ty,
     word::Word,
-    word::SpannedWord,
-    word::SpannedOptionalWord,
     return_type::ReturnType,
     input_file::InputFile,
 );

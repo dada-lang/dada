@@ -1,6 +1,9 @@
 use salsa::DebugWithDb;
 
-use crate::{span::LineColumn, word::Word};
+use crate::{
+    span::{Anchored, LineColumn},
+    word::Word,
+};
 
 #[salsa::input]
 pub struct InputFile {
@@ -18,6 +21,12 @@ pub struct InputFile {
 impl InputFile {
     pub fn name_str(self, db: &dyn crate::Db) -> &str {
         self.name(db).string(db)
+    }
+}
+
+impl Anchored for InputFile {
+    fn input_file(&self, _db: &dyn crate::Db) -> InputFile {
+        *self
     }
 }
 

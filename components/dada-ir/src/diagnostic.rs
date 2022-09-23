@@ -212,6 +212,10 @@ impl IntoFileSpan for FileSpan {
 
 impl IntoFileSpan for Span {
     fn maybe_in_file(self, default_file: InputFile) -> FileSpan {
-        self.in_file(default_file)
+        FileSpan {
+            input_file: default_file,
+            start: self.start,
+            end: self.end,
+        }
     }
 }

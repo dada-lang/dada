@@ -11,3 +11,4 @@ salsa = { path = "../salsa" }
 dada-id = { path = "../dada-id" }
 dada-collections = { path = "../dada-collections" }
 tracing = "0.1.36"
+derive-new = "0.5.9"
