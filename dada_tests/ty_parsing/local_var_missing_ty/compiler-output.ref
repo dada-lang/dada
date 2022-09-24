@@ -1,0 +1,9 @@
+Error: expected type after `:`
+   ╭─[dada_tests/ty_parsing/local_var_missing_ty.dada:3:4]
+   │
+ 3 │ v: = Value(22) #! ERROR expected type after `:`
+   ·  ┬ ┬  
+   ·  ╰──── `:` is here
+   ·    │  
+   ·    ╰── here
+───╯

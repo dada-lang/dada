@@ -374,18 +374,12 @@ impl CodeParser<'_, '_> {
         let atomic = self.parse_atomic();
         let name = self.parse_name().unwrap();
         let ty = self.parse_colon_ty();
-        self.eat_op(Op::Equal).or_report_error(self, || {
-            format!(
-                "expected {} as part of declaring a local variable",
-                Op::Equal
-            )
-        });
-
         let lv_span = self.span_consumed_since_parsing(atomic.or_parsing(name));
         let local_variable_decl = self.add(LocalVariableDeclData { atomic, name, ty }, lv_span);
 
         let value = self
-            .parse_expr()
+            .eat_op(Op::Equal)
+            .and_then(|_| self.parse_expr())
             .or_report_error(self, || "expected value for local variable".to_string())
             .or_dummy_expr(self);
 
