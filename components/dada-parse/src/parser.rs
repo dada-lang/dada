@@ -74,16 +74,6 @@ impl<'me> Parser<'me> {
         Some((span, narrow))
     }
 
-    /// Run `op` to get a true/false but rollback any tokens consumed.
-    /// This is used to probe a few tokens ahead to see if we should
-    /// commit to a given function.
-    fn testahead(&mut self, op: impl FnOnce(&mut Self) -> bool) -> bool {
-        let tokens = self.tokens;
-        let r = op(self);
-        self.tokens = tokens;
-        r
-    }
-
     /// Peek ahead to see if `op` matches the next set of tokens;
     /// if so, return the span and the tokens after skipping the operator.
     fn test_op(&self, op: Op) -> Option<(Span, Tokens<'me>)> {
@@ -255,19 +245,6 @@ impl CodeParser<'_, '_> {
     {
         let start = element.to_span(self.spans);
         self.span_consumed_since(start)
-    }
-
-    /// Run `op` -- if it returns `None`, then no tokens are consumed.
-    /// If it returns `Some`, then the tokens are consumed.
-    /// Use sparingly, and try not to report errors or have side-effects in `op`.
-    fn lookahead<R>(&mut self, op: impl FnOnce(&mut Self) -> Option<R>) -> Option<R> {
-        let tokens = self.tokens;
-        let r = op(self);
-        if r.is_none() {
-            // Restore tokens that `op` may have consumed.
-            self.tokens = tokens;
-        }
-        r
     }
 }
 
@@ -464,5 +441,44 @@ trait TightenSpan {
 impl TightenSpan for Span {
     fn tighten_span(self, parser: &Parser<'_>) -> Self {
         parser.tighten_span(self)
+    }
+}
+
+trait Lookahead {
+    /// Run `op` to get a true/false but rollback any tokens consumed.
+    /// This is used to probe a few tokens ahead to see if we should
+    /// commit to a given function.
+    fn testahead(&mut self, op: impl FnOnce(&mut Self) -> bool) -> Option<()>;
+}
+
+impl Lookahead for Parser<'_> {
+    /// Run `op` to get a true/false but rollback any tokens consumed.
+    /// This is used to probe a few tokens ahead to see if we should
+    /// commit to a given function.
+    fn testahead(&mut self, op: impl FnOnce(&mut Self) -> bool) -> Option<()> {
+        let tokens = self.tokens;
+        let r = op(self);
+        self.tokens = tokens;
+        if r {
+            Some(())
+        } else {
+            None
+        }
+    }
+}
+
+impl Lookahead for CodeParser<'_, '_> {
+    /// Run `op` to get a true/false but rollback any tokens consumed.
+    /// This is used to probe a few tokens ahead to see if we should
+    /// commit to a given function.
+    fn testahead(&mut self, op: impl FnOnce(&mut Self) -> bool) -> Option<()> {
+        let tokens = self.tokens;
+        let r = op(self);
+        self.tokens = tokens;
+        if r {
+            Some(())
+        } else {
+            None
+        }
     }
 }

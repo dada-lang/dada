@@ -15,7 +15,7 @@ use dada_ir::{
     token_tree::TokenTree,
 };
 
-use super::{CodeParser, OrReportError, ParseList, SpanFallover};
+use super::{CodeParser, Lookahead, OrReportError, ParseList, SpanFallover};
 
 impl CodeParser<'_, '_> {
     /// Parses a series of expressions; expects to consume all available tokens (and errors if there are extra).
@@ -69,11 +69,11 @@ impl CodeParser<'_, '_> {
 
     /// Parse a `foo:` label.
     fn parse_label(&mut self) -> Option<Name> {
-        self.lookahead(|this| {
-            let (word_span, word) = this.eat(Identifier)?;
-            let _colon_span = this.eat_op(Op::Colon)?;
-            Some(this.add(NameData { word }, word_span))
-        })
+        self.testahead(|this| this.eat(Identifier).is_some() && this.eat_op(Op::Colon).is_some())?;
+
+        let (word_span, word) = self.eat(Identifier).unwrap();
+        let _colon_span = self.eat_op(Op::Colon).unwrap();
+        Some(self.add(NameData { word }, word_span))
     }
 
     /// ```text
@@ -362,26 +362,27 @@ impl CodeParser<'_, '_> {
     /// Parses `[permission-mode] [atomic] x = expr`
     #[tracing::instrument(level = "debug", skip_all)]
     fn parse_local_variable_decl(&mut self) -> Option<Expr> {
-        // Look for `[mode] x = `. If we see that, we are committed to this
-        // being a local variable declaration. Otherwise, we roll fully back.
-        let (atomic, name) = self.lookahead(|this| {
-            let atomic = this.parse_atomic();
-            let name = this.parse_name()?;
-
-            this.eat_op(Op::Equal)?;
-
-            Some((atomic, name))
+        // Scan ahead, looking for either `x = ` or `x :`.
+        self.testahead(|this| {
+            let _ = this.parse_atomic();
+            this.parse_name().is_some()
+                && (this.eat_op(Op::Colon).is_some() || this.eat_op(Op::Equal).is_some())
         })?;
 
+        // Look for `[mode] x = `. If we see that, we are committed to this
+        // being a local variable declaration. Otherwise, we roll fully back.
+        let atomic = self.parse_atomic();
+        let name = self.parse_name().unwrap();
+        let ty = self.parse_colon_ty();
+        self.eat_op(Op::Equal).or_report_error(self, || {
+            format!(
+                "expected {} as part of declaring a local variable",
+                Op::Equal
+            )
+        });
+
         let lv_span = self.span_consumed_since_parsing(atomic.or_parsing(name));
-        let local_variable_decl = self.add(
-            LocalVariableDeclData {
-                atomic,
-                name,
-                ty: None, // FIXME-- should permit `ty: Ty = ...`
-            },
-            lv_span,
-        );
+        let local_variable_decl = self.add(LocalVariableDeclData { atomic, name, ty }, lv_span);
 
         let value = self
             .parse_expr()

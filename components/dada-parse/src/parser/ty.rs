@@ -1,11 +1,24 @@
 use dada_ir::{
-    code::syntax::{Path, Perm, PermData, Ty, TyData},
+    code::syntax::{op::Op, Path, Perm, PermData, Ty, TyData},
     kw::Keyword,
 };
 
 use super::{CodeParser, Parser, SpanFallover};
 
 impl CodeParser<'_, '_> {
+    /// Parse `: Ty`.
+    pub(crate) fn parse_colon_ty(&mut self) -> Option<Ty> {
+        let Some(colon_span) = self.eat_op(Op::Colon) else { return None };
+        let opt_ty = self.parse_ty();
+        if opt_ty.is_none() {
+            self.error_at_current_token(&"expected type after `:`".to_string())
+                .secondary_label(colon_span, "`:` is here".to_string())
+                .emit(self.db);
+        }
+        opt_ty
+    }
+
+    /// Parse a dada type like `my String`.
     pub(crate) fn parse_ty(&mut self) -> Option<Ty> {
         let perm = self.parse_perm();
         let path = self.parse_path();
