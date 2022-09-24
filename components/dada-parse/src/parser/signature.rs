@@ -1,7 +1,6 @@
 use crate::parser::Parser;
 
 use dada_ir::{
-    code::syntax::op::Op,
     code::syntax::{
         AsyncKeyword, AsyncKeywordData, AtomicKeyword, AtomicKeywordData, EffectKeyword, FnDecl,
         FnDeclData, LocalVariableDecl, LocalVariableDeclData,
@@ -77,30 +76,10 @@ impl CodeParser<'_, '_> {
             return None;
         };
 
-        // Parse the type.
-        let opt_ty = if let Some(colon_span) = self.eat_op(Op::Colon) {
-            let opt_ty = self.parse_ty();
-
-            if opt_ty.is_none() {
-                self.error_at_current_token(&"expected type after `:`".to_string())
-                    .secondary_label(colon_span, "`:` is here".to_string())
-                    .emit(self.db);
-            }
-
-            opt_ty
-        } else {
-            None
-        };
+        let ty = self.parse_colon_ty();
 
         let span = self.span_consumed_since_parsing(atomic.or_parsing(name));
-        let decl = self.add(
-            LocalVariableDeclData {
-                atomic,
-                name,
-                ty: opt_ty,
-            },
-            span,
-        );
+        let decl = self.add(LocalVariableDeclData { atomic, name, ty }, span);
 
         Some(decl)
     }

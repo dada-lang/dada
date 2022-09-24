@@ -20,7 +20,7 @@ use dada_ir::{
     word::Word,
 };
 
-use super::{CodeParser, OrReportError};
+use super::{CodeParser, Lookahead, OrReportError};
 
 impl<'db> Parser<'db> {
     pub(crate) fn parse_source_file(&mut self) -> SourceFile {
@@ -125,13 +125,10 @@ impl<'db> Parser<'db> {
         // Look ahead to see if this is a function. It can look like
         //
         //     async? fn
-        let is_fn = self.testahead(|parser| {
-            let _ = parser.eat(Keyword::Async); // optional async keyword
-            parser.eat(Keyword::Fn).is_some()
-        });
-        if !is_fn {
-            return None;
-        }
+        self.testahead(|this| {
+            let _ = this.eat(Keyword::Async); // optional async keyword
+            this.eat(Keyword::Fn).is_some()
+        })?;
 
         let start_span = self.peek_span();
 

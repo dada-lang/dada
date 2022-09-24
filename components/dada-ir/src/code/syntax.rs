@@ -85,6 +85,9 @@ tables! {
         async_keyword: alloc AsyncKeyword => AsyncKeywordData,
         fn_decl: alloc FnDecl => FnDeclData,
         name: alloc Name => NameData,
+        ty: alloc Ty => TyData,
+        perm: alloc Perm => PermData,
+        path: alloc Path => PathData,
     }
 }
 
@@ -104,6 +107,9 @@ origin_table! {
         async_keyword: AsyncKeyword => Span,
         fn_decl: FnDecl => Span,
         name: Name => Span,
+        ty: Ty => Span,
+        perm: Perm => Span,
+        path: Path => Span,
     }
 }
 
@@ -303,7 +309,7 @@ impl DebugWithDb<InIrDb<'_, Tree>> for LocalVariableDecl {
 pub struct LocalVariableDeclData {
     pub atomic: Option<AtomicKeyword>,
     pub name: Name,
-    pub ty: Option<crate::ty::Ty>,
+    pub ty: Option<Ty>,
 }
 
 impl DebugWithDb<InIrDb<'_, Tree>> for LocalVariableDeclData {
@@ -311,7 +317,7 @@ impl DebugWithDb<InIrDb<'_, Tree>> for LocalVariableDeclData {
         f.debug_struct("LocalVariableDeclData")
             .field("atomic", &self.atomic)
             .field("name", &self.name.debug(db))
-            .field("ty", &self.ty.debug(db.db()))
+            .field("ty", &self.ty.debug(db))
             .finish()
     }
 }
@@ -413,7 +419,66 @@ impl DebugWithDb<InIrDb<'_, Tree>> for Name {
         self.data(db.tables()).word.fmt(f, db.db())
     }
 }
+
 #[derive(PartialEq, Eq, PartialOrd, Ord, Clone, Hash, Debug)]
 pub struct NameData {
     pub word: Word,
+}
+
+id!(pub struct Ty);
+
+/// A Dada type looks like `Perm Path`.
+#[derive(PartialEq, Eq, PartialOrd, Ord, Clone, Hash, Debug)]
+pub struct TyData {
+    pub perm: Option<Perm>,
+    pub path: Path,
+}
+
+impl DebugWithDb<InIrDb<'_, Tree>> for Ty {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>, db: &InIrDb<'_, Tree>) -> std::fmt::Result {
+        let TyData { perm, path } = self.data(db.tables());
+        f.debug_struct("Ty")
+            .field("perm", &perm.debug(db))
+            .field("path", &path.debug(db))
+            .finish()
+    }
+}
+
+id!(pub struct Perm);
+
+#[derive(PartialEq, Eq, PartialOrd, Ord, Clone, Hash, Debug)]
+pub enum PermData {
+    My,
+    Our,
+    Shared(Vec<Path>),
+    Leased(Vec<Path>),
+}
+
+impl DebugWithDb<InIrDb<'_, Tree>> for Perm {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>, db: &InIrDb<'_, Tree>) -> std::fmt::Result {
+        match self.data(db.tables()) {
+            PermData::My => write!(f, "my"),
+            PermData::Our => write!(f, "our"),
+            PermData::Shared(paths) => write!(f, "shared({:?})", paths.debug(db)),
+            PermData::Leased(paths) => write!(f, "leased({:?})", paths.debug(db)),
+        }
+    }
+}
+
+id!(pub struct Path);
+
+/// A path like `foo` or `foo.bar`
+#[derive(PartialEq, Eq, PartialOrd, Ord, Clone, Hash, Debug)]
+pub enum PathData {
+    Name(Name),
+    Dot(Path, Name),
+}
+
+impl DebugWithDb<InIrDb<'_, Tree>> for Path {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>, db: &InIrDb<'_, Tree>) -> std::fmt::Result {
+        match self.data(db.tables()) {
+            PathData::Name(name) => name.fmt(f, db),
+            PathData::Dot(path, name) => write!(f, "{:?}.{:?}", path.debug(db), name.debug(db)),
+        }
+    }
 }
