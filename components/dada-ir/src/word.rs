@@ -1,3 +1,5 @@
+use salsa::DebugWithDb;
+
 #[salsa::interned]
 #[derive(Clone, Debug, PartialEq, Eq, Hash)]
 pub struct Word {
@@ -20,9 +22,24 @@ impl Word {
     }
 }
 
-impl salsa::DebugWithDb<dyn crate::Db + '_> for Word {
+impl DebugWithDb<dyn crate::Db + '_> for Word {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>, db: &dyn crate::Db) -> std::fmt::Result {
         std::fmt::Debug::fmt(self.string(db), f)
+    }
+}
+
+#[salsa::interned]
+#[derive(Clone, Debug, PartialEq, Eq, Hash)]
+pub struct Words {
+    #[return_ref]
+    pub elements: Vec<Word>,
+}
+
+impl DebugWithDb<dyn crate::Db + '_> for Words {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>, db: &dyn crate::Db) -> std::fmt::Result {
+        f.debug_list()
+            .entries(self.elements(db).iter().map(|w| w.debug(db)))
+            .finish()
     }
 }
 
