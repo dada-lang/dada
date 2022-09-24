@@ -1,3 +1,5 @@
+use std::fmt::Debug;
+
 use dada_ir::{
     format_string::FormatString, kw::Keyword, span::FileSpan, token::Token, token_tree::TokenTree,
     word::Word,
@@ -8,7 +10,7 @@ use dada_ir::{
 pub(crate) trait TokenTest: std::fmt::Debug {
     /// When the test is successful, we return the token back but (potentially)
     /// with a narrower, more specific type -- this is that type.
-    type Narrow;
+    type Narrow: Debug;
 
     /// If `token` matches the condition, return `Some` with a potentially transformed
     /// version of the token. Else returns None.

@@ -448,12 +448,20 @@ id!(pub struct Perm);
 
 #[derive(PartialEq, Eq, PartialOrd, Ord, Clone, Hash, Debug)]
 pub enum PermData {
-    // TODO -- define permissions
+    My,
+    Our,
+    Shared(Vec<Path>),
+    Leased(Vec<Path>),
 }
 
 impl DebugWithDb<InIrDb<'_, Tree>> for Perm {
-    fn fmt(&self, _f: &mut std::fmt::Formatter<'_>, db: &InIrDb<'_, Tree>) -> std::fmt::Result {
-        match *self.data(db.tables()) {}
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>, db: &InIrDb<'_, Tree>) -> std::fmt::Result {
+        match self.data(db.tables()) {
+            PermData::My => write!(f, "my"),
+            PermData::Our => write!(f, "our"),
+            PermData::Shared(paths) => write!(f, "shared({:?})", paths.debug(db)),
+            PermData::Leased(paths) => write!(f, "leased({:?})", paths.debug(db)),
+        }
     }
 }
 

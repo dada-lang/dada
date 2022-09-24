@@ -6,12 +6,20 @@ use dada_ir::code::{
 };
 
 use super::CodeParser;
+use super::ParseList;
 
 impl CodeParser<'_, '_> {
     /// Parse a `foo` name.
     pub(super) fn parse_name(&mut self) -> Option<Name> {
         let (word_span, word) = self.eat(Identifier)?;
         Some(self.add(NameData { word }, word_span))
+    }
+
+    /// Parse a list of paths, reporting an error if anthing else remains after.
+    pub(super) fn parse_only_paths(&mut self) -> Vec<Path> {
+        let p = self.parse_list(true, CodeParser::parse_path);
+        self.emit_error_if_more_tokens("extra tokens after paths");
+        p
     }
 
     /// Parse a `foo` or `foo.bar` (or `foo.bar.baz`...) path.

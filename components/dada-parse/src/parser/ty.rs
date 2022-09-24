@@ -1,6 +1,9 @@
-use dada_ir::code::syntax::{Perm, Ty, TyData};
+use dada_ir::{
+    code::syntax::{Path, Perm, PermData, Ty, TyData},
+    kw::Keyword,
+};
 
-use super::{CodeParser, SpanFallover};
+use super::{CodeParser, Parser, SpanFallover};
 
 impl CodeParser<'_, '_> {
     pub(crate) fn parse_ty(&mut self) -> Option<Ty> {
@@ -25,6 +28,42 @@ impl CodeParser<'_, '_> {
     }
 
     pub(crate) fn parse_perm(&mut self) -> Option<Perm> {
-        None
+        if let Some((span, _)) = self.eat(Keyword::My) {
+            self.disallow_perm_paths(Keyword::My);
+            Some(self.add(PermData::My, span))
+        } else if let Some((span, _)) = self.eat(Keyword::Our) {
+            self.disallow_perm_paths(Keyword::Our);
+            Some(self.add(PermData::Our, span))
+        } else if let Some((shared_span, _)) = self.eat(Keyword::Shared) {
+            let paths = self.parse_perm_paths();
+            Some(self.add(
+                PermData::Shared(paths),
+                self.span_consumed_since(shared_span),
+            ))
+        } else if let Some((leased_span, _)) = self.eat(Keyword::Leased) {
+            let paths = self.parse_perm_paths();
+            Some(self.add(
+                PermData::Leased(paths),
+                self.span_consumed_since(leased_span),
+            ))
+        } else {
+            None
+        }
+    }
+
+    pub(crate) fn disallow_perm_paths(&mut self, keyword: Keyword) {
+        let Some((span, _)) = self.delimited('(') else { return };
+        self.error(
+            span,
+            format!("no paths are needed after the {keyword} permission"),
+        )
+        .emit(self.db);
+    }
+
+    pub(crate) fn parse_perm_paths(&mut self) -> Vec<Path> {
+        let Some((_, token_tree)) = self.delimited('(') else { return vec![]; };
+        let mut parser = Parser::new(self.db, token_tree);
+        let mut subparser = parser.code_parser(self.tables, self.spans);
+        subparser.parse_only_paths()
     }
 }
