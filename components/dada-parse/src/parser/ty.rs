@@ -65,7 +65,7 @@ impl CodeParser<'_, '_> {
     }
 
     pub(crate) fn disallow_perm_paths(&mut self, keyword: Keyword) {
-        let Some((span, _)) = self.delimited('(') else { return };
+        let Some((span, _)) = self.delimited('{') else { return };
         self.error(
             span,
             format!("no paths are needed after the {keyword} permission"),
@@ -74,7 +74,7 @@ impl CodeParser<'_, '_> {
     }
 
     pub(crate) fn parse_perm_paths(&mut self) -> Vec<Path> {
-        let Some((_, token_tree)) = self.delimited('(') else { return vec![]; };
+        let Some((_, token_tree)) = self.delimited('{') else { return vec![]; };
         let mut parser = Parser::new(self.db, token_tree);
         let mut subparser = parser.code_parser(self.tables, self.spans);
         subparser.parse_only_paths()
