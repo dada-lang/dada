@@ -16,12 +16,12 @@ pub mod lines;
 pub mod parameter;
 pub mod prelude;
 pub mod return_type;
+pub mod signature;
 pub mod source_file;
 pub mod span;
 pub mod storage;
 pub mod token;
 pub mod token_tree;
-pub mod ty;
 pub mod word;
 
 #[salsa::jar(db = Db)]
@@ -41,8 +41,16 @@ pub struct Jar(
     parameter::Parameter,
     source_file::SourceFile,
     token_tree::TokenTree,
-    ty::Ty,
+    signature::Ty,
+    signature::ParameterTy,
+    signature::ClassTy,
+    signature::Tys,
+    signature::Permission,
+    signature::KnownPermission,
+    signature::Path,
+    signature::Paths,
     word::Word,
+    word::Words,
     return_type::ReturnType,
     input_file::InputFile,
 );

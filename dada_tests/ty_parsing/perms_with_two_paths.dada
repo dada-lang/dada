@@ -1,7 +1,7 @@
 class Value(n)
 
 # With 2 paths
-class List1(a: Value, b: Value, v: my(a, b) Value)  #! ERROR no paths are needed after the `my` permission
-class List2(a: Value, b: Value, v: our(a, b) Value)  #! ERROR no paths are needed after the `our` permission
-class List3(a: Value, b: Value, v: shared(a, b) Value)
-class List4(a: Value, b: Value, v: leased(a, b) Value)
+class List1(a: Value, b: Value, v: my{a, b} Value)  #! ERROR no paths are needed after the `my` permission
+class List2(a: Value, b: Value, v: our{a, b} Value)  #! ERROR no paths are needed after the `our` permission
+class List3(a: Value, b: Value, v: shared{a, b} Value)
+class List4(a: Value, b: Value, v: leased{a, b} Value)
