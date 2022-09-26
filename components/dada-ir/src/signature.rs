@@ -38,7 +38,7 @@ pub struct ParameterTy {
 /// Dada type referencing a specific class
 #[salsa::interned]
 pub struct ClassTy {
-    /// Permisions used to access the object.
+    /// Permissions used to access the object.
     pub permission: Permission,
 
     /// Class of the object (e.g., `String`).
@@ -54,7 +54,7 @@ pub struct Permission {
     data: PermissionData,
 }
 
-/// Permisions can either be a generic parameter or something fixed.
+/// Permissions can either be a generic parameter or something fixed.
 #[derive(Copy, Clone, PartialEq, Eq, PartialOrd, Ord, Hash)]
 pub enum PermissionData {
     Parameter(Word),
