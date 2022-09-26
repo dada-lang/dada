@@ -3,7 +3,7 @@ use dada_ir::class::Class;
 use dada_ir::code::{syntax, validated};
 use dada_ir::function::{Function, FunctionSignature};
 use dada_ir::input_file::InputFile;
-use dada_ir::parameter::Parameter;
+use dada_ir::signature::Parameter;
 use dada_ir::storage::Atomic;
 use dada_parse::prelude::*;
 
@@ -28,7 +28,7 @@ pub(crate) fn validate_function(db: &dyn crate::Db, function: Function) -> valid
 
     match function.signature(db) {
         FunctionSignature::Syntax(s) => {
-            validator.validate_signature(s);
+            validator.validate_signature_into_tree(s);
         }
         FunctionSignature::Main => {}
     }
@@ -54,7 +54,8 @@ pub(crate) fn validate_function_parameters(
 
 #[salsa::tracked(return_ref)]
 pub(crate) fn validate_class_fields(db: &dyn crate::Db, class: Class) -> Vec<Parameter> {
-    signature_parameters(db, class.signature(db))
+    let signature = class.signature(db);
+    signature_parameters(db, signature)
 }
 
 fn signature_parameters(db: &dyn crate::Db, signature: &syntax::Signature) -> Vec<Parameter> {
@@ -64,12 +65,9 @@ fn signature_parameters(db: &dyn crate::Db, signature: &syntax::Signature) -> Ve
         .iter()
         .map(|&lv| {
             let lv_data = lv.data(tables);
-            let atomic = match lv_data.atomic {
-                Some(_) => Atomic::Yes,
-                None => Atomic::No,
-            };
             let name = lv_data.name.data(tables).word;
-            Parameter::new(db, name, atomic)
+            let atomic = Atomic::from(lv_data.atomic);
+            Parameter::new(db, name, None, atomic)
         })
         .collect()
 }

@@ -1,4 +1,4 @@
-use dada_ir::{code::bir, error, parameter::Parameter};
+use dada_ir::{code::bir, error, signature::Parameter};
 
 use crate::{
     error::DiagnosticBuilderExt,

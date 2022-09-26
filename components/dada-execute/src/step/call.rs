@@ -3,7 +3,7 @@ use dada_ir::{
     code::{bir, syntax},
     error,
     origin_table::HasOriginIn,
-    parameter::Parameter,
+    signature::Parameter,
     word::Word,
 };
 use dada_validate::prelude::*;

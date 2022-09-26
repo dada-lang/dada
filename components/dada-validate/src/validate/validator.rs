@@ -122,14 +122,19 @@ impl<'me> Validator<'me> {
         self.add(validated::ExprData::Tuple(vec![]), origin)
     }
 
-    pub(crate) fn validate_signature(&mut self, signature: &syntax::Signature) {
+    /// Extends the validated tree for the function with local variable
+    /// declarations for each parameter. This is distinct from
+    /// the conversion done by [`crate::validate::signature_parameters`]
+    /// because it represents the *function body's* view onto the
+    /// parameters (types are represented differently, for example).
+    pub(crate) fn validate_signature_into_tree(&mut self, signature: &syntax::Signature) {
         // NB: The signature uses a distinct set of syntax tables.
         let syntax::Signature {
             tables, parameters, ..
         } = signature;
         for &lv in parameters {
             let lv_data = &tables[lv];
-            let atomic = lv_data.atomic.map(|_| Atomic::Yes).unwrap_or(Atomic::No);
+            let atomic = Atomic::from(lv_data.atomic);
             let name = self.validate_name_in_tables(lv_data.name, tables);
             let local_variable = self.add(
                 validated::LocalVariableData {

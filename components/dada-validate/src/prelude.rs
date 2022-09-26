@@ -1,6 +1,6 @@
 use dada_ir::{
     class::Class, code::validated, function::Function, input_file::InputFile, item::Item,
-    parameter::Parameter,
+    signature::Parameter,
 };
 
 #[extension_trait::extension_trait]

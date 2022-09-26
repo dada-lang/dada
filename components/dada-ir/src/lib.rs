@@ -13,7 +13,6 @@ pub mod intrinsic;
 pub mod item;
 pub mod kw;
 pub mod lines;
-pub mod parameter;
 pub mod prelude;
 pub mod return_type;
 pub mod signature;
@@ -38,7 +37,6 @@ pub struct Jar(
     kw::Keywords,
     kw::keywords_map,
     lines::line_table,
-    parameter::Parameter,
     source_file::SourceFile,
     token_tree::TokenTree,
     signature::Signature,
@@ -49,6 +47,7 @@ pub struct Jar(
     signature::ParameterTy,
     signature::ClassTy,
     signature::Tys,
+    signature::Parameter,
     signature::Permission,
     signature::KnownPermission,
     signature::Path,

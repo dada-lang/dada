@@ -1,3 +1,5 @@
+use crate::code::syntax::AtomicKeyword;
+
 /// NB: Ordering is significant. As we traverse a path, we take the
 /// max of the atomic properties for the various storage modes,
 /// and we want that to be atomic if any step was atomic.
@@ -5,6 +7,16 @@
 pub enum Atomic {
     No,
     Yes,
+}
+
+impl From<Option<AtomicKeyword>> for Atomic {
+    fn from(o: Option<AtomicKeyword>) -> Self {
+        if o.is_some() {
+            Atomic::Yes
+        } else {
+            Atomic::No
+        }
+    }
 }
 
 impl std::ops::BitOr for Atomic {

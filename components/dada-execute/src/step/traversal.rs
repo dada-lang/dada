@@ -6,7 +6,7 @@ use dada_ir::{
     },
     error,
     origin_table::HasOriginIn,
-    parameter::Parameter,
+    signature::Parameter,
     span::FileSpan,
     storage::{Atomic, Joint, Leased},
     word::Word,

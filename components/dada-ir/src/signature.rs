@@ -6,7 +6,7 @@ use salsa::DebugWithDb;
 
 use crate::{
     class::Class,
-    storage::Joint,
+    storage::Atomic,
     word::{Word, Words},
 };
 
@@ -15,6 +15,20 @@ pub struct Signature {
     generics: GenericParameters,
     inputs: Vec<Ty>,
     output: Ty,
+}
+
+#[salsa::tracked]
+/// Represents a function parameter or a class field (which are declared in a parameter list).
+pub struct Parameter {
+    #[id]
+    name: Word,
+
+    /// Was the parameter/field represented with a type?
+    ty: Option<Ty>,
+
+    /// Was the parameter/field declared with atomic?
+    /// (Only relevant to fields.)
+    atomic: Atomic,
 }
 
 #[salsa::interned]
@@ -58,7 +72,10 @@ pub struct Ty {
 /// Types can be generic parameters (`T`) or a specific class (`String`).
 #[derive(Copy, Clone, PartialEq, Eq, PartialOrd, Ord, Hash)]
 pub enum TyData {
+    /// Generic parameter type like `T`.
     Parameter(ParameterTy),
+
+    /// Specific class like `String`.
     Class(ClassTy),
 }
 
@@ -111,7 +128,7 @@ pub struct KnownPermission {
 }
 
 /// Indicates how the value was derived from the given paths in a permission.
-#[derive(Copy, Clone, PartialEq, Eq, PartialOrd, Ord, Hash)]
+#[derive(Copy, Clone, Debug, PartialEq, Eq, PartialOrd, Ord, Hash)]
 pub enum KnownPermissionKind {
     /// Data is *given* from the specified paths -- if those paths
     /// are owned permissions, then the result will be owned.
@@ -214,8 +231,8 @@ impl DebugWithDb<dyn crate::Db + '_> for Permission {
 impl DebugWithDb<dyn crate::Db + '_> for KnownPermission {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>, db: &dyn crate::Db) -> std::fmt::Result {
         f.debug_tuple("Permission")
-            .field(&self.joint(db))
-            .field(&self.lessors(db).debug(db))
+            .field(&self.kind(db))
+            .field(&self.paths(db).debug(db))
             .finish()
     }
 }
