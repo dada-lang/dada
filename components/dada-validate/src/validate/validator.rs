@@ -124,7 +124,7 @@ impl<'me> Validator<'me> {
 
     /// Extends the validated tree for the function with local variable
     /// declarations for each parameter. This is distinct from
-    /// the conversion done by [`crate::validate::signature_parameters`]
+    /// the conversion done by [`crate::signature`]
     /// because it represents the *function body's* view onto the
     /// parameters (types are represented differently, for example).
     pub(crate) fn validate_signature_into_tree(&mut self, signature: &syntax::Signature) {

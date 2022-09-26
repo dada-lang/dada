@@ -13,7 +13,7 @@ pub impl DadaValidateInputFileExt for InputFile {
 #[extension_trait::extension_trait]
 pub impl DadaValidateFunctionExt for Function {
     fn parameters(self, db: &dyn crate::Db) -> &Vec<Parameter> {
-        crate::validate::validate_function_parameters(db, self)
+        crate::signature::validate_function_parameters(db, self)
     }
 
     fn validated_tree(self, db: &dyn crate::Db) -> validated::Tree {
@@ -24,7 +24,7 @@ pub impl DadaValidateFunctionExt for Function {
 #[extension_trait::extension_trait]
 pub impl DadaValidateClassExt for Class {
     fn fields(self, db: &dyn crate::Db) -> &Vec<Parameter> {
-        crate::validate::validate_class_fields(db, self)
+        crate::signature::validate_class_fields(db, self)
     }
 }
 

@@ -4,14 +4,15 @@
 #![feature(try_blocks)]
 #![allow(incomplete_features)]
 
+mod signature;
 mod validate;
 
 #[salsa::jar(db = Db)]
 pub struct Jar(
     validate::root_definitions,
     validate::validate_function,
-    validate::validate_function_parameters,
-    validate::validate_class_fields,
+    signature::validate_function_parameters,
+    signature::validate_class_fields,
 );
 
 pub trait Db: salsa::DbWithJar<Jar> + dada_ir::Db + dada_parse::Db {}
