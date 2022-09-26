@@ -10,6 +10,44 @@ use crate::{
     word::{Word, Words},
 };
 
+#[salsa::interned]
+pub struct Signature {
+    generics: GenericParameters,
+    inputs: Vec<Ty>,
+    output: Ty,
+}
+
+#[salsa::interned]
+pub struct GenericParameters {
+    #[return_ref]
+    elements: Vec<GenericParameter>,
+}
+
+#[salsa::interned]
+pub struct GenericParameter {
+    pub kind: GenericParameterKind,
+    pub name: Word,
+}
+
+/// Types can be generic parameters (`T`) or a specific class (`String`).
+#[derive(Copy, Clone, PartialEq, Eq, PartialOrd, Ord, Hash)]
+pub enum GenericParameterKind {
+    Permission,
+    Type,
+}
+
+#[salsa::interned]
+pub struct WhereClause {
+    pub data: WhereClauseData,
+}
+
+/// Types can be generic parameters (`T`) or a specific class (`String`).
+#[derive(Copy, Clone, PartialEq, Eq, PartialOrd, Ord, Hash)]
+pub enum WhereClauseData {
+    IsShared(Permission),
+    IsLeased(Permission),
+}
+
 /// Dada type appearing in a function signature. Types used during type checker
 /// (which support inference) are different.
 #[salsa::interned]
@@ -61,11 +99,33 @@ pub enum PermissionData {
     Known(KnownPermission),
 }
 
-// A dada *permission*
+/// A dada *permission*, written like `shared{x, y, z}`.
+/// `leased{x, y, z}` or  `given{x, y, z}`.
 #[salsa::interned]
 pub struct KnownPermission {
-    pub joint: Joint,
-    pub lessors: Paths,
+    // The `shared`, `leased`, or `given`.
+    pub kind: KnownPermissionKind,
+
+    /// The `{x, y, z}` in the permission.
+    pub paths: Paths,
+}
+
+/// Indicates how the value was derived from the given paths in a permission.
+#[derive(Copy, Clone, PartialEq, Eq, PartialOrd, Ord, Hash)]
+pub enum KnownPermissionKind {
+    /// Data is *given* from the specified paths -- if those paths
+    /// are owned permissions, then the result will be owned.
+    /// If the set of paths is empty, this is a guaranteed `my` permission.
+    Given,
+
+    /// Data is *shared* from the specified paths -- if those paths
+    /// are owned permissions, then the result will be owned.
+    /// If the set of paths is empty, this is a guaranteed `our` permission.
+    Shared,
+
+    /// Data is *leased* from the specified paths, which cannot be an empty
+    /// list. The user syntax `leased T` is translated to `P T` where `P: leased`.
+    Leased,
 }
 
 /// List of paths like `a.b.c, d.e.f`
