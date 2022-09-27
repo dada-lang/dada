@@ -88,6 +88,7 @@ tables! {
         ty: alloc Ty => TyData,
         perm: alloc Perm => PermData,
         path: alloc Path => PathData,
+        perm_paths: alloc PermPaths => PermPathsData,
     }
 }
 
@@ -110,6 +111,7 @@ origin_table! {
         ty: Ty => Span,
         perm: Perm => Span,
         path: Path => Span,
+        perm_paths: PermPaths => Span,
     }
 }
 
@@ -450,8 +452,8 @@ id!(pub struct Perm);
 pub enum PermData {
     My,
     Our,
-    Shared(Vec<Path>),
-    Leased(Vec<Path>),
+    Shared(Option<PermPaths>),
+    Leased(Option<PermPaths>),
 }
 
 impl DebugWithDb<InIrDb<'_, Tree>> for Perm {
@@ -465,20 +467,36 @@ impl DebugWithDb<InIrDb<'_, Tree>> for Perm {
     }
 }
 
+// A (possibly empty) list of paths like `{a, b.c}`
+id!(pub struct PermPaths);
+
+#[derive(PartialEq, Eq, PartialOrd, Ord, Clone, Hash, Debug)]
+pub struct PermPathsData {
+    pub paths: Vec<Path>,
+}
+
+impl DebugWithDb<InIrDb<'_, Tree>> for PermPaths {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>, db: &InIrDb<'_, Tree>) -> std::fmt::Result {
+        let PermPathsData { paths } = self.data(db.tables());
+        f.debug_tuple("PermPaths").field(&paths.debug(db)).finish()
+    }
+}
+
 id!(pub struct Path);
 
 /// A path like `foo` or `foo.bar`
 #[derive(PartialEq, Eq, PartialOrd, Ord, Clone, Hash, Debug)]
-pub enum PathData {
-    Name(Name),
-    Dot(Path, Name),
+pub struct PathData {
+    pub start_name: Name,
+    pub dot_names: Vec<Name>,
 }
 
 impl DebugWithDb<InIrDb<'_, Tree>> for Path {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>, db: &InIrDb<'_, Tree>) -> std::fmt::Result {
-        match self.data(db.tables()) {
-            PathData::Name(name) => name.fmt(f, db),
-            PathData::Dot(path, name) => write!(f, "{:?}.{:?}", path.debug(db), name.debug(db)),
-        }
+        let PathData {
+            start_name,
+            dot_names,
+        } = self.data(db.tables());
+        write!(f, "{:?}.{:?}", start_name.debug(db), dot_names.debug(db))
     }
 }

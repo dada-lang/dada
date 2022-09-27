@@ -2,6 +2,8 @@
 //! These interned values are produced by queries that read the syntax tree from the function declaration.
 //! During type-checking, we use a different, richer representation that supports inference variables.
 
+use dada_id::id;
+use derive_new::new;
 use salsa::DebugWithDb;
 
 use crate::{
@@ -9,13 +11,6 @@ use crate::{
     storage::Atomic,
     word::{Word, Words},
 };
-
-#[salsa::interned]
-pub struct Signature {
-    generics: GenericParameters,
-    inputs: Vec<Ty>,
-    output: Ty,
-}
 
 #[salsa::tracked]
 /// Represents a function parameter or a class field (which are declared in a parameter list).
@@ -31,16 +26,19 @@ pub struct Parameter {
     atomic: Atomic,
 }
 
-#[salsa::interned]
-pub struct GenericParameters {
-    #[return_ref]
-    elements: Vec<GenericParameter>,
+#[derive(Clone, PartialEq, Eq, PartialOrd, Ord, Hash)]
+pub struct Signature {
+    generics: Vec<GenericParameter>,
+    where_clauses: Vec<WhereClause>,
+    inputs: Vec<Ty>,
+    output: Ty,
 }
 
-#[salsa::interned]
+#[derive(new, Clone, PartialEq, Eq, PartialOrd, Ord, Hash)]
 pub struct GenericParameter {
     pub kind: GenericParameterKind,
-    pub name: Word,
+    pub name: Option<Word>,
+    pub index: ParameterIndex,
 }
 
 /// Types can be generic parameters (`T`) or a specific class (`String`).
@@ -50,48 +48,43 @@ pub enum GenericParameterKind {
     Type,
 }
 
-#[salsa::interned]
-pub struct WhereClause {
-    pub data: WhereClauseData,
-}
-
 /// Types can be generic parameters (`T`) or a specific class (`String`).
-#[derive(Copy, Clone, PartialEq, Eq, PartialOrd, Ord, Hash)]
-pub enum WhereClauseData {
+#[derive(Clone, PartialEq, Eq, PartialOrd, Ord, Hash)]
+pub enum WhereClause {
     IsShared(Permission),
     IsLeased(Permission),
 }
 
 /// Dada type appearing in a function signature. Types used during type checker
 /// (which support inference) are different.
-#[salsa::interned]
-pub struct Ty {
-    data: TyData,
-}
-
-/// Types can be generic parameters (`T`) or a specific class (`String`).
-#[derive(Copy, Clone, PartialEq, Eq, PartialOrd, Ord, Hash)]
-pub enum TyData {
+#[derive(Clone, Debug, PartialEq, Eq, PartialOrd, Ord, Hash)]
+pub enum Ty {
     /// Generic parameter type like `T`.
     Parameter(ParameterTy),
 
     /// Specific class like `String`.
     Class(ClassTy),
+
+    /// A type that failed to validate in some way.
+    /// The error will have already been reported to the user.
+    Error,
 }
 
 /// Dada type referencing a generic parameter
-#[salsa::interned]
+#[derive(Clone, Debug, PartialEq, Eq, PartialOrd, Ord, Hash)]
 pub struct ParameterTy {
     /// Generic parameters have a permission; `T` on its own defaults to `my T`, but
     /// you might also write `shared T` or some such thing.
     pub permission: Permission,
 
-    /// Name of the generic parameter
-    pub name: Word,
+    /// Index of the generic parameter
+    pub index: ParameterIndex,
 }
 
+id!(pub struct ParameterIndex);
+
 /// Dada type referencing a specific class
-#[salsa::interned]
+#[derive(Clone, Debug, PartialEq, Eq, PartialOrd, Ord, Hash)]
 pub struct ClassTy {
     /// Permissions used to access the object.
     pub permission: Permission,
@@ -100,31 +93,25 @@ pub struct ClassTy {
     pub class: Class,
 
     /// Generic parameters (if any) to the class.
-    pub generics: Tys,
+    pub generics: Vec<Ty>,
 }
 
 /// A Dada *permission* from a signature.
-#[salsa::interned]
-pub struct Permission {
-    data: PermissionData,
-}
-
-/// Permissions can either be a generic parameter or something fixed.
-#[derive(Copy, Clone, PartialEq, Eq, PartialOrd, Ord, Hash)]
-pub enum PermissionData {
-    Parameter(Word),
+#[derive(Clone, Debug, PartialEq, Eq, PartialOrd, Ord, Hash)]
+pub enum Permission {
+    Parameter(ParameterIndex),
     Known(KnownPermission),
 }
 
 /// A dada *permission*, written like `shared{x, y, z}`.
 /// `leased{x, y, z}` or  `given{x, y, z}`.
-#[salsa::interned]
+#[derive(Clone, Debug, PartialEq, Eq, PartialOrd, Ord, Hash)]
 pub struct KnownPermission {
     // The `shared`, `leased`, or `given`.
     pub kind: KnownPermissionKind,
 
     /// The `{x, y, z}` in the permission.
-    pub paths: Paths,
+    pub paths: Vec<Path>,
 }
 
 /// Indicates how the value was derived from the given paths in a permission.
@@ -145,22 +132,8 @@ pub enum KnownPermissionKind {
     Leased,
 }
 
-/// List of paths like `a.b.c, d.e.f`
-#[salsa::interned]
-pub struct Paths {
-    #[return_ref]
-    elements: Vec<Path>,
-}
-
-/// List of types for generic argments.
-#[salsa::interned]
-pub struct Tys {
-    #[return_ref]
-    elements: Vec<Ty>,
-}
-
 /// A *Path* begins with a local variable and adds fields, e.g., `a.b.c`.
-#[salsa::interned]
+#[derive(new, Clone, Debug, PartialEq, Eq, PartialOrd, Ord, Hash)]
 pub struct Path {
     variable_name: Word,
     field_names: Words,
@@ -168,9 +141,10 @@ pub struct Path {
 
 impl DebugWithDb<dyn crate::Db + '_> for Ty {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>, db: &dyn crate::Db) -> std::fmt::Result {
-        match self.data(db) {
-            TyData::Class(v) => v.fmt(f, db),
-            TyData::Parameter(v) => v.fmt(f, db),
+        match self {
+            Ty::Class(v) => v.fmt(f, db),
+            Ty::Parameter(v) => v.fmt(f, db),
+            Ty::Error => f.debug_tuple("Error").finish(),
         }
     }
 }
@@ -178,8 +152,8 @@ impl DebugWithDb<dyn crate::Db + '_> for Ty {
 impl DebugWithDb<dyn crate::Db + '_> for ParameterTy {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>, db: &dyn crate::Db) -> std::fmt::Result {
         f.debug_tuple("ParameterTy")
-            .field(&self.permission(db).debug(db))
-            .field(&self.name(db).debug(db))
+            .field(&self.permission.debug(db))
+            .field(&self.index)
             .finish()
     }
 }
@@ -187,25 +161,9 @@ impl DebugWithDb<dyn crate::Db + '_> for ParameterTy {
 impl DebugWithDb<dyn crate::Db + '_> for ClassTy {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>, db: &dyn crate::Db) -> std::fmt::Result {
         f.debug_tuple("ClassTy")
-            .field(&self.permission(db).debug(db))
-            .field(&self.class(db).name(db).debug(db))
-            .field(&self.generics(db).debug(db))
-            .finish()
-    }
-}
-
-impl DebugWithDb<dyn crate::Db + '_> for Paths {
-    fn fmt(&self, f: &mut std::fmt::Formatter<'_>, db: &dyn crate::Db) -> std::fmt::Result {
-        f.debug_tuple("Paths")
-            .field(&self.elements(db).debug(db))
-            .finish()
-    }
-}
-
-impl DebugWithDb<dyn crate::Db + '_> for Tys {
-    fn fmt(&self, f: &mut std::fmt::Formatter<'_>, db: &dyn crate::Db) -> std::fmt::Result {
-        f.debug_tuple("Tys")
-            .field(&self.elements(db).debug(db))
+            .field(&self.permission.debug(db))
+            .field(&self.class.name(db).debug(db))
+            .field(&self.generics.debug(db))
             .finish()
     }
 }
@@ -213,17 +171,17 @@ impl DebugWithDb<dyn crate::Db + '_> for Tys {
 impl DebugWithDb<dyn crate::Db + '_> for Path {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>, db: &dyn crate::Db) -> std::fmt::Result {
         f.debug_tuple("Path")
-            .field(&self.variable_name(db).debug(db))
-            .field(&self.field_names(db).debug(db))
+            .field(&self.variable_name.debug(db))
+            .field(&self.field_names.debug(db))
             .finish()
     }
 }
 
 impl DebugWithDb<dyn crate::Db + '_> for Permission {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>, db: &dyn crate::Db) -> std::fmt::Result {
-        match self.data(db) {
-            PermissionData::Known(v) => v.fmt(f, db),
-            PermissionData::Parameter(v) => v.fmt(f, db),
+        match self {
+            Permission::Known(v) => v.fmt(f, db),
+            Permission::Parameter(v) => write!(f, "{:?}", v),
         }
     }
 }
@@ -231,8 +189,8 @@ impl DebugWithDb<dyn crate::Db + '_> for Permission {
 impl DebugWithDb<dyn crate::Db + '_> for KnownPermission {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>, db: &dyn crate::Db) -> std::fmt::Result {
         f.debug_tuple("Permission")
-            .field(&self.kind(db))
-            .field(&self.paths(db).debug(db))
+            .field(&self.kind)
+            .field(&self.paths.debug(db))
             .finish()
     }
 }

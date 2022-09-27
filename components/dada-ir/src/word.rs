@@ -35,6 +35,17 @@ pub struct Words {
     pub elements: Vec<Word>,
 }
 
+impl Words {
+    pub fn from_iter(db: &dyn crate::Db, iter: impl IntoIterator<Item = Word>) -> Words {
+        Words::from_vec(db, iter.into_iter().collect())
+    }
+
+    pub fn from_vec(db: &dyn crate::Db, mut words: Vec<Word>) -> Words {
+        words.shrink_to_fit();
+        Words::new(db, words)
+    }
+}
+
 impl DebugWithDb<dyn crate::Db + '_> for Words {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>, db: &dyn crate::Db) -> std::fmt::Result {
         f.debug_list()

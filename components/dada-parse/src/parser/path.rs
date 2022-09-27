@@ -24,15 +24,12 @@ impl CodeParser<'_, '_> {
 
     /// Parse a `foo` or `foo.bar` (or `foo.bar.baz`...) path.
     pub(super) fn parse_path(&mut self) -> Option<Path> {
-        let name = self.parse_name()?;
-        let mut path = self.add(PathData::Name(name), self.spans[name]);
+        let start_name = self.parse_name()?;
+        let mut dot_names = vec![];
 
         while self.eat_op(Op::Dot).is_some() {
             if let Some(name) = self.parse_name() {
-                path = self.add(
-                    PathData::Dot(path, name),
-                    self.span_consumed_since_parsing(name),
-                );
+                dot_names.push(name);
             } else {
                 self.error_at_current_token("expected a name after a `.` to make a path")
                     .emit(self.db);
@@ -40,6 +37,12 @@ impl CodeParser<'_, '_> {
             }
         }
 
-        Some(path)
+        Some(self.add(
+            PathData {
+                start_name,
+                dot_names,
+            },
+            self.span_consumed_since_parsing(start_name),
+        ))
     }
 }
