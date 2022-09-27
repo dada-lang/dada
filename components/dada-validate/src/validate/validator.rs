@@ -21,8 +21,8 @@ use dada_parse::prelude::*;
 use std::rc::Rc;
 use std::str::FromStr;
 
-use super::name_lookup::Definition;
-use super::name_lookup::Scope;
+use crate::name_lookup::Definition;
+use crate::name_lookup::Scope;
 
 mod string_literals;
 
@@ -34,7 +34,7 @@ pub(crate) struct Validator<'me> {
     tables: &'me mut validated::Tables,
     origins: &'me mut validated::Origins,
     loop_stack: Vec<validated::Expr>,
-    scope: Scope<'me>,
+    scope: Scope<'me, validated::LocalVariable>,
     effect: Effect,
     effect_span: Rc<dyn Fn(&Validator<'_>) -> FileSpan + 'me>,
     synthesized: bool,
@@ -47,7 +47,7 @@ impl<'me> Validator<'me> {
         syntax_tree: syntax::Tree,
         tables: &'me mut validated::Tables,
         origins: &'me mut validated::Origins,
-        scope: Scope<'me>,
+        scope: Scope<'me, validated::LocalVariable>,
     ) -> Self {
         Self {
             db,

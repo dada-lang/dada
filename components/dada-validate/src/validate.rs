@@ -3,9 +3,8 @@ use dada_ir::function::{Function, FunctionSignature};
 use dada_ir::input_file::InputFile;
 use dada_parse::prelude::*;
 
-use self::name_lookup::Scope;
+use crate::name_lookup::{RootDefinitions, Scope};
 
-mod name_lookup;
 mod validator;
 
 /// Computes a validated tree for the given code (may produce errors).
@@ -41,6 +40,6 @@ pub(crate) fn validate_function(db: &dyn crate::Db, function: Function) -> valid
 /// errors multiple times.
 #[salsa::tracked(return_ref)]
 #[allow(clippy::needless_lifetimes)]
-pub fn root_definitions(db: &dyn crate::Db, input_file: InputFile) -> name_lookup::RootDefinitions {
-    name_lookup::RootDefinitions::new(db, input_file)
+pub fn root_definitions(db: &dyn crate::Db, input_file: InputFile) -> RootDefinitions {
+    RootDefinitions::new(db, input_file)
 }

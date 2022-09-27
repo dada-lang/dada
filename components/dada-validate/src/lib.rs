@@ -4,6 +4,7 @@
 #![feature(try_blocks)]
 #![allow(incomplete_features)]
 
+mod name_lookup;
 mod signature;
 mod validate;
 
