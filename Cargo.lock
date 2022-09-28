@@ -419,6 +419,7 @@ dependencies = [
  "dada-ir",
  "dada-lex",
  "dada-parse",
+ "derive-new",
  "eq-float",
  "extension-trait",
  "itertools",

@@ -28,10 +28,20 @@ pub struct Parameter {
 
 #[derive(Clone, PartialEq, Eq, PartialOrd, Ord, Hash)]
 pub struct Signature {
-    generics: Vec<GenericParameter>,
-    where_clauses: Vec<WhereClause>,
-    inputs: Vec<Ty>,
-    output: Ty,
+    pub generics: Vec<GenericParameter>,
+    pub where_clauses: Vec<WhereClause>,
+    pub inputs: Vec<InputTy>,
+    pub output: Option<Ty>,
+}
+
+#[derive(Clone, PartialEq, Eq, PartialOrd, Ord, Hash)]
+pub struct InputTy {
+    /// Parameter name.
+    pub name: Word,
+
+    /// If None, ty was not given by user (dynamically typed).
+    /// Note that this sort of wildcard "any" type can only occur at the top-level (by design).
+    pub ty: Option<Ty>,
 }
 
 #[derive(new, Clone, PartialEq, Eq, PartialOrd, Ord, Hash)]
