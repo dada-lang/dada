@@ -14,7 +14,6 @@ pub mod item;
 pub mod kw;
 pub mod lines;
 pub mod prelude;
-pub mod return_type;
 pub mod signature;
 pub mod source_file;
 pub mod span;
@@ -42,7 +41,6 @@ pub struct Jar(
     signature::Parameter,
     word::Word,
     word::Words,
-    return_type::ReturnType,
     input_file::InputFile,
 );
 

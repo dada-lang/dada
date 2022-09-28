@@ -11,7 +11,6 @@ use dada_ir::function::Function;
 use dada_ir::kw::Keyword;
 use dada_ir::origin_table::HasOriginIn;
 use dada_ir::origin_table::PushOriginIn;
-use dada_ir::return_type::ReturnTypeKind;
 use dada_ir::span::FileSpan;
 use dada_ir::span::Span;
 use dada_ir::storage::Atomic;
@@ -151,14 +150,13 @@ impl<'me> Validator<'me> {
     #[tracing::instrument(level = "debug", skip_all)]
     pub(crate) fn validate_root_expr(&mut self, expr: syntax::Expr) -> validated::Expr {
         let validated_expr = self.validate_expr(expr);
-        if self.function.return_type(self.db).kind(self.db) == ReturnTypeKind::Value {
+
+        // Check if the function is declared to return a
+        if let Some(span) = self.function.return_decl_span(self.db) {
             if let validated::ExprData::Seq(exprs) = validated_expr.data(self.tables) {
                 if exprs.is_empty() {
                     dada_ir::error!(
-                        self.function
-                            .return_type(self.db)
-                            .span(self.db)
-                            .anchor_to(self.db, self.function),
+                        span.anchor_to(self.db, self.function),
                         "function body cannot be empty",
                     )
                     .primary_label("because function is supposed to return something")
@@ -548,28 +546,21 @@ impl<'me> Validator<'me> {
                 self.add(validated_data, expr)
             }
             syntax::ExprData::Return(with_value) => {
-                match (self.function.return_type(self.db).kind(self.db), with_value) {
-                    (ReturnTypeKind::Value, None) => {
+                match (self.function.return_decl_span(self.db), with_value) {
+                    (Some(return_span), None) => {
                         dada_ir::error!(self.span(expr), "return requires an expression")
                             .primary_label(
                                 "cannot just have `return` without an expression afterwards",
                             )
-                            .secondary_label(
-                                self.function.return_type(self.db).span(self.db),
-                                "because the function returns a value",
-                            )
+                            .secondary_label(return_span, "because the function returns a value")
                             .emit(self.db);
                     }
-                    (ReturnTypeKind::Unit, Some(return_expr)) => {
+                    (None, Some(return_expr)) => {
                         dada_ir::error!(
                             self.span(*return_expr),
                             "cannot return a value in this function"
                         )
                         .primary_label("can only write `return` (without a value) in this function")
-                        .secondary_label(
-                            self.function.return_type(self.db).span(self.db),
-                            "because function doesn't have `->` here",
-                        )
                         .emit(self.db);
                     }
                     _ => {}

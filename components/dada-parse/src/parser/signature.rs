@@ -2,8 +2,8 @@ use crate::parser::Parser;
 
 use dada_ir::{
     code::syntax::{
-        AsyncKeyword, AsyncKeywordData, AtomicKeyword, AtomicKeywordData, EffectKeyword, FnDecl,
-        FnDeclData, LocalVariableDecl, LocalVariableDeclData,
+        op::Op, AsyncKeyword, AsyncKeywordData, AtomicKeyword, AtomicKeywordData, EffectKeyword,
+        FnDecl, FnDeclData, LocalVariableDecl, LocalVariableDeclData, ReturnTy, ReturnTyData,
     },
     kw::Keyword,
 };
@@ -39,6 +39,13 @@ impl CodeParser<'_, '_> {
     pub(crate) fn parse_async(&mut self) -> Option<AsyncKeyword> {
         let (kw_span, _) = self.eat(Keyword::Async)?;
         Some(self.add(AsyncKeywordData, kw_span))
+    }
+
+    /// Parses an (optional) return type declaration from a function.
+    pub(crate) fn parse_return_type(&mut self) -> Option<ReturnTy> {
+        let right_arrow = self.eat_op(Op::RightArrow)?;
+        let ty = self.parse_ty();
+        Some(self.add(ReturnTyData { ty }, self.span_consumed_since(right_arrow)))
     }
 
     /// Parses a list of parameters delimited by `()`.

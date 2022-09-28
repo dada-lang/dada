@@ -7,7 +7,6 @@ use crate::{
     },
     effect::Effect,
     input_file::InputFile,
-    return_type::ReturnType,
     span::{Anchored, Span},
     word::Word,
 };
@@ -22,9 +21,6 @@ pub struct Function {
     /// The function signature.
     #[return_ref]
     signature: FunctionSignature,
-
-    /// Return type of the function.
-    return_type: ReturnType,
 
     /// The body and parameters of functions are only parsed
     /// on demand by invoking (e.g.) `syntax_tree` from the
@@ -96,6 +92,14 @@ impl Function {
             },
 
             FunctionSignature::Main => self.span(db),
+        }
+    }
+
+    /// If this function is declared with `->`, and hence returns a value, returns the span of the `->` declaration.
+    pub fn return_decl_span(self, db: &dyn crate::Db) -> Option<Span> {
+        match self.signature(db) {
+            FunctionSignature::Syntax(s) => s.return_type.map(|r| s.spans[r]),
+            FunctionSignature::Main => None,
         }
     }
 }

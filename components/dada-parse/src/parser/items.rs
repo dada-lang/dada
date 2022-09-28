@@ -8,13 +8,12 @@ use dada_id::InternKey;
 use dada_ir::{
     class::Class,
     code::{
-        syntax::{self, op::Op, Expr, ExprData, Spans, Tables, Tree, TreeData},
+        syntax::{self, Expr, ExprData, Spans, Tables, Tree, TreeData},
         UnparsedCode,
     },
     function::{Function, FunctionSignature},
     item::Item,
     kw::Keyword,
-    return_type::{ReturnType, ReturnTypeKind},
     source_file::{self, SourceFile},
     span::Span,
     word::Word,
@@ -52,13 +51,11 @@ impl<'db> Parser<'db> {
 
             // Create the `main` function entity -- its code is already parsed, so use `None` for `unparsed_code`
             let main_name = Word::intern(self.db, source_file::TOP_LEVEL_FN);
-            let return_type = ReturnType::new(self.db, ReturnTypeKind::Unit, main_span);
             let function = Function::new(
                 self.db,
                 main_name,
                 self.input_file,
                 FunctionSignature::Main,
-                return_type,
                 None,
                 main_span,
             );
@@ -108,6 +105,7 @@ impl<'db> Parser<'db> {
             fn_decl,
             None,
             parameters,
+            None,
             signature_tables,
             signature_spans,
         );
@@ -157,6 +155,7 @@ impl<'db> Parser<'db> {
             fn_kw,
             effect,
             parameters,
+            return_type,
             signature_tables,
             signature_spans,
         );
@@ -165,7 +164,6 @@ impl<'db> Parser<'db> {
             name.data(&signature.tables).word,
             self.input_file,
             FunctionSignature::Syntax(signature),
-            return_type,
             Some(code),
             self.span_consumed_since(start_span),
         ))
@@ -184,25 +182,6 @@ impl<'db> Parser<'db> {
         let start = code_parser.tokens.last_span();
         let exprs = code_parser.parse_only_expr_seq();
         self.create_syntax_tree(start, tables, spans, exprs)
-    }
-
-    /// Parses an (optional) return type declaration from a function.
-    fn parse_return_type(&mut self) -> ReturnType {
-        let right_arrow = self.eat_op(Op::RightArrow);
-        let span = right_arrow.unwrap_or_else(|| Span {
-            // span between last non skipped token and next non skippable token
-            start: self.tokens.last_span().end,
-            end: self.tokens.peek_span().start,
-        });
-        ReturnType::new(
-            self.db,
-            if right_arrow.is_some() {
-                ReturnTypeKind::Value
-            } else {
-                ReturnTypeKind::Unit
-            },
-            span,
-        )
     }
 
     fn parse_top_level_expr(&mut self, tables: &mut Tables, spans: &mut Spans) -> Option<Expr> {

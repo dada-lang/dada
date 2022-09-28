@@ -19,6 +19,9 @@ pub struct Signature {
     /// The parameters to the function.
     pub parameters: Vec<LocalVariableDecl>,
 
+    /// Return type declaration.
+    pub return_type: Option<ReturnTy>,
+
     /// Interning tables for expressions and the like.
     pub tables: Tables,
 
@@ -80,7 +83,6 @@ tables! {
         exprs: alloc Expr => ExprData,
         named_exprs: alloc NamedExpr => NamedExprData,
         local_variable_decls: alloc LocalVariableDecl => LocalVariableDeclData,
-        return_type_decl: alloc ReturnTypeDecl => ReturnTypeDeclData,
         atomic_keyword: alloc AtomicKeyword => AtomicKeywordData,
         async_keyword: alloc AsyncKeyword => AsyncKeywordData,
         fn_decl: alloc FnDecl => FnDeclData,
@@ -89,6 +91,7 @@ tables! {
         perm: alloc Perm => PermData,
         path: alloc Path => PathData,
         perm_paths: alloc PermPaths => PermPathsData,
+        return_ty: alloc ReturnTy => ReturnTyData,
     }
 }
 
@@ -103,7 +106,6 @@ origin_table! {
         expr_spans: Expr => Span,
         named_expr_spans: NamedExpr => Span,
         local_variable_decl_spans: LocalVariableDecl => Span,
-        return_type_decl: ReturnTypeDecl => Span,
         atomic_keyword: AtomicKeyword => Span,
         async_keyword: AsyncKeyword => Span,
         fn_decl: FnDecl => Span,
@@ -112,6 +114,7 @@ origin_table! {
         perm: Perm => Span,
         path: Path => Span,
         perm_paths: PermPaths => Span,
+        return_ty: ReturnTy => Span,
     }
 }
 
@@ -324,20 +327,6 @@ impl DebugWithDb<InIrDb<'_, Tree>> for LocalVariableDeclData {
     }
 }
 
-id!(pub struct ReturnTypeDecl);
-
-/// Represents a function return type declaration.
-#[derive(PartialEq, Eq, PartialOrd, Ord, Clone, Hash, Debug)]
-pub enum ReturnTypeDeclData {
-    /// No return type -- means unit.
-    ///
-    /// The associated span is where a return type *would* be placed.
-    Unit,
-
-    /// Just `->` with no explicit type given.
-    Value,
-}
-
 id!(pub struct NamedExpr);
 
 impl DebugWithDb<InIrDb<'_, Tree>> for NamedExpr {
@@ -498,5 +487,20 @@ impl DebugWithDb<InIrDb<'_, Tree>> for Path {
             dot_names,
         } = self.data(db.tables());
         write!(f, "{:?}.{:?}", start_name.debug(db), dot_names.debug(db))
+    }
+}
+
+// Indicates a `-> type` annotation (where the type is optional).
+id!(pub struct ReturnTy);
+
+#[derive(PartialEq, Eq, PartialOrd, Ord, Clone, Hash, Debug)]
+pub struct ReturnTyData {
+    pub ty: Option<Ty>,
+}
+
+impl DebugWithDb<InIrDb<'_, Tree>> for ReturnTy {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>, db: &InIrDb<'_, Tree>) -> std::fmt::Result {
+        let ReturnTyData { ty } = self.data(db.tables());
+        f.debug_tuple("ReturnTy").field(&ty.debug(db)).finish()
     }
 }
