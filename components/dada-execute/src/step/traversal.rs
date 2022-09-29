@@ -138,13 +138,10 @@ impl Stepper<'_> {
                     mut accumulated_permissions,
                     object: owner_object,
                 } = self.traverse_to_object(table, *owner_place)?;
-                let (with_field, field_index) =
+                let (field_atomic, field_index) =
                     self.object_field(place, owner_object, *field_name)?;
 
-                // If this is a field of a user-declared class, take the field mode into account
-                if let Some(field) = with_field {
-                    accumulated_permissions.atomic |= field.atomic(self.db);
-                }
+                accumulated_permissions.atomic |= field_atomic;
 
                 Ok(PlaceTraversal {
                     accumulated_permissions,
@@ -203,12 +200,9 @@ impl Stepper<'_> {
             mut accumulated_permissions,
             object: owner_object,
         } = object_traversal;
-        let (with_field, field_index) = self.object_field(place, owner_object, field_name)?;
+        let (field_atomic, field_index) = self.object_field(place, owner_object, field_name)?;
 
-        // If this is a field of a user-declared class, take the field mode into account
-        if let Some(field) = with_field {
-            accumulated_permissions.atomic |= field.atomic(self.db);
-        }
+        accumulated_permissions.atomic |= field_atomic;
 
         Ok(PlaceTraversal {
             accumulated_permissions,
@@ -221,7 +215,7 @@ impl Stepper<'_> {
         place: impl HasOriginIn<bir::Origins, Origin = syntax::Expr>,
         owner_object: Object,
         field_name: Word,
-    ) -> eyre::Result<(Option<Parameter>, usize)> {
+    ) -> eyre::Result<(Atomic, usize)> {
         // FIXME: Execute this before we create the mutable ref to `self.machine`,
         // even though we might not need it. The borrow checker is grumpy the ref
         // to self.machine is returned from the function and so it fails to analyze
@@ -232,7 +226,7 @@ impl Stepper<'_> {
             ObjectData::Instance(instance) => {
                 if let Some(index) = instance.class.field_index(self.db, field_name) {
                     let field = instance.class.fields(self.db)[index];
-                    Ok((Some(field), index))
+                    Ok((field.atomic(self.db), index))
                 } else {
                     Err(Self::no_such_field(
                         self.db,
@@ -246,7 +240,7 @@ impl Stepper<'_> {
                 let field_name_str = field_name.as_str(self.db);
                 if let Ok(index) = field_name_str.parse::<usize>() {
                     if index < tuple.fields.len() && field_name_str == index.to_string() {
-                        return Ok((None, index));
+                        return Ok((Atomic::No, index));
                     }
                 }
                 Err(error!(place_span, "no field named `{}`", field_name_str).eyre(self.db))
