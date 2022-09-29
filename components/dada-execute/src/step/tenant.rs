@@ -6,6 +6,7 @@ use super::Stepper;
 
 impl Stepper<'_> {
     /// Creates a new (joint or exclusive, depending on `joint`) permission that is a tenant of `lessor`.
+    #[tracing::instrument(level = "debug", skip(self), ret)]
     pub(super) fn new_tenant_permission(&mut self, joint: Joint, lessor: Permission) -> Permission {
         let permission = self.machine.new_permission(ValidPermissionData {
             joint,

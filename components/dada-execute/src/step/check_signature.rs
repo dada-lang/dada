@@ -17,6 +17,7 @@ use derive_new::new;
 use super::{traversal::report_traversing_expired_permission, Stepper};
 
 impl Stepper<'_> {
+    #[tracing::instrument(level = "debug", skip(self))]
     pub(super) fn check_signature(
         &mut self,
         input_values: &[Value],
@@ -24,10 +25,12 @@ impl Stepper<'_> {
     ) -> eyre::Result<Option<ExpectedTy>> {
         let values =
             GenericsInference::new(self.db, self.machine, signature).infer(input_values)?;
+        tracing::debug!(?values);
         SignatureChecker::new(self.db, self.machine, signature, &values, input_values)
             .check_inputs()
     }
 
+    #[tracing::instrument(level = "debug", skip(self))]
     pub(super) fn check_return_value(
         &self,
         machine_value: Value,
@@ -37,7 +40,7 @@ impl Stepper<'_> {
     }
 }
 
-#[derive(Default)]
+#[derive(Debug, Default)]
 pub(crate) struct GenericsValues {
     permissions: Map<signature::ParameterIndex, Set<Permission>>,
 }
@@ -167,6 +170,9 @@ impl SignatureChecker<'_> {
             .output
             .as_ref()
             .map(|o| self.expected_ty_from_signature(o));
+
+        tracing::debug!(?expected_return_ty);
+
         Ok(expected_return_ty)
     }
 
@@ -464,6 +470,7 @@ impl ExpectationChecker<'_> {
     ///
     /// * `is_shared` -- if false, i.e., return type demands a unique return, then `perm_target` must be unique
     /// * `lessors` -- `perm_target` must be leased from one of the lessors in this list,
+    #[tracing::instrument(level = "debug", skip(self))]
     fn matches_test(
         &self,
         permission_in_value: Permission,
@@ -507,6 +514,7 @@ impl ExpectationChecker<'_> {
         }
     }
 
+    #[tracing::instrument(skip(self))]
     fn is_transitive_lessor_of(&self, lessor: Permission, lessee: Permission) -> bool {
         lessor == lessee
             || self.machine[lessor]
