@@ -214,6 +214,10 @@ impl SignatureValidator<'_> {
             syntax::PermData::Leased(None) => {
                 Ok(self.add_generic_permission(KnownPermissionKind::Leased))
             }
+            syntax::PermData::Given(None) => {
+                // FIXME: should `given String` be synonymous with `my String`?
+                Ok(self.add_generic_permission(KnownPermissionKind::Given))
+            }
 
             // Otherwise, if they wrote `shared{..}` or `leased{..}`, convert the paths
             syntax::PermData::Shared(Some(paths)) => {
@@ -232,6 +236,12 @@ impl SignatureValidator<'_> {
                 }
                 Ok(Permission::Known(signature::KnownPermission {
                     kind: signature::KnownPermissionKind::Leased,
+                    paths: self.validate_permission_paths(*paths)?,
+                }))
+            }
+            syntax::PermData::Given(Some(paths)) => {
+                Ok(Permission::Known(signature::KnownPermission {
+                    kind: signature::KnownPermissionKind::Given,
                     paths: self.validate_permission_paths(*paths)?,
                 }))
             }

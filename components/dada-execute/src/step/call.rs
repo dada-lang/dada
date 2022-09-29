@@ -55,7 +55,7 @@ impl Stepper<'_> {
 
                 let arguments = self.give_arguments(table, argument_places)?;
 
-                self.check_signature(&arguments, signature)?;
+                let expected_return_ty = self.check_signature(&arguments, signature)?;
 
                 if function.effect(self.db).permits_await() {
                     // If the function can await, then it must be an async function.
@@ -63,13 +63,15 @@ impl Stepper<'_> {
                     let thunk = self.machine.my_value(ThunkFn {
                         function,
                         arguments,
+                        expected_return_ty,
                     });
                     Ok(CallResult::Returned(thunk))
                 } else {
                     // This is not an async function, so push it onto the stack
                     // and begin execution immediately.
                     let bir = function.brew(self.db);
-                    self.machine.push_frame(self.db, bir, arguments);
+                    self.machine
+                        .push_frame(self.db, bir, arguments, expected_return_ty);
                     Ok(CallResult::PushedNewFrame)
                 }
             }

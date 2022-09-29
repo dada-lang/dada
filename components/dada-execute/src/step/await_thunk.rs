@@ -39,9 +39,11 @@ impl Stepper<'_> {
             ObjectData::ThunkFn(ThunkFn {
                 function,
                 arguments,
+                expected_return_ty,
             }) => {
                 let bir = function.brew(self.db);
-                self.machine.push_frame(self.db, bir, arguments);
+                self.machine
+                    .push_frame(self.db, bir, arguments, expected_return_ty);
                 Ok(AwaitResult::PushedNewFrame)
             }
 

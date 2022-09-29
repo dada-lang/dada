@@ -22,7 +22,7 @@ pub async fn interpret(
         arguments
     );
     let machine: &mut Machine = &mut Machine::default();
-    machine.push_frame(db, bir, arguments);
+    machine.push_frame(db, bir, arguments, None);
     let mut stepper = Stepper::new(db, machine, kernel);
 
     loop {

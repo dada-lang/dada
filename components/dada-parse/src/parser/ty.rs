@@ -59,6 +59,9 @@ impl CodeParser<'_, '_> {
                 PermData::Leased(paths),
                 self.span_consumed_since(leased_span),
             ))
+        } else if let Some((given_span, _)) = self.eat(Keyword::Given) {
+            let paths = self.parse_perm_paths();
+            Some(self.add(PermData::Given(paths), self.span_consumed_since(given_span)))
         } else {
             None
         }

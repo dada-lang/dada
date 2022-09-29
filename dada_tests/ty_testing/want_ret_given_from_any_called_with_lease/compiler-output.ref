@@ -1,0 +1,7 @@
+Error: unexpected token
+    ╭─[dada_tests/ty_testing/want_ret_given_from_any_called_with_lease.dada:11:9]
+    │
+ 11 │ n_given.s = "Billy"
+    ·         ┬  
+    ·         ╰── here
+────╯

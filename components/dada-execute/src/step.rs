@@ -18,7 +18,7 @@ use crate::{
     heap_graph::HeapGraph,
     kernel::Kernel,
     machine::{
-        op::MachineOp, Object, ObjectData, ProgramCounter, Tuple, ValidPermissionData, Value,
+        op::MachineOp, Frame, Object, ObjectData, ProgramCounter, Tuple, ValidPermissionData, Value,
     },
     thunk::RustThunk,
 };
@@ -325,6 +325,15 @@ impl<'me> Stepper<'me> {
 
             TerminatorData::Return(place) => {
                 let return_value = self.give_place(table, *place)?;
+
+                // If the frame has an expected return type, enforce it.
+                if let Some(Frame {
+                    expected_return_ty: Some(ty),
+                    ..
+                }) = self.machine.top_frame()
+                {
+                    self.check_return_value(return_value, ty)?;
+                }
 
                 // Before we pop the frame, clear any permissions
                 // and run the GC. Any data that is now dead will

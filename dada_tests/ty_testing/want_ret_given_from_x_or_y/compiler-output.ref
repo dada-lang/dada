@@ -1,0 +1,35 @@
+Error: can't find anything named `Object`
+   ╭─[dada_tests/ty_testing/want_ret_given_from_x_or_y.dada:3:35]
+   │
+ 3 │ fn name(c: Character) -> given{x} Object {
+   ·                                   ───┬──  
+   ·                                      ╰──── here
+───╯
+Error: can't find anything named `c`
+   ╭─[dada_tests/ty_testing/want_ret_given_from_x_or_y.dada:4:5]
+   │
+ 4 │     c.name.give
+   ·     ┬  
+   ·     ╰── here
+───╯
+Error: can't find anything named `x`
+   ╭─[dada_tests/ty_testing/want_ret_given_from_x_or_y.dada:3:32]
+   │
+ 3 │ fn name(c: Character) -> given{x} Object {
+   ·                                ┬  
+   ·                                ╰── here
+───╯
+Error: expected the name of a class
+   ╭─[dada_tests/ty_testing/want_ret_given_from_x_or_y.dada:3:26]
+   │
+ 3 │ fn name(c: Character) -> given{x} Object {
+   ·                          ──┬──  
+   ·                            ╰──── here
+───╯
+Error: expected the name of a class
+   ╭─[dada_tests/ty_testing/want_ret_given_from_x_or_y.dada:1:26]
+   │
+ 1 │ class Character(name: my String)
+   ·                          ───┬──  
+   ·                             ╰──── here
+───╯

@@ -252,6 +252,7 @@ pub struct Instance {
 pub struct ThunkFn {
     pub function: Function,
     pub arguments: Vec<Value>,
+    pub expected_return_ty: Option<ExpectedTy>,
 }
 
 #[derive(Clone, Debug, PartialEq, Eq)]
@@ -392,6 +393,45 @@ id!(pub struct FrameIndex);
 pub struct Frame {
     pub pc: ProgramCounter,
     pub locals: IndexVec<bir::LocalVariable, Value>,
+    pub expected_return_ty: Option<ExpectedTy>,
+}
+
+/// Describes a type we expect a value to have.
+///
+/// This is returned in the `Frame` to describe the
+/// expected return type.
+#[derive(Clone, Debug, PartialEq, Eq, PartialOrd, Ord, Hash)]
+pub enum ExpectedTy {
+    Class(ExpectedClassTy),
+    Error,
+}
+
+/// Describes the expected type we expect an instance to have.
+#[derive(Clone, Debug, PartialEq, Eq, PartialOrd, Ord, Hash)]
+pub struct ExpectedClassTy {
+    /// Permissions used to access the object.
+    pub permission: ExpectedPermission,
+
+    /// Class of the object (e.g., `String`).
+    pub class: Class,
+
+    /// Generic parameters (if any) to the class.
+    pub generics: Vec<ExpectedTy>,
+}
+
+/// Describes the expected permission on a returned object.
+#[derive(Clone, Debug, PartialEq, Eq, PartialOrd, Ord, Hash)]
+pub struct ExpectedPermission {
+    pub kind: ExpectedPermissionKind,
+    pub declared_permissions: Vec<Permission>,
+}
+
+#[derive(Copy, Clone, Debug, PartialEq, Eq, PartialOrd, Ord, Hash)]
+pub enum ExpectedPermissionKind {
+    Member,
+    Given,
+    Leased,
+    Shared,
 }
 
 #[derive(Copy, Clone, Debug, PartialEq, Eq)]

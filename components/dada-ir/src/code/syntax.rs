@@ -443,6 +443,7 @@ pub enum PermData {
     Our,
     Shared(Option<PermPaths>),
     Leased(Option<PermPaths>),
+    Given(Option<PermPaths>),
 }
 
 impl DebugWithDb<InIrDb<'_, Tree>> for Perm {
@@ -452,6 +453,7 @@ impl DebugWithDb<InIrDb<'_, Tree>> for Perm {
             PermData::Our => write!(f, "our"),
             PermData::Shared(paths) => write!(f, "shared({:?})", paths.debug(db)),
             PermData::Leased(paths) => write!(f, "leased({:?})", paths.debug(db)),
+            PermData::Given(paths) => write!(f, "given({:?})", paths.debug(db)),
         }
     }
 }

@@ -1,10 +1,14 @@
 use crate::{
     error::DiagnosticBuilderExt,
-    machine::{op::MachineOp, Permission, PermissionData, Value},
+    machine::{
+        op::MachineOp, ExpectedClassTy, ExpectedPermission, ExpectedPermissionKind, ExpectedTy,
+        ObjectData, Permission, PermissionData, Value,
+    },
 };
 use dada_collections::{Map, Set};
 use dada_ir::{
-    error, signature,
+    error,
+    signature::{self, KnownPermissionKind},
     storage::{Joint, Leased},
     word::Word,
 };
@@ -17,17 +21,24 @@ impl Stepper<'_> {
         &mut self,
         input_values: &[Value],
         signature: &signature::Signature,
-    ) -> eyre::Result<()> {
+    ) -> eyre::Result<Option<ExpectedTy>> {
         let values =
             GenericsInference::new(self.db, self.machine, signature).infer(input_values)?;
         SignatureChecker::new(self.db, self.machine, signature, &values, input_values)
-            .check_inputs()?;
-        Ok(())
+            .check_inputs()
+    }
+
+    pub(super) fn check_return_value(
+        &self,
+        machine_value: Value,
+        expected_ty: &ExpectedTy,
+    ) -> eyre::Result<()> {
+        ExpectationChecker::new(self.db, self.machine).check_expected_ty(machine_value, expected_ty)
     }
 }
 
 #[derive(Default)]
-struct GenericsValues {
+pub(crate) struct GenericsValues {
     permissions: Map<signature::ParameterIndex, Set<Permission>>,
 }
 
@@ -140,7 +151,7 @@ struct SignatureChecker<'s> {
 }
 
 impl SignatureChecker<'_> {
-    fn check_inputs(self) -> eyre::Result<()> {
+    fn check_inputs(self) -> eyre::Result<Option<ExpectedTy>> {
         assert_eq!(self.input_values.len(), self.signature.inputs.len());
 
         self.check_where_clauses()?;
@@ -151,7 +162,12 @@ impl SignatureChecker<'_> {
             }
         }
 
-        Ok(())
+        let expected_return_ty = self
+            .signature
+            .output
+            .as_ref()
+            .map(|o| self.expected_ty_from_signature(o));
+        Ok(expected_return_ty)
     }
 
     fn check_where_clauses(&self) -> eyre::Result<()> {
@@ -213,60 +229,61 @@ impl SignatureChecker<'_> {
         machine_value: Value,
         signature_ty: &signature::Ty,
     ) -> eyre::Result<()> {
+        let expected_ty = self.expected_ty_from_signature(signature_ty);
+        ExpectationChecker::new(self.db, self.machine)
+            .check_expected_ty(machine_value, &expected_ty)
+    }
+
+    fn expected_ty_from_signature(&self, signature_ty: &signature::Ty) -> ExpectedTy {
         match signature_ty {
             signature::Ty::Parameter(_) => {
                 unimplemented!("type parameters")
             }
             signature::Ty::Class(class_ty) => {
-                self.check_permission_against_signature(
-                    machine_value.permission,
-                    &class_ty.permission,
-                )?;
+                let permission = self.expected_permission_from_signature(&class_ty.permission);
 
-                // FIXME: To support class generics and things, we have
-                // to traverse the fields, at least if `machine_value` has a joint
-                // permission. For example, if we had `P Vec[_]` being matched
-                // against an actual value of `P Vec[Q String]`, we have to
-                // walk the values in `Vec` and add each String permission to `P`.
-
-                Ok(())
+                ExpectedTy::Class(ExpectedClassTy {
+                    permission,
+                    class: class_ty.class,
+                    generics: class_ty
+                        .generics
+                        .iter()
+                        .map(|t| self.expected_ty_from_signature(t))
+                        .collect(),
+                })
             }
-            signature::Ty::Error => Ok(()),
+            signature::Ty::Error => ExpectedTy::Error,
         }
     }
 
-    fn check_permission_against_signature(
+    fn expected_permission_from_signature(
         &self,
-        machine_permission: Permission,
         signature_permission: &signature::Permission,
-    ) -> eyre::Result<()> {
+    ) -> ExpectedPermission {
         match signature_permission {
             signature::Permission::Parameter(p) => {
                 let values = &self.values.permissions[p];
-                assert!(values.contains(&machine_permission)); // ensured by inference
-                Ok(())
+                ExpectedPermission {
+                    kind: ExpectedPermissionKind::Member,
+                    declared_permissions: values.iter().copied().collect(),
+                }
             }
             signature::Permission::Known(kp) => {
                 let signature::KnownPermission { kind, paths } = kp;
 
-                let permissions = paths
+                let declared_permissions = paths
                     .iter()
                     .map(|path| self.signature_path_to_permission(path))
                     .collect();
 
-                match kind {
-                    signature::KnownPermissionKind::Given => {
-                        self.matches_given(machine_permission, permissions)?
-                    }
-                    signature::KnownPermissionKind::Leased => {
-                        self.matches_leased(machine_permission, permissions)?
-                    }
-                    signature::KnownPermissionKind::Shared => {
-                        self.matches_shared(machine_permission, permissions)?
-                    }
+                ExpectedPermission {
+                    kind: match kind {
+                        KnownPermissionKind::Given => ExpectedPermissionKind::Given,
+                        KnownPermissionKind::Leased => ExpectedPermissionKind::Leased,
+                        KnownPermissionKind::Shared => ExpectedPermissionKind::Shared,
+                    },
+                    declared_permissions,
                 }
-
-                Ok(())
             }
         }
     }
@@ -302,6 +319,89 @@ impl SignatureChecker<'_> {
 
         value.permission
     }
+}
+
+#[derive(new)]
+struct ExpectationChecker<'s> {
+    db: &'s dyn crate::Db,
+    machine: &'s dyn MachineOp,
+}
+
+impl ExpectationChecker<'_> {
+    fn check_expected_ty(
+        &self,
+        machine_value: Value,
+        expected_ty: &ExpectedTy,
+    ) -> eyre::Result<()> {
+        match expected_ty {
+            ExpectedTy::Class(class_ty) => {
+                self.check_expected_permission(machine_value.permission, &class_ty.permission)?;
+
+                // FIXME: To support class generics and things, we have
+                // to traverse the fields, at least if `machine_value` has a joint
+                // permission. For example, if we had `P Vec[_]` being matched
+                // against an actual value of `P Vec[Q String]`, we have to
+                // walk the values in `Vec` and add each String permission to `P`.
+
+                match &self.machine[machine_value.object] {
+                    ObjectData::Instance(i) => {
+                        if i.class != class_ty.class {
+                            let span = self.machine.pc().span(self.db);
+                            return Err(error!(
+                                span,
+                                "expected an instance of `{}`, but got an instance of `{}`",
+                                class_ty.class.name(self.db).as_str(self.db),
+                                i.class.name(self.db).as_str(self.db),
+                            )
+                            .eyre(self.db));
+                        }
+                    }
+
+                    id => {
+                        let span = self.machine.pc().span(self.db);
+                        return Err(error!(
+                            span,
+                            "expected an instance of `{}`, but got {}",
+                            class_ty.class.name(self.db).as_str(self.db),
+                            id.kind_str(self.db),
+                        )
+                        .eyre(self.db));
+                    }
+                }
+
+                // FIXME: check generics
+
+                Ok(())
+            }
+            ExpectedTy::Error => Ok(()),
+        }
+    }
+
+    fn check_expected_permission(
+        &self,
+        machine_permission: Permission,
+        expected_permission: &ExpectedPermission,
+    ) -> eyre::Result<()> {
+        let ExpectedPermission {
+            kind,
+            declared_permissions,
+        } = expected_permission;
+        match kind {
+            ExpectedPermissionKind::Member => {
+                assert!(declared_permissions.contains(&machine_permission)); // ensured by inference
+                Ok(())
+            }
+            ExpectedPermissionKind::Given => {
+                self.matches_given(machine_permission, declared_permissions)
+            }
+            ExpectedPermissionKind::Leased => {
+                self.matches_leased(machine_permission, declared_permissions)
+            }
+            ExpectedPermissionKind::Shared => {
+                self.matches_shared(machine_permission, declared_permissions)
+            }
+        }
+    }
 
     /// This is a weird function. The intuition is that it returns:
     ///
@@ -329,36 +429,34 @@ impl SignatureChecker<'_> {
     fn matches_given(
         &self,
         permission_in_value: Permission,
-        permissions_in_declared_ty: Vec<Permission>,
+        declared_permissions: &[Permission],
     ) -> eyre::Result<()> {
-        let is_shared = permissions_in_declared_ty
-            .iter()
-            .any(|&p| self.is_shared(p));
-        let lessors = permissions_in_declared_ty
+        let is_shared = declared_permissions.iter().any(|&p| self.is_shared(p));
+        let lessors: Vec<_> = declared_permissions
             .iter()
             .flat_map(|&p| self.new_lessor(p))
             .collect();
-        self.matches_test(permission_in_value, is_shared, lessors)
+        self.matches_test(permission_in_value, is_shared, &lessors)
     }
 
     fn matches_shared(
         &self,
         permission_in_value: Permission,
-        permissions_in_declared_ty: Vec<Permission>,
+        declared_permissions: &[Permission],
     ) -> eyre::Result<()> {
-        let lessors = permissions_in_declared_ty
+        let lessors: Vec<_> = declared_permissions
             .iter()
             .flat_map(|&p| self.new_lessor(p))
             .collect();
-        self.matches_test(permission_in_value, true, lessors)
+        self.matches_test(permission_in_value, true, &lessors)
     }
 
     fn matches_leased(
         &self,
         permission_in_value: Permission,
-        permissions_in_declared_ty: Vec<Permission>,
+        declared_permissions: &[Permission],
     ) -> eyre::Result<()> {
-        self.matches_test(permission_in_value, false, permissions_in_declared_ty)
+        self.matches_test(permission_in_value, false, declared_permissions)
     }
 
     /// True if the permission `perm_target` of the value being returned matches the
@@ -370,12 +468,16 @@ impl SignatureChecker<'_> {
         &self,
         permission_in_value: Permission,
         declared_ty_is_shared: bool,
-        declared_lessors: Vec<Permission>,
+        declared_lessors: &[Permission],
     ) -> eyre::Result<()> {
         // If the return type demands a unique value, but a shared type was returned, false.
         if !declared_ty_is_shared && self.is_shared(permission_in_value) {
             let span = self.machine.pc().span(self.db);
-            return Err(error!(span, "foo").eyre(self.db));
+            return Err(error!(
+                span,
+                "expected a `my` or `leased` value, got a `shared` value"
+            )
+            .eyre(self.db));
         }
 
         // If the value returned has a lessor...

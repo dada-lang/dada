@@ -4,8 +4,8 @@ use dada_collections::IndexVec;
 use dada_ir::code::bir;
 
 use super::{
-    assert_invariants::AssertInvariants, Frame, FrameIndex, Machine, Object, ObjectData,
-    Permission, PermissionData, ProgramCounter, ValidPermissionData, Value,
+    assert_invariants::AssertInvariants, ExpectedTy, Frame, FrameIndex, Machine, Object,
+    ObjectData, Permission, PermissionData, ProgramCounter, ValidPermissionData, Value,
 };
 
 pub(crate) trait MachineOp:
@@ -19,7 +19,13 @@ pub(crate) trait MachineOp:
     fn view(&self) -> &Machine;
 
     fn frames(&self) -> &IndexVec<FrameIndex, Frame>;
-    fn push_frame(&mut self, db: &dyn crate::Db, bir: bir::Bir, arguments: Vec<Value>);
+    fn push_frame(
+        &mut self,
+        db: &dyn crate::Db,
+        bir: bir::Bir,
+        arguments: Vec<Value>,
+        expected_return_ty: Option<ExpectedTy>,
+    );
     fn clear_frame(&mut self);
     fn pop_frame(&mut self) -> Frame;
     fn top_frame(&self) -> Option<&Frame>;
@@ -64,7 +70,13 @@ impl MachineOp for Machine {
         &self.stack.frames
     }
 
-    fn push_frame(&mut self, db: &dyn crate::Db, bir: bir::Bir, arguments: Vec<Value>) {
+    fn push_frame(
+        &mut self,
+        db: &dyn crate::Db,
+        bir: bir::Bir,
+        arguments: Vec<Value>,
+        expected_return_ty: Option<ExpectedTy>,
+    ) {
         let bir_data = bir.data(db);
 
         let expired_permission = self.expired_permission(None);
@@ -98,6 +110,7 @@ impl MachineOp for Machine {
                 statement: 0,
             },
             locals,
+            expected_return_ty,
         });
     }
 

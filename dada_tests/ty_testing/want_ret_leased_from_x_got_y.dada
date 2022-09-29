@@ -1,0 +1,9 @@
+class Object()
+
+fn want(x: leased Object, y: leased Object) -> leased{x} Object {
+    y.lease #! RUN ERROR not leased from the right place
+}
+
+a = Object()
+b = Object()
+want(a.lease, b.lease) 
