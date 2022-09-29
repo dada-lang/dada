@@ -148,7 +148,7 @@ impl Stepper<'_> {
 
                 Ok(PlaceTraversal {
                     accumulated_permissions,
-                    address: Address::Field(owner_object, field_index, with_field),
+                    address: Address::Field(owner_object, field_index),
                 })
             }
         }
@@ -212,7 +212,7 @@ impl Stepper<'_> {
 
         Ok(PlaceTraversal {
             accumulated_permissions,
-            address: Address::Field(owner_object, field_index, with_field),
+            address: Address::Field(owner_object, field_index),
         })
     }
 

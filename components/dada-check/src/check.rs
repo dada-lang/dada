@@ -16,7 +16,7 @@ pub fn check_input_file(db: &dyn crate::Db, input_file: InputFile) {
                 function.validated_tree(db);
             }
             Item::Class(class) => {
-                class.fields(db);
+                class.signature(db);
             }
         }
     }
