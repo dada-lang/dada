@@ -42,6 +42,12 @@ pub enum Joint {
     Yes,
 }
 
+impl From<Joint> for bool {
+    fn from(j: Joint) -> Self {
+        matches!(j, Joint::Yes)
+    }
+}
+
 impl std::ops::BitOr for Joint {
     type Output = Self;
 
@@ -63,6 +69,12 @@ impl std::ops::BitOrAssign for Joint {
 pub enum Leased {
     No,
     Yes,
+}
+
+impl From<Leased> for bool {
+    fn from(l: Leased) -> Self {
+        matches!(l, Leased::Yes)
+    }
 }
 
 impl std::ops::BitOr for Leased {

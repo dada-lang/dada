@@ -191,8 +191,8 @@ pub enum KnownPermissionKind {
 /// A *Path* begins with a local variable and adds fields, e.g., `a.b.c`.
 #[derive(new, Clone, Debug, PartialEq, Eq, PartialOrd, Ord, Hash)]
 pub struct Path {
-    variable_name: Word,
-    field_names: Words,
+    pub variable_name: Word,
+    pub field_names: Words,
 }
 
 impl DebugWithDb<dyn crate::Db + '_> for Ty {
