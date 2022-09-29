@@ -1,3 +1,10 @@
+Error: leased permissions need at least one path
+   ╭─[dada_tests/ty_parsing/perms_with_parens_but_no_paths.dada:7:16]
+   │
+ 7 │ class List4(v: leased{} Value) #! ERROR leased permissions need at least one path
+   ·                ────┬───  
+   ·                    ╰───── here
+───╯
 Error: no paths are needed after the `my` permission
    ╭─[dada_tests/ty_parsing/perms_with_parens_but_no_paths.dada:4:18]
    │

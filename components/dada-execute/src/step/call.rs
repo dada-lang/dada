@@ -41,7 +41,8 @@ impl Stepper<'_> {
             &ObjectData::Class(c) => {
                 let signature = c.signature(self.db);
                 self.match_labels(table, terminator, labels, &signature.inputs)?;
-                let arguments = self.prepare_arguments(table, argument_places)?;
+                let arguments = self.give_arguments(table, argument_places)?;
+                self.check_signature(&arguments, signature)?;
                 let instance = Instance {
                     class: c,
                     fields: arguments,
@@ -52,7 +53,9 @@ impl Stepper<'_> {
                 let signature = function.signature(self.db);
                 self.match_labels(table, terminator, labels, &signature.inputs)?;
 
-                let arguments = self.prepare_arguments(table, argument_places)?;
+                let arguments = self.give_arguments(table, argument_places)?;
+
+                self.check_signature(&arguments, signature)?;
 
                 if function.effect(self.db).permits_await() {
                     // If the function can await, then it must be an async function.
@@ -73,7 +76,7 @@ impl Stepper<'_> {
             &ObjectData::Intrinsic(intrinsic) => {
                 let definition = IntrinsicDefinition::for_intrinsic(self.db, intrinsic);
                 self.match_labels(table, callee, labels, &definition.argument_names)?;
-                let arguments = self.prepare_arguments(table, argument_places)?;
+                let arguments = self.give_arguments(table, argument_places)?;
                 let value = (definition.function)(self, arguments)?;
                 Ok(CallResult::Returned(value))
             }
@@ -89,8 +92,7 @@ impl Stepper<'_> {
         }
     }
 
-    /// Prepare the arguments according to the given specifiers.
-    fn prepare_arguments(
+    fn give_arguments(
         &mut self,
         table: &bir::Tables,
         argument_places: &[bir::Place],

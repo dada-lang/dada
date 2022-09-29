@@ -32,6 +32,7 @@ mod apply_unary;
 mod assert_invariants;
 mod await_thunk;
 mod call;
+mod check_signature;
 mod concatenate;
 mod gc;
 mod give;
@@ -387,7 +388,11 @@ impl<'me> Stepper<'me> {
         // check that the value which was returned didn't get invalidated
         // by the return itself
         if let Some(expired_at) = self.machine[value.permission].expired() {
-            return Err(self.report_traversing_expired_permission(top.pc.span(self.db), expired_at));
+            return Err(traversal::report_traversing_expired_permission(
+                self.db,
+                top.pc.span(self.db),
+                expired_at,
+            ));
         }
 
         let new_pc = top.pc.move_to_block(*top_basic_block);

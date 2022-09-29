@@ -283,7 +283,11 @@ impl Stepper<'_> {
             PermissionData::Expired(expired_at) => {
                 tracing::debug!("encountered expired permission: {:?}", permission);
                 let place_span = self.span_from_bir(place);
-                Err(self.report_traversing_expired_permission(place_span, *expired_at))
+                Err(report_traversing_expired_permission(
+                    self.db,
+                    place_span,
+                    *expired_at,
+                ))
             }
             PermissionData::Valid(v) => {
                 match v.joint {
@@ -323,28 +327,28 @@ impl Stepper<'_> {
             }
         }
     }
+}
 
-    pub(super) fn report_traversing_expired_permission(
-        &self,
-        place_span: FileSpan,
-        expired_at: Option<ProgramCounter>,
-    ) -> eyre::Report {
-        match expired_at {
-            None => error!(place_span, "accessing uninitialized memory").eyre(self.db),
-            Some(expired_at) => {
-                let expired_at_span = expired_at.span(self.db);
+pub(super) fn report_traversing_expired_permission(
+    db: &dyn crate::Db,
+    place_span: FileSpan,
+    expired_at: Option<ProgramCounter>,
+) -> eyre::Report {
+    match expired_at {
+        None => error!(place_span, "accessing uninitialized memory").eyre(db),
+        Some(expired_at) => {
+            let expired_at_span = expired_at.span(db);
 
-                let secondary_label = if expired_at.is_return(self.db) {
-                    "lease was cancelled when this function returned"
-                } else {
-                    "lease was cancelled here"
-                };
+            let secondary_label = if expired_at.is_return(db) {
+                "lease was cancelled when this function returned"
+            } else {
+                "lease was cancelled here"
+            };
 
-                error!(place_span, "your lease to this object was cancelled")
-                    .primary_label("cancelled lease used here")
-                    .secondary_label(expired_at_span, secondary_label)
-                    .eyre(self.db)
-            }
+            error!(place_span, "your lease to this object was cancelled")
+                .primary_label("cancelled lease used here")
+                .secondary_label(expired_at_span, secondary_label)
+                .eyre(db)
         }
     }
 }
