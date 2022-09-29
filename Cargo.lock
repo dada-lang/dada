@@ -306,6 +306,7 @@ dependencies = [
  "dada-ir",
  "dada-parse",
  "dada-validate",
+ "derive-new",
  "extension-trait",
  "eyre",
  "generational-arena",
