@@ -17,20 +17,8 @@ use derive_new::new;
 use crate::name_lookup::Definition;
 
 #[salsa::tracked(return_ref)]
-pub(crate) fn validate_function_parameters(
-    db: &dyn crate::Db,
-    function: Function,
-) -> Vec<Parameter> {
-    match function.signature(db) {
-        FunctionSignature::Main => vec![],
-
-        FunctionSignature::Syntax(s) => signature_parameters(db, s),
-    }
-}
-
-#[salsa::tracked(return_ref)]
 pub(crate) fn validate_class_fields(db: &dyn crate::Db, class: Class) -> Vec<Parameter> {
-    let signature = class.signature(db);
+    let signature = class.signature_syntax(db);
     signature_parameters(db, signature)
 }
 
@@ -46,6 +34,29 @@ fn signature_parameters(db: &dyn crate::Db, signature: &syntax::Signature) -> Ve
             Parameter::new(db, name, None, atomic)
         })
         .collect()
+}
+
+#[salsa::tracked(return_ref)]
+pub(crate) fn validate_function_signature(
+    db: &dyn crate::Db,
+    function: Function,
+) -> signature::Signature {
+    match function.signature_syntax(db) {
+        FunctionSignature::Main => signature::Signature {
+            generics: vec![],
+            where_clauses: vec![],
+            inputs: vec![],
+            output: None,
+        },
+
+        FunctionSignature::Syntax(s) => signature(db, &function, s),
+    }
+}
+
+#[salsa::tracked(return_ref)]
+pub(crate) fn validate_class_signature(db: &dyn crate::Db, class: Class) -> signature::Signature {
+    let s = class.signature_syntax(db);
+    signature(db, &class, s)
 }
 
 fn signature(

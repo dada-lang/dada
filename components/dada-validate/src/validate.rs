@@ -21,7 +21,7 @@ pub(crate) fn validate_function(db: &dyn crate::Db, function: Function) -> valid
     let mut validator =
         validator::Validator::root(db, function, syntax_tree, &mut tables, &mut origins, scope);
 
-    match function.signature(db) {
+    match function.signature_syntax(db) {
         FunctionSignature::Syntax(s) => {
             validator.validate_signature_into_tree(s);
         }

@@ -11,7 +11,7 @@ pub fn check_input_file(db: &dyn crate::Db, input_file: InputFile) {
     for &item in items {
         match item {
             Item::Function(function) => {
-                function.parameters(db);
+                function.signature(db);
                 function.syntax_tree(db);
                 function.validated_tree(db);
             }

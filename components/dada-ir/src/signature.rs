@@ -26,7 +26,7 @@ pub struct Parameter {
     atomic: Atomic,
 }
 
-#[derive(Clone, PartialEq, Eq, PartialOrd, Ord, Hash)]
+#[derive(Clone, Debug, PartialEq, Eq, PartialOrd, Ord, Hash)]
 pub struct Signature {
     pub generics: Vec<GenericParameter>,
     pub where_clauses: Vec<WhereClause>,
@@ -34,7 +34,7 @@ pub struct Signature {
     pub output: Option<Ty>,
 }
 
-#[derive(Clone, PartialEq, Eq, PartialOrd, Ord, Hash)]
+#[derive(Clone, Debug, PartialEq, Eq, PartialOrd, Ord, Hash)]
 pub struct InputTy {
     /// Parameter name.
     pub name: Word,
@@ -44,7 +44,7 @@ pub struct InputTy {
     pub ty: Option<Ty>,
 }
 
-#[derive(new, Clone, PartialEq, Eq, PartialOrd, Ord, Hash)]
+#[derive(new, Clone, Debug, PartialEq, Eq, PartialOrd, Ord, Hash)]
 pub struct GenericParameter {
     pub kind: GenericParameterKind,
     pub name: Option<Word>,
@@ -52,14 +52,14 @@ pub struct GenericParameter {
 }
 
 /// Types can be generic parameters (`T`) or a specific class (`String`).
-#[derive(Copy, Clone, PartialEq, Eq, PartialOrd, Ord, Hash)]
+#[derive(Copy, Clone, Debug, PartialEq, Eq, PartialOrd, Ord, Hash)]
 pub enum GenericParameterKind {
     Permission,
     Type,
 }
 
 /// Types can be generic parameters (`T`) or a specific class (`String`).
-#[derive(Clone, PartialEq, Eq, PartialOrd, Ord, Hash)]
+#[derive(Clone, Debug, PartialEq, Eq, PartialOrd, Ord, Hash)]
 pub enum WhereClause {
     IsShared(Permission),
     IsLeased(Permission),

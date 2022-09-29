@@ -16,6 +16,10 @@ impl Word {
         self.string(db)
     }
 
+    pub fn to_string(self, db: &dyn crate::Db) -> String {
+        self.string(db).clone()
+    }
+
     #[allow(clippy::len_without_is_empty)]
     pub fn len(self, db: &dyn crate::Db) -> u32 {
         self.as_str(db).len() as u32

@@ -20,7 +20,7 @@ pub struct Function {
 
     /// The function signature.
     #[return_ref]
-    signature: FunctionSignature,
+    signature_syntax: FunctionSignature,
 
     /// The body and parameters of functions are only parsed
     /// on demand by invoking (e.g.) `syntax_tree` from the
@@ -59,7 +59,7 @@ impl Function {
     /// then we just return the entire source from
     /// which the function was synthesized.
     pub fn name_span(self, db: &dyn crate::Db) -> Span {
-        match self.signature(db) {
+        match self.signature_syntax(db) {
             FunctionSignature::Syntax(s) => s.spans[s.name],
 
             FunctionSignature::Main => self.span(db),
@@ -68,7 +68,7 @@ impl Function {
 
     /// Returns the "effect" of the function -- is it async? atomic? Default?
     pub fn effect(self, db: &dyn crate::Db) -> Effect {
-        match self.signature(db) {
+        match self.signature_syntax(db) {
             FunctionSignature::Syntax(s) => match s.effect {
                 Some(EffectKeyword::Async(_)) => Effect::Async,
                 Some(EffectKeyword::Atomic(_)) => Effect::Atomic,
@@ -84,7 +84,7 @@ impl Function {
     ///
     /// (In the case of a synthetic main function, returns the span of the entire function.)
     pub fn effect_span(self, db: &dyn crate::Db) -> Span {
-        match self.signature(db) {
+        match self.signature_syntax(db) {
             FunctionSignature::Syntax(s) => match s.effect {
                 Some(EffectKeyword::Async(k)) => s.spans[k],
                 Some(EffectKeyword::Atomic(k)) => s.spans[k],
@@ -97,7 +97,7 @@ impl Function {
 
     /// If this function is declared with `->`, and hence returns a value, returns the span of the `->` declaration.
     pub fn return_decl_span(self, db: &dyn crate::Db) -> Option<Span> {
-        match self.signature(db) {
+        match self.signature_syntax(db) {
             FunctionSignature::Syntax(s) => s.return_type.map(|r| s.spans[r]),
             FunctionSignature::Main => None,
         }

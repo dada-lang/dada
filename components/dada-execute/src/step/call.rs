@@ -3,7 +3,7 @@ use dada_ir::{
     code::{bir, syntax},
     error,
     origin_table::HasOriginIn,
-    signature::Parameter,
+    signature::{InputTy, Parameter},
     word::Word,
 };
 use dada_validate::prelude::*;
@@ -39,8 +39,8 @@ impl Stepper<'_> {
 
         match &self.machine[function_value.object] {
             &ObjectData::Class(c) => {
-                let fields = c.fields(self.db);
-                self.match_labels(table, terminator, labels, fields)?;
+                let signature = c.signature(self.db);
+                self.match_labels(table, terminator, labels, &signature.inputs)?;
                 let arguments = self.prepare_arguments(table, argument_places)?;
                 let instance = Instance {
                     class: c,
@@ -49,8 +49,8 @@ impl Stepper<'_> {
                 Ok(CallResult::Returned(self.machine.my_value(instance)))
             }
             &ObjectData::Function(function) => {
-                let parameters = function.parameters(self.db);
-                self.match_labels(table, terminator, labels, parameters)?;
+                let signature = function.signature(self.db);
+                self.match_labels(table, terminator, labels, &signature.inputs)?;
 
                 let arguments = self.prepare_arguments(table, argument_places)?;
 
@@ -153,5 +153,11 @@ impl ExpectedName for Word {
 impl ExpectedName for Parameter {
     fn as_word(&self, db: &dyn crate::Db) -> Word {
         self.name(db)
+    }
+}
+
+impl ExpectedName for InputTy {
+    fn as_word(&self, _db: &dyn crate::Db) -> Word {
+        self.name
     }
 }

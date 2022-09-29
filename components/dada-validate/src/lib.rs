@@ -12,8 +12,9 @@ mod validate;
 pub struct Jar(
     validate::root_definitions,
     validate::validate_function,
-    signature::validate_function_parameters,
     signature::validate_class_fields,
+    signature::validate_function_signature,
+    signature::validate_class_signature,
 );
 
 pub trait Db: salsa::DbWithJar<Jar> + dada_ir::Db + dada_parse::Db {}
