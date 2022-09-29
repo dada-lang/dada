@@ -3,7 +3,7 @@ use dada_ir::{
     code::{bir, syntax},
     error,
     origin_table::HasOriginIn,
-    signature::{InputTy, Parameter},
+    signature::InputTy,
     word::Word,
 };
 use dada_validate::prelude::*;
@@ -147,12 +147,6 @@ trait ExpectedName {
 impl ExpectedName for Word {
     fn as_word(&self, _db: &dyn crate::Db) -> Word {
         *self
-    }
-}
-
-impl ExpectedName for Parameter {
-    fn as_word(&self, db: &dyn crate::Db) -> Word {
-        self.name(db)
     }
 }
 

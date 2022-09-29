@@ -6,7 +6,6 @@ use dada_ir::{
     },
     error,
     origin_table::HasOriginIn,
-    signature::Parameter,
     span::FileSpan,
     storage::{Atomic, Joint, Leased},
     word::Word,
@@ -225,8 +224,8 @@ impl Stepper<'_> {
         match &mut self.machine[owner_object] {
             ObjectData::Instance(instance) => {
                 if let Some(index) = instance.class.field_index(self.db, field_name) {
-                    let field = instance.class.fields(self.db)[index];
-                    Ok((field.atomic(self.db), index))
+                    let atomic = instance.class.structure(self.db).field_atomic(index);
+                    Ok((atomic, index))
                 } else {
                     Err(Self::no_such_field(
                         self.db,

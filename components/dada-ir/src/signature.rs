@@ -12,25 +12,66 @@ use crate::{
     word::{Word, Words},
 };
 
-#[salsa::tracked]
-/// Represents a function parameter or a class field (which are declared in a parameter list).
-pub struct Parameter {
-    #[id]
-    name: Word,
+/// Represents the fields of a class
+#[derive(new, Clone, Debug, PartialEq, Eq, PartialOrd, Ord, Hash)]
+pub struct ClassStructure {
+    /// Generics declared on the class. These introduce type parameters
+    /// that will be referenced by the fields.
+    pub generics: Vec<GenericParameter>,
 
-    /// Was the parameter/field declared with atomic?
-    /// (Only relevant to fields.)
-    atomic: Atomic,
+    /// Where clauses declared on the class.
+    pub where_clauses: Vec<WhereClause>,
+
+    /// Fields declared in the class. Currently each of these fields is
+    /// also declared in the class signature, but eventually we expect
+    /// there to be add'l fields in a class declaration.
+    pub fields: Vec<Field>,
 }
 
+impl ClassStructure {
+    pub fn field_atomic(&self, index: usize) -> Atomic {
+        self.fields[index].atomic
+    }
+
+    pub fn field_name(&self, index: usize) -> Word {
+        self.fields[index].name
+    }
+}
+
+/// A field in a class
+#[derive(Clone, Debug, PartialEq, Eq, PartialOrd, Ord, Hash)]
+pub struct Field {
+    /// Field name.
+    pub name: Word,
+
+    /// Type of the field.
+    ///
+    /// If None, ty was not given by user (dynamically typed).
+    /// Note that this sort of wildcard "any" type can only occur at the top-level (by design).
+    pub ty: Option<Ty>,
+
+    /// Was the field declared as atomic?
+    pub atomic: Atomic,
+}
+
+/// Represents the signature in a callable thing (e.g., a class, function, etc)
 #[derive(Clone, Debug, PartialEq, Eq, PartialOrd, Ord, Hash)]
 pub struct Signature {
+    /// Generics declared on the function. These introduce type parameters
+    /// that will be referenced by the input/output types.
     pub generics: Vec<GenericParameter>,
+
+    /// Where clauses that must be satisfied when the function is called.
     pub where_clauses: Vec<WhereClause>,
+
+    /// Type and label of each function parameter
     pub inputs: Vec<InputTy>,
+
+    /// Output or return type
     pub output: Option<Ty>,
 }
 
+/// Combine the label/type of a function parameter
 #[derive(Clone, Debug, PartialEq, Eq, PartialOrd, Ord, Hash)]
 pub struct InputTy {
     /// Parameter name.
@@ -41,10 +82,18 @@ pub struct InputTy {
     pub ty: Option<Ty>,
 }
 
+/// Generic parameter declared on a class or function
 #[derive(new, Clone, Debug, PartialEq, Eq, PartialOrd, Ord, Hash)]
 pub struct GenericParameter {
+    /// The *kind* of a generic parameter indicates whether it is a type or permission
     pub kind: GenericParameterKind,
+
+    /// If declared by the user, then `Some` with the name they gave it.
+    /// If added by desugaring, then `None`.
     pub name: Option<Word>,
+
+    /// Index of this parameter in the list of parameters. When this parameter is referenced,
+    /// it will be referenced by this index.
     pub index: ParameterIndex,
 }
 

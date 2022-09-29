@@ -38,7 +38,6 @@ pub struct Jar(
     lines::line_table,
     source_file::SourceFile,
     token_tree::TokenTree,
-    signature::Parameter,
     word::Word,
     word::Words,
     input_file::InputFile,

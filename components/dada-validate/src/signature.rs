@@ -7,7 +7,8 @@ use dada_ir::diagnostic::ErrorReported;
 use dada_ir::error;
 use dada_ir::function::{Function, FunctionSignature};
 use dada_ir::signature::{
-    self, GenericParameter, GenericParameterKind, KnownPermissionKind, Parameter, ParameterIndex,
+    self, ClassStructure, Field, GenericParameter, GenericParameterKind, KnownPermissionKind,
+    ParameterIndex,
 };
 use dada_ir::span::Anchored;
 use dada_ir::storage::Atomic;
@@ -17,19 +18,43 @@ use derive_new::new;
 use crate::name_lookup::Definition;
 
 #[salsa::tracked(return_ref)]
-pub(crate) fn validate_class_fields(db: &dyn crate::Db, class: Class) -> Vec<Parameter> {
-    let signature = class.signature_syntax(db);
-    let tables = &signature.tables;
-    signature
+pub(crate) fn validate_class_structure(
+    db: &dyn crate::Db,
+    class: Class,
+) -> signature::ClassStructure {
+    // FIXME: This setup is a bit bonkers. What should be happening is that
+    // we should parse the class-signature-syntax along with other details
+    // of the class to create the class-structure, and then derive the
+    // Signature of the constructor from that. Right now we do it the other
+    // way. I expect eventually we'll want to have fields not declared in the constructor.
+
+    let class_signature_syntax = class.signature_syntax(db);
+    let tables = &class_signature_syntax.tables;
+
+    // Compute the signature of the class constructor
+    let class_signature = validate_class_signature(db, class);
+
+    //
+    let fields = class_signature_syntax
         .parameters
         .iter()
-        .map(|&lv| {
+        .zip(&class_signature.inputs)
+        .map(|(lv, input_ty)| {
             let lv_data = lv.data(tables);
-            let name = lv_data.name.data(tables).word;
             let atomic = Atomic::from(lv_data.atomic);
-            Parameter::new(db, name, atomic)
+            Field {
+                atomic,
+                name: input_ty.name,
+                ty: input_ty.ty.clone(),
+            }
         })
-        .collect()
+        .collect();
+
+    ClassStructure::new(
+        class_signature.generics.clone(),
+        class_signature.where_clauses.clone(),
+        fields,
+    )
 }
 
 #[salsa::tracked(return_ref)]

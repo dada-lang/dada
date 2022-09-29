@@ -4,7 +4,7 @@ use dada_ir::{
     function::Function,
     input_file::InputFile,
     item::Item,
-    signature::{Parameter, Signature},
+    signature::{ClassStructure, Signature},
 };
 
 #[extension_trait::extension_trait]
@@ -31,8 +31,8 @@ pub impl DadaValidateClassExt for Class {
         crate::signature::validate_class_signature(db, self)
     }
 
-    fn fields(self, db: &dyn crate::Db) -> &Vec<Parameter> {
-        crate::signature::validate_class_fields(db, self)
+    fn structure(self, db: &dyn crate::Db) -> &ClassStructure {
+        crate::signature::validate_class_structure(db, self)
     }
 }
 
