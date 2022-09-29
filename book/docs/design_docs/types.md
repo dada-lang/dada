@@ -34,45 +34,19 @@ Permissions at runtime are a struct
 ```rust
 struct Permission {
     is_shared: bool,
-    lessor: Option<Permission>,
+    has_lessor: bool,
+    tenants: Vec<Permission>,
 }
 ```
 
 You can map the user's permisions to ...
 
-* `my = {is_share: false, lessor:None}`
-* `our = {is_share: true, lessor:None}`
-* `leased{a_0,..,a_N} = {is_share: false, lessor:Some(a_i)}`
-* `shared{a_0,..,a_N} = {is_share: true, lessor:Some(a_i)}`
+* `my = {is_share: false, has_lessor: false}`
+* `our = {is_share: true, has_lessor: false}`
+* `leased{a_0,..,a_N} = {is_share: false, has_lessor: true}` where `P` appears (transitively) as a tenant of some `a_i`
+* `shared{a_0,..,a_N} = {is_share: true, has_lessor: true}` where `P` appears (transitively) as a tenant of some `a_i`
 
 But there is this weird discontinuity: if something is *leased*, it must be represented as a pointer when fully compiled (but not in the abstract machine).
-
-### Deriving permissions
-
-When you *give* a place or value with permission P...
-
-* If `P` is shared, you get a fresh permission `P1 = {is_share:true, lessor:P.lessor}`.
-* If `P` is unique and `lessor:None`, you get back a fresh permission `P1 = {is_share:false, lessor:None}` and P is invalidated.
-* If `P` is unique and `lessor:Some(_)`, you get back a sublease `P1 = {is_share:false, lessor: Some(P)}`.
-
-When you *share* a value with permission P (`x.give.share` or `foo().share`, in Dada)...
-
-* If `P` is shared, you get a fresh permission `P1 = {is_share:true, lessor:P.lessor}`.
-* If `P` is unique and `lessor:None`, you get back a fresh permission `P1 = {is_share:true, lessor:None}` and P is invalidated.
-* If `P` is unique and `lessor:Some(_)`, you get back a sublease `P1 = {is_share:true, lessor:Some(P)}`.
-
-When you *share* a place with permission P (`x.share` in Dada)...
-
-* If `P` is shared, you get a fresh permission `P1 = {is_share:true, lessor:P.lessor}`.
-* If `P` is unique and `lessor:None`, you get back a fresh permission `P1 = {is_share:true, lessor:Some(P)}`.
-* If `P` is unique and `lessor:Some(_)`, you get back a sublease `P1 = {is_share:true, lessor:Some(P)}`.
-
-When you *lease* a place with permission P (`x.lease`, in Dada)...
-
-* If `P` is shared, you get an error
-* If `P` is unique, you get back a fresh permission `P1 = {is_share:true, lessor:Some(P)}`.
-
-In the Dada *Machine* implementation, we represent `lessor` as a boolean and have a list of tenants instead.
 
 ### Representation at interpreter vs compilation time
 
@@ -114,7 +88,7 @@ Dada has two forms of where-clauses for now:
 These are tested as follows:
 
 * `shared{P}` is true if all the permissions in `P` have `is_shared: true`.
-* `leased{P}` is true if all the permissions in `P` have `is_shared: false` and have a lessor of `Some(_)`.
+* `leased{P}` is true if all the permissions in `P` have `is_shared: false` and `has_lessor: true`.
 
 ### Checking known permissions
 
@@ -122,8 +96,8 @@ The static types are written in terms of paths (e.g., `given{x1, x2}`) and/or pe
 
 ```rust
 fn matches_given(perm_target: Perm, permissions: Vec<Permission>) -> true {
-    let is_shared = permissions.iter().any(|p| new_lessor(p));
-    let lessors = permissions.iter().flat_map(|p| p.lessor);
+    let is_shared = permissions.iter().any(|p| p.is_shared);
+    let lessors = permissions.iter().flat_map(|p| new_lessor(p)).collect()
     matches_test(is_shared, lessors, perm_target)
 }
 
@@ -141,7 +115,7 @@ fn matches_shared(perm_target: Perm, permissions: Vec<Permission>) -> true {
 /// It is NOT the same as the lessor you get if you lease a place with the permission `P`, because that
 /// has `P` as the lessor.
 fn new_lessor(perm: Perm) -> Option<Permission> {
-    if perm.is_share { perm.lessor } else if perm.lessor.is_some() { perm } else { None }
+    if !perm.has_lessor { None } else { Some(perm) }
 }
 
 fn matches_leased(perm_target: Perm, permissions: Vec<Variable>) -> true {
@@ -160,7 +134,7 @@ fn matches_test(perm_target: Perm, is_shared: bool, lessors: Vec<Permission>) ->
     }
 
     // If the value returned has a lessor...
-    if let Some(_) = perm_target.lessor {
+    if perm_target.has_lessor {
         // ...then `perm_target` must be leased from a member of `lessors`.
         return lessors.iter().any(|l| l.transitive_lessor_of(perm_target));
     }
@@ -288,3 +262,43 @@ Two options:
 
 * Implied bounds that add something like `OK(given{c1,c2})`, ensuring that the permissions can be combined.
 * Error at the declaration site that `given{c1,c2}` is ill-formed, requiring you to write either `shared{c1,c2}`, `leased{c1,c2}`, or some more details on the arguments. Annoyingly, you can't quite right the thing you *want*, which is that "if c1 is leased or c2 is leased, then both are".
+
+
+### Inner lease (Bug!)
+
+```
+fn pick_name(c1: leased Vec[leased String]) -> leased(c1) String {
+    if true { c1.name.give } else { c2.name.give }
+}
+```
+
+This is expanded to `P Vec[Q String]` where `leased(P, Q)`. We get back a value with a lease of both P and Q. The test above is happy because we needed a lease of P.
+
+Note that static type system would have to track dep between P and Q, because in fact it's possible that Q could be invalidated but not P otherwise. Example:
+
+```
+s = "foo"
+v = [s.lease]
+t = pick_name(v.lease)
+s.push("bar") # invalidates v's contents and hence t
+```
+
+### Inner shared (Bug!)
+
+```
+fn pick_name(c1: shared Vec[shared String]) -> shared(c1) String {
+    if true { c1.name.give } else { c2.name.give }
+}
+```
+
+This is expanded to `P Vec[Q String]` where `shared(P, Q)`. We get back a value with a shlease of Q. But the code above fails because it expects a tenant of P.
+
+Options: 
+
+* traverse `c1` to find permissions contained witin. I don't like this because the data may be added during execution of `pick_name` -- not in this case, but still, it feels wrong.
+* make result a shlease of P too -- again, wrong, invalidating P doesn't invalidate Q (unlike with a lease)
+* somehow consider this ok -- don't be as selective with the resulting perm? seems wrong. compute the result by walking values at the end? seems wrong.
+* record that we traversed `P` somehow
+* PS inferring Q seems hard...?
+    * actually I think this is the right answer. We know that the shared fields are immutable, we can walk them.
+
