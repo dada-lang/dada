@@ -1,0 +1,6 @@
+class Object()
+
+fn want(s: leased Object) { }
+
+o = Object()
+want(o.lease)

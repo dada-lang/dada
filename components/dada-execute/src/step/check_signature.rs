@@ -1,6 +1,12 @@
-use crate::machine::{op::MachineOp, Permission, PermissionData, Value};
+use crate::{
+    error::DiagnosticBuilderExt,
+    machine::{op::MachineOp, Permission, PermissionData, Value},
+};
 use dada_collections::{Map, Set};
-use dada_ir::signature;
+use dada_ir::{
+    error, signature,
+    storage::{Joint, Leased},
+};
 
 use super::{traversal::report_traversing_expired_permission, Stepper};
 
@@ -63,11 +69,73 @@ impl<'s> SignatureChecker<'s> {
             }
         }
 
+        self.check_where_clauses()?;
+
         // UP NEXT: now that we know the values of the generics, we can check the
         // declared permissions against the actual permissions we got.
         //
         //
 
+        Ok(())
+    }
+
+    fn check_where_clauses(&self) -> eyre::Result<()> {
+        for where_clause in &self.signature.where_clauses {
+            self.check_where_clause(where_clause)?;
+        }
+        Ok(())
+    }
+
+    fn check_where_clause(&self, where_clause: &signature::WhereClause) -> eyre::Result<()> {
+        match where_clause {
+            signature::WhereClause::IsShared(p) => self.check_permission_against_where_clause(
+                "shared",
+                Some(Joint::Yes),
+                None,
+                &self.generic_permission_values[p],
+            ),
+            signature::WhereClause::IsLeased(p) => self.check_permission_against_where_clause(
+                "leased",
+                Some(Joint::No),
+                Some(Leased::Yes),
+                &self.generic_permission_values[p],
+            ),
+        }
+    }
+
+    fn check_permission_against_where_clause(
+        &self,
+        expected_label: &str,
+        expected_joint: Option<Joint>,
+        expected_leased: Option<Leased>,
+        permissions: &Set<Permission>,
+    ) -> eyre::Result<()> {
+        for &permission in permissions {
+            match &self.machine[permission] {
+                PermissionData::Expired(_) => {
+                    unreachable!("expired machine permission as value of generic parameter")
+                }
+                PermissionData::Valid(v) => {
+                    let bad_joint = expected_joint.map(|e| e != v.joint).unwrap_or(false);
+                    let bad_leased = expected_leased.map(|e| e != v.leased).unwrap_or(false);
+                    if bad_joint || bad_leased {
+                        let pc_span = self.machine.pc().span(self.db);
+
+                        let actual_label = v.as_str();
+
+                        // FIXME: we need to decide how to thread span and other information
+                        // so we can give a decent error here. Maybe need to change the
+                        // validated signature into something with tables.
+
+                        return Err(error!(
+                            pc_span,
+                            "expected a `{expected_label}` value, but got a `{actual_label}` value"
+                        )
+                        .eyre(self.db));
+                    }
+                }
+            }
+        }
         Ok(())
     }
 

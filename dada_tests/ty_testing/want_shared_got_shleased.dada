@@ -1,0 +1,6 @@
+class Object()
+
+fn want(s: shared Object) { }
+
+o = Object()
+want(o)

@@ -1,0 +1,6 @@
+class Object()
+
+fn want(s: shared Object) { }
+
+o = Object()
+want(o.lease) #! RUN ERROR expected a `shared` value, but got a `leased` value

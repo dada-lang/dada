@@ -1,0 +1,5 @@
+class Object()
+
+fn want(s: shared Object) { }
+
+want(Object().share)

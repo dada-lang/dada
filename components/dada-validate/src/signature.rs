@@ -8,7 +8,7 @@ use dada_ir::error;
 use dada_ir::function::{Function, FunctionSignature};
 use dada_ir::signature::{
     self, ClassStructure, Field, GenericParameter, GenericParameterKind, KnownPermissionKind,
-    ParameterIndex,
+    ParameterIndex, Permission,
 };
 use dada_ir::span::Anchored;
 use dada_ir::storage::Atomic;
@@ -190,18 +190,18 @@ impl SignatureValidator<'_> {
     fn validate_opt_perm(
         &mut self,
         perm: Option<syntax::Perm>,
-    ) -> Result<signature::Permission, ErrorReported> {
+    ) -> Result<Permission, ErrorReported> {
         let Some(perm) = perm else {
             return Ok(self.add_generic_permission(KnownPermissionKind::Given));
         };
 
         match perm.data(self.tables) {
             // My and our are short for given/shared permissions with no lessors.
-            syntax::PermData::My => Ok(signature::Permission::Known(signature::KnownPermission {
+            syntax::PermData::My => Ok(Permission::Known(signature::KnownPermission {
                 kind: signature::KnownPermissionKind::Given,
                 paths: vec![],
             })),
-            syntax::PermData::Our => Ok(signature::Permission::Known(signature::KnownPermission {
+            syntax::PermData::Our => Ok(Permission::Known(signature::KnownPermission {
                 kind: signature::KnownPermissionKind::Shared,
                 paths: vec![],
             })),
@@ -217,7 +217,7 @@ impl SignatureValidator<'_> {
 
             // Otherwise, if they wrote `shared{..}` or `leased{..}`, convert the paths
             syntax::PermData::Shared(Some(paths)) => {
-                Ok(signature::Permission::Known(signature::KnownPermission {
+                Ok(Permission::Known(signature::KnownPermission {
                     kind: signature::KnownPermissionKind::Shared,
                     paths: self.validate_permission_paths(*paths)?,
                 }))
@@ -230,7 +230,7 @@ impl SignatureValidator<'_> {
                     )
                     .emit(self.db));
                 }
-                Ok(signature::Permission::Known(signature::KnownPermission {
+                Ok(Permission::Known(signature::KnownPermission {
                     kind: signature::KnownPermissionKind::Leased,
                     paths: self.validate_permission_paths(*paths)?,
                 }))
@@ -240,27 +240,19 @@ impl SignatureValidator<'_> {
 
     /// Add a new generic permission `P` and return a reference to it.
     /// Based on the `kind`, we may also add a where-clause like `P: shared` or `P: leased`.
-    fn add_generic_permission(
-        &mut self,
-        kind: signature::KnownPermissionKind,
-    ) -> signature::Permission {
+    fn add_generic_permission(&mut self, kind: signature::KnownPermissionKind) -> Permission {
         let index = ParameterIndex::from(self.generic_parameters.len());
         let param = GenericParameter::new(GenericParameterKind::Permission, None, index);
         self.generic_parameters.push(param);
-        let permission = signature::Permission::Parameter(index);
 
         let new_where_clause = match kind {
             KnownPermissionKind::Given => None,
-            KnownPermissionKind::Shared => {
-                Some(signature::WhereClause::IsShared(permission.clone()))
-            }
-            KnownPermissionKind::Leased => {
-                Some(signature::WhereClause::IsLeased(permission.clone()))
-            }
+            KnownPermissionKind::Shared => Some(signature::WhereClause::IsShared(index)),
+            KnownPermissionKind::Leased => Some(signature::WhereClause::IsLeased(index)),
         };
         self.where_clauses.extend(new_where_clause);
 
-        permission
+        Permission::Parameter(index)
     }
 
     fn validate_permission_paths(

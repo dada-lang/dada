@@ -104,11 +104,11 @@ pub enum GenericParameterKind {
     Type,
 }
 
-/// Types can be generic parameters (`T`) or a specific class (`String`).
+/// Where-clauses that can be attached to a signature
 #[derive(Clone, Debug, PartialEq, Eq, PartialOrd, Ord, Hash)]
 pub enum WhereClause {
-    IsShared(Permission),
-    IsLeased(Permission),
+    IsShared(ParameterIndex),
+    IsLeased(ParameterIndex),
 }
 
 /// Dada type appearing in a function signature. Types used during type checker
