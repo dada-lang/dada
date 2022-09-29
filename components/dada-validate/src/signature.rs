@@ -19,10 +19,6 @@ use crate::name_lookup::Definition;
 #[salsa::tracked(return_ref)]
 pub(crate) fn validate_class_fields(db: &dyn crate::Db, class: Class) -> Vec<Parameter> {
     let signature = class.signature_syntax(db);
-    signature_parameters(db, signature)
-}
-
-fn signature_parameters(db: &dyn crate::Db, signature: &syntax::Signature) -> Vec<Parameter> {
     let tables = &signature.tables;
     signature
         .parameters
@@ -31,7 +27,7 @@ fn signature_parameters(db: &dyn crate::Db, signature: &syntax::Signature) -> Ve
             let lv_data = lv.data(tables);
             let name = lv_data.name.data(tables).word;
             let atomic = Atomic::from(lv_data.atomic);
-            Parameter::new(db, name, None, atomic)
+            Parameter::new(db, name, atomic)
         })
         .collect()
 }

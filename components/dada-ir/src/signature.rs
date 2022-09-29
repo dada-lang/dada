@@ -18,9 +18,6 @@ pub struct Parameter {
     #[id]
     name: Word,
 
-    /// Was the parameter/field represented with a type?
-    ty: Option<Ty>,
-
     /// Was the parameter/field declared with atomic?
     /// (Only relevant to fields.)
     atomic: Atomic,
