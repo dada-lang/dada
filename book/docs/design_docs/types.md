@@ -39,7 +39,7 @@ struct Permission {
 }
 ```
 
-You can map the user's permisions to ...
+You can map the user's permissions to ...
 
 * `my = {is_share: false, has_lessor: false}`
 * `our = {is_share: true, has_lessor: false}`
