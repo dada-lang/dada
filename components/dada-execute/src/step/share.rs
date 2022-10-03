@@ -139,7 +139,7 @@ impl Stepper<'_> {
         //
         // * Result is shleased.
         // * Permissions for `place` are never altered.
-        let permission = self.new_tenant_permission(Joint::Yes, last_permission);
+        let permission = self.new_tenant_permission(Joint::Yes, &accumulated_permissions.traversed);
 
         Ok(Value { object, permission })
     }

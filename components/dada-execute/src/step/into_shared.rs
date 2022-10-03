@@ -243,7 +243,10 @@ impl Stepper<'_> {
             // we simply clone it. But creating a tenant would be "ok" too,
             // just less efficient and maybe a bit confusing.
             (Leased::Yes, _) => {
-                let permission = self.new_tenant_permission(Joint::Yes, last_permission);
+                let permission = self.new_tenant_permission(
+                    Joint::Yes,
+                    &traversal.accumulated_permissions.traversed,
+                );
                 Ok(Value {
                     object: traversal.object,
                     permission,
