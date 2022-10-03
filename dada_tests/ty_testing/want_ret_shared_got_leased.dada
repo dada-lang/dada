@@ -1,7 +1,7 @@
 class Object()
 
 fn want(x: leased Object, y: leased Object) -> leased{x} Object {
-    x.share #! RUN ERROR expected a `my` or `leased` value, got a `shared` value
+    x.share #! RUN ERROR expected a `leased` value, got a `shared` value
 }
 
 a = Object()

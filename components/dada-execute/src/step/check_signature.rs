@@ -442,7 +442,7 @@ impl ExpectationChecker<'_> {
             .iter()
             .flat_map(|&p| self.new_lessor(p))
             .collect();
-        self.matches_test(permission_in_value, is_shared, &lessors)
+        self.matches_test("given", permission_in_value, is_shared, &lessors)
     }
 
     fn matches_shared(
@@ -454,7 +454,7 @@ impl ExpectationChecker<'_> {
             .iter()
             .flat_map(|&p| self.new_lessor(p))
             .collect();
-        self.matches_test(permission_in_value, true, &lessors)
+        self.matches_test("shared", permission_in_value, true, &lessors)
     }
 
     fn matches_leased(
@@ -462,7 +462,7 @@ impl ExpectationChecker<'_> {
         permission_in_value: Permission,
         declared_permissions: &[Permission],
     ) -> eyre::Result<()> {
-        self.matches_test(permission_in_value, false, declared_permissions)
+        self.matches_test("leased", permission_in_value, false, declared_permissions)
     }
 
     /// True if the permission `perm_target` of the value being returned matches the
@@ -473,16 +473,28 @@ impl ExpectationChecker<'_> {
     #[tracing::instrument(level = "debug", skip(self))]
     fn matches_test(
         &self,
+        keyword: &str,
         permission_in_value: Permission,
         declared_ty_is_shared: bool,
         declared_lessors: &[Permission],
     ) -> eyre::Result<()> {
         // If the return type demands a unique value, but a shared type was returned, false.
-        if !declared_ty_is_shared && self.is_shared(permission_in_value) {
+        let valid_permission_in_value = self.machine[permission_in_value].assert_valid();
+        if declared_ty_is_shared && !self.is_shared(permission_in_value) {
             let span = self.machine.pc().span(self.db);
             return Err(error!(
                 span,
-                "expected a `my` or `leased` value, got a `shared` value"
+                "expected a shared value, got a `{}` value",
+                valid_permission_in_value.as_str()
+            )
+            .eyre(self.db));
+        } else if !declared_ty_is_shared && self.is_shared(permission_in_value) {
+            let span = self.machine.pc().span(self.db);
+            return Err(error!(
+                span,
+                "expected a `{}` value, got a `{}` value",
+                keyword,
+                valid_permission_in_value.as_str()
             )
             .eyre(self.db));
         }
