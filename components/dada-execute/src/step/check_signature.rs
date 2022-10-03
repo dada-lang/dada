@@ -522,8 +522,13 @@ impl ExpectationChecker<'_> {
                 return Ok(());
             }
 
+            let mode = if declared_ty_is_shared {
+                "shared"
+            } else {
+                "leased"
+            };
             let span = self.machine.pc().span(self.db);
-            return Err(error!(span, "not leased from the right place").eyre(self.db));
+            return Err(error!(span, "not {mode} from the right place").eyre(self.db));
         }
 
         // Otherwise, the return value is owned. That is ok if the return type is
