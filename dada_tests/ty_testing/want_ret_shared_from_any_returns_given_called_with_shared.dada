@@ -9,6 +9,8 @@ fn name(c: Character) -> shared{c} Name {
 }
 
 c1 = Character(Name("Achilles"))
-n_given = name(c1.give.share)
+n_given = name(c1.share)
 print(n_given).await #! OUTPUT Name\(Achilles\)
-print(c1.name).await #! RUN ERROR cancelled
+print(c1.name).await #! OUTPUT Name\(Achilles\)
+c1.name := Name("Ajax")
+print(n_given).await #! RUN ERROR cancelled
