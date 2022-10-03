@@ -516,11 +516,15 @@ impl ExpectationChecker<'_> {
 
     #[tracing::instrument(skip(self))]
     fn is_transitive_lessor_of(&self, lessor: Permission, lessee: Permission) -> bool {
-        lessor == lessee
-            || self.machine[lessor]
-                .assert_valid()
-                .tenants
-                .iter()
-                .any(|&t| self.is_transitive_lessor_of(t, lessee))
+        if lessor == lessee {
+            return true;
+        }
+
+        let lessor = self.machine[lessor].assert_valid();
+        lessor
+            .tenants
+            .iter()
+            .chain(&lessor.easements)
+            .any(|&t| self.is_transitive_lessor_of(t, lessee))
     }
 }
