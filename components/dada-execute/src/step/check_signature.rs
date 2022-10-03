@@ -478,8 +478,9 @@ impl ExpectationChecker<'_> {
         declared_ty_is_shared: bool,
         declared_lessors: &[Permission],
     ) -> eyre::Result<()> {
-        // If the return type demands a unique value, but a shared type was returned, false.
         let valid_permission_in_value = self.machine[permission_in_value].assert_valid();
+
+        // If the return type demands a unique value, but a shared type was returned, false.
         if declared_ty_is_shared && !self.is_shared(permission_in_value) {
             let span = self.machine.pc().span(self.db);
             return Err(error!(
@@ -494,6 +495,18 @@ impl ExpectationChecker<'_> {
                 span,
                 "expected a `{}` value, got a `{}` value",
                 keyword,
+                valid_permission_in_value.as_str()
+            )
+            .eyre(self.db));
+        }
+
+        if self.is_leased(permission_in_value) && declared_lessors.is_empty() {
+            let expected_kind = if declared_ty_is_shared { "our" } else { "my" };
+            let span = self.machine.pc().span(self.db);
+            return Err(error!(
+                span,
+                "expected a `{}` value, got a `{}` value",
+                expected_kind,
                 valid_permission_in_value.as_str()
             )
             .eyre(self.db));
