@@ -1,0 +1,15 @@
+class Name(s)
+class Character(name: my Name)
+
+# This function should not pass a static type check, as it can sometimes fail
+# the permission checks. In this case, it is invoked with a leased value,
+# and so give returns a leased value, and everything is ok.
+fn name(c: Character) -> leased{c} Name {
+    c.name.give
+}
+
+c1 = Character(Name("Achilles"))
+n_given = name(c1.lease)
+print(n_given).await #! OUTPUT Name\(Achilles\)
+n_given.s := "Ajax"
+print(c1).await #! OUTPUT Character\(Name\(Ajax\)\)

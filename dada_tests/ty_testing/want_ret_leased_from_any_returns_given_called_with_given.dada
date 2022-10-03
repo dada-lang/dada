@@ -1,0 +1,12 @@
+class Name(s)
+class Character(name: my Name)
+
+# This function should not pass a static type check, as it can sometimes fail
+# the permission checks. In this case, it is invoked with a `my` value,
+# and so give returns a `my`, which isn't what we asked for.
+fn name(c: Character) -> leased{c} Name {
+    c.name.give #! RUN ERROR expected a `leased` value
+}
+
+c1 = Character(Name("Achilles"))
+n_given = name(c1.give)
