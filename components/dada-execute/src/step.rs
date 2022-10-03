@@ -18,7 +18,7 @@ use crate::{
     heap_graph::HeapGraph,
     kernel::Kernel,
     machine::{
-        op::MachineOp, Object, ObjectData, ProgramCounter, Tuple, ValidPermissionData, Value,
+        op::MachineOp, Frame, Object, ObjectData, ProgramCounter, Tuple, ValidPermissionData, Value,
     },
     thunk::RustThunk,
 };
@@ -32,6 +32,7 @@ mod apply_unary;
 mod assert_invariants;
 mod await_thunk;
 mod call;
+mod check_signature;
 mod concatenate;
 mod gc;
 mod give;
@@ -325,6 +326,15 @@ impl<'me> Stepper<'me> {
             TerminatorData::Return(place) => {
                 let return_value = self.give_place(table, *place)?;
 
+                // If the frame has an expected return type, enforce it.
+                if let Some(Frame {
+                    expected_return_ty: Some(ty),
+                    ..
+                }) = self.machine.top_frame()
+                {
+                    self.check_return_value(return_value, ty)?;
+                }
+
                 // Before we pop the frame, clear any permissions
                 // and run the GC. Any data that is now dead will
                 // thus have the revokation location at the end of the
@@ -387,7 +397,11 @@ impl<'me> Stepper<'me> {
         // check that the value which was returned didn't get invalidated
         // by the return itself
         if let Some(expired_at) = self.machine[value.permission].expired() {
-            return Err(self.report_traversing_expired_permission(top.pc.span(self.db), expired_at));
+            return Err(traversal::report_traversing_expired_permission(
+                self.db,
+                top.pc.span(self.db),
+                expired_at,
+            ));
         }
 
         let new_pc = top.pc.move_to_block(*top_basic_block);

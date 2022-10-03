@@ -1,0 +1,15 @@
+class Character(name: my Name)
+class Name(s)
+
+fn pick(
+    c1: shared Character
+    c2: shared Character
+    c3: shared Character
+) -> shared{c1, c2} Character {
+    c3 #! RUN ERROR not shared from the right place
+}
+
+x = Character(Name("Achilles"))
+y = Character(Name("Ajax"))
+z = Character(Name("Diomedes"))
+p = pick(x, y, z)

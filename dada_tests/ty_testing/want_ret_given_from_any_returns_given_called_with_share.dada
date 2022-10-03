@@ -1,0 +1,11 @@
+class Name(s)
+class Character(name: my Name)
+
+fn name(c: Character) -> given{c} Name {
+    c.name.give
+}
+
+c1 = Character(Name("Achilles"))
+n_given = name(c1)
+print(n_given).await #! OUTPUT Name\(Achilles\)
+print(c1).await #! OUTPUT Character\(Name\(Achilles\)\)

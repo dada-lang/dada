@@ -1,0 +1,12 @@
+class Name(s)
+class Character(name: my Name)
+
+fn name(c: Character) -> shared{c} Name {
+    c.name.give.share
+}
+
+c1 = Character(Name("Achilles"))
+n_given1 = name(c1.give)
+n_given2 = n_given1.give 
+print(n_given1).await #! OUTPUT Name\(Achilles\)
+print(n_given2).await #! OUTPUT Name\(Achilles\)

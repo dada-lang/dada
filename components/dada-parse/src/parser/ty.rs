@@ -1,5 +1,5 @@
 use dada_ir::{
-    code::syntax::{op::Op, Path, Perm, PermData, Ty, TyData},
+    code::syntax::{op::Op, Perm, PermData, PermPaths, PermPathsData, Ty, TyData},
     kw::Keyword,
 };
 
@@ -59,6 +59,9 @@ impl CodeParser<'_, '_> {
                 PermData::Leased(paths),
                 self.span_consumed_since(leased_span),
             ))
+        } else if let Some((given_span, _)) = self.eat(Keyword::Given) {
+            let paths = self.parse_perm_paths();
+            Some(self.add(PermData::Given(paths), self.span_consumed_since(given_span)))
         } else {
             None
         }
@@ -73,10 +76,11 @@ impl CodeParser<'_, '_> {
         .emit(self.db);
     }
 
-    pub(crate) fn parse_perm_paths(&mut self) -> Vec<Path> {
-        let Some((_, token_tree)) = self.delimited('{') else { return vec![]; };
+    pub(crate) fn parse_perm_paths(&mut self) -> Option<PermPaths> {
+        let Some((span, token_tree)) = self.delimited('{') else { return None; };
         let mut parser = Parser::new(self.db, token_tree);
         let mut subparser = parser.code_parser(self.tables, self.spans);
-        subparser.parse_only_paths()
+        let paths = subparser.parse_only_paths();
+        Some(self.add(PermPathsData { paths }, span))
     }
 }

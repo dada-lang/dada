@@ -6,7 +6,6 @@ use dada_ir::{
     },
     error,
     origin_table::HasOriginIn,
-    parameter::Parameter,
     span::FileSpan,
     storage::{Atomic, Joint, Leased},
     word::Word,
@@ -138,17 +137,14 @@ impl Stepper<'_> {
                     mut accumulated_permissions,
                     object: owner_object,
                 } = self.traverse_to_object(table, *owner_place)?;
-                let (with_field, field_index) =
+                let (field_atomic, field_index) =
                     self.object_field(place, owner_object, *field_name)?;
 
-                // If this is a field of a user-declared class, take the field mode into account
-                if let Some(field) = with_field {
-                    accumulated_permissions.atomic |= field.atomic(self.db);
-                }
+                accumulated_permissions.atomic |= field_atomic;
 
                 Ok(PlaceTraversal {
                     accumulated_permissions,
-                    address: Address::Field(owner_object, field_index, with_field),
+                    address: Address::Field(owner_object, field_index),
                 })
             }
         }
@@ -203,16 +199,13 @@ impl Stepper<'_> {
             mut accumulated_permissions,
             object: owner_object,
         } = object_traversal;
-        let (with_field, field_index) = self.object_field(place, owner_object, field_name)?;
+        let (field_atomic, field_index) = self.object_field(place, owner_object, field_name)?;
 
-        // If this is a field of a user-declared class, take the field mode into account
-        if let Some(field) = with_field {
-            accumulated_permissions.atomic |= field.atomic(self.db);
-        }
+        accumulated_permissions.atomic |= field_atomic;
 
         Ok(PlaceTraversal {
             accumulated_permissions,
-            address: Address::Field(owner_object, field_index, with_field),
+            address: Address::Field(owner_object, field_index),
         })
     }
 
@@ -221,7 +214,7 @@ impl Stepper<'_> {
         place: impl HasOriginIn<bir::Origins, Origin = syntax::Expr>,
         owner_object: Object,
         field_name: Word,
-    ) -> eyre::Result<(Option<Parameter>, usize)> {
+    ) -> eyre::Result<(Atomic, usize)> {
         // FIXME: Execute this before we create the mutable ref to `self.machine`,
         // even though we might not need it. The borrow checker is grumpy the ref
         // to self.machine is returned from the function and so it fails to analyze
@@ -231,8 +224,8 @@ impl Stepper<'_> {
         match &mut self.machine[owner_object] {
             ObjectData::Instance(instance) => {
                 if let Some(index) = instance.class.field_index(self.db, field_name) {
-                    let field = instance.class.fields(self.db)[index];
-                    Ok((Some(field), index))
+                    let atomic = instance.class.structure(self.db).field_atomic(index);
+                    Ok((atomic, index))
                 } else {
                     Err(Self::no_such_field(
                         self.db,
@@ -246,7 +239,7 @@ impl Stepper<'_> {
                 let field_name_str = field_name.as_str(self.db);
                 if let Ok(index) = field_name_str.parse::<usize>() {
                     if index < tuple.fields.len() && field_name_str == index.to_string() {
-                        return Ok((None, index));
+                        return Ok((Atomic::No, index));
                     }
                 }
                 Err(error!(place_span, "no field named `{}`", field_name_str).eyre(self.db))
@@ -290,7 +283,11 @@ impl Stepper<'_> {
             PermissionData::Expired(expired_at) => {
                 tracing::debug!("encountered expired permission: {:?}", permission);
                 let place_span = self.span_from_bir(place);
-                Err(self.report_traversing_expired_permission(place_span, *expired_at))
+                Err(report_traversing_expired_permission(
+                    self.db,
+                    place_span,
+                    *expired_at,
+                ))
             }
             PermissionData::Valid(v) => {
                 match v.joint {
@@ -330,28 +327,28 @@ impl Stepper<'_> {
             }
         }
     }
+}
 
-    pub(super) fn report_traversing_expired_permission(
-        &self,
-        place_span: FileSpan,
-        expired_at: Option<ProgramCounter>,
-    ) -> eyre::Report {
-        match expired_at {
-            None => error!(place_span, "accessing uninitialized memory").eyre(self.db),
-            Some(expired_at) => {
-                let expired_at_span = expired_at.span(self.db);
+pub(super) fn report_traversing_expired_permission(
+    db: &dyn crate::Db,
+    place_span: FileSpan,
+    expired_at: Option<ProgramCounter>,
+) -> eyre::Report {
+    match expired_at {
+        None => error!(place_span, "accessing uninitialized memory").eyre(db),
+        Some(expired_at) => {
+            let expired_at_span = expired_at.span(db);
 
-                let secondary_label = if expired_at.is_return(self.db) {
-                    "lease was cancelled when this function returned"
-                } else {
-                    "lease was cancelled here"
-                };
+            let secondary_label = if expired_at.is_return(db) {
+                "lease was cancelled when this function returned"
+            } else {
+                "lease was cancelled here"
+            };
 
-                error!(place_span, "your lease to this object was cancelled")
-                    .primary_label("cancelled lease used here")
-                    .secondary_label(expired_at_span, secondary_label)
-                    .eyre(self.db)
-            }
+            error!(place_span, "your lease to this object was cancelled")
+                .primary_label("cancelled lease used here")
+                .secondary_label(expired_at_span, secondary_label)
+                .eyre(db)
         }
     }
 }

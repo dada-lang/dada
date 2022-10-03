@@ -3,7 +3,7 @@ use dada_ir::{
     code::{bir, syntax},
     error,
     origin_table::HasOriginIn,
-    parameter::Parameter,
+    signature::InputTy,
     word::Word,
 };
 use dada_validate::prelude::*;
@@ -39,9 +39,10 @@ impl Stepper<'_> {
 
         match &self.machine[function_value.object] {
             &ObjectData::Class(c) => {
-                let fields = c.fields(self.db);
-                self.match_labels(table, terminator, labels, fields)?;
-                let arguments = self.prepare_arguments(table, argument_places)?;
+                let signature = c.signature(self.db);
+                self.match_labels(table, terminator, labels, &signature.inputs)?;
+                let arguments = self.give_arguments(table, argument_places)?;
+                self.check_signature(&arguments, signature)?;
                 let instance = Instance {
                     class: c,
                     fields: arguments,
@@ -49,10 +50,12 @@ impl Stepper<'_> {
                 Ok(CallResult::Returned(self.machine.my_value(instance)))
             }
             &ObjectData::Function(function) => {
-                let parameters = function.parameters(self.db);
-                self.match_labels(table, terminator, labels, parameters)?;
+                let signature = function.signature(self.db);
+                self.match_labels(table, terminator, labels, &signature.inputs)?;
 
-                let arguments = self.prepare_arguments(table, argument_places)?;
+                let arguments = self.give_arguments(table, argument_places)?;
+
+                let expected_return_ty = self.check_signature(&arguments, signature)?;
 
                 if function.effect(self.db).permits_await() {
                     // If the function can await, then it must be an async function.
@@ -60,20 +63,22 @@ impl Stepper<'_> {
                     let thunk = self.machine.my_value(ThunkFn {
                         function,
                         arguments,
+                        expected_return_ty,
                     });
                     Ok(CallResult::Returned(thunk))
                 } else {
                     // This is not an async function, so push it onto the stack
                     // and begin execution immediately.
                     let bir = function.brew(self.db);
-                    self.machine.push_frame(self.db, bir, arguments);
+                    self.machine
+                        .push_frame(self.db, bir, arguments, expected_return_ty);
                     Ok(CallResult::PushedNewFrame)
                 }
             }
             &ObjectData::Intrinsic(intrinsic) => {
                 let definition = IntrinsicDefinition::for_intrinsic(self.db, intrinsic);
                 self.match_labels(table, callee, labels, &definition.argument_names)?;
-                let arguments = self.prepare_arguments(table, argument_places)?;
+                let arguments = self.give_arguments(table, argument_places)?;
                 let value = (definition.function)(self, arguments)?;
                 Ok(CallResult::Returned(value))
             }
@@ -89,8 +94,7 @@ impl Stepper<'_> {
         }
     }
 
-    /// Prepare the arguments according to the given specifiers.
-    fn prepare_arguments(
+    fn give_arguments(
         &mut self,
         table: &bir::Tables,
         argument_places: &[bir::Place],
@@ -150,8 +154,8 @@ impl ExpectedName for Word {
     }
 }
 
-impl ExpectedName for Parameter {
-    fn as_word(&self, db: &dyn crate::Db) -> Word {
-        self.name(db)
+impl ExpectedName for InputTy {
+    fn as_word(&self, _db: &dyn crate::Db) -> Word {
+        self.name
     }
 }

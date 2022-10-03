@@ -13,7 +13,7 @@ pub struct Class {
     input_file: InputFile,
 
     #[return_ref]
-    signature: syntax::Signature,
+    signature_syntax: syntax::Signature,
 
     /// Overall span of the class (including any body)
     span: Span,
@@ -21,7 +21,7 @@ pub struct Class {
 
 impl Class {
     pub fn name_span(self, db: &dyn crate::Db) -> Span {
-        let signature = self.signature(db);
+        let signature = self.signature_syntax(db);
         signature.spans[signature.name]
     }
 }

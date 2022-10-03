@@ -302,20 +302,25 @@ impl HeapGraph {
         ty: ObjectType,
         num_fields: usize,
     ) -> Vec<Option<String>> {
-        let fields = match ty {
-            ObjectType::Class(class) => class.fields(db),
-            ObjectType::Thunk(function) => function.parameters(db),
-            ObjectType::RustThunk(_) => {
-                return (0..num_fields).map(|i| Some(format!("{}", i))).collect()
-            }
-            ObjectType::Reservation => {
-                return vec![Some("reserved".to_string())];
-            }
-        };
-        fields
-            .iter()
-            .map(|f| Some(f.name(db).as_str(db).to_string()))
-            .collect()
+        match ty {
+            ObjectType::Class(class) => class
+                .signature(db)
+                .inputs
+                .iter()
+                .map(|i| Some(i.name.to_string(db)))
+                .collect(),
+
+            ObjectType::Thunk(function) => function
+                .signature(db)
+                .inputs
+                .iter()
+                .map(|i| Some(i.name.to_string(db)))
+                .collect(),
+
+            ObjectType::RustThunk(_) => (0..num_fields).map(|i| Some(format!("{}", i))).collect(),
+
+            ObjectType::Reservation => vec![Some("reserved".to_string())],
+        }
     }
 
     fn print_fields<'me>(

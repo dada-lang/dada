@@ -149,7 +149,10 @@ impl Stepper<'_> {
         // * Result is leased.
         // * We create a shared lease if the input is shared, preserving sharing properties.
         // * Permissions for `place` are never altered.
-        let permission = self.new_tenant_permission(accumulated_permissions.joint, last_permission);
+        let permission = self.new_tenant_permission(
+            accumulated_permissions.joint,
+            &accumulated_permissions.traversed,
+        );
 
         Ok(Value { object, permission })
     }

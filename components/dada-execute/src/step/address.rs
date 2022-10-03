@@ -1,4 +1,4 @@
-use dada_ir::{code::bir, error, parameter::Parameter};
+use dada_ir::{code::bir, error};
 
 use crate::{
     error::DiagnosticBuilderExt,
@@ -17,10 +17,7 @@ pub(super) enum Address {
     Constant(Value),
 
     /// A field with the given index of the given object.
-    /// If this is a field of a user-declared class (as opposed,
-    /// say, to a tuple), then includes the [`Parameter`]
-    /// representing that field.
-    Field(Object, usize, Option<Parameter>),
+    Field(Object, usize),
 }
 
 impl Stepper<'_> {
@@ -29,7 +26,7 @@ impl Stepper<'_> {
         match address {
             Address::Local(lv) => self.machine[lv],
             Address::Constant(v) => v,
-            Address::Field(o, f, _) => match &self.machine[o] {
+            Address::Field(o, f) => match &self.machine[o] {
                 ObjectData::Instance(i) => i.fields[f],
                 ObjectData::Tuple(v) => v.fields[f],
                 d => panic!("unexpected thing with fields: {d:?}"),
@@ -48,7 +45,7 @@ impl Stepper<'_> {
                 )
                 .eyre(self.db))
             }
-            Address::Field(o, f, _) => match &mut self.machine[o] {
+            Address::Field(o, f) => match &mut self.machine[o] {
                 ObjectData::Instance(i) => i.fields[f] = value,
                 ObjectData::Tuple(v) => v.fields[f] = value,
                 d => panic!("unexpected thing with fields: {d:?}"),

@@ -1,0 +1,9 @@
+class Object()
+
+fn want(x: leased Object, y: leased Object) -> leased{x} Object {
+    x.share #! RUN ERROR expected a `leased` value, got a `shared` value
+}
+
+a = Object()
+b = Object()
+want(a.lease, b.lease) 

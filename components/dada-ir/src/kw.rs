@@ -54,6 +54,7 @@ define_keywords! {
     False => "false",
     Fn => "fn",
     Give => "give",
+    Given => "given",
     If => "if",
     Lease => "lease",
     Leased => "leased",

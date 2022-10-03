@@ -17,6 +17,7 @@ dada-id = { path = "../dada-id" }
 dada-ir = { path = "../dada-ir" }
 dada-parse = { path = "../dada-parse" }
 dada-validate = { path = "../dada-validate" }
+derive-new = "0.5.9"
 eyre = "0.6.8"
 extension-trait = "1.0.1"
 generational-arena = "0.2.8"

@@ -11,7 +11,14 @@ impl Stepper<'_> {
         let pc = self.machine.opt_pc();
         let p = std::mem::replace(&mut self.machine[permission], PermissionData::Expired(pc));
 
-        if let PermissionData::Valid(ValidPermissionData { tenants, .. }) = p {
+        if let PermissionData::Valid(ValidPermissionData {
+            tenants, easements, ..
+        }) = p
+        {
+            for easement in easements {
+                self.revoke(easement)?;
+            }
+
             for tenant in tenants {
                 self.revoke(tenant)?;
             }

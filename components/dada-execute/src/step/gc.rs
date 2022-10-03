@@ -7,7 +7,10 @@
 use dada_collections::Set;
 use dada_ir::storage::Leased;
 
-use crate::machine::{op::MachineOp, Object, ObjectData, Permission, PermissionData, Value};
+use crate::machine::{
+    op::MachineOp, ExpectedClassTy, ExpectedPermission, ExpectedTy, Object, ObjectData, Permission,
+    PermissionData, Value,
+};
 
 use super::Stepper;
 
@@ -72,6 +75,10 @@ impl<'me> Marker<'me> {
             for local_value in &frame.locals {
                 self.mark_value(*local_value);
             }
+
+            for ty in &frame.expected_return_ty {
+                self.mark_expected_ty(ty);
+            }
         }
 
         for in_flight_value in in_flight_values {
@@ -86,6 +93,32 @@ impl<'me> Marker<'me> {
     fn mark_values(&mut self, values: &[Value]) {
         for value in values {
             self.mark_value(*value);
+        }
+    }
+
+    fn mark_expected_ty(&mut self, ty: &ExpectedTy) {
+        match ty {
+            ExpectedTy::Class(ExpectedClassTy {
+                permission,
+                class: _,
+                generics,
+            }) => {
+                self.mark_expected_permission(permission);
+                for t in generics {
+                    self.mark_expected_ty(t);
+                }
+            }
+            ExpectedTy::Error => {}
+        }
+    }
+
+    fn mark_expected_permission(&mut self, perm: &ExpectedPermission) {
+        let ExpectedPermission {
+            kind: _,
+            declared_permissions,
+        } = perm;
+        for &declared_permission in declared_permissions {
+            self.mark_permission(declared_permission);
         }
     }
 
@@ -156,6 +189,10 @@ impl<'me> Marker<'me> {
         for tenant in &valid.tenants {
             self.mark_permission(*tenant);
         }
+
+        for easement in &valid.easements {
+            self.mark_permission(*easement);
+        }
     }
 }
 
@@ -183,6 +220,9 @@ impl Stepper<'_> {
         for &p in &live_permissions {
             if let PermissionData::Valid(valid) = &mut self.machine[p] {
                 valid.tenants.retain(|p| marks.live_permissions.contains(p));
+                valid
+                    .easements
+                    .retain(|p| marks.live_permissions.contains(p));
             }
         }
 

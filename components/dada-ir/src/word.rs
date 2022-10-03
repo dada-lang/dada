@@ -16,6 +16,10 @@ impl Word {
         self.string(db)
     }
 
+    pub fn to_string(self, db: &dyn crate::Db) -> String {
+        self.string(db).clone()
+    }
+
     #[allow(clippy::len_without_is_empty)]
     pub fn len(self, db: &dyn crate::Db) -> u32 {
         self.as_str(db).len() as u32
@@ -33,6 +37,17 @@ impl DebugWithDb<dyn crate::Db + '_> for Word {
 pub struct Words {
     #[return_ref]
     pub elements: Vec<Word>,
+}
+
+impl Words {
+    pub fn from_iter(db: &dyn crate::Db, iter: impl IntoIterator<Item = Word>) -> Words {
+        Words::from_vec(db, iter.into_iter().collect())
+    }
+
+    pub fn from_vec(db: &dyn crate::Db, mut words: Vec<Word>) -> Words {
+        words.shrink_to_fit();
+        Words::new(db, words)
+    }
 }
 
 impl DebugWithDb<dyn crate::Db + '_> for Words {
