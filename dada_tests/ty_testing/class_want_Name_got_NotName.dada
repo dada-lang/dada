@@ -1,0 +1,5 @@
+class Name()
+class NotName()
+class Character(name: my Name)
+
+c = Character(NotName()) #! OUTPUT expected an instance of `Name`, but got an instance of `NotName` 
