@@ -189,6 +189,10 @@ impl<'me> Marker<'me> {
         for tenant in &valid.tenants {
             self.mark_permission(*tenant);
         }
+
+        for easement in &valid.easements {
+            self.mark_permission(*easement);
+        }
     }
 }
 
@@ -216,6 +220,9 @@ impl Stepper<'_> {
         for &p in &live_permissions {
             if let PermissionData::Valid(valid) = &mut self.machine[p] {
                 valid.tenants.retain(|p| marks.live_permissions.contains(p));
+                valid
+                    .easements
+                    .retain(|p| marks.live_permissions.contains(p));
             }
         }
 

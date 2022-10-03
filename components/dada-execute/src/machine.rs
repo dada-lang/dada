@@ -345,6 +345,13 @@ pub struct ValidPermissionData {
     /// located in a leased location.
     pub leased: Leased,
 
+    /// An *easement* is another permission that we have given
+    /// to sublease some object reachable from us. Example:
+    /// leasing a string from a `leased Vec[leased String]`
+    /// requires an easement on the vector. This easement is revoked
+    /// when the lease is revoked.
+    pub easements: Vec<Permission>,
+
     /// A *tenant* is another permission that we have given
     /// a lease (or sublease, if we ourselves are leased) to
     /// access `o`. This could be a shared
@@ -360,6 +367,7 @@ impl ValidPermissionData {
             joint: Joint::No,
             leased: Leased::No,
             tenants: vec![],
+            easements: vec![],
         }
     }
 
@@ -369,6 +377,7 @@ impl ValidPermissionData {
             joint: Joint::Yes,
             leased: Leased::No,
             tenants: vec![],
+            easements: vec![],
         }
     }
 

@@ -11,6 +11,7 @@ impl Stepper<'_> {
         let permission = self.machine.new_permission(ValidPermissionData {
             joint,
             leased: Leased::Yes,
+            easements: vec![],
             tenants: vec![],
         });
 
