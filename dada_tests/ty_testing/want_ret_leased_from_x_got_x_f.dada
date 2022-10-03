@@ -1,0 +1,21 @@
+class Null()
+class List(f)
+
+# As input we get
+#
+# x -leased-> [ List ]
+#             [ f    ] -leased-> [ List ]
+#
+# and we return a sublease of the "inner" leased List
+# although user declared leased from `x`.
+#
+# This works because we acquire an *easement* on `x`
+# allowing us passage.
+fn want(x: leased List) -> leased{x} List {
+    x.f.lease
+}
+
+l1 = List(Null())
+l2 = List(l1.lease)
+p = want(l2.lease)
+print(p).await #! OUTPUT List\(Null\(\)\)
