@@ -1,8 +1,8 @@
 class Pair(a, b)
 
 async fn main() {
-    p = Pair(22, 44)
-    q = p.give
+    let p = Pair(22, 44)
+    let q = p.give
     print(p).await
     #! RUN ERROR your lease to this object was cancelled
 }

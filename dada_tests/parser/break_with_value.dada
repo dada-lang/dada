@@ -1,7 +1,7 @@
 class Pair(a, b)
 
 async fn main() {
-    x = loop {
+    let x = loop {
         break Pair(22, 44)
     }
 

@@ -3,15 +3,15 @@
 class Point(x, y)
 
 async fn main() {
-    name = "Fellow Dadaist"
+    let name = "Fellow Dadaist"
     helper().await
     print("Hello").await
     print(name).await
 }
 
 async fn helper() {
-    p = Point(22, 44)
-    q = Point(p, 66)
+    let p = Point(22, 44)
+    let q = Point(p, 66)
     #?             ^ HeapGraph 
     #
     # Test that we see the values from `main`.

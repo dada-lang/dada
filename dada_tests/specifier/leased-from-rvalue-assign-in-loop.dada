@@ -2,15 +2,15 @@ class Point(x, y)
 
 async fn main() {
     # Leases a temporary that lives as long as `p`
-    p = Point(22, 44).lease
+    let p = Point(22, 44).lease
 
-    i = 0
+    let i = 0
     while i < 1 {
         print(p).await #! OUTPUT Point\(22, 44\)
 
         # Creates a temporary here, which will expire
         # when we exit the loop, and leases it to `p`
-        p := Point(44, 66)
+        p = Point(44, 66)
         print(p).await #! OUTPUT Point\(44, 66\)
         i += 1
     }

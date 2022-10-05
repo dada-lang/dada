@@ -10,7 +10,7 @@
                         ),
                         0,
                     ),
-                    Expr(4),
+                    Expr(3),
                 ),
                 (
                     AssignExpr(
@@ -57,6 +57,19 @@
         BasicBlock(1): BasicBlockData(
             [
                 (
+                    BreakpointEnd(
+                        SourceFile(
+                            "dada_tests/heap-graph/tutorial-1.dada",
+                        ),
+                        0,
+                        Expr(3),
+                        Some(
+                            p{0},
+                        ),
+                    ),
+                    Expr(3),
+                ),
+                (
                     Clear(
                         temp{4},
                     ),
@@ -73,17 +86,6 @@
                         temp{2},
                     ),
                     Expr(0),
-                ),
-                (
-                    BreakpointEnd(
-                        SourceFile(
-                            "dada_tests/heap-graph/tutorial-1.dada",
-                        ),
-                        0,
-                        Expr(4),
-                        None,
-                    ),
-                    Expr(4),
                 ),
                 (
                     AssignExpr(

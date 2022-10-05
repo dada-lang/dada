@@ -5,12 +5,12 @@ class Point(x, y)
 # just clones it, the result is valid.
 
 async fn main() {
-    r = callee()
-    data = r.x
+    let r = callee()
+    let data = r.x
 }
 
 fn callee() -> {
-    p = Point(22, 44).share
+    let p = Point(22, 44).share
     p.lease
 }
     

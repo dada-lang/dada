@@ -1,5 +1,5 @@
 class Point()
 
 async fn main() {
-    p = Point().lease
+    let p = Point().lease
 }

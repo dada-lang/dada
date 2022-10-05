@@ -8,7 +8,7 @@ fn name(c: Character) -> shared{c} Name {
     c.name.give
 }
 
-c1 = Character(Name("Achilles"))
-n_given = name(c1.give.share)
+let c1 = Character(Name("Achilles"))
+let n_given = name(c1.give.share)
 print(n_given).await #! OUTPUT Name\(Achilles\)
 print(c1.name).await #! RUN ERROR cancelled

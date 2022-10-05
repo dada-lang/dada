@@ -1,4 +1,4 @@
-p = "{class Point(a, b)}"
-#!    ^^^^^^^^^^^^^^^^^ ERROR expected expression here
+let p = "{class Point(a, b)}"
+#!        ^^^^^^^^^^^^^^^^^ ERROR expected expression here
 print(p).await
 #! RUN ERROR compilation error encountered

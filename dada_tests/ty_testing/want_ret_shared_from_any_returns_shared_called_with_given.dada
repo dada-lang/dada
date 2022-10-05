@@ -13,6 +13,6 @@ fn name(c: Character) -> shared{c} Name {
     # * but `shared{c}` expects shared *ownership*, since we had ownership coming in
 }
 
-c1 = Character(Name("Achilles"))
-n_given = name(c1.give)
+let c1 = Character(Name("Achilles"))
+let n_given = name(c1.give)
 print(n_given).await

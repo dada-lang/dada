@@ -1,2 +1,2 @@
-p = "{22 44}"
-#!       ^^ ERROR extra tokens after end of expression
+let p = "{22 44}"
+#!           ^^ ERROR extra tokens after end of expression

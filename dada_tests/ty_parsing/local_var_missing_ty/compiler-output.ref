@@ -1,9 +1,9 @@
 Error: expected type after `:`
-   ╭─[dada_tests/ty_parsing/local_var_missing_ty.dada:3:4]
+   ╭─[dada_tests/ty_parsing/local_var_missing_ty.dada:3:8]
    │
- 3 │ v: = Value(22) #! ERROR expected type after `:`
-   ·  ┬ ┬  
-   ·  ╰──── `:` is here
-   ·    │  
-   ·    ╰── here
+ 3 │ let v: = Value(22) #! ERROR expected type after `:`
+   ·      ┬ ┬  
+   ·      ╰──── `:` is here
+   ·        │  
+   ·        ╰── here
 ───╯

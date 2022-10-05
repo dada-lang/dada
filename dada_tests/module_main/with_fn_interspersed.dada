@@ -2,13 +2,13 @@ async fn test() {
     print("test").await #! OUTPUT test
 }
 
-x = test()
+let x = test()
 
 async fn test2() {
     print("test2").await #! OUTPUT test2
 }
 
-y = test2()
+let y = test2()
 
 x.await
 y.await

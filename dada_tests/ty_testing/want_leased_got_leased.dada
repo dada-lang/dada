@@ -2,5 +2,5 @@ class Object()
 
 fn want(s: leased Object) { }
 
-o = Object()
+let o = Object()
 want(o.lease)

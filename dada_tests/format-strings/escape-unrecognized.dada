@@ -1,2 +1,2 @@
-x = "\a" #! ERROR unrecognized escape `\\a`
+let x = "\a" #! ERROR unrecognized escape `\\a`
 print(x).await #! OUTPUT \\a

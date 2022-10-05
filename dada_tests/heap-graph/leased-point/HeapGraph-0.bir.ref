@@ -4,15 +4,6 @@
         BasicBlock(0): BasicBlockData(
             [
                 (
-                    BreakpoingStart(
-                        SourceFile(
-                            "dada_tests/heap-graph/leased-point.dada",
-                        ),
-                        0,
-                    ),
-                    Expr(11),
-                ),
-                (
                     AssignExpr(
                         temp{3},
                         Class(Id { value: 1 }).share,
@@ -78,9 +69,31 @@
                     Expr(5),
                 ),
                 (
+                    BreakpoingStart(
+                        SourceFile(
+                            "dada_tests/heap-graph/leased-point.dada",
+                        ),
+                        0,
+                    ),
+                    Expr(7),
+                ),
+                (
                     AssignExpr(
                         temp{7},
                         p{0}.lease,
+                    ),
+                    Expr(7),
+                ),
+                (
+                    BreakpointEnd(
+                        SourceFile(
+                            "dada_tests/heap-graph/leased-point.dada",
+                        ),
+                        0,
+                        Expr(7),
+                        Some(
+                            temp{7},
+                        ),
                     ),
                     Expr(7),
                 ),
@@ -132,19 +145,6 @@
                     AssignExpr(
                         temp{2},
                         (),
-                    ),
-                    Expr(11),
-                ),
-                (
-                    BreakpointEnd(
-                        SourceFile(
-                            "dada_tests/heap-graph/leased-point.dada",
-                        ),
-                        0,
-                        Expr(11),
-                        Some(
-                            temp{2},
-                        ),
                     ),
                     Expr(11),
                 ),

@@ -1,4 +1,4 @@
-greeting = "Hello"
-name = "world"
+let greeting = "Hello"
+let name = "world"
 print("{greeting}, {name}!").await
 #! OUTPUT Hello, world!

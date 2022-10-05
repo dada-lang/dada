@@ -1,11 +1,11 @@
 class Pair(a, b)
 
 async fn main() {
-    p = 0
-    n = 0
+    let p = 0
+    let n = 0
     while n < 1 {
         # a new Pair that is scoped to the loop is created here...
-        p := Pair(n, 44).lease
+        p = Pair(n, 44).lease
         n += 1
     }
 

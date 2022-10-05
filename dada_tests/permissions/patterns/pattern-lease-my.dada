@@ -4,13 +4,13 @@ class Point(x, y)
 # and then destroy `p`. The lease should be canceled.
 
 async fn main() {
-    r = callee()
-    #!  ^^^^^^^^ RUN ERROR your lease to this object was cancelled
-    data = r.x
+    let r = callee()
+    #!      ^^^^^^^^ RUN ERROR your lease to this object was cancelled
+    let data = r.x
 }
 
 fn callee() -> {
-    p = Point(22, 44)
+    let p = Point(22, 44)
     p.lease
 }
     

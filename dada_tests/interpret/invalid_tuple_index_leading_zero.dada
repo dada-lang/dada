@@ -1,4 +1,4 @@
 async fn main() {
-    tuple = ("a", "b", 3)
+    let tuple = ("a", "b", 3)
     print("{tuple.01}").await #! RUN ERROR no field named `01`
 }

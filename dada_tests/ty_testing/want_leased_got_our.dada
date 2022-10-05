@@ -2,5 +2,5 @@ class Object()
 
 fn want(s: leased Object) { }
 
-o = Object().share
+let o = Object().share
 want(o) #! RUN ERROR expected a `leased` value, but got a `our` value

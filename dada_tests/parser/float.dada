@@ -1,8 +1,8 @@
 async fn main() {
-    a = 1.2
-    b = 1_1.2_2
+    let a = 1.2
+    let b = 1_1.2_2
     # strange, but Rust also allows it
-    c = 1_1_1_.2_2_2_
+    let c = 1_1_1_.2_2_2_
 
     print(a).await
     #! OUTPUT 1.2

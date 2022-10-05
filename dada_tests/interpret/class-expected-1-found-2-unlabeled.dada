@@ -1,6 +1,6 @@
 class Foo(arg)
 
 async fn main() {
-    x = Foo(10, 22)
-    #!  ^^^^^^^^^^^ RUN ERROR expected to find 1 arguments, but found 2
+    let x = Foo(10, 22)
+    #!      ^^^^^^^^^^^ RUN ERROR expected to find 1 arguments, but found 2
 }

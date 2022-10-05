@@ -1,8 +1,8 @@
 class Point(x, y)
 
-p = Point(22, 44).share
+let p = Point(22, 44).share
 print("{{
-    z = p.x + p.y
+    let z = p.x + p.y
     z
 }}").await
 #!-3 OUTPUT 66

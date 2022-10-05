@@ -1,9 +1,9 @@
 class Point(x, y)
 
 async fn main() {
-    p = Point(22, 44).share
+    let p = Point(22, 44).share
     #?                   ^ HeapGraph
-    q = Point(p, 66).share
+    let q = Point(p, 66).share
     #?            ^ HeapGraph
     #?             ^ HeapGraph
     #?              ^ HeapGraph

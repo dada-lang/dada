@@ -1,6 +1,6 @@
 async fn main() {
-    x = 22
+    let x = 22
     #? @ -1:1 HeapGraph
     #? @ +1:11 HeapGraph
-    y = 44
+    let y = 44
 }

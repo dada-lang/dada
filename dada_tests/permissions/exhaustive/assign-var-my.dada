@@ -1,7 +1,7 @@
 class Pair(a, b)
 
 async fn main() {
-    p = Pair(22, 44)
-    q = p
+    let p = Pair(22, 44)
+    let q = p
     print(p).await #! OUTPUT Pair\(22, 44\)
 }

@@ -1,4 +1,4 @@
-# Breakpoint: Expr(6) at dada_tests/heap-graph/nested-points.dada:14:15:14:16
+# Breakpoint: Expr(5) at dada_tests/heap-graph/nested-points.dada:14:13:14:18
 digraph {
   node[shape = "note"];
   rankdir = "LR";
@@ -12,13 +12,18 @@ digraph {
         label=<
           <table border="0">
           <tr><td border="1">main</td></tr>
-          <tr><td port="0"><font color="black">p</font></td></tr>
+          <tr><td port="0"><font color="slategray">p</font></td></tr>
           <tr><td port="1"><font color="slategray">q</font></td></tr>
           <tr><td port="9"><font color="black">(in-flight)</font></td></tr>
           </table>
         >;
       ];
     }
+    afternode1 [
+      color = "slategray",
+      fontcolor = "slategray",
+      label = <<b>Point</b>>
+    ];
     afternode0 [
       color = "slategray",
       fontcolor = "slategray",
@@ -28,8 +33,8 @@ digraph {
         <tr><td port="1"><font color="slategray">y: "44"</font></td></tr>
       </table>>
     ];
-    "afterstack":0 -> "afternode0" [label="my", style="dotted", penwidth=3.0, arrowtype="normal", color="red"];
-    "stack":9 -> "afternode0" [label="Shared", style="solid", penwidth=1.0, arrowtype="empty", color="blue"];
+    "afterstack":0 -> "afternode0" [label="my", style="solid", penwidth=3.0, arrowtype="normal", color="red"];
+    "stack":9 -> "afternode1" [label="our", style="solid", penwidth=3.0, arrowtype="normal", color="blue"];
   }
   subgraph cluster_before {
     label=<<b>before</b>>
@@ -41,7 +46,7 @@ digraph {
         label=<
           <table border="0">
           <tr><td border="1">main</td></tr>
-          <tr><td port="0"><font color="black">p</font></td></tr>
+          <tr><td port="0"><font color="slategray">p</font></td></tr>
           <tr><td port="1"><font color="slategray">q</font></td></tr>
           </table>
         >;
@@ -72,13 +77,18 @@ digraph {
         label=<
           <table border="0">
           <tr><td border="1">main</td></tr>
-          <tr><td port="0"><font color="black">p</font></td></tr>
+          <tr><td port="0"><font color="slategray">p</font></td></tr>
           <tr><td port="1"><font color="slategray">q</font></td></tr>
           <tr><td port="9"><font color="black">(in-flight)</font></td></tr>
           </table>
         >;
       ];
     }
+    afternode1 [
+      color = "slategray",
+      fontcolor = "slategray",
+      label = <<b>Point</b>>
+    ];
     afternode0 [
       color = "slategray",
       fontcolor = "slategray",
@@ -88,8 +98,8 @@ digraph {
         <tr><td port="1"><font color="slategray">y: "44"</font></td></tr>
       </table>>
     ];
-    "afterstack":0 -> "afternode0" [label="my", style="dotted", penwidth=3.0, arrowtype="normal", color="red"];
-    "stack":9 -> "afternode0" [label="Shared", style="solid", penwidth=1.0, arrowtype="empty", color="blue"];
+    "afterstack":0 -> "afternode0" [label="my", style="solid", penwidth=3.0, arrowtype="normal", color="red"];
+    "stack":9 -> "afternode1" [label="our", style="solid", penwidth=3.0, arrowtype="normal", color="blue"];
   }
   subgraph cluster_before {
     label=<<b>before</b>>
@@ -101,7 +111,7 @@ digraph {
         label=<
           <table border="0">
           <tr><td border="1">main</td></tr>
-          <tr><td port="0"><font color="black">p</font></td></tr>
+          <tr><td port="0"><font color="slategray">p</font></td></tr>
           <tr><td port="1"><font color="slategray">q</font></td></tr>
           </table>
         >;

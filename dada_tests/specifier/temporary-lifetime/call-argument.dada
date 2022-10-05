@@ -1,7 +1,7 @@
 class Object(data)
 
 async fn main() {
-    o = lease_me(Object(22).lease).data
+    let o = lease_me(Object(22).lease).data
     # What happens here:
     # * the `Object(22)` is stored into a temporary that is dropped, but we've already read
     #   the data field out of it

@@ -1,6 +1,6 @@
 class Test()
 
 async fn main() {
-    t = Test()
+    let t = Test()
     print("Done").await #! OUTPUT Done
 }

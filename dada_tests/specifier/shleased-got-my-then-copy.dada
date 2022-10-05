@@ -2,10 +2,10 @@ class Point(x, y)
 
 async fn main() {
     # `p` is shared here from a temporary; scope of the temporary is the block
-    p = Point(22, 33)
+    let p = Point(22, 33)
 
     # ...and then we copy it to `q` (also shared)
-    q = p.share
+    let q = p.share
 
     # ...and check if we can access `p`
     print(p).await #! OUTPUT Point\(22, 33\)

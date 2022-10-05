@@ -1,10 +1,10 @@
 class Point(x, y)
 
 async fn main() {
-    p = Point(x: 22, y: 44)
+    let p = Point(x: 22, y: 44)
     #?                         ^ HeapGraph
-    q = p
+    let q = p
     #?       ^ HeapGraph
 
-    x = p.x
+    let x = p.x
 }

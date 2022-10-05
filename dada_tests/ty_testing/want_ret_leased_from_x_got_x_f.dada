@@ -15,7 +15,7 @@ fn want(x: leased List) -> leased{x} List {
     x.f.lease
 }
 
-l1 = List(Null())
-l2 = List(l1.lease)
-p = want(l2.lease)
+let l1 = List(Null())
+let l2 = List(l1.lease)
+let p = want(l2.lease)
 print(p).await #! OUTPUT List\(Null\(\)\)
