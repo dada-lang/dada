@@ -958,8 +958,7 @@ impl<'me> Validator<'me> {
 
             // These are parsed into other syntax elements and should not appear
             // at this stage of compilation.
-            syntax::op::Op::ColonEqual
-            | syntax::op::Op::Colon
+            syntax::op::Op::Colon
             | syntax::op::Op::SemiColon
             | syntax::op::Op::LeftAngle
             | syntax::op::Op::RightAngle
