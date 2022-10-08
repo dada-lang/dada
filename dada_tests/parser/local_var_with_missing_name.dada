@@ -1,0 +1,8 @@
+let = 1
+#!  ^ ERROR expected name for local variable
+let atomic = 1
+#!         ^ ERROR expected name for local variable
+let : Int = 3
+#!  ^ ERROR expected name for local variable
+let atomic : Int = 4
+#!         ^ ERROR expected name for local variable

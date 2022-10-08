@@ -365,7 +365,9 @@ impl CodeParser<'_, '_> {
         let (let_span, _) = self.eat(Keyword::Let)?;
 
         let atomic = self.parse_atomic();
-        let name = self.parse_name().unwrap();
+        let name = self
+            .parse_name()
+            .or_report_error(self, || "expected name for local variable")?;
         let ty = self.parse_colon_ty();
         let lv_span = self.span_consumed_since(let_span);
         let local_variable_decl = self.add(LocalVariableDeclData { atomic, name, ty }, lv_span);
@@ -373,7 +375,7 @@ impl CodeParser<'_, '_> {
         let value = self
             .eat_op(Op::Equal)
             .and_then(|_| self.parse_expr())
-            .or_report_error(self, || "expected value for local variable".to_string())
+            .or_report_error(self, || "expected value for local variable")
             .or_dummy_expr(self);
 
         let var_span = self.span_consumed_since_parsing(local_variable_decl);
