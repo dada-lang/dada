@@ -1,4 +1,7 @@
 let a = 1
 let atomic b = 2
-let c: Int = 3
-let atomic d: Int = 4
+
+class Value(n)
+
+let c: Value = Value(3)
+let atomic d: Value = Value(4)

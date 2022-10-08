@@ -367,10 +367,9 @@ impl CodeParser<'_, '_> {
         let atomic = self.parse_atomic();
         let name = self
             .parse_name()
-            .or_report_error(self, || "expected name for local variable")?;
+            .or_report_error(self, || "expected name for local variable");
         let ty = self.parse_colon_ty();
         let lv_span = self.span_consumed_since(let_span);
-        let local_variable_decl = self.add(LocalVariableDeclData { atomic, name, ty }, lv_span);
 
         let value = self
             .eat_op(Op::Equal)
@@ -378,11 +377,17 @@ impl CodeParser<'_, '_> {
             .or_report_error(self, || "expected value for local variable")
             .or_dummy_expr(self);
 
-        let var_span = self.span_consumed_since_parsing(local_variable_decl);
-        Some(self.add(
-            ExprData::Var(local_variable_decl, value),
-            self.span_consumed_since(var_span),
-        ))
+        if let Some(name) = name {
+            let local_variable_decl = self.add(LocalVariableDeclData { atomic, name, ty }, lv_span);
+
+            let var_span = self.span_consumed_since_parsing(local_variable_decl);
+            Some(self.add(
+                ExprData::Var(local_variable_decl, value),
+                self.span_consumed_since(var_span),
+            ))
+        } else {
+            Some(self.add(ExprData::Error, self.span_consumed_since(let_span)))
+        }
     }
 
     /// Parses an `if` expression (`if` token already eaten).

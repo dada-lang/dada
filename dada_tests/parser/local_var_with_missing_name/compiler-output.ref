@@ -1,0 +1,28 @@
+Error: expected name for local variable
+   ╭─[dada_tests/parser/local_var_with_missing_name.dada:1:5]
+   │
+ 1 │ let = 1
+   ·     ┬  
+   ·     ╰── here
+───╯
+Error: expected name for local variable
+   ╭─[dada_tests/parser/local_var_with_missing_name.dada:4:12]
+   │
+ 4 │ let atomic = 1
+   ·            ┬  
+   ·            ╰── here
+───╯
+Error: expected name for local variable
+   ╭─[dada_tests/parser/local_var_with_missing_name.dada:9:5]
+   │
+ 9 │ let : Value = Value(3)
+   ·     ┬  
+   ·     ╰── here
+───╯
+Error: expected name for local variable
+    ╭─[dada_tests/parser/local_var_with_missing_name.dada:11:12]
+    │
+ 11 │ let atomic : Value = Value(4)
+    ·            ┬  
+    ·            ╰── here
+────╯
