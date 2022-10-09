@@ -2,9 +2,9 @@
 
 String literals in Dada support
 
-* escape characters like `\n`
-* interspersed expressions
-* margin stripping
+- escape characters like `\n`
+- interspersed expressions
+- margin stripping
 
 All of these can be disabled by using [raw string literals](./raw-string-literals).
 
@@ -12,13 +12,13 @@ All of these can be disabled by using [raw string literals](./raw-string-literal
 
 The `\` character is used to introduce an escape. The following escapes are recognized:
 
-* `\n` -- newline
-* `\r` -- carriage return
-* `\t` -- tab
-* `\\` -- literal `\`
-* `\{` -- opening brace (otherwise interpreted as an interspersed expression)
-* `\}` -- closing brace (otherwise interpreted as an interspersed expression)
-* `\"` -- literal quote
+- `\n` -- newline
+- `\r` -- carriage return
+- `\t` -- tab
+- `\\` -- literal `\`
+- `\{` -- opening brace (otherwise interpreted as an interspersed expression)
+- `\}` -- closing brace (otherwise interpreted as an interspersed expression)
+- `\"` -- literal quote
 
 More escapes may be added later.
 
@@ -31,7 +31,7 @@ Expressions can be included in the string literal by using `{}`. These expressio
 If a string literal begins with an unescaped newline character, as shown here...
 
 ```
-example = "
+let example = "
    ...
 "
 ```
@@ -45,7 +45,7 @@ Note that the whitespace prefix must match exactly. For example, a string that u
 ### Examples
 
 ```
-example = "
+let example = "
     Hello, world
 "
 ```
@@ -55,19 +55,19 @@ This is equivalent to `"Hello, world"`
 ---
 
 ```
-example = "
+let example = "
 
     Hello, world
 
 "
 ```
 
-This is equivalent to "\nHello, world\n". Note that the margin of `    ` was removed from the middle line even though there were two empty lines before it that did not have the same whitespace prefix.
+This is equivalent to "\nHello, world\n". Note that the margin of ` ` was removed from the middle line even though there were two empty lines before it that did not have the same whitespace prefix.
 
 ---
 
 ```
-example = "
+let example = "
 
     Hello,
       world
@@ -75,46 +75,46 @@ example = "
 "
 ```
 
-This is equivalent to "\nHello,\n  world\n". Note that the margin of `    ` was removed from the middle line even though there were two empty lines before it that did not have the same whitespace prefix.
+This is equivalent to "\nHello,\n world\n". Note that the margin of ` ` was removed from the middle line even though there were two empty lines before it that did not have the same whitespace prefix.
 
 ---
 
 ```
-example = "\n
+let example = "\n
     Hello, world
 "
 ```
 
-This is equivalent to "\n\n    Hello, world\n". The initial `\n` disables all stripping, and so the remaining newlines and whitespace are included.
+This is equivalent to "\n\n Hello, world\n". The initial `\n` disables all stripping, and so the remaining newlines and whitespace are included.
 
 ---
 
 ```
-example = "{""}
+let example = "{""}
     Hello,
       world
 "
 ```
 
-This is equivalent to "\n    Hello,\n      world\n". The initial `{""}` disables all subsequent margin stripping.
+This is equivalent to "\n Hello,\n world\n". The initial `{""}` disables all subsequent margin stripping.
 
 ---
 
 ```
-example = "Hello,
+let example = "Hello,
   world
 "
 ```
 
-This is equivalent to "Hello,\n  world\n". 
+This is equivalent to "Hello,\n world\n".
 
 ---
 
 ```
-example = "
+let example = "
   Hello, {"\nworld,\n"}
   how are you?
 "
 ```
 
-This is equivalent to `"Hello, \nworld,\n\nhow are you?"`. The interspersed `"\nworld,\n"` is reproduced exactly and does not affect the margin of `"  "`.
+This is equivalent to `"Hello, \nworld,\n\nhow are you?"`. The interspersed `"\nworld,\n"` is reproduced exactly and does not affect the margin of `" "`.

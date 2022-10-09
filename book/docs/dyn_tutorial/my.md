@@ -19,14 +19,16 @@ In many ways, owned permissions ought to be familiar to you, because they are mo
 But we said that `my` represents **unique** ownership -- what does it mean that the `my` permission is **unique**? It means there are no other variables that can access the object. So, you might wonder, what happens if we copy the object into another "unique" variable? Well, let's try it and see!
 
 ```
-class Point(our x, our y)
+class Point(x: our, y: our)
 
-my p = Point(22, 44)
-my q = p # <--- added this line
+let p: my = Point(22, 44)
+let q: my = p # <--- added this line
 print("The point is {p}").await
 ```
 
 If you run it, you will find that it gets an error:
+
+<!-- FIXME: no error is emitted for the code above -->
 
 ```
 error: `p` has no value
@@ -36,23 +38,23 @@ error: `p` has no value
                         ^^^ `p` has no value
 ```
 
-When you assign to the `my q` variable, you are actually **giving** ownership from `p` to `q`. You can't have two unique owners, so that means that `p` is empty. 
+When you assign to the `q: my` variable, you are actually **giving** ownership from `p` to `q`. You can't have two unique owners, so that means that `p` is empty.
 
 ## Visualizing permissions with the debugger
 
 Dada comes equipped with a visual debugger that can help you to understand how permissions work. Let's try it! Position the cursor at the end of the first line:
 
 ```
-class Point(our x, our y)
+class Point(x: our, y: our)
 
-my p = Point(22, 44)
-#                  ▲
-# ─────────────────┘
-my q = p
+let p: my = Point(22, 44)
+#                       ▲
+# ──────────────────────┘
+let q: my = p
 print("The point is {p}").await
 
 # You see:
-# 
+#
 # ┌───┐       ┌───────┐
 # │ p ├──my──►│ Point │
 # │   │       │ ───── │
@@ -61,20 +63,19 @@ print("The point is {p}").await
 #             └───────┘
 ```
 
-
 Now position the cursor at the end of the next line and see how the state changes:
 
 ```
-class Point(our x, our y)
+class Point(x: our, y: our)
 
-my p = Point(22, 44)
-my q = p
-#       ▲
-# ──────┘
+let p: my = Point(22, 44)
+let q: my = p
+#            ▲
+# ───────────┘
 print("The point is {p}").await
 
 # You see:
-# 
+#
 # ┌───┐       ┌───────┐
 # │ p │       │ Point │
 # │   │       │ ───── │
@@ -92,16 +93,18 @@ Try changing the `print` to print from `q` instead of `p`...you will find the pr
 What do you think happens when we run this code?
 
 ```
-class Point(our x, our y)
+class Point(x: our, y: our)
 
-fn take_point(my point) { }
+fn take_point(point: my) { }
 
-my p = Point(22, 44)
+let p: my = Point(22, 44)
 take_point(p)
 print(p).await
 ```
 
 If you guessed "error", you were right! Check it out:
+
+<!-- FIXME: no error is emitted for the code above -->
 
 ```
 error: `p` has no value
@@ -114,13 +117,13 @@ error: `p` has no value
 What this example shows is that calling a function whose parameters are declared as `my` transfers ownership to those parameters in just the same way as declaring a `my` local variable. The same holds when calling a class constructor:
 
 ```
-class Point(our x, our y)
-class Line(my start, my end)
+class Point(x: our, y: our)
+class Line(start: my, end: my)
 
-my start = Point(22, 44)
-my end = Point(33, 55)
-my line1 = Line(start, end)
-my line2 = Line(start, end) # Error
+let start: my = Point(22, 44)
+let end: my = Point(33, 55)
+let line1: my = Line(start, end)
+let line2: my = Line(start, end) # Error
 ```
 
 ## Making this explicit: the `give` keyword
@@ -128,14 +131,14 @@ my line2 = Line(start, end) # Error
 If you prefer, you can make the move from `p` to `q` explicit by using the `give` keyword:
 
 ```
-class Point(our x, our y)
+class Point(x: our, y: our)
 
-my p = Point(22, 44)
-my q = p.give
-#        ~~~~ this is new
+let p: my = Point(22, 44)
+let q: my = p.give
+#             ~~~~ this is new
 print("The point is ({p.x}, {p.y})").await
 ```
 
 ## Give can give more than ownership
 
-Earlier, we said that the `give` keywords gives *all the permissions* from one place to another. That is true no matter how many or how few permissions you have. Right now, we're working with things we own, so `give` transfers ownership. As the tutorial proceeds, we're going to see ways that we can create variables with fewer permissions; using `give` on those variables will then give those fewer permissions.
+Earlier, we said that the `give` keywords gives _all the permissions_ from one place to another. That is true no matter how many or how few permissions you have. Right now, we're working with things we own, so `give` transfers ownership. As the tutorial proceeds, we're going to see ways that we can create variables with fewer permissions; using `give` on those variables will then give those fewer permissions.
