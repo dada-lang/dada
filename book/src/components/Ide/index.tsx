@@ -4,7 +4,6 @@ import Col from "react-bootstrap/Col";
 import Row from "react-bootstrap/Row";
 import { default as AnsiUp } from "ansi_up";
 import Container from "react-bootstrap/Container";
-import Stack from "react-bootstrap/Stack";
 import Button from "react-bootstrap/Button";
 
 import dadaWeb, { compiler } from "dada-web";
@@ -153,7 +152,6 @@ function Ide(props: { mini: boolean; sourceText: string }) {
   const [cursor, setCursor] = useState<Cursor>({ row: 0, column: 0 });
   const [source, setSource] = useState<string>(props.sourceText);
   const [status, setStatus] = useState<string>("");
-  const [diagnostics, setDiagnostics] = useState<string>("");
   const [output, setOutput] = useState<string>("");
   const [heaps, setHeaps] = useState<[string, string]>(["", ""]);
   useEffect(() => {
@@ -175,10 +173,9 @@ function Ide(props: { mini: boolean; sourceText: string }) {
           await dada.execute();
           break;
       }
-      const html = new AnsiUp().ansi_to_html(dada.output);
+      const html = new AnsiUp().ansi_to_html(dada.diagnostics + dada.output);
       setOutput(html);
       setHeaps([dada.heaps[0], dada.heaps[1]]);
-      setDiagnostics(dada.diagnostics);
     });
   }, [cursor, dada, source, outputMode]);
 
