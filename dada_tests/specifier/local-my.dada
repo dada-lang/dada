@@ -1,11 +1,11 @@
 class Pair(a, b)
 
 async fn main() {
-    pair = Pair(22, 44)
+    let pair = Pair(22, 44)
     print(pair.lease).await #! OUTPUT Pair\(22, 44\)
 
-    pair1 = pair.share
-    pair2 = pair1.share
+    let pair1 = pair.share
+    let pair2 = pair1.share
     print(pair1).await #! OUTPUT Pair\(22, 44\)
     print(pair2).await #! OUTPUT Pair\(22, 44\)
 

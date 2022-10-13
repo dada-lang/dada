@@ -1,5 +1,5 @@
 async fn main() {
-    x = ((1, 2), 3)
+    let x = ((1, 2), 3)
     print("{x.0.0}").await #! OUTPUT 1
     print("{x.0.1}").await #! OUTPUT 2
     print("{x.1}").await #! OUTPUT 3

@@ -82,9 +82,11 @@
                     Expr(6),
                 ),
                 (
-                    AssignExpr(
-                        temp{9},
-                        p{0}.share,
+                    BreakpoingStart(
+                        SourceFile(
+                            "dada_tests/heap-graph/cursor-position.dada",
+                        ),
+                        0,
                     ),
                     Expr(7),
                 ),
@@ -95,14 +97,14 @@
                         ),
                         0,
                     ),
-                    Expr(8),
+                    Expr(7),
                 ),
                 (
                     AssignExpr(
-                        temp{10},
-                        66,
+                        temp{9},
+                        p{0}.share,
                     ),
-                    Expr(8),
+                    Expr(7),
                 ),
                 (
                     BreakpointEnd(
@@ -110,10 +112,30 @@
                             "dada_tests/heap-graph/cursor-position.dada",
                         ),
                         0,
-                        Expr(8),
+                        Expr(7),
                         Some(
-                            temp{10},
+                            temp{9},
                         ),
+                    ),
+                    Expr(7),
+                ),
+                (
+                    BreakpointEnd(
+                        SourceFile(
+                            "dada_tests/heap-graph/cursor-position.dada",
+                        ),
+                        0,
+                        Expr(7),
+                        Some(
+                            temp{9},
+                        ),
+                    ),
+                    Expr(7),
+                ),
+                (
+                    AssignExpr(
+                        temp{10},
+                        66,
                     ),
                     Expr(8),
                 ),

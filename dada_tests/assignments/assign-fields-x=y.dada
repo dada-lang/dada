@@ -1,4 +1,4 @@
 class Point(x, y)
-p = Point(22, 44)
-p.x := p.y
+let p = Point(22, 44)
+p.x = p.y
 print(p).await #! OUTPUT Point\(44, 44\)

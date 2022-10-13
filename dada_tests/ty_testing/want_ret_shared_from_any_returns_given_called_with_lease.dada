@@ -5,5 +5,5 @@ fn name(c: Character) -> shared{c} Name {
     c.name.give #! RUN ERROR expected a shared value
 }
 
-c1 = Character(Name("Achilles"))
-n_given = name(c1.lease)
+let c1 = Character(Name("Achilles"))
+let n_given = name(c1.lease)

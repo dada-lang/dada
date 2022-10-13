@@ -1,13 +1,13 @@
 class Pair(a, b)
 
 async fn main() {
-    pair = Pair(Pair(22, 44), 66)
+    let pair = Pair(Pair(22, 44), 66)
 
-    p = pair.a.lease
+    let p = pair.a.lease
 
     # This write causes the `Pair(22, 44)`
     # to have no owner. It gets collected by the GC...
-    pair.a := Pair(23, 45)
+    pair.a = Pair(23, 45)
 
     # ...and therefore `p` is cancelled (the object
     # it was leased from no longer exists).

@@ -1,15 +1,15 @@
 class Pair(a, b)
 
 async fn main() {
-    pair1 = Pair(22, 44)
-    pair2 = Pair(pair1.lease, 66)
+    let pair1 = Pair(22, 44)
+    let pair2 = Pair(pair1.lease, 66)
 
-    p = pair2.a.lease
+    let p = pair2.a.lease
 
     # Writing to `pair.a` causes the lease from `pair2.a`
     # to be unreachable. However, the owned value that backs
     # it is still live, so that's ok.
-    pair2.a := Pair(23, 45)
+    pair2.a = Pair(23, 45)
 
     # `p` is still a valid leased object, and it points to
     # `pair1`.

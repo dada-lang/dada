@@ -1,8 +1,8 @@
 class Point(x, y)
 
 async fn main() {
-    x = 22
+    let x = 22
     x += 1
-    p = Point(x, 44)
+    let p = Point(x, 44)
     print(p).await #! OUTPUT Point\(23, 44\)
 }

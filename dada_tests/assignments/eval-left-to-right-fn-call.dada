@@ -10,10 +10,10 @@ fn next_and(c, d) -> {
     d.give
 }
 
-c = Counter(0)
-d = Counter(22)
+let c = Counter(0)
+let d = Counter(22)
 
 # `next_and` is evaluated first, so `next`
 # returns 2
-next_and(c.lease, d.lease).value := next(c.lease)
+next_and(c.lease, d.lease).value = next(c.lease)
 print(d.share).await #! OUTPUT Counter\(2\)

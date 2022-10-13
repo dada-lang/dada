@@ -4,20 +4,20 @@
         BasicBlock(0): BasicBlockData(
             [
                 (
+                    AssignExpr(
+                        x{0},
+                        22,
+                    ),
+                    Expr(0),
+                ),
+                (
                     BreakpoingStart(
                         SourceFile(
                             "dada_tests/heap-graph/line-end.dada",
                         ),
                         0,
                     ),
-                    Expr(4),
-                ),
-                (
-                    AssignExpr(
-                        x{0},
-                        22,
-                    ),
-                    Expr(0),
+                    Expr(2),
                 ),
                 (
                     AssignExpr(
@@ -27,22 +27,22 @@
                     Expr(2),
                 ),
                 (
-                    AssignExpr(
-                        temp{2},
-                        (),
-                    ),
-                    Expr(4),
-                ),
-                (
                     BreakpointEnd(
                         SourceFile(
                             "dada_tests/heap-graph/line-end.dada",
                         ),
                         0,
-                        Expr(4),
+                        Expr(2),
                         Some(
-                            temp{2},
+                            y{1},
                         ),
+                    ),
+                    Expr(2),
+                ),
+                (
+                    AssignExpr(
+                        temp{2},
+                        (),
                     ),
                     Expr(4),
                 ),

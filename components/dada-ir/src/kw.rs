@@ -58,6 +58,7 @@ define_keywords! {
     If => "if",
     Lease => "lease",
     Leased => "leased",
+    Let => "let",
     Loop => "loop",
     My => "my",
     Return => "return",

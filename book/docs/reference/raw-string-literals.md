@@ -9,15 +9,13 @@ A raw string literal `r"..."` is a string literal with no escape sequences. All 
 ## Examples
 
 ```
-x = r"fo\o{}" 
+let x = r"fo\o{}"
 ```
 
 yields the [string literal](./string-literals) `"fo\\o\{\}"`.
 
-
 ```
-x = r#"fo\o{}"bar"# 
+let x = r#"fo\o{}"bar"#
 ```
 
 yields the [string literal](./string-literals) `"fo\\o\{\}\"bar"`.
-

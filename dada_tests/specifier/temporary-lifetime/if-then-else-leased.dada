@@ -1,7 +1,7 @@
 class Object(data)
 
 async fn main() {
-    o = if true { Object(true).lease } else { Object(false).lease }
+    let o = if true { Object(true).lease } else { Object(false).lease }
 
     print(o).await
     #! RUN ERROR your lease to this object was cancelled

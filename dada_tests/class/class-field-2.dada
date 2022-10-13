@@ -4,7 +4,7 @@ class Test(
 )
 
 async fn main() {
-    t = Test("foo", "bar")
+    let t = Test("foo", "bar")
     print(t.a).await #! OUTPUT foo
     print(t.b).await #! OUTPUT bar
 }

@@ -20,23 +20,23 @@ fn foo(accumulator) -> # shared List
 }
 
 async fn main() {
-    a = Accumulator(list: List(22))
+    let a = Accumulator(list: List(22))
 
     # get a shared lease to the list,
     # but it is still owned by `a`
-    l = foo(a.lease)
+    let l = foo(a.lease)
 
     # share `a`, which currently revokes
     # the lease `a`, and hence `l`
     # becomes inaccessible
-    s = a.share
+    let s = a.share
 
     print(l).await #! RUN ERROR your lease to this object was cancelled
 
     atomic {
         # can still modify `s.list`, but only
         # in an atomic section
-        s.list := List() 
+        s.list = List() 
         #! FIXME: atomic writes not implemented
     }
 }

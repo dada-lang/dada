@@ -8,5 +8,5 @@ fn name(c: Character) -> leased{c} Name {
     c.name.give #! RUN ERROR expected a `leased` value
 }
 
-c1 = Character(Name("Achilles"))
-n_given = name(c1.give)
+let c1 = Character(Name("Achilles"))
+let n_given = name(c1.give)

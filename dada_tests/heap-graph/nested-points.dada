@@ -2,7 +2,7 @@
 class Point(x, y)
 
 async fn main() {
-    p = Point(22, 44)
+    let p = Point(22, 44)
     #?              ^ HeapGraph
     #?               ^ HeapGraph
     #
@@ -11,7 +11,7 @@ async fn main() {
     # value. When the cursor is after it,
     # we see the assignment has taken place.
 
-    q = Point(p, 66)
+    let q = Point(p, 66)
     #?        ^ HeapGraph
     # Test that when the cursor is on `p`,
     # we see (a) the `Point` as the in-flight

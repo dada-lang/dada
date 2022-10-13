@@ -1,4 +1,4 @@
-# Breakpoint: Expr(3) at dada_tests/heap-graph/nested-points.dada:5:9:5:22
+# Breakpoint: Expr(1) at dada_tests/heap-graph/nested-points.dada:5:19:5:21
 digraph {
   node[shape = "note"];
   rankdir = "LR";
@@ -12,22 +12,13 @@ digraph {
         label=<
           <table border="0">
           <tr><td border="1">main</td></tr>
-          <tr><td port="0"><font color="black">p</font></td></tr>
+          <tr><td port="0"><font color="slategray">p</font></td></tr>
           <tr><td port="1"><font color="slategray">q</font></td></tr>
-          <tr><td port="9"><font color="black">(in-flight)</font></td></tr>
+          <tr><td port="9"><font color="black">(in-flight): "22"</font></td></tr>
           </table>
         >;
       ];
     }
-    afternode0 [
-      label = <<table border="0">
-        <tr><td border="1">Point</td></tr>
-        <tr><td port="0"><font color="black">x: "22"</font></td></tr>
-        <tr><td port="1"><font color="black">y: "44"</font></td></tr>
-      </table>>
-    ];
-    "afterstack":0 -> "afternode0" [label="my", style="solid", penwidth=3.0, arrowtype="normal", color="red"];
-    "stack":9 -> "afternode0" [label="my", style="solid", penwidth=3.0, arrowtype="normal", color="red"];
   }
   subgraph cluster_before {
     label=<<b>before</b>>

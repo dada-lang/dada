@@ -2,5 +2,5 @@ class Name()
 class NotName()
 class Character(name: my Name)
 
-c = Character(NotName())
+let c = Character(NotName())
 #! RUN ERROR expected an instance of `Name`

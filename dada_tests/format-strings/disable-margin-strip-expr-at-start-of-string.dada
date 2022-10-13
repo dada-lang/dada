@@ -1,5 +1,5 @@
-x = "\n    Hello,\n      world\n"
-y = "{""}
+let x = "\n    Hello,\n      world\n"
+let y = "{""}
     Hello,
       world
 "

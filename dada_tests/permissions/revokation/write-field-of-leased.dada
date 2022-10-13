@@ -1,13 +1,13 @@
 class Pair(a, b)
 
 async fn main() {
-    p = Pair(22, 44).lease
+    let p = Pair(22, 44).lease
 
     # we now have a shared lease on `p`
-    q = p.share
+    let q = p.share
 
     # mutating field of `p` cancels our shared lease
-    p.a := 23
+    p.a = 23
     
     print(q).await #! RUN ERROR your lease to this object was cancelled
 }

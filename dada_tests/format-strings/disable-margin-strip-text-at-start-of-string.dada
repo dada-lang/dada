@@ -1,5 +1,5 @@
-x = "Hello,\n  world\n"
-y = "Hello,
+let x = "Hello,\n  world\n"
+let y = "Hello,
   world
 "
 print(x == y).await #! OUTPUT true

@@ -1,5 +1,5 @@
 class Point(x, y)
 
-p = Point(22, 44).share
+let p = Point(22, 44).share
 print("({p.x}, {p.y})").await
 #! OUTPUT \(22, 44\)

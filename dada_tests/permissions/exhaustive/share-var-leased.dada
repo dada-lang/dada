@@ -1,10 +1,10 @@
 class Pair(a, b)
 
 async fn main() {
-    p = Pair(22, 44).lease
+    let p = Pair(22, 44).lease
 
     # Sharing a leased thing: creates a shared sublease
-    q = p.share
+    let q = p.share
 
     # Accessing `q`: ok
     print(q).await #! OUTPUT Pair\(22, 44\)

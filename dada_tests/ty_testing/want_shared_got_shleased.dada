@@ -2,5 +2,5 @@ class Object()
 
 fn want(s: shared Object) { }
 
-o = Object()
+let o = Object()
 want(o)

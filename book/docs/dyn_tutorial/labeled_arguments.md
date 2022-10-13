@@ -9,7 +9,7 @@ Before we go further with the tutorial, it's worth noting that Dada supports _la
 ```dada ide
 class Point(x, y)
 
-my p = Point(x: 22, y: 44)
+let p: my = Point(x: 22, y: 44)
 print("The point is `{p}`").await
 ```
 
@@ -17,8 +17,8 @@ Try changing the code above to give the parameters in another orde, such as `Poi
 
 Adding labels can help make it clearer what is going on. The rules are as follows:
 
-- You must also give the arguments in the order in which they were declared in the function, whether or not labels were provided.
-- Once you give a label to a parameter, you must give a label to all the remaining parameters (so you can't do `Point(x: 22, yy)` but you can do `Point(22, y: 44)`.
+-   You must also give the arguments in the order in which they were declared in the function, whether or not labels were provided.
+-   Once you give a label to a parameter, you must give a label to all the remaining parameters (so you can't do `Point(x: 22, yy)` but you can do `Point(22, y: 44)`.
 
 Dada will also sometimes suggest you use labels if it thinks you might be making a mistake. For example, try this:
 
@@ -30,8 +30,8 @@ async fn print_line(start, end) {
     print("The end is {end}").await
 }
 
-start = Point(22, 44)
-end = Point(33, 55)
+let start = Point(22, 44)
+let end = Point(33, 55)
 print_line(end, start).await
 #          ~~~~~~~~~~ warning: are these parameters in the right order?
 ```
@@ -46,7 +46,7 @@ async fn print_line(start, end) {
     print("The end is {end}").await
 }
 
-start = Point(22, 44)
-end = Point(33, 55)
+let start = Point(22, 44)
+let end = Point(33, 55)
 print_line(start: end, end: start).await
 ```

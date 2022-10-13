@@ -8,5 +8,5 @@ fn name(c: Character) -> leased{c} Name {
     c.name.give #! RUN ERROR expected a `leased` value, got a `shared` value
 }
 
-c1 = Character(Name("Achilles"))
-n_given = name(c1) # NB: `name(c1)` is equivalent to `name(c1.share)`
+let c1 = Character(Name("Achilles"))
+let n_given = name(c1) # NB: `name(c1)` is equivalent to `name(c1.share)`

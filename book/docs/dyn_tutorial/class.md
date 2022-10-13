@@ -43,17 +43,16 @@ fn compute_new_value() -> {
     33
 }
 
-# Writing `p = ...` declares a new variable `p`
+# Writing `let p = ...` declares a new variable `p`
 # and assigns its initial value (`Point(22, 44)`)
-p = Point(22, 44)
+let p = Point(22, 44)
 
 # Invoke `print_point`; it's an `async` function,
 # so await the result
 print_point(p).await
 
-# The `:=` operator is used to modify an existing
-# field (remember, `=` declares a new variable).
-p.x := compute_new_value()
+# The `=` operator is used to modify an existing field.
+p.x = compute_new_value()
 
 # You can also use `+=` to modify an existing field
 # (this time by adding to it). Other operators, like

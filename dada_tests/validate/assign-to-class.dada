@@ -2,6 +2,6 @@ class Foo()
 
 async fn main() {
     if false {
-        Foo := 22 #! ERROR you can only assign to local variables or fields
+        Foo = 22 #! ERROR you can only assign to local variables or fields
     }
 }

@@ -4,15 +4,6 @@
         BasicBlock(0): BasicBlockData(
             [
                 (
-                    BreakpoingStart(
-                        SourceFile(
-                            "dada_tests/heap-graph/nested-points.dada",
-                        ),
-                        0,
-                    ),
-                    Expr(3),
-                ),
-                (
                     AssignExpr(
                         temp{3},
                         Class(Id { value: 1 }).share,
@@ -20,9 +11,31 @@
                     Expr(0),
                 ),
                 (
+                    BreakpoingStart(
+                        SourceFile(
+                            "dada_tests/heap-graph/nested-points.dada",
+                        ),
+                        0,
+                    ),
+                    Expr(1),
+                ),
+                (
                     AssignExpr(
                         temp{4},
                         22,
+                    ),
+                    Expr(1),
+                ),
+                (
+                    BreakpointEnd(
+                        SourceFile(
+                            "dada_tests/heap-graph/nested-points.dada",
+                        ),
+                        0,
+                        Expr(1),
+                        Some(
+                            temp{4},
+                        ),
                     ),
                     Expr(1),
                 ),
@@ -52,19 +65,6 @@
         ),
         BasicBlock(1): BasicBlockData(
             [
-                (
-                    BreakpointEnd(
-                        SourceFile(
-                            "dada_tests/heap-graph/nested-points.dada",
-                        ),
-                        0,
-                        Expr(3),
-                        Some(
-                            p{0},
-                        ),
-                    ),
-                    Expr(3),
-                ),
                 (
                     Clear(
                         temp{5},

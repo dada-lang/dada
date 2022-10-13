@@ -8,8 +8,8 @@ fn name(c: Character) -> leased{c} Name {
     c.name.give
 }
 
-c1 = Character(Name("Achilles"))
-n_given = name(c1.lease)
+let c1 = Character(Name("Achilles"))
+let n_given = name(c1.lease)
 print(n_given).await #! OUTPUT Name\(Achilles\)
-n_given.s := "Ajax"
+n_given.s = "Ajax"
 print(c1).await #! OUTPUT Character\(Name\(Ajax\)\)

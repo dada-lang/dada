@@ -1,9 +1,9 @@
 class Point(a, b)
 
 async fn main() {
-    p = Point(22, 44).share # `p` is `our Point`
-    q = p                   # `q` is 2nd owner of the point
-    p := Point(44, 66)      # reassigning `p` has no effect on `q`
+    let p = Point(22, 44).share # `p` is `our Point`
+    let q = p                   # `q` is 2nd owner of the point
+    p = Point(44, 66)      # reassigning `p` has no effect on `q`
 
     print(p).await #! OUTPUT Point\(44, 66\)
     print(q).await #! OUTPUT Point\(22, 44\)

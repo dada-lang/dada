@@ -1,7 +1,7 @@
 async fn main() {
-    tuple = ("a", "b", 3)
-    tuple.2 := 10
-    last = tuple.2
+    let tuple = ("a", "b", 3)
+    tuple.2 = 10
+    let last = tuple.2
 
     print("{tuple.0}").await #! OUTPUT a
     print("{tuple.1}").await #! OUTPUT b

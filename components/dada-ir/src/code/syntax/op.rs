@@ -41,7 +41,6 @@ define_operators! {
     MinusEqual => "-=",
     TimesEqual => "*=",
     DividedByEqual => "/=",
-    ColonEqual => ":=",
     EqualEqual => "==",
     GreaterEqual => ">=",
     LessEqual => "<=",

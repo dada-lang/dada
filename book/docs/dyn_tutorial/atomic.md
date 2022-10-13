@@ -4,19 +4,19 @@ import Caveat from '../caveat.md'
 
 <Caveat/>
 
-In the [sharing xor mutability][sxm] section, we discussed how `var` fields, when shared, become immutable. We also talked about the dangers of mixing sharing and mutation. The challenge is that *sometimes* you *really do* want to mix sharing and mutation. As a simple example, we might want to have a shared cache that multiple parts of our code can access. How do we do that?
+In the [sharing xor mutability][sxm] section, we discussed how fields, when shared, become immutable. We also talked about the dangers of mixing sharing and mutation. The challenge is that _sometimes_ you _really do_ want to mix sharing and mutation. As a simple example, we might want to have a shared cache that multiple parts of our code can access. How do we do that?
 
 [sxm]: ./sharing_xor_mutation
 
-For this reason, Dada supports a more dynamic variant of [sharing xor mutability][sxm] called "atomic data". The idea is that we can declare some storage as being `atomic` instead of `var`. Unlike `var` storage, atomic storage can be mutated when shared, but only within a **transaction**. The transaction ensures that all of our changes to that shared data occur as a single unit, without interference from either other variables or other threads.
+For this reason, Dada supports a more dynamic variant of [sharing xor mutability][sxm] called "atomic data". The idea is that we can declare some storage as being `atomic`. Unlike regular storage, atomic storage can be mutated when shared, but only within a **transaction**. The transaction ensures that all of our changes to that shared data occur as a single unit, without interference from either other variables or other threads.
 
-Let's see an example. To start, we'll write a shared counter type using `atomic`. It might seem at first that `atomic` behaves just like `var`. This code, for example, will print `counter is 1`:
+Let's see an example. To start, we'll write a shared counter type using `atomic`. It might seem at first that `atomic` doesn't behave differently. This code, for example, will print `counter is 1`:
 
 ```
 class Counter(atomic value)
 
 async fn main() {
-    var c1 = Counter(0)
+    let c1 = Counter(0)
     c1.value += 1
     print("counter is {c1.value}").await
 }
@@ -28,7 +28,7 @@ But what happens if we make the variable `c1` a shared variable, instead?
 class Counter(atomic value)
 
 async fn main() {
-    c1 = Counter(0)
+    let c1: our = Counter(0)
     c1.value += 1
     print("counter is {c1.value}").await
 }
@@ -42,13 +42,13 @@ error: access to shared, atomic field outside of atomic block
         ^^^^^ when shared, atomic fields can only be accessed in an atomic block
 ```
 
-In fact, even if we comment out the write, we *still* get an exception:
+In fact, even if we comment out the write, we _still_ get an exception:
 
 ```
 class Counter(atomic value)
 
 async fn main() {
-    c1 = Counter(0)
+    let c1: our = Counter(0)
     // c1.value += 1
     print("counter is {c1.value}").await
 }
@@ -64,13 +64,13 @@ error: access to shared, atomic field outside of atomic block
 
 ## Atomic blocks
 
-The solution to our problem, as the message says, is to add an *atomic block*:
+The solution to our problem, as the message says, is to add an _atomic block_:
 
 ```
 class Counter(atomic value)
 
 async fn main() {
-    c1 = Counter(0)
+    let c1: our = Counter(0)
     atomic {
         c1.value += 1
 
@@ -91,7 +91,7 @@ You probably noticed that we commented out the call to `print` in the previous e
 class Counter(atomic value)
 
 async fn main() {
-    c1 = Counter(0)
+    let c1: our = Counter(0)
     atomic {
         c1.value += 1
 
@@ -111,7 +111,7 @@ error: await cannot be used inside of an atomic block
                                         ^^^^^ await appears here
 ```
 
-As the message says, it is not permitted to have an `await` inside of an atomic block. The reason for this is that `atomic` blocks are implemented using *software transactional memory*. The idea is that we monitor the behavior of different threads and detect potential conflicts. If one thread interferes with another, we have to rerun one or both of them to get the final result. Rerunning code that has no side-effects is not a problem. But re-running code that does I/O (such as printing on the screen) would be bad, that would mean you see the same message twice. Since all I/O in Dada is asynchronous, we can guarantee that there are no side-effects by forbidding `await` inside of an `atomic`.
+As the message says, it is not permitted to have an `await` inside of an atomic block. The reason for this is that `atomic` blocks are implemented using _software transactional memory_. The idea is that we monitor the behavior of different threads and detect potential conflicts. If one thread interferes with another, we have to rerun one or both of them to get the final result. Rerunning code that has no side-effects is not a problem. But re-running code that does I/O (such as printing on the screen) would be bad, that would mean you see the same message twice. Since all I/O in Dada is asynchronous, we can guarantee that there are no side-effects by forbidding `await` inside of an `atomic`.
 
 You can make the shared counter work by moving the `await` outside of the atomic block. The value of an atomic block is equal to the value of its last expression, so you can (for example) pass the final value of the counter out from the `atomic` block and store it into a variable `v`, like so:
 
@@ -119,8 +119,8 @@ You can make the shared counter work by moving the `await` outside of the atomic
 class Counter(atomic value)
 
 async fn main() {
-    c1 = Counter(0)
-    v = atomic {
+    let c1: our = Counter(0)
+    let v = atomic {
         c1.value += 1
         c1.value
     }
@@ -136,7 +136,7 @@ Another cute way to make this work is to make the value of the `atomic` block be
 class Counter(atomic value)
 
 async fn main() {
-    c1 = Counter(0)
+    let c1: our = Counter(0)
     atomic {
         c1.value += 1
 
@@ -149,15 +149,15 @@ The reason this works is that the string `s` to be printed is computed inside th
 
 ## Interference between threads
 
-The fact that we can't read shared, atomic fields outside of an atomic block is telling us something interesting. For a moment, imagine that we had shared `c1` with other threads: since it is a shared value, that is something we would be allowed to do. 
+The fact that we can't read shared, atomic fields outside of an atomic block is telling us something interesting. For a moment, imagine that we had shared `c1` with other threads: since it is a shared value, that is something we would be allowed to do.
 
 ```
 class Counter(atomic value)
 
 async fn main() {
-    c1 = Counter(0)
+    let c1: our = Counter(0)
     // ... imagine we shared c1 with other threads here
-    v = atomic {
+    let v = atomic {
         c1.value += 1
         c1.value
     }
@@ -165,16 +165,16 @@ async fn main() {
 }
 ```
 
-If we had done that, then the value that we are going to print is *not necessarily* the current value of the counter. Consider: if there were multiple threads executing with accessing to `c1`, they too could be incrementing the counter. Those transactions could occur in between the end of our `atomic` section and the start of `print`. This is why we have to both increment and read the value together. If we modify the program to have two `atomic` blocks, it is actually doing something quite different:
+If we had done that, then the value that we are going to print is _not necessarily_ the current value of the counter. Consider: if there were multiple threads executing with accessing to `c1`, they too could be incrementing the counter. Those transactions could occur in between the end of our `atomic` section and the start of `print`. This is why we have to both increment and read the value together. If we modify the program to have two `atomic` blocks, it is actually doing something quite different:
 
 ```
 class Counter(atomic value)
 
 async fn main() {
-    c1 = Counter(0)
+    let c1: our = Counter(0)
     // ... imagine we shared c1 with other threads here
     atomic { c1.value += 1}
-    v = atomic { c1.value }
+    let v = atomic { c1.value }
     print("counter is {v}").await
 }
 ```
@@ -190,14 +190,14 @@ class Point(x, y)
 class Cell(atomic value)
 
 async fn main() {
-    cell1 = Cell(Point(x: 22, y: 44))
-    cell2 = cell1
+    let cell1 = Cell(Point(x: 22, y: 44))
+    let cell2 = cell1
 
-    x = atomic {
-        point1 = cell1.value.lease
+    let x = atomic {
+        let point1 = cell1.value.lease
         v = point1.x
         cell2.value.x += 1
-        point1.x := v + 1
+        point1.x = v + 1
     }
 
     print("{x}").await
@@ -224,16 +224,16 @@ class Point(x, y)
 class Cell(atomic value)
 
 async fn main() {
-    cell1 = Cell(Point(x: 22, y: 44))
-    cell2 = cell1
+    let cell1 = Cell(Point(x: 22, y: 44))
+    let cell2 = cell1
 
-    x = atomic {
-        point1 = cell1.value.lease
+    let x = atomic {
+        let point1 = cell1.value.lease
         //                        ▲
         // ───────────────────────┘
-        v = point1.x
+        let v = point1.x
         cell2.value.x += 1
-        point1.x := v + 1
+        point1.x = v + 1
     }
 
     print("{x}").await
@@ -258,16 +258,16 @@ class Point(x, y)
 class Cell(atomic value)
 
 async fn main() {
-    cell1 = Cell(Point(x: 22, y: 44))
-    cell2 = cell1
+    let cell1 = Cell(Point(x: 22, y: 44))
+    let cell2 = cell1
 
-    x = atomic {
-        point1 = cell1.value.lease
-        v = point1.x
+    let x = atomic {
+        let point1 = cell1.value.lease
+        let v = point1.x
         cell2.value.x += 1
         //                ▲
         // ───────────────┘
-        point1.x := v + 1
+        point1.x = v + 1
     }
 
     print("{x}").await
@@ -285,7 +285,7 @@ async fn main() {
 // └───────────┘
 ```
 
-If you think back to the rules on [leasing](./lease.md), this makes sense: a lease lasts until the lessor ends it by using the value. **In this case, though, the value that was leased had not one lessor (`cell1`) but *two*, because it is jointly owned.** Either of those lessors can end the lease by using the value again.
+If you think back to the rules on [leasing](./lease.md), this makes sense: a lease lasts until the lessor ends it by using the value. **In this case, though, the value that was leased had not one lessor (`cell1`) but _two_, because it is jointly owned.** Either of those lessors can end the lease by using the value again.
 
 To see why this is useful, imagine for a moment that you were writing a function that takes two cells as arguments. Just like the [`transfer`] function that we described in the [sharing xor mutability][sxm] chapter, you don't realize that `cell1` and `cell2` refer to the same object. In that case, this code that you wrote above is probably wrong! It is going to read the value of `x`, mutate it, and then mutate it again, ignoring that write in between. This is precisely the bug we showed as a "data race", but occurring within a single thread. Dada's rules detect this problem and eliminate it.
 
@@ -298,13 +298,13 @@ class Point(x, y)
 class Cell(atomic value)
 
 async fn main() {
-    cell1 = Cell(Point(x: 22, y: 44))
-    cell2 = cell1
+    let cell1 = Cell(Point(x: 22, y: 44))
+    let cell2 = cell1
 
-    x = atomic {
-        v = cell1.value.x
+    let x = atomic {
+        let v = cell1.value.x
         cell2.value.x += 1
-        cell1.value.x := v + 1
+        cell1.value.x = v + 1
     }
 
     print("{x}").await
@@ -313,4 +313,4 @@ async fn main() {
 
 Running this, we see the output `23` -- even though there were two increments, only one took effect. Is this right? Wrong? Well, that's for you, as the author of the code, to say.
 
-The idea here is this: **when you lease an object, you are saying "so long as I use this lease, I am not expecting interference from other variables"**. You are, in effect, creating a kind of "mini-transaction". If however you write the code *without* a lease, as we did above, then interference is possible. Just as we saw with multiple `atomic` sections, that may sometimes be what you want!
+The idea here is this: **when you lease an object, you are saying "so long as I use this lease, I am not expecting interference from other variables"**. You are, in effect, creating a kind of "mini-transaction". If however you write the code _without_ a lease, as we did above, then interference is possible. Just as we saw with multiple `atomic` sections, that may sometimes be what you want!

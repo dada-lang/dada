@@ -1,0 +1,12 @@
+let = 1
+#!  ^ ERROR expected name for local variable
+#! RUN ERROR compilation error encountered
+let atomic = 1
+#!         ^ ERROR expected name for local variable
+
+class Value(n)
+
+let : Value = Value(3)
+#!  ^ ERROR expected name for local variable
+let atomic : Value = Value(4)
+#!         ^ ERROR expected name for local variable

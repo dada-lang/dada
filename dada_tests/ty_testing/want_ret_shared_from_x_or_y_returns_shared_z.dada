@@ -9,7 +9,7 @@ fn pick(
     c3 #! RUN ERROR not shared from the right place
 }
 
-x = Character(Name("Achilles"))
-y = Character(Name("Ajax"))
-z = Character(Name("Diomedes"))
-p = pick(x, y, z)
+let x = Character(Name("Achilles"))
+let y = Character(Name("Ajax"))
+let z = Character(Name("Diomedes"))
+let p = pick(x, y, z)

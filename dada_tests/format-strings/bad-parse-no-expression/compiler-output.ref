@@ -1,7 +1,7 @@
 Error: expected expression here
-   ╭─[dada_tests/format-strings/bad-parse-no-expression.dada:1:7]
+   ╭─[dada_tests/format-strings/bad-parse-no-expression.dada:1:11]
    │
- 1 │ p = "{}"
-   ·       │ 
-   ·       ╰─ here
+ 1 │ let p = "{}"
+   ·           │ 
+   ·           ╰─ here
 ───╯

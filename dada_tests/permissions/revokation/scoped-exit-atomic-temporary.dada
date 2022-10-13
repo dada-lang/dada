@@ -1,10 +1,10 @@
 class Pair(a, b)
 
 async fn main() {
-    p = 0
+    let p = 0
     atomic {
         # a new Pair that is scoped to the "true" branch is created here
-        p := Pair(22, 44).lease
+        p = Pair(22, 44).lease
     }
 
     # ...so when we exit the `if`, it gets dropped,

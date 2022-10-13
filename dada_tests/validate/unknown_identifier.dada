@@ -1,5 +1,5 @@
 fn foo() {
-    blah = 3
+    let blah = 3
     blah += baz
     #!      ^^^ ERROR can't find anything named `baz`
 }

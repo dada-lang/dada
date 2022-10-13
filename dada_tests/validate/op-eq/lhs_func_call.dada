@@ -1,7 +1,7 @@
 class Point(x, y)
 
 async fn main() {
-    p = Point(22, 44)
+    let p = Point(22, 44)
     test(p.lease) += 1 
     #! ERROR you can only assign to local variables and fields, not arbitrary expressions
     #! RUN ERROR compilation error encountered

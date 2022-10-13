@@ -139,7 +139,7 @@ impl CodeParser<'_, '_> {
                     Op::MinusEqual,
                     Op::DividedByEqual,
                     Op::TimesEqual,
-                    Op::ColonEqual,
+                    Op::Equal,
                 ],
                 Self::parse_expr_5,
             ) {
@@ -359,35 +359,35 @@ impl CodeParser<'_, '_> {
         }
     }
 
-    /// Parses `[permission-mode] [atomic] x = expr`
+    /// Parses `let [atomic] x = expr`
     #[tracing::instrument(level = "debug", skip_all)]
     fn parse_local_variable_decl(&mut self) -> Option<Expr> {
-        // Scan ahead, looking for either `x = ` or `x :`.
-        self.testahead(|this| {
-            let _ = this.parse_atomic();
-            this.parse_name().is_some()
-                && (this.eat_op(Op::Colon).is_some() || this.eat_op(Op::Equal).is_some())
-        })?;
+        let (let_span, _) = self.eat(Keyword::Let)?;
 
-        // Look for `[mode] x = `. If we see that, we are committed to this
-        // being a local variable declaration. Otherwise, we roll fully back.
         let atomic = self.parse_atomic();
-        let name = self.parse_name().unwrap();
+        let name = self
+            .parse_name()
+            .or_report_error(self, || "expected name for local variable");
         let ty = self.parse_colon_ty();
-        let lv_span = self.span_consumed_since_parsing(atomic.or_parsing(name));
-        let local_variable_decl = self.add(LocalVariableDeclData { atomic, name, ty }, lv_span);
+        let lv_span = self.span_consumed_since(let_span);
 
         let value = self
             .eat_op(Op::Equal)
             .and_then(|_| self.parse_expr())
-            .or_report_error(self, || "expected value for local variable".to_string())
+            .or_report_error(self, || "expected value for local variable")
             .or_dummy_expr(self);
 
-        let var_span = self.span_consumed_since_parsing(local_variable_decl);
-        Some(self.add(
-            ExprData::Var(local_variable_decl, value),
-            self.span_consumed_since(var_span),
-        ))
+        if let Some(name) = name {
+            let local_variable_decl = self.add(LocalVariableDeclData { atomic, name, ty }, lv_span);
+
+            let var_span = self.span_consumed_since_parsing(local_variable_decl);
+            Some(self.add(
+                ExprData::Var(local_variable_decl, value),
+                self.span_consumed_since(var_span),
+            ))
+        } else {
+            Some(self.add(ExprData::Error, self.span_consumed_since(let_span)))
+        }
     }
 
     /// Parses an `if` expression (`if` token already eaten).
@@ -469,7 +469,7 @@ impl CodeParser<'_, '_> {
                     .or_dummy_expr(self);
                 let span = self.spans[base].to(self.spans[rhs]);
                 match op {
-                    Op::ColonEqual => return Some(self.add(ExprData::Assign(base, rhs), span)),
+                    Op::Equal => return Some(self.add(ExprData::Assign(base, rhs), span)),
                     Op::PlusEqual | Op::MinusEqual | Op::DividedByEqual | Op::TimesEqual => {
                         return Some(self.add(ExprData::OpEq(base, op, rhs), span))
                     }

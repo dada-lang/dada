@@ -1,6 +1,6 @@
 async fn main() {
-    x = "Hello, world"
-    y = "
+    let x = "Hello, world"
+    let y = "
         Hello, world
     "
     print(x == y).await #! OUTPUT true

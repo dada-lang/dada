@@ -1,9 +1,9 @@
 class Point(x, y)
 
 async fn main() {
-    p = Point(x: 22, y: 44)
-    q = p.lease
-    r = q.lease
+    let p = Point(x: 22, y: 44)
+    let q = p.lease
+    let r = q.lease
     r.x += 1
     #?       ^ HeapGraph
     #
