@@ -249,7 +249,7 @@ impl<'me> Validator<'me> {
                             },
                             _ => parse_error(
                                 self,
-                                format!("`{}` is not a valid integer suffxi", suffix_str),
+                                format!("`{suffix_str}` is not a valid integer suffxi"),
                             ),
                         }
                     }

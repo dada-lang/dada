@@ -44,7 +44,7 @@ pub fn closing_delimiter(ch: char) -> char {
         '(' => ')',
         '[' => ']',
         '{' => '}',
-        _ => panic!("not a delimiter: {:?}", ch),
+        _ => panic!("not a delimiter: {ch:?}"),
     }
 }
 

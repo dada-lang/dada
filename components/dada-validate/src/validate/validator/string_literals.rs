@@ -58,7 +58,7 @@ impl Validator<'_> {
                 '"' => '\"',
                 '{' => '{',
                 '}' => '}',
-                _ => panic!("not a escape: {:?}", ch),
+                _ => panic!("not a escape: {ch:?}"),
             }
         }
     }

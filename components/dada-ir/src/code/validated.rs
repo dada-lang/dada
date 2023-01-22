@@ -215,7 +215,7 @@ id!(pub struct Expr);
 
 impl DebugWithDb<InIrDb<'_, Tree>> for Expr {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>, db: &InIrDb<'_, Tree>) -> std::fmt::Result {
-        let name = format!("{:?}", self);
+        let name = format!("{self:?}");
         f.debug_tuple(&name)
             .field(&self.data(db.tables()).debug(db))
             .field(&db.origins()[*self])
@@ -325,10 +325,10 @@ impl ExprData {
         let id = id.map(u32::from);
         match self {
             ExprData::BooleanLiteral(v) => std::fmt::Debug::fmt(v, f),
-            ExprData::IntegerLiteral(v) => write!(f, "{}", v),
-            ExprData::UnsignedIntegerLiteral(v) => write!(f, "{}", v),
-            ExprData::SignedIntegerLiteral(v) => write!(f, "{}", v),
-            ExprData::FloatLiteral(v) => write!(f, "{}", v),
+            ExprData::IntegerLiteral(v) => write!(f, "{v}"),
+            ExprData::UnsignedIntegerLiteral(v) => write!(f, "{v}"),
+            ExprData::SignedIntegerLiteral(v) => write!(f, "{v}"),
+            ExprData::FloatLiteral(v) => write!(f, "{v}"),
             ExprData::StringLiteral(v) => std::fmt::Debug::fmt(&v.as_str(db.db()), f),
             ExprData::Await(expr) => f.debug_tuple("Await").field(&expr.debug(db)).finish(),
             ExprData::Call(expr, args) => f
@@ -410,7 +410,7 @@ id!(pub struct Place);
 
 impl DebugWithDb<InIrDb<'_, Tree>> for Place {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>, db: &InIrDb<'_, Tree>) -> std::fmt::Result {
-        let name = format!("{:?}", self);
+        let name = format!("{self:?}");
         f.debug_tuple(&name)
             .field(&self.data(db.tables()).debug(db))
             .field(&db.origins()[*self])
@@ -447,7 +447,7 @@ id!(pub struct TargetPlace);
 
 impl DebugWithDb<InIrDb<'_, Tree>> for TargetPlace {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>, db: &InIrDb<'_, Tree>) -> std::fmt::Result {
-        let name = format!("{:?}", self);
+        let name = format!("{self:?}");
         f.debug_tuple(&name)
             .field(&self.data(db.tables()).debug(db))
             .field(&db.origins()[*self])

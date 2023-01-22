@@ -170,9 +170,9 @@ impl HeapGraph {
         Ok(())
     }
 
-    fn find_lessor_place<'w>(
+    fn find_lessor_place(
         &self,
-        w: &'w GraphvizWriter<'_>,
+        w: &GraphvizWriter<'_>,
         permission: PermissionNode,
     ) -> Vec<GraphvizPlace> {
         if let Some(place) = w.permissions.get(&permission) {
@@ -289,8 +289,8 @@ impl HeapGraph {
         edge: ValueEdgeTarget,
     ) -> eyre::Result<()> {
         if !self.value_edge_target_did_change(w, edge) {
-            w.println(&format!("color = {UNCHANGED:?},"))?;
-            w.println(&format!("fontcolor = {UNCHANGED:?},"))?;
+            w.println(format!("color = {UNCHANGED:?},"))?;
+            w.println(format!("fontcolor = {UNCHANGED:?},"))?;
         }
 
         Ok(())
@@ -317,7 +317,7 @@ impl HeapGraph {
                 .map(|i| Some(i.name.to_string(db)))
                 .collect(),
 
-            ObjectType::RustThunk(_) => (0..num_fields).map(|i| Some(format!("{}", i))).collect(),
+            ObjectType::RustThunk(_) => (0..num_fields).map(|i| Some(format!("{i}"))).collect(),
 
             ObjectType::Reservation => vec![Some("reserved".to_string())],
         }

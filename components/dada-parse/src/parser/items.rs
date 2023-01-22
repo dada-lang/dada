@@ -97,9 +97,7 @@ impl<'db> Parser<'db> {
             .or_report_error(&mut signature_parser, || "expected a class name")?;
         let parameters = signature_parser
             .parse_parameter_list()
-            .or_report_error(&mut signature_parser, || {
-                "expected class parameters".to_string()
-            })?;
+            .or_report_error(&mut signature_parser, || "expected class parameters")?;
         let signature = syntax::Signature::new(
             name,
             fn_decl,
@@ -137,9 +135,7 @@ impl<'db> Parser<'db> {
         let fn_kw = signature_parser.parse_fn().unwrap(); // we peeked above, it should be there
         let name = signature_parser
             .parse_name()
-            .or_report_error(&mut signature_parser, || {
-                "expected function name".to_string()
-            })?;
+            .or_report_error(&mut signature_parser, || "expected function name")?;
         let parameters = signature_parser
             .parse_parameter_list()
             .or_report_error(&mut signature_parser, || {
@@ -148,7 +144,7 @@ impl<'db> Parser<'db> {
         let return_type = signature_parser.parse_return_type();
         let (_, body_tokens) = self
             .delimited('{')
-            .or_report_error(self, || "expected function body".to_string())?;
+            .or_report_error(self, || "expected function body")?;
         let code = UnparsedCode::new(body_tokens);
         let signature = syntax::Signature::new(
             name,
