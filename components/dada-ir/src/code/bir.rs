@@ -465,12 +465,12 @@ pub enum ExprData {
 impl DebugWithDb<InIrDb<'_, Bir>> for ExprData {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>, db: &InIrDb<'_, Bir>) -> std::fmt::Result {
         match self {
-            ExprData::BooleanLiteral(b) => write!(f, "{}", b),
-            ExprData::IntegerLiteral(w) => write!(f, "{}", w),
-            ExprData::UnsignedIntegerLiteral(w) => write!(f, "{}", w),
-            ExprData::SignedIntegerLiteral(w) => write!(f, "{}", w),
+            ExprData::BooleanLiteral(b) => write!(f, "{b}"),
+            ExprData::IntegerLiteral(w) => write!(f, "{w}"),
+            ExprData::UnsignedIntegerLiteral(w) => write!(f, "{w}"),
+            ExprData::SignedIntegerLiteral(w) => write!(f, "{w}"),
             ExprData::StringLiteral(w) => write!(f, "{:?}", w.as_str(db.db())),
-            ExprData::FloatLiteral(w) => write!(f, "{}", w),
+            ExprData::FloatLiteral(w) => write!(f, "{w}"),
             ExprData::IntoShared(e) => write!(f, "{:?}.share", e.debug(db)),
             ExprData::Share(p) => write!(f, "{:?}.share", p.debug(db)),
             ExprData::Lease(p) => write!(f, "{:?}.lease", p.debug(db)),
@@ -531,7 +531,7 @@ impl DebugWithDb<InIrDb<'_, Bir>> for PlaceData {
             PlaceData::LocalVariable(v) => write!(f, "{:?}", v.debug(db)),
             PlaceData::Function(func) => write!(f, "{:?}", func.debug(db.db())),
             PlaceData::Class(class) => write!(f, "{:?}", class.debug(db.db())),
-            PlaceData::Intrinsic(intrinsic) => write!(f, "{:?}", intrinsic),
+            PlaceData::Intrinsic(intrinsic) => write!(f, "{intrinsic:?}"),
             PlaceData::Dot(p, id) => write!(f, "{:?}.{}", p.debug(db), id.as_str(db.db())),
         }
     }

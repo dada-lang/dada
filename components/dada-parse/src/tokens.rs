@@ -101,6 +101,7 @@ impl<'me> Tokens<'me> {
 
     /// Span of the previously consumed token (or `Span::start` otherwise).
     /// Does not include any skipped tokens.
+    #[allow(clippy::misnamed_getters)]
     pub(crate) fn last_span(&self) -> Span {
         self.last_not_skipped_span
     }

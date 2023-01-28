@@ -92,7 +92,7 @@ impl DadaCompiler {
         self.output = String::new();
         for item in self.db.items(self.input_file) {
             if let Some(tree) = self.db.debug_syntax_tree(item) {
-                let _ = write!(self.output, "{:#?}", tree);
+                let _ = write!(self.output, "{tree:#?}");
                 self.output.push('\n');
             }
         }
@@ -104,7 +104,7 @@ impl DadaCompiler {
         self.output = String::new();
         for item in self.db.items(self.input_file) {
             if let Some(tree) = self.db.debug_validated_tree(item) {
-                let _ = write!(self.output, "{:#?}", tree);
+                let _ = write!(self.output, "{tree:#?}");
                 self.output.push('\n');
             }
         }
@@ -116,7 +116,7 @@ impl DadaCompiler {
         self.output = String::new();
         for item in self.db.items(self.input_file) {
             if let Some(tree) = self.db.debug_bir(item) {
-                let _ = write!(self.output, "{:#?}", tree);
+                let _ = write!(self.output, "{tree:#?}");
                 self.output.push('\n');
             }
         }

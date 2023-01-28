@@ -506,13 +506,12 @@ impl<'me> Stepper<'me> {
         let class_span = class.name_span(db).anchor_to(db, class);
         error!(
             span,
-            "the class `{}` has no field named `{}`",
-            class_name,
+            "the class `{class_name}` has no field named `{}`",
             name.as_str(db)
         )
         .secondary_label(
             class_span,
-            &format!("the class `{}` is declared here", class_name),
+            format!("the class `{class_name}` is declared here"),
         )
         .eyre(db)
     }

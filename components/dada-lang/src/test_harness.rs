@@ -235,7 +235,7 @@ impl Options {
             &expected_diagnostics.compile,
             &mut errors,
         )?;
-        self.bless_debug_file(format!("{:#?}", diagnostics), &path.join("lsp.debug"))?;
+        self.bless_debug_file(format!("{diagnostics:#?}"), &path.join("lsp.debug"))?;
         errors.into_result()
     }
 
@@ -884,7 +884,7 @@ fn expected_queries(path: &Path) -> eyre::Result<Vec<Query>> {
             // The column comes from the position of the `^`.
             let given_line_number: u32 = parse_line_number(line_number, &c["line"])?;
             let given_column_number: u32 = str::parse(&c["column"])
-                .with_context(|| format!("in query on line {}", line_number))?;
+                .with_context(|| format!("in query on line {line_number}"))?;
 
             let query_kind = match &c["kind"] {
                 "HeapGraph" => QueryKind::HeapGraph,
@@ -925,7 +925,7 @@ fn parse_line_number(current_line_number: u32, line: &str) -> eyre::Result<u32> 
     };
 
     let parsed: u32 =
-        str::parse(number).with_context(|| format!("in query on line {}", current_line_number))?;
+        str::parse(number).with_context(|| format!("in query on line {current_line_number}"))?;
     #[allow(clippy::comparison_chain)]
     Ok(if sign == 0 {
         parsed

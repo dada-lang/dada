@@ -237,7 +237,7 @@ impl DebugWithDb<dyn crate::Db + '_> for Permission {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>, db: &dyn crate::Db) -> std::fmt::Result {
         match self {
             Permission::Known(v) => v.fmt(f, db),
-            Permission::Parameter(v) => write!(f, "{:?}", v),
+            Permission::Parameter(v) => write!(f, "{v:?}"),
         }
     }
 }
