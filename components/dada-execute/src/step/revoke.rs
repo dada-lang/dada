@@ -1,6 +1,9 @@
-use dada_ir::storage::Joint;
+use dada_ir::{error, storage::Joint};
 
-use crate::machine::{Permission, PermissionData, ValidPermissionData};
+use crate::{
+    error::DiagnosticBuilderExt,
+    machine::{Permission, PermissionData, ValidPermissionData},
+};
 
 use super::Stepper;
 
@@ -27,35 +30,21 @@ impl Stepper<'_> {
         Ok(())
     }
 
-    /// True if the permission `p` is currently sharing access to the object's
-    /// fields. This is true if `permission` is a joint permission, but it's
-    /// also true if it's a unique permission that is leased by a joint permission.
-    fn is_sharing_access(&self, permission: Permission) -> bool {
-        let Some(valid) = self.machine[permission].valid() else {
-            return false;
-        };
-
-        if let Joint::Yes = valid.joint {
-            return true;
-        }
-
-        false
-    }
-
     #[tracing::instrument(level = "Debug", skip(self))]
-    pub(super) fn revoke_tenants(&mut self, permission: Permission) -> eyre::Result<()> {
-        // Temporarily swap out the data for `permission`...
-        let mut p = std::mem::replace(&mut self.machine[permission], PermissionData::Expired(None));
-
-        // Cancel all the tenants and clear the list
-        if let PermissionData::Valid(ValidPermissionData { tenants, .. }) = &mut p {
-            for tenant in std::mem::take(tenants) {
-                self.revoke(tenant)?;
+    pub(super) fn forbid_tenants(&mut self, permission: Permission) -> eyre::Result<()> {
+        // Report an error if `permission` has tenants.
+        if let PermissionData::Valid(ValidPermissionData { tenants, .. }) =
+            &self.machine[permission]
+        {
+            if let Some(&tenant) = tenants.first() {
+                let tenant = self.machine[tenant].assert_valid();
+                let span = self.machine.pc().span(self.db);
+                return match tenant.joint {
+                    Joint::No => Err(error!(span, "cannot write to leased data").eyre(self.db)),
+                    Joint::Yes => Err(error!(span, "cannot write to shared data").eyre(self.db)),
+                };
             }
         }
-
-        // Put the (modified) data for `p` back
-        self.machine[permission] = p;
 
         Ok(())
     }
@@ -68,28 +57,19 @@ impl Stepper<'_> {
     ///
     /// (There should be at most one such tenant.)
     #[tracing::instrument(level = "Debug", skip(self))]
-    pub(super) fn revoke_exclusive_tenants(&mut self, permission: Permission) -> eyre::Result<()> {
-        // Temporarily swap out the data for `permission`...
-        let mut p = std::mem::replace(&mut self.machine[permission], PermissionData::Expired(None));
-
-        // Cancel all the exclusive tenants and remove them from the list
-        if let PermissionData::Valid(ValidPermissionData { tenants, .. }) = &mut p {
-            let mut result = Ok(());
-            tenants.retain(|&tenant| {
-                if result.is_err() {
-                    true
-                } else if !self.is_sharing_access(tenant) {
-                    result = self.revoke(tenant);
-                    false
-                } else {
-                    true
+    pub(super) fn forbid_exclusive_tenants(&mut self, permission: Permission) -> eyre::Result<()> {
+        // Report an error if `permission` has tenants.
+        if let PermissionData::Valid(ValidPermissionData { tenants, .. }) =
+            &self.machine[permission]
+        {
+            for &tenant in tenants {
+                let tenant = self.machine[tenant].assert_valid();
+                if let Joint::No = tenant.joint {
+                    let span = self.machine.pc().span(self.db);
+                    return Err(error!(span, "cannot access leased data").eyre(self.db));
                 }
-            });
-            result?;
+            }
         }
-
-        // Put the (modified) data for `p` back
-        self.machine[permission] = p;
 
         Ok(())
     }

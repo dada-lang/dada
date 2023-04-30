@@ -5,7 +5,7 @@ use dada_ir::{
 
 use crate::{
     error::DiagnosticBuilderExt,
-    machine::{Object, ObjectData, Permission, PermissionData, Value},
+    machine::{Object, ObjectData, Permission, PermissionData, ValidPermissionData, Value},
 };
 
 use super::{
@@ -25,7 +25,7 @@ impl Stepper<'_> {
     /// state).
     #[tracing::instrument(level = "Debug", skip(self))]
     pub(super) fn read(&mut self, traversal: &ObjectTraversal) -> eyre::Result<Object> {
-        self.access(traversal, Self::revoke_exclusive_tenants)?;
+        self.access(traversal, Self::forbid_exclusive_tenants)?;
 
         Ok(traversal.object)
     }
@@ -40,7 +40,7 @@ impl Stepper<'_> {
     /// state).
     #[tracing::instrument(level = "Debug", skip(self))]
     pub(super) fn write_object(&mut self, traversal: &ObjectTraversal) -> eyre::Result<()> {
-        self.access(traversal, Self::revoke_tenants)
+        self.access(traversal, Self::forbid_tenants)
     }
 
     /// Given a traversal that has unique ownership, revokes the last permission
@@ -86,38 +86,79 @@ impl Stepper<'_> {
 
             (Joint::No, Atomic::Yes) | (Joint::No, Atomic::No) => {
                 // Writing to uniquely reachable data (whether or not it is atomic)
-                // is legal. Revoke all the tenants along the way.
+                // is legal, so long as the permissions along the way are not leased
+                // or shared.
                 //
                 // # Example 1
                 //
                 // ```
                 // p = a.lease
                 // a.b = 3
+                // /* use(p) */
                 // ```
                 //
-                // This write to `a.b` cancels `p`, because it has leased all of `a`.
+                // This write to `a.b` fails with an error, because `a` is leased to `p`.
                 //
                 // # Example 2
                 //
                 // ```
                 // p = a.b.lease
                 // a.c = 3
+                // /* use(p) */
                 // ```
                 //
-                // This write to `a.c` does NOT cancel `p`, because it has leased `a.b`.
+                // This write to `a.c` does not fail: `p` has an easement on `a` but a lease on `a.b`,
+                // so the write to `a.c` encounters no tenants.
                 for &permission in &traversal.accumulated_permissions.traversed {
                     assert!(matches!(self.machine[permission], PermissionData::Valid(_)));
-                    self.revoke_tenants(permission)?;
+                    self.forbid_tenants(permission)?;
                 }
 
-                // # Discussion
+                // # Prohibit writes to OWNERS of leased content
                 //
-                // We only explicitly revoke leases from the things that we
-                // traverse, but writing to a field may have side-effects that
-                // cause leases of the data *in that field* to be revoked.
-                // These effects are caused by the garbage collector.
+                // The previous check forbids write to a leased *place* `P`.
+                // But if P owns its value `v`, then writes to `P` will cause `v` to be freed.
+                // If `v` is leased, that would invalidate the leasee.
+                // Therefore, we forbid writes to a place `P` that owns a value `v`
+                // which has tenants.
                 //
-                // # Example 1
+                // Note that if `P` does not uniquely own its value, it is ok to overwrite it,
+                // even if the value has tenants. This is because overwriting a leased value
+                // does not free the original.
+                //
+                // # Example 1: Direct ownership
+                //
+                // ```
+                // class C(f)
+                // v = C(22)
+                // p = v.lease
+                // v = C(44)
+                // ```
+                //
+                // Before the assignment to `a`, the object graph is as follows:
+                //
+                // ```
+                // a --my------+---------> [ C ]
+                //             |           [ f ] --our---> 22
+                //             |
+                // p --leased--+
+                // ```
+                //
+                // We forbid the write because, if we permitted the write, the resulting
+                // object graph would have a dangling reference:
+                //
+                // ```
+                // a --my----------------> [ C ]
+                //                         [ f ] --our---> 44
+                //
+                //             +---------> [ C ]
+                //             |           [ f ] --our---> 22
+                //             |
+                // p --leased--+
+                // ```
+                //
+                //
+                // # Example 2: Indirect ownership
                 //
                 // ```
                 // class C(f)
@@ -137,7 +178,8 @@ impl Stepper<'_> {
                 // p --leased----------------+
                 // ```
                 //
-                // After the assignment to `a`, the object graph is as follows:
+                // We forbid the write because, if we permitted the write, the resulting
+                // object graph would have a dangling reference:
                 //
                 // ```
                 // a --my------> [ C ]
@@ -150,8 +192,55 @@ impl Stepper<'_> {
                 // p --leased----------------+
                 // ```
                 //
-                // When the GC runs, the old value of `a` is collected, as are its
-                // fields, and so `p` is canceled.
+                // # Example 3: Lease
+                //
+                // ```
+                // class C(f)
+                // v = C(C(22))
+                // a = C(v.lease)
+                // p = a.f.f.lease
+                // a.f = C(44)
+                // ```
+                //
+                // Before the final assignment, the object graph is as follows:
+                //
+                // ```
+                // v --my------------------------+--> [ C ]
+                //                               |    [ f ] --my--+-> [ C ]
+                //                               |                |   [ f ] --our--> 22
+                // a --my------> [ C ]           |                |
+                //               [ f ] --leased--+                |
+                //                              | (easement)      |
+                // p --leased-------------------+-----------------+
+                // ```
+                //
+                // We permit the write. The resulting object graph is
+                //
+                // ```
+                // v --my------------------------+--> [ C ]
+                //                               |    [ f ] --my--+-> [ C ]
+                //                               |                |   [ f ] --our--> 22
+                //                               |                |
+                //                         (lease/easement)       |
+                //                               |                |
+                // p --leased--------------------+-----------------+
+                //
+                // a --my--> [ C ]
+                //           [ f ] --our--> 44
+                // ```
+                //
+                // In particular, overwriting `a` did not free any values.
+                // `p` retains its leasement on the lease of `v`, but that lease
+                // is not attached to any paths anymore.
+                let Value { permission, object } = self.peek(traversal.address);
+                if let PermissionData::Valid(ValidPermissionData {
+                    joint: Joint::No,
+                    leased: Leased::No,
+                    ..
+                }) = self.machine[permission]
+                {
+                    self.for_each_reachable_exclusive_permission(object, Self::forbid_tenants)?;
+                }
             }
         }
 
