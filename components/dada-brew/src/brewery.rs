@@ -11,6 +11,14 @@ use dada_ir::{
     origin_table::{HasOriginIn, PushOriginIn},
 };
 
+/// The "brewery" stores an "under construction" BIR,
+/// along with the validated tree we are building it from.
+/// New basic blocks, statements, etc can be allocated with the
+/// `add` method. The contents of a basic block etc can be accessed
+/// and mutated by indexing into the brewery (e.g., `&mut brewery[bb]`)
+///
+/// The brewery does not track the current location
+/// in the IR; a [`Cursor`](`crate::cursor::Cursor`) is used for that.
 pub struct Brewery<'me> {
     db: &'me dyn crate::Db,
     input_file: InputFile,
@@ -87,11 +95,16 @@ impl<'me> Brewery<'me> {
         &self.validated_tree_data.tables
     }
 
-    /// Create a "sub-brewery" that has the same output
-    /// tables but independent loop contexts and other
-    /// scoped information.
+    /// Create a "sub-brewery" that clones the current state
+    /// and which shares the same output tables/origins as the
+    /// original.
     ///
-    /// The temporary stack is also independent; the assumption
+    /// This is used to brew loops. The idea is that the loop
+    /// can mutate owned fields like `loop_contexts` without affecting
+    /// the outer brewery. An alternative would be to "pop" the changes
+    /// to `loop_contexts`.
+    ///
+    /// The subbrewery contains a fresh temporary stack; the assumption
     /// is that the subbrewery will be used to brew complete
     /// expressions and hence the stack will just extend
     /// the parent's stack.
