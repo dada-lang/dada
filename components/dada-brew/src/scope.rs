@@ -1,13 +1,16 @@
 use dada_id::prelude::*;
-use dada_ir::code::{
-    bir, syntax,
-    validated::{self, ExprOrigin},
+use dada_ir::{
+    code::{
+        bir, syntax,
+        validated::{self, ExprOrigin},
+    },
+    storage::Atomic,
 };
 
 use crate::brewery::Brewery;
 
 /// Tracks the current basic block that we are appending statements to.
-pub(crate) struct Scope {
+pub(crate) struct Scope<'s> {
     /// The block that we started from; may or may not be "complete"
     /// (i.e., may not yet have a terminator assigned to it).
     start_block: bir::BasicBlock,
@@ -17,6 +20,39 @@ pub(crate) struct Scope {
     ///
     /// If `None`, we are in a section of dead code.
     end_block: Option<bir::BasicBlock>,
+
+    /// Reason for introducing this scope
+    cause: ScopeCause,
+
+    /// Previous scope in the chain
+    previous: Option<&'s Scope<'s>>,
+
+    /// Variables that have been introduced in this scope,
+    /// whether temporaries or user declared. These variables
+    /// need to be popped before the scope is complete.
+    ///
+    /// See `push_variable_marker` and `pop_variables`.
+    variables: Vec<bir::LocalVariable>,
+}
+
+/// Reason for introducing a new scope
+pub(crate) enum ScopeCause {
+    /// Root scope
+    Root,
+
+    /// An internal branch (e.g., if-then-else, new block)
+    Branch,
+
+    /// Loop introduced that might be target of a break
+    Loop(LoopContext),
+}
+
+#[derive(Clone, Copy, Debug, PartialEq, Eq, PartialOrd, Hash)]
+pub struct LoopContext {
+    pub expr: validated::Expr,
+    pub continue_block: bir::BasicBlock,
+    pub break_block: bir::BasicBlock,
+    pub loop_value: bir::TargetPlace,
 }
 
 /// Created when we start brewing an expression or other thing that
@@ -24,32 +60,44 @@ pub(crate) struct Scope {
 /// are cleared out.
 ///
 /// See the `temporaries` field of [`Brewery`] for more information.
-pub(crate) struct TemporaryScope {
+pub(crate) struct VariableMarker {
     mark: usize,
 }
 
-impl Scope {
+impl Scope<'_> {
     /// Creates a new cursor with a dummy starting block.
-    pub(crate) fn new(brewery: &mut Brewery<'_>, origin: ExprOrigin) -> Self {
+    pub(crate) fn root(brewery: &mut Brewery<'_>, origin: ExprOrigin) -> Self {
         let block = brewery.dummy_block(origin);
         Scope {
             start_block: block,
             end_block: Some(block),
+            cause: ScopeCause::Root,
+            previous: None,
+            variables: vec![],
         }
     }
 
     /// Invoked at the end of the method, returns the start block.
     pub(crate) fn complete(self) -> bir::BasicBlock {
         assert!(self.in_dead_code());
+        assert!(matches!(self.cause, ScopeCause::Root));
         self.start_block
     }
 
-    /// Creates a new cursor that shares the same start block but is now appending
-    /// to `end_block`.
-    pub(crate) fn with_end_block(&self, end_block: bir::BasicBlock) -> Scope {
+    /// Creates a subscope with the given `cause` that shares the same start block but is now appending
+    /// to `end_block`. It is your reponsibility to connect `end_block` (or some successor of it) back to
+    /// `self.end_block` in this subscope.
+    pub(crate) fn subscope<'s>(
+        &'s self,
+        end_block: Option<bir::BasicBlock>,
+        cause: ScopeCause,
+    ) -> Scope<'s> {
         Scope {
             start_block: self.start_block,
-            end_block: Some(end_block),
+            end_block: end_block,
+            cause,
+            previous: Some(self),
+            variables: vec![],
         }
     }
 
@@ -58,43 +106,118 @@ impl Scope {
         self.end_block.is_none()
     }
 
-    /// Creates a temporary scope marker that tracks the current number of temporaries;
-    /// the return value should later be given to `pop_temporary_scope`.
-    pub(crate) fn push_temporary_scope(&self, brewery: &mut Brewery<'_>) -> TemporaryScope {
-        TemporaryScope {
-            mark: brewery.temporary_stack_len(),
-        }
+    /// Iterate up the causal chain from all parent scopes
+    fn scopes(&self) -> impl Iterator<Item = &Scope> {
+        let mut s = Some(self);
+        std::iter::from_fn(move || match s {
+            Some(s1) => {
+                s = s1.previous;
+                Some(s1)
+            }
+            None => None,
+        })
     }
 
-    /// Pops all temporaries pushed since `scope` was created from the stack and inserts
-    /// "clear variable" instructions.
-    pub(crate) fn pop_temporary_scope(&mut self, brewery: &mut Brewery<'_>, scope: TemporaryScope) {
-        while brewery.temporary_stack_len() > scope.mark {
-            let temporary = brewery.pop_temporary();
-            let origin = match brewery.bir_origin(temporary) {
-                validated::LocalVariableOrigin::Temporary(expr) => ExprOrigin::synthesized(expr),
-                validated::LocalVariableOrigin::LocalVariable(_)
-                | validated::LocalVariableOrigin::Parameter(_) => {
-                    panic!("BIR temporaries should not originate from locals or parameters")
+    /// Find and return loop context for a given loop expression,
+    /// along with a list of variables whose values must be cleared
+    /// before breaking or continuing from that loop.
+    ///
+    /// Panics if that loop context has not been pushed.
+    #[track_caller]
+    pub fn loop_context(
+        &self,
+        loop_expr: validated::Expr,
+    ) -> (LoopContext, Vec<bir::LocalVariable>) {
+        let mut variables = vec![];
+
+        for s in self.scopes() {
+            variables.extend(s.variables.iter());
+            match &s.cause {
+                ScopeCause::Loop(c) if c.expr == loop_expr => {
+                    return (*c, variables);
                 }
-            };
-            self.push_clear_variable(brewery, temporary, origin);
+                _ => {}
+            }
+        }
+
+        panic!("malformed IR: loop expr {loop_expr:?} not in scope")
+    }
+
+    /// Create a temporary variable and push it into this scope; it will be cleared
+    /// when the surrounding `clear_variables_since_marker` is invoked.
+    pub fn add_temporary(&mut self, brewery: &mut Brewery, origin: ExprOrigin) -> bir::TargetPlace {
+        let temporary = brewery.add(
+            bir::LocalVariableData {
+                name: None,
+                atomic: Atomic::No,
+            },
+            validated::LocalVariableOrigin::Temporary(origin.into()),
+        );
+        tracing::debug!("created temporary: temp{{{:?}}}", u32::from(temporary));
+        self.variables.push(temporary);
+        brewery.add(bir::TargetPlaceData::LocalVariable(temporary), origin)
+    }
+
+    /// Pushes user-declared variables into scope. Returns a new [`VariableMarker`][]
+    /// that should be freed by a call to [`Self::pop_variables_since_marker`][]
+    /// to clear the declared variables.
+    pub(crate) fn push_declared_variables(
+        &mut self,
+        vars: &[validated::LocalVariable],
+        brewery: &mut Brewery<'_>,
+    ) -> VariableMarker {
+        let marker = self.mark_variables();
+        for &v in vars {
+            self.variables.push(brewery.variable(v));
+        }
+        marker
+    }
+
+    /// Record the set of declared variables; must be paired
+    /// with a call to `pop_variables_since_marker`
+    /// that will clear all variables (temporary or declared)
+    /// pushed since the marker was created.
+    pub(crate) fn mark_variables(&self) -> VariableMarker {
+        VariableMarker {
+            mark: self.variables.len(),
         }
     }
 
-    /// Pushes clear instructions for each of the given variables.
-    pub(crate) fn pop_declared_variables(
+    /// Clears all variables (temporary or declared) pushed
+    /// since the marker was created. Clears of temporaries
+    /// will be given an origin based on the expression that they
+    /// were synthesized from; clears of local variables use `origin`.
+    pub(crate) fn clear_variables_since_marker(
         &mut self,
+        marker: VariableMarker,
         brewery: &mut Brewery<'_>,
-        vars: &[validated::LocalVariable],
         origin: ExprOrigin,
     ) {
-        for var in vars {
-            let bir_var = brewery.variable(*var);
-            self.push_clear_variable(brewery, bir_var, origin);
+        assert!(marker.mark <= self.variables.len());
+        while self.variables.len() > marker.mark {
+            let var = self.variables.pop().unwrap();
+            let clear_origin = match brewery.bir_origin(var) {
+                validated::LocalVariableOrigin::Temporary(expr) => ExprOrigin::synthesized(expr),
+                validated::LocalVariableOrigin::LocalVariable(_)
+                | validated::LocalVariableOrigin::Parameter(_) => origin,
+            };
+            self.push_clear_variable(brewery, var, clear_origin);
         }
     }
 
+    /// Push clear statements for `variables` onto the current block.
+    pub(crate) fn push_clear_variables(
+        &mut self,
+        brewery: &mut Brewery<'_>,
+        variables: &[bir::LocalVariable],
+        origin: ExprOrigin,
+    ) {
+        for &variable in variables {
+            self.push_clear_variable(brewery, variable, origin);
+        }
+    }
+
+    /// Push a clear statement for `variable` onto the current block.
     fn push_clear_variable(
         &mut self,
         brewery: &mut Brewery<'_>,

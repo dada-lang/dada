@@ -1,17 +1,14 @@
 use dada_id::prelude::*;
-use dada_ir::{
-    code::{
-        bir::{self, BirData},
-        validated::{self, ExprOrigin},
-    },
-    storage::Atomic,
+use dada_ir::code::{
+    bir::{self, BirData},
+    validated::{self, ExprOrigin},
 };
 use dada_parse::prelude::*;
 use salsa::DebugWithDb;
 
 use crate::{
-    brewery::{Brewery, LoopContext},
-    scope::Scope,
+    brewery::Brewery,
+    scope::{LoopContext, Scope, ScopeCause},
 };
 
 /// Convert a [`validated::Tree`] to [BIR](`bir::Bir`).
@@ -39,7 +36,7 @@ pub fn brew(db: &dyn crate::Db, validated_tree: validated::Tree) -> bir::Bir {
     // return the resulting value.
     let root_expr = validated_tree.data(db).root_expr;
     let root_expr_origin = validated_tree.origins(db)[root_expr];
-    let mut cursor = Scope::new(brewery, root_expr_origin);
+    let mut cursor = Scope::root(brewery, root_expr_origin);
     if let Some(place) = cursor.brew_expr_to_temporary(brewery, root_expr) {
         cursor.terminate_and_diverge(
             brewery,
@@ -67,7 +64,7 @@ pub fn brew(db: &dyn crate::Db, validated_tree: validated::Tree) -> bir::Bir {
     bir
 }
 
-impl Scope {
+impl Scope<'_> {
     #[tracing::instrument(level = "debug", skip_all)]
     pub(crate) fn brew_expr_for_side_effects(
         &mut self,
@@ -76,23 +73,25 @@ impl Scope {
     ) {
         tracing::debug!("expr = {:?}", expr.data(brewery.validated_tables()));
         let origin = brewery.origin(expr);
-        let temporary_scope = self.push_temporary_scope(brewery);
+        let temporary_marker = self.mark_variables();
         match expr.data(brewery.validated_tables()) {
             validated::ExprData::Break {
                 from_expr,
                 with_value,
             } => {
                 self.push_breakpoint_start(brewery, origin);
-                let loop_context = brewery.loop_context(*from_expr);
+                let (loop_context, variables) = self.loop_context(*from_expr);
                 self.brew_expr_and_assign_to(brewery, loop_context.loop_value, *with_value);
                 self.push_breakpoint_end(brewery, Some(loop_context.loop_value), origin);
+                self.push_clear_variables(brewery, &variables, origin);
                 self.terminate_and_goto(brewery, loop_context.break_block, origin);
             }
 
             validated::ExprData::Continue(from_expr) => {
                 self.push_breakpoint_start(brewery, origin);
-                let loop_context = brewery.loop_context(*from_expr);
+                let (loop_context, variables) = self.loop_context(*from_expr);
                 self.push_breakpoint_end(brewery, None::<bir::Place>, origin);
+                self.push_clear_variables(brewery, &variables, origin);
                 self.terminate_and_goto(brewery, loop_context.continue_block, origin);
             }
 
@@ -124,8 +123,9 @@ impl Scope {
 
             validated::ExprData::Declare(vars, subexpr) => {
                 self.push_breakpoint_start(brewery, origin);
+                let variables_marker = self.push_declared_variables(vars, brewery);
                 self.brew_expr_for_side_effects(brewery, *subexpr);
-                self.pop_declared_variables(brewery, vars, origin);
+                self.clear_variables_since_marker(variables_marker, brewery, origin);
                 self.push_breakpoint_end(brewery, None::<bir::Place>, origin);
             }
 
@@ -152,7 +152,7 @@ impl Scope {
                 let _ = self.brew_expr_to_temporary(brewery, expr);
             }
         }
-        self.pop_temporary_scope(brewery, temporary_scope);
+        self.clear_variables_since_marker(temporary_marker, brewery, origin);
     }
 
     /// Compiles expr into a temporary `t` and returns `Some(t)`.
@@ -164,7 +164,7 @@ impl Scope {
     ) -> Option<bir::Place> {
         let origin = brewery.origin(expr);
         // Spill into a temporary
-        let temp_place = add_temporary_place(brewery, origin);
+        let temp_place = self.add_temporary(brewery, origin);
         self.brew_expr_and_assign_to(brewery, temp_place, expr);
         Some(brewery.place_from_target_place(temp_place))
     }
@@ -180,7 +180,7 @@ impl Scope {
         expr: validated::Expr,
     ) {
         let origin = brewery.origin(expr);
-        let temporary_scope = self.push_temporary_scope(brewery);
+        let temporary_marker = self.mark_variables();
         match expr.data(brewery.validated_tables()) {
             validated::ExprData::Await(future) => {
                 self.push_breakpoint_start(brewery, origin);
@@ -212,11 +212,12 @@ impl Scope {
                     );
                     self.push_breakpoint_end(brewery, Some(target), origin); // "cusp" of an if is after it completes
 
-                    let mut if_true_cursor = self.with_end_block(if_true_block);
+                    let mut if_true_cursor = self.subscope(Some(if_true_block), ScopeCause::Branch);
                     if_true_cursor.brew_expr_and_assign_to(brewery, target, *if_true);
                     if_true_cursor.terminate_and_goto(brewery, join_block, origin);
 
-                    let mut if_false_cursor = self.with_end_block(if_false_block);
+                    let mut if_false_cursor =
+                        self.subscope(Some(if_false_block), ScopeCause::Branch);
                     if_false_cursor.brew_expr_and_assign_to(brewery, target, *if_false);
                     if_false_cursor.terminate_and_goto(brewery, join_block, origin);
                 }
@@ -232,19 +233,18 @@ impl Scope {
                 );
                 self.push_breakpoint_end(brewery, Some(target), origin); // "cusp" of a loop is after it breaks
 
-                let body_brewery = &mut brewery.subbrewery();
-                body_brewery.push_loop_context(
-                    expr,
-                    LoopContext {
+                let mut body_cursor = self.subscope(
+                    Some(body_block),
+                    ScopeCause::Loop(LoopContext {
                         continue_block: body_block,
                         break_block,
                         loop_value: target,
-                    },
+                        expr,
+                    }),
                 );
-                let mut body_cursor = self.with_end_block(body_block);
-                body_cursor.brew_expr_for_side_effects(body_brewery, *body);
+                body_cursor.brew_expr_for_side_effects(brewery, *body);
                 body_cursor.terminate_and_diverge(
-                    body_brewery,
+                    brewery,
                     bir::TerminatorData::Goto(body_block),
                     origin,
                 );
@@ -463,8 +463,9 @@ impl Scope {
 
             validated::ExprData::Declare(vars, subexpr) => {
                 self.push_breakpoint_start(brewery, origin);
+                let variables_marker = self.push_declared_variables(vars, brewery);
                 self.brew_expr_and_assign_to(brewery, target, *subexpr);
-                self.pop_declared_variables(brewery, vars, origin);
+                self.clear_variables_since_marker(variables_marker, brewery, origin);
                 self.push_breakpoint_end(brewery, None::<bir::Place>, origin);
             }
 
@@ -475,7 +476,7 @@ impl Scope {
                 self.brew_expr_for_side_effects(brewery, expr);
             }
         };
-        self.pop_temporary_scope(brewery, temporary_scope);
+        self.clear_variables_since_marker(temporary_marker, brewery, origin);
     }
 
     /// Brews a place to a bir place, returning a vector of the
@@ -550,22 +551,4 @@ impl Scope {
         let bir_var = brewery.variable(validated_var);
         brewery.add(bir::TargetPlaceData::LocalVariable(bir_var), origin)
     }
-}
-
-fn add_temporary(brewery: &mut Brewery, origin: ExprOrigin) -> bir::LocalVariable {
-    let temporary = brewery.add(
-        bir::LocalVariableData {
-            name: None,
-            atomic: Atomic::No,
-        },
-        validated::LocalVariableOrigin::Temporary(origin.into()),
-    );
-    tracing::debug!("created temporary: temp{{{:?}}}", u32::from(temporary));
-    brewery.push_temporary(temporary);
-    temporary
-}
-
-fn add_temporary_place(brewery: &mut Brewery, origin: ExprOrigin) -> bir::TargetPlace {
-    let temporary_var = add_temporary(brewery, origin);
-    brewery.add(bir::TargetPlaceData::LocalVariable(temporary_var), origin)
 }
