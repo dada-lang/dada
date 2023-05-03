@@ -6,11 +6,14 @@ use dada_ir::code::{
 
 use crate::brewery::Brewery;
 
+/// Tracks the current basic block that we are appending statements to.
 pub(crate) struct Cursor {
-    /// The block that we started from; may or may not be "complete".
+    /// The block that we started from; may or may not be "complete"
+    /// (i.e., may not yet have a terminator assigned to it).
     start_block: bir::BasicBlock,
 
-    /// The basic block we are currently appending to.
+    /// The basic block we are currently appending to; could be the
+    /// same as `start_block`.
     ///
     /// If `None`, we are in a section of dead code.
     end_block: Option<bir::BasicBlock>,
@@ -26,6 +29,7 @@ pub(crate) struct TemporaryScope {
 }
 
 impl Cursor {
+    /// Creates a new cursor with a dummy starting block.
     pub(crate) fn new(brewery: &mut Brewery<'_>, origin: ExprOrigin) -> Self {
         let block = brewery.dummy_block(origin);
         Cursor {
@@ -34,11 +38,14 @@ impl Cursor {
         }
     }
 
+    /// Invoked at the end of the method, returns the start block.
     pub(crate) fn complete(self) -> bir::BasicBlock {
         assert!(self.in_dead_code());
         self.start_block
     }
 
+    /// Creates a new cursor that shares the same start block but is now appending
+    /// to `end_block`.
     pub(crate) fn with_end_block(&self, end_block: bir::BasicBlock) -> Cursor {
         Cursor {
             start_block: self.start_block,
@@ -46,16 +53,21 @@ impl Cursor {
         }
     }
 
+    /// Test if this cursor is contained in dead code.
     pub(crate) fn in_dead_code(&self) -> bool {
         self.end_block.is_none()
     }
 
+    /// Creates a temporary scope marker that tracks the current number of temporaries;
+    /// the return value should later be given to `pop_temporary_scope`.
     pub(crate) fn push_temporary_scope(&self, brewery: &mut Brewery<'_>) -> TemporaryScope {
         TemporaryScope {
             mark: brewery.temporary_stack_len(),
         }
     }
 
+    /// Pops all temporaries pushed since `scope` was created from the stack and inserts
+    /// "clear variable" instructions.
     pub(crate) fn pop_temporary_scope(&mut self, brewery: &mut Brewery<'_>, scope: TemporaryScope) {
         while brewery.temporary_stack_len() > scope.mark {
             let temporary = brewery.pop_temporary();
@@ -70,6 +82,7 @@ impl Cursor {
         }
     }
 
+    /// Pushes clear instructions for each of the given variables.
     pub(crate) fn pop_declared_variables(
         &mut self,
         brewery: &mut Brewery<'_>,

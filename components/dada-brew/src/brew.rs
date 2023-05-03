@@ -14,6 +14,7 @@ use crate::{
     cursor::Cursor,
 };
 
+/// Convert a [`validated::Tree`] to [BIR](`bir::Bir`).
 #[salsa::tracked]
 pub fn brew(db: &dyn crate::Db, validated_tree: validated::Tree) -> bir::Bir {
     let function = validated_tree.function(db);
@@ -34,7 +35,7 @@ pub fn brew(db: &dyn crate::Db, validated_tree: validated::Tree) -> bir::Bir {
     );
     let num_parameters = validated_tree.data(db).num_parameters;
 
-    // Compile the root expression and -- assuming it doesn't diverse --
+    // Compile the root expression and -- assuming it doesn't diverge --
     // return the resulting value.
     let root_expr = validated_tree.data(db).root_expr;
     let root_expr_origin = validated_tree.origins(db)[root_expr];
