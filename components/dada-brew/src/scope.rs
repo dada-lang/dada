@@ -7,7 +7,7 @@ use dada_ir::code::{
 use crate::brewery::Brewery;
 
 /// Tracks the current basic block that we are appending statements to.
-pub(crate) struct Cursor {
+pub(crate) struct Scope {
     /// The block that we started from; may or may not be "complete"
     /// (i.e., may not yet have a terminator assigned to it).
     start_block: bir::BasicBlock,
@@ -28,11 +28,11 @@ pub(crate) struct TemporaryScope {
     mark: usize,
 }
 
-impl Cursor {
+impl Scope {
     /// Creates a new cursor with a dummy starting block.
     pub(crate) fn new(brewery: &mut Brewery<'_>, origin: ExprOrigin) -> Self {
         let block = brewery.dummy_block(origin);
-        Cursor {
+        Scope {
             start_block: block,
             end_block: Some(block),
         }
@@ -46,8 +46,8 @@ impl Cursor {
 
     /// Creates a new cursor that shares the same start block but is now appending
     /// to `end_block`.
-    pub(crate) fn with_end_block(&self, end_block: bir::BasicBlock) -> Cursor {
-        Cursor {
+    pub(crate) fn with_end_block(&self, end_block: bir::BasicBlock) -> Scope {
+        Scope {
             start_block: self.start_block,
             end_block: Some(end_block),
         }
