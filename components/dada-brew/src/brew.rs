@@ -37,6 +37,7 @@ pub fn brew(db: &dyn crate::Db, validated_tree: validated::Tree) -> bir::Bir {
     let root_expr = validated_tree.data(db).root_expr;
     let root_expr_origin = validated_tree.origins(db)[root_expr];
     let mut cursor = Scope::root(brewery, root_expr_origin);
+    let marker = cursor.mark_variables();
     if let Some(place) = cursor.brew_expr_to_temporary(brewery, root_expr) {
         cursor.terminate_and_diverge(
             brewery,
@@ -44,6 +45,7 @@ pub fn brew(db: &dyn crate::Db, validated_tree: validated::Tree) -> bir::Bir {
             root_expr_origin,
         );
     }
+    cursor.clear_variables_since_marker(marker, brewery, root_expr_origin);
     let start_basic_block = cursor.complete();
 
     let bir = bir::Bir::new(

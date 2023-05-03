@@ -10,6 +10,7 @@ use dada_ir::{
 use crate::brewery::Brewery;
 
 /// Tracks the current basic block that we are appending statements to.
+#[derive(Debug)]
 pub(crate) struct Scope<'s> {
     /// The block that we started from; may or may not be "complete"
     /// (i.e., may not yet have a terminator assigned to it).
@@ -36,6 +37,7 @@ pub(crate) struct Scope<'s> {
 }
 
 /// Reason for introducing a new scope
+#[derive(Debug)]
 pub(crate) enum ScopeCause {
     /// Root scope
     Root,
@@ -390,6 +392,15 @@ impl Scope<'_> {
         let validated::NameData { word } = name.data(brewery.validated_tables());
         let origin = brewery.origin(name);
         brewery.add(bir::NameData { word: *word }, origin)
+    }
+}
+
+impl Drop for Scope<'_> {
+    fn drop(&mut self) {
+        assert!(
+            self.variables.is_empty(),
+            "scope {self:?} was popped with variables not yet cleared"
+        );
     }
 }
 
