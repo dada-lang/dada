@@ -11,7 +11,7 @@ use salsa::DebugWithDb;
 
 use crate::{
     brewery::{Brewery, LoopContext},
-    cursor::Cursor,
+    scope::Scope,
 };
 
 /// Convert a [`validated::Tree`] to [BIR](`bir::Bir`).
@@ -39,7 +39,7 @@ pub fn brew(db: &dyn crate::Db, validated_tree: validated::Tree) -> bir::Bir {
     // return the resulting value.
     let root_expr = validated_tree.data(db).root_expr;
     let root_expr_origin = validated_tree.origins(db)[root_expr];
-    let mut cursor = Cursor::new(brewery, root_expr_origin);
+    let mut cursor = Scope::new(brewery, root_expr_origin);
     if let Some(place) = cursor.brew_expr_to_temporary(brewery, root_expr) {
         cursor.terminate_and_diverge(
             brewery,
@@ -67,7 +67,7 @@ pub fn brew(db: &dyn crate::Db, validated_tree: validated::Tree) -> bir::Bir {
     bir
 }
 
-impl Cursor {
+impl Scope {
     #[tracing::instrument(level = "debug", skip_all)]
     pub(crate) fn brew_expr_for_side_effects(
         &mut self,
