@@ -20,38 +20,14 @@ use dada_ir::{
 /// The brewery does not track the current location
 /// in the IR; a [`Cursor`](`crate::cursor::Cursor`) is used for that.
 pub struct Brewery<'me> {
-    db: &'me dyn crate::Db,
     input_file: InputFile,
     pub(crate) breakpoints: &'me [syntax::Expr],
     validated_tree_data: &'me validated::TreeData,
     validated_origins: &'me validated::Origins,
     tables: &'me mut bir::Tables,
     origins: &'me mut bir::Origins,
-    loop_contexts: Map<validated::Expr, LoopContext>,
     variables: Rc<Map<validated::LocalVariable, bir::LocalVariable>>,
     dummy_terminator: bir::Terminator,
-
-    /// The "temporary stack". This is used to track temporaries that
-    /// were created during the brewing process and clear them out
-    /// so that we don't artificially extend the lifetime of objects
-    /// during interpretation.
-    ///
-    /// The basic strategy is as follows:
-    ///
-    /// * Upon starting to brew an expression, we record the length of this
-    ///   stack.
-    /// * During the brewing process, any new temporary is pushed onto this
-    ///   stack.
-    /// * When we've finished brewing an expression, we can pop off any temporaries
-    ///   pushed during that time and clear their values to nil.
-    temporaries: Vec<bir::LocalVariable>,
-}
-
-#[derive(Clone, Copy, Debug, PartialEq, Eq, PartialOrd, Hash)]
-pub struct LoopContext {
-    pub continue_block: bir::BasicBlock,
-    pub break_block: bir::BasicBlock,
-    pub loop_value: bir::TargetPlace,
 }
 
 impl<'me> Brewery<'me> {
@@ -73,17 +49,14 @@ impl<'me> Brewery<'me> {
             *validated_tree_data.root_expr.origin_in(validated_origins),
         );
         Self {
-            db,
             input_file,
             breakpoints,
             validated_tree_data,
             validated_origins,
             tables,
             origins,
-            loop_contexts: Default::default(),
             variables,
             dummy_terminator,
-            temporaries: vec![],
         }
     }
 
@@ -93,35 +66,6 @@ impl<'me> Brewery<'me> {
 
     pub fn validated_tables(&self) -> &'me validated::Tables {
         &self.validated_tree_data.tables
-    }
-
-    /// Create a "sub-brewery" that clones the current state
-    /// and which shares the same output tables/origins as the
-    /// original.
-    ///
-    /// This is used to brew loops. The idea is that the loop
-    /// can mutate owned fields like `loop_contexts` without affecting
-    /// the outer brewery. An alternative would be to "pop" the changes
-    /// to `loop_contexts`.
-    ///
-    /// The subbrewery contains a fresh temporary stack; the assumption
-    /// is that the subbrewery will be used to brew complete
-    /// expressions and hence the stack will just extend
-    /// the parent's stack.
-    pub fn subbrewery(&mut self) -> Brewery<'_> {
-        Brewery {
-            db: self.db,
-            input_file: self.input_file,
-            breakpoints: self.breakpoints,
-            validated_tree_data: self.validated_tree_data,
-            validated_origins: self.validated_origins,
-            tables: self.tables,
-            origins: self.origins,
-            loop_contexts: self.loop_contexts.clone(),
-            variables: self.variables.clone(),
-            dummy_terminator: self.dummy_terminator,
-            temporaries: vec![],
-        }
     }
 
     pub fn input_file(&self) -> InputFile {
@@ -178,44 +122,8 @@ impl<'me> Brewery<'me> {
     /// Find the loop context for a given loop expression.
     ///
     /// Panics if that loop context has not been pushed.
-    pub fn loop_context(&self, loop_expr: validated::Expr) -> LoopContext {
-        self.loop_contexts[&loop_expr]
-    }
-
-    /// Push a new loop context into the brewery; typically this is done in a "subbrewery".
-    pub fn push_loop_context(&mut self, loop_expr: validated::Expr, loop_context: LoopContext) {
-        let old_value = self.loop_contexts.insert(loop_expr, loop_context);
-        assert!(old_value.is_none());
-    }
-
-    /// Find the loop context for a given loop expression.
-    ///
-    /// Panics if that loop context has not been pushed.
     pub fn variable(&self, var: validated::LocalVariable) -> bir::LocalVariable {
         self.variables[&var]
-    }
-
-    /// Number of temporaries on the "temporary stack".
-    ///
-    /// See the comments on the `temporaries` field for more information.
-    pub fn temporary_stack_len(&self) -> usize {
-        self.temporaries.len()
-    }
-
-    /// Push a temporary onto the "temporary stack".
-    ///
-    /// See the comments on the `temporaries` field for more information.
-    pub fn push_temporary(&mut self, lv: bir::LocalVariable) {
-        tracing::debug!("pushing temporary: {:?}", lv);
-        self.temporaries.push(lv);
-    }
-
-    /// Pop a temporary from the "temporary stack".
-    ///
-    /// See the comments on the `temporaries` field for more information.
-    #[track_caller]
-    pub fn pop_temporary(&mut self) -> bir::LocalVariable {
-        self.temporaries.pop().unwrap()
     }
 }
 
