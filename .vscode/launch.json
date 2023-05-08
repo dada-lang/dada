@@ -25,5 +25,26 @@
             ],
             "cwd": "${workspaceFolder}"
         },
+        {
+            // Used for testing the extension with a local build of the LSP server.
+            "name": "Run Extension (Debug Build)",
+            "type": "extensionHost",
+            "request": "launch",
+            "runtimeExecutable": "${execPath}",
+            "args": [
+              "--disable-extensions",
+              "--extensionDevelopmentPath=${workspaceFolder}/editors/code"
+            ],
+            "outFiles": [
+              "${workspaceFolder}/editors/code/out/**/*.js"
+            ],
+            "preLaunchTask": "Build Dada and Extension",
+            "skipFiles": [
+              "<node_internals>/**/*.js"
+            ],
+            "env": {
+              "__DADA_LSP_SERVER_DEBUG": "${workspaceFolder}/target/debug/dada"
+            }
+          },
     ]
 }

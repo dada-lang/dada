@@ -1,0 +1,66 @@
+{
+  "name": "dada",
+  "version": "0.1.0",
+  "description": "Dada language support",
+  "publisher": "dada-lang",
+  "private": true,
+  "main": "out/extension",
+  "license": "MIT OR Apache-2.0",
+  "homepage": "https://dada-lang.org",
+  "repository": {
+    "type": "git",
+    "url": "https://github.com/dada-lang/dada"
+  },
+  "bugs": {
+    "url": "https://github.com/dada-lang/dada/issues"
+  },
+  "keywords": [
+    "dada"
+  ],
+  "engines": {
+    "vscode": "^1.77.0"
+  },
+  "activationEvents": [
+    "onLanguage:dada"
+  ],
+  "scripts": {
+    "build": "tsc -b",
+    "package": "npx @vscode/vsce package -o dada.vsix"
+  },
+  "dependencies": {
+    "vscode-languageclient": "^8.1.0"
+  },
+  "devDependencies": {
+    "@types/node": "^20.1.0",
+    "@types/vscode": "^1.77.0",
+    "@vscode/vsce": "^2.19.0",
+    "typescript": "^5.0.4"
+  },
+  "contributes": {
+    "languages": [
+      {
+        "id": "dada",
+        "extensions": [
+          ".dada"
+        ],
+        "aliases": [
+          "Dada",
+          "dada"
+        ]
+      }
+    ],
+    "configuration":[
+      {
+        "title": "Dada",
+        "properties": {
+          "dadaLanguageServer.compiler.executablePath": {
+            "scope": "resource",
+            "type": ["string"],
+            "default": "dada",
+            "description": "Path to dada executable."
+          }
+        }
+      }
+    ]
+  }
+}
