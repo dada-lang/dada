@@ -40,6 +40,7 @@
     "languages": [
       {
         "id": "dada",
+        "configuration": "./language-configuration.json",
         "extensions": [
           ".dada"
         ],
