@@ -55,6 +55,13 @@
         ]
       }
     ],
+    "grammars": [
+      {
+        "language": "dada",
+        "scopeName": "source.dada",
+        "path": "./dada.tmLanguage.json"
+      }
+    ],
     "configuration": [
       {
         "title": "Dada",

@@ -1,0 +1,193 @@
+{
+    "scopeName": "source.dada",
+    "patterns": [
+        {
+            "include": "#comments"
+        },
+        {
+            "include": "#constants"
+        },
+        {
+            "include": "#strings"
+        },
+        {
+            "include": "#numbers"
+        },
+        {
+            "include": "#keywords"
+        },
+        {
+            "include": "#functions"
+        }
+    ],
+    "repository": {
+        "comments": {
+            "name": "comment.line.number-sign.dada",
+            "match": "\\s*#.*"
+        },
+        "constants": {
+            "patterns": [
+                {
+                    "name": "constant.language.bool.dada",
+                    "match": "\\b(true|false)\\b"
+                }
+            ]
+        },
+        "strings": {
+            "patterns": [
+                {
+                    "name": "string.quoted.double.dada",
+                    "begin": "(\")",
+                    "beginCaptures": {
+                        "1": {
+                            "name": "punctuation.begin.quote.double.dada"
+                        }
+                    },
+                    "end": "(\")",
+                    "endCaptures": {
+                        "1": {
+                            "name": "punctuation.end.quote.double.dada"
+                        }
+                    },
+                    "patterns": [
+                        {
+                            "name": "constant.character.escape.dada",
+                            "match": "\\\\."
+                        }
+                    ]
+                }
+            ]
+        },
+        "numbers": {
+            "patterns": [
+                {
+                    "name": "constant.numeric.integer.dada",
+                    "match": "\\b\\d+[\\d+|_]*[ui]?\\b"
+                },
+                {
+                    "name": "constant.numeric.float.dada",
+                    "match": "\\b\\d+[\\d+|_]*\\.[\\d+|_]*\\b"
+                }
+            ]
+        },
+        "keywords": {
+            "patterns": [
+                {
+                    "name": "keyword.control.dada",
+                    "match": "\\b(await|break|continue|else|if|loop|return|while)\\b"
+                },
+                {
+                    "name": "keyword.other.dada storage.type.dada",
+                    "match": "\\b(let)\\b"
+                },
+                {
+                    "name": "keyword.declaration.class.dada storage.type.dada",
+                    "match": "\\b(class)\\b"
+                },
+                {
+                    "name": "keyword.other.dada",
+                    "match": "\\b(any|async|atomic|give|given|lease|leased|share|shared|our)\\b"
+                },
+                {
+                    "name": "keyword.other.fn.dada",
+                    "match": "\\bfn\\b"
+                },
+                {
+                    "name": "keyword.operator.assignment.dada",
+                    "match": "(\\+=|-=|\\*=|/=)"
+                },
+                {
+                    "name": "keyword.operator.comparison.dada",
+                    "match": "(((=|>|<)(=)?)|!=)"
+                },
+                {
+                    "name": "keyword.operator.arrow.skinny.dada",
+                    "match": "->"
+                }
+            ]
+        },
+        "functions": {
+            "patterns": [
+                {
+                    "name": "meta.function.definition.dada",
+                    "begin": "\\b(fn)\\s+([A-Za-z0-9_]+)(\\()",
+                    "beginCaptures": {
+                        "1": {
+                            "name": "keyword.other.fn.dada"
+                        },
+                        "2": {
+                            "name": "entity.name.function.dada"
+                        },
+                        "3": {
+                            "name": "punctuation.brackets.round.dada"
+                        }
+                    },
+                    "end": "\\{",
+                    "endCaptures": {
+                        "0": {
+                            "name": "punctuation.brackets.curly.dada"
+                        }
+                    },
+                    "patterns": [
+                        {
+                            "include": "#comments"
+                        },
+                        {
+                            "include": "#constants"
+                        },
+                        {
+                            "include": "#strings"
+                        },
+                        {
+                            "include": "#numbers"
+                        },
+                        {
+                            "include": "#keywords"
+                        },
+                        {
+                            "include": "#functions"
+                        }
+                    ]
+                },
+                {
+                    "name": "meta.function.call.dada",
+                    "begin": "\\b([A-Za-z0-9_]+)(\\()",
+                    "beginCaptures": {
+                        "1": {
+                            "name": "entity.name.function.call.dada"
+                        },
+                        "2": {
+                            "name": "punctuation.brackets.round.dada"
+                        }
+                    },
+                    "end": "\\)",
+                    "endCaptures": {
+                        "0": {
+                            "name": "punctuation.brackets.round.dada"
+                        }
+                    },
+                    "patterns": [
+                        {
+                            "include": "#comments"
+                        },
+                        {
+                            "include": "#constants"
+                        },
+                        {
+                            "include": "#strings"
+                        },
+                        {
+                            "include": "#numbers"
+                        },
+                        {
+                            "include": "#keywords"
+                        },
+                        {
+                            "include": "#functions"
+                        }
+                    ]
+                }
+            ]
+        }
+    }
+}
