@@ -1021,7 +1021,7 @@ impl ActualDiagnostic for Diagnostic {
             if self.range.end.line + 1 != end_line {
                 return false;
             }
-            if self.range.end.character + 1!= end_column {
+            if self.range.end.character + 1 != end_column {
                 return false;
             }
         }
