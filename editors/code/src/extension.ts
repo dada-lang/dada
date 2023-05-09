@@ -1,4 +1,4 @@
-import { ExtensionContext, WorkspaceConfiguration, workspace } from "vscode";
+import { WorkspaceConfiguration, workspace } from "vscode";
 
 import {
   Executable,
@@ -9,7 +9,7 @@ import {
 
 let client: LanguageClient | undefined = undefined;
 
-export function activate(_ctx: ExtensionContext) {
+export async function activate() {
   const config = workspace.getConfiguration("dadaLanguageServer");
 
   const run: Executable = {
@@ -33,7 +33,7 @@ export function activate(_ctx: ExtensionContext) {
     clientOptions
   );
 
-  client.start();
+  await client.start();
 }
 
 export function deactivate(): Thenable<void> | undefined {
