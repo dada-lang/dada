@@ -90,8 +90,8 @@ impl DadaLspMethods for dada_db::Db {
     fn lsp_position(&self, input_file: InputFile, offset: Offset) -> Position {
         let line_column = dada_ir::lines::line_column(self, input_file, offset);
         Position {
-            line: line_column.line1(),
-            character: line_column.column1(),
+            line: line_column.line0(),
+            character: line_column.column0(),
         }
     }
 
