@@ -5,20 +5,24 @@ This vscode extension provides language support for the [Dada programming langua
 The extension is not yet published, as changes to the language and tooling may happen frequently.
 
 ## Prerequisites
-* [Node](https://docs.npmjs.com/downloading-and-installing-node-js-and-npm)
+
+- [Node](https://docs.npmjs.com/downloading-and-installing-node-js-and-npm)
 
 ## Installation
 
 1. Add Dada to your PATH. E.g.:
-    ```bash
-    cargo install --path .
-    ```
-    or<br></br>
-    set the Dada executable path in vscode settings. E.g.:
 
-    ```json
-    "dadaLanguageServer.compiler.executablePath": "/path/to/dada"
-    ```
+   ```bash
+   cargo install --path .
+   ```
+
+   or<br></br>
+   set the Dada executable path in vscode settings. E.g.:
+
+   ```json
+   "dadaLanguageServer.compiler.executablePath": "/path/to/dada"
+   ```
+
 2. Install deps in the editors/code directory: `npm install`
 3. Build and package the extension: `npm run package`
 4. Install the extension: `code --install-extension dada.vsix`
