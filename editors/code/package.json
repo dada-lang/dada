@@ -29,16 +29,23 @@
     "build-base": "esbuild ./src/extension.ts --bundle --outfile=out/extension.js --external:vscode --format=cjs --platform=node",
     "build": "npm run build-base -- --sourcemap",
     "build-watch": "npm run build-base -- --sourcemap --watch",
-    "test-compile": "tsc -p ./"
-},
+    "test-compile": "tsc -p ./",
+    "lint": "prettier --check . && eslint -c .eslintrc.js --ext ts ./src",
+    "fix": "prettier --write . && eslint -c .eslintrc.js --ext ts ./src --fix"
+  },
   "dependencies": {
     "vscode-languageclient": "^8.1.0"
   },
   "devDependencies": {
     "@types/node": "^20.1.0",
     "@types/vscode": "^1.77.0",
+    "@typescript-eslint/eslint-plugin": "^5.59.5",
+    "@typescript-eslint/parser": "^5.59.5",
     "@vscode/vsce": "^2.19.0",
     "esbuild": "^0.17.18",
+    "eslint": "^8.40.0",
+    "eslint-config-prettier": "^8.8.0",
+    "prettier": "^2.8.8",
     "typescript": "^5.0.4"
   },
   "contributes": {
