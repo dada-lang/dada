@@ -17,7 +17,7 @@ jobs:
         rust:
           - nightly
     steps:
-      - uses: actions/checkout@v2.4.0
+      - uses: actions/checkout@v3
       - uses: actions-rs/toolchain@v1.0.7
         with:
           profile: minimal
@@ -35,7 +35,7 @@ jobs:
         rust:
           - nightly
     steps:
-      - uses: actions/checkout@v2.4.0
+      - uses: actions/checkout@v3
       - uses: actions-rs/toolchain@v1.0.7
         with:
           profile: minimal
@@ -53,7 +53,7 @@ jobs:
         rust:
           - nightly
     steps:
-      - uses: actions/checkout@v2.4.0
+      - uses: actions/checkout@v3
       - uses: actions-rs/toolchain@v1.0.7
         with:
           profile: minimal
@@ -71,7 +71,7 @@ jobs:
     name: Rustfmt
     runs-on: ubuntu-latest
     steps:
-      - uses: actions/checkout@v2.4.0
+      - uses: actions/checkout@v3
       - uses: actions-rs/toolchain@v1.0.7
         with:
           profile: minimal
@@ -91,7 +91,7 @@ jobs:
         rust:
           - nightly
     steps:
-      - uses: actions/checkout@v2.4.0
+      - uses: actions/checkout@v3
       - uses: actions-rs/toolchain@v1.0.7
         with:
           profile: minimal
@@ -107,7 +107,7 @@ jobs:
     name: Typos
     runs-on: ubuntu-latest
     steps:
-      - uses: actions/checkout@v2.4.0
+      - uses: actions/checkout@v3
       - uses: crate-ci/typos@v1.0.4
         with:
           config: ./.typos.toml
