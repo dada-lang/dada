@@ -12,38 +12,18 @@ jobs:
   check:
     name: Check
     runs-on: ubuntu-latest
-    strategy:
-      matrix:
-        rust:
-          - nightly
     steps:
       - uses: actions/checkout@v3
-      - uses: actions-rs/toolchain@v1.0.7
-        with:
-          profile: minimal
-          toolchain: ${{ matrix.rust }}
-          override: true
-      - uses: actions-rs/cargo@v1.0.3
-        with:
-          command: check
+      - uses: dtolnay/rust-toolchain@nightly
+      - run: cargo check
 
   test:
     name: Test
     runs-on: ubuntu-latest
-    strategy:
-      matrix:
-        rust:
-          - nightly
     steps:
       - uses: actions/checkout@v3
-      - uses: actions-rs/toolchain@v1.0.7
-        with:
-          profile: minimal
-          toolchain: ${{ matrix.rust }}
-          override: true
-      - uses: actions-rs/cargo@v1.0.3
-        with:
-          command: test
+      - uses: dtolnay/rust-toolchain@nightly
+      - run: cargo test
 
   deploy:
     name: Deploy
@@ -54,54 +34,31 @@ jobs:
           - nightly
     steps:
       - uses: actions/checkout@v3
-      - uses: actions-rs/toolchain@v1.0.7
-        with:
-          profile: minimal
-          toolchain: ${{ matrix.rust }}
-          override: true
+      - uses: dtolnay/rust-toolchain@nightly
       - uses: actions/setup-node@v3
         with:
           node-version-file: '.nvmrc'
-      - uses: actions-rs/cargo@v1.0.3
-        with:
-          command: xtask 
-          args: deploy --check
+      - run: cargo xtask deploy --check
 
   rustfmt:
     name: Rustfmt
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v3
-      - uses: actions-rs/toolchain@v1.0.7
+      - uses: dtolnay/rust-toolchain@nightly
         with:
-          profile: minimal
-          toolchain: nightly
           components: rustfmt
-          override: true
-      - uses: actions-rs/cargo@v1.0.3
-        with:
-          command: fmt
-          args: --check
+      - run: cargo fmt --check 
 
   clippy:
     name: Clippy
     runs-on: ubuntu-latest
-    strategy:
-      matrix:
-        rust:
-          - nightly
     steps:
       - uses: actions/checkout@v3
-      - uses: actions-rs/toolchain@v1.0.7
+      - uses: dtolnay/rust-toolchain@nightly
         with:
-          profile: minimal
-          toolchain: ${{ matrix.rust }}
           components: clippy
-          override: true
-      - uses: actions-rs/cargo@v1.0.3
-        with:
-          command: clippy
-          args: -- -Dwarnings
+      - run: cargo clippy -- -Dwarnings
 
   typos:
     name: Typos
