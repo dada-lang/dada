@@ -95,6 +95,7 @@ impl<'db> Parser<'db> {
         let name = signature_parser
             .parse_name()
             .or_report_error(&mut signature_parser, || "expected a class name")?;
+        let generic_parameters = signature_parser.parse_generic_parameters();
         let parameters = signature_parser
             .parse_parameter_list()
             .or_report_error(&mut signature_parser, || "expected class parameters")?;
@@ -102,6 +103,7 @@ impl<'db> Parser<'db> {
             name,
             fn_decl,
             None,
+            generic_parameters,
             parameters,
             None,
             signature_tables,
@@ -136,6 +138,7 @@ impl<'db> Parser<'db> {
         let name = signature_parser
             .parse_name()
             .or_report_error(&mut signature_parser, || "expected function name")?;
+        let generic_parameters = signature_parser.parse_generic_parameters();
         let parameters = signature_parser
             .parse_parameter_list()
             .or_report_error(&mut signature_parser, || {
@@ -150,6 +153,7 @@ impl<'db> Parser<'db> {
             name,
             fn_kw,
             effect,
+            generic_parameters,
             parameters,
             return_type,
             signature_tables,

@@ -6,6 +6,7 @@ use salsa::DebugWithDb;
 /// The "syntax signature" is the parsed form of a function signature,
 /// including e.g. its parameter types.
 #[derive(new, Clone, Debug, PartialEq, Eq)]
+#[allow(clippy::too_many_arguments)]
 pub struct Signature {
     /// The name of the function.
     pub name: Name,
@@ -15,6 +16,9 @@ pub struct Signature {
 
     /// The "effect" of the fn (i.e., is it declared as async, atomic?), if any.
     pub effect: Option<EffectKeyword>,
+
+    /// The generic parameters to the function, if any.
+    pub generic_parameters: Vec<GenericParameter>,
 
     /// The parameters to the function.
     pub parameters: Vec<LocalVariableDecl>,
@@ -27,6 +31,16 @@ pub struct Signature {
 
     /// The span information for each node in the tree.
     pub spans: Spans,
+}
+
+/// Generic parameter declared on a class or function.
+#[derive(new, Clone, Debug, PartialEq, Eq, PartialOrd, Ord, Hash)]
+pub enum GenericParameter {
+    /// E.g., `fn foo[T]`
+    Type(Name),
+
+    /// E.g., `fn foo[perm P]`
+    Permission(Perm, Name),
 }
 
 /// The "syntax tree" is the parsed form of a function body.
