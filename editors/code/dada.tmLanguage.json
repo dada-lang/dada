@@ -86,7 +86,7 @@
         },
         {
           "name": "keyword.other.dada",
-          "match": "\\b(any|async|atomic|give|given|lease|leased|share|shared|our)\\b"
+          "match": "\\b(any|async|atomic|give|given|lease|leased|my|share|shared|our)\\b"
         },
         {
           "name": "keyword.other.fn.dada",
