@@ -1,9 +1,9 @@
 status = [
-  "Check (nightly)",
-  "Test (nightly)",
+  "Check",
+  "Test",
   "Rustfmt",
-  "Clippy (nightly)",
-  "Deploy (nightly)",
+  "Clippy",
+  "Deploy",
   "Typos"
 ]
 delete_merged_branches = true
