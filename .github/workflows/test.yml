@@ -12,102 +12,60 @@ jobs:
   check:
     name: Check
     runs-on: ubuntu-latest
-    strategy:
-      matrix:
-        rust:
-          - nightly
     steps:
-      - uses: actions/checkout@v2.4.0
-      - uses: actions-rs/toolchain@v1.0.7
-        with:
-          profile: minimal
-          toolchain: ${{ matrix.rust }}
-          override: true
-      - uses: actions-rs/cargo@v1.0.3
-        with:
-          command: check
+      - uses: actions/checkout@v3
+      - uses: dtolnay/rust-toolchain@nightly
+      - uses: Swatinem/rust-cache@v2
+      - run: cargo check
 
   test:
     name: Test
     runs-on: ubuntu-latest
-    strategy:
-      matrix:
-        rust:
-          - nightly
     steps:
-      - uses: actions/checkout@v2.4.0
-      - uses: actions-rs/toolchain@v1.0.7
-        with:
-          profile: minimal
-          toolchain: ${{ matrix.rust }}
-          override: true
-      - uses: actions-rs/cargo@v1.0.3
-        with:
-          command: test
+      - uses: actions/checkout@v3
+      - uses: dtolnay/rust-toolchain@nightly
+      - uses: Swatinem/rust-cache@v2
+      - run: cargo test
 
   deploy:
     name: Deploy
     runs-on: ubuntu-latest
-    strategy:
-      matrix:
-        rust:
-          - nightly
     steps:
-      - uses: actions/checkout@v2.4.0
-      - uses: actions-rs/toolchain@v1.0.7
-        with:
-          profile: minimal
-          toolchain: ${{ matrix.rust }}
-          override: true
+      - uses: actions/checkout@v3
+      - uses: dtolnay/rust-toolchain@nightly
+      - uses: Swatinem/rust-cache@v2
       - uses: actions/setup-node@v3
         with:
           node-version-file: '.nvmrc'
-      - uses: actions-rs/cargo@v1.0.3
-        with:
-          command: xtask 
-          args: deploy --check
+      - run: cargo xtask deploy --check
 
   rustfmt:
     name: Rustfmt
     runs-on: ubuntu-latest
     steps:
-      - uses: actions/checkout@v2.4.0
-      - uses: actions-rs/toolchain@v1.0.7
+      - uses: actions/checkout@v3
+      - uses: dtolnay/rust-toolchain@nightly
         with:
-          profile: minimal
-          toolchain: nightly
           components: rustfmt
-          override: true
-      - uses: actions-rs/cargo@v1.0.3
-        with:
-          command: fmt
-          args: --check
+      - uses: Swatinem/rust-cache@v2
+      - run: cargo fmt --check 
 
   clippy:
     name: Clippy
     runs-on: ubuntu-latest
-    strategy:
-      matrix:
-        rust:
-          - nightly
     steps:
-      - uses: actions/checkout@v2.4.0
-      - uses: actions-rs/toolchain@v1.0.7
+      - uses: actions/checkout@v3
+      - uses: dtolnay/rust-toolchain@nightly
         with:
-          profile: minimal
-          toolchain: ${{ matrix.rust }}
           components: clippy
-          override: true
-      - uses: actions-rs/cargo@v1.0.3
-        with:
-          command: clippy
-          args: -- -Dwarnings
+      - uses: Swatinem/rust-cache@v2
+      - run: cargo clippy -- -Dwarnings
 
   typos:
     name: Typos
     runs-on: ubuntu-latest
     steps:
-      - uses: actions/checkout@v2.4.0
+      - uses: actions/checkout@v3
       - uses: crate-ci/typos@v1.0.4
         with:
           config: ./.typos.toml
