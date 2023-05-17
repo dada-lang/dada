@@ -1,10 +1,10 @@
 status = [
-  "Check (nightly)",
-  "Test (nightly)",
+  "Check",
+  "Test",
   "Rustfmt",
-  "Clippy (nightly)",
-  "Deploy (nightly)",
   "Visual Studio Code",
+  "Clippy",
+  "Deploy",
   "Typos"
 ]
 delete_merged_branches = true
