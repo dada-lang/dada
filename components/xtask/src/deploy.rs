@@ -1,4 +1,7 @@
-use std::path::{Path, PathBuf};
+use std::{
+    env,
+    path::{Path, PathBuf},
+};
 use structopt::StructOpt;
 
 #[derive(StructOpt)]
@@ -56,8 +59,6 @@ impl Deploy {
 }
 
 fn download_wasm_pack(dada_downloads: &Path) -> eyre::Result<PathBuf> {
-    let arch = cfg!(target_arch);
-    let vendor = cfg!(target_os);
     let version = "v0.10.3";
     let prefix = if cfg!(all(target_os = "linux", target_arch = "x86_64")) {
         format!("wasm-pack-{version}-x86_64-unknown-linux-musl")
@@ -66,7 +67,11 @@ fn download_wasm_pack(dada_downloads: &Path) -> eyre::Result<PathBuf> {
     } else if cfg!(all(target_os = "windows", target_arch = "x86_64")) {
         format!("wasm-pack-{version}-x86_64-pc-windows-msvc")
     } else {
-        eyre::bail!("no wasm-pack binary available for `{arch}` and `{vendor}`")
+        eyre::bail!(
+            "no wasm-pack binary available for `{}` and `{}`",
+            env::consts::OS,
+            env::consts::ARCH
+        )
     };
     let input_file = format!("{prefix}.tar.gz");
     let url =
