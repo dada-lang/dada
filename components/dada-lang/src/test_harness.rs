@@ -1007,21 +1007,21 @@ impl ActualDiagnostic for Diagnostic {
     type Db = ();
 
     fn matches(&self, db: &(), expected: &ExpectedDiagnostic) -> bool {
-        if self.range.start.line != expected.start_line {
+        if self.range.start.line + 1 != expected.start_line {
             return false;
         }
 
         if let Some(start_column) = expected.start_column {
-            if self.range.start.character != start_column {
+            if self.range.start.character + 1 != start_column {
                 return false;
             }
         }
 
         if let Some((end_line, end_column)) = expected.end_line_column {
-            if self.range.end.line != end_line {
+            if self.range.end.line + 1 != end_line {
                 return false;
             }
-            if self.range.end.character != end_column {
+            if self.range.end.character + 1 != end_column {
                 return false;
             }
         }
@@ -1035,7 +1035,7 @@ impl ActualDiagnostic for Diagnostic {
     }
 
     fn start(&self, _db: &Self::Db) -> (u32, u32) {
-        (self.range.start.line, self.range.start.character)
+        (self.range.start.line + 1, self.range.start.character + 1)
     }
 
     fn severity(&self, _db: &Self::Db) -> String {
