@@ -9,7 +9,7 @@ use dada_ir::storage::Leased;
 
 use crate::machine::{
     op::MachineOp, ExpectedClassTy, ExpectedPermission, ExpectedTy, Object, ObjectData, Permission,
-    PermissionData, Value,
+    PermissionData, ValidPermissionData, Value,
 };
 
 use super::Stepper;
@@ -87,6 +87,8 @@ impl<'me> Marker<'me> {
 
         // the singleton unit object is always live :)
         self.marks.live_objects.insert(self.machine.unit_object());
+
+        self.mark_from_live_permissions();
     }
 
     #[tracing::instrument(level = "Debug", skip(self))]
@@ -180,19 +182,45 @@ impl<'me> Marker<'me> {
             tracing::trace!("already visited");
             return;
         }
+    }
 
-        let PermissionData::Valid(valid) = &self.machine[permission] else {
-            // Not valid, no tenants
-            return;
-        };
+    ///
+    fn mark_from_live_permissions(&mut self) {
+        let live_permissions = self.marks.live_permissions.clone();
+        for &live_permission in &live_permissions {
+            if let PermissionData::Valid(ValidPermissionData {
+                leased: Leased::No,
+                easements,
+                tenants,
+                joint: _,
+            }) = &self.machine[live_permission]
+            {
+                for &p in easements.iter().chain(tenants) {
+                    self.mark_permission_if_it_can_reach_a_live_permission(p);
+                }
+            }
+        }
+    }
 
-        for tenant in &valid.tenants {
-            self.mark_permission(*tenant);
+    fn mark_permission_if_it_can_reach_a_live_permission(
+        &mut self,
+        permission: Permission,
+    ) -> bool {
+        if let PermissionData::Valid(ValidPermissionData {
+            leased: _,
+            easements,
+            tenants,
+            joint: _,
+        }) = &self.machine[permission]
+        {
+            for &p in easements.iter().chain(tenants) {
+                if self.mark_permission_if_it_can_reach_a_live_permission(p) {
+                    self.marks.live_permissions.insert(permission);
+                }
+            }
         }
 
-        for easement in &valid.easements {
-            self.mark_permission(*easement);
-        }
+        self.marks.live_permissions.contains(&permission)
     }
 }
 
