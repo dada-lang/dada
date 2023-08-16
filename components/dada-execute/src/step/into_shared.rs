@@ -113,7 +113,9 @@ impl Stepper<'_> {
             // ```
             (Leased::No, Joint::No) => {
                 let object = self.take_object(traversal)?;
-                let permission = self.machine.new_permission(ValidPermissionData::our());
+                let permission = self
+                    .machine
+                    .new_permission(ValidPermissionData::our(self.machine.pc()));
                 Ok(Value { object, permission })
             }
 
@@ -151,7 +153,9 @@ impl Stepper<'_> {
             //   state, because there may be extant references to the data that it owned.
             // * `our [String]` is therefore very different from `Rc<Vec<String>>`.
             (Leased::No, Joint::Yes) => {
-                let permission = self.machine.new_permission(ValidPermissionData::our());
+                let permission = self
+                    .machine
+                    .new_permission(ValidPermissionData::our(self.machine.pc()));
                 Ok(Value {
                     object: traversal.object,
                     permission,

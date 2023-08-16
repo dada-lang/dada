@@ -390,7 +390,9 @@ impl<'me> Stepper<'me> {
             "calling frame should be at a terminator"
         );
 
-        let TerminatorData::Assign(top_place, _, top_basic_block) = &top_table[top_basic_block_data.terminator] else {
+        let TerminatorData::Assign(top_place, _, top_basic_block) =
+            &top_table[top_basic_block_data.terminator]
+        else {
             unreachable!("calling frame should be at an assign terminator")
         };
 
@@ -433,33 +435,47 @@ impl<'me> Stepper<'me> {
         match expr.data(table) {
             bir::ExprData::BooleanLiteral(v) => Ok(Value {
                 object: self.machine.new_object(ObjectData::Bool(*v)),
-                permission: self.machine.new_permission(ValidPermissionData::our()),
+                permission: self
+                    .machine
+                    .new_permission(ValidPermissionData::our(self.machine.pc())),
             }),
             bir::ExprData::IntegerLiteral(v) => Ok(Value {
                 object: self.machine.new_object(ObjectData::Int(*v)),
-                permission: self.machine.new_permission(ValidPermissionData::our()),
+                permission: self
+                    .machine
+                    .new_permission(ValidPermissionData::our(self.machine.pc())),
             }),
             bir::ExprData::UnsignedIntegerLiteral(v) => Ok(Value {
                 object: self.machine.new_object(ObjectData::UnsignedInt(*v)),
-                permission: self.machine.new_permission(ValidPermissionData::our()),
+                permission: self
+                    .machine
+                    .new_permission(ValidPermissionData::our(self.machine.pc())),
             }),
             bir::ExprData::SignedIntegerLiteral(v) => Ok(Value {
                 object: self.machine.new_object(ObjectData::SignedInt(*v)),
-                permission: self.machine.new_permission(ValidPermissionData::our()),
+                permission: self
+                    .machine
+                    .new_permission(ValidPermissionData::our(self.machine.pc())),
             }),
             bir::ExprData::FloatLiteral(v) => Ok(Value {
                 object: self.machine.new_object(ObjectData::Float(v.0)),
-                permission: self.machine.new_permission(ValidPermissionData::our()),
+                permission: self
+                    .machine
+                    .new_permission(ValidPermissionData::our(self.machine.pc())),
             }),
             bir::ExprData::StringLiteral(v) => Ok(Value {
                 object: self
                     .machine
                     .new_object(ObjectData::String(v.as_str(self.db).to_string())),
-                permission: self.machine.new_permission(ValidPermissionData::our()),
+                permission: self
+                    .machine
+                    .new_permission(ValidPermissionData::our(self.machine.pc())),
             }),
             bir::ExprData::Unit => Ok(Value {
                 object: self.machine.new_object(ObjectData::Unit(())),
-                permission: self.machine.new_permission(ValidPermissionData::our()),
+                permission: self
+                    .machine
+                    .new_permission(ValidPermissionData::our(self.machine.pc())),
             }),
             bir::ExprData::IntoShared(place) => self.into_shared_place(table, *place),
             bir::ExprData::Lease(place) => self.lease_place(table, *place),
@@ -472,7 +488,9 @@ impl<'me> Stepper<'me> {
                     .collect::<Result<Vec<_>, _>>()?;
                 Ok(Value {
                     object: self.machine.new_object(ObjectData::Tuple(Tuple { fields })),
-                    permission: self.machine.new_permission(ValidPermissionData::my()),
+                    permission: self
+                        .machine
+                        .new_permission(ValidPermissionData::my(self.machine.pc())),
                 })
             }
             bir::ExprData::Concatenate(places) => self.concatenate(table, places),

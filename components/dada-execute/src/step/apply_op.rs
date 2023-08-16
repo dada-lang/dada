@@ -40,58 +40,66 @@ impl Stepper<'_> {
         };
         match (&self.machine[lhs], &self.machine[rhs]) {
             (&ObjectData::Bool(lhs), &ObjectData::Bool(rhs)) => match op {
-                Op::EqualEqual => Ok(self.machine.our_value(lhs == rhs)),
-                Op::GreaterEqual => Ok(self.machine.our_value(lhs >= rhs)),
-                Op::LessEqual => Ok(self.machine.our_value(lhs <= rhs)),
+                Op::EqualEqual => Ok(self.machine.our_value(self.machine.pc(), lhs == rhs)),
+                Op::GreaterEqual => Ok(self.machine.our_value(self.machine.pc(), lhs >= rhs)),
+                Op::LessEqual => Ok(self.machine.our_value(self.machine.pc(), lhs <= rhs)),
                 _ => op_error(),
             },
             (&ObjectData::UnsignedInt(lhs), &ObjectData::UnsignedInt(rhs))
             | (&ObjectData::UnsignedInt(lhs), &ObjectData::Int(rhs))
             | (&ObjectData::Int(lhs), &ObjectData::UnsignedInt(rhs)) => match op {
-                Op::EqualEqual => Ok(self.machine.our_value(lhs == rhs)),
-                Op::GreaterEqual => Ok(self.machine.our_value(lhs >= rhs)),
-                Op::LessEqual => Ok(self.machine.our_value(lhs <= rhs)),
+                Op::EqualEqual => Ok(self.machine.our_value(self.machine.pc(), lhs == rhs)),
+                Op::GreaterEqual => Ok(self.machine.our_value(self.machine.pc(), lhs >= rhs)),
+                Op::LessEqual => Ok(self.machine.our_value(self.machine.pc(), lhs <= rhs)),
                 Op::Plus => match lhs.checked_add(rhs) {
-                    Some(value) => Ok(self.machine.our_value(value)),
+                    Some(value) => Ok(self.machine.our_value(self.machine.pc(), value)),
                     None => overflow_error(),
                 },
                 Op::Minus => match lhs.checked_sub(rhs) {
-                    Some(value) => Ok(self.machine.our_value(value)),
+                    Some(value) => Ok(self.machine.our_value(self.machine.pc(), value)),
                     None => overflow_error(),
                 },
                 Op::Times => match lhs.checked_mul(rhs) {
-                    Some(value) => Ok(self.machine.our_value(value)),
+                    Some(value) => Ok(self.machine.our_value(self.machine.pc(), value)),
                     None => overflow_error(),
                 },
                 Op::DividedBy => match lhs.checked_div(rhs) {
-                    Some(value) => Ok(self.machine.our_value(value)),
+                    Some(value) => Ok(self.machine.our_value(self.machine.pc(), value)),
                     None => div_zero_error(),
                 },
-                Op::LessThan => Ok(self.machine.our_value(lhs < rhs)),
-                Op::GreaterThan => Ok(self.machine.our_value(lhs > rhs)),
+                Op::LessThan => Ok(self.machine.our_value(self.machine.pc(), lhs < rhs)),
+                Op::GreaterThan => Ok(self.machine.our_value(self.machine.pc(), lhs > rhs)),
             },
             (&ObjectData::Int(lhs), &ObjectData::Int(rhs)) => match op {
-                Op::EqualEqual => Ok(self.machine.our_value(lhs == rhs)),
-                Op::GreaterEqual => Ok(self.machine.our_value(lhs >= rhs)),
-                Op::LessEqual => Ok(self.machine.our_value(lhs <= rhs)),
+                Op::EqualEqual => Ok(self.machine.our_value(self.machine.pc(), lhs == rhs)),
+                Op::GreaterEqual => Ok(self.machine.our_value(self.machine.pc(), lhs >= rhs)),
+                Op::LessEqual => Ok(self.machine.our_value(self.machine.pc(), lhs <= rhs)),
                 Op::Plus => match lhs.checked_add(rhs) {
-                    Some(value) => Ok(self.machine.our_value(ObjectData::Int(value))),
+                    Some(value) => Ok(self
+                        .machine
+                        .our_value(self.machine.pc(), ObjectData::Int(value))),
                     None => overflow_error(),
                 },
                 Op::Minus => match lhs.checked_sub(rhs) {
-                    Some(value) => Ok(self.machine.our_value(ObjectData::Int(value))),
+                    Some(value) => Ok(self
+                        .machine
+                        .our_value(self.machine.pc(), ObjectData::Int(value))),
                     None => overflow_error(),
                 },
                 Op::Times => match lhs.checked_mul(rhs) {
-                    Some(value) => Ok(self.machine.our_value(ObjectData::Int(value))),
+                    Some(value) => Ok(self
+                        .machine
+                        .our_value(self.machine.pc(), ObjectData::Int(value))),
                     None => overflow_error(),
                 },
                 Op::DividedBy => match lhs.checked_div(rhs) {
-                    Some(value) => Ok(self.machine.our_value(ObjectData::Int(value))),
+                    Some(value) => Ok(self
+                        .machine
+                        .our_value(self.machine.pc(), ObjectData::Int(value))),
                     None => div_zero_error(),
                 },
-                Op::LessThan => Ok(self.machine.our_value(lhs < rhs)),
-                Op::GreaterThan => Ok(self.machine.our_value(lhs > rhs)),
+                Op::LessThan => Ok(self.machine.our_value(self.machine.pc(), lhs < rhs)),
+                Op::GreaterThan => Ok(self.machine.our_value(self.machine.pc(), lhs > rhs)),
             },
             (&ObjectData::SignedInt(lhs), &ObjectData::SignedInt(rhs)) => {
                 self.apply_signed_int(expr, op, lhs, rhs)
@@ -105,35 +113,35 @@ impl Stepper<'_> {
                 Err(_) => overflow_error(),
             },
             (&ObjectData::Float(lhs), &ObjectData::Float(rhs)) => match op {
-                Op::EqualEqual => Ok(self.machine.our_value(lhs == rhs)),
-                Op::GreaterEqual => Ok(self.machine.our_value(lhs >= rhs)),
-                Op::LessEqual => Ok(self.machine.our_value(lhs <= rhs)),
-                Op::Plus => Ok(self.machine.our_value(lhs + rhs)),
-                Op::Minus => Ok(self.machine.our_value(lhs - rhs)),
-                Op::Times => Ok(self.machine.our_value(lhs * rhs)),
-                Op::DividedBy => Ok(self.machine.our_value(lhs / rhs)),
-                Op::LessThan => Ok(self.machine.our_value(lhs < rhs)),
-                Op::GreaterThan => Ok(self.machine.our_value(lhs > rhs)),
+                Op::EqualEqual => Ok(self.machine.our_value(self.machine.pc(), lhs == rhs)),
+                Op::GreaterEqual => Ok(self.machine.our_value(self.machine.pc(), lhs >= rhs)),
+                Op::LessEqual => Ok(self.machine.our_value(self.machine.pc(), lhs <= rhs)),
+                Op::Plus => Ok(self.machine.our_value(self.machine.pc(), lhs + rhs)),
+                Op::Minus => Ok(self.machine.our_value(self.machine.pc(), lhs - rhs)),
+                Op::Times => Ok(self.machine.our_value(self.machine.pc(), lhs * rhs)),
+                Op::DividedBy => Ok(self.machine.our_value(self.machine.pc(), lhs / rhs)),
+                Op::LessThan => Ok(self.machine.our_value(self.machine.pc(), lhs < rhs)),
+                Op::GreaterThan => Ok(self.machine.our_value(self.machine.pc(), lhs > rhs)),
             },
             (ObjectData::String(lhs), ObjectData::String(rhs)) => match op {
                 Op::EqualEqual => {
                     let val = lhs == rhs;
-                    Ok(self.machine.our_value(val))
+                    Ok(self.machine.our_value(self.machine.pc(), val))
                 }
                 Op::GreaterEqual => {
                     let val = lhs >= rhs;
-                    Ok(self.machine.our_value(val))
+                    Ok(self.machine.our_value(self.machine.pc(), val))
                 }
                 Op::LessEqual => {
                     let val = lhs <= rhs;
-                    Ok(self.machine.our_value(val))
+                    Ok(self.machine.our_value(self.machine.pc(), val))
                 }
                 _ => op_error(),
             },
             (&ObjectData::Unit(()), &ObjectData::Unit(())) => match op {
-                Op::EqualEqual => Ok(self.machine.our_value(true)),
-                Op::GreaterEqual => Ok(self.machine.our_value(lhs >= rhs)),
-                Op::LessEqual => Ok(self.machine.our_value(lhs <= rhs)),
+                Op::EqualEqual => Ok(self.machine.our_value(self.machine.pc(), true)),
+                Op::GreaterEqual => Ok(self.machine.our_value(self.machine.pc(), lhs >= rhs)),
+                Op::LessEqual => Ok(self.machine.our_value(self.machine.pc(), lhs <= rhs)),
                 _ => op_error(),
             },
             _ => op_error(),
@@ -156,23 +164,23 @@ impl Stepper<'_> {
             Err(error!(span, "overflow").eyre(self.db))
         };
         match op {
-            Op::EqualEqual => Ok(self.machine.our_value(lhs == rhs)),
-            Op::GreaterEqual => Ok(self.machine.our_value(lhs >= rhs)),
-            Op::LessEqual => Ok(self.machine.our_value(lhs <= rhs)),
+            Op::EqualEqual => Ok(self.machine.our_value(self.machine.pc(), lhs == rhs)),
+            Op::GreaterEqual => Ok(self.machine.our_value(self.machine.pc(), lhs >= rhs)),
+            Op::LessEqual => Ok(self.machine.our_value(self.machine.pc(), lhs <= rhs)),
             Op::Plus => match lhs.checked_add(rhs) {
-                Some(value) => Ok(self.machine.our_value(value)),
+                Some(value) => Ok(self.machine.our_value(self.machine.pc(), value)),
                 None => overflow_error(),
             },
             Op::Minus => match lhs.checked_sub(rhs) {
-                Some(value) => Ok(self.machine.our_value(value)),
+                Some(value) => Ok(self.machine.our_value(self.machine.pc(), value)),
                 None => overflow_error(),
             },
             Op::Times => match lhs.checked_mul(rhs) {
-                Some(value) => Ok(self.machine.our_value(value)),
+                Some(value) => Ok(self.machine.our_value(self.machine.pc(), value)),
                 None => overflow_error(),
             },
             Op::DividedBy => match lhs.checked_div(rhs) {
-                Some(value) => Ok(self.machine.our_value(value)),
+                Some(value) => Ok(self.machine.our_value(self.machine.pc(), value)),
                 None => {
                     if rhs != -1 {
                         div_zero_error()
@@ -182,8 +190,8 @@ impl Stepper<'_> {
                     }
                 }
             },
-            Op::LessThan => Ok(self.machine.our_value(lhs < rhs)),
-            Op::GreaterThan => Ok(self.machine.our_value(lhs > rhs)),
+            Op::LessThan => Ok(self.machine.our_value(self.machine.pc(), lhs < rhs)),
+            Op::GreaterThan => Ok(self.machine.our_value(self.machine.pc(), lhs > rhs)),
         }
     }
 }
