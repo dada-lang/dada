@@ -329,6 +329,9 @@ impl PermissionData {
 /// place (memory location) `p` to some object `o`.
 #[derive(Clone, Debug, PartialEq, Eq)]
 pub struct ValidPermissionData {
+    /// When the permission was granted.
+    pub pc: ProgramCounter,
+
     /// A *joint* permission indicates whether this particular
     /// place permits other permissions to `o`.
     ///
@@ -362,8 +365,9 @@ pub struct ValidPermissionData {
 
 impl ValidPermissionData {
     /// The data for a new "uniquely owned" permission.
-    pub fn my() -> Self {
+    pub fn my(pc: ProgramCounter) -> Self {
         ValidPermissionData {
+            pc,
             joint: Joint::No,
             leased: Leased::No,
             tenants: vec![],
@@ -372,8 +376,9 @@ impl ValidPermissionData {
     }
 
     /// The data for a new "jointly owned" permission. Used for literals.
-    pub fn our() -> Self {
+    pub fn our(pc: ProgramCounter) -> Self {
         ValidPermissionData {
+            pc,
             joint: Joint::Yes,
             leased: Leased::No,
             tenants: vec![],

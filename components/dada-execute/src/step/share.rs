@@ -90,7 +90,9 @@ impl Stepper<'_> {
             accumulated_permissions.joint,
             accumulated_permissions.leased,
         ) {
-            let permission = self.machine.new_permission(ValidPermissionData::our());
+            let permission = self
+                .machine
+                .new_permission(ValidPermissionData::our(self.machine.pc()));
             return Ok(Value { object, permission });
         }
 

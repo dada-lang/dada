@@ -254,7 +254,7 @@ impl Stepper<'_> {
     }
 
     fn traverse_to_constant(&mut self, object_data: ObjectData) -> PlaceTraversal {
-        let object = self.machine.our_value(object_data);
+        let object = self.machine.our_value(self.machine.pc(), object_data);
         let permissions = AccumulatedPermissions {
             traversed: vec![],
             leased: Leased::No,

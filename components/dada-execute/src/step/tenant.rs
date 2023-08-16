@@ -19,6 +19,7 @@ impl Stepper<'_> {
             leased: Leased::Yes,
             easements: vec![],
             tenants: vec![],
+            pc: self.machine.pc(),
         });
 
         let (lessor, easements_on) = traversed.split_last().unwrap();

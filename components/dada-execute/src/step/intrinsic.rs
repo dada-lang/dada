@@ -48,9 +48,10 @@ impl Stepper<'_> {
     }
 
     fn intrinsic_print(&mut self, values: Vec<Value>) -> eyre::Result<Value> {
-        Ok(self
-            .machine
-            .my_value(RustThunk::new("print", values, Intrinsic::Print)))
+        Ok(self.machine.my_value(
+            self.machine.pc(),
+            RustThunk::new("print", values, Intrinsic::Print),
+        ))
     }
 
     #[tracing::instrument(level = "Debug", skip(self, await_pc))]
@@ -75,6 +76,6 @@ impl Stepper<'_> {
             error!(span_now, "error printing `{:?}`", message_str).eyre(self.db)
         })?;
 
-        Ok(self.machine.our_value(()))
+        Ok(self.machine.our_value(await_pc, ()))
     }
 }

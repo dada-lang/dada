@@ -47,7 +47,9 @@ impl Stepper<'_> {
                     class: c,
                     fields: arguments,
                 };
-                Ok(CallResult::Returned(self.machine.my_value(instance)))
+                Ok(CallResult::Returned(
+                    self.machine.my_value(self.machine.pc(), instance),
+                ))
             }
             &ObjectData::Function(function) => {
                 let signature = function.signature(self.db);
@@ -60,11 +62,14 @@ impl Stepper<'_> {
                 if function.effect(self.db).permits_await() {
                     // If the function can await, then it must be an async function.
                     // Now that we have validated the arguments, return a thunk.
-                    let thunk = self.machine.my_value(ThunkFn {
-                        function,
-                        arguments,
-                        expected_return_ty,
-                    });
+                    let thunk = self.machine.my_value(
+                        self.machine.pc(),
+                        ThunkFn {
+                            function,
+                            arguments,
+                            expected_return_ty,
+                        },
+                    );
                     Ok(CallResult::Returned(thunk))
                 } else {
                     // This is not an async function, so push it onto the stack

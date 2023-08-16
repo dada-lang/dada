@@ -193,6 +193,7 @@ impl<'me> Marker<'me> {
                 easements,
                 tenants,
                 joint: _,
+                pc: _,
             }) = &self.machine[live_permission]
             {
                 for &p in easements.iter().chain(tenants) {
@@ -211,6 +212,7 @@ impl<'me> Marker<'me> {
             easements,
             tenants,
             joint: _,
+            pc: _,
         }) = &self.machine[permission]
         {
             for &p in easements.iter().chain(tenants) {

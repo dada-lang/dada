@@ -66,7 +66,11 @@ impl Stepper<'_> {
                 let tenant = self.machine[tenant].assert_valid();
                 if let Joint::No = tenant.joint {
                     let span = self.machine.pc().span(self.db);
-                    return Err(error!(span, "cannot access leased data").eyre(self.db));
+                    let tenant_span = tenant.pc.span(self.db);
+                    return Err(error!(span, "cannot access leased data")
+                        .primary_label("access occurs here")
+                        .secondary_label(tenant_span, "lease created here")
+                        .eyre(self.db));
                 }
             }
         }
