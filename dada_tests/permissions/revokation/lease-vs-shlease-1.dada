@@ -4,6 +4,6 @@ async fn main() {
     let m = Data(22)
     let l = m.lease
     let s = l.share
-    print(m.field).await #! OUTPUT 22
-    print(s.field).await #! RUN ERROR your lease to this object was cancelled
+    print(m.field).await #! RUN ERROR cannot access leased data
+    print(s.field).await
 }

@@ -4,6 +4,6 @@ async fn main() {
     let p = Pair(22, 44)
     let q = p.lease
     print(q).await #! OUTPUT Pair\(22, 44\)
-    print(p).await #! OUTPUT Pair\(22, 44\)
-    print(q).await #! RUN ERROR your lease to this object was cancelled
+    print(p).await #! RUN ERROR cannot access leased data
+    print(q).await # future use here
 }

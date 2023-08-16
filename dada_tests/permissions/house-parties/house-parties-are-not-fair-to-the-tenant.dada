@@ -1,4 +1,4 @@
-# Test that is intended to show the dangerous
+# Test that is intended to show the dangers
 # of the "house party" rule. If we allow the
 # lessor to read without violating the tenant's
 # lease, that could permit the lessor to mutate
@@ -26,12 +26,11 @@ async fn main() {
     # but it is still owned by `a`
     let l = foo(a.lease)
 
-    # share `a`, which currently revokes
-    # the lease `a`, and hence `l`
-    # becomes inaccessible
-    let s = a.share
+    # try to share `a`, which fails because the lease
+    # on `a` is still valid (due to `l`)
+    let s = a.share #! RUN ERROR cannot access leased data
 
-    print(l).await #! RUN ERROR your lease to this object was cancelled
+    print(l).await
 
     atomic {
         # can still modify `s.list`, but only

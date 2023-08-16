@@ -7,9 +7,9 @@ async fn main() {
     # Accessing `q`: ok
     print(q).await #! OUTPUT Pair\(22, 44\)
 
-    # Accessing `p`: ok, but cancels sublease (to `q`)
-    print(p).await #! OUTPUT Pair\(22, 44\)
+    # Accessing `p`: error because `q` still live
+    print(p).await #! RUN ERROR cannot access leased data
 
-    # Accessing `q` again: error
-    print(q).await #! RUN ERROR your lease to this object was cancelled
+    # `q` live because of potential use here
+    print(q).await
 }

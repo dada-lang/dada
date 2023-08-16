@@ -9,9 +9,8 @@ async fn main() {
     # Accessing `q`: ok
     print(q).await #! OUTPUT Pair\(22, 44\)
 
-    # Accessing `p`: ok, but cancels subleases
-    print(p.give).await #! OUTPUT Pair\(22, 44\)
+    # Accessing `p`: error because `q` still live
+    print(p.give).await #! RUN ERROR cannot write to shared data
 
-    # Accessing `q` again: error
-    print(q).await #! RUN ERROR your lease to this object was cancelled
+    print(q).await
 }
