@@ -4,8 +4,6 @@ async fn main() {
     let p = Point(x: 22, y: 44)
     let q = p.lease
     q.x += 1
-    let x = p.x
-    #?         ^ HeapGraph
+    let x = p.x #! RUN ERROR cannot access leased data
     let x = q.x
-    #!      ^ RUN ERROR your lease to this object was cancelled
 }

@@ -16,8 +16,8 @@ async fn main() {
     print(p).await #! OUTPUT Pair\(22, 44\)
 
     # we can output `pair1`
-    print(pair1).await #! OUTPUT Pair\(22, 44\)
+    print(pair1).await #! RUN ERROR cannot access leased data
 
     # and that will cancel `p`
-    print(p).await #! RUN ERROR your lease to this object was cancelled
+    print(p).await
 }

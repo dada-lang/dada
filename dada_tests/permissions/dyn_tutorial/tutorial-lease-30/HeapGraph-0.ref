@@ -1,75 +1,12 @@
 # Breakpoint: Expr(14) at dada_tests/permissions/dyn_tutorial/tutorial-lease-30.dada:7:5:7:16
-digraph {
-  node[shape = "note"];
-  rankdir = "LR";
-  subgraph cluster_after {
-    label=<<b>after</b>>
-    subgraph cluster_afterstack {
-      label=<<b>stack</b>>
-      rank="source";
-      afterstack[
-        shape="none";
-        label=<
-          <table border="0">
-          <tr><td border="1">main</td></tr>
-          <tr><td port="0"><font color="black">p</font></td></tr>
-          <tr><td port="1"><font color="black">q</font></td></tr>
-          <tr><td port="3"><font color="slategray">x: "23"</font></td></tr>
-          <tr><td port="4"><font color="slategray">x</font></td></tr>
-          </table>
-        >;
-      ];
-    }
-    afternode0 [
-      color = "slategray",
-      fontcolor = "slategray",
-      label = <<table border="0">
-        <tr><td border="1">Point</td></tr>
-        <tr><td port="0"><font color="slategray">x: "23"</font></td></tr>
-        <tr><td port="1"><font color="slategray">y: "44"</font></td></tr>
-      </table>>
-    ];
-    "afterstack":0 -> "afternode0" [label="my", style="solid", penwidth=3.0, arrowtype="normal", color="red"];
-  }
-  subgraph cluster_before {
-    label=<<b>before</b>>
-    subgraph cluster_beforestack {
-      label=<<b>stack</b>>
-      rank="source";
-      beforestack[
-        shape="none";
-        label=<
-          <table border="0">
-          <tr><td border="1">main</td></tr>
-          <tr><td port="0"><font color="black">p</font></td></tr>
-          <tr><td port="1"><font color="black">q</font></td></tr>
-          <tr><td port="3"><font color="slategray">x</font></td></tr>
-          <tr><td port="4"><font color="slategray">x</font></td></tr>
-          </table>
-        >;
-      ];
-    }
-    beforenode0 [
-      color = "slategray",
-      fontcolor = "slategray",
-      label = <<table border="0">
-        <tr><td border="1">Point</td></tr>
-        <tr><td port="0"><font color="slategray">x: "23"</font></td></tr>
-        <tr><td port="1"><font color="slategray">y: "44"</font></td></tr>
-      </table>>
-    ];
-    "beforestack":0 -> "beforenode0" [label="my", style="dotted", penwidth=3.0, arrowtype="normal", color="red"];
-    "beforestack":1 -> "beforenode0" [label="leased", style="solid", penwidth=1.0, arrowtype="empty", color="red"];
-  }
-}
-[31mError:[0m your lease to this object was cancelled
-   [38;5;246m╭[0m[38;5;246m─[0m[38;5;246m[[0mdada_tests/permissions/dyn_tutorial/tutorial-lease-30.dada:9:13[38;5;246m][0m
+[31mError:[0m cannot access leased data
+   [38;5;246m╭[0m[38;5;246m─[0m[38;5;246m[[0mdada_tests/permissions/dyn_tutorial/tutorial-lease-30.dada:7:13[38;5;246m][0m
    [38;5;246m│[0m
+ [38;5;246m5 │[0m [38;5;249m [0m[38;5;249m [0m[38;5;249m [0m[38;5;249m [0m[38;5;249ml[0m[38;5;249me[0m[38;5;249mt[0m[38;5;249m [0m[38;5;249mq[0m[38;5;249m [0m[38;5;249m=[0m[38;5;249m [0mp.lease
+ [38;5;246m  ·[0m             ───┬───  
+ [38;5;246m  ·[0m                ╰───── lease created here
+ [38;5;246m  ·[0m 
  [38;5;246m7 │[0m [38;5;249m [0m[38;5;249m [0m[38;5;249m [0m[38;5;249m [0m[38;5;249ml[0m[38;5;249me[0m[38;5;249mt[0m[38;5;249m [0m[38;5;249mx[0m[38;5;249m [0m[38;5;249m=[0m[38;5;249m [0mp.x
  [38;5;246m  ·[0m             ─┬─  
- [38;5;246m  ·[0m              ╰─── lease was cancelled here
- [38;5;246m  ·[0m 
- [38;5;246m9 │[0m [38;5;249m [0m[38;5;249m [0m[38;5;249m [0m[38;5;249m [0m[38;5;249ml[0m[38;5;249me[0m[38;5;249mt[0m[38;5;249m [0m[38;5;249mx[0m[38;5;249m [0m[38;5;249m=[0m[38;5;249m [0mq[38;5;249m.[0m[38;5;249mx[0m
- [38;5;246m  ·[0m             ┬  
- [38;5;246m  ·[0m             ╰── cancelled lease used here
+ [38;5;246m  ·[0m              ╰─── access occurs here
 [38;5;246m───╯[0m

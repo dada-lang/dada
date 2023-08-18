@@ -7,7 +7,7 @@ async fn main() {
     let q = p.share
 
     # mutating field of `p` cancels our shared lease
-    p.a = 23
+    p.a = 23 #! RUN ERROR cannot write to shared data
     
-    print(q).await #! RUN ERROR your lease to this object was cancelled
+    print(q).await
 }
