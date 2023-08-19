@@ -177,6 +177,10 @@ impl<'me> Stepper<'me> {
         );
 
         match &statement.data(table).action {
+            bir::ActionData::Noop => {
+                // nothing happens!
+            }
+
             bir::ActionData::AssignExpr(place, expr) => {
                 // Subtle: The way this is setup, permissions for the target are not
                 // canceled until the write occurs. Consider something like this:
