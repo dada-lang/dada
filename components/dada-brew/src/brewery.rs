@@ -4,7 +4,8 @@ use dada_collections::Map;
 use dada_id::prelude::*;
 use dada_ir::{
     code::{
-        bir, syntax,
+        bir::{self, StatementData},
+        syntax,
         validated::{self, ExprOrigin},
     },
     input_file::InputFile,
@@ -27,7 +28,7 @@ pub struct Brewery<'me> {
     tables: &'me mut bir::Tables,
     origins: &'me mut bir::Origins,
     variables: Rc<Map<validated::LocalVariable, bir::LocalVariable>>,
-    dummy_terminator: bir::Terminator,
+    pub(crate) dummy_terminator: bir::ControlPoint,
 }
 
 impl<'me> Brewery<'me> {
@@ -45,7 +46,7 @@ impl<'me> Brewery<'me> {
         let dummy_terminator = add(
             tables,
             origins,
-            bir::TerminatorData::Panic,
+            bir::ControlPointData::Terminator(bir::TerminatorData::Panic),
             *validated_tree_data.root_expr.origin_in(validated_origins),
         );
         Self {
@@ -86,15 +87,14 @@ impl<'me> Brewery<'me> {
         of.origin_in(self.origins).clone()
     }
 
-    /// Returns a new basic block with no statements and a "panic" terminator.
-    /// This is meant to be used by `cursor`, which should ensure the terminator
-    /// is overwritten.
-    pub fn dummy_block(&mut self, origin: ExprOrigin) -> bir::BasicBlock {
+    /// Creates a new "no-op" statement that will start up a new basic block.
+    /// The "next" statement will be the dummy terminator.
+    pub fn dummy_block(&mut self, origin: ExprOrigin) -> bir::ControlPoint {
         self.add(
-            bir::BasicBlockData {
-                statements: vec![],
-                terminator: self.dummy_terminator,
-            },
+            bir::ControlPointData::Statement(StatementData {
+                action: bir::ActionData::Noop,
+                next: self.dummy_terminator,
+            }),
             origin,
         )
     }

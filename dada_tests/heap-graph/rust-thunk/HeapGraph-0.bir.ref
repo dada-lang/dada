@@ -1,120 +1,120 @@
 [
     bir::Bir {
-        start_basic_block: BasicBlock(0),
-        BasicBlock(0): BasicBlockData(
-            [
-                (
-                    BreakpoingStart(
-                        SourceFile(
-                            "dada_tests/heap-graph/rust-thunk.dada",
-                        ),
-                        0,
-                    ),
-                    Expr(3),
-                ),
-                (
-                    AssignExpr(
-                        temp{3},
-                        Print.share,
-                    ),
-                    Expr(0),
-                ),
-                (
-                    AssignExpr(
-                        temp{5},
-                        "foo",
-                    ),
-                    Expr(1),
-                ),
-                (
-                    AssignExpr(
-                        temp{4},
-                        Concatenate(temp{5}),
-                    ),
-                    Expr(2),
-                ),
-                (
-                    Clear(
-                        temp{5},
-                    ),
-                    Expr(1),
-                ),
-            ],
-            Assign(
-                temp{2},
-                Call(
-                    temp{3},
-                    [
-                        temp{4},
-                    ],
-                    [
-                        None,
-                    ],
-                ),
-                BasicBlock(1),
-            ),
+        start_point: ControlPoint(1),
+        ControlPoint(1): Statement(
+            Noop,
+            ControlPoint(2),
         ),
-        BasicBlock(1): BasicBlockData(
-            [
-                (
-                    BreakpointEnd(
-                        SourceFile(
-                            "dada_tests/heap-graph/rust-thunk.dada",
-                        ),
-                        0,
-                        Expr(3),
-                        Some(
-                            temp{2},
-                        ),
-                    ),
-                    Expr(3),
+        ControlPoint(2): Statement(
+            BreakpoingStart(
+                SourceFile(
+                    "dada_tests/heap-graph/rust-thunk.dada",
                 ),
-                (
-                    Clear(
-                        temp{4},
-                    ),
-                    Expr(2),
+                0,
+            ),
+            ControlPoint(3),
+        ),
+        ControlPoint(3): Statement(
+            AssignExpr(
+                temp{3},
+                Print.share,
+            ),
+            ControlPoint(4),
+        ),
+        ControlPoint(4): Statement(
+            AssignExpr(
+                temp{5},
+                "foo",
+            ),
+            ControlPoint(5),
+        ),
+        ControlPoint(5): Statement(
+            AssignExpr(
+                temp{4},
+                Concatenate(temp{5}),
+            ),
+            ControlPoint(6),
+        ),
+        ControlPoint(6): Statement(
+            Clear(
+                temp{5},
+            ),
+            ControlPoint(8),
+        ),
+        ControlPoint(7): Statement(
+            Noop,
+            ControlPoint(9),
+        ),
+        ControlPoint(8): Assign(
+            temp{2},
+            Call(
+                temp{3},
+                [
+                    temp{4},
+                ],
+                [
+                    None,
+                ],
+            ),
+            ControlPoint(7),
+        ),
+        ControlPoint(9): Statement(
+            BreakpointEnd(
+                SourceFile(
+                    "dada_tests/heap-graph/rust-thunk.dada",
                 ),
-                (
-                    Clear(
-                        temp{3},
-                    ),
-                    Expr(0),
-                ),
-            ],
-            Assign(
-                temp{1},
-                Await(
+                0,
+                Expr(3),
+                Some(
                     temp{2},
                 ),
-                BasicBlock(2),
             ),
+            ControlPoint(10),
         ),
-        BasicBlock(2): BasicBlockData(
-            [
-                (
-                    Clear(
-                        temp{2},
-                    ),
-                    Expr(3),
-                ),
-                (
-                    Clear(
-                        temp{1},
-                    ),
-                    Expr(4),
-                ),
-                (
-                    AssignExpr(
-                        temp{0},
-                        (),
-                    ),
-                    Expr(5),
-                ),
-            ],
-            Return(
-                temp{0},
+        ControlPoint(10): Statement(
+            Clear(
+                temp{4},
             ),
+            ControlPoint(11),
+        ),
+        ControlPoint(11): Statement(
+            Clear(
+                temp{3},
+            ),
+            ControlPoint(13),
+        ),
+        ControlPoint(12): Statement(
+            Noop,
+            ControlPoint(14),
+        ),
+        ControlPoint(13): Assign(
+            temp{1},
+            Await(
+                temp{2},
+            ),
+            ControlPoint(12),
+        ),
+        ControlPoint(14): Statement(
+            Clear(
+                temp{2},
+            ),
+            ControlPoint(15),
+        ),
+        ControlPoint(15): Statement(
+            Clear(
+                temp{1},
+            ),
+            ControlPoint(16),
+        ),
+        ControlPoint(16): Statement(
+            AssignExpr(
+                temp{0},
+                (),
+            ),
+            ControlPoint(17),
+        ),
+        ControlPoint(17): Return(
+            temp{0},
         ),
     },
 ]

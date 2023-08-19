@@ -34,7 +34,8 @@ pub mod table_types {
 /// Declares a struct usable as an id within a table.
 #[macro_export]
 macro_rules! id {
-    ($v:vis struct $n:ident) => {
+    ($(#[$a:meta])* $v:vis struct $n:ident) => {
+        $(#[$a])*
         #[derive(Copy, Clone, PartialEq, Eq, PartialOrd, Ord, Hash)]
         $v struct $n(salsa::Id);
 

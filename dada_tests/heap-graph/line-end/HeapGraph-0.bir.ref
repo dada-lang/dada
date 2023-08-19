@@ -1,55 +1,55 @@
 [
     bir::Bir {
-        start_basic_block: BasicBlock(0),
-        BasicBlock(0): BasicBlockData(
-            [
-                (
-                    BreakpoingStart(
-                        SourceFile(
-                            "dada_tests/heap-graph/line-end.dada",
-                        ),
-                        0,
-                    ),
-                    Expr(0),
+        start_point: ControlPoint(1),
+        ControlPoint(1): Statement(
+            Noop,
+            ControlPoint(2),
+        ),
+        ControlPoint(2): Statement(
+            BreakpoingStart(
+                SourceFile(
+                    "dada_tests/heap-graph/line-end.dada",
                 ),
-                (
-                    AssignExpr(
-                        x{0},
-                        22,
-                    ),
-                    Expr(0),
-                ),
-                (
-                    BreakpointEnd(
-                        SourceFile(
-                            "dada_tests/heap-graph/line-end.dada",
-                        ),
-                        0,
-                        Expr(0),
-                        Some(
-                            x{0},
-                        ),
-                    ),
-                    Expr(0),
-                ),
-                (
-                    AssignExpr(
-                        y{1},
-                        44,
-                    ),
-                    Expr(2),
-                ),
-                (
-                    AssignExpr(
-                        temp{2},
-                        (),
-                    ),
-                    Expr(4),
-                ),
-            ],
-            Return(
-                temp{2},
+                0,
             ),
+            ControlPoint(3),
+        ),
+        ControlPoint(3): Statement(
+            AssignExpr(
+                x{0},
+                22,
+            ),
+            ControlPoint(4),
+        ),
+        ControlPoint(4): Statement(
+            BreakpointEnd(
+                SourceFile(
+                    "dada_tests/heap-graph/line-end.dada",
+                ),
+                0,
+                Expr(0),
+                Some(
+                    x{0},
+                ),
+            ),
+            ControlPoint(5),
+        ),
+        ControlPoint(5): Statement(
+            AssignExpr(
+                y{1},
+                44,
+            ),
+            ControlPoint(6),
+        ),
+        ControlPoint(6): Statement(
+            AssignExpr(
+                temp{2},
+                (),
+            ),
+            ControlPoint(7),
+        ),
+        ControlPoint(7): Return(
+            temp{2},
         ),
     },
 ]

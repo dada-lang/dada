@@ -1,180 +1,180 @@
 [
     bir::Bir {
-        start_basic_block: BasicBlock(0),
-        BasicBlock(0): BasicBlockData(
-            [
-                (
-                    BreakpoingStart(
-                        SourceFile(
-                            "dada_tests/heap-graph/tutorial-1.dada",
-                        ),
-                        0,
-                    ),
-                    Expr(4),
-                ),
-                (
-                    AssignExpr(
-                        temp{2},
-                        Class(Id { value: 1 }).share,
-                    ),
-                    Expr(0),
-                ),
-                (
-                    AssignExpr(
-                        temp{3},
-                        22,
-                    ),
-                    Expr(1),
-                ),
-                (
-                    AssignExpr(
-                        temp{4},
-                        44,
-                    ),
-                    Expr(2),
-                ),
-            ],
-            Assign(
-                p{0},
-                Call(
-                    temp{2},
-                    [
-                        temp{3},
-                        temp{4},
-                    ],
-                    [
-                        Some(
-                            "x",
-                        ),
-                        Some(
-                            "y",
-                        ),
-                    ],
-                ),
-                BasicBlock(1),
-            ),
+        start_point: ControlPoint(1),
+        ControlPoint(1): Statement(
+            Noop,
+            ControlPoint(2),
         ),
-        BasicBlock(1): BasicBlockData(
-            [
-                (
-                    Clear(
-                        temp{4},
-                    ),
-                    Expr(2),
+        ControlPoint(2): Statement(
+            BreakpoingStart(
+                SourceFile(
+                    "dada_tests/heap-graph/tutorial-1.dada",
                 ),
-                (
-                    Clear(
-                        temp{3},
+                0,
+            ),
+            ControlPoint(3),
+        ),
+        ControlPoint(3): Statement(
+            AssignExpr(
+                temp{2},
+                Class(Id { value: 1 }).share,
+            ),
+            ControlPoint(4),
+        ),
+        ControlPoint(4): Statement(
+            AssignExpr(
+                temp{3},
+                22,
+            ),
+            ControlPoint(5),
+        ),
+        ControlPoint(5): Statement(
+            AssignExpr(
+                temp{4},
+                44,
+            ),
+            ControlPoint(7),
+        ),
+        ControlPoint(6): Statement(
+            Noop,
+            ControlPoint(8),
+        ),
+        ControlPoint(7): Assign(
+            p{0},
+            Call(
+                temp{2},
+                [
+                    temp{3},
+                    temp{4},
+                ],
+                [
+                    Some(
+                        "x",
                     ),
-                    Expr(1),
-                ),
-                (
-                    Clear(
-                        temp{2},
+                    Some(
+                        "y",
                     ),
-                    Expr(0),
+                ],
+            ),
+            ControlPoint(6),
+        ),
+        ControlPoint(8): Statement(
+            Clear(
+                temp{4},
+            ),
+            ControlPoint(9),
+        ),
+        ControlPoint(9): Statement(
+            Clear(
+                temp{3},
+            ),
+            ControlPoint(10),
+        ),
+        ControlPoint(10): Statement(
+            Clear(
+                temp{2},
+            ),
+            ControlPoint(11),
+        ),
+        ControlPoint(11): Statement(
+            BreakpointEnd(
+                SourceFile(
+                    "dada_tests/heap-graph/tutorial-1.dada",
                 ),
-                (
-                    BreakpointEnd(
-                        SourceFile(
-                            "dada_tests/heap-graph/tutorial-1.dada",
-                        ),
-                        0,
-                        Expr(4),
-                        None,
-                    ),
-                    Expr(4),
-                ),
-                (
-                    AssignExpr(
-                        temp{7},
-                        Print.share,
-                    ),
-                    Expr(5),
-                ),
-                (
-                    AssignExpr(
-                        temp{9},
-                        "The point is FIXME",
-                    ),
-                    Expr(6),
-                ),
-                (
-                    AssignExpr(
-                        temp{8},
-                        Concatenate(temp{9}),
-                    ),
-                    Expr(7),
-                ),
-                (
-                    Clear(
-                        temp{9},
-                    ),
-                    Expr(6),
-                ),
-            ],
-            Assign(
+                0,
+                Expr(4),
+                None,
+            ),
+            ControlPoint(12),
+        ),
+        ControlPoint(12): Statement(
+            AssignExpr(
+                temp{7},
+                Print.share,
+            ),
+            ControlPoint(13),
+        ),
+        ControlPoint(13): Statement(
+            AssignExpr(
+                temp{9},
+                "The point is FIXME",
+            ),
+            ControlPoint(14),
+        ),
+        ControlPoint(14): Statement(
+            AssignExpr(
+                temp{8},
+                Concatenate(temp{9}),
+            ),
+            ControlPoint(15),
+        ),
+        ControlPoint(15): Statement(
+            Clear(
+                temp{9},
+            ),
+            ControlPoint(17),
+        ),
+        ControlPoint(16): Statement(
+            Noop,
+            ControlPoint(18),
+        ),
+        ControlPoint(17): Assign(
+            temp{6},
+            Call(
+                temp{7},
+                [
+                    temp{8},
+                ],
+                [
+                    None,
+                ],
+            ),
+            ControlPoint(16),
+        ),
+        ControlPoint(18): Statement(
+            Clear(
+                temp{8},
+            ),
+            ControlPoint(19),
+        ),
+        ControlPoint(19): Statement(
+            Clear(
+                temp{7},
+            ),
+            ControlPoint(21),
+        ),
+        ControlPoint(20): Statement(
+            Noop,
+            ControlPoint(22),
+        ),
+        ControlPoint(21): Assign(
+            temp{5},
+            Await(
                 temp{6},
-                Call(
-                    temp{7},
-                    [
-                        temp{8},
-                    ],
-                    [
-                        None,
-                    ],
-                ),
-                BasicBlock(2),
             ),
+            ControlPoint(20),
         ),
-        BasicBlock(2): BasicBlockData(
-            [
-                (
-                    Clear(
-                        temp{8},
-                    ),
-                    Expr(7),
-                ),
-                (
-                    Clear(
-                        temp{7},
-                    ),
-                    Expr(5),
-                ),
-            ],
-            Assign(
+        ControlPoint(22): Statement(
+            Clear(
+                temp{6},
+            ),
+            ControlPoint(23),
+        ),
+        ControlPoint(23): Statement(
+            Clear(
                 temp{5},
-                Await(
-                    temp{6},
-                ),
-                BasicBlock(3),
             ),
+            ControlPoint(24),
         ),
-        BasicBlock(3): BasicBlockData(
-            [
-                (
-                    Clear(
-                        temp{6},
-                    ),
-                    Expr(8),
-                ),
-                (
-                    Clear(
-                        temp{5},
-                    ),
-                    Expr(9),
-                ),
-                (
-                    AssignExpr(
-                        temp{1},
-                        (),
-                    ),
-                    Expr(10),
-                ),
-            ],
-            Return(
+        ControlPoint(24): Statement(
+            AssignExpr(
                 temp{1},
+                (),
             ),
+            ControlPoint(25),
+        ),
+        ControlPoint(25): Return(
+            temp{1},
         ),
     },
 ]
