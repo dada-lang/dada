@@ -176,8 +176,8 @@ impl<'me> Stepper<'me> {
             statement.data(table).debug(&bir.in_ir_db(self.db))
         );
 
-        match statement.data(table) {
-            bir::StatementData::AssignExpr(place, expr) => {
+        match &statement.data(table).action {
+            bir::ActionData::AssignExpr(place, expr) => {
                 // Subtle: The way this is setup, permissions for the target are not
                 // canceled until the write occurs. Consider something like this:
                 //
@@ -191,12 +191,12 @@ impl<'me> Stepper<'me> {
                 let value = self.eval_expr(table, *expr)?;
                 self.assign_value_to_place(table, *place, value)?;
             }
-            bir::StatementData::Clear(lv) => {
+            bir::ActionData::Clear(lv) => {
                 let permission = self.machine.expired_permission(None);
                 let object = self.machine.unit_object();
                 *self.machine.local_mut(*lv) = Value { object, permission };
             }
-            bir::StatementData::BreakpointStart(input_file, index) => {
+            bir::ActionData::BreakpointStart(input_file, index) => {
                 let kernel = self.kernel.take().unwrap();
                 let result = kernel.breakpoint_start(self.db, *input_file, *index, &mut || {
                     HeapGraph::new(self.db, self.machine, None)
@@ -204,7 +204,7 @@ impl<'me> Stepper<'me> {
                 self.kernel = Some(kernel);
                 result?
             }
-            bir::StatementData::BreakpointEnd(input_file, index, expr, in_flight_place) => {
+            bir::ActionData::BreakpointEnd(input_file, index, expr, in_flight_place) => {
                 let span = self.span_from_syntax_expr(*expr);
                 let kernel = self.kernel.take().unwrap();
                 let result = kernel.breakpoint_end(self.db, *input_file, *index, span, &mut || {
