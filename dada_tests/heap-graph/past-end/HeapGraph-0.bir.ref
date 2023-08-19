@@ -1,98 +1,98 @@
 [
     bir::Bir {
-        start_basic_block: BasicBlock(0),
-        BasicBlock(0): BasicBlockData(
-            [
-                (
-                    AssignExpr(
-                        temp{3},
-                        Print.share,
-                    ),
-                    Expr(0),
-                ),
-                (
-                    AssignExpr(
-                        temp{5},
-                        "I have forced myself to contradict myself\nin order to avoid conforming to my own taste.\n  -- Marcel Duchamp",
-                    ),
-                    Expr(1),
-                ),
-                (
-                    AssignExpr(
-                        temp{4},
-                        Concatenate(temp{5}),
-                    ),
-                    Expr(2),
-                ),
-                (
-                    Clear(
-                        temp{5},
-                    ),
-                    Expr(1),
-                ),
-            ],
-            Assign(
+        start_point: ControlPoint(1),
+        ControlPoint(1): Statement(
+            Noop,
+            ControlPoint(2),
+        ),
+        ControlPoint(2): Statement(
+            AssignExpr(
+                temp{3},
+                Print.share,
+            ),
+            ControlPoint(3),
+        ),
+        ControlPoint(3): Statement(
+            AssignExpr(
+                temp{5},
+                "I have forced myself to contradict myself\nin order to avoid conforming to my own taste.\n  -- Marcel Duchamp",
+            ),
+            ControlPoint(4),
+        ),
+        ControlPoint(4): Statement(
+            AssignExpr(
+                temp{4},
+                Concatenate(temp{5}),
+            ),
+            ControlPoint(5),
+        ),
+        ControlPoint(5): Statement(
+            Clear(
+                temp{5},
+            ),
+            ControlPoint(7),
+        ),
+        ControlPoint(6): Statement(
+            Noop,
+            ControlPoint(8),
+        ),
+        ControlPoint(7): Assign(
+            temp{2},
+            Call(
+                temp{3},
+                [
+                    temp{4},
+                ],
+                [
+                    None,
+                ],
+            ),
+            ControlPoint(6),
+        ),
+        ControlPoint(8): Statement(
+            Clear(
+                temp{4},
+            ),
+            ControlPoint(9),
+        ),
+        ControlPoint(9): Statement(
+            Clear(
+                temp{3},
+            ),
+            ControlPoint(11),
+        ),
+        ControlPoint(10): Statement(
+            Noop,
+            ControlPoint(12),
+        ),
+        ControlPoint(11): Assign(
+            temp{1},
+            Await(
                 temp{2},
-                Call(
-                    temp{3},
-                    [
-                        temp{4},
-                    ],
-                    [
-                        None,
-                    ],
-                ),
-                BasicBlock(1),
             ),
+            ControlPoint(10),
         ),
-        BasicBlock(1): BasicBlockData(
-            [
-                (
-                    Clear(
-                        temp{4},
-                    ),
-                    Expr(2),
-                ),
-                (
-                    Clear(
-                        temp{3},
-                    ),
-                    Expr(0),
-                ),
-            ],
-            Assign(
+        ControlPoint(12): Statement(
+            Clear(
+                temp{2},
+            ),
+            ControlPoint(13),
+        ),
+        ControlPoint(13): Statement(
+            Clear(
                 temp{1},
-                Await(
-                    temp{2},
-                ),
-                BasicBlock(2),
             ),
+            ControlPoint(14),
         ),
-        BasicBlock(2): BasicBlockData(
-            [
-                (
-                    Clear(
-                        temp{2},
-                    ),
-                    Expr(3),
-                ),
-                (
-                    Clear(
-                        temp{1},
-                    ),
-                    Expr(4),
-                ),
-                (
-                    AssignExpr(
-                        temp{0},
-                        (),
-                    ),
-                    Expr(5),
-                ),
-            ],
-            Return(
+        ControlPoint(14): Statement(
+            AssignExpr(
                 temp{0},
+                (),
             ),
+            ControlPoint(15),
+        ),
+        ControlPoint(15): Return(
+            temp{0},
         ),
     },
 ]

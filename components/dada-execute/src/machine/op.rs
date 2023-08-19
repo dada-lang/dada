@@ -106,8 +106,7 @@ impl MachineOp for Machine {
         self.stack.frames.push(Frame {
             pc: ProgramCounter {
                 bir,
-                basic_block: bir_data.start_basic_block,
-                statement: 0,
+                control_point: bir_data.start_point,
             },
             locals,
             expected_return_ty,

@@ -1,6 +1,8 @@
 //! The "bir" (pronounced "beer") is the "base ir" that we use
 //! for interpretation.
 
+use std::collections::BTreeSet;
+
 use crate::{
     class::Class,
     code::validated::op::Op,
@@ -30,7 +32,7 @@ pub struct Bir {
     /// Syntax tree from which this Bir was created.
     syntax_tree: syntax::Tree,
 
-    /// The BIR data
+    /// The BIR bir
     #[return_ref]
     data: BirData,
 
@@ -83,20 +85,17 @@ pub struct BirData {
     /// First N local variables are the parameters.
     pub num_parameters: usize,
 
-    /// The starting block
-    pub start_basic_block: BasicBlock,
+    /// The starting point in the control flow
+    pub start_point: ControlPoint,
 }
 
 impl DebugWithDb<InIrDb<'_, Bir>> for BirData {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>, db: &InIrDb<'_, Bir>) -> std::fmt::Result {
         let mut dbg = f.debug_struct("bir::Bir");
-        dbg.field("start_basic_block", &self.start_basic_block);
+        dbg.field("start_point", &self.start_point);
 
-        for basic_block in self.all_basic_blocks() {
-            dbg.field(
-                &format!("{basic_block:?}"),
-                &basic_block.data(db.tables()).debug(db),
-            );
+        for cp in self.control_points() {
+            dbg.field(&format!("{cp:?}"), &cp.data(&self.tables).debug(db));
         }
 
         dbg.finish()
@@ -104,11 +103,11 @@ impl DebugWithDb<InIrDb<'_, Bir>> for BirData {
 }
 
 impl BirData {
-    pub fn new(tables: Tables, num_parameters: usize, start_basic_block: BasicBlock) -> Self {
+    pub fn new(tables: Tables, num_parameters: usize, start_point: ControlPoint) -> Self {
         Self {
             tables,
             num_parameters,
-            start_basic_block,
+            start_point,
         }
     }
 
@@ -128,24 +127,27 @@ impl BirData {
         LocalVariable::max_key(&self.tables)
     }
 
-    pub fn max_basic_block(&self) -> BasicBlock {
-        BasicBlock::max_key(&self.tables)
-    }
+    pub fn control_points(&self) -> BTreeSet<ControlPoint> {
+        let mut points = BTreeSet::new();
+        let mut stack = vec![self.start_point];
 
-    pub fn all_basic_blocks(&self) -> impl Iterator<Item = BasicBlock> {
-        self.max_basic_block().iter()
+        while let Some(p) = stack.pop() {
+            if points.insert(p) {
+                stack.extend(p.successors(self));
+            }
+        }
+
+        points
     }
 }
 
 tables! {
-    /// Tables that store the data for expr in the AST.
-    /// You can use `tables[expr]` (etc) to access the data.
+    /// Tables that store the bir for expr in the AST.
+    /// You can use `tables[expr]` (etc) to access the bir.
     #[derive(Clone, Debug, PartialEq, Eq)]
     pub struct Tables {
         local_variables: alloc LocalVariable => LocalVariableData,
-        basic_blocks: alloc BasicBlock => BasicBlockData,
-        statements: alloc Statement => StatementData,
-        terminators: alloc Terminator => TerminatorData,
+        control_points: alloc ControlPoint => ControlPointData,
         exprs: alloc Expr => ExprData,
         places: alloc Place => PlaceData,
         target_places: alloc TargetPlace => TargetPlaceData,
@@ -162,13 +164,48 @@ origin_table! {
     #[derive(Clone, Debug, Default, PartialEq, Eq, Hash)]
     pub struct Origins {
         local_variables: LocalVariable => validated::LocalVariableOrigin,
-        basic_blocks: BasicBlock => syntax::Expr,
-        statements: Statement => syntax::Expr,
-        terminator: Terminator => syntax::Expr,
+        control_points: ControlPoint => syntax::Expr,
         expr: Expr => syntax::Expr,
         place: Place => syntax::Expr,
         target_place: TargetPlace => syntax::Expr,
         name: Name => syntax::Name,
+    }
+}
+
+id!(
+    /// A *control point* is a point in the control-flow graph;
+    /// it can be either a [`Statement`][] (which has a single successor)
+    /// or a [`Terminator`][] (which has a custom set of successors).
+    pub struct ControlPoint
+);
+
+impl DebugWithDb<InIrDb<'_, Bir>> for ControlPoint {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>, _db: &InIrDb<'_, Bir>) -> std::fmt::Result {
+        write!(f, "ControlPoint({})", u32::from(*self))
+    }
+}
+
+impl ControlPoint {
+    pub fn successors(&self, bir_data: &BirData) -> Vec<ControlPoint> {
+        match self.data(&bir_data.tables) {
+            ControlPointData::Statement(s) => vec![s.next],
+            ControlPointData::Terminator(t) => t.successors(),
+        }
+    }
+}
+
+#[derive(PartialEq, Eq, Clone, Hash, Debug)]
+pub enum ControlPointData {
+    Statement(StatementData),
+    Terminator(TerminatorData),
+}
+
+impl DebugWithDb<InIrDb<'_, Bir>> for ControlPointData {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>, db: &InIrDb<'_, Bir>) -> std::fmt::Result {
+        match self {
+            ControlPointData::Statement(s) => s.fmt(f, db),
+            ControlPointData::Terminator(t) => t.fmt(f, db),
+        }
     }
 }
 
@@ -177,8 +214,8 @@ id!(pub struct LocalVariable);
 impl DebugWithDb<InIrDb<'_, Bir>> for LocalVariable {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>, db: &InIrDb<'_, Bir>) -> std::fmt::Result {
         let id = u32::from(*self);
-        let data = self.data(db.tables());
-        let name = data.name.map(|n| n.as_str(db.db())).unwrap_or("temp");
+        let bir = self.data(db.tables());
+        let name = bir.name.map(|n| n.as_str(db.db())).unwrap_or("temp");
         write!(f, "{name}{{{id}}}")
     }
 }
@@ -193,77 +230,27 @@ pub struct LocalVariableData {
     pub atomic: Atomic,
 }
 
-id!(pub struct BasicBlock);
-
-impl<Db: ?Sized> DebugWithDb<Db> for BasicBlock {
-    fn fmt(&self, f: &mut std::fmt::Formatter<'_>, _db: &Db) -> std::fmt::Result {
-        std::fmt::Debug::fmt(self, f)
-    }
-}
-
-#[derive(PartialEq, Eq, Clone, Hash, Debug)]
-pub struct BasicBlockData {
-    pub statements: Vec<Statement>,
-    pub terminator: Terminator,
-}
-
-impl BasicBlockData {
-    /// Number of "elements" in this block, including the terminator.
-    pub fn elements(&self) -> usize {
-        self.statements.len() + 1
-    }
-
-    /// Get a particular "element" in this block (either a statement or a terminator).
-    pub fn element_at(&self, index: usize) -> BasicBlockElement {
-        if index < self.statements.len() {
-            BasicBlockElement::Statement(self.statements[index])
-        } else {
-            BasicBlockElement::Terminator(self.terminator)
-        }
-    }
-}
-
-impl DebugWithDb<InIrDb<'_, Bir>> for BasicBlockData {
-    fn fmt(&self, f: &mut std::fmt::Formatter<'_>, db: &InIrDb<'_, Bir>) -> std::fmt::Result {
-        f.debug_tuple("BasicBlockData")
-            .field(&self.statements.debug(db))
-            .field(&self.terminator.debug(db))
-            .finish()
-    }
-}
-
-/// An "element" of a basic block is a statement or terminator.
-///
-/// (In case you are curious, I made this term up, it's not standard.)
-#[derive(Debug, Copy, Clone, PartialEq, Eq, Hash)]
-pub enum BasicBlockElement {
-    Statement(Statement),
-    Terminator(Terminator),
-}
-
-id!(pub struct Statement);
-
-impl DebugWithDb<InIrDb<'_, Bir>> for Statement {
-    fn fmt(&self, f: &mut std::fmt::Formatter<'_>, db: &InIrDb<'_, Bir>) -> std::fmt::Result {
-        let origin = self.origin_in(db.origins(db.db()));
-        let result = f
-            .debug_tuple("")
-            .field(&self.data(db.tables()).debug(db))
-            .field(&origin)
-            .finish();
-        result
-    }
-}
-
+/// A *statement* is a node in the control-flow graph that performs an action
+/// and which always has exactly 1 successor; statements can either start basic blocks
+/// or be in the mid-points.
 #[derive(PartialEq, Eq, Clone, Hash, Debug)]
 pub struct StatementData {
+    /// The action to be performed at this statement.
     pub action: ActionData,
+
+    /// Next point in the control flow. During the "brewing" process,
+    /// this is initially set to a "dummy" terminator which is later overwritten
+    /// with the next statemenr or terminator.
+    pub next: ControlPoint,
 }
 
 impl DebugWithDb<InIrDb<'_, Bir>> for StatementData {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>, db: &InIrDb<'_, Bir>) -> std::fmt::Result {
-        let StatementData { action } = self;
-        action.fmt(f, db)
+        let StatementData { action, next } = self;
+        f.debug_tuple("Statement")
+            .field(&action.debug(db))
+            .field(&next.debug(db))
+            .finish()
     }
 }
 
@@ -338,24 +325,31 @@ impl DebugWithDb<InIrDb<'_, Bir>> for ActionData {
     }
 }
 
-id!(pub struct Terminator);
-
-impl DebugWithDb<InIrDb<'_, Bir>> for Terminator {
-    fn fmt(&self, f: &mut std::fmt::Formatter<'_>, db: &InIrDb<'_, Bir>) -> std::fmt::Result {
-        DebugWithDb::fmt(self.data(db.tables()), f, db)
-    }
-}
-
 #[derive(PartialEq, Eq, Clone, Hash, Debug)]
 pub enum TerminatorData {
-    Goto(BasicBlock),
-    If(Place, BasicBlock, BasicBlock),
-    StartAtomic(BasicBlock),
-    EndAtomic(BasicBlock),
+    Goto(ControlPoint),
+    If(Place, ControlPoint, ControlPoint),
+    StartAtomic(ControlPoint),
+    EndAtomic(ControlPoint),
     Return(Place),
-    Assign(TargetPlace, TerminatorExpr, BasicBlock),
+    Assign(TargetPlace, TerminatorExpr, ControlPoint),
     Error,
     Panic,
+}
+
+impl TerminatorData {
+    pub fn successors(&self) -> Vec<ControlPoint> {
+        match *self {
+            TerminatorData::Goto(c) => vec![c],
+            TerminatorData::If(_, a, b) => vec![a, b],
+            TerminatorData::StartAtomic(a) => vec![a],
+            TerminatorData::EndAtomic(a) => vec![a],
+            TerminatorData::Return(_) => vec![],
+            TerminatorData::Assign(_, _, a) => vec![a],
+            TerminatorData::Error => vec![],
+            TerminatorData::Panic => vec![],
+        }
+    }
 }
 
 impl DebugWithDb<InIrDb<'_, Bir>> for TerminatorData {

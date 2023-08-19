@@ -1,7 +1,8 @@
 use dada_id::prelude::*;
 use dada_ir::{
     code::{
-        bir, syntax,
+        bir::{self, ControlPoint},
+        syntax,
         validated::{self, ExprOrigin},
     },
     storage::Atomic,
@@ -14,13 +15,13 @@ use crate::brewery::Brewery;
 pub(crate) struct Scope<'s> {
     /// The block that we started from; may or may not be "complete"
     /// (i.e., may not yet have a terminator assigned to it).
-    start_block: bir::BasicBlock,
+    start_block: bir::ControlPoint,
 
     /// The basic block we are currently appending to; could be the
     /// same as `start_block`.
     ///
     /// If `None`, we are in a section of dead code.
-    end_block: Option<bir::BasicBlock>,
+    end_block: Option<bir::ControlPoint>,
 
     /// Reason for introducing this scope
     cause: ScopeCause,
@@ -52,8 +53,8 @@ pub(crate) enum ScopeCause {
 #[derive(Clone, Copy, Debug, PartialEq, Eq, PartialOrd, Hash)]
 pub struct LoopContext {
     pub expr: validated::Expr,
-    pub continue_block: bir::BasicBlock,
-    pub break_block: bir::BasicBlock,
+    pub continue_block: bir::ControlPoint,
+    pub break_block: bir::ControlPoint,
     pub loop_value: bir::TargetPlace,
 }
 
@@ -80,7 +81,7 @@ impl Scope<'_> {
     }
 
     /// Invoked at the end of the method, returns the start block.
-    pub(crate) fn complete(self) -> bir::BasicBlock {
+    pub(crate) fn complete(self) -> bir::ControlPoint {
         assert!(self.in_dead_code());
         assert!(matches!(self.cause, ScopeCause::Root));
         self.start_block
@@ -91,7 +92,7 @@ impl Scope<'_> {
     /// `self.end_block` in this subscope.
     pub(crate) fn subscope<'s>(
         &'s self,
-        end_block: Option<bir::BasicBlock>,
+        end_block: Option<bir::ControlPoint>,
         cause: ScopeCause,
     ) -> Scope<'s> {
         Scope {
@@ -226,18 +227,26 @@ impl Scope<'_> {
         variable: bir::LocalVariable,
         origin: ExprOrigin,
     ) {
-        let statement = brewery.add(
+        self.push_statement(
+            brewery,
             bir::StatementData {
                 action: bir::ActionData::Clear(variable),
+                next: brewery.dummy_terminator,
             },
             origin,
-        );
-        self.push_statement(brewery, statement)
+        )
     }
 
-    pub(crate) fn push_statement(&mut self, brewery: &mut Brewery<'_>, statement: bir::Statement) {
-        if let Some(end_block) = self.end_block {
-            brewery[end_block].statements.push(statement);
+    pub(crate) fn push_statement(
+        &mut self,
+        brewery: &mut Brewery<'_>,
+        statement: bir::StatementData,
+        origin: ExprOrigin,
+    ) {
+        if self.end_block.is_some() {
+            let statement = brewery.add(bir::ControlPointData::Statement(statement), origin);
+            self.set_next_field_of_end_block(brewery, statement);
+            self.end_block = Some(statement);
         }
     }
 
@@ -246,13 +255,28 @@ impl Scope<'_> {
         brewery: &mut Brewery<'_>,
         terminator_data: bir::TerminatorData,
         origin: ExprOrigin,
-        next_block: Option<bir::BasicBlock>,
+        next_block: Option<bir::ControlPoint>,
     ) {
-        if let Some(end_block) = self.end_block {
-            let terminator = brewery.add(terminator_data, origin);
-            brewery[end_block].terminator = terminator;
-            brewery[end_block].statements.shrink_to_fit();
+        if self.end_block.is_some() {
+            let terminator =
+                brewery.add(bir::ControlPointData::Terminator(terminator_data), origin);
+            self.set_next_field_of_end_block(brewery, terminator);
             self.end_block = next_block;
+        }
+    }
+
+    fn set_next_field_of_end_block(&mut self, brewery: &mut Brewery<'_>, next: ControlPoint) {
+        if let Some(end_block) = self.end_block {
+            let dummy_terminator = brewery.dummy_terminator;
+            match &mut brewery[end_block] {
+                bir::ControlPointData::Statement(data) => {
+                    assert_eq!(data.next, dummy_terminator);
+                    data.next = next;
+                }
+                bir::ControlPointData::Terminator(_) => {
+                    panic!("end block can never be a terminator")
+                }
+            }
         }
     }
 
@@ -268,9 +292,9 @@ impl Scope<'_> {
     pub(crate) fn terminate_and_continue(
         &mut self,
         brewery: &mut Brewery<'_>,
-        terminator_data: impl FnOnce(bir::BasicBlock) -> bir::TerminatorData,
+        terminator_data: impl FnOnce(bir::ControlPoint) -> bir::TerminatorData,
         origin: ExprOrigin,
-    ) -> bir::BasicBlock {
+    ) -> bir::ControlPoint {
         let next_block = brewery.dummy_block(origin);
         let terminator_data = terminator_data(next_block);
         self.terminate(brewery, terminator_data, origin, Some(next_block));
@@ -286,13 +310,14 @@ impl Scope<'_> {
     ) {
         if self.end_block.is_some() {
             let value = brewery.add(value, origin);
-            let statement = brewery.add(
+            self.push_statement(
+                brewery,
                 bir::StatementData {
                     action: bir::ActionData::AssignExpr(target, value),
+                    next: brewery.dummy_terminator,
                 },
                 origin,
             );
-            self.push_statement(brewery, statement);
         }
     }
 
@@ -320,13 +345,14 @@ impl Scope<'_> {
         if !origin.synthesized && self.end_block.is_some() {
             if let Some(breakpoint_index) = brewery.expr_is_breakpoint(origin.syntax_expr) {
                 let input_file = brewery.input_file();
-                let statement = brewery.add(
+                self.push_statement(
+                    brewery,
                     bir::StatementData {
                         action: bir::ActionData::BreakpointStart(input_file, breakpoint_index),
+                        next: brewery.dummy_terminator,
                     },
                     origin,
                 );
-                self.push_statement(brewery, statement);
             }
         }
     }
@@ -371,7 +397,8 @@ impl Scope<'_> {
         if !origin.synthesized && self.end_block.is_some() {
             if let Some(breakpoint_index) = brewery.expr_is_breakpoint(origin.syntax_expr) {
                 let input_file = brewery.input_file();
-                let statement = brewery.add(
+                self.push_statement(
+                    brewery,
                     bir::StatementData {
                         action: bir::ActionData::BreakpointEnd(
                             input_file,
@@ -379,10 +406,10 @@ impl Scope<'_> {
                             expr,
                             place,
                         ),
+                        next: brewery.dummy_terminator,
                     },
                     origin,
                 );
-                self.push_statement(brewery, statement);
             }
         }
     }
@@ -390,7 +417,7 @@ impl Scope<'_> {
     pub(crate) fn terminate_and_goto(
         &mut self,
         brewery: &mut Brewery<'_>,
-        target: bir::BasicBlock,
+        target: bir::ControlPoint,
         origin: ExprOrigin,
     ) {
         self.terminate_and_diverge(brewery, bir::TerminatorData::Goto(target), origin);

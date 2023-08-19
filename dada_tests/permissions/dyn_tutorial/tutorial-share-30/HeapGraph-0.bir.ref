@@ -1,130 +1,130 @@
 [
     bir::Bir {
-        start_basic_block: BasicBlock(0),
-        BasicBlock(0): BasicBlockData(
-            [
-                (
-                    BreakpoingStart(
-                        SourceFile(
-                            "dada_tests/permissions/dyn_tutorial/tutorial-share-30.dada",
-                        ),
-                        0,
-                    ),
-                    Expr(11),
-                ),
-                (
-                    AssignExpr(
-                        temp{5},
-                        Class(Id { value: 1 }).share,
-                    ),
-                    Expr(0),
-                ),
-                (
-                    AssignExpr(
-                        temp{6},
-                        22,
-                    ),
-                    Expr(1),
-                ),
-                (
-                    AssignExpr(
-                        temp{7},
-                        44,
-                    ),
-                    Expr(2),
-                ),
-            ],
-            Assign(
-                temp{4},
-                Call(
-                    temp{5},
-                    [
-                        temp{6},
-                        temp{7},
-                    ],
-                    [
-                        Some(
-                            "x",
-                        ),
-                        Some(
-                            "y",
-                        ),
-                    ],
-                ),
-                BasicBlock(1),
-            ),
+        start_point: ControlPoint(1),
+        ControlPoint(1): Statement(
+            Noop,
+            ControlPoint(2),
         ),
-        BasicBlock(1): BasicBlockData(
-            [
-                (
-                    Clear(
-                        temp{7},
-                    ),
-                    Expr(2),
+        ControlPoint(2): Statement(
+            BreakpoingStart(
+                SourceFile(
+                    "dada_tests/permissions/dyn_tutorial/tutorial-share-30.dada",
                 ),
-                (
-                    Clear(
-                        temp{6},
-                    ),
-                    Expr(1),
-                ),
-                (
-                    Clear(
-                        temp{5},
-                    ),
-                    Expr(0),
-                ),
-                (
-                    AssignExpr(
-                        p{0},
-                        temp{4}.share,
-                    ),
-                    Expr(4),
-                ),
-                (
-                    Clear(
-                        temp{4},
-                    ),
-                    Expr(3),
-                ),
-                (
-                    AssignExpr(
-                        q{1},
-                        p{0}.give,
-                    ),
-                    Expr(7),
-                ),
-                (
-                    AssignExpr(
-                        r{2},
-                        q{1}.share,
-                    ),
-                    Expr(9),
-                ),
-                (
-                    AssignExpr(
-                        temp{3},
-                        (),
-                    ),
-                    Expr(11),
-                ),
-                (
-                    BreakpointEnd(
-                        SourceFile(
-                            "dada_tests/permissions/dyn_tutorial/tutorial-share-30.dada",
-                        ),
-                        0,
-                        Expr(11),
-                        Some(
-                            temp{3},
-                        ),
-                    ),
-                    Expr(11),
-                ),
-            ],
-            Return(
-                temp{3},
+                0,
             ),
+            ControlPoint(3),
+        ),
+        ControlPoint(3): Statement(
+            AssignExpr(
+                temp{5},
+                Class(Id { value: 1 }).share,
+            ),
+            ControlPoint(4),
+        ),
+        ControlPoint(4): Statement(
+            AssignExpr(
+                temp{6},
+                22,
+            ),
+            ControlPoint(5),
+        ),
+        ControlPoint(5): Statement(
+            AssignExpr(
+                temp{7},
+                44,
+            ),
+            ControlPoint(7),
+        ),
+        ControlPoint(6): Statement(
+            Noop,
+            ControlPoint(8),
+        ),
+        ControlPoint(7): Assign(
+            temp{4},
+            Call(
+                temp{5},
+                [
+                    temp{6},
+                    temp{7},
+                ],
+                [
+                    Some(
+                        "x",
+                    ),
+                    Some(
+                        "y",
+                    ),
+                ],
+            ),
+            ControlPoint(6),
+        ),
+        ControlPoint(8): Statement(
+            Clear(
+                temp{7},
+            ),
+            ControlPoint(9),
+        ),
+        ControlPoint(9): Statement(
+            Clear(
+                temp{6},
+            ),
+            ControlPoint(10),
+        ),
+        ControlPoint(10): Statement(
+            Clear(
+                temp{5},
+            ),
+            ControlPoint(11),
+        ),
+        ControlPoint(11): Statement(
+            AssignExpr(
+                p{0},
+                temp{4}.share,
+            ),
+            ControlPoint(12),
+        ),
+        ControlPoint(12): Statement(
+            Clear(
+                temp{4},
+            ),
+            ControlPoint(13),
+        ),
+        ControlPoint(13): Statement(
+            AssignExpr(
+                q{1},
+                p{0}.give,
+            ),
+            ControlPoint(14),
+        ),
+        ControlPoint(14): Statement(
+            AssignExpr(
+                r{2},
+                q{1}.share,
+            ),
+            ControlPoint(15),
+        ),
+        ControlPoint(15): Statement(
+            AssignExpr(
+                temp{3},
+                (),
+            ),
+            ControlPoint(16),
+        ),
+        ControlPoint(16): Statement(
+            BreakpointEnd(
+                SourceFile(
+                    "dada_tests/permissions/dyn_tutorial/tutorial-share-30.dada",
+                ),
+                0,
+                Expr(11),
+                Some(
+                    temp{3},
+                ),
+            ),
+            ControlPoint(17),
+        ),
+        ControlPoint(17): Return(
+            temp{3},
         ),
     },
 ]

@@ -1,229 +1,229 @@
 [
     bir::Bir {
-        start_basic_block: BasicBlock(0),
-        BasicBlock(0): BasicBlockData(
-            [
-                (
-                    AssignExpr(
-                        temp{4},
-                        Class(Id { value: 1 }).share,
-                    ),
-                    Expr(0),
-                ),
-                (
-                    AssignExpr(
-                        temp{5},
-                        22,
-                    ),
-                    Expr(1),
-                ),
-                (
-                    AssignExpr(
-                        temp{6},
-                        44,
-                    ),
-                    Expr(2),
-                ),
-            ],
-            Assign(
-                p{0},
-                Call(
-                    temp{4},
-                    [
-                        temp{5},
-                        temp{6},
-                    ],
-                    [
-                        Some(
-                            "x",
-                        ),
-                        Some(
-                            "y",
-                        ),
-                    ],
-                ),
-                BasicBlock(1),
-            ),
+        start_point: ControlPoint(1),
+        ControlPoint(1): Statement(
+            Noop,
+            ControlPoint(2),
         ),
-        BasicBlock(1): BasicBlockData(
-            [
-                (
-                    Clear(
-                        temp{6},
+        ControlPoint(2): Statement(
+            AssignExpr(
+                temp{4},
+                Class(Id { value: 1 }).share,
+            ),
+            ControlPoint(3),
+        ),
+        ControlPoint(3): Statement(
+            AssignExpr(
+                temp{5},
+                22,
+            ),
+            ControlPoint(4),
+        ),
+        ControlPoint(4): Statement(
+            AssignExpr(
+                temp{6},
+                44,
+            ),
+            ControlPoint(6),
+        ),
+        ControlPoint(5): Statement(
+            Noop,
+            ControlPoint(7),
+        ),
+        ControlPoint(6): Assign(
+            p{0},
+            Call(
+                temp{4},
+                [
+                    temp{5},
+                    temp{6},
+                ],
+                [
+                    Some(
+                        "x",
                     ),
-                    Expr(2),
-                ),
-                (
-                    Clear(
-                        temp{5},
+                    Some(
+                        "y",
                     ),
-                    Expr(1),
+                ],
+            ),
+            ControlPoint(5),
+        ),
+        ControlPoint(7): Statement(
+            Clear(
+                temp{6},
+            ),
+            ControlPoint(8),
+        ),
+        ControlPoint(8): Statement(
+            Clear(
+                temp{5},
+            ),
+            ControlPoint(9),
+        ),
+        ControlPoint(9): Statement(
+            Clear(
+                temp{4},
+            ),
+            ControlPoint(10),
+        ),
+        ControlPoint(10): Statement(
+            AssignExpr(
+                q{1},
+                p{0}.lease,
+            ),
+            ControlPoint(11),
+        ),
+        ControlPoint(11): Statement(
+            AssignExpr(
+                temp{8},
+                q{1}.x.give,
+            ),
+            ControlPoint(12),
+        ),
+        ControlPoint(12): Statement(
+            BreakpoingStart(
+                SourceFile(
+                    "dada_tests/permissions/dyn_tutorial/tutorial-lease-10.dada",
                 ),
-                (
-                    Clear(
-                        temp{4},
-                    ),
-                    Expr(0),
+                0,
+            ),
+            ControlPoint(13),
+        ),
+        ControlPoint(13): Statement(
+            AssignExpr(
+                temp{9},
+                1,
+            ),
+            ControlPoint(14),
+        ),
+        ControlPoint(14): Statement(
+            BreakpointEnd(
+                SourceFile(
+                    "dada_tests/permissions/dyn_tutorial/tutorial-lease-10.dada",
                 ),
-                (
-                    AssignExpr(
-                        q{1},
-                        p{0}.lease,
-                    ),
-                    Expr(6),
+                0,
+                Expr(10),
+                Some(
+                    temp{9},
                 ),
-                (
-                    AssignExpr(
-                        temp{8},
-                        q{1}.x.give,
-                    ),
-                    Expr(9),
-                ),
-                (
-                    BreakpoingStart(
-                        SourceFile(
-                            "dada_tests/permissions/dyn_tutorial/tutorial-lease-10.dada",
-                        ),
-                        0,
-                    ),
-                    Expr(10),
-                ),
-                (
-                    AssignExpr(
-                        temp{9},
-                        1,
-                    ),
-                    Expr(10),
-                ),
-                (
-                    BreakpointEnd(
-                        SourceFile(
-                            "dada_tests/permissions/dyn_tutorial/tutorial-lease-10.dada",
-                        ),
-                        0,
-                        Expr(10),
-                        Some(
-                            temp{9},
-                        ),
-                    ),
-                    Expr(10),
-                ),
-                (
-                    AssignExpr(
-                        temp{2},
-                        temp{8} + temp{9},
-                    ),
-                    Expr(11),
-                ),
-                (
-                    Clear(
-                        temp{9},
-                    ),
-                    Expr(10),
-                ),
-                (
-                    Clear(
-                        temp{8},
-                    ),
-                    Expr(9),
-                ),
-                (
-                    AssignExpr(
-                        q{1}.x,
-                        temp{2}.give,
-                    ),
-                    Expr(11),
-                ),
-                (
-                    AssignExpr(
-                        temp{7},
-                        (),
-                    ),
-                    Expr(11),
-                ),
-                (
-                    Clear(
-                        temp{7},
-                    ),
-                    Expr(11),
-                ),
-                (
-                    AssignExpr(
-                        temp{12},
-                        Print.share,
-                    ),
-                    Expr(12),
-                ),
-                (
-                    AssignExpr(
-                        temp{13},
-                        p{0}.x.share,
-                    ),
-                    Expr(14),
-                ),
-            ],
-            Assign(
+            ),
+            ControlPoint(15),
+        ),
+        ControlPoint(15): Statement(
+            AssignExpr(
+                temp{2},
+                temp{8} + temp{9},
+            ),
+            ControlPoint(16),
+        ),
+        ControlPoint(16): Statement(
+            Clear(
+                temp{9},
+            ),
+            ControlPoint(17),
+        ),
+        ControlPoint(17): Statement(
+            Clear(
+                temp{8},
+            ),
+            ControlPoint(18),
+        ),
+        ControlPoint(18): Statement(
+            AssignExpr(
+                q{1}.x,
+                temp{2}.give,
+            ),
+            ControlPoint(19),
+        ),
+        ControlPoint(19): Statement(
+            AssignExpr(
+                temp{7},
+                (),
+            ),
+            ControlPoint(20),
+        ),
+        ControlPoint(20): Statement(
+            Clear(
+                temp{7},
+            ),
+            ControlPoint(21),
+        ),
+        ControlPoint(21): Statement(
+            AssignExpr(
+                temp{12},
+                Print.share,
+            ),
+            ControlPoint(22),
+        ),
+        ControlPoint(22): Statement(
+            AssignExpr(
+                temp{13},
+                p{0}.x.share,
+            ),
+            ControlPoint(24),
+        ),
+        ControlPoint(23): Statement(
+            Noop,
+            ControlPoint(25),
+        ),
+        ControlPoint(24): Assign(
+            temp{11},
+            Call(
+                temp{12},
+                [
+                    temp{13},
+                ],
+                [
+                    None,
+                ],
+            ),
+            ControlPoint(23),
+        ),
+        ControlPoint(25): Statement(
+            Clear(
+                temp{13},
+            ),
+            ControlPoint(26),
+        ),
+        ControlPoint(26): Statement(
+            Clear(
+                temp{12},
+            ),
+            ControlPoint(28),
+        ),
+        ControlPoint(27): Statement(
+            Noop,
+            ControlPoint(29),
+        ),
+        ControlPoint(28): Assign(
+            temp{10},
+            Await(
                 temp{11},
-                Call(
-                    temp{12},
-                    [
-                        temp{13},
-                    ],
-                    [
-                        None,
-                    ],
-                ),
-                BasicBlock(2),
             ),
+            ControlPoint(27),
         ),
-        BasicBlock(2): BasicBlockData(
-            [
-                (
-                    Clear(
-                        temp{13},
-                    ),
-                    Expr(14),
-                ),
-                (
-                    Clear(
-                        temp{12},
-                    ),
-                    Expr(12),
-                ),
-            ],
-            Assign(
+        ControlPoint(29): Statement(
+            Clear(
+                temp{11},
+            ),
+            ControlPoint(30),
+        ),
+        ControlPoint(30): Statement(
+            Clear(
                 temp{10},
-                Await(
-                    temp{11},
-                ),
-                BasicBlock(3),
             ),
+            ControlPoint(31),
         ),
-        BasicBlock(3): BasicBlockData(
-            [
-                (
-                    Clear(
-                        temp{11},
-                    ),
-                    Expr(15),
-                ),
-                (
-                    Clear(
-                        temp{10},
-                    ),
-                    Expr(16),
-                ),
-                (
-                    AssignExpr(
-                        temp{3},
-                        (),
-                    ),
-                    Expr(17),
-                ),
-            ],
-            Return(
+        ControlPoint(31): Statement(
+            AssignExpr(
                 temp{3},
+                (),
             ),
+            ControlPoint(32),
+        ),
+        ControlPoint(32): Return(
+            temp{3},
         ),
     },
 ]
