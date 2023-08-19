@@ -226,7 +226,12 @@ impl Scope<'_> {
         variable: bir::LocalVariable,
         origin: ExprOrigin,
     ) {
-        let statement = brewery.add(bir::StatementData::Clear(variable), origin);
+        let statement = brewery.add(
+            bir::StatementData {
+                action: bir::ActionData::Clear(variable),
+            },
+            origin,
+        );
         self.push_statement(brewery, statement)
     }
 
@@ -281,7 +286,12 @@ impl Scope<'_> {
     ) {
         if self.end_block.is_some() {
             let value = brewery.add(value, origin);
-            let statement = brewery.add(bir::StatementData::AssignExpr(target, value), origin);
+            let statement = brewery.add(
+                bir::StatementData {
+                    action: bir::ActionData::AssignExpr(target, value),
+                },
+                origin,
+            );
             self.push_statement(brewery, statement);
         }
     }
@@ -311,7 +321,9 @@ impl Scope<'_> {
             if let Some(breakpoint_index) = brewery.expr_is_breakpoint(origin.syntax_expr) {
                 let input_file = brewery.input_file();
                 let statement = brewery.add(
-                    bir::StatementData::BreakpointStart(input_file, breakpoint_index),
+                    bir::StatementData {
+                        action: bir::ActionData::BreakpointStart(input_file, breakpoint_index),
+                    },
                     origin,
                 );
                 self.push_statement(brewery, statement);
@@ -360,7 +372,14 @@ impl Scope<'_> {
             if let Some(breakpoint_index) = brewery.expr_is_breakpoint(origin.syntax_expr) {
                 let input_file = brewery.input_file();
                 let statement = brewery.add(
-                    bir::StatementData::BreakpointEnd(input_file, breakpoint_index, expr, place),
+                    bir::StatementData {
+                        action: bir::ActionData::BreakpointEnd(
+                            input_file,
+                            breakpoint_index,
+                            expr,
+                            place,
+                        ),
+                    },
                     origin,
                 );
                 self.push_statement(brewery, statement);

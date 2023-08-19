@@ -256,7 +256,19 @@ impl DebugWithDb<InIrDb<'_, Bir>> for Statement {
 }
 
 #[derive(PartialEq, Eq, Clone, Hash, Debug)]
-pub enum StatementData {
+pub struct StatementData {
+    pub action: ActionData,
+}
+
+impl DebugWithDb<InIrDb<'_, Bir>> for StatementData {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>, db: &InIrDb<'_, Bir>) -> std::fmt::Result {
+        let StatementData { action } = self;
+        action.fmt(f, db)
+    }
+}
+
+#[derive(PartialEq, Eq, Clone, Hash, Debug)]
+pub enum ActionData {
     /// Assign the result of evaluating an expression to a place.
     /// This is the preferred form of assignment, and covers
     /// cases like `a := b` as well as `a := 22`. In these case, either
@@ -293,24 +305,24 @@ pub enum StatementData {
     BreakpointEnd(InputFile, usize, syntax::Expr, Option<Place>),
 }
 
-impl DebugWithDb<InIrDb<'_, Bir>> for StatementData {
+impl DebugWithDb<InIrDb<'_, Bir>> for ActionData {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>, db: &InIrDb<'_, Bir>) -> std::fmt::Result {
         match self {
-            StatementData::AssignExpr(place, expr) => f
+            ActionData::AssignExpr(place, expr) => f
                 .debug_tuple("AssignExpr")
                 .field(&place.debug(db))
                 .field(&expr.debug(db))
                 .finish(),
 
-            StatementData::Clear(lv) => f.debug_tuple("Clear").field(&lv.debug(db)).finish(),
+            ActionData::Clear(lv) => f.debug_tuple("Clear").field(&lv.debug(db)).finish(),
 
-            StatementData::BreakpointStart(input_file, index) => f
+            ActionData::BreakpointStart(input_file, index) => f
                 .debug_tuple("BreakpoingStart")
                 .field(&input_file.debug(db.db()))
                 .field(index)
                 .finish(),
 
-            StatementData::BreakpointEnd(input_file, index, e, p) => f
+            ActionData::BreakpointEnd(input_file, index, e, p) => f
                 .debug_tuple("BreakpointEnd")
                 .field(&input_file.debug(db.db()))
                 .field(index)
