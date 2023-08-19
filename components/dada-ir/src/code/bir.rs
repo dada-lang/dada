@@ -269,6 +269,9 @@ impl DebugWithDb<InIrDb<'_, Bir>> for StatementData {
 
 #[derive(PartialEq, Eq, Clone, Hash, Debug)]
 pub enum ActionData {
+    /// No action. Created during construction.
+    Noop,
+
     /// Assign the result of evaluating an expression to a place.
     /// This is the preferred form of assignment, and covers
     /// cases like `a := b` as well as `a := 22`. In these case, either
@@ -308,6 +311,8 @@ pub enum ActionData {
 impl DebugWithDb<InIrDb<'_, Bir>> for ActionData {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>, db: &InIrDb<'_, Bir>) -> std::fmt::Result {
         match self {
+            ActionData::Noop => f.debug_tuple("Noop").finish(),
+
             ActionData::AssignExpr(place, expr) => f
                 .debug_tuple("AssignExpr")
                 .field(&place.debug(db))
