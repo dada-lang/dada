@@ -54,6 +54,10 @@ macro_rules! id {
             pub fn range(from: usize, to: usize) -> impl Iterator<Item = Self> {
                 (from .. to).map(Self::from)
             }
+
+            pub fn successor(self) -> Self {
+                self + 1_usize
+            }
         }
 
         impl std::fmt::Debug for $n {

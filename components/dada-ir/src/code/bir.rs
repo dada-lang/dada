@@ -1,7 +1,7 @@
 //! The "bir" (pronounced "beer") is the "base ir" that we use
 //! for interpretation.
 
-use std::collections::BTreeSet;
+use std::collections::{BTreeMap, BTreeSet};
 
 use crate::{
     class::Class,
@@ -94,7 +94,7 @@ impl DebugWithDb<InIrDb<'_, Bir>> for BirData {
         let mut dbg = f.debug_struct("bir::Bir");
         dbg.field("start_point", &self.start_point);
 
-        for cp in self.control_points() {
+        for cp in self.graph().keys() {
             dbg.field(&format!("{cp:?}"), &cp.data(&self.tables).debug(db));
         }
 
@@ -127,14 +127,24 @@ impl BirData {
         LocalVariable::max_key(&self.tables)
     }
 
-    pub fn control_points(&self) -> BTreeSet<ControlPoint> {
-        let mut points = BTreeSet::new();
+    pub fn max_control_point(&self) -> ControlPoint {
+        ControlPoint::max_key(&self.tables)
+    }
+
+    /// Computes the graph with a depth-first-search; returns a map whose keys
+    /// are nodes and whose values are successors of each node.
+    pub fn graph(&self) -> BTreeMap<ControlPoint, Vec<ControlPoint>> {
+        let mut points = BTreeMap::new();
         let mut stack = vec![self.start_point];
 
         while let Some(p) = stack.pop() {
-            if points.insert(p) {
-                stack.extend(p.successors(self));
+            if points.contains_key(&p) {
+                continue;
             }
+
+            let successors = p.successors(self);
+            stack.extend(&successors);
+            points.insert(p, successors);
         }
 
         points

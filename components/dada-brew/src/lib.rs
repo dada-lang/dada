@@ -23,5 +23,6 @@ impl<T> Db for T where
 
 mod brew;
 mod brewery;
+mod liveness;
 pub mod prelude;
 mod scope;
