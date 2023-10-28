@@ -8,7 +8,9 @@ use super::{CodeParser, Parser, SpanFallover};
 impl CodeParser<'_, '_> {
     /// Parse `: Ty`.
     pub(crate) fn parse_colon_ty(&mut self) -> Option<Ty> {
-        let Some(colon_span) = self.eat_op(Op::Colon) else { return None };
+        let Some(colon_span) = self.eat_op(Op::Colon) else {
+            return None;
+        };
         let opt_ty = self.parse_ty();
         if opt_ty.is_none() {
             self.error_at_current_token("expected type after `:`")
@@ -68,7 +70,9 @@ impl CodeParser<'_, '_> {
     }
 
     pub(crate) fn disallow_perm_paths(&mut self, keyword: Keyword) {
-        let Some((span, _)) = self.delimited('{') else { return };
+        let Some((span, _)) = self.delimited('{') else {
+            return;
+        };
         self.error(
             span,
             format!("no paths are needed after the {keyword} permission"),
@@ -77,7 +81,9 @@ impl CodeParser<'_, '_> {
     }
 
     pub(crate) fn parse_perm_paths(&mut self) -> Option<PermPaths> {
-        let Some((span, token_tree)) = self.delimited('{') else { return None; };
+        let Some((span, token_tree)) = self.delimited('{') else {
+            return None;
+        };
         let mut parser = Parser::new(self.db, token_tree);
         let mut subparser = parser.code_parser(self.tables, self.spans);
         let paths = subparser.parse_only_paths();
