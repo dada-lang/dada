@@ -469,10 +469,10 @@ impl ProgramCounter {
     /// True if this PC represents a `return` terminator.
     pub fn is_return(&self, db: &dyn crate::Db) -> bool {
         let bir_data = self.bir.data(db);
-        match &bir_data.tables[self.control_point] {
-            bir::ControlPointData::Terminator(TerminatorData::Return(_)) => true,
-            _ => false,
-        }
+        matches!(
+            &bir_data.tables[self.control_point],
+            bir::ControlPointData::Terminator(TerminatorData::Return(_)),
+        )
     }
 
     pub fn span(&self, db: &dyn crate::Db) -> FileSpan {

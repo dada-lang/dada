@@ -820,7 +820,7 @@ fn expected_diagnostics(path: &Path) -> eyre::Result<ExpectedDiagnostics> {
     }
 
     if let Some(any_line) = any_output_marker_seen {
-        if let Some(o) = output.get(0) {
+        if let Some(o) = output.first() {
             eyre::bail!(
                 "both 'OUTPUT ANY' (on line {}) and specific output (e.g. on line {}) found",
                 any_line,

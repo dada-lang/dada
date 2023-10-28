@@ -90,14 +90,14 @@ impl Scope<'_> {
     /// Creates a subscope with the given `cause` that shares the same start block but is now appending
     /// to `end_block`. It is your reponsibility to connect `end_block` (or some successor of it) back to
     /// `self.end_block` in this subscope.
-    pub(crate) fn subscope<'s>(
-        &'s self,
+    pub(crate) fn subscope(
+        &self,
         end_block: Option<bir::ControlPoint>,
         cause: ScopeCause,
-    ) -> Scope<'s> {
+    ) -> Scope<'_> {
         Scope {
             start_block: self.start_block,
-            end_block: end_block,
+            end_block,
             cause,
             previous: Some(self),
             variables: vec![],
@@ -167,7 +167,7 @@ impl Scope<'_> {
     pub(crate) fn push_declared_variables(
         &mut self,
         vars: &[validated::LocalVariable],
-        brewery: &mut Brewery<'_>,
+        brewery: &Brewery<'_>,
     ) -> VariableMarker {
         let marker = self.mark_variables();
         for &v in vars {

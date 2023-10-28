@@ -108,7 +108,7 @@ impl<'me> Tokens<'me> {
 
     /// Span of the next pending token (or last span if there are no more tokens).
     pub(crate) fn peek_span(&self) -> Span {
-        match self.tokens.get(0) {
+        match self.tokens.first() {
             None => self.last_span,
             Some(token) => {
                 let len = token.span_len(self.db);

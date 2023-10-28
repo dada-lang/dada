@@ -352,7 +352,7 @@ impl HeapGraph {
         if let Some(name) = name {
             w.permissions
                 .entry(edge.permission)
-                .or_insert(vec![])
+                .or_default()
                 .push(GraphvizPlace {
                     node: source.to_string(),
                     port: index,
@@ -400,7 +400,7 @@ impl HeapGraph {
     ///
     /// If there is no graph to diff against, return true, as everything
     /// is considered to have changed.
-    fn value_edge_did_change(&self, w: &mut GraphvizWriter<'_>, edge: ValueEdge) -> bool {
+    fn value_edge_did_change(&self, w: &GraphvizWriter<'_>, edge: ValueEdge) -> bool {
         let edge_data = edge.data(&self.tables);
 
         if self.permission_node_did_change(w, edge_data.permission) {
@@ -414,11 +414,7 @@ impl HeapGraph {
     ///
     /// If there is no graph to diff against, return true, as everything
     /// is considered to have changed.
-    fn value_edge_target_did_change(
-        &self,
-        w: &mut GraphvizWriter<'_>,
-        edge: ValueEdgeTarget,
-    ) -> bool {
+    fn value_edge_target_did_change(&self, w: &GraphvizWriter<'_>, edge: ValueEdgeTarget) -> bool {
         let Some(diff_against) = w.diff_against else {
             return true;
         };
@@ -452,7 +448,7 @@ impl HeapGraph {
     /// is considered to have changed.
     fn permission_node_did_change(
         &self,
-        w: &mut GraphvizWriter<'_>,
+        w: &GraphvizWriter<'_>,
         permission: PermissionNode,
     ) -> bool {
         let Some(diff_against) = w.diff_against else {
