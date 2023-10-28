@@ -29,9 +29,11 @@ impl Stepper<'_> {
             .eyre(self.db))
         };
         match (op, &self.machine[rhs]) {
-            (Op::Minus, &ObjectData::SignedInt(rhs)) => Ok(self.machine.our_value(-rhs)),
+            (Op::Minus, &ObjectData::SignedInt(rhs)) => {
+                Ok(self.machine.our_value(self.machine.pc(), -rhs))
+            }
             (Op::Minus, &ObjectData::Int(rhs)) => match i64::try_from(rhs) {
-                Ok(rhs) => Ok(self.machine.our_value(-rhs)),
+                Ok(rhs) => Ok(self.machine.our_value(self.machine.pc(), -rhs)),
                 Err(_) => {
                     let span = self.span_from_bir(expr);
                     Err(error!(span, "overflow").eyre(self.db))

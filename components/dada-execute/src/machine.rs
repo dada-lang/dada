@@ -4,7 +4,7 @@ use dada_collections::IndexVec;
 use dada_id::id;
 use dada_ir::{
     class::Class,
-    code::bir,
+    code::bir::{self, TerminatorData},
     function::Function,
     intrinsic::Intrinsic,
     span::FileSpan,
@@ -329,6 +329,9 @@ impl PermissionData {
 /// place (memory location) `p` to some object `o`.
 #[derive(Clone, Debug, PartialEq, Eq)]
 pub struct ValidPermissionData {
+    /// When the permission was granted.
+    pub pc: ProgramCounter,
+
     /// A *joint* permission indicates whether this particular
     /// place permits other permissions to `o`.
     ///
@@ -362,8 +365,9 @@ pub struct ValidPermissionData {
 
 impl ValidPermissionData {
     /// The data for a new "uniquely owned" permission.
-    pub fn my() -> Self {
+    pub fn my(pc: ProgramCounter) -> Self {
         ValidPermissionData {
+            pc,
             joint: Joint::No,
             leased: Leased::No,
             tenants: vec![],
@@ -372,8 +376,9 @@ impl ValidPermissionData {
     }
 
     /// The data for a new "jointly owned" permission. Used for literals.
-    pub fn our() -> Self {
+    pub fn our(pc: ProgramCounter) -> Self {
         ValidPermissionData {
+            pc,
             joint: Joint::Yes,
             leased: Leased::No,
             tenants: vec![],
@@ -448,39 +453,26 @@ pub struct ProgramCounter {
     /// The BIR we are interpreting.
     pub bir: bir::Bir,
 
-    /// The current basic block.
-    pub basic_block: bir::BasicBlock,
-
-    /// The index of the statement to execute next within the
-    /// basic block, or -- if equal to the number of statements -- indicates
-    /// we are about to execute the terminator.
-    pub statement: usize,
+    /// The control point we are about to execute.
+    pub control_point: bir::ControlPoint,
 }
 
 impl ProgramCounter {
-    pub fn move_to_block(self, basic_block: bir::BasicBlock) -> ProgramCounter {
-        Self::at_block(self.bir, basic_block)
+    pub fn move_to(self, control_point: bir::ControlPoint) -> ProgramCounter {
+        Self::at_block(self.bir, control_point)
     }
 
-    pub fn at_block(bir: bir::Bir, basic_block: bir::BasicBlock) -> ProgramCounter {
-        Self {
-            bir,
-            basic_block,
-            statement: 0,
-        }
+    pub fn at_block(bir: bir::Bir, control_point: bir::ControlPoint) -> ProgramCounter {
+        Self { bir, control_point }
     }
 
     /// True if this PC represents a `return` terminator.
     pub fn is_return(&self, db: &dyn crate::Db) -> bool {
         let bir_data = self.bir.data(db);
-        let basic_block_data = &bir_data.tables[self.basic_block];
-        if self.statement < basic_block_data.statements.len() {
-            return false;
-        }
-
-        let data = &bir_data.tables[basic_block_data.terminator];
-
-        matches!(data, bir::TerminatorData::Return(_))
+        matches!(
+            &bir_data.tables[self.control_point],
+            bir::ControlPointData::Terminator(TerminatorData::Return(_)),
+        )
     }
 
     pub fn span(&self, db: &dyn crate::Db) -> FileSpan {
@@ -488,15 +480,8 @@ impl ProgramCounter {
         // it seems like we could create some helper functions, maybe on the
         // Bir type itself.
 
-        let bir_data = self.bir.data(db);
-        let basic_block_data = &bir_data.tables[self.basic_block];
         let origins = self.bir.origins(db);
-        let syntax_expr = if self.statement < basic_block_data.statements.len() {
-            origins[basic_block_data.statements[self.statement]]
-        } else {
-            origins[basic_block_data.terminator]
-        };
-
+        let syntax_expr = origins[self.control_point];
         self.bir.span_of(db, syntax_expr)
     }
 }

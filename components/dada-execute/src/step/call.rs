@@ -1,16 +1,10 @@
 use dada_brew::prelude::*;
-use dada_ir::{
-    code::{bir, syntax},
-    error,
-    origin_table::HasOriginIn,
-    signature::InputTy,
-    word::Word,
-};
+use dada_ir::{code::bir, error, signature::InputTy, word::Word};
 use dada_validate::prelude::*;
 
 use crate::{
     error::DiagnosticBuilderExt,
-    machine::{op::MachineOpExtMut, Instance, ObjectData, ThunkFn, Value},
+    machine::{op::MachineOpExtMut, Instance, ObjectData, ProgramCounter, ThunkFn, Value},
     step::intrinsic::IntrinsicDefinition,
 };
 
@@ -25,7 +19,7 @@ impl Stepper<'_> {
     pub(super) fn call(
         &mut self,
         table: &bir::Tables,
-        terminator: bir::Terminator,
+        pc: ProgramCounter,
         callee: bir::Place,
         argument_places: &[bir::Place],
         labels: &[Option<bir::Name>],
@@ -40,18 +34,20 @@ impl Stepper<'_> {
         match &self.machine[function_value.object] {
             &ObjectData::Class(c) => {
                 let signature = c.signature(self.db);
-                self.match_labels(table, terminator, labels, &signature.inputs)?;
+                self.match_labels(table, pc, labels, &signature.inputs)?;
                 let arguments = self.give_arguments(table, argument_places)?;
                 self.check_signature(&arguments, signature)?;
                 let instance = Instance {
                     class: c,
                     fields: arguments,
                 };
-                Ok(CallResult::Returned(self.machine.my_value(instance)))
+                Ok(CallResult::Returned(
+                    self.machine.my_value(self.machine.pc(), instance),
+                ))
             }
             &ObjectData::Function(function) => {
                 let signature = function.signature(self.db);
-                self.match_labels(table, terminator, labels, &signature.inputs)?;
+                self.match_labels(table, pc, labels, &signature.inputs)?;
 
                 let arguments = self.give_arguments(table, argument_places)?;
 
@@ -60,11 +56,14 @@ impl Stepper<'_> {
                 if function.effect(self.db).permits_await() {
                     // If the function can await, then it must be an async function.
                     // Now that we have validated the arguments, return a thunk.
-                    let thunk = self.machine.my_value(ThunkFn {
-                        function,
-                        arguments,
-                        expected_return_ty,
-                    });
+                    let thunk = self.machine.my_value(
+                        self.machine.pc(),
+                        ThunkFn {
+                            function,
+                            arguments,
+                            expected_return_ty,
+                        },
+                    );
                     Ok(CallResult::Returned(thunk))
                 } else {
                     // This is not an async function, so push it onto the stack
@@ -77,7 +76,7 @@ impl Stepper<'_> {
             }
             &ObjectData::Intrinsic(intrinsic) => {
                 let definition = IntrinsicDefinition::for_intrinsic(self.db, intrinsic);
-                self.match_labels(table, callee, labels, &definition.argument_names)?;
+                self.match_labels(table, pc, labels, &definition.argument_names)?;
                 let arguments = self.give_arguments(table, argument_places)?;
                 let value = (definition.function)(self, arguments)?;
                 Ok(CallResult::Returned(value))
@@ -108,7 +107,7 @@ impl Stepper<'_> {
     fn match_labels(
         &self,
         table: &bir::Tables,
-        call_terminator: impl HasOriginIn<bir::Origins, Origin = syntax::Expr>,
+        pc: ProgramCounter,
         actual_labels: &[Option<bir::Name>],
         expected_names: &[impl ExpectedName],
     ) -> eyre::Result<()> {
@@ -132,7 +131,7 @@ impl Stepper<'_> {
 
         if actual_labels.len() != expected_names.len() {
             return Err(error!(
-                self.span_from_bir(call_terminator),
+                self.span_from_bir(pc.control_point),
                 "expected to find {} arguments, but found {}",
                 expected_names.len(),
                 actual_labels.len(),

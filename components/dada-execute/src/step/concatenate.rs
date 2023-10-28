@@ -21,7 +21,9 @@ impl Stepper<'_> {
 
         Ok(Value {
             object: self.machine.new_object(ObjectData::String(string)),
-            permission: self.machine.new_permission(ValidPermissionData::our()),
+            permission: self
+                .machine
+                .new_permission(ValidPermissionData::our(self.machine.pc())),
         })
     }
 }

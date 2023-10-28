@@ -74,7 +74,9 @@ impl Stepper<'_> {
         // create a new one to return.
         let object = self.take_object(object_traversal)?;
 
-        let permission = self.machine.new_permission(ValidPermissionData::my());
+        let permission = self
+            .machine
+            .new_permission(ValidPermissionData::my(self.machine.pc()));
         Ok(Value { object, permission })
     }
 }

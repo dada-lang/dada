@@ -106,8 +106,7 @@ impl MachineOp for Machine {
         self.stack.frames.push(Frame {
             pc: ProgramCounter {
                 bir,
-                basic_block: bir_data.start_basic_block,
-                statement: 0,
+                control_point: bir_data.start_point,
             },
             locals,
             expected_return_ty,
@@ -291,14 +290,14 @@ impl std::ops::IndexMut<bir::LocalVariable> for Machine {
 
 #[extension_trait::extension_trait]
 pub(crate) impl MachineOpExtMut for &mut dyn MachineOp {
-    fn my_value(&mut self, data: impl Into<ObjectData>) -> Value {
-        let permission = self.new_permission(ValidPermissionData::my());
+    fn my_value(&mut self, pc: ProgramCounter, data: impl Into<ObjectData>) -> Value {
+        let permission = self.new_permission(ValidPermissionData::my(pc));
         let object = self.new_object(data.into());
         Value { object, permission }
     }
 
-    fn our_value(&mut self, data: impl Into<ObjectData>) -> Value {
-        let permission = self.new_permission(ValidPermissionData::our());
+    fn our_value(&mut self, pc: ProgramCounter, data: impl Into<ObjectData>) -> Value {
+        let permission = self.new_permission(ValidPermissionData::our(pc));
         let object = self.new_object(data.into());
         Value { object, permission }
     }

@@ -2,7 +2,7 @@ use dada_id::prelude::*;
 use dada_ir::{
     class::Class,
     code::{
-        bir::{self, TerminatorData, TerminatorExpr},
+        bir::{self, ControlPoint, ControlPointData, TerminatorData, TerminatorExpr},
         syntax,
     },
     error,
@@ -97,15 +97,6 @@ impl<'me> Stepper<'me> {
         let bir_data = pc.bir.data(self.db);
         let table = &bir_data.tables;
 
-        let basic_block_data = pc.basic_block.data(table);
-
-        // The statement should either be the index of a statement or
-        // the terminator.
-        assert!(
-            pc.statement <= basic_block_data.statements.len(),
-            "statement index out of range"
-        );
-
         let pc_span = pc.span(self.db);
         let snippet = pc_span.snippet(self.db);
         if snippet.len() > 50 {
@@ -118,27 +109,30 @@ impl<'me> Stepper<'me> {
             tracing::debug!("executing {:?}", snippet);
         }
 
-        if pc.statement < basic_block_data.statements.len() {
-            self.step_statement(table, pc.bir, basic_block_data.statements[pc.statement])?;
-            pc.statement += 1;
-            self.machine.set_pc(pc);
-            self.gc(&[]);
-            self.assert_invariants()?;
-            return Ok(ControlFlow::Next);
-        }
-
-        let cf = self.step_terminator(table, pc, basic_block_data.terminator)?;
-        let temp;
-        self.gc(match &cf {
-            ControlFlow::Next => &[],
-            ControlFlow::Await(v) => &v.arguments[..],
-            ControlFlow::Done(_, v) => {
-                temp = [*v];
-                &temp
+        match &table[pc.control_point] {
+            bir::ControlPointData::Statement(statement_data) => {
+                pc = pc.move_to(self.step_statement(table, pc, statement_data)?);
+                self.machine.set_pc(pc);
+                self.gc(&[]);
+                self.assert_invariants()?;
+                return Ok(ControlFlow::Next);
             }
-        });
-        self.assert_invariants()?;
-        Ok(cf)
+
+            bir::ControlPointData::Terminator(terminator_data) => {
+                let cf = self.step_terminator(table, pc, terminator_data)?;
+                let temp;
+                self.gc(match &cf {
+                    ControlFlow::Next => &[],
+                    ControlFlow::Await(v) => &v.arguments[..],
+                    ControlFlow::Done(_, v) => {
+                        temp = [*v];
+                        &temp
+                    }
+                });
+                self.assert_invariants()?;
+                Ok(cf)
+            }
+        }
     }
 
     /// After a `ControlFlow::Await` is returned, the caller is responsible for
@@ -168,16 +162,23 @@ impl<'me> Stepper<'me> {
     fn step_statement(
         &mut self,
         table: &bir::Tables,
-        bir: bir::Bir,
-        statement: bir::Statement,
-    ) -> eyre::Result<()> {
+        pc: ProgramCounter,
+        statement_data: &bir::StatementData,
+    ) -> eyre::Result<ControlPoint> {
+        let ProgramCounter { bir, control_point } = pc;
+
         tracing::debug!(
-            "statement = {:?}",
-            statement.data(table).debug(&bir.in_ir_db(self.db))
+            "statement @ {:?} = {:?}",
+            control_point,
+            statement_data.debug(&bir.in_ir_db(self.db))
         );
 
-        match statement.data(table) {
-            bir::StatementData::AssignExpr(place, expr) => {
+        match &statement_data.action {
+            bir::ActionData::Noop => {
+                // nothing happens!
+            }
+
+            bir::ActionData::AssignExpr(place, expr) => {
                 // Subtle: The way this is setup, permissions for the target are not
                 // canceled until the write occurs. Consider something like this:
                 //
@@ -191,12 +192,12 @@ impl<'me> Stepper<'me> {
                 let value = self.eval_expr(table, *expr)?;
                 self.assign_value_to_place(table, *place, value)?;
             }
-            bir::StatementData::Clear(lv) => {
+            bir::ActionData::Clear(lv) => {
                 let permission = self.machine.expired_permission(None);
                 let object = self.machine.unit_object();
                 *self.machine.local_mut(*lv) = Value { object, permission };
             }
-            bir::StatementData::BreakpointStart(input_file, index) => {
+            bir::ActionData::BreakpointStart(input_file, index) => {
                 let kernel = self.kernel.take().unwrap();
                 let result = kernel.breakpoint_start(self.db, *input_file, *index, &mut || {
                     HeapGraph::new(self.db, self.machine, None)
@@ -204,7 +205,7 @@ impl<'me> Stepper<'me> {
                 self.kernel = Some(kernel);
                 result?
             }
-            bir::StatementData::BreakpointEnd(input_file, index, expr, in_flight_place) => {
+            bir::ActionData::BreakpointEnd(input_file, index, expr, in_flight_place) => {
                 let span = self.span_from_syntax_expr(*expr);
                 let kernel = self.kernel.take().unwrap();
                 let result = kernel.breakpoint_end(self.db, *input_file, *index, span, &mut || {
@@ -216,7 +217,7 @@ impl<'me> Stepper<'me> {
             }
         }
 
-        Ok(())
+        Ok(statement_data.next)
     }
 
     fn peek_place(&mut self, table: &bir::Tables, place: bir::Place) -> Option<Value> {
@@ -269,28 +270,27 @@ impl<'me> Stepper<'me> {
         &mut self,
         table: &bir::Tables,
         pc: ProgramCounter,
-        terminator: bir::Terminator,
+        terminator_data: &bir::TerminatorData,
     ) -> eyre::Result<ControlFlow> {
         tracing::debug!(
-            "terminator = {:?}",
-            terminator.data(table).debug(&pc.bir.in_ir_db(self.db))
+            "terminator at {:?} is {:?}",
+            pc.control_point,
+            terminator_data.debug(&pc.bir.in_ir_db(self.db))
         );
-
-        let terminator_data: &bir::TerminatorData = &table[terminator];
 
         match terminator_data {
             // FIXME: implement atomics
             TerminatorData::StartAtomic(b)
             | TerminatorData::EndAtomic(b)
             | TerminatorData::Goto(b) => {
-                self.machine.set_pc(pc.move_to_block(*b));
+                self.machine.set_pc(pc.move_to(*b));
                 Ok(ControlFlow::Next)
             }
             TerminatorData::If(place, if_true, if_false) => {
                 if self.eval_place_to_bool(table, *place)? {
-                    self.machine.set_pc(pc.move_to_block(*if_true));
+                    self.machine.set_pc(pc.move_to(*if_true));
                 } else {
-                    self.machine.set_pc(pc.move_to_block(*if_false));
+                    self.machine.set_pc(pc.move_to(*if_false));
                 }
                 Ok(ControlFlow::Next)
             }
@@ -303,10 +303,10 @@ impl<'me> Stepper<'me> {
                     labels,
                 },
                 next_block,
-            ) => match self.call(table, terminator, *function, arguments, labels)? {
+            ) => match self.call(table, pc, *function, arguments, labels)? {
                 call::CallResult::Returned(return_value) => {
                     self.assign_value_to_place(table, *destination, return_value)?;
-                    self.machine.set_pc(pc.move_to_block(*next_block));
+                    self.machine.set_pc(pc.move_to(*next_block));
                     Ok(ControlFlow::Next)
                 }
                 call::CallResult::PushedNewFrame => Ok(ControlFlow::Next),
@@ -355,11 +355,11 @@ impl<'me> Stepper<'me> {
                 }
             }
             TerminatorData::Error => {
-                let span = self.span_from_bir(terminator);
+                let span = self.span_from_bir(pc.control_point);
                 Err(error!(span, "compilation error encountered 😢").eyre(self.db))
             }
             TerminatorData::Panic => {
-                let span = self.span_from_bir(terminator);
+                let span = self.span_from_bir(pc.control_point);
                 Err(error!(span, "panic! omg! 😱").eyre(self.db))
             }
         }
@@ -383,14 +383,9 @@ impl<'me> Stepper<'me> {
         // Otherwise, this function was invoked from `top`. We have to store the return
         // value into the location where `top` expects it.
         let top_table = &top.pc.bir.data(self.db).tables;
-        let top_basic_block_data = &top_table[top.pc.basic_block];
-        assert_eq!(
-            top.pc.statement,
-            top_basic_block_data.statements.len(),
-            "calling frame should be at a terminator"
-        );
-
-        let TerminatorData::Assign(top_place, _, top_basic_block) = &top_table[top_basic_block_data.terminator] else {
+        let ControlPointData::Terminator(TerminatorData::Assign(top_place, _, top_basic_block)) =
+            &top_table[top.pc.control_point]
+        else {
             unreachable!("calling frame should be at an assign terminator")
         };
 
@@ -404,7 +399,7 @@ impl<'me> Stepper<'me> {
             ));
         }
 
-        let new_pc = top.pc.move_to_block(*top_basic_block);
+        let new_pc = top.pc.move_to(*top_basic_block);
         self.assign_value_to_place(top_table, *top_place, value)?;
         self.machine.set_pc(new_pc);
         Ok(())
@@ -433,33 +428,47 @@ impl<'me> Stepper<'me> {
         match expr.data(table) {
             bir::ExprData::BooleanLiteral(v) => Ok(Value {
                 object: self.machine.new_object(ObjectData::Bool(*v)),
-                permission: self.machine.new_permission(ValidPermissionData::our()),
+                permission: self
+                    .machine
+                    .new_permission(ValidPermissionData::our(self.machine.pc())),
             }),
             bir::ExprData::IntegerLiteral(v) => Ok(Value {
                 object: self.machine.new_object(ObjectData::Int(*v)),
-                permission: self.machine.new_permission(ValidPermissionData::our()),
+                permission: self
+                    .machine
+                    .new_permission(ValidPermissionData::our(self.machine.pc())),
             }),
             bir::ExprData::UnsignedIntegerLiteral(v) => Ok(Value {
                 object: self.machine.new_object(ObjectData::UnsignedInt(*v)),
-                permission: self.machine.new_permission(ValidPermissionData::our()),
+                permission: self
+                    .machine
+                    .new_permission(ValidPermissionData::our(self.machine.pc())),
             }),
             bir::ExprData::SignedIntegerLiteral(v) => Ok(Value {
                 object: self.machine.new_object(ObjectData::SignedInt(*v)),
-                permission: self.machine.new_permission(ValidPermissionData::our()),
+                permission: self
+                    .machine
+                    .new_permission(ValidPermissionData::our(self.machine.pc())),
             }),
             bir::ExprData::FloatLiteral(v) => Ok(Value {
                 object: self.machine.new_object(ObjectData::Float(v.0)),
-                permission: self.machine.new_permission(ValidPermissionData::our()),
+                permission: self
+                    .machine
+                    .new_permission(ValidPermissionData::our(self.machine.pc())),
             }),
             bir::ExprData::StringLiteral(v) => Ok(Value {
                 object: self
                     .machine
                     .new_object(ObjectData::String(v.as_str(self.db).to_string())),
-                permission: self.machine.new_permission(ValidPermissionData::our()),
+                permission: self
+                    .machine
+                    .new_permission(ValidPermissionData::our(self.machine.pc())),
             }),
             bir::ExprData::Unit => Ok(Value {
                 object: self.machine.new_object(ObjectData::Unit(())),
-                permission: self.machine.new_permission(ValidPermissionData::our()),
+                permission: self
+                    .machine
+                    .new_permission(ValidPermissionData::our(self.machine.pc())),
             }),
             bir::ExprData::IntoShared(place) => self.into_shared_place(table, *place),
             bir::ExprData::Lease(place) => self.lease_place(table, *place),
@@ -472,7 +481,9 @@ impl<'me> Stepper<'me> {
                     .collect::<Result<Vec<_>, _>>()?;
                 Ok(Value {
                     object: self.machine.new_object(ObjectData::Tuple(Tuple { fields })),
-                    permission: self.machine.new_permission(ValidPermissionData::my()),
+                    permission: self
+                        .machine
+                        .new_permission(ValidPermissionData::my(self.machine.pc())),
                 })
             }
             bir::ExprData::Concatenate(places) => self.concatenate(table, places),
