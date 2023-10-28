@@ -63,6 +63,7 @@ const sidebars = {
         "design_docs/calculus",
         "design_docs/sketchy_ideas",
         "design_docs/sharing_synthesized_values",
+        "design_docs/why_not_explicit_end_for_lease",
         "reference",
       ],
     },
