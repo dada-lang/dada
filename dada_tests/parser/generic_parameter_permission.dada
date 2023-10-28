@@ -1,0 +1,3 @@
+class Bar[shared P]()
+
+fn foo[my S]() {}

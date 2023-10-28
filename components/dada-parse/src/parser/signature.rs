@@ -3,12 +3,13 @@ use crate::parser::Parser;
 use dada_ir::{
     code::syntax::{
         op::Op, AsyncKeyword, AsyncKeywordData, AtomicKeyword, AtomicKeywordData, EffectKeyword,
-        FnDecl, FnDeclData, LocalVariableDecl, LocalVariableDeclData, ReturnTy, ReturnTyData,
+        FnDecl, FnDeclData, GenericParameter, LocalVariableDecl, LocalVariableDeclData, ReturnTy,
+        ReturnTyData,
     },
     kw::Keyword,
 };
 
-use super::{CodeParser, ParseList, SpanFallover};
+use super::{CodeParser, OrReportError, ParseList, SpanFallover};
 
 impl CodeParser<'_, '_> {
     pub(crate) fn parse_fn(&mut self) -> Option<FnDecl> {
@@ -46,6 +47,39 @@ impl CodeParser<'_, '_> {
         let right_arrow = self.eat_op(Op::RightArrow)?;
         let ty = self.parse_ty();
         Some(self.add(ReturnTyData { ty }, self.span_consumed_since(right_arrow)))
+    }
+
+    /// Parses an optional list of generic parameters delimited by `[]`.
+    pub(crate) fn parse_generic_parameters(&mut self) -> Vec<GenericParameter> {
+        let Some((_, generic_tokens)) = self.delimited('[') else {
+            return vec![];
+        };
+        let mut subparser = Parser::new(self.db, generic_tokens);
+        let mut subcodeparser = CodeParser {
+            parser: &mut subparser,
+            tables: self.tables,
+            spans: self.spans,
+        };
+        subcodeparser.parse_only_generic_parameters()
+    }
+
+    fn parse_only_generic_parameters(&mut self) -> Vec<GenericParameter> {
+        let params = self.parse_list(true, CodeParser::parse_generic_parameter);
+        self.emit_error_if_more_tokens("extra tokens after generic parameters");
+        params
+    }
+
+    fn parse_generic_parameter(&mut self) -> Option<GenericParameter> {
+        if let Some(name) = self.parse_name() {
+            Some(GenericParameter::Type(name))
+        } else if let Some(perm) = self.parse_perm() {
+            let name = self
+                .parse_name()
+                .or_report_error(self, || "expected name after permission")?;
+            Some(GenericParameter::Permission(perm, name))
+        } else {
+            None
+        }
     }
 
     /// Parses a list of parameters delimited by `()`.
