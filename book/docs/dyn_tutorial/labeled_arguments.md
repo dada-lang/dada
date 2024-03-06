@@ -13,7 +13,7 @@ let p: my = Point(x: 22, y: 44)
 print("The point is `{p}`").await
 ```
 
-Try changing the code above to give the parameters in another orde, such as `Point(y: 44, x: 22)` -- you will see that the output doesn't change.
+Try changing the code above to give the parameters in a different order, such as `Point(y: 44, x: 22)` -- you will see that the output doesn't change.
 
 Adding labels can help make it clearer what is going on. The rules are as follows:
 
