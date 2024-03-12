@@ -44,7 +44,7 @@ Dada also has some limitations compared to Rust:
 
 ## Curious to learn more?
 
-Read our [FAQ](./about/faq) or one of our [tutorials](/docs/tutorials/).
+Read our [FAQ](/docs/about/faq/) or one of our [tutorials](/docs/tutorials/).
 
 ## Footnotes
 
