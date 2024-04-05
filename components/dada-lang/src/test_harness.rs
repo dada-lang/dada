@@ -555,17 +555,6 @@ impl std::fmt::Display for OtherErrors {
     }
 }
 
-#[derive(Debug)]
-struct ExpectedDiagnosticNotFound(ExpectedDiagnostic);
-
-impl std::error::Error for ExpectedDiagnosticNotFound {}
-
-impl std::fmt::Display for ExpectedDiagnosticNotFound {
-    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
-        write!(f, "{self:#?}")
-    }
-}
-
 /// Part of the code to check diagnostics: the diagnostics checker pushes
 /// strings into these vectors so we can display a nice diff.
 ///

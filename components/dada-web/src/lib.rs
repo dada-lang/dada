@@ -1,4 +1,5 @@
 #![allow(clippy::unused_unit)] // wasm-bindgen seems to trigger this
+#![allow(clippy::assigning_clones)] // `clone_into` is annoying
 
 use dada_error_format::format_diagnostics;
 use dada_execute::kernel::BufferKernel;
@@ -69,21 +70,25 @@ impl DadaCompiler {
     #[wasm_bindgen]
     pub fn with_source_text(mut self, source_text: String) -> Self {
         tracing::debug!("with_source_text: {source_text:?}");
-        self.input_file.set_source_text(&mut self.db, source_text);
+        self.input_file
+            .set_source_text(&mut self.db)
+            .to(source_text);
         self
     }
 
     #[wasm_bindgen]
     pub fn with_breakpoint(mut self, line0: u32, column0: u32) -> Self {
         self.input_file
-            .set_breakpoint_locations(&mut self.db, vec![LineColumn::new0(line0, column0)]);
+            .set_breakpoint_locations(&mut self.db)
+            .to(vec![LineColumn::new0(line0, column0)]);
         self
     }
 
     #[wasm_bindgen]
     pub fn without_breakpoint(mut self) -> Self {
         self.input_file
-            .set_breakpoint_locations(&mut self.db, vec![]);
+            .set_breakpoint_locations(&mut self.db)
+            .to(vec![]);
         self
     }
 

@@ -22,23 +22,24 @@ use salsa::DebugWithDb;
 use super::{syntax, validated};
 
 #[salsa::tracked]
+#[customize(DebugWithDb)]
 pub struct Bir {
     /// Name of file containing the code from which this Bir was created.
-    input_file: InputFile,
+    pub input_file: InputFile,
 
     /// Name of function containing the code from which this Bir was created.
-    function_name: Word,
+    pub function_name: Word,
 
     /// Syntax tree from which this Bir was created.
-    syntax_tree: syntax::Tree,
+    pub syntax_tree: syntax::Tree,
 
     /// The BIR bir
     #[return_ref]
-    data: BirData,
+    pub data: BirData,
 
     /// Origins of expr in the BIR. Used to trace back to a source span.
     #[return_ref]
-    origins: Origins,
+    pub origins: Origins,
 }
 
 impl Anchored for Bir {

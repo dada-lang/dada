@@ -36,7 +36,7 @@ impl LspServerDatabase {
     pub fn did_open(&mut self, params: DidOpenTextDocumentParams) {
         let input_file = self.input_file_from_uri(&params.text_document.uri);
         let source_text = params.text_document.text;
-        input_file.set_source_text(&mut self.db, source_text);
+        input_file.set_source_text(&mut self.db).to(source_text);
         self.spawn_check(
             params.text_document.uri,
             params.text_document.version,
@@ -49,7 +49,7 @@ impl LspServerDatabase {
         // Since we asked for Sync full, just grab all the text from params
         let change = params.content_changes.into_iter().next().unwrap();
         let source_text = change.text;
-        input_file.set_source_text(&mut self.db, source_text);
+        input_file.set_source_text(&mut self.db).to(source_text);
         self.spawn_check(
             params.text_document.uri,
             params.text_document.version,

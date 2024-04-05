@@ -21,9 +21,7 @@ impl TokenTest for Keyword {
     type Narrow = Self;
 
     fn test(self, db: &dyn crate::Db, token: Token, _span: FileSpan) -> Option<Self> {
-        let Some(str) = token.alphabetic_str(db) else {
-            return None;
-        };
+        let str = token.alphabetic_str(db)?;
 
         if str == self.str() {
             Some(self)

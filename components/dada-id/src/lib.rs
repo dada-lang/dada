@@ -25,8 +25,8 @@ pub mod prelude {
 }
 
 /// This module is used by the `tables` macro.
+#[allow(non_camel_case_types)]
 pub mod table_types {
-    #![allow(non_camel_case_types)]
     pub type alloc<K, V> = crate::alloc_table::AllocTable<K, V>;
     pub type intern<K, V> = crate::intern_table::InternTable<K, V>;
 }

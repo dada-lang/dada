@@ -6,16 +6,17 @@ use crate::{
 };
 
 #[salsa::input]
+#[customize(DebugWithDb)]
 pub struct InputFile {
-    name: Word,
+    pub name: Word,
 
     /// The raw contents of this input file, as a string.
     #[return_ref]
-    source_text: String,
+    pub source_text: String,
 
     /// The locations of any breakpoints set in this file.
     #[return_ref]
-    breakpoint_locations: Vec<LineColumn>,
+    pub breakpoint_locations: Vec<LineColumn>,
 }
 
 impl InputFile {

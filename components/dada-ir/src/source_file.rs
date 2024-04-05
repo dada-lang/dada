@@ -4,20 +4,21 @@ use crate::{input_file::InputFile, item::Item};
 #[salsa::tracked]
 /// The result of parsing an input file like `foo.dada`, or the
 /// value from the playground. A program is a collection of files.
+#[customize(DebugWithDb)]
 pub struct SourceFile {
     #[id]
-    input_file: InputFile,
+    pub input_file: InputFile,
 
     /// The items found in the file.
     #[return_ref]
-    items: Vec<Item>,
+    pub items: Vec<Item>,
 
     /// Top-level "main" function from this file (if any).
     /// This function will also be present in `items`.
     ///
     /// This is not a function declaed with `fn` but rather just
     /// code the user added at the top of the file.
-    main_fn: Option<Function>,
+    pub main_fn: Option<Function>,
 }
 
 pub const TOP_LEVEL_FN: &str = "builtin@main";

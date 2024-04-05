@@ -1,5 +1,3 @@
-use std::string::ToString;
-
 use crate::{
     token_test::{AnyTree, TokenTest},
     tokens::Tokens,

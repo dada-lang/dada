@@ -1,7 +1,6 @@
 use super::*;
 
 impl Validator<'_> {
-    ///
     pub(super) fn concatenate(
         &mut self,
         concatenate_expr: syntax::Expr,

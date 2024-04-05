@@ -12,15 +12,16 @@ use crate::{
 };
 
 #[salsa::tracked]
+#[customize(DebugWithDb)]
 pub struct Function {
     #[id]
-    name: Word,
+    pub name: Word,
 
-    input_file: InputFile,
+    pub input_file: InputFile,
 
     /// The function signature.
     #[return_ref]
-    signature_syntax: FunctionSignature,
+    pub signature_syntax: FunctionSignature,
 
     /// The body and parameters of functions are only parsed
     /// on demand by invoking (e.g.) `syntax_tree` from the
@@ -30,10 +31,10 @@ pub struct Function {
     /// been parsed must be specified explicitly by the
     /// creator of the function. This is used for synthesizing
     /// a 'main' function from a module, for example.
-    unparsed_code: Option<UnparsedCode>,
+    pub unparsed_code: Option<UnparsedCode>,
 
     /// Overall span of the function (including the code)
-    span: Span,
+    pub span: Span,
 }
 
 #[derive(Clone, PartialEq, Eq, Debug)]
