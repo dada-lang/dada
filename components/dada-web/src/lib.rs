@@ -1,4 +1,5 @@
 #![allow(clippy::unused_unit)] // wasm-bindgen seems to trigger this
+#![allow(clippy::assigning_clones)] // `clone_into` is annoying
 
 use dada_error_format::format_diagnostics;
 use dada_execute::kernel::BufferKernel;

@@ -51,7 +51,6 @@ impl CodeParser<'_, '_> {
         }
     }
 
-    ///
     fn parse_named_expr(&mut self) -> Option<NamedExpr> {
         let name = self.parse_label();
         let expr = if name.is_some() {
