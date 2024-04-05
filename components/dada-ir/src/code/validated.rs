@@ -13,15 +13,16 @@ use super::syntax;
 
 /// The "validated" form of a particular [syntax tree](`crate::code::syntax::Tree`).
 #[salsa::tracked]
+#[customize(DebugWithDb)]
 pub struct Tree {
     /// The function that this tree is associated with.
-    function: Function,
+    pub function: Function,
 
     #[return_ref]
-    data: TreeData,
+    pub data: TreeData,
 
     #[return_ref]
-    origins: Origins,
+    pub origins: Origins,
 }
 
 impl DebugWithDb<dyn crate::Db + '_> for Tree {

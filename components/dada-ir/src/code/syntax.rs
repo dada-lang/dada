@@ -46,18 +46,19 @@ pub enum GenericParameter {
 /// The "syntax tree" is the parsed form of a function body.
 /// It maps more-or-less directly to what the user typed.
 #[salsa::tracked]
+#[customize(DebugWithDb)]
 pub struct Tree {
     /// Identifies the root expression in the function body.
     #[return_ref]
-    data: TreeData,
+    pub data: TreeData,
 
     /// Interning tables for expressions and the like.
     #[return_ref]
-    tables: Tables,
+    pub tables: Tables,
 
     /// The span information for each node in the tree.
     #[return_ref]
-    spans: Spans,
+    pub spans: Spans,
 }
 
 impl DebugWithDb<dyn crate::Db> for Tree {

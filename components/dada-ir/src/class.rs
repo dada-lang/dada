@@ -6,17 +6,18 @@ use crate::{
 };
 
 #[salsa::tracked]
+#[customize(DebugWithDb)]
 pub struct Class {
     #[id]
-    name: Word,
+    pub name: Word,
 
-    input_file: InputFile,
+    pub input_file: InputFile,
 
     #[return_ref]
-    signature_syntax: syntax::Signature,
+    pub signature_syntax: syntax::Signature,
 
     /// Overall span of the class (including any body)
-    span: Span,
+    pub span: Span,
 }
 
 impl Class {

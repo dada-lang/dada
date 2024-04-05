@@ -27,11 +27,7 @@ pub struct Db {
     storage: salsa::Storage<Self>,
 }
 
-impl salsa::Database for Db {
-    fn salsa_runtime(&self) -> &salsa::Runtime {
-        self.storage.runtime()
-    }
-}
+impl salsa::Database for Db {}
 
 impl salsa::ParallelDatabase for Db {
     fn snapshot(&self) -> salsa::Snapshot<Self> {
@@ -49,7 +45,7 @@ impl Db {
 
     /// Set the breakpoints within the given file where the interpreter stops and executes callbacks.
     pub fn set_breakpoints(&mut self, input_file: InputFile, locations: Vec<LineColumn>) {
-        input_file.set_breakpoint_locations(self, locations);
+        input_file.set_breakpoint_locations(self).to(locations);
     }
 
     /// Checks `input_file` for compilation errors and returns all relevant diagnostics.

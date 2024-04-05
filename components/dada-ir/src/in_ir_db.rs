@@ -1,6 +1,14 @@
+use salsa::database::AsSalsaDatabase;
+
 pub struct InIrDb<'me, T: ?Sized> {
     this: &'me T,
     db: &'me dyn crate::Db,
+}
+
+impl<T: ?Sized> AsSalsaDatabase for InIrDb<'_, T> {
+    fn as_salsa_database(&self) -> &dyn salsa::Database {
+        self.db.as_salsa_database()
+    }
 }
 
 impl<'me, T> InIrDb<'me, T> {

@@ -5,11 +5,12 @@ use crate::{
 };
 
 #[salsa::tracked]
+#[customize(DebugWithDb)]
 pub struct TokenTree {
-    input_file: InputFile,
-    span: Span,
+    pub input_file: InputFile,
+    pub span: Span,
     #[return_ref]
-    tokens: Vec<Token>,
+    pub tokens: Vec<Token>,
 }
 
 impl Anchored for TokenTree {

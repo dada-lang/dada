@@ -4,6 +4,7 @@
 use crate::{token_tree::TokenTree, word::Word};
 
 #[salsa::interned]
+#[customize(DebugWithDb)]
 #[derive(Clone, Debug, PartialEq, Eq, Hash)]
 #[allow(clippy::len_without_is_empty)]
 pub struct FormatString {
@@ -28,8 +29,9 @@ impl salsa::DebugWithDb<dyn crate::Db + '_> for FormatString {
 }
 
 #[salsa::interned]
+#[customize(DebugWithDb)]
 pub struct FormatStringSection {
-    data: FormatStringSectionData,
+    pub data: FormatStringSectionData,
 }
 
 #[derive(Clone, Debug, PartialEq, Eq, Hash)]

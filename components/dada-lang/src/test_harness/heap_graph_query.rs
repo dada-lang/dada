@@ -10,7 +10,7 @@ use crate::test_harness::QueryKind;
 use super::{Errors, Query};
 
 impl super::Options {
-    #[tracing::instrument(level = "Debug", skip(self, db, errors))]
+    // #[tracing::instrument(level = "Debug", skip(self, db, errors))]
     pub(super) async fn perform_heap_graph_query_on_db(
         &self,
         db: &mut dada_db::Db,
