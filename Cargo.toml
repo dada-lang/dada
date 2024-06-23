@@ -5,7 +5,6 @@ members = [".", "components/*"]
 default-members = [
   ".",
   "components/dada-*",
-  "components/salsa"
 ]
 
 [package]
@@ -16,12 +15,12 @@ default-run = "dada"
 
 # See more keys and their definitions at https://doc.rust-lang.org/cargo/reference/manifest.html
 
-[[test]]
-name = "harness"
-harness = false
+#[[test]]
+#name = "harness"
+#harness = false
 
 [dependencies]
+anyhow = "1.0.86"
 dada-lang = { path = "components/dada-lang" }
-eyre = "0.6.8"
 structopt = "0.3"
 tokio = { version = "1", features = ["full"] }
