@@ -4,5 +4,5 @@ version = "0.1.0"
 edition = "2021"
 
 [dependencies]
-anyhow = "1.0.86"
-structopt = "0.3.26"
+dada-3p = { path = "../dada-3p" }
+structopt = "0.3.26" # derive doesn't work without this

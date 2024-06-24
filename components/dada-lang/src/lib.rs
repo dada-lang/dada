@@ -1,3 +1,5 @@
+use dada_3p::*;
+
 use structopt::StructOpt;
 
 #[derive(Debug, StructOpt)]
