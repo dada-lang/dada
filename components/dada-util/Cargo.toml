@@ -1,0 +1,7 @@
+[package]
+name = "dada-util"
+version = "0.1.0"
+edition = "2021"
+
+[dependencies]
+dada-3p = { version = "0.1.0", path = "../dada-3p" }

@@ -1,14 +1,21 @@
-pub fn add(left: u64, right: u64) -> u64 {
-    left + right
-}
+use dada_3p::*;
 
-#[cfg(test)]
-mod tests {
-    use super::*;
+pub mod ast;
+pub mod diagnostic;
+pub mod inputs;
+pub mod parse;
+pub mod span;
 
-    #[test]
-    fn it_works() {
-        let result = add(2, 2);
-        assert_eq!(result, 4);
-    }
-}
+#[salsa::jar(db = Db)]
+pub struct Jar(
+    ast::Module<'_>,
+    ast::Identifier<'_>,
+    ast::UseItem<'_>,
+    ast::ClassItem<'_>,
+    diagnostic::Diagnostics,
+    inputs::SourceFile,
+);
+
+pub trait Db: salsa::DbWithJar<Jar> {}
+
+impl<DB> Db for DB where DB: ?Sized + salsa::DbWithJar<Jar> {}

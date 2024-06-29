@@ -110,6 +110,12 @@ source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "cf4b9d6a944f767f8e5e0db018570623c85f3d925ac718db4e06d0187adb21c1"
 
 [[package]]
+name = "byteorder"
+version = "1.5.0"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "1fd0f2584146f6f2ef48085050886acf353beff7305ebd1ae69500e27c67f64b"
+
+[[package]]
 name = "bytes"
 version = "1.6.0"
 source = "registry+https://github.com/rust-lang/crates.io-index"
@@ -211,6 +217,9 @@ name = "dada-3p"
 version = "0.1.0"
 dependencies = [
  "anyhow",
+ "fxhash",
+ "imstr",
+ "indexmap",
  "salsa",
  "structopt",
  "tokio",
@@ -219,6 +228,11 @@ dependencies = [
 [[package]]
 name = "dada-ir-ast"
 version = "0.1.0"
+dependencies = [
+ "dada-3p",
+ "dada-util",
+ "salsa",
+]
 
 [[package]]
 name = "dada-lang"
@@ -226,6 +240,13 @@ version = "0.1.0"
 dependencies = [
  "dada-3p",
  "structopt",
+]
+
+[[package]]
+name = "dada-util"
+version = "0.1.0"
+dependencies = [
+ "dada-3p",
 ]
 
 [[package]]
@@ -255,6 +276,15 @@ checksum = "7cd915d99f24784cdc19fd37ef22b97e3ff0ae756c7e492e9fbfe897d61e2aec"
 dependencies = [
  "indenter",
  "once_cell",
+]
+
+[[package]]
+name = "fxhash"
+version = "0.2.1"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "c31b6d751ae2c7f11320402d34e41349dd1016f8d5d45e48c4312bc8625af50c"
+dependencies = [
+ "byteorder",
 ]
 
 [[package]]
@@ -305,6 +335,12 @@ name = "hermit-abi"
 version = "0.3.9"
 source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "d231dfb89cfffdbc30e7fc41579ed6066ad03abda9e567ccafae602b97ec5024"
+
+[[package]]
+name = "imstr"
+version = "0.2.0"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "7d3441deb04ea9c6b472f313be54d585428cd6a68cdb8dcf40cf43744bec78fe"
 
 [[package]]
 name = "indenter"
