@@ -1,5 +1,4 @@
 use dada_util::Map;
-use salsa::DebugWithDb;
 
 use crate::{
     ast::{Identifier, Item},
@@ -194,10 +193,10 @@ impl<'input, 'db> Tokenizer<'input, 'db> {
             self.error_start = None;
 
             let span = self.span(start, index);
-            diagnostic::report_error(self.db, span, format!("invalid token(s)"));
+            diagnostic::report_error(self.db, span, "invalid token(s)");
         }
 
-        std::mem::replace(&mut self.skipped_accum, None)
+        self.skipped_accum.take()
     }
 
     fn span(&self, start: usize, end: usize) -> Span<'db> {
@@ -213,7 +212,7 @@ impl<'input, 'db> Tokenizer<'input, 'db> {
         let _skipped = self.clear_accumulated(index);
         self.accumulate_skipped(Skipped::Comment);
 
-        while let Some((_index, ch)) = self.chars.next() {
+        for (_index, ch) in &mut self.chars {
             if ch == '\n' {
                 return;
             }
@@ -291,10 +290,10 @@ impl<'input, 'db> Tokenizer<'input, 'db> {
 }
 
 fn is_op_char(ch: char) -> bool {
-    match ch {
-        '+' | '-' | '*' | '/' | '%' | '=' | '!' | '<' | '>' | '&' | '|' => true,
-        _ => false,
-    }
+    matches!(
+        ch,
+        '+' | '-' | '*' | '/' | '%' | '=' | '!' | '<' | '>' | '&' | '|',
+    )
 }
 
 type CharIndices<'input> = std::iter::Peekable<std::str::CharIndices<'input>>;

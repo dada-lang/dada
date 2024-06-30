@@ -1,3 +1,5 @@
+use std::fmt::Display;
+
 use crate::{
     inputs::SourceFile,
     span::{AbsoluteOffset, Span},
@@ -14,7 +16,8 @@ pub struct Diagnostic {
     message: String,
 }
 
-pub fn report_error<'db>(db: &'db dyn crate::Db, span: Span<'db>, message: String) {
+pub fn report_error<'db>(db: &'db dyn crate::Db, span: Span<'db>, message: impl Display) {
+    let message = message.to_string();
     let (source_file, start, end) = span.absolute(db);
     Diagnostics::push(
         db,
