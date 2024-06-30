@@ -10,6 +10,10 @@ pub struct Jar(
     ast::Identifier<'_>,
     ast::UseItem<'_>,
     ast::ClassItem<'_>,
+    ast::Function<'_>,
+    ast::AstTy<'_>,
+    ast::AstPerm<'_>,
+    ast::Literal<'_>,
     diagnostic::Diagnostics,
     inputs::SourceFile,
 );

@@ -1,3 +1,5 @@
+#![allow(clippy::unused_unit)] // FIXME: derive(Update) triggers these
+
 use salsa::{DebugWithDb, Update};
 
 use crate::{
@@ -9,6 +11,16 @@ mod use_item;
 pub use use_item::*;
 mod class_item;
 pub use class_item::*;
+mod member;
+pub use member::*;
+mod function;
+pub use function::*;
+mod types;
+pub use types::*;
+mod util;
+pub use util::*;
+mod expr;
+pub use expr::*;
 
 #[salsa::interned]
 pub struct Identifier<'db> {
@@ -61,12 +73,12 @@ impl<'db> From<ClassItem<'db>> for Item<'db> {
     }
 }
 
-#[derive(Clone, Debug, DebugWithDb, Update)]
+#[derive(Clone, PartialEq, Eq, PartialOrd, Ord, Hash, Update, Debug, DebugWithDb)]
 pub struct Path<'db> {
     pub ids: Vec<SpannedIdentifier<'db>>,
 }
 
-#[derive(Clone, Debug, DebugWithDb, Update)]
+#[derive(Clone, PartialEq, Eq, PartialOrd, Ord, Hash, Update, Debug, DebugWithDb)]
 pub struct SpannedIdentifier<'db> {
     pub span: Span<'db>,
     pub id: Identifier<'db>,

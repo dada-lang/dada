@@ -1,5 +1,3 @@
-use salsa::{DebugWithDb, Update};
-
 use crate::span::Span;
 
 use super::Identifier;
@@ -9,7 +7,10 @@ use super::Identifier;
 pub struct ClassItem<'db> {
     pub span: Span<'db>,
 
+    #[id]
     pub name: Identifier<'db>,
+
+    pub name_span: Span<'db>,
 
     contents: String,
 }

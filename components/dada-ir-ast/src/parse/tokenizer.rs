@@ -10,7 +10,21 @@ use crate::{
 #[derive(Clone, Copy)]
 pub struct Token<'input, 'db> {
     pub span: Span<'db>,
+    pub skipped: Option<Skipped>,
     pub kind: TokenKind<'input, 'db>,
+}
+
+/// Records tokens that were skipped before this token was issued.
+#[derive(Clone, Copy, PartialEq, Eq, PartialOrd, Ord)]
+pub enum Skipped {
+    /// Misc non-newline whitespace was skipped
+    Whitespace,
+
+    /// Whitespace including at least one `\n` was skipped
+    Newline,
+
+    /// A comment was skipped (which implies a newline)
+    Comment,
 }
 
 #[derive(Clone, Copy)]
@@ -28,16 +42,7 @@ pub enum TokenKind<'input, 'db> {
     },
 
     /// An op-char like `+`, `-`, etc.
-    OpChar {
-        /// If true, then this operator was adjacent to an operator on the left (the previous token).
-        adjacent_left: bool,
-
-        /// The "operator" character (e.g., `+`).
-        ch: char,
-
-        /// If true, then this operator was adjacent to an operator on the right (the next token).
-        adjacent_right: bool,
-    },
+    OpChar(char),
 }
 
 macro_rules! keywords {
@@ -121,6 +126,7 @@ pub fn tokenize<'input, 'db>(
         kws: Keyword::map(),
         error_start: None,
         input_offset,
+        skipped_accum: None,
     }
     .tokenize()
 }
@@ -134,6 +140,7 @@ struct Tokenizer<'input, 'db> {
     kws: &'static Map<String, Keyword>,
     input_offset: Offset,
     error_start: Option<usize>,
+    skipped_accum: Option<Skipped>,
 }
 
 impl<'input, 'db> Tokenizer<'input, 'db> {
@@ -152,12 +159,17 @@ impl<'input, 'db> Tokenizer<'input, 'db> {
                 '(' => self.delimited(index, Delimiter::Parentheses, ')'),
 
                 // Whitespace
-                _ if ch.is_whitespace() => {}
+                _ if ch.is_whitespace() => {
+                    self.accumulate_skipped(Skipped::Whitespace);
+                }
 
                 // Ops
                 _ if is_op_char(ch) => self.ops(index, ch),
 
                 _ => {
+                    // Record start of an errorneous set of tokens.
+                    // When we reach the start of a valid token (or end of input)
+                    // this will be reported as an error in `clear_accumulated`.
                     if self.error_start.is_none() {
                         self.error_start = Some(index);
                     }
@@ -165,20 +177,27 @@ impl<'input, 'db> Tokenizer<'input, 'db> {
             }
         }
 
-        self.clear_error(self.input.len());
+        let _skipped = self.clear_accumulated(self.input.len());
 
         self.tokens
     }
 
-    fn clear_error(&mut self, index: usize) {
-        let Some(start) = self.error_start else {
-            return;
-        };
+    fn accumulate_skipped(&mut self, skipped: Skipped) {
+        self.skipped_accum = std::cmp::max(self.skipped_accum, Some(skipped));
+    }
 
-        self.error_start = None;
+    /// Clears various accumulated state in prep for a new token being issued (or the final token).
+    /// Returns the [`Skipped`][] value that should be used for the next token issued (if any).
+    /// Reports errors for any invalid characters seen thus far.
+    fn clear_accumulated(&mut self, index: usize) -> Option<Skipped> {
+        if let Some(start) = self.error_start {
+            self.error_start = None;
 
-        let span = self.span(start, index);
-        diagnostic::report_error(self.db, span, format!("invalid token(s)"));
+            let span = self.span(start, index);
+            diagnostic::report_error(self.db, span, format!("invalid token(s)"));
+        }
+
+        std::mem::replace(&mut self.skipped_accum, None)
     }
 
     fn span(&self, start: usize, end: usize) -> Span<'db> {
@@ -191,7 +210,8 @@ impl<'input, 'db> Tokenizer<'input, 'db> {
     }
 
     fn comment(&mut self, index: usize) {
-        self.clear_error(index);
+        let _skipped = self.clear_accumulated(index);
+        self.accumulate_skipped(Skipped::Comment);
 
         while let Some((_index, ch)) = self.chars.next() {
             if ch == '\n' {
@@ -201,7 +221,7 @@ impl<'input, 'db> Tokenizer<'input, 'db> {
     }
 
     fn identifier(&mut self, start: usize, ch: char) {
-        self.clear_error(start);
+        let skipped = self.clear_accumulated(start);
 
         let mut end = start + ch.len_utf8();
 
@@ -224,19 +244,21 @@ impl<'input, 'db> Tokenizer<'input, 'db> {
         if let Some(kw) = self.kws.get(text) {
             self.tokens.push(Token {
                 span,
+                skipped,
                 kind: TokenKind::Keyword(*kw),
             });
         } else {
             let identifier = Identifier::new(self.db, text.to_string());
             self.tokens.push(Token {
                 span,
+                skipped,
                 kind: TokenKind::Identifier(identifier),
             })
         }
     }
 
     fn delimited(&mut self, start: usize, delim: Delimiter, close: char) {
-        self.clear_error(start);
+        let skipped = self.clear_accumulated(start);
 
         while let Some((end, ch)) = self.chars.next() {
             match ch {
@@ -244,6 +266,7 @@ impl<'input, 'db> Tokenizer<'input, 'db> {
                     assert!(ch.len_utf8() == 1);
                     self.tokens.push(Token {
                         span: self.span(start, end),
+                        skipped,
                         kind: TokenKind::Delimited {
                             delimiter: delim,
                             text: &self.input[start + 1..end],
@@ -257,32 +280,13 @@ impl<'input, 'db> Tokenizer<'input, 'db> {
     }
 
     fn ops(&mut self, start: usize, ch: char) {
-        self.clear_error(start);
-
-        let mut ops = Vec::with_capacity(16);
-        ops.push(ch);
-
-        while let Some(&(_index, next_ch)) = self.chars.peek() {
-            if is_op_char(next_ch) {
-                ops.push(ch);
-                self.chars.next();
-            } else {
-                break;
-            }
-        }
-
-        let mut p = start;
-        for (op, index) in ops.iter().zip(0..) {
-            self.tokens.push(Token {
-                span: self.span(p, p + op.len_utf8()),
-                kind: TokenKind::OpChar {
-                    adjacent_left: index > 0,
-                    ch: *op,
-                    adjacent_right: index < ops.len() - 1,
-                },
-            });
-            p += op.len_utf8();
-        }
+        let skipped = self.clear_accumulated(start);
+        self.chars.next();
+        self.tokens.push(Token {
+            span: self.span(start, start + ch.len_utf8()),
+            skipped,
+            kind: TokenKind::OpChar(ch),
+        });
     }
 }
 
