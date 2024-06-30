@@ -123,9 +123,9 @@ checksum = "514de17de45fdb8dc022b1a7975556c53c86f9f0aa5f534b98977b171857c2c9"
 
 [[package]]
 name = "cc"
-version = "1.0.100"
+version = "1.0.103"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "c891175c3fb232128f48de6590095e59198bbeb8620c310be349bfc3afd12c7b"
+checksum = "2755ff20a1d93490d26ba33a6f092a38a508398a5320df5d4b3014fcccce9410"
 
 [[package]]
 name = "cfg-if"
@@ -208,19 +208,8 @@ checksum = "22ec99545bb0ed0ea7bb9b8e1e9122ea386ff8a48c0922e43f36d45ab09e0e80"
 name = "dada"
 version = "0.1.0"
 dependencies = [
- "dada-3p",
  "dada-lang",
-]
-
-[[package]]
-name = "dada-3p"
-version = "0.1.0"
-dependencies = [
- "anyhow",
- "fxhash",
- "imstr",
- "indexmap",
- "salsa",
+ "dada-util",
  "structopt",
  "tokio",
 ]
@@ -229,7 +218,6 @@ dependencies = [
 name = "dada-ir-ast"
 version = "0.1.0"
 dependencies = [
- "dada-3p",
  "dada-util",
  "salsa",
 ]
@@ -238,7 +226,7 @@ dependencies = [
 name = "dada-lang"
 version = "0.1.0"
 dependencies = [
- "dada-3p",
+ "dada-util",
  "structopt",
 ]
 
@@ -246,7 +234,9 @@ dependencies = [
 name = "dada-util"
 version = "0.1.0"
 dependencies = [
- "dada-3p",
+ "anyhow",
+ "fxhash",
+ "imstr",
 ]
 
 [[package]]
@@ -443,9 +433,9 @@ dependencies = [
 
 [[package]]
 name = "object"
-version = "0.36.0"
+version = "0.36.1"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "576dfe1fc8f9df304abb159d767a29d0476f7750fbf8aa7ad07816004a207434"
+checksum = "081b846d1d56ddfc18fdf1a922e4f6e07a11768ea1b92dec44e42b72712ccfce"
 dependencies = [
  "memchr",
 ]

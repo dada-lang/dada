@@ -4,6 +4,5 @@ version = "0.1.0"
 edition = "2021"
 
 [dependencies]
-dada-3p = { path = "../dada-3p" }
 dada-util = { version = "0.1.0", path = "../dada-util" }
 salsa = { git = "https://github.com/salsa-rs/salsa.git" }

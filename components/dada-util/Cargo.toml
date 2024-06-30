@@ -4,4 +4,6 @@ version = "0.1.0"
 edition = "2021"
 
 [dependencies]
-dada-3p = { version = "0.1.0", path = "../dada-3p" }
+anyhow = "1.0.86"
+fxhash = "0.2.1"
+imstr = "0.2.0"

@@ -21,4 +21,6 @@ default-run = "dada"
 
 [dependencies]
 dada-lang = { path = "components/dada-lang" }
-dada-3p = { path = "components/dada-3p" }
+dada-util = { version = "0.1.0", path = "components/dada-util" }
+structopt = "0.3.26"
+tokio = { version = "1.38.0", features = ["full"] }

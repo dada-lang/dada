@@ -1,4 +1,3 @@
-use dada_3p::*;
 use dada_util::Text;
 
 #[salsa::input]

@@ -1,3 +1,5 @@
-pub use dada_3p::fxhash::FxHashMap as Map;
-pub use dada_3p::fxhash::FxHashSet as Set;
-pub use dada_3p::imstr::ImString as Text;
+pub use fxhash::FxHashMap as Map;
+pub use fxhash::FxHashSet as Set;
+pub use imstr::ImString as Text;
+
+pub type Fallible<T> = anyhow::Result<T>;
