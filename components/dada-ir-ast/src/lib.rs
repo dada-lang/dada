@@ -1,3 +1,5 @@
+#![allow(clippy::unused_unit)] // FIXME: salsa bug it seems
+
 pub mod ast;
 pub mod diagnostic;
 pub mod inputs;
@@ -11,6 +13,7 @@ pub struct Jar(
     ast::UseItem<'_>,
     ast::ClassItem<'_>,
     ast::Function<'_>,
+    ast::FunctionBody<'_>,
     ast::AstTy<'_>,
     ast::AstPerm<'_>,
     ast::Literal<'_>,

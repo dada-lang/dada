@@ -1,4 +1,4 @@
-use crate::span::Span;
+use crate::span::{Span, Spanned};
 
 use super::Identifier;
 
@@ -12,7 +12,14 @@ pub struct ClassItem<'db> {
 
     pub name_span: Span<'db>,
 
-    contents: String,
+    #[return_ref]
+    pub contents: String,
 }
 
 impl<'db> ClassItem<'db> {}
+
+impl<'db> Spanned<'db> for ClassItem<'db> {
+    fn span(&self, db: &'db dyn crate::Db) -> Span<'db> {
+        ClassItem::span(*self, db)
+    }
+}

@@ -2,11 +2,11 @@ use dada_util::Map;
 
 use crate::{
     ast::{Identifier, Item},
-    diagnostic,
+    diagnostic::Diagnostic,
     span::{Offset, Span},
 };
 
-#[derive(Clone, Copy)]
+#[derive(Clone)]
 pub struct Token<'input, 'db> {
     pub span: Span<'db>,
     pub skipped: Option<Skipped>,
@@ -26,7 +26,7 @@ pub enum Skipped {
     Comment,
 }
 
-#[derive(Clone, Copy)]
+#[derive(Clone)]
 pub enum TokenKind<'input, 'db> {
     /// A program identifier
     Identifier(Identifier<'db>),
@@ -42,6 +42,9 @@ pub enum TokenKind<'input, 'db> {
 
     /// An op-char like `+`, `-`, etc.
     OpChar(char),
+
+    /// Invalid characters
+    Error(Diagnostic),
 }
 
 macro_rules! keywords {
@@ -87,6 +90,12 @@ keywords! {
         Where,
         Use,
         As,
+        Pub,
+        Export,
+        Type,
+        Perm,
+        Mod,
+        Crate,
     }
 }
 
@@ -193,7 +202,11 @@ impl<'input, 'db> Tokenizer<'input, 'db> {
             self.error_start = None;
 
             let span = self.span(start, index);
-            diagnostic::report_error(self.db, span, "invalid token(s)");
+            self.tokens.push(Token {
+                span,
+                skipped: None,
+                kind: TokenKind::Error(Diagnostic::error(self.db, span, "invalid token(s)")),
+            });
         }
 
         self.skipped_accum.take()

@@ -1,87 +1,124 @@
 use crate::{
     ast::{ClassItem, Item, Module, Path, UseItem},
-    diagnostic::report_error,
+    diagnostic::Diagnostic,
 };
 
 use super::{
-    tokenizer::{self, Delimiter, Keyword},
-    OrNotPresent, ParseFail, ParseTokens, TokenStream,
+    miscellaneous::OrOptParse,
+    tokenizer::{Delimiter, Keyword},
+    Expected, Parse, ParseFail, Parser,
 };
 
-impl<'db> ParseTokens<'db> for Module<'db> {
-    fn parse(
+impl<'db> Parse<'db> for Module<'db> {
+    type Output = Self;
+
+    fn opt_parse(
         db: &'db dyn crate::Db,
-        tokens: &mut TokenStream<'_, 'db>,
-    ) -> Result<Self, ParseFail<'db>> {
+        parser: &mut Parser<'_, 'db>,
+    ) -> Result<Option<Self>, ParseFail<'db>> {
         let mut items: Vec<Item<'db>> = vec![];
 
-        while let Some(token) = tokens.peek() {
-            match token.kind {
-                tokenizer::TokenKind::Keyword(Keyword::Class) => {
-                    match ClassItem::parse(db, tokens) {
-                        Ok(i) => items.push(i.into()),
-                        Err(e) => e.report(db),
-                    }
+        let start_span = parser.peek_span();
+        while let Some(token) = parser.peek() {
+            let span = token.span;
+            match Item::opt_parse(db, parser) {
+                Ok(Some(v)) => items.push(v),
+                Err(e) => parser.push_diagnostic(e.into_diagnostic(db)),
+                Ok(None) => {
+                    parser.eat_next_token().unwrap();
+                    parser.push_diagnostic(Diagnostic::error(db, span, "unexpected token"));
                 }
-
-                tokenizer::TokenKind::Keyword(Keyword::Use) => match UseItem::parse(db, tokens) {
-                    Ok(i) => items.push(i.into()),
-                    Err(e) => e.report(db),
-                },
-
-                _ => report_error(db, token.span, "unexpected token".to_string()),
             }
         }
 
-        Ok(Module::new(db, items))
+        Ok(Some(Module::new(
+            db,
+            start_span.to(parser.last_span()),
+            items,
+        )))
+    }
+
+    fn expected() -> Expected {
+        panic!("infallible")
+    }
+}
+
+impl<'db> Parse<'db> for Item<'db> {
+    type Output = Self;
+
+    fn opt_parse(
+        db: &'db dyn crate::Db,
+        parser: &mut Parser<'_, 'db>,
+    ) -> Result<Option<Self>, ParseFail<'db>> {
+        ClassItem::opt_parse(db, parser).or_opt_parse::<UseItem<'db>>(db, parser)
+    }
+
+    fn expected() -> Expected {
+        panic!("module-level item (class, function, use)")
     }
 }
 
 /// class Name { ... }
-impl<'db> ParseTokens<'db> for ClassItem<'db> {
-    fn parse(
+impl<'db> Parse<'db> for ClassItem<'db> {
+    type Output = Self;
+
+    fn opt_parse(
         db: &'db dyn crate::Db,
-        tokens: &mut TokenStream<'_, 'db>,
-    ) -> Result<Self, ParseFail<'db>> {
-        let start = tokens.eat_keyword(Keyword::Class).or_not_present()?;
+        parser: &mut Parser<'_, 'db>,
+    ) -> Result<Option<Self>, ParseFail<'db>> {
+        let Ok(start) = parser.eat_keyword(Keyword::Class) else {
+            return Ok(None);
+        };
 
-        let id = tokens.eat_id()?;
+        let id = parser.eat_id()?;
 
-        let body = tokens.eat_delimited(Delimiter::CurlyBraces)?;
+        let body = parser.eat_delimited(Delimiter::CurlyBraces)?;
 
-        Ok(ClassItem::new(
+        Ok(Some(ClassItem::new(
             db,
-            start.to(tokens.last_span()),
+            start.to(parser.last_span()),
             id.id,
             id.span,
             body.to_string(),
-        ))
+        )))
+    }
+
+    fn expected() -> Expected {
+        Expected::Keyword(Keyword::Class)
     }
 }
 
 /// use path [as name];
-impl<'db> ParseTokens<'db> for UseItem<'db> {
-    fn parse(
+impl<'db> Parse<'db> for UseItem<'db> {
+    type Output = Self;
+
+    fn opt_parse(
         db: &'db dyn crate::Db,
-        tokens: &mut TokenStream<'_, 'db>,
-    ) -> Result<Self, ParseFail<'db>> {
-        let start = tokens.eat_keyword(Keyword::Use).or_not_present()?;
+        parser: &mut Parser<'_, 'db>,
+    ) -> Result<Option<Self>, ParseFail<'db>> {
+        let Ok(start) = parser.eat_keyword(Keyword::Use) else {
+            return Ok(None);
+        };
 
-        let path = Path::parse(db, tokens)?;
+        let path = Path::eat(db, parser)?;
 
-        let opt_name = if tokens.eat_keyword(Keyword::As).is_ok() {
-            Some(tokens.eat_id()?)
+        let opt_name = if parser.eat_keyword(Keyword::As).is_ok() {
+            Some(parser.eat_id()?)
         } else {
             None
         };
 
-        tokens.eat_op(';')?;
+        parser.eat_op(";")?;
 
-        Ok(UseItem::new(
+        Ok(Some(UseItem::new(
             db,
-            start.to(tokens.last_span()),
+            start.to(parser.last_span()),
             path,
             opt_name,
-        ))
+        )))
+    }
+
+    fn expected() -> Expected {
+        Expected::Keyword(Keyword::Use)
     }
 }

@@ -2,6 +2,9 @@ use salsa::{DebugWithDb, Update};
 
 use crate::{ast::Item, inputs::SourceFile};
 
+/// A span within the input. The offsets are stored relative to the start of the **anchor**,
+/// which is some item (e.g., a class, function, etc). The use of relative offsets avoids
+/// incremental churn if lines or content is added before/after the definition.
 #[derive(Copy, Clone, PartialEq, Eq, Hash, PartialOrd, Ord, DebugWithDb, Debug, Update)]
 pub struct Span<'db> {
     pub anchor: Item<'db>,
@@ -9,28 +12,99 @@ pub struct Span<'db> {
     pub end: Offset,
 }
 
+/// An absolute span within the input. The offsets are stored as absolute offsets
+/// within a given source file. These are used for diagnostics or outputs but not
+/// internally during compilation.
+#[derive(Copy, Clone, PartialEq, Eq, PartialOrd, Ord, Hash, Debug, DebugWithDb)]
+pub struct AbsoluteSpan {
+    pub source_file: SourceFile,
+    pub start: AbsoluteOffset,
+    pub end: AbsoluteOffset,
+}
+
 impl<'db> Span<'db> {
-    pub fn to(self, end: Span) -> Span<'db> {
-        assert!(self.anchor == end.anchor);
-        Span {
-            anchor: self.anchor,
-            start: self.start,
-            end: end.end,
+    pub fn to(self, end: impl IntoOptionSpan<'db>) -> Span<'db> {
+        match end.into_opt_span() {
+            Some(end) => {
+                assert!(self.anchor == end.anchor);
+                Span {
+                    anchor: self.anchor,
+                    start: self.start,
+                    end: end.end,
+                }
+            }
+            None => self,
         }
     }
 
-    pub fn absolute(&self, db: &'db dyn crate::Db) -> (SourceFile, AbsoluteOffset, AbsoluteOffset) {
-        let (source_file, anchor_start) = self.anchor.absolute_start(db);
-        (
-            source_file,
-            anchor_start + self.start,
-            anchor_start + self.end,
-        )
+    pub fn start_from(self, start: impl IntoOptionSpan<'db>) -> Span<'db> {
+        match start.into_opt_span() {
+            Some(start) => {
+                assert!(self.anchor == start.anchor);
+                Span {
+                    anchor: self.anchor,
+                    start: start.start,
+                    end: self.end,
+                }
+            }
+            None => self,
+        }
     }
 
-    pub fn absolute_start(&self, db: &'db dyn crate::Db) -> (SourceFile, AbsoluteOffset) {
-        let (source_file, offset) = self.anchor.absolute_start(db);
-        (source_file, offset + self.start)
+    /// Span pointing at the start of `self`
+    pub fn at_start(self) -> Span<'db> {
+        Span {
+            anchor: self.anchor,
+            start: self.end,
+            end: self.end,
+        }
+    }
+
+    /// Span pointing at the end of `self`
+    pub fn at_end(self) -> Span<'db> {
+        Span {
+            anchor: self.anchor,
+            start: self.end,
+            end: self.end,
+        }
+    }
+
+    /// Convert this span into an absolute span for reporting errors.
+    pub fn absolute_span(&self, db: &'db dyn crate::Db) -> AbsoluteSpan {
+        let anchor_span = self.anchor.absolute_span(db);
+        AbsoluteSpan {
+            source_file: anchor_span.source_file,
+            start: anchor_span.start + self.start,
+            end: anchor_span.start + self.end,
+        }
+    }
+}
+
+impl<'db> Spanned<'db> for Span<'db> {
+    fn span(&self, _db: &'db dyn crate::Db) -> Span<'db> {
+        *self
+    }
+}
+
+/// Implemented by all things that have a span (and span itself)
+pub trait Spanned<'db> {
+    fn span(&self, db: &'db dyn crate::Db) -> Span<'db>;
+}
+
+/// Either `Span` or `Option<Span>`.
+pub trait IntoOptionSpan<'db> {
+    fn into_opt_span(self) -> Option<Span<'db>>;
+}
+
+impl<'db> IntoOptionSpan<'db> for Span<'db> {
+    fn into_opt_span(self) -> Option<Span<'db>> {
+        Some(self)
+    }
+}
+
+impl<'db> IntoOptionSpan<'db> for Option<Span<'db>> {
+    fn into_opt_span(self) -> Option<Span<'db>> {
+        self
     }
 }
 
@@ -39,7 +113,7 @@ pub struct Offset(u32);
 
 impl From<usize> for Offset {
     fn from(offset: usize) -> Self {
-        assert!(offset < std::u32::MAX as usize);
+        assert!(offset < u32::MAX as usize);
         Offset(offset as u32)
     }
 }
@@ -66,7 +140,7 @@ impl std::ops::Add<usize> for Offset {
     type Output = Offset;
 
     fn add(self, rhs: usize) -> Self::Output {
-        assert!(rhs < std::u32::MAX as usize);
+        assert!(rhs < u32::MAX as usize);
         Offset(self.0.checked_add(rhs as u32).unwrap())
     }
 }
@@ -84,6 +158,19 @@ pub struct AbsoluteOffset(u32);
 
 impl AbsoluteOffset {
     pub const ZERO: AbsoluteOffset = AbsoluteOffset(0);
+}
+
+impl From<usize> for AbsoluteOffset {
+    fn from(offset: usize) -> Self {
+        assert!(offset < u32::MAX as usize);
+        AbsoluteOffset(offset as u32)
+    }
+}
+
+impl From<u32> for AbsoluteOffset {
+    fn from(offset: u32) -> Self {
+        AbsoluteOffset(offset)
+    }
 }
 
 impl std::ops::Add<Offset> for AbsoluteOffset {
