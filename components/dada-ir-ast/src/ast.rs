@@ -55,13 +55,12 @@ pub struct Identifier<'db> {
 
 #[salsa::tracked]
 pub struct Module<'db> {
-    span: Span<'db>,
-    items: Vec<Item<'db>>,
+    items: AstVec<'db, Item<'db>>,
 }
 
 impl<'db> Spanned<'db> for Module<'db> {
     fn span(&self, db: &'db dyn crate::Db) -> Span<'db> {
-        Module::span(*self, db)
+        self.items(db).span
     }
 }
 

@@ -1,5 +1,5 @@
 use crate::{
-    ast::{ClassItem, Item, Module, Path, UseItem},
+    ast::{AstVec, ClassItem, Item, Module, Path, UseItem},
     diagnostic::Diagnostic,
 };
 
@@ -18,6 +18,7 @@ impl<'db> Parse<'db> for Module<'db> {
     ) -> Result<Option<Self>, ParseFail<'db>> {
         let mut items: Vec<Item<'db>> = vec![];
 
+        // Parse items, skipping unrecognized tokens.
         let start_span = parser.peek_span();
         while let Some(token) = parser.peek() {
             let span = token.span;
@@ -26,15 +27,21 @@ impl<'db> Parse<'db> for Module<'db> {
                 Err(e) => parser.push_diagnostic(e.into_diagnostic(db)),
                 Ok(None) => {
                     parser.eat_next_token().unwrap();
-                    parser.push_diagnostic(Diagnostic::error(db, span, "unexpected token"));
+                    parser.push_diagnostic(Diagnostic::error(
+                        db,
+                        span,
+                        "expected a module-level item",
+                    ));
                 }
             }
         }
 
         Ok(Some(Module::new(
             db,
-            start_span.to(parser.last_span()),
-            items,
+            AstVec {
+                span: start_span.to(parser.last_span()),
+                values: items,
+            },
         )))
     }
 
