@@ -1,5 +1,3 @@
-use dada_util::Text;
-
 use crate::{
     ast::Item,
     span::{AbsoluteOffset, AbsoluteSpan, Offset, Span, Spanned},
@@ -7,7 +5,8 @@ use crate::{
 
 #[salsa::input]
 pub struct SourceFile {
-    pub path: Text,
+    #[return_ref]
+    pub path: String,
 
     #[return_ref]
     pub contents: String,

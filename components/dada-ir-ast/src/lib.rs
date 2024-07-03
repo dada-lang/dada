@@ -19,6 +19,7 @@ pub struct Jar(
     ast::Literal<'_>,
     diagnostic::Diagnostics,
     inputs::SourceFile,
+    parse::SourceFile_parse,
 );
 
 pub trait Db: salsa::DbWithJar<Jar> {}

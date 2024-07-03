@@ -15,7 +15,24 @@ mod module_body;
 mod tokenizer;
 mod types;
 
-pub struct Parser<'token, 'db> {
+#[salsa::tracked]
+impl SourceFile {
+    #[salsa::tracked]
+    pub fn parse(self, db: &dyn crate::Db) -> Module<'_> {
+        let anchor = Item::SourceFile(self);
+        let text = self.contents(db);
+        let tokens = tokenizer::tokenize(db, anchor, Offset::ZERO, text);
+        let mut parser = Parser::new(db, anchor, &tokens);
+        let module = Module::eat(db, &mut parser).expect("parsing a module is infallible");
+        parser
+            .into_diagnostics(db)
+            .into_iter()
+            .for_each(|d| d.report(db));
+        module
+    }
+}
+
+struct Parser<'token, 'db> {
     /// Input tokens
     tokens: &'token [Token<'token, 'db>],
 
@@ -67,7 +84,7 @@ impl<'token, 'db> Parser<'token, 'db> {
             }
         };
 
-        for diagnostic in self.diagnostics {
+        for diagnostic in self.into_diagnostics(db) {
             diagnostic.report(db);
         }
 
@@ -80,13 +97,14 @@ impl<'token, 'db> Parser<'token, 'db> {
     }
 
     /// Take all diagnostics from another parser (e.g., one parsing a delimited set of tokens).
-    pub fn take_diagnostics(&mut self, parser: Parser<'_, 'db>) {
-        self.diagnostics.extend(parser.into_diagnostics());
+    pub fn take_diagnostics(&mut self, db: &'db dyn crate::Db, parser: Parser<'_, 'db>) {
+        self.diagnostics.extend(parser.into_diagnostics(db));
     }
 
     /// Convert the parser into the diagnostics (errors)
     /// that occurred during parsing.
-    pub fn into_diagnostics(self) -> Vec<Diagnostic> {
+    pub fn into_diagnostics(mut self, db: &'db dyn crate::Db) -> Vec<Diagnostic> {
+        self.expect_eof(db);
         self.diagnostics
     }
 
@@ -118,10 +136,6 @@ impl<'token, 'db> Parser<'token, 'db> {
         }
     }
 
-    pub fn empty_span(&self) -> Span<'db> {
-        self.last_span().at_end()
-    }
-
     pub fn illformed(&mut self, expected: Expected) -> ParseFail<'db> {
         ParseFail {
             span: self.peek_span(),
@@ -132,10 +146,33 @@ impl<'token, 'db> Parser<'token, 'db> {
     pub fn eat_next_token(&mut self) -> Result<(), ParseFail<'db>> {
         if self.next_token < self.tokens.len() {
             self.last_span = self.tokens[self.next_token].span;
+
+            if let Token {
+                kind: TokenKind::Error(diagnostic),
+                ..
+            } = &self.tokens[self.next_token]
+            {
+                self.push_diagnostic(diagnostic.clone());
+            }
+
             self.next_token += 1;
             Ok(())
         } else {
             Err(self.illformed(Expected::MoreTokens))
+        }
+    }
+
+    pub fn expect_eof(&mut self, db: &'db dyn crate::Db) {
+        if self.peek().is_none() {
+            return;
+        }
+
+        let diagnostic = self.illformed(Expected::EOF).into_diagnostic(db);
+        self.push_diagnostic(diagnostic);
+
+        // consume all remaining tokens lest there is a tokenizer error in there
+        while self.peek().is_some() {
+            self.eat_next_token().unwrap();
         }
     }
 
@@ -257,7 +294,8 @@ impl<'token, 'db> Parser<'token, 'db> {
 ///
 /// Parsing something **can never** report diagnostics to the user.
 /// Any diagnostics need to be accumulated in the [`Parser`][].
-pub trait Parse<'db>: Sized {
+#[allow(dead_code)] // some fns not currently used
+trait Parse<'db>: Sized {
     type Output: Update;
 
     /// Speculatively parses to see if we could eat a `Self`
@@ -361,12 +399,10 @@ pub trait Parse<'db>: Sized {
 
         let text_span = parser.last_span();
         let tokenized = tokenize(db, text_span.anchor, text_span.start, text);
-        let tokens1 = &mut Parser::new(db, text_span.anchor, &tokenized);
-        let opt_list = Self::opt_parse_comma(db, tokens1)?;
+        let mut parser1 = Parser::new(db, text_span.anchor, &tokenized);
+        let opt_list = Self::opt_parse_comma(db, &mut parser1)?;
 
-        if let Some(&Token { span, .. }) = tokens1.peek() {
-            tokens1.push_diagnostic(Diagnostic::error(db, span, "unexpected extra content"));
-        }
+        parser.take_diagnostics(db, parser1);
 
         Ok(opt_list)
     }
@@ -414,6 +450,7 @@ pub struct ParseFail<'db> {
 
 #[derive(Clone, PartialEq, Eq, PartialOrd, Ord, Debug)]
 pub enum Expected {
+    EOF,
     MoreTokens,
     Identifier,
     Operator(&'static str),
@@ -426,17 +463,5 @@ pub enum Expected {
 impl<'db> ParseFail<'db> {
     pub fn into_diagnostic(self, db: &dyn crate::Db) -> Diagnostic {
         Diagnostic::error(db, self.span, format!("parse failure: `{:?}`", self))
-    }
-}
-
-#[salsa::tracked]
-impl SourceFile {
-    pub fn parse<'db>(&self, db: &'db dyn crate::Db) -> Module<'db> {
-        let anchor = Item::SourceFile(*self);
-        let text = self.contents(db);
-        let tokens = tokenizer::tokenize(db, anchor, Offset::ZERO, text);
-        Module::opt_parse(db, &mut Parser::new(db, anchor, &tokens))
-            .unwrap()
-            .unwrap()
     }
 }

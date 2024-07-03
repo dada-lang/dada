@@ -185,7 +185,7 @@ impl<'db> Parse<'db> for AstFunctionArg<'db> {
     }
 
     fn expected() -> Expected {
-        todo!()
+        Expected::Nonterminal("function argument")
     }
 }
 

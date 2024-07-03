@@ -1,7 +1,4 @@
-use crate::{
-    ast::{AstGenericKind, GenericDecl, KindedGenericDecl},
-    span::Span,
-};
+use crate::ast::{AstGenericKind, GenericDecl, KindedGenericDecl};
 
 use super::{
     tokenizer::{Keyword, Token, TokenKind},
@@ -73,26 +70,5 @@ impl<'db> Parse<'db> for KindedGenericDecl<'db> {
 
     fn expected() -> Expected {
         Expected::Nonterminal("name of generic parameter")
-    }
-}
-
-pub(super) struct TypeKeyword;
-
-impl<'db> Parse<'db> for TypeKeyword {
-    type Output = Span<'db>;
-
-    fn opt_parse(
-        _db: &'db dyn crate::Db,
-        parser: &mut Parser<'_, 'db>,
-    ) -> Result<Option<Self::Output>, ParseFail<'db>> {
-        let Ok(span) = parser.eat_keyword(Keyword::Type) else {
-            return Ok(None);
-        };
-
-        Ok(Some(span))
-    }
-
-    fn expected() -> Expected {
-        Expected::Keyword(Keyword::Type)
     }
 }
