@@ -4,6 +4,7 @@ version = "0.1.0"
 edition = "2021"
 
 [dependencies]
+annotate-snippets = "0.11.4"
 dada-ir-ast = { version = "0.1.0", path = "../dada-ir-ast" }
 dada-util = { version = "0.1.0", path = "../dada-util" }
 salsa = { git = "https://github.com/salsa-rs/salsa.git" }

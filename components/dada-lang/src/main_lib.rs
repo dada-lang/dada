@@ -1,7 +1,9 @@
 use dada_ir_ast::{diagnostic::Diagnostics, inputs::SourceFile};
 use dada_util::{Context, Fallible};
 
-use crate::{db::Database, Command, CompileOptions, GlobalOptions};
+use crate::{
+    db::Database, error_reporting::RenderDiagnostic, Command, CompileOptions, GlobalOptions,
+};
 
 pub struct Main {
     #[allow(dead_code)]
@@ -43,7 +45,7 @@ impl Main {
             dada_ir_ast::parse::SourceFile_parse::accumulated::<Diagnostics>(&self.db, source_file);
 
         for diagnostic in diagnostics {
-            eprintln!("{diagnostic:#?}");
+            eprintln!("{}", diagnostic.render(&self.global_options, &self.db));
         }
 
         Ok(())

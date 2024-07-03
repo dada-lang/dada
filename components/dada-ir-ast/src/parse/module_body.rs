@@ -1,5 +1,5 @@
 use crate::{
-    ast::{AstVec, ClassItem, Item, Module, Path, UseItem},
+    ast::{AstVec, ClassItem, Function, Item, Module, Path, UseItem},
     diagnostic::Diagnostic,
 };
 
@@ -57,7 +57,9 @@ impl<'db> Parse<'db> for Item<'db> {
         db: &'db dyn crate::Db,
         parser: &mut Parser<'_, 'db>,
     ) -> Result<Option<Self>, ParseFail<'db>> {
-        ClassItem::opt_parse(db, parser).or_opt_parse::<UseItem<'db>>(db, parser)
+        ClassItem::opt_parse(db, parser)
+            .or_opt_parse::<Self, UseItem<'db>>(db, parser)
+            .or_opt_parse::<Self, Function<'db>>(db, parser)
     }
 
     fn expected() -> Expected {

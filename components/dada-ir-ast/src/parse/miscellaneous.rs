@@ -27,26 +27,25 @@ impl<'db> Parse<'db> for Path<'db> {
     }
 }
 
-pub trait OrOptParse<'db, Enum> {
-    fn or_opt_parse<Variant2>(
+pub trait OrOptParse<'db, Variant1> {
+    fn or_opt_parse<Enum, Variant2>(
         self,
         db: &'db dyn crate::Db,
         parser: &mut Parser<'_, 'db>,
     ) -> Result<Option<Enum>, ParseFail<'db>>
     where
+        Variant1: Into<Enum>,
         Variant2: Parse<'db, Output: Into<Enum>>;
 }
 
-impl<'db, Enum, Variant1> OrOptParse<'db, Enum> for Result<Option<Variant1>, ParseFail<'db>>
-where
-    Variant1: Into<Enum>,
-{
-    fn or_opt_parse<Variant2>(
+impl<'db, Variant1> OrOptParse<'db, Variant1> for Result<Option<Variant1>, ParseFail<'db>> {
+    fn or_opt_parse<Enum, Variant2>(
         self,
         db: &'db dyn crate::Db,
         parser: &mut Parser<'_, 'db>,
     ) -> Result<Option<Enum>, ParseFail<'db>>
     where
+        Variant1: Into<Enum>,
         Variant2: Parse<'db, Output: Into<Enum>>,
     {
         match self {

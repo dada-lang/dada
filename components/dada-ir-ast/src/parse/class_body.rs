@@ -29,7 +29,7 @@ impl<'db> Parse<'db> for Member<'db> {
         db: &'db dyn crate::Db,
         parser: &mut Parser<'_, 'db>,
     ) -> Result<Option<Self>, super::ParseFail<'db>> {
-        FieldDecl::opt_parse(db, parser).or_opt_parse::<Function<'db>>(db, parser)
+        FieldDecl::opt_parse(db, parser).or_opt_parse::<Self, Function<'db>>(db, parser)
     }
 
     fn expected() -> Expected {
@@ -181,7 +181,7 @@ impl<'db> Parse<'db> for AstFunctionArg<'db> {
         db: &'db dyn crate::Db,
         parser: &mut Parser<'_, 'db>,
     ) -> Result<Option<Self>, super::ParseFail<'db>> {
-        AstSelfArg::opt_parse(db, parser).or_opt_parse::<VariableDecl<'db>>(db, parser)
+        AstSelfArg::opt_parse(db, parser).or_opt_parse::<Self, VariableDecl<'db>>(db, parser)
     }
 
     fn expected() -> Expected {

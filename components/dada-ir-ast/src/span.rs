@@ -158,6 +158,10 @@ pub struct AbsoluteOffset(u32);
 
 impl AbsoluteOffset {
     pub const ZERO: AbsoluteOffset = AbsoluteOffset(0);
+
+    pub fn as_usize(self) -> usize {
+        self.0 as usize
+    }
 }
 
 impl From<usize> for AbsoluteOffset {

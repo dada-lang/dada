@@ -70,6 +70,7 @@ add_from_impls! {
         SourceFile(SourceFile),
         Use(UseItem<'db>),
         Class(ClassItem<'db>),
+        Function(Function<'db>),
     }
 }
 
@@ -83,6 +84,7 @@ impl<'db> Item<'db> {
             },
             Item::Use(data) => data.span(db),
             Item::Class(data) => data.span(db),
+            Item::Function(data) => data.span(db),
         }
     }
 
@@ -91,6 +93,7 @@ impl<'db> Item<'db> {
             Item::SourceFile(source_file) => source_file.absolute_span(db),
             Item::Use(data) => data.span(db).absolute_span(db),
             Item::Class(data) => data.span(db).absolute_span(db),
+            Item::Function(data) => data.span(db).absolute_span(db),
         }
     }
 }

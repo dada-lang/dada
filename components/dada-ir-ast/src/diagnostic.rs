@@ -5,14 +5,25 @@ use crate::span::{AbsoluteSpan, Span};
 #[salsa::accumulator]
 pub struct Diagnostics(Diagnostic);
 
+/// A diagnostic to be reported to the user.
 #[derive(Clone, Debug, PartialEq, Eq, Hash)]
 #[must_use]
 pub struct Diagnostic {
-    level: Level,
-    span: AbsoluteSpan,
-    message: String,
-    labels: Vec<DiagnosticLabel>,
-    children: Vec<Diagnostic>,
+    /// Level of the message.
+    pub level: Level,
+
+    /// Main location of the message.
+    pub span: AbsoluteSpan,
+
+    /// Message to be printed.
+    pub message: String,
+
+    /// Labels to be included.
+    /// Add labels with the `label` helper method.
+    pub labels: Vec<DiagnosticLabel>,
+
+    /// Child diagnostics.
+    pub children: Vec<Diagnostic>,
 }
 
 #[derive(Copy, Clone, Debug, PartialEq, Eq, Hash)]
@@ -24,9 +35,18 @@ pub enum Level {
     Error,
 }
 
-#[derive(Copy, Clone, Debug, PartialEq, Eq, Hash)]
+/// A label to be included in the diagnostic.
+#[derive(Clone, Debug, PartialEq, Eq, Hash)]
 pub struct DiagnosticLabel {
-    span: Span<'static>,
+    /// Level of the label.
+    pub level: Level,
+
+    /// The span to be labeled.
+    /// Must have the same source file as the main diagnostic!
+    pub span: AbsoluteSpan,
+
+    /// Message to be printed for the label.
+    pub message: String,
 }
 
 impl Diagnostic {
@@ -52,6 +72,23 @@ impl Diagnostic {
 
     pub fn report(self, db: &dyn crate::Db) {
         Diagnostics::push(db, self)
+    }
+
+    pub fn label(
+        mut self,
+        db: &dyn crate::Db,
+        level: Level,
+        span: Span,
+        message: impl Display,
+    ) -> Self {
+        let span = span.absolute_span(db);
+        assert_eq!(self.span.source_file, span.source_file);
+        self.labels.push(DiagnosticLabel {
+            level,
+            span,
+            message: message.to_string(),
+        });
+        self
     }
 }
 

@@ -2,6 +2,7 @@ use dada_util::Fallible;
 use structopt::StructOpt;
 
 mod db;
+mod error_reporting;
 mod main_lib;
 
 #[derive(Debug, StructOpt)]
@@ -14,7 +15,10 @@ pub struct Options {
 }
 
 #[derive(Debug, StructOpt)]
-pub struct GlobalOptions {}
+pub struct GlobalOptions {
+    #[structopt(long)]
+    no_color: bool,
+}
 
 #[derive(Debug, StructOpt)]
 pub enum Command {
