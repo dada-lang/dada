@@ -101,10 +101,20 @@ impl<'token, 'db> Parser<'token, 'db> {
         self.diagnostics.extend(parser.into_diagnostics(db));
     }
 
-    /// Convert the parser into the diagnostics (errors)
-    /// that occurred during parsing.
+    /// Complete parsing and convert the parser into the resulting diagnostics (errors).
+    ///
+    /// Reports an error if there are any unconsumed tokens.
     pub fn into_diagnostics(mut self, db: &'db dyn crate::Db) -> Vec<Diagnostic> {
-        self.expect_eof(db);
+        if self.peek().is_some() {
+            let diagnostic = self.illformed(Expected::EOF).into_diagnostic(db);
+            self.push_diagnostic(diagnostic);
+
+            // consume all remaining tokens lest there is a tokenizer error in there
+            while self.peek().is_some() {
+                self.eat_next_token().unwrap();
+            }
+        }
+
         self.diagnostics
     }
 
@@ -119,8 +129,24 @@ impl<'token, 'db> Parser<'token, 'db> {
         }
     }
 
+    /// Peek at the next token, returning None if there is none.
+    /// Implicitly advances past error tokens.
+    /// Does not consume the token returned.
     pub fn peek(&mut self) -> Option<&Token<'token, 'db>> {
-        self.tokens.get(self.next_token)
+        loop {
+            let token = self.tokens.get(self.next_token)?;
+
+            if let Token {
+                kind: TokenKind::Error(diagnostic),
+                ..
+            } = token
+            {
+                self.push_diagnostic(diagnostic.clone());
+                self.eat_next_token().unwrap();
+            } else {
+                return Some(token);
+            }
+        }
     }
 
     /// Span of the last consumed token.
@@ -146,33 +172,10 @@ impl<'token, 'db> Parser<'token, 'db> {
     pub fn eat_next_token(&mut self) -> Result<(), ParseFail<'db>> {
         if self.next_token < self.tokens.len() {
             self.last_span = self.tokens[self.next_token].span;
-
-            if let Token {
-                kind: TokenKind::Error(diagnostic),
-                ..
-            } = &self.tokens[self.next_token]
-            {
-                self.push_diagnostic(diagnostic.clone());
-            }
-
             self.next_token += 1;
             Ok(())
         } else {
             Err(self.illformed(Expected::MoreTokens))
-        }
-    }
-
-    pub fn expect_eof(&mut self, db: &'db dyn crate::Db) {
-        if self.peek().is_none() {
-            return;
-        }
-
-        let diagnostic = self.illformed(Expected::EOF).into_diagnostic(db);
-        self.push_diagnostic(diagnostic);
-
-        // consume all remaining tokens lest there is a tokenizer error in there
-        while self.peek().is_some() {
-            self.eat_next_token().unwrap();
         }
     }
 
