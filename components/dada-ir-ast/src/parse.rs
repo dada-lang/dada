@@ -172,6 +172,7 @@ impl<'token, 'db> Parser<'token, 'db> {
     pub fn eat_next_token(&mut self) -> Result<(), ParseFail<'db>> {
         if self.next_token < self.tokens.len() {
             self.last_span = self.tokens[self.next_token].span;
+            // eprintln!("ate token `{:?}`", self.tokens[self.next_token].kind);
             self.next_token += 1;
             Ok(())
         } else {
@@ -403,11 +404,11 @@ trait Parse<'db>: Sized {
         let text_span = parser.last_span();
         let tokenized = tokenize(db, text_span.anchor, text_span.start, text);
         let mut parser1 = Parser::new(db, text_span.anchor, &tokenized);
-        let opt_list = Self::opt_parse_comma(db, &mut parser1)?;
+        let opt_list = Self::eat_comma(db, &mut parser1)?;
 
         parser.take_diagnostics(db, parser1);
 
-        Ok(opt_list)
+        Ok(Some(opt_list))
     }
 
     /// Parse a comma separated list of Self

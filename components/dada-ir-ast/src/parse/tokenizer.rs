@@ -26,7 +26,7 @@ pub enum Skipped {
     Comment,
 }
 
-#[derive(Clone)]
+#[derive(Clone, Debug)]
 pub enum TokenKind<'input, 'db> {
     /// A program identifier
     Identifier(Identifier<'db>),
