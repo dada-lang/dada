@@ -1,4 +1,4 @@
-use annotate_snippets::{Annotation, Message, Renderer, Snippet};
+use annotate_snippets::{Message, Renderer, Snippet};
 use dada_ir_ast::{diagnostic::Diagnostic, span::AbsoluteSpan};
 
 use crate::{db, GlobalOptions};

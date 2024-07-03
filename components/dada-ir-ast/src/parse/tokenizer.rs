@@ -119,6 +119,32 @@ pub enum Delimiter {
     CurlyBraces,
 }
 
+impl Delimiter {
+    pub fn open_char(self) -> char {
+        match self {
+            Self::Parentheses => '(',
+            Self::SquareBrackets => '[',
+            Self::CurlyBraces => '{',
+        }
+    }
+
+    pub fn close_char(self) -> char {
+        match self {
+            Self::Parentheses => ')',
+            Self::SquareBrackets => ']',
+            Self::CurlyBraces => '}',
+        }
+    }
+
+    pub fn chars(self) -> &'static str {
+        match self {
+            Delimiter::Parentheses => "()",
+            Delimiter::SquareBrackets => "[]",
+            Delimiter::CurlyBraces => "{}",
+        }
+    }
+}
+
 pub fn tokenize<'input, 'db>(
     db: &'db dyn crate::Db,
     anchor: Item<'db>,

@@ -459,12 +459,20 @@ pub enum Expected {
     Operator(&'static str),
     Keyword(Keyword),
     Delimited(Delimiter),
-    Path,
     Nonterminal(&'static str),
 }
 
 impl<'db> ParseFail<'db> {
     pub fn into_diagnostic(self, db: &dyn crate::Db) -> Diagnostic {
-        Diagnostic::error(db, self.span, format!("parse failure: `{:?}`", self))
+        let message = match self.expected {
+            Expected::EOF => "expected end of input".to_string(),
+            Expected::MoreTokens => "expected more tokens".to_string(),
+            Expected::Identifier => "expected an identifier".to_string(),
+            Expected::Operator(op) => format!("expected `{op}`"),
+            Expected::Keyword(k) => format!("expected `{k:?}`"),
+            Expected::Delimited(d) => format!("expected `{}`", d.open_char()),
+            Expected::Nonterminal(n) => format!("expected {n}"),
+        };
+        Diagnostic::error(db, self.span, message)
     }
 }

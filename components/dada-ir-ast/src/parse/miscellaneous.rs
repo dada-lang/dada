@@ -23,7 +23,7 @@ impl<'db> Parse<'db> for Path<'db> {
     }
 
     fn expected() -> Expected {
-        Expected::Path
+        Expected::Nonterminal("path")
     }
 }
 
