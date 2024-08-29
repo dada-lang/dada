@@ -15,7 +15,11 @@ struct FailedTest {
 
 impl Main {
     pub(super) fn test(&mut self, options: &TestOptions) -> Fallible<()> {
-        let tests = self.assemble_tests(&options.inputs);
+        let tests = if options.inputs.is_empty() {
+            self.assemble_tests(&["."])
+        } else {
+            self.assemble_tests(&options.inputs)
+        };
 
         eprintln!("Total tests: {}", tests.len());
 
@@ -37,17 +41,18 @@ impl Main {
         }
     }
 
-    fn assemble_tests(&self, inputs: &[String]) -> Vec<PathBuf> {
+    fn assemble_tests(&self, inputs: &[impl AsRef<Path>]) -> Vec<PathBuf> {
         inputs
             .iter()
             .flat_map(|input| {
-                if input.ends_with(".dada") {
+                let input: &Path = input.as_ref();
+                if input.extension().map(|e| e == "dada").unwrap_or(false) {
                     vec![PathBuf::from(input)]
                 } else {
                     WalkDir::new(input)
                         .into_iter()
                         .filter_map(|e| e.ok())
-                        .filter(|e| e.path().ends_with(".dada"))
+                        .filter(|e| e.path().extension().map(|e| e == "dada").unwrap_or(false))
                         .map(|e| e.into_path())
                         .collect::<Vec<_>>()
                 }
