@@ -1,6 +1,7 @@
 use dada_util::Fallible;
 use structopt::StructOpt;
 
+mod compiler;
 mod db;
 mod error_reporting;
 mod main_lib;
@@ -34,10 +35,13 @@ pub struct CompileOptions {
     input: String,
 }
 
+#[derive(Debug, StructOpt)]
+pub struct TestOptions {
+    /// Test file(s) or directory
+    inputs: Vec<String>,
+}
 impl Options {
-    pub async fn main(self) -> Fallible<()> {
-        main_lib::Main::new(self.global_options)
-            .run(self.command)
-            .await
+    pub fn main(self) -> Fallible<()> {
+        main_lib::Main::new(self.global_options).run(self.command)
     }
 }
