@@ -8,14 +8,16 @@ use crate::{compiler::Compiler, TestOptions};
 
 use super::Main;
 
-pub(crate) struct FailedTest {
+struct FailedTest {
     path: String,
     details: String,
 }
 
 impl Main {
-    pub fn test(&mut self, options: &TestOptions) -> Fallible<()> {
+    pub(super) fn test(&mut self, options: &TestOptions) -> Fallible<()> {
         let tests = self.assemble_tests(&options.inputs);
+
+        eprintln!("Total tests: {}", tests.len());
 
         let failed_tests: Vec<FailedTest> = tests
             .par_iter()
@@ -53,7 +55,7 @@ impl Main {
             .collect()
     }
 
-    pub fn run_test(&self, input: &Path) -> Option<FailedTest> {
+    fn run_test(&self, input: &Path) -> Option<FailedTest> {
         let input: String = input.display().to_string();
         let mut compiler = Compiler::new();
         let source_file = match compiler.load_input(&input) {

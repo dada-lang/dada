@@ -27,6 +27,11 @@ pub enum Command {
         #[structopt(flatten)]
         compile_options: CompileOptions,
     },
+
+    Test {
+        #[structopt(flatten)]
+        test_options: TestOptions,
+    },
 }
 
 #[derive(Debug, StructOpt)]
@@ -40,6 +45,7 @@ pub struct TestOptions {
     /// Test file(s) or directory
     inputs: Vec<String>,
 }
+
 impl Options {
     pub fn main(self) -> Fallible<()> {
         main_lib::Main::new(self.global_options).run(self.command)
