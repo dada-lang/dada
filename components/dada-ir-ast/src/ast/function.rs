@@ -1,4 +1,4 @@
-use salsa::{DebugWithDb, Update};
+use salsa::Update;
 
 use super::{AstPerm, AstTy, AstVec, GenericDecl, SpannedIdentifier};
 use crate::span::{Span, Spanned};
@@ -48,7 +48,7 @@ impl<'db> Spanned<'db> for FunctionBody<'db> {
 }
 
 add_from_impls! {
-    #[derive(Clone, PartialEq, Eq, PartialOrd, Ord, Hash, Update, Debug, DebugWithDb)]
+    #[derive(Clone, PartialEq, Eq, PartialOrd, Ord, Hash, Update, Debug)]
     pub enum AstFunctionArg<'db> {
         SelfArg(AstSelfArg<'db>),
         Variable(VariableDecl<'db>),
@@ -64,7 +64,7 @@ impl<'db> Spanned<'db> for AstFunctionArg<'db> {
     }
 }
 
-#[derive(Clone, PartialEq, Eq, PartialOrd, Ord, Hash, Update, Debug, DebugWithDb)]
+#[derive(Clone, PartialEq, Eq, PartialOrd, Ord, Hash, Update, Debug)]
 pub struct AstSelfArg<'db> {
     pub perm: Option<AstPerm<'db>>,
     pub self_span: Span<'db>,
@@ -77,7 +77,7 @@ impl<'db> Spanned<'db> for AstSelfArg<'db> {
 }
 
 /// `x: T`
-#[derive(Clone, PartialEq, Eq, PartialOrd, Ord, Hash, Update, Debug, DebugWithDb)]
+#[derive(Clone, PartialEq, Eq, PartialOrd, Ord, Hash, Update, Debug)]
 pub struct VariableDecl<'db> {
     pub name: SpannedIdentifier<'db>,
     pub ty: AstTy<'db>,

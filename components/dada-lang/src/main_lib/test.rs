@@ -4,11 +4,11 @@ use dada_util::{bail, Fallible};
 use rayon::prelude::*;
 use walkdir::WalkDir;
 
-use crate::{compiler::Compiler, db::Database, TestOptions};
+use crate::{compiler::Compiler, TestOptions};
 
 use super::Main;
 
-struct FailedTest {
+pub(crate) struct FailedTest {
     path: String,
     details: String,
 }

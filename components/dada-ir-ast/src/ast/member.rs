@@ -1,11 +1,11 @@
-use salsa::{DebugWithDb, Update};
+use salsa::Update;
 
 use crate::span::{Span, Spanned};
 
 use super::{Function, VariableDecl};
 
 add_from_impls! {
-    #[derive(Clone, PartialEq, Eq, PartialOrd, Ord, Hash, Update, Debug, DebugWithDb)]
+    #[derive(Clone, PartialEq, Eq, PartialOrd, Ord, Hash, Update, Debug)]
     pub enum Member<'db> {
         Field(FieldDecl<'db>),
         Function(Function<'db>),
@@ -21,7 +21,7 @@ impl<'db> Spanned<'db> for Member<'db> {
     }
 }
 
-#[derive(Clone, PartialEq, Eq, PartialOrd, Ord, Hash, Update, Debug, DebugWithDb)]
+#[derive(Clone, PartialEq, Eq, PartialOrd, Ord, Hash, Update, Debug)]
 pub struct FieldDecl<'db> {
     pub span: Span<'db>,
     pub visibility: Option<Visibility<'db>>,
@@ -34,7 +34,7 @@ impl<'db> Spanned<'db> for FieldDecl<'db> {
     }
 }
 
-#[derive(Clone, PartialEq, Eq, PartialOrd, Ord, Hash, Update, Debug, DebugWithDb)]
+#[derive(Clone, PartialEq, Eq, PartialOrd, Ord, Hash, Update, Debug)]
 pub struct Visibility<'db> {
     pub span: Span<'db>,
     pub kind: VisibilityKind,
@@ -46,7 +46,7 @@ impl<'db> Spanned<'db> for Visibility<'db> {
     }
 }
 
-#[derive(Copy, Clone, PartialEq, Eq, PartialOrd, Ord, Hash, Update, Debug, DebugWithDb)]
+#[derive(Copy, Clone, PartialEq, Eq, PartialOrd, Ord, Hash, Update, Debug)]
 pub enum VisibilityKind {
     Export,
     Pub,

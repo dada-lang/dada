@@ -1,11 +1,11 @@
-use salsa::{DebugWithDb, Update};
+use salsa::Update;
 
 use crate::{ast::Item, inputs::SourceFile};
 
 /// A span within the input. The offsets are stored relative to the start of the **anchor**,
 /// which is some item (e.g., a class, function, etc). The use of relative offsets avoids
 /// incremental churn if lines or content is added before/after the definition.
-#[derive(Copy, Clone, PartialEq, Eq, Hash, PartialOrd, Ord, DebugWithDb, Debug, Update)]
+#[derive(Copy, Clone, PartialEq, Eq, Hash, PartialOrd, Ord, Debug, Update)]
 pub struct Span<'db> {
     pub anchor: Item<'db>,
     pub start: Offset,
@@ -15,7 +15,7 @@ pub struct Span<'db> {
 /// An absolute span within the input. The offsets are stored as absolute offsets
 /// within a given source file. These are used for diagnostics or outputs but not
 /// internally during compilation.
-#[derive(Copy, Clone, PartialEq, Eq, PartialOrd, Ord, Hash, Debug, DebugWithDb)]
+#[derive(Copy, Clone, PartialEq, Eq, PartialOrd, Ord, Hash, Debug)]
 pub struct AbsoluteSpan {
     pub source_file: SourceFile,
     pub start: AbsoluteOffset,
@@ -108,7 +108,7 @@ impl<'db> IntoOptionSpan<'db> for Option<Span<'db>> {
     }
 }
 
-#[derive(Copy, Clone, PartialEq, Eq, Hash, PartialOrd, Ord, DebugWithDb, Debug)]
+#[derive(Copy, Clone, PartialEq, Eq, Hash, PartialOrd, Ord, Debug)]
 pub struct Offset(u32);
 
 impl From<usize> for Offset {
@@ -153,7 +153,7 @@ impl std::ops::Add<Offset> for Offset {
     }
 }
 
-#[derive(Copy, Clone, PartialEq, Eq, Hash, PartialOrd, Ord, DebugWithDb, Debug)]
+#[derive(Copy, Clone, PartialEq, Eq, Hash, PartialOrd, Ord, Debug)]
 pub struct AbsoluteOffset(u32);
 
 impl AbsoluteOffset {

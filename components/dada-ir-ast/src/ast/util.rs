@@ -1,10 +1,10 @@
 use std::ops::Deref;
 
-use salsa::{update::Update, DebugWithDb, Update};
+use salsa::Update;
 
 use crate::span::Span;
 
-#[derive(Clone, PartialEq, Eq, PartialOrd, Ord, Hash, Update, Debug, DebugWithDb)]
+#[derive(Clone, PartialEq, Eq, PartialOrd, Ord, Hash, Update, Debug)]
 pub struct AstVec<'db, T: Update> {
     //                    ------ FIXME: Bug in the derive?
     pub span: Span<'db>,

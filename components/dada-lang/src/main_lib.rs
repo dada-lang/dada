@@ -1,9 +1,7 @@
-use dada_ir_ast::{diagnostic::Diagnostics, inputs::SourceFile};
-use dada_util::{Context, Fallible};
+use dada_util::Fallible;
 
 use crate::{
-    compiler::Compiler, db::Database, error_reporting::RenderDiagnostic, Command, CompileOptions,
-    GlobalOptions,
+    compiler::Compiler, error_reporting::RenderDiagnostic, Command, CompileOptions, GlobalOptions,
 };
 
 mod test;

@@ -1,12 +1,11 @@
 use std::fmt::Display;
 
 use crate::span::{AbsoluteSpan, Span};
-
-#[salsa::accumulator]
-pub struct Diagnostics(Diagnostic);
+use salsa::Accumulator;
 
 /// A diagnostic to be reported to the user.
-#[derive(Clone, Debug, PartialEq, Eq, Hash)]
+#[salsa::accumulator]
+#[derive(PartialEq, Eq, Hash)]
 #[must_use]
 pub struct Diagnostic {
     /// Level of the message.
@@ -71,7 +70,7 @@ impl Diagnostic {
     }
 
     pub fn report(self, db: &dyn crate::Db) {
-        Diagnostics::push(db, self)
+        self.accumulate(db);
     }
 
     pub fn label(

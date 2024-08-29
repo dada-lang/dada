@@ -6,22 +6,4 @@ pub mod inputs;
 pub mod parse;
 pub mod span;
 
-#[salsa::jar(db = Db)]
-pub struct Jar(
-    ast::Module<'_>,
-    ast::Identifier<'_>,
-    ast::UseItem<'_>,
-    ast::ClassItem<'_>,
-    ast::Function<'_>,
-    ast::FunctionBody<'_>,
-    ast::AstTy<'_>,
-    ast::AstPerm<'_>,
-    ast::Literal<'_>,
-    diagnostic::Diagnostics,
-    inputs::SourceFile,
-    parse::SourceFile_parse,
-);
-
-pub trait Db: salsa::DbWithJar<Jar> {}
-
-impl<DB> Db for DB where DB: ?Sized + salsa::DbWithJar<Jar> {}
+use salsa::Database as Db;

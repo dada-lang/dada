@@ -1,4 +1,4 @@
-use salsa::update::Update;
+use salsa::Update;
 use tokenizer::{tokenize, Delimiter, Keyword, Skipped, Token, TokenKind};
 
 use crate::{

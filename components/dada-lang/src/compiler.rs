@@ -1,12 +1,7 @@
-use dada_ir_ast::{
-    diagnostic::{Diagnostic, Diagnostics},
-    inputs::SourceFile,
-};
+use dada_ir_ast::{diagnostic::Diagnostic, inputs::SourceFile};
 use dada_util::{Context, Fallible};
 
-use crate::{
-    db::Database, error_reporting::RenderDiagnostic, Command, CompileOptions, GlobalOptions,
-};
+use crate::db::Database;
 
 pub struct Compiler {
     db: Database,
@@ -36,6 +31,11 @@ impl Compiler {
     }
 
     pub fn parse(&mut self, source_file: SourceFile) -> Vec<Diagnostic> {
-        dada_ir_ast::parse::SourceFile_parse::accumulated::<Diagnostics>(&self.db, source_file)
+        check_parse::accumulated::<Diagnostic>(&self.db, source_file)
     }
+}
+
+#[salsa::tracked]
+fn check_parse(db: &dyn salsa::Database, source_file: SourceFile) {
+    source_file.parse(db);
 }

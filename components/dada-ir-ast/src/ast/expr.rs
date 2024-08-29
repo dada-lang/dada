@@ -1,35 +1,35 @@
-use salsa::{DebugWithDb, Update};
+use salsa::Update;
 
 use crate::span::Span;
 
 use super::{AstGenericArg, AstTy, AstVec, Path, SpannedIdentifier};
 
-#[derive(Clone, PartialEq, Eq, PartialOrd, Ord, Hash, Update, Debug, DebugWithDb)]
+#[derive(Clone, PartialEq, Eq, PartialOrd, Ord, Hash, Update, Debug)]
 pub struct AstBlock<'db> {
     statements: AstVec<'db, AstStatement<'db>>,
 }
 
-#[derive(Clone, PartialEq, Eq, PartialOrd, Ord, Hash, Update, Debug, DebugWithDb)]
+#[derive(Clone, PartialEq, Eq, PartialOrd, Ord, Hash, Update, Debug)]
 pub enum AstStatement<'db> {
     Let(AstLetStatement<'db>),
     Expr(AstExpr<'db>),
 }
 
 /// `let x = v`, `let x: t = v`, etc
-#[derive(Clone, PartialEq, Eq, PartialOrd, Ord, Hash, Update, Debug, DebugWithDb)]
+#[derive(Clone, PartialEq, Eq, PartialOrd, Ord, Hash, Update, Debug)]
 pub struct AstLetStatement<'db> {
     pub name: SpannedIdentifier<'db>,
     pub ty: Option<AstTy<'db>>,
     pub initializer: Option<AstExpr<'db>>,
 }
 
-#[derive(Clone, PartialEq, Eq, PartialOrd, Ord, Hash, Update, Debug, DebugWithDb)]
+#[derive(Clone, PartialEq, Eq, PartialOrd, Ord, Hash, Update, Debug)]
 pub struct AstExpr<'db> {
     pub span: Span<'db>,
     pub kind: Box<AstExprKind<'db>>,
 }
 
-#[derive(Clone, PartialEq, Eq, PartialOrd, Ord, Hash, Update, Debug, DebugWithDb)]
+#[derive(Clone, PartialEq, Eq, PartialOrd, Ord, Hash, Update, Debug)]
 pub enum AstExprKind<'db> {
     /// `22`
     Literal(Literal<'db>),
@@ -50,7 +50,7 @@ pub enum AstExprKind<'db> {
     Return(Option<AstExpr<'db>>),
 }
 
-#[derive(Clone, PartialEq, Eq, PartialOrd, Ord, Hash, Update, Debug, DebugWithDb)]
+#[derive(Clone, PartialEq, Eq, PartialOrd, Ord, Hash, Update, Debug)]
 pub struct AstConstructorField<'db> {
     name: SpannedIdentifier<'db>,
     value: AstExpr<'db>,
@@ -62,13 +62,13 @@ pub struct Literal<'db> {
     text: String,
 }
 
-#[derive(Clone, PartialEq, Eq, PartialOrd, Ord, Hash, Update, Debug, DebugWithDb)]
+#[derive(Clone, PartialEq, Eq, PartialOrd, Ord, Hash, Update, Debug)]
 pub enum LiteralKind {
     Integer,
     String,
 }
 
-#[derive(Clone, PartialEq, Eq, PartialOrd, Ord, Hash, Update, Debug, DebugWithDb)]
+#[derive(Clone, PartialEq, Eq, PartialOrd, Ord, Hash, Update, Debug)]
 pub struct AstCallExpr<'db> {
     pub callee: AstExpr<'db>,
     pub generic_args: AstVec<'db, AstGenericArg<'db>>,

@@ -1,4 +1,4 @@
-use salsa::{DebugWithDb, Update};
+use salsa::Update;
 
 use crate::span::{Span, Spanned};
 
@@ -20,7 +20,7 @@ impl<'db> Spanned<'db> for AstTy<'db> {
     }
 }
 
-#[derive(Clone, PartialEq, Eq, PartialOrd, Ord, Hash, Update, Debug, DebugWithDb)]
+#[derive(Clone, PartialEq, Eq, PartialOrd, Ord, Hash, Update, Debug)]
 pub enum AstTyKind<'db> {
     /// `$Perm $Ty`, e.g., `shared String`
     Perm(AstPerm<'db>, AstTy<'db>),
@@ -50,7 +50,7 @@ impl<'db> Spanned<'db> for AstPerm<'db> {
     }
 }
 
-#[derive(Clone, PartialEq, Eq, PartialOrd, Ord, Hash, Update, Debug, DebugWithDb)]
+#[derive(Clone, PartialEq, Eq, PartialOrd, Ord, Hash, Update, Debug)]
 pub enum AstPermKind<'db> {
     Shared(Option<AstVec<'db, Path<'db>>>),
     Leased(Option<AstVec<'db, Path<'db>>>),
@@ -67,7 +67,7 @@ pub enum AstPermKind<'db> {
 }
 
 add_from_impls! {
-    #[derive(Clone, PartialEq, Eq, PartialOrd, Ord, Hash, Update, Debug, DebugWithDb)]
+    #[derive(Clone, PartialEq, Eq, PartialOrd, Ord, Hash, Update, Debug)]
     pub enum AstGenericArg<'db> {
         /// Something clearly a type
         Ty(AstTy<'db>),
@@ -80,7 +80,7 @@ add_from_impls! {
     }
 }
 
-#[derive(Copy, Clone, PartialEq, Eq, PartialOrd, Ord, Hash, Update, Debug, DebugWithDb)]
+#[derive(Copy, Clone, PartialEq, Eq, PartialOrd, Ord, Hash, Update, Debug)]
 pub enum AstGenericKind<'db> {
     Type(Span<'db>),
     Perm(Span<'db>),
@@ -95,7 +95,7 @@ impl<'db> Spanned<'db> for AstGenericKind<'db> {
     }
 }
 
-#[derive(Clone, PartialEq, Eq, PartialOrd, Ord, Hash, Update, Debug, DebugWithDb)]
+#[derive(Clone, PartialEq, Eq, PartialOrd, Ord, Hash, Update, Debug)]
 pub struct GenericDecl<'db> {
     pub kind: AstGenericKind<'db>,
     pub decl: KindedGenericDecl<'db>,
@@ -108,7 +108,7 @@ impl<'db> Spanned<'db> for GenericDecl<'db> {
 }
 
 /// `[type T]` or `[perm P]`
-#[derive(Clone, PartialEq, Eq, PartialOrd, Ord, Hash, Update, Debug, DebugWithDb)]
+#[derive(Clone, PartialEq, Eq, PartialOrd, Ord, Hash, Update, Debug)]
 pub struct KindedGenericDecl<'db> {
     pub name: SpannedIdentifier<'db>,
 }

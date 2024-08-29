@@ -1,6 +1,6 @@
 #![allow(clippy::unused_unit)] // FIXME: derive(Update) triggers these
 
-use salsa::{DebugWithDb, Update};
+use salsa::Update;
 
 use crate::{
     inputs::SourceFile,
@@ -65,7 +65,7 @@ impl<'db> Spanned<'db> for Module<'db> {
 }
 
 add_from_impls! {
-    #[derive(Copy, Clone, PartialEq, Eq, Hash, PartialOrd, Ord, DebugWithDb, Debug, Update)]
+    #[derive(Copy, Clone, PartialEq, Eq, Hash, PartialOrd, Ord, Debug, Update)]
     pub enum Item<'db> {
         SourceFile(SourceFile),
         Use(UseItem<'db>),
@@ -99,7 +99,7 @@ impl<'db> Item<'db> {
 }
 
 /// Path of identifiers (must be non-empty)
-#[derive(Clone, PartialEq, Eq, PartialOrd, Ord, Hash, Update, Debug, DebugWithDb)]
+#[derive(Clone, PartialEq, Eq, PartialOrd, Ord, Hash, Update, Debug)]
 pub struct Path<'db> {
     pub ids: Vec<SpannedIdentifier<'db>>,
 }
@@ -112,7 +112,7 @@ impl<'db> Spanned<'db> for Path<'db> {
     }
 }
 
-#[derive(Clone, PartialEq, Eq, PartialOrd, Ord, Hash, Update, Debug, DebugWithDb)]
+#[derive(Clone, PartialEq, Eq, PartialOrd, Ord, Hash, Update, Debug)]
 pub struct SpannedIdentifier<'db> {
     pub span: Span<'db>,
     pub id: Identifier<'db>,
