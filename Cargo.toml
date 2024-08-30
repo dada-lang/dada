@@ -15,9 +15,9 @@ default-run = "dada"
 
 # See more keys and their definitions at https://doc.rust-lang.org/cargo/reference/manifest.html
 
-#[[test]]
-#name = "harness"
-#harness = false
+[[test]]
+name = "harness"
+harness = false
 
 [dependencies]
 dada-lang = { path = "components/dada-lang" }

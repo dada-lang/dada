@@ -1,6 +1,8 @@
 fn main() -> dada_util::Fallible<()> {
     let status = std::process::Command::new(env!("CARGO_BIN_EXE_dada"))
         .arg("test")
+        .arg("--")
+        .arg("tests")
         .status()?;
     if status.success() {
         Ok(())
