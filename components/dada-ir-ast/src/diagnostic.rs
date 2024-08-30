@@ -25,12 +25,12 @@ pub struct Diagnostic {
     pub children: Vec<Diagnostic>,
 }
 
-#[derive(Copy, Clone, Debug, PartialEq, Eq, Hash)]
+#[derive(Copy, Clone, Debug, PartialEq, Eq, Hash, PartialOrd, Ord)]
 pub enum Level {
     Note,
-    Warning,
-    Info,
     Help,
+    Info,
+    Warning,
     Error,
 }
 

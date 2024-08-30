@@ -1,4 +1,5 @@
-use dada_util::Fallible;
+use dada_ir_ast::diagnostic::Level;
+use dada_util::{bail, Fallible};
 
 use crate::{compiler::Compiler, error_reporting::RenderDiagnostic, CompileOptions};
 
@@ -10,8 +11,12 @@ impl Main {
         let source_file = compiler.load_input(&compile_options.input)?;
         let diagnostics = compiler.parse(source_file);
 
-        for diagnostic in diagnostics {
-            diagnostic.render(&self.global_options, compiler.db());
+        for diagnostic in &diagnostics {
+            eprintln!("{}", diagnostic.render(&self.global_options, compiler.db()));
+        }
+
+        if diagnostics.iter().any(|d| d.level >= Level::Error) {
+            bail!("compilation failed due to errors");
         }
 
         Ok(())
