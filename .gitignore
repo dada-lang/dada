@@ -2,6 +2,9 @@ target
 .vscode
 playground
 
+# Test harness files
+*.test_failure.md
+
 # Internal IR files used for debugging
 syntax.debug
 validated.debug

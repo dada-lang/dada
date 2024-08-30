@@ -7,7 +7,10 @@ edition = "2021"
 annotate-snippets = "0.11.4"
 dada-ir-ast = { version = "0.1.0", path = "../dada-ir-ast" }
 dada-util = { version = "0.1.0", path = "../dada-util" }
+indicatif = "0.17.8"
 rayon = "1.10.0"
+run = "0.1.0"
 salsa = { git = "https://github.com/salsa-rs/salsa.git" }
 structopt = "0.3.26" # derive doesn't work without this
+thiserror = "1.0.63"
 walkdir = "2.5.0"

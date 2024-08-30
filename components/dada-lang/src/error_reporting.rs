@@ -4,11 +4,11 @@ use dada_ir_ast::{diagnostic::Diagnostic, span::AbsoluteSpan};
 use crate::{db, GlobalOptions};
 
 pub trait RenderDiagnostic {
-    fn render(self, opts: &GlobalOptions, db: &db::Database) -> String;
+    fn render(&self, opts: &GlobalOptions, db: &db::Database) -> String;
 }
 
 impl RenderDiagnostic for Diagnostic {
-    fn render(self, opts: &GlobalOptions, db: &db::Database) -> String {
+    fn render(&self, opts: &GlobalOptions, db: &db::Database) -> String {
         let message = to_message(db, &self);
         renderer(opts).render(message).to_string()
     }
