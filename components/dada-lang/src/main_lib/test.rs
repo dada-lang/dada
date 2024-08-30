@@ -164,18 +164,18 @@ impl FailedTest {
 
         writeln!(result, "Test failed: {}", self.path.display())?;
 
-        for diagnostic in &self.unexpected_diagnostics {
-            writeln!(result, "")?;
-            writeln!(result, "# Unexpected diagnostic")?;
-            writeln!(result, "")?;
+        let mut diagnostics = self
+            .unexpected_diagnostics
+            .iter()
+            .map(|d| (d, "Unexpected"))
+            .chain(self.missing_diagnostics.iter().map(|d| (d, "Missing")))
+            .collect::<Vec<_>>();
 
-            let render = diagnostic.render(&opts, db);
-            writeln!(result, "```\n{}\n```", render)?;
-        }
+        diagnostics.sort_by_key(|(d, _)| &d.span);
 
-        for diagnostic in &self.missing_diagnostics {
+        for (diagnostic, label) in diagnostics {
             writeln!(result, "")?;
-            writeln!(result, "# Missing diagnostic")?;
+            writeln!(result, "# {label} diagnostic")?;
             writeln!(result, "")?;
 
             let render = diagnostic.render(&opts, db);
