@@ -34,11 +34,11 @@ pub struct TestExpectations {
 }
 
 lazy_static::lazy_static! {
-    static ref UNINTERESTING_RE: Regex = Regex::new(r"\s*(#.*)?").unwrap();
+    static ref UNINTERESTING_RE: Regex = Regex::new(r"^\s*(#.*)?$").unwrap();
 }
 
 lazy_static::lazy_static! {
-    static ref DIAGNOSTIC_RE: Regex = Regex::new(r"^(?P<pre>[^#]*)#!(?P<pad>\s*)(?P<col>^+)?(?P<re> /)?(?P<msg>.*)").unwrap();
+    static ref DIAGNOSTIC_RE: Regex = Regex::new(r"^(?P<pre>[^#]*)#!(?P<pad>\s*)(?P<col>\^+)?(?P<re> /)?\s*(?P<msg>.*)").unwrap();
 }
 
 impl TestExpectations {
@@ -172,8 +172,8 @@ impl TestExpectations {
                         .message
                         .is_match(&actual_diagnostic.message)
             })
+            .min_by_key(|(expected_diagnostic, _)| expected_diagnostic.span())
             .map(|(_, index)| index)
-            .next()
     }
 }
 

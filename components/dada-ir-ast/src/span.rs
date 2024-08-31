@@ -15,7 +15,7 @@ pub struct Span<'db> {
 /// An absolute span within the input. The offsets are stored as absolute offsets
 /// within a given source file. These are used for diagnostics or outputs but not
 /// internally during compilation.
-#[derive(Copy, Clone, PartialEq, Eq, PartialOrd, Ord, Hash, Debug)]
+#[derive(Copy, Clone, PartialEq, Eq, Hash, Debug)]
 pub struct AbsoluteSpan {
     pub source_file: SourceFile,
     pub start: AbsoluteOffset,
@@ -182,5 +182,83 @@ impl std::ops::Add<Offset> for AbsoluteOffset {
 
     fn add(self, rhs: Offset) -> Self::Output {
         AbsoluteOffset(self.0.checked_add(rhs.0).unwrap())
+    }
+}
+
+impl PartialOrd for AbsoluteSpan {
+    fn partial_cmp(&self, other: &Self) -> Option<std::cmp::Ordering> {
+        Some(Self::cmp(self, other))
+    }
+}
+
+/// Span A < Span B if:
+///
+/// * A is enclosed in B
+/// * A ends before B ends
+/// * A starts before B starts
+impl Ord for AbsoluteSpan {
+    fn cmp(&self, other: &Self) -> std::cmp::Ordering {
+        let AbsoluteSpan {
+            source_file,
+            start,
+            end,
+        } = self;
+        let AbsoluteSpan {
+            source_file: other_source_file,
+            start: other_start,
+            end: other_end,
+        } = other;
+
+        // Same starting point...
+
+        //      ^^^^^^^^^^^^^
+        //           ==
+        //      ^^^^^^^^^^^^^
+
+        //      ^^^^^^^^^^^^^^^^
+        //           >
+        //      ^^^^^^^^^^^^^
+
+        //      ^^^^^^^^
+        //           <
+        //      ^^^^^^^^^^^^^
+
+        // Less starting point...
+
+        //      ^^^^^^^^^^^^^
+        //           >
+        //    ^^^^^^^^^^^^
+
+        //      ^^^^^^^^^^^^^
+        //           <
+        //    ^^^^^^^^^^^^^^^
+
+        //      ^^^^^^^^^^^^^
+        //           <
+        //    ^^^^^^^^^^^^^^^^^^^
+
+        // Greater starting point
+
+        //      ^^^^^^^^^^^^^
+        //            <
+        //    ^^^^^^^^^^^^^^^^^^
+
+        //      ^^^^^^^^^^^^^
+        //            <
+        //            ^^^^^^^^^^
+
+        //      ^^^^^^^^^^^^^
+        //            <
+        //    ^^^^^^^^^^^^^^^
+
+        //      ^^^^^^^^^^^^^
+        //           ==
+        //      ^^^^^^^^^^^^^
+
+        //      ^^^^^^^^^^^^^
+        //           >
+        //         ^^^^^^^^^^
+
+        (source_file, end, other_start).cmp(&(other_source_file, other_end, start))
     }
 }

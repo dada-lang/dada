@@ -9,7 +9,7 @@ pub trait RenderDiagnostic {
 
 impl RenderDiagnostic for Diagnostic {
     fn render(&self, opts: &GlobalOptions, db: &db::Database) -> String {
-        let message = to_message(db, &self);
+        let message = to_message(db, self);
         renderer(opts).render(message).to_string()
     }
 }

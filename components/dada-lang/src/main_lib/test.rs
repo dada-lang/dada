@@ -5,7 +5,6 @@ use dada_util::{anyhow, bail, Fallible};
 use expected::ExpectedDiagnostic;
 use indicatif::ProgressBar;
 use rayon::prelude::*;
-use regex::Regex;
 use walkdir::WalkDir;
 
 use crate::{
@@ -171,6 +170,8 @@ impl FailedTest {
 
                     let render = diagnostic.render(&opts, db);
                     writeln!(result, "```\n{}\n```", render)?;
+                    writeln!(result)?;
+                    writeln!(result, "```\n{diagnostic:#?}\n```\n")?;
                 }
                 Failure::MultipleMatches(expected, actual) => {
                     writeln!(result)?;
@@ -180,6 +181,8 @@ impl FailedTest {
                     writeln!(result, "Diagnostic:")?;
                     let render = actual.render(&opts, db);
                     writeln!(result, "```\n{}\n```", render)?;
+                    writeln!(result)?;
+                    writeln!(result, "```\n{actual:#?}\n```\n")?;
                     writeln!(result)?;
                     writeln!(result, "Expected diagnostic that matched multiple times:")?;
                     writeln!(result, "```\n{expected:#?}\n```")?;
