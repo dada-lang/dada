@@ -2,8 +2,10 @@ use std::path::{Path, PathBuf};
 
 use dada_ir_ast::diagnostic::Diagnostic;
 use dada_util::{anyhow, bail, Fallible};
+use expected::ExpectedDiagnostic;
 use indicatif::ProgressBar;
 use rayon::prelude::*;
+use regex::Regex;
 use walkdir::WalkDir;
 
 use crate::{
@@ -11,6 +13,8 @@ use crate::{
 };
 
 use super::Main;
+
+mod expected;
 
 #[derive(thiserror::Error, Debug)]
 #[error("{} test failures", failed_tests.len())]
@@ -21,9 +25,17 @@ struct FailedTests {
 #[derive(Debug)]
 struct FailedTest {
     path: PathBuf,
-    unexpected_diagnostics: Vec<Diagnostic>,
-    missing_diagnostics: Vec<Diagnostic>,
+    failures: Vec<Failure>,
 }
+
+#[derive(Debug)]
+enum Failure {
+    UnexpectedDiagnostic(Diagnostic),
+    MultipleMatches(ExpectedDiagnostic, Diagnostic),
+    MissingDiagnostic(ExpectedDiagnostic),
+}
+
+impl Failure {}
 
 impl Main {
     pub(super) fn test(&mut self, options: &TestOptions) -> Fallible<()> {
@@ -94,7 +106,7 @@ impl Main {
             }
         }
 
-        return Ok(result);
+        Ok(result)
     }
 
     /// Run a single test found at the given path.
@@ -111,21 +123,17 @@ impl Main {
             .to_str()
             .ok_or_else(|| anyhow!("path cannot be represented in utf-8: `{:?}`", input))?;
         let mut compiler = Compiler::new();
-        let source_file = compiler.load_input(&input_str)?;
+        let source_file = compiler.load_input(input_str)?;
+        let expected_diagnostics = expected::TestExpectations::new(compiler.db(), source_file)?;
         let diagnostics = compiler.parse(source_file);
-        if diagnostics.is_empty() {
-            return Ok(None);
+
+        match expected_diagnostics.compare(compiler.db(), diagnostics) {
+            None => Ok(None),
+            Some(failed_test) => {
+                failed_test.generate_test_report(compiler.db())?;
+                Ok(Some(failed_test))
+            }
         }
-
-        let failed_test = FailedTest {
-            path: input.to_path_buf(),
-            unexpected_diagnostics: diagnostics,
-            missing_diagnostics: vec![],
-        };
-
-        failed_test.generate_test_report(compiler.db())?;
-
-        Ok(Some(failed_test))
     }
 }
 
@@ -135,21 +143,11 @@ fn is_dada_file(input: &Path) -> bool {
 
 impl FailedTest {
     fn summarize(&self) -> String {
-        let mut result = vec![];
-        if !self.unexpected_diagnostics.is_empty() {
-            result.push(format!(
-                "{} unexpected diagnostics",
-                self.unexpected_diagnostics.len()
-            ));
-        }
-        if !self.missing_diagnostics.is_empty() {
-            result.push(format!(
-                "{} missing diagnostics",
-                self.missing_diagnostics.len()
-            ));
-        }
-        result.push(format!("see {}", self.test_report_path().display()));
-        result.join(", ")
+        format!(
+            "{} failures, see {}",
+            self.failures.len(),
+            self.test_report_path().display()
+        )
     }
 
     fn test_report_path(&self) -> PathBuf {
@@ -164,22 +162,36 @@ impl FailedTest {
 
         writeln!(result, "Test failed: {}", self.path.display())?;
 
-        let mut diagnostics = self
-            .unexpected_diagnostics
-            .iter()
-            .map(|d| (d, "Unexpected"))
-            .chain(self.missing_diagnostics.iter().map(|d| (d, "Missing")))
-            .collect::<Vec<_>>();
+        for failure in &self.failures {
+            match failure {
+                Failure::UnexpectedDiagnostic(diagnostic) => {
+                    writeln!(result)?;
+                    writeln!(result, "# Unexpected diagnostic")?;
+                    writeln!(result)?;
 
-        diagnostics.sort_by_key(|(d, _)| &d.span);
+                    let render = diagnostic.render(&opts, db);
+                    writeln!(result, "```\n{}\n```", render)?;
+                }
+                Failure::MultipleMatches(expected, actual) => {
+                    writeln!(result)?;
+                    writeln!(result, "# Multiple matches for expected diagnostic")?;
+                    writeln!(result)?;
 
-        for (diagnostic, label) in diagnostics {
-            writeln!(result, "")?;
-            writeln!(result, "# {label} diagnostic")?;
-            writeln!(result, "")?;
+                    writeln!(result, "Diagnostic:")?;
+                    let render = actual.render(&opts, db);
+                    writeln!(result, "```\n{}\n```", render)?;
+                    writeln!(result)?;
+                    writeln!(result, "Expected diagnostic that matched multiple times:")?;
+                    writeln!(result, "```\n{expected:#?}\n```")?;
+                }
+                Failure::MissingDiagnostic(expected) => {
+                    writeln!(result)?;
+                    writeln!(result, "# Missing expected diagnostic")?;
+                    writeln!(result)?;
 
-            let render = diagnostic.render(&opts, db);
-            writeln!(result, "```\n{}\n```", render)?;
+                    writeln!(result, "```\n{expected:#?}\n```")?;
+                }
+            }
         }
 
         Ok(result)
