@@ -172,6 +172,7 @@ impl TestExpectations {
                         .message
                         .is_match(&actual_diagnostic.message)
             })
+            // Find the best match (with the narrowest span)
             .min_by_key(|(expected_diagnostic, _)| expected_diagnostic.span())
             .map(|(_, index)| index)
     }
