@@ -1,4 +1,4 @@
-use crate::ast::{AstGenericKind, GenericDecl, KindedGenericDecl};
+use dada_ir_ast::ast::{AstGenericKind, GenericDecl, KindedGenericDecl};
 
 use super::{
     tokenizer::{Keyword, Token, TokenKind},

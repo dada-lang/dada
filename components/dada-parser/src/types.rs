@@ -1,6 +1,6 @@
 use salsa::Update;
 
-use crate::{
+use dada_ir_ast::{
     ast::{
         AstGenericArg, AstGenericKind, AstPerm, AstPermKind, AstTy, AstTyKind, AstVec, GenericDecl,
         Path,

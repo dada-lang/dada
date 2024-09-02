@@ -258,6 +258,7 @@ version = "0.1.0"
 dependencies = [
  "annotate-snippets",
  "dada-ir-ast",
+ "dada-parser",
  "dada-util",
  "indicatif",
  "lazy_static",
@@ -268,6 +269,15 @@ dependencies = [
  "structopt",
  "thiserror",
  "walkdir",
+]
+
+[[package]]
+name = "dada-parser"
+version = "0.1.0"
+dependencies = [
+ "dada-ir-ast",
+ "dada-util",
+ "salsa",
 ]
 
 [[package]]

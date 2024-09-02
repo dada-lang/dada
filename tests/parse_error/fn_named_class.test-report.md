@@ -3,16 +3,11 @@ Test failed: tests/parse_error/fn_named_class.dada
 # Unexpected diagnostic
 
 ```
-error: expected a module-level item
- --> tests/parse_error/fn_named_class.dada:1:12
+error: expected an identifier
+ --> tests/parse_error/fn_named_class.dada:1:4
   |
-1 |   fn class() {
-  |  ____________^
-2 | | #! ^^^^^ expected an identifier
-3 | | #!      ^ expected an identifier
-4 | | #!      ^ expected a module-level item
-5 | | #! expected a module-level itemXXX
-  | |___________________________________^ here
+1 | fn class() {
+  |    ^^^^^ here
   |
 ```
 
@@ -24,13 +19,13 @@ Diagnostic {
             [salsa id]: Id(0),
         },
         start: AbsoluteOffset(
-            11,
+            3,
         ),
         end: AbsoluteOffset(
-            152,
+            8,
         ),
     },
-    message: "expected a module-level item",
+    message: "expected an identifier",
     labels: [],
     children: [],
 }
@@ -41,21 +36,21 @@ Diagnostic {
 
 ```
 ExpectedDiagnostic {
-    span: MustStartWithin(
+    span: MustEqual(
         AbsoluteSpan {
             source_file: SourceFile {
                 [salsa id]: Id(0),
             },
             start: AbsoluteOffset(
-                0,
+                3,
             ),
             end: AbsoluteOffset(
-                12,
+                7,
             ),
         },
     ),
     message: Regex(
-        "expected a module\\-level itemXXX",
+        "expected an identifier",
     ),
 }
 ```

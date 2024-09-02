@@ -1,4 +1,4 @@
-use crate::{
+use dada_ir_ast::{
     ast::{AstVec, ClassItem, Function, Item, Module, Path, UseItem},
     diagnostic::Diagnostic,
 };

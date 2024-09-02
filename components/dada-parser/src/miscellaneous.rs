@@ -1,4 +1,4 @@
-use crate::ast::Path;
+use dada_ir_ast::ast::Path;
 
 use super::{Expected, Parse, ParseFail, Parser};
 

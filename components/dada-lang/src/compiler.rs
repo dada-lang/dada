@@ -2,6 +2,7 @@ use dada_ir_ast::{diagnostic::Diagnostic, inputs::SourceFile};
 use dada_util::{Context, Fallible};
 
 use crate::db::Database;
+use dada_parser::prelude::*;
 
 pub struct Compiler {
     db: Database,

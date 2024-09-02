@@ -1,24 +1,27 @@
 use salsa::Update;
 use tokenizer::{tokenize, Delimiter, Keyword, Skipped, Token, TokenKind};
 
-use crate::{
+use dada_ir_ast::{
     ast::{AstVec, Item, Module, SpannedIdentifier},
     diagnostic::Diagnostic,
     inputs::SourceFile,
     span::{Offset, Span},
 };
 
+use salsa::Database as Db;
+
 mod class_body;
 mod generics;
 mod miscellaneous;
 mod module_body;
+pub mod prelude;
 mod tokenizer;
 mod types;
 
 #[salsa::tracked]
-impl SourceFile {
+impl prelude::SourceFileParse for SourceFile {
     #[salsa::tracked]
-    pub fn parse(self, db: &dyn crate::Db) -> Module<'_> {
+    fn parse(self, db: &dyn crate::Db) -> Module<'_> {
         let anchor = Item::SourceFile(self);
         let text = self.contents(db);
         let tokens = tokenizer::tokenize(db, anchor, Offset::ZERO, text);

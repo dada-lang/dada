@@ -1,6 +1,6 @@
 use dada_util::Map;
 
-use crate::{
+use dada_ir_ast::{
     ast::{Identifier, Item},
     diagnostic::Diagnostic,
     span::{Offset, Span},

@@ -2,7 +2,9 @@ use salsa::Update;
 
 use crate::{ast::Item, inputs::SourceFile};
 
-/// A span within the input. The offsets are stored relative to the start of the **anchor**,
+/// A span within the input.
+///
+/// The offsets are stored relative to the start of the **anchor**,
 /// which is some item (e.g., a class, function, etc). The use of relative offsets avoids
 /// incremental churn if lines or content is added before/after the definition.
 #[derive(Copy, Clone, PartialEq, Eq, Hash, PartialOrd, Ord, Debug, Update)]

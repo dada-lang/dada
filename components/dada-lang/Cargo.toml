@@ -6,6 +6,7 @@ edition = "2021"
 [dependencies]
 annotate-snippets = "0.11.4"
 dada-ir-ast = { version = "0.1.0", path = "../dada-ir-ast" }
+dada-parser = { version = "0.1.0", path = "../dada-parser" }
 dada-util = { version = "0.1.0", path = "../dada-util" }
 indicatif = "0.17.8"
 lazy_static = "1.5.0"
