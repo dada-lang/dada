@@ -3,7 +3,7 @@ target
 playground
 
 # Test harness files
-*.test_failure.md
+*.test-report.md
 
 # Internal IR files used for debugging
 syntax.debug
