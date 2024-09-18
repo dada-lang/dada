@@ -56,14 +56,18 @@ struct Parser<'token, 'db> {
 
 impl<'token, 'db> Parser<'token, 'db> {
     pub fn new(
-        db: &'db dyn crate::Db,
+        _db: &'db dyn crate::Db,
         anchor: Anchor<'db>,
         tokens: &'token [Token<'token, 'db>],
     ) -> Self {
         Self {
             tokens,
             next_token: 0,
-            last_span: anchor.span(db),
+            last_span: Span {
+                anchor,
+                start: Offset::ZERO,
+                end: Offset::ZERO,
+            },
             diagnostics: Vec::new(),
         }
     }

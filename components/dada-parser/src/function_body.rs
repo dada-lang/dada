@@ -13,7 +13,6 @@ use crate::{
 impl<'db> crate::prelude::FunctionBodyBlock<'db> for FunctionBody<'db> {
     #[salsa::tracked]
     fn block(self, db: &'db dyn crate::Db) -> AstBlock<'db> {
-        eprintln!("{self:?}");
         let contents = self.contents(db);
         let tokens = tokenize(db, self.into(), Offset::ZERO, contents);
         let statements = Parser::new(db, self.into(), &tokens)
