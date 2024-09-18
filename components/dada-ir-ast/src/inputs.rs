@@ -1,7 +1,4 @@
-use crate::{
-    ast::Item,
-    span::{AbsoluteOffset, AbsoluteSpan, Offset, Span, Spanned},
-};
+use crate::span::{AbsoluteOffset, AbsoluteSpan, Anchor, Offset, Span, Spanned};
 
 #[salsa::input]
 pub struct SourceFile {
@@ -15,7 +12,7 @@ pub struct SourceFile {
 impl<'db> Spanned<'db> for SourceFile {
     fn span(&self, db: &'db dyn crate::Db) -> crate::span::Span<'db> {
         Span {
-            anchor: Item::SourceFile(*self),
+            anchor: Anchor::SourceFile(*self),
             start: Offset::ZERO,
             end: Offset::from(self.contents(db).len()),
         }

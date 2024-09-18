@@ -1,5 +1,5 @@
 use dada_ir_ast::{
-    ast::{AstBlock, AstExpr, AstLetStatement, AstStatement, AstTy, Function, Item},
+    ast::{AstBlock, AstExpr, AstLetStatement, AstStatement, AstTy, Function},
     span::Offset,
 };
 
@@ -15,8 +15,8 @@ impl<'db> crate::prelude::FunctionBlock<'db> for Function<'db> {
     fn body_block(self, db: &'db dyn crate::Db) -> Option<AstBlock<'db>> {
         let body = self.body(db)?;
         let contents = body.contents(db);
-        let tokens = tokenize(db, Item::from(self), Offset::ZERO, contents);
-        let statements = Parser::new(db, Item::from(self), &tokens)
+        let tokens = tokenize(db, self.into(), Offset::ZERO, contents);
+        let statements = Parser::new(db, self.into(), &tokens)
             .parse_many_and_report_diagnostics::<AstStatement>(db);
         Some(AstBlock::new(db, statements))
     }

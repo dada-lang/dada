@@ -1,7 +1,7 @@
 use dada_ir_ast::{
     ast::{
         AstFunctionArg, AstPerm, AstSelfArg, AstTy, AstVec, ClassItem, FieldDecl, Function,
-        FunctionBody, GenericDecl, Item, Member, VariableDecl, Visibility, VisibilityKind,
+        FunctionBody, GenericDecl, Member, VariableDecl, Visibility, VisibilityKind,
     },
     span::{Offset, Spanned},
 };
@@ -17,9 +17,8 @@ impl<'db> crate::prelude::ClassItemMembers<'db> for ClassItem<'db> {
     #[salsa::tracked]
     fn members(self, db: &'db dyn crate::Db) -> AstVec<'db, Member<'db>> {
         let contents = self.contents(db);
-        let tokens = tokenize(db, Item::from(self), Offset::ZERO, contents);
-        Parser::new(db, Item::Class(self), &tokens)
-            .parse_many_and_report_diagnostics::<Member<'db>>(db)
+        let tokens = tokenize(db, self.into(), Offset::ZERO, contents);
+        Parser::new(db, self.into(), &tokens).parse_many_and_report_diagnostics::<Member<'db>>(db)
     }
 }
 

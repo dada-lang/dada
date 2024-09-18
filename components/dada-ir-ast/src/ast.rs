@@ -4,33 +4,8 @@ use salsa::Update;
 
 use crate::{
     inputs::SourceFile,
-    span::{AbsoluteSpan, Offset, Span, Spanned},
+    span::{Span, Spanned},
 };
-
-/// Macro to add `impl From<X> for Y` to enums.
-/// Couldn't find a derive for this (!).
-macro_rules! add_from_impls {
-    ($(#[$attr:meta])* $v:vis enum $name:ident<$lt:lifetime> { $(
-        $(#[$variant_meta:meta])*
-        $variant:ident($variant_ty:ty),)*
-    }) => {
-        $(#[$attr])*
-        $v enum $name<$lt> {
-            $(
-                $(#[$variant_meta])*
-                $variant($variant_ty),
-            )*
-        }
-
-        $(
-            impl<$lt> From<$variant_ty> for $name<$lt> {
-                fn from(v: $variant_ty) -> Self {
-                    $name::$variant(v)
-                }
-            }
-        )*
-    };
-}
 
 mod use_item;
 pub use use_item::*;
@@ -72,30 +47,6 @@ add_from_impls! {
         Use(UseItem<'db>),
         Class(ClassItem<'db>),
         Function(Function<'db>),
-    }
-}
-
-impl<'db> Item<'db> {
-    pub fn span(&self, db: &'db dyn crate::Db) -> Span<'db> {
-        match self {
-            Item::SourceFile(source_file) => Span {
-                anchor: *self,
-                start: Offset::ZERO,
-                end: Offset::from(source_file.contents(db).len()),
-            },
-            Item::Use(data) => data.span(db),
-            Item::Class(data) => data.span(db),
-            Item::Function(data) => data.span(db),
-        }
-    }
-
-    pub fn absolute_span(&self, db: &'db dyn crate::Db) -> AbsoluteSpan {
-        match self {
-            Item::SourceFile(source_file) => source_file.absolute_span(db),
-            Item::Use(data) => data.span(db).absolute_span(db),
-            Item::Class(data) => data.span(db).absolute_span(db),
-            Item::Function(data) => data.span(db).absolute_span(db),
-        }
     }
 }
 

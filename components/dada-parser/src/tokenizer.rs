@@ -1,9 +1,9 @@
 use dada_util::Map;
 
 use dada_ir_ast::{
-    ast::{Identifier, Item, LiteralKind},
+    ast::{Identifier, LiteralKind},
     diagnostic::Diagnostic,
-    span::{Offset, Span},
+    span::{Anchor, Offset, Span},
 };
 
 #[derive(Clone)]
@@ -152,7 +152,7 @@ impl Delimiter {
 
 pub fn tokenize<'input, 'db>(
     db: &'db dyn crate::Db,
-    anchor: Item<'db>,
+    anchor: Anchor<'db>,
     input_offset: Offset,
     input: &'input str,
 ) -> Vec<Token<'input, 'db>> {
@@ -172,7 +172,7 @@ pub fn tokenize<'input, 'db>(
 
 struct Tokenizer<'input, 'db> {
     db: &'db dyn crate::Db,
-    anchor: Item<'db>,
+    anchor: Anchor<'db>,
     input: &'input str,
     chars: CharIndices<'input>,
     tokens: Vec<Token<'input, 'db>>,

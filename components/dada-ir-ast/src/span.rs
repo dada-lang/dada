@@ -1,6 +1,43 @@
 use salsa::Update;
 
-use crate::{ast::Item, inputs::SourceFile};
+use crate::{
+    ast::{ClassItem, Function, UseItem},
+    inputs::SourceFile,
+};
+
+add_from_impls! {
+    #[derive(Copy, Clone, PartialEq, Eq, Hash, PartialOrd, Ord, Debug, Update)]
+    pub enum Anchor<'db> {
+        SourceFile(SourceFile),
+        Use(UseItem<'db>),
+        Class(ClassItem<'db>),
+        Function(Function<'db>),
+    }
+}
+
+impl<'db> Anchor<'db> {
+    pub fn span(&self, db: &'db dyn crate::Db) -> Span<'db> {
+        match self {
+            Anchor::SourceFile(source_file) => Span {
+                anchor: *self,
+                start: Offset::ZERO,
+                end: Offset::from(source_file.contents(db).len()),
+            },
+            Anchor::Use(data) => data.span(db),
+            Anchor::Class(data) => data.span(db),
+            Anchor::Function(data) => data.span(db),
+        }
+    }
+
+    pub fn absolute_span(&self, db: &'db dyn crate::Db) -> AbsoluteSpan {
+        match self {
+            Anchor::SourceFile(source_file) => source_file.absolute_span(db),
+            Anchor::Use(data) => data.span(db).absolute_span(db),
+            Anchor::Class(data) => data.span(db).absolute_span(db),
+            Anchor::Function(data) => data.span(db).absolute_span(db),
+        }
+    }
+}
 
 /// A span within the input.
 ///
@@ -9,7 +46,7 @@ use crate::{ast::Item, inputs::SourceFile};
 /// incremental churn if lines or content is added before/after the definition.
 #[derive(Copy, Clone, PartialEq, Eq, Hash, PartialOrd, Ord, Debug, Update)]
 pub struct Span<'db> {
-    pub anchor: Item<'db>,
+    pub anchor: Anchor<'db>,
     pub start: Offset,
     pub end: Offset,
 }
