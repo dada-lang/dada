@@ -144,9 +144,19 @@ impl<'db> Parse<'db> for Function<'db> {
 
         let name = tokens.eat_id()?;
 
-        let generics = GenericDecl::opt_parse_delimited(db, tokens, Delimiter::SquareBrackets)?;
+        let generics = GenericDecl::opt_parse_delimited(
+            db,
+            tokens,
+            Delimiter::SquareBrackets,
+            GenericDecl::eat_comma,
+        )?;
 
-        let arguments = AstFunctionArg::eat_delimited(db, tokens, Delimiter::Parentheses)?;
+        let arguments = AstFunctionArg::eat_delimited(
+            db,
+            tokens,
+            Delimiter::Parentheses,
+            AstFunctionArg::eat_comma,
+        )?;
 
         let return_ty = match tokens.eat_op("->") {
             Ok(_) => Some(AstTy::eat(db, tokens)?),

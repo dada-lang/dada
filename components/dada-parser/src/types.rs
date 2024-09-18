@@ -41,8 +41,12 @@ impl<'db> Parse<'db> for TyOrPerm<'db> {
         parser: &mut Parser<'_, 'db>,
     ) -> Result<Option<Self::Output>, ParseFail<'db>> {
         if let Some(path) = Path::opt_parse(db, parser)? {
-            let generic_args =
-                AstGenericArg::opt_parse_delimited(db, parser, Delimiter::SquareBrackets)?;
+            let generic_args = AstGenericArg::opt_parse_delimited(
+                db,
+                parser,
+                Delimiter::SquareBrackets,
+                AstGenericArg::eat_comma,
+            )?;
 
             return TyOrPerm::Path(path, generic_args).maybe_apply(db, parser);
         }
@@ -272,7 +276,7 @@ fn parse_path_perm<'db>(
     parser: &mut Parser<'_, 'db>,
     op: impl Fn(Option<AstVec<'db, Path<'db>>>) -> AstPermKind<'db>,
 ) -> Result<AstPerm<'db>, ParseFail<'db>> {
-    let paths = Path::opt_parse_delimited(db, parser, Delimiter::CurlyBraces)?;
+    let paths = Path::opt_parse_delimited(db, parser, Delimiter::CurlyBraces, Path::eat_comma)?;
     let kind = op(paths);
     Ok(AstPerm::new(db, span.to(parser.last_span()), kind))
 }

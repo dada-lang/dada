@@ -1,7 +1,7 @@
 use dada_util::Map;
 
 use dada_ir_ast::{
-    ast::{Identifier, Item},
+    ast::{Identifier, Item, LiteralKind},
     diagnostic::Diagnostic,
     span::{Offset, Span},
 };
@@ -43,6 +43,9 @@ pub enum TokenKind<'input, 'db> {
     /// An op-char like `+`, `-`, etc.
     OpChar(char),
 
+    /// An integer like `22`
+    Literal(LiteralKind, &'input str),
+
     /// Invalid characters
     Error(Diagnostic),
 }
@@ -75,27 +78,29 @@ macro_rules! keywords {
 
 keywords! {
     pub enum Keyword {
-        Fn,
+        As,
         Class,
-        Struct,
+        Crate,
         Enum,
-        Share,
-        Shared,
+        Export,
+        Fn,
         Lease,
         Leased,
+        Let,
         Give,
         Given,
+        Mod,
         My,
         Our,
-        Where,
-        Use,
-        As,
-        Pub,
-        Export,
-        Type,
         Perm,
-        Mod,
-        Crate,
+        Pub,
+        Return,
+        Share,
+        Shared,
+        Struct,
+        Type,
+        Use,
+        Where,
     }
 }
 
@@ -191,6 +196,9 @@ impl<'input, 'db> Tokenizer<'input, 'db> {
                 '{' => self.delimited(index, Delimiter::CurlyBraces, '}'),
                 '[' => self.delimited(index, Delimiter::SquareBrackets, ']'),
                 '(' => self.delimited(index, Delimiter::Parentheses, ')'),
+
+                // Integers
+                _ if ch.is_digit(10) => self.integer(index, ch),
 
                 // Whitespace
                 _ if ch.is_whitespace() => {
@@ -293,6 +301,34 @@ impl<'input, 'db> Tokenizer<'input, 'db> {
                 kind: TokenKind::Identifier(identifier),
             })
         }
+    }
+
+    fn integer(&mut self, start: usize, ch: char) {
+        let skipped = self.clear_accumulated(start);
+
+        let mut end = start + ch.len_utf8();
+
+        while let Some(&(index, ch)) = self.chars.peek() {
+            if ch.is_digit(10) || ch == '_' {
+                end = index + ch.len_utf8();
+                self.chars.next();
+            } else {
+                break;
+            }
+        }
+
+        let span = Span {
+            anchor: self.anchor,
+            start: Offset::from(start),
+            end: Offset::from(end),
+        };
+
+        let text = &self.input[start..end];
+        self.tokens.push(Token {
+            span,
+            skipped,
+            kind: TokenKind::Literal(LiteralKind::Integer, text),
+        });
     }
 
     fn delimited(&mut self, start: usize, delim: Delimiter, close: char) {

@@ -272,6 +272,15 @@ dependencies = [
 ]
 
 [[package]]
+name = "dada-name-resolution"
+version = "0.1.0"
+dependencies = [
+ "dada-parser",
+ "dada-util",
+ "salsa",
+]
+
+[[package]]
 name = "dada-parser"
 version = "0.1.0"
 dependencies = [

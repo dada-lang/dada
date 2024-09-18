@@ -3,6 +3,7 @@ use salsa::Update;
 use super::{AstPerm, AstTy, AstVec, GenericDecl, SpannedIdentifier};
 use crate::span::{Span, Spanned};
 
+/// `fn foo() { }`
 #[salsa::tracked]
 pub struct Function<'db> {
     /// Overall span of the function declaration

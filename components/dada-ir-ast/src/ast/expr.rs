@@ -4,19 +4,21 @@ use crate::span::Span;
 
 use super::{AstGenericArg, AstTy, AstVec, Path, SpannedIdentifier};
 
-#[derive(Clone, PartialEq, Eq, PartialOrd, Ord, Hash, Update, Debug)]
+#[salsa::tracked]
 pub struct AstBlock<'db> {
     statements: AstVec<'db, AstStatement<'db>>,
 }
 
+add_from_impls! {
 #[derive(Clone, PartialEq, Eq, PartialOrd, Ord, Hash, Update, Debug)]
 pub enum AstStatement<'db> {
     Let(AstLetStatement<'db>),
     Expr(AstExpr<'db>),
 }
+}
 
 /// `let x = v`, `let x: t = v`, etc
-#[derive(Clone, PartialEq, Eq, PartialOrd, Ord, Hash, Update, Debug)]
+#[salsa::tracked]
 pub struct AstLetStatement<'db> {
     pub name: SpannedIdentifier<'db>,
     pub ty: Option<AstTy<'db>>,
@@ -27,6 +29,15 @@ pub struct AstLetStatement<'db> {
 pub struct AstExpr<'db> {
     pub span: Span<'db>,
     pub kind: Box<AstExprKind<'db>>,
+}
+
+impl<'db> AstExpr<'db> {
+    pub fn new(span: Span<'db>, kind: AstExprKind<'db>) -> Self {
+        Self {
+            span,
+            kind: Box::new(kind),
+        }
+    }
 }
 
 #[derive(Clone, PartialEq, Eq, PartialOrd, Ord, Hash, Update, Debug)]
@@ -52,8 +63,8 @@ pub enum AstExprKind<'db> {
 
 #[derive(Clone, PartialEq, Eq, PartialOrd, Ord, Hash, Update, Debug)]
 pub struct AstConstructorField<'db> {
-    name: SpannedIdentifier<'db>,
-    value: AstExpr<'db>,
+    pub name: SpannedIdentifier<'db>,
+    pub value: AstExpr<'db>,
 }
 
 #[salsa::interned]
@@ -62,7 +73,7 @@ pub struct Literal<'db> {
     text: String,
 }
 
-#[derive(Clone, PartialEq, Eq, PartialOrd, Ord, Hash, Update, Debug)]
+#[derive(Clone, Copy, PartialEq, Eq, PartialOrd, Ord, Hash, Update, Debug)]
 pub enum LiteralKind {
     Integer,
     String,
@@ -71,6 +82,6 @@ pub enum LiteralKind {
 #[derive(Clone, PartialEq, Eq, PartialOrd, Ord, Hash, Update, Debug)]
 pub struct AstCallExpr<'db> {
     pub callee: AstExpr<'db>,
-    pub generic_args: AstVec<'db, AstGenericArg<'db>>,
+    pub generic_args: Option<AstVec<'db, AstGenericArg<'db>>>,
     pub args: AstVec<'db, AstExpr<'db>>,
 }

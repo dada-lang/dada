@@ -11,6 +11,8 @@ use dada_ir_ast::{
 use salsa::Database as Db;
 
 mod class_body;
+mod expr;
+mod function_body;
 mod generics;
 mod miscellaneous;
 mod module_body;
@@ -271,6 +273,19 @@ impl<'token, 'db> Parser<'token, 'db> {
 
         Err(self.illformed(Expected::Delimited(delimiter)))
     }
+
+    /// Returns true if the next token is on the same line
+    /// as the most recently consumed token.
+    /// Some parts of our grammar are newline sensitive.
+    fn next_token_on_same_line(&mut self) -> bool {
+        match self.peek() {
+            Some(Token {
+                skipped: Some(skipped),
+                ..
+            }) => *skipped <= Skipped::Whitespace,
+            _ => false,
+        }
+    }
 }
 
 /// Parse an instance of `Self` from the given [`Parser`][].
@@ -372,8 +387,12 @@ trait Parse<'db>: Sized {
         db: &'db dyn crate::Db,
         parser: &mut Parser<'_, 'db>,
         delimiter: Delimiter,
+        eat_method: impl FnOnce(
+            &'db dyn crate::Db,
+            &mut Parser<'_, 'db>,
+        ) -> Result<AstVec<'db, Self::Output>, ParseFail<'db>>,
     ) -> Result<AstVec<'db, Self::Output>, ParseFail<'db>> {
-        match Self::opt_parse_delimited(db, parser, delimiter)? {
+        match Self::opt_parse_delimited(db, parser, delimiter, eat_method)? {
             Some(v) => Ok(v),
             None => Err(parser.illformed(Expected::Delimited(delimiter))),
         }
@@ -392,13 +411,17 @@ trait Parse<'db>: Sized {
         parser: &mut Parser<'_, 'db>,
     ) -> Result<Option<Self::Output>, ParseFail<'db>>;
 
-    /// Parse a delimited list comma separated list of Self
+    /// Parse a delimited list of Self
     /// e.g., `(a, b, c)` or `[a, b, c]`. Returns `None` if
     /// the given delimiters indicated by `delimiter` are not found.
     fn opt_parse_delimited(
         db: &'db dyn crate::Db,
         parser: &mut Parser<'_, 'db>,
         delimiter: Delimiter,
+        eat_method: impl FnOnce(
+            &'db dyn crate::Db,
+            &mut Parser<'_, 'db>,
+        ) -> Result<AstVec<'db, Self::Output>, ParseFail<'db>>,
     ) -> Result<Option<AstVec<'db, Self::Output>>, ParseFail<'db>> {
         let Ok(text) = parser.eat_delimited(delimiter) else {
             return Ok(None);
@@ -407,7 +430,7 @@ trait Parse<'db>: Sized {
         let text_span = parser.last_span();
         let tokenized = tokenize(db, text_span.anchor, text_span.start, text);
         let mut parser1 = Parser::new(db, text_span.anchor, &tokenized);
-        let opt_list = Self::eat_comma(db, &mut parser1)?;
+        let opt_list = eat_method(db, &mut parser1)?;
 
         parser.take_diagnostics(db, parser1);
 
@@ -446,7 +469,36 @@ trait Parse<'db>: Sized {
         }
     }
 
+    /// If `guard_op` appears, then parse `Self`
+    fn opt_parse_guarded(
+        guard_op: impl ParseGuard,
+        db: &'db dyn crate::Db,
+        parser: &mut Parser<'_, 'db>,
+    ) -> Result<Option<Self::Output>, ParseFail<'db>> {
+        if guard_op.eat(db, parser) {
+            Ok(Some(Self::eat(db, parser)?))
+        } else {
+            Ok(None)
+        }
+    }
+
     fn expected() -> Expected;
+}
+
+trait ParseGuard {
+    fn eat<'db>(self, db: &'db dyn crate::Db, parser: &mut Parser<'_, 'db>) -> bool;
+}
+
+impl ParseGuard for &'static str {
+    fn eat<'db>(self, _db: &'db dyn crate::Db, parser: &mut Parser<'_, 'db>) -> bool {
+        parser.eat_op(self).is_ok()
+    }
+}
+
+impl ParseGuard for Keyword {
+    fn eat<'db>(self, _db: &'db dyn crate::Db, parser: &mut Parser<'_, 'db>) -> bool {
+        parser.eat_keyword(self).is_ok()
+    }
 }
 
 #[derive(Clone, PartialEq, Eq, PartialOrd, Ord, Debug)]
