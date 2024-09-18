@@ -161,10 +161,12 @@ impl<'token, 'db> Parser<'token, 'db> {
 
     /// Span of the next token in the input (or the end of the final token, if there are no more tokens)
     pub fn peek_span(&mut self) -> Span<'db> {
-        match self.peek() {
+        let s = match self.peek() {
             Some(token) => token.span,
             None => self.last_span.at_end(),
-        }
+        };
+        assert_eq!(s.anchor, self.last_span.anchor);
+        s
     }
 
     pub fn illformed(&mut self, expected: Expected) -> ParseFail<'db> {
@@ -176,7 +178,9 @@ impl<'token, 'db> Parser<'token, 'db> {
 
     pub fn eat_next_token(&mut self) -> Result<(), ParseFail<'db>> {
         if self.next_token < self.tokens.len() {
-            self.last_span = self.tokens[self.next_token].span;
+            let span = self.tokens[self.next_token].span;
+            assert_eq!(span.anchor, self.last_span.anchor);
+            self.last_span = span;
             // eprintln!("ate token `{:?}`", self.tokens[self.next_token].kind);
             self.next_token += 1;
             Ok(())

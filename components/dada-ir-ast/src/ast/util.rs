@@ -18,3 +18,16 @@ impl<'db, T: Update> Deref for AstVec<'db, T> {
         &self.values
     }
 }
+
+impl<'db, T> IntoIterator for &'db AstVec<'db, T>
+where
+    T: Update,
+{
+    type Item = &'db T;
+
+    type IntoIter = std::slice::Iter<'db, T>;
+
+    fn into_iter(self) -> Self::IntoIter {
+        self.values.iter()
+    }
+}

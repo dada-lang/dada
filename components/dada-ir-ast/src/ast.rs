@@ -55,7 +55,8 @@ pub struct Identifier<'db> {
 
 #[salsa::tracked]
 pub struct Module<'db> {
-    items: AstVec<'db, Item<'db>>,
+    #[return_ref]
+    pub items: AstVec<'db, Item<'db>>,
 }
 
 impl<'db> Spanned<'db> for Module<'db> {

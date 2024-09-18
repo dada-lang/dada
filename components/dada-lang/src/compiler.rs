@@ -1,4 +1,8 @@
-use dada_ir_ast::{diagnostic::Diagnostic, inputs::SourceFile};
+use dada_ir_ast::{
+    ast::{Function, Item, Member},
+    diagnostic::Diagnostic,
+    inputs::SourceFile,
+};
 use dada_util::{Context, Fallible};
 
 use crate::db::Database;
@@ -31,12 +35,34 @@ impl Compiler {
         Ok(source_file)
     }
 
-    pub fn parse(&mut self, source_file: SourceFile) -> Vec<Diagnostic> {
-        check_parse::accumulated::<Diagnostic>(&self.db, source_file)
+    pub fn check_all(&mut self, source_file: SourceFile) -> Vec<Diagnostic> {
+        check_all::accumulated::<Diagnostic>(&self.db, source_file)
     }
 }
 
 #[salsa::tracked]
-fn check_parse(db: &dyn salsa::Database, source_file: SourceFile) {
-    source_file.parse(db);
+fn check_all(db: &dyn salsa::Database, source_file: SourceFile) {
+    let module = source_file.parse(db);
+
+    for item in module.items(db) {
+        match *item {
+            Item::SourceFile(_source_file) => (),
+            Item::Use(_use_item) => (),
+            Item::Class(class_item) => {
+                for member in &class_item.members(db) {
+                    match member {
+                        Member::Field(_field_decl) => (),
+                        Member::Function(function) => check_fn(db, *function),
+                    }
+                }
+            }
+            Item::Function(function) => {
+                check_fn(db, function);
+            }
+        }
+    }
+}
+
+fn check_fn<'db>(db: &'db dyn salsa::Database, function: Function<'db>) {
+    let _ = function.body_block(db);
 }

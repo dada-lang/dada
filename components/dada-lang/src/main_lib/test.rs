@@ -124,7 +124,7 @@ impl Main {
         let mut compiler = Compiler::new();
         let source_file = compiler.load_input(input_str)?;
         let expected_diagnostics = expected::TestExpectations::new(compiler.db(), source_file)?;
-        let diagnostics = compiler.parse(source_file);
+        let diagnostics = compiler.check_all(source_file);
 
         match expected_diagnostics.compare(compiler.db(), diagnostics) {
             None => Ok(None),
