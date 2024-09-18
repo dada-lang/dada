@@ -436,7 +436,8 @@ trait Parse<'db>: Sized {
         };
 
         let text_span = parser.last_span();
-        let tokenized = tokenize(db, text_span.anchor, text_span.start, text);
+        let input_offset = text_span.start + 1; // account for the opening delimiter
+        let tokenized = tokenize(db, text_span.anchor, input_offset, text);
         let mut parser1 = Parser::new(db, text_span.anchor, &tokenized);
         let opt_list = eat_method(db, &mut parser1)?;
 
