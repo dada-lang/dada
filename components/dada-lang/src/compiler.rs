@@ -64,5 +64,7 @@ fn check_all(db: &dyn salsa::Database, source_file: SourceFile) {
 }
 
 fn check_fn<'db>(db: &'db dyn salsa::Database, function: Function<'db>) {
-    let _ = function.body_block(db);
+    if let Some(body) = function.body(db) {
+        let _block = body.block(db);
+    }
 }

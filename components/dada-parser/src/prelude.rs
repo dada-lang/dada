@@ -1,4 +1,4 @@
-use dada_ir_ast::ast::{AstBlock, Member};
+use dada_ir_ast::ast::{AstBlock, Function, Member};
 
 use super::*;
 
@@ -13,6 +13,17 @@ pub trait ClassItemMembers<'db> {
 }
 
 /// Given a [`Function`], parse its associated body into a block
+pub trait FunctionBodyBlock<'db> {
+    fn block(self, db: &'db dyn crate::Db) -> AstBlock<'db>;
+}
+
+/// Given a [`Function`], parse its associated body into a block
 pub trait FunctionBlock<'db> {
     fn body_block(self, db: &'db dyn crate::Db) -> Option<AstBlock<'db>>;
+}
+
+impl<'db> FunctionBlock<'db> for Function<'db> {
+    fn body_block(self, db: &'db dyn crate::Db) -> Option<AstBlock<'db>> {
+        self.body(db).map(|b| b.block(db))
+    }
 }

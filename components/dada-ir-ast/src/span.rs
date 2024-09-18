@@ -1,7 +1,7 @@
 use salsa::Update;
 
 use crate::{
-    ast::{ClassItem, Function, UseItem},
+    ast::{ClassItem, Function, FunctionBody, UseItem},
     inputs::SourceFile,
 };
 
@@ -12,6 +12,7 @@ add_from_impls! {
         Use(UseItem<'db>),
         Class(ClassItem<'db>),
         Function(Function<'db>),
+        FunctionBody(FunctionBody<'db>),
     }
 }
 
@@ -26,6 +27,7 @@ impl<'db> Anchor<'db> {
             Anchor::Use(data) => data.span(db),
             Anchor::Class(data) => data.span(db),
             Anchor::Function(data) => data.span(db),
+            Anchor::FunctionBody(function_body) => function_body.span(db),
         }
     }
 
@@ -35,6 +37,7 @@ impl<'db> Anchor<'db> {
             Anchor::Use(data) => data.span(db).absolute_span(db),
             Anchor::Class(data) => data.span(db).absolute_span(db),
             Anchor::Function(data) => data.span(db).absolute_span(db),
+            Anchor::FunctionBody(data) => data.span(db).absolute_span(db),
         }
     }
 }

@@ -1,5 +1,5 @@
 use dada_ir_ast::{
-    ast::{AstBlock, AstExpr, AstLetStatement, AstStatement, AstTy, Function},
+    ast::{AstBlock, AstExpr, AstLetStatement, AstStatement, AstTy, FunctionBody},
     span::Offset,
 };
 
@@ -10,15 +10,15 @@ use crate::{
 };
 
 #[salsa::tracked]
-impl<'db> crate::prelude::FunctionBlock<'db> for Function<'db> {
+impl<'db> crate::prelude::FunctionBodyBlock<'db> for FunctionBody<'db> {
     #[salsa::tracked]
-    fn body_block(self, db: &'db dyn crate::Db) -> Option<AstBlock<'db>> {
-        let body = self.body(db)?;
-        let contents = body.contents(db);
+    fn block(self, db: &'db dyn crate::Db) -> AstBlock<'db> {
+        eprintln!("{self:?}");
+        let contents = self.contents(db);
         let tokens = tokenize(db, self.into(), Offset::ZERO, contents);
         let statements = Parser::new(db, self.into(), &tokens)
             .parse_many_and_report_diagnostics::<AstStatement>(db);
-        Some(AstBlock::new(db, statements))
+        AstBlock::new(db, statements)
     }
 }
 
