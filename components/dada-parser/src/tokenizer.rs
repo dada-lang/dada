@@ -6,7 +6,7 @@ use dada_ir_ast::{
     span::{Anchor, Offset, Span},
 };
 
-#[derive(Clone)]
+#[derive(Clone, Debug)]
 pub struct Token<'input, 'db> {
     pub span: Span<'db>,
     pub skipped: Option<Skipped>,
@@ -14,7 +14,7 @@ pub struct Token<'input, 'db> {
 }
 
 /// Records tokens that were skipped before this token was issued.
-#[derive(Clone, Copy, PartialEq, Eq, PartialOrd, Ord)]
+#[derive(Clone, Copy, Debug, PartialEq, Eq, PartialOrd, Ord)]
 pub enum Skipped {
     /// Misc non-newline whitespace was skipped
     Whitespace,
@@ -280,11 +280,7 @@ impl<'input, 'db> Tokenizer<'input, 'db> {
             }
         }
 
-        let span = Span {
-            anchor: self.anchor,
-            start: Offset::from(start),
-            end: Offset::from(end),
-        };
+        let span = self.span(start, end);
 
         let text = &self.input[start..end];
         if let Some(kw) = self.kws.get(text) {
@@ -317,11 +313,7 @@ impl<'input, 'db> Tokenizer<'input, 'db> {
             }
         }
 
-        let span = Span {
-            anchor: self.anchor,
-            start: Offset::from(start),
-            end: Offset::from(end),
-        };
+        let span = self.span(start, end);
 
         let text = &self.input[start..end];
         self.tokens.push(Token {

@@ -60,7 +60,7 @@ impl<'token, 'db> Parser<'token, 'db> {
         anchor: Anchor<'db>,
         tokens: &'token [Token<'token, 'db>],
     ) -> Self {
-        Self {
+        let mut this = Self {
             tokens,
             next_token: 0,
             last_span: Span {
@@ -69,7 +69,11 @@ impl<'token, 'db> Parser<'token, 'db> {
                 end: Offset::ZERO,
             },
             diagnostics: Vec::new(),
-        }
+        };
+
+        this.eat_errors();
+
+        this
     }
 
     /// Top-level parsing function: parses zero or more instances of T and reports any errors.
@@ -138,24 +142,59 @@ impl<'token, 'db> Parser<'token, 'db> {
         }
     }
 
+    /// Increment `next_tokens` and update `last_span`.
+    /// Helper function for `eat_errors` and `eat_next_token`.
+    /// **Do not call directly.**
+    fn advance_token(&mut self) {
+        assert!(self.next_token < self.tokens.len());
+        let span = self.tokens[self.next_token].span;
+        assert_eq!(span.anchor, self.last_span.anchor);
+        self.last_span = span;
+        self.next_token += 1;
+    }
+
+    /// Eat any pending errors and add them to the list of errors to report.
+    ///
+    /// Invoked automatically after each call to `eat_next_token`.
+    fn eat_errors(&mut self) {
+        while let Some(Token {
+            kind: TokenKind::Error(diagnostic),
+            ..
+        }) = self.tokens.get(self.next_token)
+        {
+            eprintln!("ate error: {diagnostic:?}");
+            self.push_diagnostic(diagnostic.clone());
+            self.advance_token();
+        }
+    }
+
+    /// Advance by one token, returning `Err` if there is no current token.
+    /// After advancing, also eagerly eats any error tokens.
+    pub fn eat_next_token(&mut self) -> Result<(), ParseFail<'db>> {
+        if self.next_token < self.tokens.len() {
+            self.advance_token();
+            self.eat_errors();
+            Ok(())
+        } else {
+            Err(self.illformed(Expected::MoreTokens))
+        }
+    }
+
     /// Peek at the next token, returning None if there is none.
     /// Implicitly advances past error tokens.
     /// Does not consume the token returned.
     pub fn peek(&mut self) -> Option<&Token<'token, 'db>> {
-        loop {
-            let token = self.tokens.get(self.next_token)?;
+        let token = self.tokens.get(self.next_token)?;
 
-            if let Token {
-                kind: TokenKind::Error(diagnostic),
+        assert!(!matches!(
+            token,
+            Token {
+                kind: TokenKind::Error(_),
                 ..
-            } = token
-            {
-                self.push_diagnostic(diagnostic.clone());
-                self.eat_next_token().unwrap();
-            } else {
-                return Some(token);
-            }
-        }
+            },
+        ));
+
+        Some(token)
     }
 
     /// Span of the last consumed token.
@@ -177,19 +216,6 @@ impl<'token, 'db> Parser<'token, 'db> {
         ParseFail {
             span: self.peek_span(),
             expected,
-        }
-    }
-
-    pub fn eat_next_token(&mut self) -> Result<(), ParseFail<'db>> {
-        if self.next_token < self.tokens.len() {
-            let span = self.tokens[self.next_token].span;
-            assert_eq!(span.anchor, self.last_span.anchor);
-            self.last_span = span;
-            // eprintln!("ate token `{:?}`", self.tokens[self.next_token].kind);
-            self.next_token += 1;
-            Ok(())
-        } else {
-            Err(self.illformed(Expected::MoreTokens))
         }
     }
 
@@ -439,11 +465,9 @@ trait Parse<'db>: Sized {
         let input_offset = text_span.start + 1; // account for the opening delimiter
         let tokenized = tokenize(db, text_span.anchor, input_offset, text);
         let mut parser1 = Parser::new(db, text_span.anchor, &tokenized);
-        let opt_list = eat_method(db, &mut parser1)?;
-
+        let opt_list_err = eat_method(db, &mut parser1);
         parser.take_diagnostics(db, parser1);
-
-        Ok(Some(opt_list))
+        Ok(Some(opt_list_err?))
     }
 
     /// Parse a comma separated list of Self
