@@ -347,7 +347,6 @@ impl<'input, 'db> Tokenizer<'input, 'db> {
 
     fn ops(&mut self, start: usize, ch: char) {
         let skipped = self.clear_accumulated(start);
-        self.chars.next();
         self.tokens.push(Token {
             span: self.span(start, start + ch.len_utf8()),
             skipped,
