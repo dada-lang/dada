@@ -162,7 +162,6 @@ impl<'token, 'db> Parser<'token, 'db> {
             ..
         }) = self.tokens.get(self.next_token)
         {
-            eprintln!("ate error: {diagnostic:?}");
             self.push_diagnostic(diagnostic.clone());
             self.advance_token();
         }
