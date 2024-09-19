@@ -157,10 +157,7 @@ impl<'db> Parse<'db> for Function<'db> {
             AstFunctionArg::eat_comma,
         )?;
 
-        let return_ty = match tokens.eat_op("->") {
-            Ok(_) => Some(AstTy::eat(db, tokens)?),
-            Err(_) => None,
-        };
+        let return_ty = AstTy::opt_parse_guarded("->", db, tokens)?;
 
         let body = match tokens.eat_op(";") {
             Ok(_) => None,
