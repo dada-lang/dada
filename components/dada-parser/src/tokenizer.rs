@@ -200,6 +200,9 @@ impl<'input, 'db> Tokenizer<'input, 'db> {
                 // Integers
                 _ if ch.is_digit(10) => self.integer(index, ch),
 
+                // Strings
+                '"' => self.string_literal(index),
+
                 // Whitespace
                 _ if ch.is_whitespace() => {
                     self.accumulate_skipped(Skipped::Whitespace);
@@ -323,6 +326,74 @@ impl<'input, 'db> Tokenizer<'input, 'db> {
         });
     }
 
+    fn string_literal(&mut self, start: usize) {
+        let skipped = self.clear_accumulated(start);
+
+        while let Some((end, ch)) = self.chars.next() {
+            // FIXME: implement all the fancy stuff described in the reference,
+            // like embedded expressions and margin stripping.
+
+            if ch == '"' {
+                self.tokens.push(Token {
+                    span: self.span(start, end),
+                    skipped,
+                    kind: TokenKind::Literal(LiteralKind::String, &self.input[start + 1..end]),
+                });
+                return;
+            }
+
+            if ch == '\\' {
+                if let Some((index, escape)) = self.chars.next() {
+                    match escape {
+                        '"' | 'n' | 'r' | 't' | '{' | '}' | '\\' => (),
+                        _ => {
+                            let span = self.span(index, index + escape.len_utf8());
+                            self.tokens.push(Token {
+                                span,
+                                skipped: None,
+                                kind: TokenKind::Error(Diagnostic::error(
+                                    self.db,
+                                    span,
+                                    format!("invalid escape `\\{}`", ch),
+                                )),
+                            });
+                        }
+                    }
+                } else {
+                    let span = self.span(end, end + ch.len_utf8());
+                    self.tokens.push(Token {
+                        span,
+                        skipped: None,
+                        kind: TokenKind::Error(Diagnostic::error(
+                            self.db,
+                            span,
+                            "`\\` must be followed by an escape character",
+                        )),
+                    });
+                }
+            }
+        }
+
+        let end = self.input.len();
+        let span = self.span(start, end);
+
+        self.tokens.push(Token {
+            span,
+            skipped,
+            kind: TokenKind::Literal(LiteralKind::String, &self.input[start + 1..end]),
+        });
+
+        self.tokens.push(Token {
+            span,
+            skipped: None,
+            kind: TokenKind::Error(Diagnostic::error(
+                self.db,
+                span,
+                "missing end quote for string",
+            )),
+        });
+    }
+
     fn delimited(&mut self, start: usize, delim: Delimiter, close: char) {
         let skipped = self.clear_accumulated(start);
 
@@ -338,11 +409,28 @@ impl<'input, 'db> Tokenizer<'input, 'db> {
                             text: &self.input[start + 1..end],
                         },
                     });
-                    break;
+                    return;
                 }
                 _ => {}
             }
         }
+
+        // Hmm, ideally we'd push a Delimited token here
+        // with what we've seen so far, but the `narrow`
+        // function on `AbsoluteSpan` assumes there is an
+        // end-delimiter in the span, and I don't want to mess that up.s
+
+        let end = self.input.len();
+        let span = self.span(start, end);
+        self.tokens.push(Token {
+            span,
+            skipped: None,
+            kind: TokenKind::Error(Diagnostic::error(
+                self.db,
+                span,
+                format!("missing `{}`", close),
+            )),
+        });
     }
 
     fn ops(&mut self, start: usize, ch: char) {

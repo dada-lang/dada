@@ -122,7 +122,11 @@ impl<'db> Parse<'db> for Literal<'db> {
             return Ok(None);
         };
 
-        Ok(Some(Literal::new(db, *kind, text.to_string())))
+        let literal = Literal::new(db, *kind, text.to_string());
+
+        parser.eat_next_token().unwrap();
+
+        Ok(Some(literal))
     }
 
     fn expected() -> crate::Expected {
