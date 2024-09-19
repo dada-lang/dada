@@ -1,7 +1,7 @@
 use salsa::Update;
 
 use crate::{
-    ast::{ClassItem, Function, FunctionBody, UseItem},
+    ast::{ClassItem, Function, FunctionBody},
     inputs::SourceFile,
 };
 
@@ -9,7 +9,6 @@ add_from_impls! {
     #[derive(Copy, Clone, PartialEq, Eq, Hash, PartialOrd, Ord, Debug, Update)]
     pub enum Anchor<'db> {
         SourceFile(SourceFile),
-        Use(UseItem<'db>),
         Class(ClassItem<'db>),
         Function(Function<'db>),
         FunctionBody(FunctionBody<'db>),
@@ -24,20 +23,21 @@ impl<'db> Anchor<'db> {
                 start: Offset::ZERO,
                 end: Offset::from(source_file.contents(db).len()),
             },
-            Anchor::Use(data) => data.span(db),
             Anchor::Class(data) => data.span(db),
             Anchor::Function(data) => data.span(db),
             Anchor::FunctionBody(function_body) => function_body.span(db),
         }
     }
 
-    pub fn absolute_span(&self, db: &'db dyn crate::Db) -> AbsoluteSpan {
+    /// Compute the absolute span of this anchor's contents.
+    pub fn absolute_span_of_contents(&self, db: &'db dyn crate::Db) -> AbsoluteSpan {
         match self {
             Anchor::SourceFile(source_file) => source_file.absolute_span(db),
-            Anchor::Use(data) => data.span(db).absolute_span(db),
-            Anchor::Class(data) => data.span(db).absolute_span(db),
-            Anchor::Function(data) => data.span(db).absolute_span(db),
-            Anchor::FunctionBody(data) => data.span(db).absolute_span(db),
+
+            // For most anchors, we have to skip past the `{}` or `()` in the delimiters by invoking `narrow`.
+            Anchor::Class(data) => data.span(db).absolute_span(db).narrow(),
+            Anchor::Function(data) => data.span(db).absolute_span(db).narrow(),
+            Anchor::FunctionBody(data) => data.span(db).absolute_span(db).narrow(),
         }
     }
 }
@@ -62,6 +62,17 @@ pub struct AbsoluteSpan {
     pub source_file: SourceFile,
     pub start: AbsoluteOffset,
     pub end: AbsoluteOffset,
+}
+
+impl AbsoluteSpan {
+    /// Skip one character at the start/end of the span.
+    /// Used to skip past delimiters when computing absolute spans.
+    pub fn narrow(mut self) -> Self {
+        self.start = self.start + Offset::ONE;
+        self.end = self.end - Offset::ONE;
+        assert!(self.start <= self.end);
+        self
+    }
 }
 
 impl<'db> Span<'db> {
@@ -113,7 +124,7 @@ impl<'db> Span<'db> {
 
     /// Convert this span into an absolute span for reporting errors.
     pub fn absolute_span(&self, db: &'db dyn crate::Db) -> AbsoluteSpan {
-        let anchor_span = self.anchor.absolute_span(db);
+        let anchor_span = self.anchor.absolute_span_of_contents(db);
         AbsoluteSpan {
             source_file: anchor_span.source_file,
             start: anchor_span.start + self.start,
@@ -168,6 +179,7 @@ impl From<u32> for Offset {
 
 impl Offset {
     pub const ZERO: Offset = Offset(0);
+    pub const ONE: Offset = Offset(1);
 
     pub fn as_u32(&self) -> u32 {
         self.0
@@ -224,6 +236,14 @@ impl std::ops::Add<Offset> for AbsoluteOffset {
 
     fn add(self, rhs: Offset) -> Self::Output {
         AbsoluteOffset(self.0.checked_add(rhs.0).unwrap())
+    }
+}
+
+impl std::ops::Sub<Offset> for AbsoluteOffset {
+    type Output = AbsoluteOffset;
+
+    fn sub(self, rhs: Offset) -> Self::Output {
+        AbsoluteOffset(self.0.checked_sub(rhs.0).unwrap())
     }
 }
 

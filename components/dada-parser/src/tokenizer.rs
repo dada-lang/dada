@@ -331,7 +331,7 @@ impl<'input, 'db> Tokenizer<'input, 'db> {
                 _ if ch == close => {
                     assert!(ch.len_utf8() == 1);
                     self.tokens.push(Token {
-                        span: self.span(start, end),
+                        span: self.span(start, end + 1),
                         skipped,
                         kind: TokenKind::Delimited {
                             delimiter: delim,
