@@ -127,7 +127,10 @@ impl Main {
         let diagnostics = compiler.check_all(source_file);
 
         match expected_diagnostics.compare(compiler.db(), diagnostics) {
-            None => Ok(None),
+            None => {
+                delete_test_report(input)?;
+                Ok(None)
+            }
             Some(failed_test) => {
                 failed_test.generate_test_report(compiler.db())?;
                 Ok(Some(failed_test))
@@ -145,12 +148,8 @@ impl FailedTest {
         format!(
             "{} failures, see {}",
             self.failures.len(),
-            self.test_report_path().display()
+            test_report_path(&self.path).display()
         )
-    }
-
-    fn test_report_path(&self) -> PathBuf {
-        self.path.with_extension("test-report.md")
     }
 
     fn report(&self, db: &db::Database) -> Fallible<String> {
@@ -201,7 +200,19 @@ impl FailedTest {
     }
 
     fn generate_test_report(&self, db: &db::Database) -> Fallible<()> {
-        std::fs::write(self.test_report_path(), self.report(db)?)?;
+        std::fs::write(test_report_path(&self.path), self.report(db)?)?;
         Ok(())
     }
+}
+
+fn delete_test_report(path: &Path) -> Fallible<()> {
+    let path = test_report_path(path);
+    if path.exists() {
+        std::fs::remove_file(path)?;
+    }
+    Ok(())
+}
+
+fn test_report_path(path: &Path) -> PathBuf {
+    path.with_extension("test-report.md")
 }
