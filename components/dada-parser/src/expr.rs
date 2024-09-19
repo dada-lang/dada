@@ -3,7 +3,7 @@ use dada_ir_ast::ast::{
 };
 
 use crate::{
-    tokenizer::{Keyword, TokenKind},
+    tokenizer::{Keyword, Token, TokenKind},
     Expected, Parse, Parser,
 };
 
@@ -114,15 +114,15 @@ impl<'db> Parse<'db> for Literal<'db> {
         db: &'db dyn crate::Db,
         parser: &mut Parser<'_, 'db>,
     ) -> Result<Option<Self::Output>, crate::ParseFail<'db>> {
-        let Some(next_token) = parser.peek() else {
+        let Some(Token {
+            kind: TokenKind::Literal(kind, text),
+            ..
+        }) = parser.peek()
+        else {
             return Ok(None);
         };
 
-        if let TokenKind::Literal(kind, text) = next_token.kind {
-            Ok(Some(Literal::new(db, kind, text.to_string())))
-        } else {
-            Err(parser.illformed(Self::expected()))
-        }
+        Ok(Some(Literal::new(db, *kind, text.to_string())))
     }
 
     fn expected() -> crate::Expected {

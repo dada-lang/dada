@@ -1,0 +1,7 @@
+#fn just_return() {
+#    return
+#}
+
+fn return_identifier(x: u32) -> u32 {
+    x
+}
