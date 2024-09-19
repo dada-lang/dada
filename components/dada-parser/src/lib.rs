@@ -142,18 +142,8 @@ impl<'token, 'db> Parser<'token, 'db> {
         }
     }
 
-    /// Increment `next_tokens` and update `last_span`.
-    /// Helper function for `eat_errors` and `eat_next_token`.
-    /// **Do not call directly.**
-    fn advance_token(&mut self) {
-        assert!(self.next_token < self.tokens.len());
-        let span = self.tokens[self.next_token].span;
-        assert_eq!(span.anchor, self.last_span.anchor);
-        self.last_span = span;
-        self.next_token += 1;
-    }
-
     /// Eat any pending errors and add them to the list of errors to report.
+    /// Does not adjust `last_span`.
     ///
     /// Invoked automatically after each call to `eat_next_token`.
     fn eat_errors(&mut self) {
@@ -163,7 +153,7 @@ impl<'token, 'db> Parser<'token, 'db> {
         }) = self.tokens.get(self.next_token)
         {
             self.push_diagnostic(diagnostic.clone());
-            self.advance_token();
+            self.next_token += 1;
         }
     }
 
@@ -171,7 +161,11 @@ impl<'token, 'db> Parser<'token, 'db> {
     /// After advancing, also eagerly eats any error tokens.
     pub fn eat_next_token(&mut self) -> Result<(), ParseFail<'db>> {
         if self.next_token < self.tokens.len() {
-            self.advance_token();
+            assert!(self.next_token < self.tokens.len());
+            let span = self.tokens[self.next_token].span;
+            assert_eq!(span.anchor, self.last_span.anchor);
+            self.last_span = span;
+            self.next_token += 1;
             self.eat_errors();
             Ok(())
         } else {
@@ -312,11 +306,11 @@ impl<'token, 'db> Parser<'token, 'db> {
     /// Some parts of our grammar are newline sensitive.
     fn next_token_on_same_line(&mut self) -> bool {
         match self.peek() {
-            Some(Token {
-                skipped: Some(skipped),
-                ..
-            }) => *skipped <= Skipped::Whitespace,
-            _ => false,
+            Some(Token { skipped, .. }) => match skipped {
+                Some(skipped) => *skipped <= Skipped::Whitespace,
+                None => true,
+            },
+            None => false,
         }
     }
 }
