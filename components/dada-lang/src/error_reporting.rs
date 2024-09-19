@@ -73,9 +73,3 @@ fn to_snippet<'a>(db: &'a db::Database, diagnostic: &'a Diagnostic) -> Snippet<'
 fn to_span(span: AbsoluteSpan) -> std::ops::Range<usize> {
     span.start.as_usize()..span.end.as_usize()
 }
-
-fn line_start(db: &db::Database, span: AbsoluteSpan) -> usize {
-    let contents = span.source_file.contents(db);
-    let slice_before = &contents[..span.start.as_usize()];
-    slice_before.lines().count()
-}
