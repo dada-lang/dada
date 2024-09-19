@@ -191,7 +191,13 @@ impl<'db> Parse<'db> for AstFunctionArg<'db> {
         db: &'db dyn crate::Db,
         parser: &mut Parser<'_, 'db>,
     ) -> Result<Option<Self>, super::ParseFail<'db>> {
-        AstSelfArg::opt_parse(db, parser).or_opt_parse::<Self, VariableDecl<'db>>(db, parser)
+        if AstSelfArg::can_eat(db, parser) {
+            Ok(Some(AstSelfArg::eat(db, parser)?.into()))
+        } else if let Some(v) = VariableDecl::opt_parse(db, parser)? {
+            Ok(Some(v.into()))
+        } else {
+            Ok(None)
+        }
     }
 
     fn expected() -> Expected {
@@ -225,6 +231,7 @@ impl<'db> Parse<'db> for AstSelfArg<'db> {
         {
             // ...otherwise, it could be self...
             if id.text(db) == "self" {
+                parser.eat_next_token()?;
                 Ok(Some(AstSelfArg {
                     perm: None,
                     self_span: span,
