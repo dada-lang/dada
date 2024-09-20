@@ -410,15 +410,12 @@ trait Parse<'db>: Sized {
 
     /// Eat a comma separated list of Self, delimited by `delimiter`
     /// (e.g., `(a, b, c)`).
-    fn eat_delimited(
+    fn eat_delimited<T>(
         db: &'db dyn crate::Db,
         parser: &mut Parser<'_, 'db>,
         delimiter: Delimiter,
-        eat_method: impl FnOnce(
-            &'db dyn crate::Db,
-            &mut Parser<'_, 'db>,
-        ) -> Result<AstVec<'db, Self::Output>, ParseFail<'db>>,
-    ) -> Result<AstVec<'db, Self::Output>, ParseFail<'db>> {
+        eat_method: impl FnOnce(&'db dyn crate::Db, &mut Parser<'_, 'db>) -> Result<T, ParseFail<'db>>,
+    ) -> Result<T, ParseFail<'db>> {
         match Self::opt_parse_delimited(db, parser, delimiter, eat_method)? {
             Some(v) => Ok(v),
             None => Err(parser.illformed(Expected::Delimited(delimiter))),
@@ -441,15 +438,12 @@ trait Parse<'db>: Sized {
     /// Parse a delimited list of Self
     /// e.g., `(a, b, c)` or `[a, b, c]`. Returns `None` if
     /// the given delimiters indicated by `delimiter` are not found.
-    fn opt_parse_delimited(
+    fn opt_parse_delimited<T>(
         db: &'db dyn crate::Db,
         parser: &mut Parser<'_, 'db>,
         delimiter: Delimiter,
-        eat_method: impl FnOnce(
-            &'db dyn crate::Db,
-            &mut Parser<'_, 'db>,
-        ) -> Result<AstVec<'db, Self::Output>, ParseFail<'db>>,
-    ) -> Result<Option<AstVec<'db, Self::Output>>, ParseFail<'db>> {
+        eat_method: impl FnOnce(&'db dyn crate::Db, &mut Parser<'_, 'db>) -> Result<T, ParseFail<'db>>,
+    ) -> Result<Option<T>, ParseFail<'db>> {
         let Ok(text) = parser.eat_delimited(delimiter) else {
             return Ok(None);
         };

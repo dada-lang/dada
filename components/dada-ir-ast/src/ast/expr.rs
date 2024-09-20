@@ -45,13 +45,31 @@ pub enum AstExprKind<'db> {
     /// `22`
     Literal(Literal<'db>),
 
-    /// `a`, `a.b`, etc
-    Path(Path<'db>),
+    /// `x`
+    Id(SpannedIdentifier<'db>),
 
-    /// `f(a, b, c)`
-    Call(AstCallExpr<'db>),
+    /// `E.f`
+    ///
+    /// Note that this is not necessarily a field.
+    /// Interpretation is needed.
+    DotId(AstExpr<'db>, SpannedIdentifier<'db>),
+
+    /// `E[..]`
+    ///
+    /// Note that we cannot parse the contents of the `[..]`
+    /// until we have resolved the expression `E`.
+    SquareBracketOp(AstExpr<'db>, SquareBracketArgs<'db>),
+
+    /// `E(expr0, expr1, ..., exprN)`
+    ///
+    /// Note that the callee expression could also be
+    /// a `DotId` in which case this is a method call
+    /// as well as a `SquareBracketsOp`.
+    ParenthesisOp(AstExpr<'db>, AstVec<'db, AstExpr<'db>>),
 
     /// `(a, b, c)`
+    ///
+    /// Could also be `(a)`.
     Tuple(AstVec<'db, AstExpr<'db>>),
 
     /// `a { field: value }`
@@ -59,6 +77,17 @@ pub enum AstExprKind<'db> {
 
     /// `return x`
     Return(Option<AstExpr<'db>>),
+}
+
+/// Created when we parse a `x[..]` expression to store the `..` contents.
+/// We can't eagerly parse it because we don't yet know whether to parse it
+/// as types or expressions.
+#[salsa::tracked]
+pub struct SquareBracketArgs<'db> {
+    span: Span<'db>,
+
+    #[return_ref]
+    text: String,
 }
 
 #[derive(Clone, PartialEq, Eq, PartialOrd, Ord, Hash, Update, Debug)]
@@ -80,7 +109,7 @@ pub enum LiteralKind {
 }
 
 #[derive(Clone, PartialEq, Eq, PartialOrd, Ord, Hash, Update, Debug)]
-pub struct AstCallExpr<'db> {
+pub struct AstParenExpr<'db> {
     pub callee: AstExpr<'db>,
     pub generic_args: Option<AstVec<'db, AstGenericArg<'db>>>,
     pub args: AstVec<'db, AstExpr<'db>>,

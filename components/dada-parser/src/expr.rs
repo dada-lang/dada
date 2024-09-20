@@ -1,10 +1,10 @@
 use dada_ir_ast::ast::{
-    AstCallExpr, AstConstructorField, AstExpr, AstExprKind, AstGenericArg, Literal, Path,
+    AstConstructorField, AstExpr, AstExprKind, Literal, Path, SquareBracketArgs,
 };
 
 use crate::{
     tokenizer::{Keyword, Token, TokenKind},
-    Expected, Parse, Parser,
+    Parse, Parser,
 };
 
 impl<'db> Parse<'db> for AstExpr<'db> {
@@ -32,42 +32,47 @@ fn postfix_expr_kind<'db>(
 ) -> Result<Option<AstExprKind<'db>>, crate::ParseFail<'db>> {
     let start_span = parser.peek_span();
 
-    let Some(base_kind) = base_expr_kind(db, parser)? else {
+    let Some(mut kind) = base_expr_kind(db, parser)? else {
         return Ok(None);
     };
 
-    let mid_span = parser.peek_span();
+    loop {
+        let mid_span = parser.peek_span();
 
-    if parser.next_token_on_same_line() {
-        // Could be a call with generic args, like `foo.bar[T]()`
-        let generic_args = AstGenericArg::opt_parse_delimited(
-            db,
-            parser,
-            crate::tokenizer::Delimiter::SquareBrackets,
-            AstGenericArg::eat_comma,
-        )?;
-
-        let args = AstExpr::opt_parse_delimited(
-            db,
-            parser,
-            crate::tokenizer::Delimiter::Parentheses,
-            AstExpr::eat_comma,
-        )?;
-
-        if let Some(args) = args {
-            let callee = AstExpr::new(start_span.to(mid_span), base_kind);
-            return Ok(Some(AstExprKind::Call(AstCallExpr {
-                callee,
-                generic_args,
-                args,
-            })));
-        } else if let Some(_generic_args) = generic_args {
-            // Can't have `foo.bar[X]` with no `()` afterwards.
-            return Err(parser.illformed(Expected::Nonterminal("call arguments")));
+        // `.` can skip newlines
+        if let Ok(_) = parser.eat_op(".") {
+            let id = parser.eat_id()?;
+            let owner = AstExpr::new(start_span.to(mid_span), kind);
+            kind = AstExprKind::DotId(owner, id);
+            continue;
         }
-    }
 
-    return Ok(Some(base_kind));
+        // Postfix `[]` is only valid on the same line, since `[..]` is also valid as the start of an expression
+        if parser.next_token_on_same_line() {
+            if let Ok(text) = parser.eat_delimited(crate::tokenizer::Delimiter::SquareBrackets) {
+                let owner = AstExpr::new(start_span.to(mid_span), kind);
+                let args = SquareBracketArgs::new(db, parser.last_span(), text.to_string());
+                kind = AstExprKind::SquareBracketOp(owner, args);
+                continue;
+            }
+        }
+
+        // Postfix `()` is only valid on the same line, since `[..]` is also valid as the start of an expression
+        if parser.next_token_on_same_line() {
+            if let Some(args) = AstExpr::opt_parse_delimited(
+                db,
+                parser,
+                crate::tokenizer::Delimiter::Parentheses,
+                AstExpr::eat_comma,
+            )? {
+                let owner = AstExpr::new(start_span.to(mid_span), kind);
+                kind = AstExprKind::ParenthesisOp(owner, args);
+                continue;
+            }
+        }
+
+        return Ok(Some(kind));
+    }
 }
 
 fn base_expr_kind<'db>(
@@ -78,7 +83,7 @@ fn base_expr_kind<'db>(
         return Ok(Some(AstExprKind::Literal(literal)));
     }
 
-    if let Some(path) = Path::opt_parse(db, parser)? {
+    if let Ok(id) = parser.eat_id() {
         // Could be `X { field1: value1, .. }`
         if parser.next_token_on_same_line() {
             if let Some(fields) = AstConstructorField::opt_parse_delimited(
@@ -87,11 +92,12 @@ fn base_expr_kind<'db>(
                 crate::tokenizer::Delimiter::CurlyBraces,
                 AstConstructorField::eat_comma,
             )? {
+                let path = Path { ids: vec![id] };
                 return Ok(Some(AstExprKind::Constructor(path, fields)));
             }
         }
 
-        return Ok(Some(AstExprKind::Path(path)));
+        return Ok(Some(AstExprKind::Id(id)));
     }
 
     if parser.eat_keyword(Keyword::Return).is_ok() {

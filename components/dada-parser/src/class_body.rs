@@ -150,12 +150,20 @@ impl<'db> Parse<'db> for Function<'db> {
             GenericDecl::eat_comma,
         )?;
 
+        // Parse the arguments, accepting an empty list.
         let arguments = AstFunctionArg::eat_delimited(
             db,
             tokens,
             Delimiter::Parentheses,
-            AstFunctionArg::eat_comma,
+            AstFunctionArg::opt_parse_comma,
         )?;
+        let arguments = match arguments {
+            Some(arguments) => arguments,
+            None => AstVec {
+                span: tokens.last_span(),
+                values: vec![],
+            },
+        };
 
         let return_ty = AstTy::opt_parse_guarded("->", db, tokens)?;
 
