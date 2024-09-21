@@ -77,6 +77,16 @@ pub enum AstExprKind<'db> {
 
     /// `return x`
     Return(Option<AstExpr<'db>>),
+
+    BinaryOp(BinaryOp, AstExpr<'db>, AstExpr<'db>),
+}
+
+#[derive(Copy, Clone, PartialEq, Eq, PartialOrd, Ord, Hash, Update, Debug)]
+pub enum BinaryOp {
+    Add,
+    Sub,
+    Mul,
+    Div,
 }
 
 /// Created when we parse a `x[..]` expression to store the `..` contents.
