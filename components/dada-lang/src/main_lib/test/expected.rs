@@ -5,7 +5,7 @@ use dada_ir_ast::{
     inputs::SourceFile,
     span::{AbsoluteOffset, AbsoluteSpan},
 };
-use dada_util::Fallible;
+use dada_util::{bail, Fallible};
 use regex::Regex;
 
 use crate::db;
@@ -43,8 +43,16 @@ lazy_static::lazy_static! {
 
 impl TestExpectations {
     pub fn new(db: &db::Database, source_file: SourceFile) -> Fallible<Self> {
-        let source = source_file.contents(db);
+        let mut expectations = TestExpectations {
+            source_file,
+            expected_diagnostics: vec![],
+        };
+        expectations.initialize(db)?;
+        Ok(expectations)
+    }
 
+    fn initialize(&mut self, db: &db::Database) -> Fallible<()> {
+        let source = self.source_file.contents(db);
         let line_starts = std::iter::once(0)
             .chain(
                 source
@@ -54,24 +62,49 @@ impl TestExpectations {
             .chain(std::iter::once(source.len()))
             .collect::<Vec<_>>();
 
-        let mut expected_diagnostics = vec![];
+        let mut in_header = true;
         let mut last_interesting_line = None;
         for (line, line_index) in source.lines().zip(0..) {
+            // Allow `#:` configuration lines, but only at the start of the file.
+            if in_header {
+                if line.starts_with("#:") {
+                    self.configuration(db, line_index, line[2..].trim())?;
+                    continue;
+                } else if line.starts_with("#") || line.trim().is_empty() {
+                    continue;
+                }
+            }
+
+            // Otherwise error if we see `#:`.
+            in_header = false;
+            if line.contains("#:") {
+                bail!(
+                    "{}:{}: configuration comment outside of file header",
+                    self.source_file.path(db),
+                    line_index + 1,
+                );
+            }
+
+            // Track the last "interesting" line (non-empty, basically).
+            // Any future `#!` errors will be assumed to start on that line.
             if !UNINTERESTING_RE.is_match(line) {
                 last_interesting_line = Some(line_index);
             }
 
+            // Check if this line contains an expected diagnostic.
             let Some(c) = DIAGNOSTIC_RE.captures(line) else {
                 continue;
             };
 
+            // Find the line on which the diagnostic will be expected to occur.
             let Some(last_interesting_line) = last_interesting_line else {
-                dada_util::bail!("found diagnostic on line with no previous interesting line");
+                bail!("found diagnostic on line with no previous interesting line");
             };
 
+            // Extract the expected span: if the comment contains `^^^` markers, it needs to be
+            // exactly as given, but otherwise it just has to start somewhere on the line.
             let pre = c.name("pre").unwrap().as_str();
             let pad = c.name("pad").unwrap().as_str();
-
             let span = match c.name("col") {
                 Some(c) => {
                     let carrot_start =
@@ -79,13 +112,13 @@ impl TestExpectations {
                     let carrot_end = carrot_start + c.as_str().len();
 
                     ExpectedSpan::MustEqual(AbsoluteSpan {
-                        source_file,
+                        source_file: self.source_file,
                         start: AbsoluteOffset::from(carrot_start),
                         end: AbsoluteOffset::from(carrot_end),
                     })
                 }
                 None => ExpectedSpan::MustStartWithin(AbsoluteSpan {
-                    source_file,
+                    source_file: self.source_file,
                     start: AbsoluteOffset::from(line_starts[last_interesting_line]),
                     end: AbsoluteOffset::from(
                         line_starts[last_interesting_line + 1].saturating_sub(1),
@@ -93,20 +126,28 @@ impl TestExpectations {
                 }),
             };
 
+            // Find the expected message (which may be a regular expression).
             let message = match c.name("re") {
                 Some(_) => Regex::new(c.name("msg").unwrap().as_str())?,
                 None => Regex::new(&regex::escape(c.name("msg").unwrap().as_str()))?,
             };
 
-            expected_diagnostics.push(ExpectedDiagnostic { span, message });
+            // Push onto the list of expected diagnostics.
+            self.expected_diagnostics
+                .push(ExpectedDiagnostic { span, message });
         }
 
-        expected_diagnostics.sort_by_key(|e| *e.span());
+        self.expected_diagnostics.sort_by_key(|e| *e.span());
 
-        Ok(TestExpectations {
-            source_file,
-            expected_diagnostics,
-        })
+        Ok(())
+    }
+
+    fn configuration(&mut self, db: &db::Database, line_index: usize, line: &str) -> Fallible<()> {
+        bail!(
+            "{}:{}: unrecognized configuration comment",
+            self.source_file.path(db),
+            line_index + 1,
+        );
     }
 
     pub fn compare(
