@@ -1,5 +1,11 @@
-use dada_ir_ast::ast::{
-    AstConstructorField, AstExpr, AstExprKind, Literal, Path, SquareBracketArgs,
+use std::fmt::Binary;
+
+use dada_ir_ast::{
+    ast::{
+        AstConstructorField, AstExpr, AstExprKind, BinaryOp, Literal, Path, SpannedBinaryOp,
+        SquareBracketArgs,
+    },
+    span::Span,
 };
 
 use crate::{
@@ -14,11 +20,7 @@ impl<'db> Parse<'db> for AstExpr<'db> {
         db: &'db dyn crate::Db,
         parser: &mut Parser<'_, 'db>,
     ) -> Result<Option<Self::Output>, crate::ParseFail<'db>> {
-        let start_span = parser.peek_span();
-        let Some(kind) = postfix_expr_kind(db, parser)? else {
-            return Ok(None);
-        };
-        Ok(Some(AstExpr::new(start_span.to(parser.last_span()), kind)))
+        opt_parse_expr_with_precedence(db, parser, binary_expr_precedence)
     }
 
     fn expected() -> crate::Expected {
@@ -26,13 +28,98 @@ impl<'db> Parse<'db> for AstExpr<'db> {
     }
 }
 
-fn postfix_expr_kind<'db>(
+fn eat_expr_with_precedence<'db>(
+    db: &'db dyn crate::Db,
+    parser: &mut Parser<'_, 'db>,
+    precedence: impl FnOnce(
+        &'db dyn crate::Db,
+        &mut Parser<'_, 'db>,
+    ) -> Result<Option<AstExprKind<'db>>, crate::ParseFail<'db>>,
+) -> Result<AstExpr<'db>, crate::ParseFail<'db>> {
+    match opt_parse_expr_with_precedence(db, parser, precedence)? {
+        Some(e) => Ok(e),
+        None => Err(parser.illformed(AstExpr::expected())),
+    }
+}
+
+fn opt_parse_expr_with_precedence<'db>(
+    db: &'db dyn crate::Db,
+    parser: &mut Parser<'_, 'db>,
+    precedence: impl FnOnce(
+        &'db dyn crate::Db,
+        &mut Parser<'_, 'db>,
+    ) -> Result<Option<AstExprKind<'db>>, crate::ParseFail<'db>>,
+) -> Result<Option<AstExpr<'db>>, crate::ParseFail<'db>> {
+    let start_span = parser.peek_span();
+    let Some(kind) = precedence(db, parser)? else {
+        return Ok(None);
+    };
+    Ok(Some(AstExpr::new(start_span.to(parser.last_span()), kind)))
+}
+
+const BINARY_OP_PRECEDENCE: &[&[(&str, BinaryOp)]] = &[
+    &[("+", BinaryOp::Add), ("-", BinaryOp::Sub)],
+    &[("*", BinaryOp::Mul), ("*", BinaryOp::Div)],
+];
+
+fn binary_expr_precedence<'db>(
+    db: &'db dyn crate::Db,
+    parser: &mut Parser<'_, 'db>,
+) -> Result<Option<AstExprKind<'db>>, crate::ParseFail<'db>> {
+    binary_expr_with_precedence_level(db, parser, 0)
+}
+
+fn binary_expr_with_precedence_level<'db>(
+    db: &'db dyn crate::Db,
+    parser: &mut Parser<'_, 'db>,
+    precedence: usize,
+) -> Result<Option<AstExprKind<'db>>, crate::ParseFail<'db>> {
+    let start_span = parser.peek_span();
+
+    // Parse the LHS at one higher level of precedence than
+    // the current one.
+    let parsed_lhs = if precedence < BINARY_OP_PRECEDENCE.len() {
+        binary_expr_with_precedence_level(db, parser, precedence + 1)?
+    } else {
+        postfix_expr_precedence(db, parser)?
+    };
+    let Some(mut lhs_kind) = parsed_lhs else {
+        return Ok(None);
+    };
+
+    // Parse as many RHS at the current level of precedence as we can find.
+    // Note that the binary operator must appear on the current line;
+    // binary operators on the *next line* don't count, those are prefix unary operators (or errors,
+    // as the case may be).
+    'outer: loop {
+        let mid_span = parser.peek_span();
+
+        if parser.next_token_on_same_line() {
+            for &(op_text, op) in BINARY_OP_PRECEDENCE[precedence] {
+                if let Ok(op_span) = parser.eat_op(op_text) {
+                    let lhs = AstExpr::new(start_span.to(mid_span), lhs_kind);
+                    let rhs = eat_expr_with_precedence(db, parser, |db, parser| {
+                        // Parse RHS at the current level of precedence:
+                        binary_expr_with_precedence_level(db, parser, precedence)
+                    })?;
+                    lhs_kind =
+                        AstExprKind::BinaryOp(SpannedBinaryOp { span: op_span, op }, lhs, rhs);
+                    continue 'outer;
+                }
+            }
+        }
+
+        return Ok(Some(lhs_kind));
+    }
+}
+
+fn postfix_expr_precedence<'db>(
     db: &'db dyn crate::Db,
     parser: &mut Parser<'_, 'db>,
 ) -> Result<Option<AstExprKind<'db>>, crate::ParseFail<'db>> {
     let start_span = parser.peek_span();
 
-    let Some(mut kind) = base_expr_kind(db, parser)? else {
+    let Some(mut kind) = base_expr_precedence(db, parser)? else {
         return Ok(None);
     };
 
@@ -75,7 +162,7 @@ fn postfix_expr_kind<'db>(
     }
 }
 
-fn base_expr_kind<'db>(
+fn base_expr_precedence<'db>(
     db: &'db dyn crate::Db,
     parser: &mut Parser<'_, 'db>,
 ) -> Result<Option<AstExprKind<'db>>, crate::ParseFail<'db>> {

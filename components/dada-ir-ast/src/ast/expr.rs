@@ -78,7 +78,13 @@ pub enum AstExprKind<'db> {
     /// `return x`
     Return(Option<AstExpr<'db>>),
 
-    BinaryOp(BinaryOp, AstExpr<'db>, AstExpr<'db>),
+    BinaryOp(SpannedBinaryOp<'db>, AstExpr<'db>, AstExpr<'db>),
+}
+
+#[derive(Copy, Clone, PartialEq, Eq, PartialOrd, Ord, Hash, Update, Debug)]
+pub struct SpannedBinaryOp<'db> {
+    pub span: Span<'db>,
+    pub op: BinaryOp,
 }
 
 #[derive(Copy, Clone, PartialEq, Eq, PartialOrd, Ord, Hash, Update, Debug)]
