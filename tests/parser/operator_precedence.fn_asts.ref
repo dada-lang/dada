@@ -1,0 +1,8 @@
+# fn parse tree from tests/parser/operator_precedence.dada
+
+## fn `Identifier(Id(400))`
+
+AstBlock {
+    [salsa id]: Id(2000),
+}
+

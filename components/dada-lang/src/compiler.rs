@@ -86,7 +86,6 @@ fn check_fn<'db>(db: &'db dyn salsa::Database, function: Function<'db>) {
     }
 }
 
-#[salsa::tracked]
 fn fn_asts(db: &dyn salsa::Database, source_file: SourceFile) -> String {
     use std::fmt::Write;
 
