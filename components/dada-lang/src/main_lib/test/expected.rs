@@ -33,7 +33,7 @@ pub struct TestExpectations {
     source_file: SourceFile,
     bless: Bless,
     expected_diagnostics: Vec<ExpectedDiagnostic>,
-    fn_parse_trees: bool,
+    fn_asts: bool,
 }
 
 enum Bless {
@@ -67,7 +67,7 @@ impl TestExpectations {
             source_file,
             bless,
             expected_diagnostics: vec![],
-            fn_parse_trees: false,
+            fn_asts: false,
         };
         expectations.initialize(db)?;
         Ok(expectations)
@@ -165,8 +165,8 @@ impl TestExpectations {
     }
 
     fn configuration(&mut self, db: &db::Database, line_index: usize, line: &str) -> Fallible<()> {
-        if line == "fn_parse_trees" {
-            self.fn_parse_trees = true;
+        if line == "fn_asts" {
+            self.fn_asts = true;
             return Ok(());
         }
 
@@ -185,9 +185,9 @@ impl TestExpectations {
 
         test.failures.extend(self.compare_auxiliary(
             compiler,
-            "fn_parse_trees",
-            self.fn_parse_trees,
-            Self::generate_fn_parse_trees,
+            "fn_asts",
+            self.fn_asts,
+            Self::generate_fn_asts,
         )?);
 
         let actual_diagnostics: Vec<Diagnostic> = compiler.check_all(self.source_file);
@@ -201,8 +201,8 @@ impl TestExpectations {
         }
     }
 
-    fn generate_fn_parse_trees(&self, compiler: &mut Compiler) -> String {
-        compiler.fn_parse_trees(self.source_file)
+    fn generate_fn_asts(&self, compiler: &mut Compiler) -> String {
+        compiler.fn_asts(self.source_file)
     }
 
     fn compare_auxiliary(

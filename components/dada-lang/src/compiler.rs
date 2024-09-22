@@ -39,7 +39,7 @@ impl Compiler {
         check_all::accumulated::<Diagnostic>(&self.db, source_file)
     }
 
-    pub fn fn_parse_trees(&mut self, source_file: SourceFile) -> String {
+    pub fn fn_asts(&mut self, source_file: SourceFile) -> String {
         use std::fmt::Write;
 
         let mut output = String::new();
@@ -51,7 +51,7 @@ impl Compiler {
         .unwrap();
         writeln!(output).unwrap();
 
-        writeln!(output, "{}", fn_parse_trees(&self.db, source_file)).unwrap();
+        writeln!(output, "{}", fn_asts(&self.db, source_file)).unwrap();
 
         output
     }
@@ -87,7 +87,7 @@ fn check_fn<'db>(db: &'db dyn salsa::Database, function: Function<'db>) {
 }
 
 #[salsa::tracked]
-fn fn_parse_trees(db: &dyn salsa::Database, source_file: SourceFile) -> String {
+fn fn_asts(db: &dyn salsa::Database, source_file: SourceFile) -> String {
     use std::fmt::Write;
 
     let mut output = String::new();
@@ -106,7 +106,7 @@ fn fn_parse_trees(db: &dyn salsa::Database, source_file: SourceFile) -> String {
                         Member::Function(function) => {
                             writeln!(output, "### fn `{}`", function.name(db).id).unwrap();
                             writeln!(output, "").unwrap();
-                            writeln!(output, "{}", fn_parse_trees_fn(db, *function)).unwrap();
+                            writeln!(output, "{}", fn_asts_fn(db, *function)).unwrap();
                         }
                     }
                 }
@@ -114,14 +114,14 @@ fn fn_parse_trees(db: &dyn salsa::Database, source_file: SourceFile) -> String {
             Item::Function(function) => {
                 writeln!(output, "## fn `{}`", function.name(db).id).unwrap();
                 writeln!(output, "").unwrap();
-                writeln!(output, "{}", fn_parse_trees_fn(db, function)).unwrap();
+                writeln!(output, "{}", fn_asts_fn(db, function)).unwrap();
             }
         }
     }
 
     return output;
 
-    fn fn_parse_trees_fn<'db>(db: &'db dyn salsa::Database, function: Function<'db>) -> String {
+    fn fn_asts_fn<'db>(db: &'db dyn salsa::Database, function: Function<'db>) -> String {
         if let Some(body) = function.body(db) {
             let block = body.block(db);
             format!("{block:#?}")

@@ -14,7 +14,7 @@ AstBlock {
                             SourceFile {
                                 [salsa id]: Id(0),
                                 path: "tests/parser/operator_precedence.dada",
-                                contents: "#:fn_parse_trees\n\nfn return_identifier(x: u32) -> u32 {\n    x + 22 * 33\n}",
+                                contents: "#:fn_asts\n\nfn return_identifier(x: u32) -> u32 {\n    x + 22 * 33\n}",
                             },
                         ),
                         start: Offset(
@@ -46,7 +46,7 @@ AstBlock {
                                         SourceFile {
                                             [salsa id]: Id(0),
                                             path: "tests/parser/operator_precedence.dada",
-                                            contents: "#:fn_parse_trees\n\nfn return_identifier(x: u32) -> u32 {\n    x + 22 * 33\n}",
+                                            contents: "#:fn_asts\n\nfn return_identifier(x: u32) -> u32 {\n    x + 22 * 33\n}",
                                         },
                                     ),
                                     start: Offset(
@@ -77,7 +77,7 @@ AstBlock {
                                                 SourceFile {
                                                     [salsa id]: Id(0),
                                                     path: "tests/parser/operator_precedence.dada",
-                                                    contents: "#:fn_parse_trees\n\nfn return_identifier(x: u32) -> u32 {\n    x + 22 * 33\n}",
+                                                    contents: "#:fn_asts\n\nfn return_identifier(x: u32) -> u32 {\n    x + 22 * 33\n}",
                                                 },
                                             ),
                                             start: Offset(
@@ -109,7 +109,7 @@ AstBlock {
                                                 SourceFile {
                                                     [salsa id]: Id(0),
                                                     path: "tests/parser/operator_precedence.dada",
-                                                    contents: "#:fn_parse_trees\n\nfn return_identifier(x: u32) -> u32 {\n    x + 22 * 33\n}",
+                                                    contents: "#:fn_asts\n\nfn return_identifier(x: u32) -> u32 {\n    x + 22 * 33\n}",
                                                 },
                                             ),
                                             start: Offset(
@@ -140,7 +140,7 @@ AstBlock {
                                                         SourceFile {
                                                             [salsa id]: Id(0),
                                                             path: "tests/parser/operator_precedence.dada",
-                                                            contents: "#:fn_parse_trees\n\nfn return_identifier(x: u32) -> u32 {\n    x + 22 * 33\n}",
+                                                            contents: "#:fn_asts\n\nfn return_identifier(x: u32) -> u32 {\n    x + 22 * 33\n}",
                                                         },
                                                     ),
                                                     start: Offset(
@@ -176,7 +176,7 @@ AstBlock {
                                                 SourceFile {
                                                     [salsa id]: Id(0),
                                                     path: "tests/parser/operator_precedence.dada",
-                                                    contents: "#:fn_parse_trees\n\nfn return_identifier(x: u32) -> u32 {\n    x + 22 * 33\n}",
+                                                    contents: "#:fn_asts\n\nfn return_identifier(x: u32) -> u32 {\n    x + 22 * 33\n}",
                                                 },
                                             ),
                                             start: Offset(
@@ -207,7 +207,7 @@ AstBlock {
                                                         SourceFile {
                                                             [salsa id]: Id(0),
                                                             path: "tests/parser/operator_precedence.dada",
-                                                            contents: "#:fn_parse_trees\n\nfn return_identifier(x: u32) -> u32 {\n    x + 22 * 33\n}",
+                                                            contents: "#:fn_asts\n\nfn return_identifier(x: u32) -> u32 {\n    x + 22 * 33\n}",
                                                         },
                                                     ),
                                                     start: Offset(
@@ -239,7 +239,7 @@ AstBlock {
                                                         SourceFile {
                                                             [salsa id]: Id(0),
                                                             path: "tests/parser/operator_precedence.dada",
-                                                            contents: "#:fn_parse_trees\n\nfn return_identifier(x: u32) -> u32 {\n    x + 22 * 33\n}",
+                                                            contents: "#:fn_asts\n\nfn return_identifier(x: u32) -> u32 {\n    x + 22 * 33\n}",
                                                         },
                                                     ),
                                                     start: Offset(
@@ -276,7 +276,7 @@ AstBlock {
                                                         SourceFile {
                                                             [salsa id]: Id(0),
                                                             path: "tests/parser/operator_precedence.dada",
-                                                            contents: "#:fn_parse_trees\n\nfn return_identifier(x: u32) -> u32 {\n    x + 22 * 33\n}",
+                                                            contents: "#:fn_asts\n\nfn return_identifier(x: u32) -> u32 {\n    x + 22 * 33\n}",
                                                         },
                                                     ),
                                                     start: Offset(
