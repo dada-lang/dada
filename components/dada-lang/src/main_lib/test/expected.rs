@@ -1,14 +1,15 @@
-use std::path::PathBuf;
+use std::path::{Path, PathBuf};
 
 use dada_ir_ast::{
     diagnostic::Diagnostic,
     inputs::SourceFile,
     span::{AbsoluteOffset, AbsoluteSpan},
 };
-use dada_util::{bail, Fallible};
+use dada_util::{bail, Context, Fallible};
+use prettydiff::text::ContextConfig;
 use regex::Regex;
 
-use crate::db;
+use crate::{compiler::Compiler, db};
 
 use super::{FailedTest, Failure};
 
@@ -30,7 +31,15 @@ pub enum ExpectedSpan {
 
 pub struct TestExpectations {
     source_file: SourceFile,
+    bless: Bless,
     expected_diagnostics: Vec<ExpectedDiagnostic>,
+    fn_parse_trees: bool,
+}
+
+enum Bless {
+    None,
+    All,
+    File(String),
 }
 
 lazy_static::lazy_static! {
@@ -43,9 +52,22 @@ lazy_static::lazy_static! {
 
 impl TestExpectations {
     pub fn new(db: &db::Database, source_file: SourceFile) -> Fallible<Self> {
+        let bless = match std::env::var("UPDATE_EXPECT") {
+            Ok(s) => {
+                if s == "1" {
+                    Bless::All
+                } else {
+                    Bless::File(s)
+                }
+            }
+            Err(_) => Bless::None,
+        };
+
         let mut expectations = TestExpectations {
             source_file,
+            bless,
             expected_diagnostics: vec![],
+            fn_parse_trees: false,
         };
         expectations.initialize(db)?;
         Ok(expectations)
@@ -143,6 +165,11 @@ impl TestExpectations {
     }
 
     fn configuration(&mut self, db: &db::Database, line_index: usize, line: &str) -> Fallible<()> {
+        if line == "fn_parse_trees" {
+            self.fn_parse_trees = true;
+            return Ok(());
+        }
+
         bail!(
             "{}:{}: unrecognized configuration comment",
             self.source_file.path(db),
@@ -150,11 +177,88 @@ impl TestExpectations {
         );
     }
 
-    pub fn compare(
-        self,
-        db: &db::Database,
-        mut actual_diagnostics: Vec<Diagnostic>,
-    ) -> Option<FailedTest> {
+    pub fn compare(self, compiler: &mut Compiler) -> Fallible<Option<FailedTest>> {
+        let mut test = FailedTest {
+            path: PathBuf::from(self.source_file.path(compiler.db())),
+            failures: vec![],
+        };
+
+        test.failures.extend(self.compare_auxiliary(
+            compiler,
+            "fn_parse_trees",
+            self.fn_parse_trees,
+            Self::generate_fn_parse_trees,
+        )?);
+
+        let actual_diagnostics: Vec<Diagnostic> = compiler.check_all(self.source_file);
+        test.failures
+            .extend(self.compare_diagnostics(actual_diagnostics));
+
+        if test.failures.is_empty() {
+            Ok(None)
+        } else {
+            Ok(Some(test))
+        }
+    }
+
+    fn generate_fn_parse_trees(&self, compiler: &mut Compiler) -> String {
+        compiler.fn_parse_trees(self.source_file)
+    }
+
+    fn compare_auxiliary(
+        &self,
+        compiler: &mut Compiler,
+        ext: &str,
+        enabled: bool,
+        generate_fn: impl Fn(&Self, &mut Compiler) -> String,
+    ) -> Fallible<Vec<Failure>> {
+        let ref_path = self.ref_path(compiler.db(), ext);
+        let txt_path = self.txt_path(compiler.db(), ext);
+
+        if !enabled {
+            self.remove_stale_file(&ref_path)?;
+            self.remove_stale_file(&txt_path)?;
+            return Ok(vec![]);
+        }
+
+        let actual = generate_fn(self, compiler);
+        self.write_file(&txt_path, &actual)?;
+
+        if self.bless.bless_path(&ref_path) {
+            self.write_file(&ref_path, &actual)?;
+            return Ok(vec![]);
+        }
+
+        let expected = std::fs::read_to_string(&ref_path).unwrap_or_default();
+        if actual == expected {
+            return Ok(vec![]);
+        }
+
+        let diff = self.diff_lines(&expected, &actual);
+        Ok(vec![Failure::Auxiliary {
+            kind: format!(":{ext}"),
+            ref_path,
+            txt_path,
+            diff,
+        }])
+    }
+
+    fn remove_stale_file(&self, path: &Path) -> Fallible<()> {
+        if path.exists() {
+            std::fs::remove_file(path)
+                .with_context(|| format!("removing stale file `{}`", path.display()))?;
+        }
+
+        Ok(())
+    }
+
+    fn write_file(&self, path: &Path, contents: &str) -> Fallible<()> {
+        std::fs::write(&path, contents)
+            .with_context(|| format!("writing to file `{}`", path.display()))?;
+        Ok(())
+    }
+
+    fn compare_diagnostics(self, mut actual_diagnostics: Vec<Diagnostic>) -> Vec<Failure> {
         actual_diagnostics.sort_by_key(|d| d.span);
 
         let empty_matched = vec![false; self.expected_diagnostics.len()];
@@ -192,14 +296,7 @@ impl TestExpectations {
             }
         }
 
-        if failures.is_empty() {
-            return None;
-        }
-
-        Some(FailedTest {
-            path: PathBuf::from(self.source_file.path(db)),
-            failures,
-        })
+        failures
     }
 
     fn find_match(&self, actual_diagnostic: &Diagnostic, matched: &[bool]) -> Option<usize> {
@@ -216,6 +313,32 @@ impl TestExpectations {
             // Find the best match (with the narrowest span)
             .min_by_key(|(expected_diagnostic, _)| expected_diagnostic.span())
             .map(|(_, index)| index)
+    }
+
+    pub fn source_path<'db>(&self, db: &'db db::Database) -> &'db Path {
+        Path::new(self.source_file.path(db))
+    }
+
+    fn ref_path(&self, db: &db::Database, ext: &str) -> PathBuf {
+        let path_buf = self.source_path(db);
+        path_buf.with_extension(format!("{ext}.ref"))
+    }
+
+    fn txt_path(&self, db: &db::Database, ext: &str) -> PathBuf {
+        let path_buf = self.source_path(db);
+        path_buf.with_extension(format!("{ext}.txt"))
+    }
+
+    fn diff_lines(&self, expected: &str, actual: &str) -> String {
+        prettydiff::diff_lines(expected, actual)
+            .set_diff_only(true)
+            .format_with_context(
+                Some(ContextConfig {
+                    context_size: 3,
+                    skipping_marker: "...",
+                }),
+                true,
+            )
     }
 }
 
@@ -239,6 +362,16 @@ impl ExpectedSpan {
         match self {
             ExpectedSpan::MustStartWithin(span) => span,
             ExpectedSpan::MustEqual(span) => span,
+        }
+    }
+}
+
+impl Bless {
+    fn bless_path(&self, path: &Path) -> bool {
+        match self {
+            Bless::None => false,
+            Bless::All => true,
+            Bless::File(s) => path.file_name().unwrap() == &s[..],
         }
     }
 }

@@ -38,6 +38,23 @@ impl Compiler {
     pub fn check_all(&mut self, source_file: SourceFile) -> Vec<Diagnostic> {
         check_all::accumulated::<Diagnostic>(&self.db, source_file)
     }
+
+    pub fn fn_parse_trees(&mut self, source_file: SourceFile) -> String {
+        use std::fmt::Write;
+
+        let mut output = String::new();
+        writeln!(
+            output,
+            "# fn parse tree from {}",
+            source_file.path(&self.db)
+        )
+        .unwrap();
+        writeln!(output).unwrap();
+
+        writeln!(output, "{}", fn_parse_trees(&self.db, source_file)).unwrap();
+
+        output
+    }
 }
 
 #[salsa::tracked]
@@ -66,5 +83,50 @@ fn check_all(db: &dyn salsa::Database, source_file: SourceFile) {
 fn check_fn<'db>(db: &'db dyn salsa::Database, function: Function<'db>) {
     if let Some(body) = function.body(db) {
         let _block = body.block(db);
+    }
+}
+
+#[salsa::tracked]
+fn fn_parse_trees(db: &dyn salsa::Database, source_file: SourceFile) -> String {
+    use std::fmt::Write;
+
+    let mut output = String::new();
+
+    let module = source_file.parse(db);
+
+    for item in module.items(db) {
+        match *item {
+            Item::SourceFile(_source_file) => (),
+            Item::Use(_use_item) => (),
+            Item::Class(class_item) => {
+                writeln!(output, "## class `{}`", class_item.name(db)).unwrap();
+                for member in &class_item.members(db) {
+                    match member {
+                        Member::Field(_field_decl) => (),
+                        Member::Function(function) => {
+                            writeln!(output, "### fn `{}`", function.name(db).id).unwrap();
+                            writeln!(output, "").unwrap();
+                            writeln!(output, "{}", fn_parse_trees_fn(db, *function)).unwrap();
+                        }
+                    }
+                }
+            }
+            Item::Function(function) => {
+                writeln!(output, "## fn `{}`", function.name(db).id).unwrap();
+                writeln!(output, "").unwrap();
+                writeln!(output, "{}", fn_parse_trees_fn(db, function)).unwrap();
+            }
+        }
+    }
+
+    return output;
+
+    fn fn_parse_trees_fn<'db>(db: &'db dyn salsa::Database, function: Function<'db>) -> String {
+        if let Some(body) = function.body(db) {
+            let block = body.block(db);
+            format!("{block:#?}")
+        } else {
+            format!("None")
+        }
     }
 }

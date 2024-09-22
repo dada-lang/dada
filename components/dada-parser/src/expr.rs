@@ -1,11 +1,6 @@
-use std::fmt::Binary;
-
-use dada_ir_ast::{
-    ast::{
-        AstConstructorField, AstExpr, AstExprKind, BinaryOp, Literal, Path, SpannedBinaryOp,
-        SquareBracketArgs,
-    },
-    span::Span,
+use dada_ir_ast::ast::{
+    AstConstructorField, AstExpr, AstExprKind, BinaryOp, Literal, Path, SpannedBinaryOp,
+    SquareBracketArgs,
 };
 
 use crate::{
@@ -76,14 +71,13 @@ fn binary_expr_with_precedence_level<'db>(
 ) -> Result<Option<AstExprKind<'db>>, crate::ParseFail<'db>> {
     let start_span = parser.peek_span();
 
+    if precedence >= BINARY_OP_PRECEDENCE.len() {
+        return Ok(postfix_expr_precedence(db, parser)?);
+    }
+
     // Parse the LHS at one higher level of precedence than
     // the current one.
-    let parsed_lhs = if precedence < BINARY_OP_PRECEDENCE.len() {
-        binary_expr_with_precedence_level(db, parser, precedence + 1)?
-    } else {
-        postfix_expr_precedence(db, parser)?
-    };
-    let Some(mut lhs_kind) = parsed_lhs else {
+    let Some(mut lhs_kind) = binary_expr_with_precedence_level(db, parser, precedence + 1)? else {
         return Ok(None);
     };
 

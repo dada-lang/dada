@@ -32,6 +32,18 @@ enum Failure {
     UnexpectedDiagnostic(Diagnostic),
     MultipleMatches(ExpectedDiagnostic, Diagnostic),
     MissingDiagnostic(ExpectedDiagnostic),
+
+    /// Auxiliary file at `path` did not have expected contents.
+    ///
+    /// See `diff`.
+    ///
+    /// You can auto-update these files by setting `UPDATE_EXPECT=1`.
+    Auxiliary {
+        kind: String,
+        ref_path: PathBuf,
+        txt_path: PathBuf,
+        diff: String,
+    },
 }
 
 impl Failure {}
@@ -123,10 +135,8 @@ impl Main {
             .ok_or_else(|| anyhow!("path cannot be represented in utf-8: `{:?}`", input))?;
         let mut compiler = Compiler::new();
         let source_file = compiler.load_input(input_str)?;
-        let expected_diagnostics = expected::TestExpectations::new(compiler.db(), source_file)?;
-        let diagnostics = compiler.check_all(source_file);
-
-        match expected_diagnostics.compare(compiler.db(), diagnostics) {
+        let expectations = expected::TestExpectations::new(compiler.db(), source_file)?;
+        match expectations.compare(&mut compiler)? {
             None => {
                 delete_test_report(input)?;
                 Ok(None)
@@ -193,10 +203,42 @@ impl FailedTest {
 
                     writeln!(result, "```\n{expected:#?}\n```")?;
                 }
+                Failure::Auxiliary {
+                    kind,
+                    ref_path,
+                    txt_path,
+                    diff,
+                } => {
+                    writeln!(result)?;
+                    writeln!(result, "# {kind} did not match")?;
+                    writeln!(result)?;
+                    writeln!(
+                        result,
+                        "[Reference]({})",
+                        self.relativize(&self.path, ref_path).display()
+                    )?;
+                    writeln!(
+                        result,
+                        "[Actual]({})",
+                        self.relativize(&self.path, txt_path).display()
+                    )?;
+                    writeln!(result)?;
+
+                    writeln!(result, "Diff:")?;
+                    writeln!(result, "```diff\n{diff}\n```")?;
+                }
             }
         }
 
         Ok(result)
+    }
+
+    fn relativize<'aux>(&self, test_path: &Path, aux_path: &'aux Path) -> &'aux Path {
+        if let Some(dir) = test_path.parent() {
+            aux_path.strip_prefix(dir).unwrap_or(aux_path)
+        } else {
+            aux_path
+        }
     }
 
     fn generate_test_report(&self, db: &db::Database) -> Fallible<()> {

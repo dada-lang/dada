@@ -1,0 +1,5 @@
+#:fn_parse_trees
+
+fn return_identifier(x: u32) -> u32 {
+    x + 22 * 33
+}

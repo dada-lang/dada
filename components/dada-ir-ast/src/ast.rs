@@ -28,6 +28,13 @@ pub struct Identifier<'db> {
     pub text: String,
 }
 
+impl<'db> std::fmt::Display for Identifier<'db> {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        salsa::with_attached_database(|db| write!(f, "{}", self.text(db)))
+            .unwrap_or_else(|| std::fmt::Debug::fmt(self, f))
+    }
+}
+
 #[salsa::tracked]
 pub struct Module<'db> {
     #[return_ref]
