@@ -2,6 +2,7 @@
 
 /// Macro to add `impl From<X> for Y` to enums.
 /// Couldn't find a derive for this (!).
+#[macro_export]
 macro_rules! add_from_impls {
     ($(#[$attr:meta])* $v:vis enum $name:ident<$lt:lifetime> { $(
         $(#[$variant_meta:meta])*

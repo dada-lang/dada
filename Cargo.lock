@@ -274,6 +274,15 @@ dependencies = [
 ]
 
 [[package]]
+name = "dada-ir-sym"
+version = "0.1.0"
+dependencies = [
+ "dada-ir-ast",
+ "dada-util",
+ "salsa",
+]
+
+[[package]]
 name = "dada-lang"
 version = "0.1.0"
 dependencies = [

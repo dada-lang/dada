@@ -1,11 +1,11 @@
-use dada_ir_ast::ast::{AstGenericKind, GenericDecl, KindedGenericDecl};
+use dada_ir_ast::ast::{AstGenericKind, AstGenericDecl, KindedGenericDecl};
 
 use super::{
     tokenizer::{Keyword, Token, TokenKind},
     Expected, Parse, ParseFail, Parser,
 };
 
-impl<'db> Parse<'db> for GenericDecl<'db> {
+impl<'db> Parse<'db> for AstGenericDecl<'db> {
     type Output = Self;
 
     fn opt_parse(
@@ -17,7 +17,7 @@ impl<'db> Parse<'db> for GenericDecl<'db> {
         };
 
         let decl = KindedGenericDecl::eat(db, parser)?;
-        Ok(Some(GenericDecl { kind, decl }))
+        Ok(Some(AstGenericDecl { kind, decl }))
     }
 
     fn expected() -> Expected {

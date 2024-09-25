@@ -2,7 +2,7 @@ use salsa::Update;
 use tokenizer::{tokenize, Delimiter, Keyword, Skipped, Token, TokenKind};
 
 use dada_ir_ast::{
-    ast::{AstVec, Module, SpannedIdentifier},
+    ast::{AstModule, SpanVec, SpannedIdentifier},
     diagnostic::Diagnostic,
     inputs::SourceFile,
     span::{Anchor, Offset, Span},
@@ -23,12 +23,12 @@ mod types;
 #[salsa::tracked]
 impl prelude::SourceFileParse for SourceFile {
     #[salsa::tracked]
-    fn parse(self, db: &dyn crate::Db) -> Module<'_> {
+    fn parse(self, db: &dyn crate::Db) -> AstModule<'_> {
         let anchor = Anchor::SourceFile(self);
         let text = self.contents(db);
         let tokens = tokenizer::tokenize(db, anchor, Offset::ZERO, text);
         let mut parser = Parser::new(db, anchor, &tokens);
-        let module = Module::eat(db, &mut parser).expect("parsing a module is infallible");
+        let module = AstModule::eat(db, &mut parser).expect("parsing a module is infallible");
         parser
             .into_diagnostics(db)
             .into_iter()
@@ -80,7 +80,7 @@ impl<'token, 'db> Parser<'token, 'db> {
     pub fn parse_many_and_report_diagnostics<T>(
         mut self,
         db: &'db dyn crate::Db,
-    ) -> AstVec<'db, T::Output>
+    ) -> SpanVec<'db, T::Output>
     where
         T: Parse<'db>,
     {
@@ -90,7 +90,7 @@ impl<'token, 'db> Parser<'token, 'db> {
             Ok(v) => v,
             Err(err) => {
                 self.push_diagnostic(err.into_diagnostic(db));
-                AstVec {
+                SpanVec {
                     span: start_span.to(self.last_span()),
                     values: vec![],
                 }
@@ -373,10 +373,10 @@ trait Parse<'db>: Sized {
     fn eat_comma(
         db: &'db dyn crate::Db,
         parser: &mut Parser<'_, 'db>,
-    ) -> Result<AstVec<'db, Self::Output>, ParseFail<'db>> {
+    ) -> Result<SpanVec<'db, Self::Output>, ParseFail<'db>> {
         match Self::opt_parse_comma(db, parser)? {
             Some(v) => Ok(v),
-            None => Ok(AstVec {
+            None => Ok(SpanVec {
                 span: parser.last_span().at_end(),
                 values: vec![],
             }),
@@ -387,7 +387,7 @@ trait Parse<'db>: Sized {
     fn eat_many(
         db: &'db dyn crate::Db,
         parser: &mut Parser<'_, 'db>,
-    ) -> Result<AstVec<'db, Self::Output>, ParseFail<'db>> {
+    ) -> Result<SpanVec<'db, Self::Output>, ParseFail<'db>> {
         let mut values = vec![];
         let start_span = parser.peek_span();
         loop {
@@ -402,7 +402,7 @@ trait Parse<'db>: Sized {
             }
         }
 
-        Ok(AstVec {
+        Ok(SpanVec {
             span: start_span.to(parser.last_span()),
             values,
         })
@@ -461,7 +461,7 @@ trait Parse<'db>: Sized {
     fn opt_parse_comma(
         db: &'db dyn crate::Db,
         parser: &mut Parser<'_, 'db>,
-    ) -> Result<Option<AstVec<'db, Self::Output>>, ParseFail<'db>> {
+    ) -> Result<Option<SpanVec<'db, Self::Output>>, ParseFail<'db>> {
         match Self::opt_parse(db, parser) {
             Ok(Some(item)) => {
                 let mut values = vec![item];
@@ -477,7 +477,7 @@ trait Parse<'db>: Sized {
                     }
                 }
 
-                Ok(Some(AstVec {
+                Ok(Some(SpanVec {
                     span: parser.last_span(),
                     values,
                 }))

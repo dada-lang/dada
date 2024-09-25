@@ -36,25 +36,25 @@ impl<'db> std::fmt::Display for Identifier<'db> {
 }
 
 #[salsa::tracked]
-pub struct Module<'db> {
+pub struct AstModule<'db> {
     #[return_ref]
-    pub items: AstVec<'db, Item<'db>>,
+    pub items: SpanVec<'db, AstItem<'db>>,
 }
 
-impl<'db> Spanned<'db> for Module<'db> {
+impl<'db> Spanned<'db> for AstModule<'db> {
     fn span(&self, db: &'db dyn crate::Db) -> Span<'db> {
         self.items(db).span
     }
 }
 
 add_from_impls! {
-    #[derive(Copy, Clone, PartialEq, Eq, Hash, PartialOrd, Ord, Debug, Update)]
-    pub enum Item<'db> {
-        SourceFile(SourceFile),
-        Use(UseItem<'db>),
-        Class(ClassItem<'db>),
-        Function(Function<'db>),
-    }
+#[derive(Copy, Clone, PartialEq, Eq, Hash, PartialOrd, Ord, Debug, Update)]
+pub enum AstItem<'db> {
+    SourceFile(SourceFile),
+    Use(UseItem<'db>),
+    Class(AstClassItem<'db>),
+    Function(AstFunction<'db>),
+}
 }
 
 /// Path of identifiers (must be non-empty)

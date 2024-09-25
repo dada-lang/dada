@@ -2,13 +2,9 @@ use salsa::Update;
 
 use crate::span::{Span, Spanned};
 
-use super::{AstVec, Identifier, Path, SpannedIdentifier};
+use super::{Identifier, Path, SpanVec, SpannedIdentifier};
 
-// (*) Interned isn't really what we want here. We really want something like `#[salsa::boxed]`
-// that will cheaply allocate the thing. But I'm trying to push on our existing salsa types
-// to see how it works.
-
-#[salsa::interned] // (*)
+#[salsa::tracked]
 pub struct AstTy<'db> {
     pub span: Span<'db>,
     pub kind: AstTyKind<'db>,
@@ -26,7 +22,7 @@ pub enum AstTyKind<'db> {
     Perm(AstPerm<'db>, AstTy<'db>),
 
     /// `path[arg1, arg2]`, e.g., `Vec[String]`
-    Named(Path<'db>, Option<AstVec<'db, AstGenericArg<'db>>>),
+    Named(Path<'db>, Option<SpanVec<'db, AstGenericArg<'db>>>),
 
     /// `type T`
     GenericDecl {
@@ -52,9 +48,9 @@ impl<'db> Spanned<'db> for AstPerm<'db> {
 
 #[derive(Clone, PartialEq, Eq, PartialOrd, Ord, Hash, Update, Debug)]
 pub enum AstPermKind<'db> {
-    Shared(Option<AstVec<'db, Path<'db>>>),
-    Leased(Option<AstVec<'db, Path<'db>>>),
-    Given(Option<AstVec<'db, Path<'db>>>),
+    Shared(Option<SpanVec<'db, Path<'db>>>),
+    Leased(Option<SpanVec<'db, Path<'db>>>),
+    Given(Option<SpanVec<'db, Path<'db>>>),
     My,
     Our,
     Variable(Identifier<'db>),
@@ -96,12 +92,12 @@ impl<'db> Spanned<'db> for AstGenericKind<'db> {
 }
 
 #[derive(Clone, PartialEq, Eq, PartialOrd, Ord, Hash, Update, Debug)]
-pub struct GenericDecl<'db> {
+pub struct AstGenericDecl<'db> {
     pub kind: AstGenericKind<'db>,
     pub decl: KindedGenericDecl<'db>,
 }
 
-impl<'db> Spanned<'db> for GenericDecl<'db> {
+impl<'db> Spanned<'db> for AstGenericDecl<'db> {
     fn span(&self, db: &'db dyn crate::Db) -> Span<'db> {
         self.kind.span(db).to(self.decl.span(db))
     }

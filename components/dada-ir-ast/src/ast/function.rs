@@ -1,11 +1,11 @@
 use salsa::Update;
 
-use super::{AstPerm, AstTy, AstVec, GenericDecl, SpannedIdentifier};
+use super::{AstGenericDecl, AstPerm, AstTy, SpanVec, SpannedIdentifier};
 use crate::span::{Span, Spanned};
 
 /// `fn foo() { }`
 #[salsa::tracked]
-pub struct Function<'db> {
+pub struct AstFunction<'db> {
     /// Overall span of the function declaration
     pub span: Span<'db>,
 
@@ -16,35 +16,35 @@ pub struct Function<'db> {
     pub name: SpannedIdentifier<'db>,
 
     /// Any explicit generics e.g., `[type T]`
-    pub generics: Option<AstVec<'db, GenericDecl<'db>>>,
+    pub generics: Option<SpanVec<'db, AstGenericDecl<'db>>>,
 
     /// Arguments to the function
-    pub arguments: AstVec<'db, AstFunctionArg<'db>>,
+    pub arguments: SpanVec<'db, AstFunctionArg<'db>>,
 
     /// Return type of the function (if provided)
     pub return_ty: Option<AstTy<'db>>,
 
     /// Body (if provided)
-    pub body: Option<FunctionBody<'db>>,
+    pub body: Option<AstFunctionBody<'db>>,
 }
 
-impl<'db> Spanned<'db> for Function<'db> {
+impl<'db> Spanned<'db> for AstFunction<'db> {
     fn span(&self, db: &'db dyn crate::Db) -> Span<'db> {
-        Function::span(*self, db)
+        AstFunction::span(*self, db)
     }
 }
 
 #[salsa::tracked]
-pub struct FunctionBody<'db> {
+pub struct AstFunctionBody<'db> {
     pub span: Span<'db>,
 
     #[return_ref]
     pub contents: String,
 }
 
-impl<'db> Spanned<'db> for FunctionBody<'db> {
+impl<'db> Spanned<'db> for AstFunctionBody<'db> {
     fn span(&self, db: &'db dyn crate::Db) -> Span<'db> {
-        FunctionBody::span(*self, db)
+        AstFunctionBody::span(*self, db)
     }
 }
 

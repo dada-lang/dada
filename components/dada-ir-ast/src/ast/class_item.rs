@@ -4,7 +4,7 @@ use super::Identifier;
 
 /// `class $name { ... }`
 #[salsa::tracked]
-pub struct ClassItem<'db> {
+pub struct AstClassItem<'db> {
     pub span: Span<'db>,
 
     #[id]
@@ -16,10 +16,10 @@ pub struct ClassItem<'db> {
     pub contents: String,
 }
 
-impl<'db> ClassItem<'db> {}
+impl<'db> AstClassItem<'db> {}
 
-impl<'db> Spanned<'db> for ClassItem<'db> {
+impl<'db> Spanned<'db> for AstClassItem<'db> {
     fn span(&self, db: &'db dyn crate::Db) -> Span<'db> {
-        ClassItem::span(*self, db)
+        AstClassItem::span(*self, db)
     }
 }

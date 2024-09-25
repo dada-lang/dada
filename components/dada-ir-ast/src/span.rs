@@ -1,7 +1,7 @@
 use salsa::Update;
 
 use crate::{
-    ast::{ClassItem, Function, FunctionBody},
+    ast::{AstClassItem, AstFunction, AstFunctionBody},
     inputs::SourceFile,
 };
 
@@ -9,9 +9,9 @@ add_from_impls! {
     #[derive(Copy, Clone, PartialEq, Eq, Hash, PartialOrd, Ord, Debug, Update)]
     pub enum Anchor<'db> {
         SourceFile(SourceFile),
-        Class(ClassItem<'db>),
-        Function(Function<'db>),
-        FunctionBody(FunctionBody<'db>),
+        Class(AstClassItem<'db>),
+        Function(AstFunction<'db>),
+        FunctionBody(AstFunctionBody<'db>),
     }
 }
 

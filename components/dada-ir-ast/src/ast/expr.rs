@@ -2,11 +2,11 @@ use salsa::Update;
 
 use crate::span::Span;
 
-use super::{AstGenericArg, AstTy, AstVec, Path, SpannedIdentifier};
+use super::{AstGenericArg, AstTy, Path, SpanVec, SpannedIdentifier};
 
 #[salsa::tracked]
 pub struct AstBlock<'db> {
-    statements: AstVec<'db, AstStatement<'db>>,
+    statements: SpanVec<'db, AstStatement<'db>>,
 }
 
 add_from_impls! {
@@ -65,15 +65,15 @@ pub enum AstExprKind<'db> {
     /// Note that the callee expression could also be
     /// a `DotId` in which case this is a method call
     /// as well as a `SquareBracketsOp`.
-    ParenthesisOp(AstExpr<'db>, AstVec<'db, AstExpr<'db>>),
+    ParenthesisOp(AstExpr<'db>, SpanVec<'db, AstExpr<'db>>),
 
     /// `(a, b, c)`
     ///
     /// Could also be `(a)`.
-    Tuple(AstVec<'db, AstExpr<'db>>),
+    Tuple(SpanVec<'db, AstExpr<'db>>),
 
     /// `a { field: value }`
-    Constructor(Path<'db>, AstVec<'db, AstConstructorField<'db>>),
+    Constructor(Path<'db>, SpanVec<'db, AstConstructorField<'db>>),
 
     /// `return x`
     Return(Option<AstExpr<'db>>),
@@ -127,6 +127,6 @@ pub enum LiteralKind {
 #[derive(Clone, PartialEq, Eq, PartialOrd, Ord, Hash, Update, Debug)]
 pub struct AstParenExpr<'db> {
     pub callee: AstExpr<'db>,
-    pub generic_args: Option<AstVec<'db, AstGenericArg<'db>>>,
-    pub args: AstVec<'db, AstExpr<'db>>,
+    pub generic_args: Option<SpanVec<'db, AstGenericArg<'db>>>,
+    pub args: SpanVec<'db, AstExpr<'db>>,
 }

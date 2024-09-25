@@ -1,5 +1,5 @@
 use dada_ir_ast::{
-    ast::{AstBlock, AstExpr, AstLetStatement, AstStatement, AstTy, FunctionBody},
+    ast::{AstBlock, AstExpr, AstLetStatement, AstStatement, AstTy, AstFunctionBody},
     span::Offset,
 };
 
@@ -10,7 +10,7 @@ use crate::{
 };
 
 #[salsa::tracked]
-impl<'db> crate::prelude::FunctionBodyBlock<'db> for FunctionBody<'db> {
+impl<'db> crate::prelude::FunctionBodyBlock<'db> for AstFunctionBody<'db> {
     #[salsa::tracked]
     fn block(self, db: &'db dyn crate::Db) -> AstBlock<'db> {
         let contents = self.contents(db);

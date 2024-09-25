@@ -2,7 +2,7 @@ use salsa::Update;
 
 use dada_ir_ast::{
     ast::{
-        AstGenericArg, AstGenericKind, AstPerm, AstPermKind, AstTy, AstTyKind, AstVec, GenericDecl,
+        AstGenericArg, AstGenericKind, AstPerm, AstPermKind, AstTy, AstTyKind, SpanVec, AstGenericDecl,
         Path,
     },
     span::{Span, Spanned},
@@ -18,10 +18,10 @@ use super::{
 #[derive(Update)]
 enum TyOrPerm<'db> {
     /// could be anything from `a` to `a.b` to `a[x]` to `a.b[x]`
-    Path(Path<'db>, Option<AstVec<'db, AstGenericArg<'db>>>),
+    Path(Path<'db>, Option<SpanVec<'db, AstGenericArg<'db>>>),
 
     /// `type T` or `perm P`
-    Generic(GenericDecl<'db>),
+    Generic(AstGenericDecl<'db>),
 
     /// Perm that starts with a keyword, like `my`
     PermKeyword(AstPerm<'db>),
@@ -51,7 +51,7 @@ impl<'db> Parse<'db> for TyOrPerm<'db> {
             return TyOrPerm::Path(path, generic_args).maybe_apply(db, parser);
         }
 
-        if let Some(generic_decl) = GenericDecl::opt_parse(db, parser)? {
+        if let Some(generic_decl) = AstGenericDecl::opt_parse(db, parser)? {
             return TyOrPerm::Generic(generic_decl).maybe_apply(db, parser);
         };
 
@@ -274,7 +274,7 @@ fn parse_path_perm<'db>(
     db: &'db dyn crate::Db,
     span: Span<'db>,
     parser: &mut Parser<'_, 'db>,
-    op: impl Fn(Option<AstVec<'db, Path<'db>>>) -> AstPermKind<'db>,
+    op: impl Fn(Option<SpanVec<'db, Path<'db>>>) -> AstPermKind<'db>,
 ) -> Result<AstPerm<'db>, ParseFail<'db>> {
     let paths = Path::opt_parse_delimited(db, parser, Delimiter::CurlyBraces, Path::eat_comma)?;
     let kind = op(paths);

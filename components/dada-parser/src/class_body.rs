@@ -1,7 +1,8 @@
 use dada_ir_ast::{
     ast::{
-        AstFunctionArg, AstPerm, AstSelfArg, AstTy, AstVec, ClassItem, FieldDecl, Function,
-        FunctionBody, GenericDecl, Member, VariableDecl, Visibility, VisibilityKind,
+        AstFieldDecl, AstFunction, AstFunctionArg, AstFunctionBody, AstGenericDecl, AstMember,
+        AstPerm, AstSelfArg, AstTy, AstVisibility, AstClassItem, SpanVec, VariableDecl,
+        VisibilityKind,
     },
     span::{Offset, Spanned},
 };
@@ -13,23 +14,24 @@ use super::{
 };
 
 #[salsa::tracked]
-impl<'db> crate::prelude::ClassItemMembers<'db> for ClassItem<'db> {
+impl<'db> crate::prelude::ClassItemMembers<'db> for AstClassItem<'db> {
     #[salsa::tracked]
-    fn members(self, db: &'db dyn crate::Db) -> AstVec<'db, Member<'db>> {
+    fn members(self, db: &'db dyn crate::Db) -> SpanVec<'db, AstMember<'db>> {
         let contents = self.contents(db);
         let tokens = tokenize(db, self.into(), Offset::ZERO, contents);
-        Parser::new(db, self.into(), &tokens).parse_many_and_report_diagnostics::<Member<'db>>(db)
+        Parser::new(db, self.into(), &tokens)
+            .parse_many_and_report_diagnostics::<AstMember<'db>>(db)
     }
 }
 
-impl<'db> Parse<'db> for Member<'db> {
+impl<'db> Parse<'db> for AstMember<'db> {
     type Output = Self;
 
     fn opt_parse(
         db: &'db dyn crate::Db,
         parser: &mut Parser<'_, 'db>,
     ) -> Result<Option<Self>, super::ParseFail<'db>> {
-        FieldDecl::opt_parse(db, parser).or_opt_parse::<Self, Function<'db>>(db, parser)
+        AstFieldDecl::opt_parse(db, parser).or_opt_parse::<Self, AstFunction<'db>>(db, parser)
     }
 
     fn expected() -> Expected {
@@ -37,14 +39,14 @@ impl<'db> Parse<'db> for Member<'db> {
     }
 }
 
-impl<'db> Parse<'db> for FieldDecl<'db> {
+impl<'db> Parse<'db> for AstFieldDecl<'db> {
     type Output = Self;
 
     fn opt_parse(
         db: &'db dyn crate::Db,
         tokens: &mut Parser<'_, 'db>,
     ) -> Result<Option<Self>, super::ParseFail<'db>> {
-        let visibility = Visibility::opt_parse(db, tokens)?;
+        let visibility = AstVisibility::opt_parse(db, tokens)?;
 
         let variable = match VariableDecl::opt_parse(db, tokens) {
             Ok(Some(v)) => v,
@@ -60,7 +62,7 @@ impl<'db> Parse<'db> for FieldDecl<'db> {
 
         let end_span = tokens.eat_op(";")?;
 
-        Ok(Some(FieldDecl {
+        Ok(Some(AstFieldDecl {
             span: visibility
                 .as_ref()
                 .map(|v| v.span)
@@ -76,7 +78,7 @@ impl<'db> Parse<'db> for FieldDecl<'db> {
     }
 }
 
-impl<'db> Parse<'db> for Visibility<'db> {
+impl<'db> Parse<'db> for AstVisibility<'db> {
     type Output = Self;
 
     fn opt_parse(
@@ -84,14 +86,14 @@ impl<'db> Parse<'db> for Visibility<'db> {
         tokens: &mut Parser<'_, 'db>,
     ) -> Result<Option<Self>, super::ParseFail<'db>> {
         if let Ok(span) = tokens.eat_keyword(Keyword::Pub) {
-            return Ok(Some(Visibility {
+            return Ok(Some(AstVisibility {
                 span,
                 kind: VisibilityKind::Pub,
             }));
         }
 
         if let Ok(span) = tokens.eat_keyword(Keyword::Export) {
-            return Ok(Some(Visibility {
+            return Ok(Some(AstVisibility {
                 span,
                 kind: VisibilityKind::Export,
             }));
@@ -128,7 +130,7 @@ impl<'db> Parse<'db> for VariableDecl<'db> {
     }
 }
 
-impl<'db> Parse<'db> for Function<'db> {
+impl<'db> Parse<'db> for AstFunction<'db> {
     type Output = Self;
 
     fn opt_parse(
@@ -143,11 +145,11 @@ impl<'db> Parse<'db> for Function<'db> {
 
         let name = tokens.eat_id()?;
 
-        let generics = GenericDecl::opt_parse_delimited(
+        let generics = AstGenericDecl::opt_parse_delimited(
             db,
             tokens,
             Delimiter::SquareBrackets,
-            GenericDecl::eat_comma,
+            AstGenericDecl::eat_comma,
         )?;
 
         // Parse the arguments, accepting an empty list.
@@ -159,7 +161,7 @@ impl<'db> Parse<'db> for Function<'db> {
         )?;
         let arguments = match arguments {
             Some(arguments) => arguments,
-            None => AstVec {
+            None => SpanVec {
                 span: tokens.last_span(),
                 values: vec![],
             },
@@ -169,10 +171,10 @@ impl<'db> Parse<'db> for Function<'db> {
 
         let body = match tokens.eat_op(";") {
             Ok(_) => None,
-            Err(_) => Some(FunctionBody::eat(db, tokens)?),
+            Err(_) => Some(AstFunctionBody::eat(db, tokens)?),
         };
 
-        Ok(Some(Function::new(
+        Ok(Some(AstFunction::new(
             db,
             start_span.to(tokens.last_span()),
             fn_span,
@@ -255,7 +257,7 @@ impl<'db> Parse<'db> for AstSelfArg<'db> {
     }
 }
 
-impl<'db> Parse<'db> for FunctionBody<'db> {
+impl<'db> Parse<'db> for AstFunctionBody<'db> {
     type Output = Self;
 
     fn opt_parse(
@@ -266,7 +268,7 @@ impl<'db> Parse<'db> for FunctionBody<'db> {
             return Ok(None);
         };
 
-        Ok(Some(FunctionBody::new(
+        Ok(Some(AstFunctionBody::new(
             db,
             parser.last_span(),
             text.to_string(),

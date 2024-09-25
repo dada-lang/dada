@@ -1,5 +1,5 @@
 use dada_ir_ast::{
-    ast::{AstVec, ClassItem, Function, Item, Module, Path, UseItem},
+    ast::{AstClassItem, AstFunction, AstModule, AstItem, Path, SpanVec, UseItem},
     diagnostic::Diagnostic,
 };
 
@@ -9,20 +9,20 @@ use super::{
     Expected, Parse, ParseFail, Parser,
 };
 
-impl<'db> Parse<'db> for Module<'db> {
+impl<'db> Parse<'db> for AstModule<'db> {
     type Output = Self;
 
     fn opt_parse(
         db: &'db dyn crate::Db,
         parser: &mut Parser<'_, 'db>,
     ) -> Result<Option<Self>, ParseFail<'db>> {
-        let mut items: Vec<Item<'db>> = vec![];
+        let mut items: Vec<AstItem<'db>> = vec![];
 
         // Parse items, skipping unrecognized tokens.
         let start_span = parser.peek_span();
         while let Some(token) = parser.peek() {
             let span = token.span;
-            match Item::opt_parse(db, parser) {
+            match AstItem::opt_parse(db, parser) {
                 Ok(Some(v)) => items.push(v),
                 Err(e) => parser.push_diagnostic(e.into_diagnostic(db)),
                 Ok(None) => {
@@ -36,9 +36,9 @@ impl<'db> Parse<'db> for Module<'db> {
             }
         }
 
-        Ok(Some(Module::new(
+        Ok(Some(AstModule::new(
             db,
-            AstVec {
+            SpanVec {
                 span: start_span.to(parser.last_span()),
                 values: items,
             },
@@ -50,16 +50,16 @@ impl<'db> Parse<'db> for Module<'db> {
     }
 }
 
-impl<'db> Parse<'db> for Item<'db> {
+impl<'db> Parse<'db> for AstItem<'db> {
     type Output = Self;
 
     fn opt_parse(
         db: &'db dyn crate::Db,
         parser: &mut Parser<'_, 'db>,
     ) -> Result<Option<Self>, ParseFail<'db>> {
-        ClassItem::opt_parse(db, parser)
+        AstClassItem::opt_parse(db, parser)
             .or_opt_parse::<Self, UseItem<'db>>(db, parser)
-            .or_opt_parse::<Self, Function<'db>>(db, parser)
+            .or_opt_parse::<Self, AstFunction<'db>>(db, parser)
     }
 
     fn expected() -> Expected {
@@ -68,7 +68,7 @@ impl<'db> Parse<'db> for Item<'db> {
 }
 
 /// class Name { ... }
-impl<'db> Parse<'db> for ClassItem<'db> {
+impl<'db> Parse<'db> for AstClassItem<'db> {
     type Output = Self;
 
     fn opt_parse(
@@ -83,7 +83,7 @@ impl<'db> Parse<'db> for ClassItem<'db> {
 
         let body = parser.eat_delimited(Delimiter::CurlyBraces)?;
 
-        Ok(Some(ClassItem::new(
+        Ok(Some(AstClassItem::new(
             db,
             start.to(parser.last_span()),
             id.id,
