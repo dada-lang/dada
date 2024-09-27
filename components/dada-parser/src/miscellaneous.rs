@@ -1,8 +1,8 @@
-use dada_ir_ast::ast::Path;
+use dada_ir_ast::ast::AstPath;
 
 use super::{Expected, Parse, ParseFail, Parser};
 
-impl<'db> Parse<'db> for Path<'db> {
+impl<'db> Parse<'db> for AstPath<'db> {
     type Output = Self;
 
     fn opt_parse(
@@ -19,7 +19,7 @@ impl<'db> Parse<'db> for Path<'db> {
             ids.push(id);
         }
 
-        Ok(Some(Path { ids }))
+        Ok(Some(AstPath { ids }))
     }
 
     fn expected() -> Expected {

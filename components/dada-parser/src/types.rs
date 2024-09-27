@@ -2,8 +2,8 @@ use salsa::Update;
 
 use dada_ir_ast::{
     ast::{
-        AstGenericArg, AstGenericKind, AstPerm, AstPermKind, AstTy, AstTyKind, SpanVec, AstGenericDecl,
-        Path,
+        AstGenericArg, AstGenericDecl, AstGenericKind, AstPath, AstPerm, AstPermKind, AstTy,
+        AstTyKind, SpanVec,
     },
     span::{Span, Spanned},
 };
@@ -18,7 +18,7 @@ use super::{
 #[derive(Update)]
 enum TyOrPerm<'db> {
     /// could be anything from `a` to `a.b` to `a[x]` to `a.b[x]`
-    Path(Path<'db>, Option<SpanVec<'db, AstGenericArg<'db>>>),
+    Path(AstPath<'db>, Option<SpanVec<'db, AstGenericArg<'db>>>),
 
     /// `type T` or `perm P`
     Generic(AstGenericDecl<'db>),
@@ -40,7 +40,7 @@ impl<'db> Parse<'db> for TyOrPerm<'db> {
         db: &'db dyn crate::Db,
         parser: &mut Parser<'_, 'db>,
     ) -> Result<Option<Self::Output>, ParseFail<'db>> {
-        if let Some(path) = Path::opt_parse(db, parser)? {
+        if let Some(path) = AstPath::opt_parse(db, parser)? {
             let generic_args = AstGenericArg::opt_parse_delimited(
                 db,
                 parser,
@@ -93,7 +93,7 @@ impl<'db> TyOrPerm<'db> {
         db: &'db dyn crate::Db,
         parser: &mut Parser<'_, 'db>,
     ) -> Result<Option<Self>, ParseFail<'db>> {
-        if self.can_be_perm() {
+        if self.can_be_perm(db) {
             if let Some(ty) = AstTy::opt_parse(db, parser)? {
                 let perm = self.into_perm(db).unwrap();
                 return Ok(Some(TyOrPerm::Apply(perm, ty)));
@@ -104,11 +104,11 @@ impl<'db> TyOrPerm<'db> {
     }
 
     /// True if this could syntactically be a permission.
-    fn can_be_perm(&self) -> bool {
+    fn can_be_perm(&self, db: &'db dyn crate::Db) -> bool {
         match self {
             TyOrPerm::Path(path, None) => path.ids.len() == 1,
             TyOrPerm::Path(_path, Some(_)) => false,
-            TyOrPerm::Generic(decl) => matches!(decl.kind, AstGenericKind::Perm(_)),
+            TyOrPerm::Generic(decl) => matches!(decl.kind(db), AstGenericKind::Perm(_)),
             TyOrPerm::PermKeyword(_) => true,
             TyOrPerm::QuestionMark(_) => false,
             TyOrPerm::Apply(_, _) => false,
@@ -122,13 +122,13 @@ impl<'db> TyOrPerm<'db> {
                 Some(AstPerm::new(db, id.span, AstPermKind::Variable(id.id)))
             }
             TyOrPerm::Path(..) => None,
-            TyOrPerm::Generic(decl) => match decl.kind {
+            TyOrPerm::Generic(decl) => match decl.kind(db) {
                 AstGenericKind::Perm(keyword_span) => Some(AstPerm::new(
                     db,
                     decl.span(db),
                     AstPermKind::GenericDecl {
                         keyword_span,
-                        decl: decl.decl,
+                        decl: decl.decl(db),
                     },
                 )),
                 _ => None,
@@ -140,10 +140,10 @@ impl<'db> TyOrPerm<'db> {
     }
 
     /// True if this could syntactically be a permission.
-    fn can_be_ty(&self) -> bool {
+    fn can_be_ty(&self, db: &'db dyn crate::Db) -> bool {
         match self {
             TyOrPerm::Path(..) => true,
-            TyOrPerm::Generic(decl) => matches!(decl.kind, AstGenericKind::Type(_)),
+            TyOrPerm::Generic(decl) => matches!(decl.kind(db), AstGenericKind::Type(_)),
             TyOrPerm::PermKeyword(_) => false,
             TyOrPerm::QuestionMark(_) => true,
             TyOrPerm::Apply(_, _) => true,
@@ -154,13 +154,13 @@ impl<'db> TyOrPerm<'db> {
         let span = self.span(db);
         match self {
             TyOrPerm::Path(path, args) => Some(AstTy::new(db, span, AstTyKind::Named(path, args))),
-            TyOrPerm::Generic(decl) => match decl.kind {
+            TyOrPerm::Generic(decl) => match decl.kind(db) {
                 AstGenericKind::Type(keyword_span) => Some(AstTy::new(
                     db,
                     span,
                     AstTyKind::GenericDecl {
                         keyword_span,
-                        decl: decl.decl,
+                        decl: decl.decl(db),
                     },
                 )),
                 _ => None,
@@ -274,9 +274,10 @@ fn parse_path_perm<'db>(
     db: &'db dyn crate::Db,
     span: Span<'db>,
     parser: &mut Parser<'_, 'db>,
-    op: impl Fn(Option<SpanVec<'db, Path<'db>>>) -> AstPermKind<'db>,
+    op: impl Fn(Option<SpanVec<'db, AstPath<'db>>>) -> AstPermKind<'db>,
 ) -> Result<AstPerm<'db>, ParseFail<'db>> {
-    let paths = Path::opt_parse_delimited(db, parser, Delimiter::CurlyBraces, Path::eat_comma)?;
+    let paths =
+        AstPath::opt_parse_delimited(db, parser, Delimiter::CurlyBraces, AstPath::eat_comma)?;
     let kind = op(paths);
     Ok(AstPerm::new(db, span.to(parser.last_span()), kind))
 }
@@ -304,8 +305,8 @@ impl<'db> Parse<'db> for AstGenericArg<'db> {
             | TyOrPerm::Path(..)
             | TyOrPerm::QuestionMark(_)
             | TyOrPerm::Apply(_, _) => {
-                let can_be_perm = ty_or_perm.can_be_perm();
-                let can_be_ty = ty_or_perm.can_be_ty();
+                let can_be_perm = ty_or_perm.can_be_perm(db);
+                let can_be_ty = ty_or_perm.can_be_ty(db);
 
                 if can_be_perm {
                     assert!(!can_be_ty);

@@ -1,5 +1,5 @@
 use dada_ir_ast::ast::{
-    AstConstructorField, AstExpr, AstExprKind, BinaryOp, Literal, Path, SpannedBinaryOp,
+    AstConstructorField, AstExpr, AstExprKind, AstPath, BinaryOp, Literal, SpannedBinaryOp,
     SquareBracketArgs,
 };
 
@@ -173,7 +173,7 @@ fn base_expr_precedence<'db>(
                 crate::tokenizer::Delimiter::CurlyBraces,
                 AstConstructorField::eat_comma,
             )? {
-                let path = Path { ids: vec![id] };
+                let path = AstPath { ids: vec![id] };
                 return Ok(Some(AstExprKind::Constructor(path, fields)));
             }
         }

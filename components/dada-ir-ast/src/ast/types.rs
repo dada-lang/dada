@@ -2,7 +2,7 @@ use salsa::Update;
 
 use crate::span::{Span, Spanned};
 
-use super::{Identifier, Path, SpanVec, SpannedIdentifier};
+use super::{AstPath, Identifier, SpanVec, SpannedIdentifier};
 
 #[salsa::tracked]
 pub struct AstTy<'db> {
@@ -22,7 +22,7 @@ pub enum AstTyKind<'db> {
     Perm(AstPerm<'db>, AstTy<'db>),
 
     /// `path[arg1, arg2]`, e.g., `Vec[String]`
-    Named(Path<'db>, Option<SpanVec<'db, AstGenericArg<'db>>>),
+    Named(AstPath<'db>, Option<SpanVec<'db, AstGenericArg<'db>>>),
 
     /// `type T`
     GenericDecl {
@@ -48,9 +48,9 @@ impl<'db> Spanned<'db> for AstPerm<'db> {
 
 #[derive(Clone, PartialEq, Eq, PartialOrd, Ord, Hash, Update, Debug)]
 pub enum AstPermKind<'db> {
-    Shared(Option<SpanVec<'db, Path<'db>>>),
-    Leased(Option<SpanVec<'db, Path<'db>>>),
-    Given(Option<SpanVec<'db, Path<'db>>>),
+    Shared(Option<SpanVec<'db, AstPath<'db>>>),
+    Leased(Option<SpanVec<'db, AstPath<'db>>>),
+    Given(Option<SpanVec<'db, AstPath<'db>>>),
     My,
     Our,
     Variable(Identifier<'db>),
@@ -91,7 +91,7 @@ impl<'db> Spanned<'db> for AstGenericKind<'db> {
     }
 }
 
-#[derive(Clone, PartialEq, Eq, PartialOrd, Ord, Hash, Update, Debug)]
+#[salsa::tracked]
 pub struct AstGenericDecl<'db> {
     pub kind: AstGenericKind<'db>,
     pub decl: KindedGenericDecl<'db>,
@@ -99,7 +99,7 @@ pub struct AstGenericDecl<'db> {
 
 impl<'db> Spanned<'db> for AstGenericDecl<'db> {
     fn span(&self, db: &'db dyn crate::Db) -> Span<'db> {
-        self.kind.span(db).to(self.decl.span(db))
+        self.kind(db).span(db).to(self.decl(db).span(db))
     }
 }
 

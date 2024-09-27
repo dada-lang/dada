@@ -2,7 +2,7 @@ use salsa::Update;
 
 use crate::span::Span;
 
-use super::{AstGenericArg, AstTy, Path, SpanVec, SpannedIdentifier};
+use super::{AstGenericArg, AstPath, AstTy, SpanVec, SpannedIdentifier};
 
 #[salsa::tracked]
 pub struct AstBlock<'db> {
@@ -73,7 +73,7 @@ pub enum AstExprKind<'db> {
     Tuple(SpanVec<'db, AstExpr<'db>>),
 
     /// `a { field: value }`
-    Constructor(Path<'db>, SpanVec<'db, AstConstructorField<'db>>),
+    Constructor(AstPath<'db>, SpanVec<'db, AstConstructorField<'db>>),
 
     /// `return x`
     Return(Option<AstExpr<'db>>),

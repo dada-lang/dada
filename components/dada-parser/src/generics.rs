@@ -1,4 +1,4 @@
-use dada_ir_ast::ast::{AstGenericKind, AstGenericDecl, KindedGenericDecl};
+use dada_ir_ast::ast::{AstGenericDecl, AstGenericKind, KindedGenericDecl};
 
 use super::{
     tokenizer::{Keyword, Token, TokenKind},
@@ -17,7 +17,7 @@ impl<'db> Parse<'db> for AstGenericDecl<'db> {
         };
 
         let decl = KindedGenericDecl::eat(db, parser)?;
-        Ok(Some(AstGenericDecl { kind, decl }))
+        Ok(Some(AstGenericDecl::new(db, kind, decl)))
     }
 
     fn expected() -> Expected {

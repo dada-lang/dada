@@ -1,5 +1,5 @@
 use dada_ir_ast::{
-    ast::{AstClassItem, AstFunction, AstModule, AstItem, Path, SpanVec, UseItem},
+    ast::{AstClassItem, AstFunction, AstItem, AstModule, AstPath, AstUseItem, SpanVec},
     diagnostic::Diagnostic,
 };
 
@@ -58,7 +58,7 @@ impl<'db> Parse<'db> for AstItem<'db> {
         parser: &mut Parser<'_, 'db>,
     ) -> Result<Option<Self>, ParseFail<'db>> {
         AstClassItem::opt_parse(db, parser)
-            .or_opt_parse::<Self, UseItem<'db>>(db, parser)
+            .or_opt_parse::<Self, AstUseItem<'db>>(db, parser)
             .or_opt_parse::<Self, AstFunction<'db>>(db, parser)
     }
 
@@ -98,7 +98,7 @@ impl<'db> Parse<'db> for AstClassItem<'db> {
 }
 
 /// use path [as name];
-impl<'db> Parse<'db> for UseItem<'db> {
+impl<'db> Parse<'db> for AstUseItem<'db> {
     type Output = Self;
 
     fn opt_parse(
@@ -109,9 +109,11 @@ impl<'db> Parse<'db> for UseItem<'db> {
             return Ok(None);
         };
 
-        let path = Path::eat(db, parser)?;
+        let crate_name = parser.eat_id()?;
+        let _dot = parser.eat_op(".")?;
+        let path = AstPath::eat(db, parser)?;
 
-        let opt_name = if parser.eat_keyword(Keyword::As).is_ok() {
+        let as_id = if parser.eat_keyword(Keyword::As).is_ok() {
             Some(parser.eat_id()?)
         } else {
             None
@@ -119,11 +121,12 @@ impl<'db> Parse<'db> for UseItem<'db> {
 
         parser.eat_op(";")?;
 
-        Ok(Some(UseItem::new(
+        Ok(Some(AstUseItem::new(
             db,
             start.to(parser.last_span()),
+            crate_name,
             path,
-            opt_name,
+            as_id,
         )))
     }
 

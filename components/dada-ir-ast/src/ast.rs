@@ -51,7 +51,7 @@ add_from_impls! {
 #[derive(Copy, Clone, PartialEq, Eq, Hash, PartialOrd, Ord, Debug, Update)]
 pub enum AstItem<'db> {
     SourceFile(SourceFile),
-    Use(UseItem<'db>),
+    Use(AstUseItem<'db>),
     Class(AstClassItem<'db>),
     Function(AstFunction<'db>),
 }
@@ -59,11 +59,21 @@ pub enum AstItem<'db> {
 
 /// Path of identifiers (must be non-empty)
 #[derive(Clone, PartialEq, Eq, PartialOrd, Ord, Hash, Update, Debug)]
-pub struct Path<'db> {
+pub struct AstPath<'db> {
     pub ids: Vec<SpannedIdentifier<'db>>,
 }
 
-impl<'db> Spanned<'db> for Path<'db> {
+impl<'db> AstPath<'db> {
+    pub fn first_id(&self) -> SpannedIdentifier<'db> {
+        *self.ids.first().unwrap()
+    }
+
+    pub fn last_id(&self) -> SpannedIdentifier<'db> {
+        *self.ids.last().unwrap()
+    }
+}
+
+impl<'db> Spanned<'db> for AstPath<'db> {
     fn span(&self, _db: &'db dyn crate::Db) -> Span<'db> {
         let len = self.ids.len();
         assert!(len > 0);
@@ -71,7 +81,7 @@ impl<'db> Spanned<'db> for Path<'db> {
     }
 }
 
-#[derive(Clone, PartialEq, Eq, PartialOrd, Ord, Hash, Update, Debug)]
+#[derive(Copy, Clone, PartialEq, Eq, PartialOrd, Ord, Hash, Update, Debug)]
 pub struct SpannedIdentifier<'db> {
     pub span: Span<'db>,
     pub id: Identifier<'db>,

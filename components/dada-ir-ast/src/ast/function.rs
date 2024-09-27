@@ -16,9 +16,11 @@ pub struct AstFunction<'db> {
     pub name: SpannedIdentifier<'db>,
 
     /// Any explicit generics e.g., `[type T]`
+    #[return_ref]
     pub generics: Option<SpanVec<'db, AstGenericDecl<'db>>>,
 
     /// Arguments to the function
+    #[return_ref]
     pub arguments: SpanVec<'db, AstFunctionArg<'db>>,
 
     /// Return type of the function (if provided)

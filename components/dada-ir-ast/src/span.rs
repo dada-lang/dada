@@ -40,6 +40,15 @@ impl<'db> Anchor<'db> {
             Anchor::FunctionBody(data) => data.span(db).absolute_span(db).narrow(),
         }
     }
+
+    pub fn source_file(&self, db: &dyn crate::Db) -> SourceFile {
+        match self {
+            Anchor::SourceFile(source_file) => *source_file,
+            Anchor::Class(ast_class_item) => ast_class_item.name_span(db).source_file(db),
+            Anchor::Function(ast_function) => ast_function.name(db).span.source_file(db),
+            Anchor::FunctionBody(ast_function_body) => ast_function_body.span(db).source_file(db),
+        }
+    }
 }
 
 /// A span within the input.
@@ -131,6 +140,10 @@ impl<'db> Span<'db> {
             end: anchor_span.start + self.end,
         }
     }
+
+    pub fn source_file(&self, db: &dyn crate::Db) -> SourceFile {
+        self.anchor.source_file(db)
+    }
 }
 
 impl<'db> Spanned<'db> for Span<'db> {
@@ -139,7 +152,11 @@ impl<'db> Spanned<'db> for Span<'db> {
     }
 }
 
-/// Implemented by all things that have a span (and span itself)
+/// Implemented by all things that have a span (and span itself).
+///
+/// For AST nodes, yields the entire encompassing span.
+///
+/// For symbols, yields a span intended for use in error reporting.
 pub trait Spanned<'db> {
     fn span(&self, db: &'db dyn crate::Db) -> Span<'db>;
 }
