@@ -1,3 +1,4 @@
+use dada_util::FromImpls;
 use salsa::Update;
 
 use crate::span::Span;
@@ -9,12 +10,10 @@ pub struct AstBlock<'db> {
     statements: SpanVec<'db, AstStatement<'db>>,
 }
 
-add_from_impls! {
-#[derive(Clone, PartialEq, Eq, PartialOrd, Ord, Hash, Update, Debug)]
+#[derive(Clone, PartialEq, Eq, PartialOrd, Ord, Hash, Update, Debug, FromImpls)]
 pub enum AstStatement<'db> {
     Let(AstLetStatement<'db>),
     Expr(AstExpr<'db>),
-}
 }
 
 /// `let x = v`, `let x: t = v`, etc

@@ -1,3 +1,4 @@
+use dada_util::FromImpls;
 use salsa::Update;
 
 use crate::span::{Span, Spanned};
@@ -62,18 +63,16 @@ pub enum AstPermKind<'db> {
     },
 }
 
-add_from_impls! {
-    #[derive(Clone, PartialEq, Eq, PartialOrd, Ord, Hash, Update, Debug)]
-    pub enum AstGenericArg<'db> {
-        /// Something clearly a type
-        Ty(AstTy<'db>),
+#[derive(Clone, PartialEq, Eq, PartialOrd, Ord, Hash, Update, Debug, FromImpls)]
+pub enum AstGenericArg<'db> {
+    /// Something clearly a type
+    Ty(AstTy<'db>),
 
-        /// Something clearly a permission
-        Perm(AstPerm<'db>),
+    /// Something clearly a permission
+    Perm(AstPerm<'db>),
 
-        /// A single identifier is ambiguous and must be disambiguated by the type checker
-        Id(SpannedIdentifier<'db>),
-    }
+    /// A single identifier is ambiguous and must be disambiguated by the type checker
+    Id(SpannedIdentifier<'db>),
 }
 
 #[derive(Copy, Clone, PartialEq, Eq, PartialOrd, Ord, Hash, Update, Debug)]

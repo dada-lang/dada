@@ -1,12 +1,11 @@
 use dada_ir_ast::{
-    add_from_impls,
     ast::{AstItem, AstModule, AstUseItem, Identifier},
     diagnostic::{Diagnostic, Level},
     inputs::CrateKind,
     span::Spanned,
 };
 use dada_parser::prelude::SourceFileParse;
-use dada_util::Map;
+use dada_util::{FromImpls, Map};
 use salsa::Update;
 
 use crate::{
@@ -14,11 +13,9 @@ use crate::{
     symbol::SymLocalVariable,
 };
 
-add_from_impls! {
-    #[derive(Copy, Clone, PartialEq, Eq, Hash, PartialOrd, Ord, Debug, Update)]
-    pub enum ScopeItem<'db> {
-        Module(AstModule<'db>),
-    }
+#[derive(Copy, Clone, PartialEq, Eq, Hash, PartialOrd, Ord, Debug, Update, FromImpls)]
+pub enum ScopeItem<'db> {
+    Module(AstModule<'db>),
 }
 
 #[derive(Clone, Debug, PartialEq, Eq, Update)]
@@ -32,12 +29,10 @@ pub(crate) struct ScopeChain<'db> {
     next: Option<Box<ScopeChain<'db>>>,
 }
 
-add_from_impls! {
-#[derive(Clone, Debug, PartialEq, Eq, Update)]
+#[derive(Clone, Debug, PartialEq, Eq, Update, FromImpls)]
 pub(crate) enum ScopeChainLink<'db> {
     SymModule(SymModule<'db>),
     LocalVariables(LocalVariables<'db>),
-}
 }
 
 #[derive(Clone, Debug, PartialEq, Eq, Update)]
@@ -45,14 +40,12 @@ pub(crate) struct LocalVariables<'db> {
     names: Map<Identifier<'db>, SymLocalVariable<'db>>,
 }
 
-add_from_impls! {
-#[derive(Clone, Debug, PartialEq, Eq)]
+#[derive(Clone, Debug, PartialEq, Eq, FromImpls)]
 pub(crate) enum NameResolution<'db> {
     SymModule(SymModule<'db>),
     SymClass(SymClass<'db>),
     SymLocalVariable(SymLocalVariable<'db>),
     SymFunction(SymFunction<'db>),
-}
 }
 
 impl<'db> Scope<'db> {

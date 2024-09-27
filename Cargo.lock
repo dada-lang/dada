@@ -278,6 +278,7 @@ name = "dada-ir-sym"
 version = "0.1.0"
 dependencies = [
  "dada-ir-ast",
+ "dada-parser",
  "dada-util",
  "salsa",
 ]
@@ -325,8 +326,19 @@ name = "dada-util"
 version = "0.1.0"
 dependencies = [
  "anyhow",
+ "dada-util-procmacro",
  "fxhash",
  "imstr",
+]
+
+[[package]]
+name = "dada-util-procmacro"
+version = "0.1.0"
+dependencies = [
+ "proc-macro2",
+ "quote",
+ "syn 1.0.109",
+ "synstructure",
 ]
 
 [[package]]

@@ -1,8 +1,8 @@
 use dada_ir_ast::{
-    add_from_impls,
     ast::{BinaryOp, Literal, SpanVec},
     span::Span,
 };
+use dada_util::FromImpls;
 use salsa::Update;
 
 use crate::{
@@ -15,12 +15,10 @@ struct SymBlock<'db> {
     statements: SpanVec<'db, SymStatement<'db>>,
 }
 
-add_from_impls! {
-    #[derive(Clone, PartialEq, Eq, PartialOrd, Ord, Hash, Update, Debug)]
-    pub enum SymStatement<'db> {
-        Let(SymLetStatement<'db>),
-        Expr(SymExpr<'db>),
-    }
+#[derive(Clone, PartialEq, Eq, PartialOrd, Ord, Hash, Update, Debug, FromImpls)]
+pub enum SymStatement<'db> {
+    Let(SymLetStatement<'db>),
+    Expr(SymExpr<'db>),
 }
 
 /// `let x = v`, `let x: t = v`, etc

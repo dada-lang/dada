@@ -1,3 +1,4 @@
+use dada_util::FromImpls;
 use salsa::Update;
 
 use super::{AstGenericDecl, AstPerm, AstTy, SpanVec, SpannedIdentifier};
@@ -50,12 +51,10 @@ impl<'db> Spanned<'db> for AstFunctionBody<'db> {
     }
 }
 
-add_from_impls! {
-    #[derive(Clone, PartialEq, Eq, PartialOrd, Ord, Hash, Update, Debug)]
-    pub enum AstFunctionArg<'db> {
-        SelfArg(AstSelfArg<'db>),
-        Variable(VariableDecl<'db>),
-    }
+#[derive(Clone, PartialEq, Eq, PartialOrd, Ord, Hash, Update, Debug, FromImpls)]
+pub enum AstFunctionArg<'db> {
+    SelfArg(AstSelfArg<'db>),
+    Variable(VariableDecl<'db>),
 }
 
 impl<'db> Spanned<'db> for AstFunctionArg<'db> {

@@ -1,3 +1,4 @@
+use dada_util::FromImpls;
 use salsa::Update;
 
 use crate::{
@@ -5,14 +6,12 @@ use crate::{
     inputs::SourceFile,
 };
 
-add_from_impls! {
-    #[derive(Copy, Clone, PartialEq, Eq, Hash, PartialOrd, Ord, Debug, Update)]
-    pub enum Anchor<'db> {
-        SourceFile(SourceFile),
-        Class(AstClassItem<'db>),
-        Function(AstFunction<'db>),
-        FunctionBody(AstFunctionBody<'db>),
-    }
+#[derive(Copy, Clone, PartialEq, Eq, Hash, PartialOrd, Ord, Debug, Update, FromImpls)]
+pub enum Anchor<'db> {
+    SourceFile(SourceFile),
+    Class(AstClassItem<'db>),
+    Function(AstFunction<'db>),
+    FunctionBody(AstFunctionBody<'db>),
 }
 
 impl<'db> Anchor<'db> {

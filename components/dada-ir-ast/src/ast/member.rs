@@ -1,15 +1,14 @@
+use dada_util::FromImpls;
 use salsa::Update;
 
 use crate::span::{Span, Spanned};
 
 use super::{AstFunction, VariableDecl};
 
-add_from_impls! {
-    #[derive(Clone, PartialEq, Eq, PartialOrd, Ord, Hash, Update, Debug)]
-    pub enum AstMember<'db> {
-        Field(AstFieldDecl<'db>),
-        Function(AstFunction<'db>),
-    }
+#[derive(Clone, PartialEq, Eq, PartialOrd, Ord, Hash, Update, Debug, FromImpls)]
+pub enum AstMember<'db> {
+    Field(AstFieldDecl<'db>),
+    Function(AstFunction<'db>),
 }
 
 impl<'db> Spanned<'db> for AstMember<'db> {

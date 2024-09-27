@@ -1,8 +1,8 @@
 use dada_ir_ast::{
-    add_from_impls,
     ast::{Identifier, SpannedIdentifier},
     span::Span,
 };
+use dada_util::FromImpls;
 use salsa::Update;
 
 use crate::{
@@ -50,11 +50,9 @@ pub enum SymTyKind<'db> {
     BoundVar(SymBinderIndex, SymBoundVarIndex),
 }
 
-add_from_impls! {
-#[derive(Clone, PartialEq, Eq, PartialOrd, Ord, Hash, Update, Debug)]
+#[derive(Clone, PartialEq, Eq, PartialOrd, Ord, Hash, Update, Debug, FromImpls)]
 pub enum SymTyName<'db> {
     Class(SymClass<'db>),
-}
 }
 
 #[salsa::interned]

@@ -1,5 +1,6 @@
 #![allow(clippy::unused_unit)] // FIXME: derive(Update) triggers these
 
+use dada_util::FromImpls;
 use salsa::Update;
 
 use crate::{
@@ -47,14 +48,12 @@ impl<'db> Spanned<'db> for AstModule<'db> {
     }
 }
 
-add_from_impls! {
-#[derive(Copy, Clone, PartialEq, Eq, Hash, PartialOrd, Ord, Debug, Update)]
+#[derive(Copy, Clone, PartialEq, Eq, Hash, PartialOrd, Ord, Debug, Update, FromImpls)]
 pub enum AstItem<'db> {
     SourceFile(SourceFile),
     Use(AstUseItem<'db>),
     Class(AstClassItem<'db>),
     Function(AstFunction<'db>),
-}
 }
 
 /// Path of identifiers (must be non-empty)
