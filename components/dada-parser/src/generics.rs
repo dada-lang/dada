@@ -1,4 +1,4 @@
-use dada_ir_ast::ast::{AstGenericDecl, AstGenericKind, KindedGenericDecl};
+use dada_ir_ast::ast::{AstGenericDecl, AstGenericKind};
 
 use super::{
     tokenizer::{Keyword, Token, TokenKind},
@@ -16,7 +16,7 @@ impl<'db> Parse<'db> for AstGenericDecl<'db> {
             return Ok(None);
         };
 
-        let decl = KindedGenericDecl::eat(db, parser)?;
+        let decl = parser.eat_id().ok();
         Ok(Some(AstGenericDecl::new(db, kind, decl)))
     }
 
@@ -51,24 +51,5 @@ impl<'db> Parse<'db> for AstGenericKind<'db> {
 
     fn expected() -> Expected {
         todo!()
-    }
-}
-
-impl<'db> Parse<'db> for KindedGenericDecl<'db> {
-    type Output = Self;
-
-    fn opt_parse(
-        _db: &'db dyn crate::Db,
-        parser: &mut Parser<'_, 'db>,
-    ) -> Result<Option<Self::Output>, ParseFail<'db>> {
-        let Ok(name) = parser.eat_id() else {
-            return Ok(None);
-        };
-
-        Ok(Some(KindedGenericDecl { name }))
-    }
-
-    fn expected() -> Expected {
-        Expected::Nonterminal("name of generic parameter")
     }
 }

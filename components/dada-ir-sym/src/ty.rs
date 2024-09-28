@@ -1,7 +1,4 @@
-use dada_ir_ast::{
-    ast::{Identifier, SpannedIdentifier},
-    span::Span,
-};
+use dada_ir_ast::{ast::Identifier, span::Span};
 use dada_util::FromImpls;
 use salsa::Update;
 
@@ -21,8 +18,8 @@ pub enum SymGenericKind {
 #[salsa::tracked]
 pub struct SymGenericDecl<'db> {
     pub kind: SymGenericKind,
-    pub name: Identifier<'db>,
-    pub name_span: Span<'db>,
+    pub name: Option<Identifier<'db>>,
+    pub span: Span<'db>,
 }
 
 /// Value of a generic parameter

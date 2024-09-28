@@ -1,5 +1,5 @@
 use dada_ir_ast::{
-    ast::{AstItem, AstModule, AstUseItem, Identifier},
+    ast::{AstModule, AstUseItem, Identifier},
     diagnostic::{Diagnostic, Level},
     inputs::CrateKind,
     span::Spanned,

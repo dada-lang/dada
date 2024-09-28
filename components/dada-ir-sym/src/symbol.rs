@@ -1,5 +1,5 @@
 use dada_ir_ast::{
-    ast::{AstClassItem, AstFieldDecl, AstFunction, Identifier},
+    ast::{AstFieldDecl, Identifier},
     span::Span,
 };
 

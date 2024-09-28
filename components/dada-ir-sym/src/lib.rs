@@ -40,7 +40,3 @@ trait SymbolizeInScope<'db> {
 
     fn symbolize_in_scope(self, db: &'db dyn crate::Db, scope: &Scope<'db>) -> Self::Symbolic;
 }
-
-trait HasScope<'db>: Send + Sync {
-    fn scope(self, db: &'db dyn crate::Db) -> Scope<'db>;
-}

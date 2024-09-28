@@ -1,4 +1,7 @@
-use dada_ir_ast::ast::{AstGenericDecl, AstGenericKind};
+use dada_ir_ast::{
+    ast::{AstGenericDecl, AstGenericKind},
+    span::Spanned,
+};
 
 use crate::{
     prelude::Symbolize,
@@ -14,8 +17,8 @@ impl<'db> Symbolize<'db> for AstGenericDecl<'db> {
         SymGenericDecl::new(
             db,
             self.kind(db).symbolize(db),
-            self.decl(db).name.id,
-            self.decl(db).name.span,
+            self.name(db).map(|n| n.id),
+            self.span(db),
         )
     }
 }

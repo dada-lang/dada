@@ -26,10 +26,7 @@ pub enum AstTyKind<'db> {
     Named(AstPath<'db>, Option<SpanVec<'db, AstGenericArg<'db>>>),
 
     /// `type T`
-    GenericDecl {
-        keyword_span: Span<'db>,
-        decl: KindedGenericDecl<'db>,
-    },
+    GenericDecl(AstGenericDecl<'db>),
 
     /// `?`
     Unknown,
@@ -57,10 +54,7 @@ pub enum AstPermKind<'db> {
     Variable(Identifier<'db>),
 
     /// `perm P`
-    GenericDecl {
-        keyword_span: Span<'db>,
-        decl: KindedGenericDecl<'db>,
-    },
+    GenericDecl(AstGenericDecl<'db>),
 }
 
 #[derive(Clone, PartialEq, Eq, PartialOrd, Ord, Hash, Update, Debug, FromImpls)]
@@ -90,26 +84,20 @@ impl<'db> Spanned<'db> for AstGenericKind<'db> {
     }
 }
 
+/// `type T? (: bounds)?`
+/// `perm T? (: bounds)?`
 #[salsa::tracked]
 pub struct AstGenericDecl<'db> {
     pub kind: AstGenericKind<'db>,
-    pub decl: KindedGenericDecl<'db>,
+    pub name: Option<SpannedIdentifier<'db>>,
 }
 
 impl<'db> Spanned<'db> for AstGenericDecl<'db> {
     fn span(&self, db: &'db dyn crate::Db) -> Span<'db> {
-        self.kind(db).span(db).to(self.decl(db).span(db))
-    }
-}
-
-/// `[type T]` or `[perm P]`
-#[derive(Clone, PartialEq, Eq, PartialOrd, Ord, Hash, Update, Debug)]
-pub struct KindedGenericDecl<'db> {
-    pub name: SpannedIdentifier<'db>,
-}
-
-impl<'db> Spanned<'db> for KindedGenericDecl<'db> {
-    fn span(&self, _db: &'db dyn crate::Db) -> Span<'db> {
-        self.name.span
+        if let Some(name) = self.name(db) {
+            self.kind(db).span(db).to(name.span(db))
+        } else {
+            self.kind(db).span(db)
+        }
     }
 }

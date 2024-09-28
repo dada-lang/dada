@@ -123,13 +123,10 @@ impl<'db> TyOrPerm<'db> {
             }
             TyOrPerm::Path(..) => None,
             TyOrPerm::Generic(decl) => match decl.kind(db) {
-                AstGenericKind::Perm(keyword_span) => Some(AstPerm::new(
+                AstGenericKind::Perm(_) => Some(AstPerm::new(
                     db,
                     decl.span(db),
-                    AstPermKind::GenericDecl {
-                        keyword_span,
-                        decl: decl.decl(db),
-                    },
+                    AstPermKind::GenericDecl(decl),
                 )),
                 _ => None,
             },
@@ -155,14 +152,7 @@ impl<'db> TyOrPerm<'db> {
         match self {
             TyOrPerm::Path(path, args) => Some(AstTy::new(db, span, AstTyKind::Named(path, args))),
             TyOrPerm::Generic(decl) => match decl.kind(db) {
-                AstGenericKind::Type(keyword_span) => Some(AstTy::new(
-                    db,
-                    span,
-                    AstTyKind::GenericDecl {
-                        keyword_span,
-                        decl: decl.decl(db),
-                    },
-                )),
+                AstGenericKind::Type(_) => Some(AstTy::new(db, span, AstTyKind::GenericDecl(decl))),
                 _ => None,
             },
             TyOrPerm::PermKeyword(_) => None,

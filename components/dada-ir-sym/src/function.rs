@@ -1,5 +1,5 @@
 use dada_ir_ast::{
-    ast::{AstFunction, AstItem, AstModule, Identifier},
+    ast::{AstFunction, Identifier},
     span::{Span, Spanned},
 };
 use dada_parser::prelude::*;
