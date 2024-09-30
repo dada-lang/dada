@@ -20,6 +20,7 @@ impl<'db> SymClass<'db> {
         self.source(db).name(db)
     }
 
+    /// Number of generic parameters
     pub fn len_generics(&self, db: &'db dyn crate::Db) -> usize {
         if let Some(generics) = self.source(db).generics(db) {
             generics.len()
@@ -28,10 +29,12 @@ impl<'db> SymClass<'db> {
         }
     }
 
+    /// Span of the class name, typically used in diagnostics
     pub fn name_span(&self, db: &'db dyn crate::Db) -> Span<'db> {
         self.source(db).name_span(db)
     }
 
+    /// Span where generics are declared (possibly the name span, if there are no generics)
     pub fn generics_span(&self, db: &'db dyn crate::Db) -> Span<'db> {
         if let Some(generics) = self.source(db).generics(db) {
             generics.span
