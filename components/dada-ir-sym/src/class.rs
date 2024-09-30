@@ -21,7 +21,11 @@ impl<'db> SymClass<'db> {
     }
 
     pub fn len_generics(&self, db: &'db dyn crate::Db) -> usize {
-        todo!()
+        if let Some(generics) = self.source(db).generics(db) {
+            generics.len()
+        } else {
+            0
+        }
     }
 
     pub fn name_span(&self, db: &'db dyn crate::Db) -> Span<'db> {
@@ -29,6 +33,10 @@ impl<'db> SymClass<'db> {
     }
 
     pub fn generics_span(&self, db: &'db dyn crate::Db) -> Span<'db> {
-        self.source(db).name_span(db) // FIXME
+        if let Some(generics) = self.source(db).generics(db) {
+            generics.span
+        } else {
+            self.name_span(db)
+        }
     }
 }

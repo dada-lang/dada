@@ -1,6 +1,6 @@
 use crate::span::{Span, Spanned};
 
-use super::Identifier;
+use super::{AstGenericDecl, Identifier, SpanVec};
 
 /// `class $name[$generics] { ... }`
 #[salsa::tracked]
@@ -11,6 +11,9 @@ pub struct AstClassItem<'db> {
     pub name: Identifier<'db>,
 
     pub name_span: Span<'db>,
+
+    #[return_ref]
+    pub generics: Option<SpanVec<'db, AstGenericDecl<'db>>>,
 
     #[return_ref]
     pub contents: String,

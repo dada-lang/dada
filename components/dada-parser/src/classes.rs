@@ -1,8 +1,7 @@
 use dada_ir_ast::{
     ast::{
-        AstClassItem, AstFieldDecl, AstFunction, AstFunctionBody, AstFunctionInput, AstGenericDecl,
-        AstMember, AstPerm, AstSelfArg, AstTy, AstVisibility, SpanVec, VariableDecl,
-        VisibilityKind,
+        AstClassItem, AstFieldDecl, AstFunction, AstGenericDecl, AstMember, AstTy, AstVisibility,
+        SpanVec, VariableDecl, VisibilityKind,
     },
     span::{Offset, Spanned},
 };
@@ -11,7 +10,7 @@ use crate::ParseFail;
 
 use super::{
     miscellaneous::OrOptParse,
-    tokenizer::{tokenize, Delimiter, Keyword, Token, TokenKind},
+    tokenizer::{tokenize, Delimiter, Keyword},
     Expected, Parse, Parser,
 };
 
@@ -29,6 +28,13 @@ impl<'db> Parse<'db> for AstClassItem<'db> {
 
         let id = parser.eat_id()?;
 
+        let generics = AstGenericDecl::opt_parse_delimited(
+            db,
+            parser,
+            Delimiter::SquareBrackets,
+            AstGenericDecl::eat_comma,
+        )?;
+
         let body = parser.eat_delimited(Delimiter::CurlyBraces)?;
 
         Ok(Some(AstClassItem::new(
@@ -36,6 +42,7 @@ impl<'db> Parse<'db> for AstClassItem<'db> {
             start.to(parser.last_span()),
             id.id,
             id.span,
+            generics,
             body.to_string(),
         )))
     }
