@@ -106,7 +106,7 @@ impl<'db> TyOrPerm<'db> {
     /// True if this could syntactically be a permission.
     fn can_be_perm(&self, db: &'db dyn crate::Db) -> bool {
         match self {
-            TyOrPerm::Path(path, None) => path.ids.len() == 1,
+            TyOrPerm::Path(path, None) => path.len(db) == 1,
             TyOrPerm::Path(_path, Some(_)) => false,
             TyOrPerm::Generic(decl) => matches!(decl.kind(db), AstGenericKind::Perm(_)),
             TyOrPerm::PermKeyword(_) => true,
@@ -117,8 +117,8 @@ impl<'db> TyOrPerm<'db> {
 
     fn into_perm(self, db: &'db dyn crate::Db) -> Option<AstPerm<'db>> {
         match self {
-            TyOrPerm::Path(path, None) if path.ids.len() == 1 => {
-                let id = path.ids.first().unwrap();
+            TyOrPerm::Path(path, None) if path.len(db) == 1 => {
+                let id = path.first_id(db);
                 Some(AstPerm::new(db, id.span, AstPermKind::Variable(id.id)))
             }
             TyOrPerm::Path(..) => None,
@@ -285,8 +285,8 @@ impl<'db> Parse<'db> for AstGenericArg<'db> {
 
         match ty_or_perm {
             // There is one case that could be either a type or a permission.
-            TyOrPerm::Path(ids, None) if ids.ids.len() == 1 => {
-                Ok(Some(AstGenericArg::Id(ids.ids[0].clone())))
+            TyOrPerm::Path(path, None) if path.len(db) == 1 => {
+                Ok(Some(AstGenericArg::Id(path.first_id(db))))
             }
 
             // For the rest, we can be guided by the syntax.

@@ -1,4 +1,4 @@
-use dada_ir_ast::{ast::Identifier, span::Span};
+use dada_ir_ast::{ast::Identifier, diagnostic::Reported, span::Span};
 use dada_util::FromImpls;
 use salsa::Update;
 
@@ -8,25 +8,12 @@ use crate::{
     symbol::{SymField, SymGeneric, SymLocalVariable},
 };
 
-#[derive(Copy, Clone, PartialEq, Eq, PartialOrd, Ord, Update, Debug)]
-pub enum SymGenericKind {
-    Type,
-    Perm,
-}
-
 /// Value of a generic parameter
-#[salsa::tracked]
-pub struct SymGenericDecl<'db> {
-    pub kind: SymGenericKind,
-    pub name: Option<Identifier<'db>>,
-    pub span: Span<'db>,
-}
-
-/// Value of a generic parameter
-#[derive(Clone, PartialEq, Eq, PartialOrd, Ord, Hash, Update, Debug)]
+#[derive(Clone, PartialEq, Eq, PartialOrd, Ord, Hash, Update, Debug, FromImpls)]
 pub enum SymGenericArg<'db> {
     Type(SymTy<'db>),
     Perm(SymPerm<'db>),
+    Error(Reported),
 }
 
 #[salsa::interned]
@@ -45,11 +32,22 @@ pub enum SymTyKind<'db> {
     FreeExistential(SymExistentialVarIndex),
 
     BoundVar(SymBinderIndex, SymBoundVarIndex),
+
+    /// Indicates the user wrote `?` and we should use gradual typing.
+    Unknown,
+
+    /// Indicates some kind of error occurred and has been reported to the user.
+    Error(Reported),
 }
 
 #[derive(Clone, PartialEq, Eq, PartialOrd, Ord, Hash, Update, Debug, FromImpls)]
 pub enum SymTyName<'db> {
     Class(SymClass<'db>),
+
+    #[no_from_impl]
+    Tuple {
+        arity: usize,
+    },
 }
 
 #[salsa::interned]

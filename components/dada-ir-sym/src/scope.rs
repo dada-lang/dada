@@ -1,16 +1,14 @@
 use dada_ir_ast::{
-    ast::{AstModule, AstUseItem, Identifier},
-    diagnostic::{Diagnostic, Level},
+    ast::{AstModule, AstPath, AstUseItem, Identifier, SpannedIdentifier},
+    diagnostic::{Diagnostic, Errors, Level},
     inputs::CrateKind,
-    span::Spanned,
+    span::{Span, Spanned},
 };
-use dada_parser::prelude::SourceFileParse;
 use dada_util::{FromImpls, Map};
 use salsa::Update;
 
 use crate::{
-    class::SymClass, function::SymFunction, module::SymModule, prelude::Symbolize,
-    symbol::SymLocalVariable,
+    class::SymClass, function::{SignatureSymbols, SymFunction}, indices::{SymBinderIndex, SymBoundVarIndex, SymExistentialVarIndex, SymUniversalVarIndex}, module::SymModule, prelude::Symbolize, symbol::{SymGeneric, SymLocalVariable}
 };
 
 #[derive(Copy, Clone, PartialEq, Eq, Hash, PartialOrd, Ord, Debug, Update, FromImpls)]
@@ -18,21 +16,24 @@ pub enum ScopeItem<'db> {
     Module(AstModule<'db>),
 }
 
-#[derive(Clone, Debug, PartialEq, Eq, Update)]
-pub(crate) struct Scope<'db> {
-    chain: ScopeChain<'db>,
+#[derive(Clone, Debug, PartialEq, Eq)]
+pub(crate) struct Scope<'scope, 'db> {
+    chain: ScopeChain<'scope, 'db>,
 }
 
-#[derive(Clone, Debug, PartialEq, Eq, Update)]
-pub(crate) struct ScopeChain<'db> {
-    link: ScopeChainLink<'db>,
-    next: Option<Box<ScopeChain<'db>>>,
+#[derive(Clone, Debug, PartialEq, Eq)]
+pub(crate) struct ScopeChain<'scope, 'db> {
+    link: ScopeChainLink<'scope, 'db>,
+    next: Option<Box<ScopeChain<'scope, 'db>>>,
 }
 
-#[derive(Clone, Debug, PartialEq, Eq, Update, FromImpls)]
-pub(crate) enum ScopeChainLink<'db> {
+#[derive(Clone, Debug, PartialEq, Eq, FromImpls)]
+pub(crate) enum ScopeChainLink<'scope, 'db> {
     SymModule(SymModule<'db>),
-    LocalVariables(LocalVariables<'db>),
+    SignatureSymbols(&'scope SignatureSymbols<'db>),
+
+    #[no_from_impl]
+    Body,
 }
 
 #[derive(Clone, Debug, PartialEq, Eq, Update)]
@@ -46,9 +47,28 @@ pub(crate) enum NameResolution<'db> {
     SymClass(SymClass<'db>),
     SymLocalVariable(SymLocalVariable<'db>),
     SymFunction(SymFunction<'db>),
+
+    #[no_from_impl]
+    SymGeneric(SymGeneric<'db>, GenericIndex)
 }
 
-impl<'db> Scope<'db> {
+#[derive(Clone, Debug, PartialEq, Eq)]
+pub(crate) enum GenericIndex {
+    Universal(SymUniversalVarIndex),
+    Bound(SymBinderIndex, SymBoundVarIndex),
+}
+
+#[derive(Copy, Clone, Debug)]
+enum BindersTraversed {
+    /// Tracks the number of binders traversed.
+    Bound(usize),
+
+    /// Counts *down* from the total free (universal)
+    /// generic variables in scope to 0.
+    Free { universal_generics: usize },
+}
+
+impl<'scope, 'db> Scope<'scope, 'db> {
     pub fn new(db: &'db dyn crate::Db, item: ScopeItem<'db>) -> Self {
         match item {
             ScopeItem::Module(ast_module) => {
@@ -63,7 +83,10 @@ impl<'db> Scope<'db> {
     }
 
     /// Extend this scope with another link in the name resolution chain
-    pub fn with_link(self, link: impl Into<ScopeChainLink<'db>>) -> Self {
+    pub fn with_link<'scope1>(self, link: impl Into<ScopeChainLink<'scope1, 'db>>) -> Scope<'scope1, 'db> 
+    where 
+        'scope: 'scope1,
+    {
         Scope {
             chain: ScopeChain {
                 link: link.into(),
@@ -71,41 +94,219 @@ impl<'db> Scope<'db> {
             },
         }
     }
-
+    
     pub fn resolve_name(
         &self,
         db: &'db dyn crate::Db,
         id: Identifier<'db>,
-    ) -> Option<NameResolution<'db>> {
-        self.chain.resolve_name(db, id)
+        span: Span<'db>,
+    ) -> Errors<NameResolution<'db>> {
+        match self.chain.resolve(
+            |link, binders_traversed| link.resolve_name(db, id, binders_traversed),
+            BindersTraversed::Bound(0),
+        ) {
+            Some(v) => Ok(v),
+            None => {
+                Err(
+                        Diagnostic::error(
+                            db,
+                            span,
+                            format!(
+                                "could not find anything named `{}`",
+                                id,
+                            ),
+                        )
+                        .label(db, Level::Error, span, "I could not find anything with this name :(")
+                        .report(db)
+                )
+            }
+        }
+    }
+
+    /// Find a generic symbol in the scope and returns its name resolution.
+    /// 
+    /// # Panics
+    /// 
+    /// If the symbol is not in the scope.
+    pub fn resolve_generic_sym(
+        &self,
+        db: &'db dyn crate::Db,
+        sym: SymGeneric<'db>,
+    ) -> NameResolution<'db> {
+        match self.chain.resolve(
+            |link, binders_traversed| link.resolve_generic_sym(db, |sym1| *sym1 == sym, binders_traversed),
+            BindersTraversed::Bound(0),
+        ) {
+            Some(v) => v,
+            None => panic!("symbole `{:?}` not found in scope: {:#?}", sym.name(db), self),
+        }
     }
 }
 
-impl<'db> ScopeChain<'db> {
-    fn resolve_name(
+pub trait Resolve<'db> {
+    fn resolve_in(self, db: &'db dyn crate::Db, scope: &Scope<'_, 'db>) -> Errors<NameResolution<'db>>;
+}
+
+impl<'db> Resolve<'db> for AstPath<'db> {
+    /// Given a path that must resolve to some kind of name resolution,
+    /// resolve it if we can (reporting errors if it is invalid).
+    fn resolve_in(self, db: &'db dyn crate::Db, scope: &Scope<'_, 'db>) -> Errors<NameResolution<'db>> {
+        let (first_id, other_ids) = self.ids(db).split_first().unwrap();
+
+        let resolution = first_id.resolve_in(db, scope)?;
+        resolution.resolve_rest(db, other_ids)
+    }
+}
+
+impl<'db> Resolve<'db> for SpannedIdentifier<'db> {
+    fn resolve_in(self, db: &'db dyn crate::Db, scope: &Scope<'_, 'db>) -> Errors<NameResolution<'db>> {
+        scope.resolve_name(db, self.id, self.span)
+    }
+}
+
+impl<'db> NameResolution<'db> {
+    fn resolve_rest(self, db: &'db dyn crate::Db, ids: &'db [SpannedIdentifier]) -> Errors<NameResolution<'db>> {
+        let Some((next_id, other_ids)) = ids.split_first() else {
+            return Ok(self);
+        };
+
+        match self {
+            NameResolution::SymModule(sym_module) => {
+                match sym_module.resolve_name(db, next_id.id) {
+                    Some(r) => r.resolve_rest(db, other_ids),
+                    None => Err(
+                        Diagnostic::error(
+                            db,
+                            next_id.span,
+                            "nothing named `{}` found in module",
+                        )
+                        .label(
+                            db, 
+                            Level::Error, 
+                            next_id.span, 
+                            format!("I could not find anything named `{}` in the module `{}`",
+                                next_id.id,
+                                sym_module.name(db),
+                            )
+                        )
+                        .report(db)
+                    ),
+                }
+            }
+            _ => {
+                Err(
+                    Diagnostic::error(
+                        db,
+                        next_id.span,
+                        "unexpected `.` in path",
+                    )
+                    .label(db, Level::Error, next_id.span, "I don't know how to interpret `.` applied to a local variable here")
+                    .report(db)
+                )
+            }
+        }
+    }
+}
+
+impl<'db> ScopeChain<'_, 'db> {
+    /// Walk the chain to resolve an id, generic symbol, or other name lookup key.
+    /// Tracks the binders that we have traversed to help in creating the [`GenericIndex`][] that identifies a generic variable.
+    fn resolve(
         &self,
-        db: &'db dyn crate::Db,
-        id: Identifier<'db>,
+        resolve_link: impl Fn(&ScopeChainLink<'_, 'db>, BindersTraversed) -> Option<NameResolution<'db>>,
+        binders_traversed: BindersTraversed,
     ) -> Option<NameResolution<'db>> {
-        self.link.resolve_name(db, id).or_else(|| {
+        resolve_link(&self.link, binders_traversed).or_else(|| {
+            let next_binders_traversed = self.link.traverse_binders(binders_traversed);
             self.next
                 .as_ref()
-                .and_then(|chain| chain.resolve_name(db, id))
+                .and_then(|chain| chain.resolve(resolve_link, next_binders_traversed))
         })
+    }
+
+    fn count_universal_variables(&self) -> usize {
+        self.link.count_universal_variables() + if let Some(next) = &self.next {
+            next.count_universal_variables()
+        } else {
+            0
+        }
     }
 }
 
-impl<'db> ScopeChainLink<'db> {
+impl<'db> ScopeChainLink<'_, 'db> {
+    fn traverse_binders(&self, binders_traversed: BindersTraversed) -> BindersTraversed {
+        match binders_traversed {
+            BindersTraversed::Bound(binders) => match self {
+                ScopeChainLink::SymModule(_) => BindersTraversed::Bound(binders),
+                ScopeChainLink::SignatureSymbols(signature_symbols) => BindersTraversed::Bound(binders + 1),
+                ScopeChainLink::Body => BindersTraversed::Free { universal_generics: self.count_universal_variables() },
+            },
+            BindersTraversed::Free { universal_generics } => match self {
+                ScopeChainLink::SymModule(_) => BindersTraversed::Free { universal_generics },
+                ScopeChainLink::SignatureSymbols(signature_symbols) => BindersTraversed::Free { universal_generics: universal_generics - signature_symbols.generics.len() },
+                ScopeChainLink::Body => BindersTraversed::Free { universal_generics },
+            }
+        }
+    }
+
+    fn count_universal_variables(&self) -> usize {
+        match self {
+            ScopeChainLink::SymModule(_) => 0,
+            ScopeChainLink::SignatureSymbols(symbols) => symbols.generics.len(),
+            ScopeChainLink::Body => 0,
+        }
+    }
+
     fn resolve_name(
         &self,
         db: &'db dyn crate::Db,
         id: Identifier<'db>,
+        binders_traversed: BindersTraversed,
     ) -> Option<NameResolution<'db>> {
         match self {
             ScopeChainLink::SymModule(sym_module) => sym_module.resolve_name(db, id),
-            ScopeChainLink::LocalVariables(local_variables) => {
-                Some(local_variables.names.get(&id).cloned()?.into())
+            ScopeChainLink::SignatureSymbols(SignatureSymbols { generics, inputs }) => {
+                if let Some(resolution) = self.resolve_generic_sym(db, |g| g.name(db) == Some(id), binders_traversed) {
+                    Some(resolution)
+                } else if let Some(input) = inputs.iter().find(|i| i.name(db) == id) {
+                    Some(NameResolution::SymLocalVariable(*input))
+                } else {
+                    None
+                }
             }
+            ScopeChainLink::Body => None,
+        }
+    }
+
+    fn resolve_generic_sym(
+        &self,
+        db: &'db dyn crate::Db,
+        test: impl Fn(&SymGeneric<'db>) -> bool,
+        binders_traversed: BindersTraversed,
+    ) -> Option<NameResolution<'db>> {
+        match self {
+            ScopeChainLink::SymModule(sym_module) => None,
+            ScopeChainLink::SignatureSymbols(SignatureSymbols { generics, inputs }) => {
+                if let Some(generic) = generics.iter().position(test) {
+                    let sym = generics[generic];
+                    let index = binders_traversed.generic_index(generic, generics.len());
+                    Some(NameResolution::SymGeneric(sym, index))
+                } else {
+                    None
+                }
+            }
+            ScopeChainLink::Body => None,
+        }
+    }
+}
+
+impl BindersTraversed {
+    fn generic_index(self, variable_index: usize, variables_in_binder: usize) -> GenericIndex {
+        match self {
+            BindersTraversed::Bound(binders) => GenericIndex::Bound(SymBinderIndex::from(binders), SymBoundVarIndex::from(variable_index)),
+            BindersTraversed::Free { universal_generics } => GenericIndex::Universal(SymUniversalVarIndex::from(
+                universal_generics - variables_in_binder + variable_index
+            )),
         }
     }
 }
@@ -159,7 +360,7 @@ fn resolve_ast_use<'db>(
 
     match crate_source.kind(db) {
         CrateKind::Directory(path_buf) => {
-            let (item_name, module_path) = ast_use.path(db).ids.split_last().unwrap();
+            let (item_name, module_path) = ast_use.path(db).ids(db).split_last().unwrap();
             if let Some((file_path, dir_path)) = module_path.split_last() {
                 let mut path_buf = path_buf.clone();
                 for id in dir_path {

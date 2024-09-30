@@ -3,7 +3,7 @@ use tokenizer::{tokenize, Delimiter, Keyword, Skipped, Token, TokenKind};
 
 use dada_ir_ast::{
     ast::{AstModule, SpanVec, SpannedIdentifier},
-    diagnostic::Diagnostic,
+    diagnostic::{Diagnostic, Reported},
     inputs::SourceFile,
     span::{Anchor, Offset, Span},
 };
@@ -29,10 +29,9 @@ impl prelude::SourceFileParse for SourceFile {
         let tokens = tokenizer::tokenize(db, anchor, Offset::ZERO, text);
         let mut parser = Parser::new(db, anchor, &tokens);
         let module = AstModule::eat(db, &mut parser).expect("parsing a module is infallible");
-        parser
-            .into_diagnostics(db)
-            .into_iter()
-            .for_each(|d| d.report(db));
+        parser.into_diagnostics(db).into_iter().for_each(|d| {
+            let Reported = d.report(db);
+        });
         module
     }
 }

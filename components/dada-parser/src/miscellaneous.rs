@@ -6,7 +6,7 @@ impl<'db> Parse<'db> for AstPath<'db> {
     type Output = Self;
 
     fn opt_parse(
-        _db: &'db dyn crate::Db,
+        db: &'db dyn crate::Db,
         parser: &mut Parser<'_, 'db>,
     ) -> Result<Option<Self>, ParseFail<'db>> {
         let Ok(id) = parser.eat_id() else {
@@ -19,7 +19,7 @@ impl<'db> Parse<'db> for AstPath<'db> {
             ids.push(id);
         }
 
-        Ok(Some(AstPath { ids }))
+        Ok(Some(AstPath::new(db, ids)))
     }
 
     fn expected() -> Expected {

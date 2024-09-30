@@ -1,14 +1,22 @@
 use dada_ir_ast::{
-    ast::{AstFunction, Identifier},
+    ast::{AstFunction, AstFunctionInput, Identifier},
     span::{Span, Spanned},
 };
 use dada_parser::prelude::*;
+use salsa::Update;
 
-use crate::{prelude::Symbolize, scope::ScopeItem, symbol::SymGeneric, ty::SymTy};
+use crate::{
+    populate::PopulateSignatureSymbols,
+    prelude::Symbolize,
+    scope::{Scope, ScopeChainLink, ScopeItem},
+    symbol::{SymGeneric, SymLocalVariable},
+    ty::{SymTy, SymTyKind},
+    SymbolizeInScope,
+};
 
 #[salsa::tracked]
 pub struct SymFunction<'db> {
-    enclosing_item: ScopeItem<'db>,
+    scope_item: ScopeItem<'db>,
     source: AstFunction<'db>,
 }
 
@@ -20,11 +28,25 @@ impl<'db> Spanned<'db> for SymFunction<'db> {
 
 #[salsa::tracked]
 pub struct SymFunctionSignature<'db> {
-    source: SymFunction<'db>,
+    #[return_ref]
+    symbols: SignatureSymbols<'db>,
 
+    #[return_ref]
+    input_tys: Vec<SymTy<'db>>,
+
+    output_ty: SymTy<'db>,
+}
+
+#[derive(Clone, Debug, Default, PartialEq, Eq, Hash, Update)]
+pub struct SignatureSymbols<'db> {
     pub generics: Vec<SymGeneric<'db>>,
-    pub inputs: Vec<SymTy<'db>>,
-    pub output: SymTy<'db>,
+    pub inputs: Vec<SymLocalVariable<'db>>,
+}
+
+impl<'db> SymFunctionSignature<'db> {
+    pub fn inputs(self, db: &'db dyn crate::Db) -> &'db [SymLocalVariable<'db>] {
+        &self.symbols(db).inputs
+    }
 }
 
 #[salsa::tracked]
@@ -40,14 +62,36 @@ impl<'db> SymFunction<'db> {
     #[salsa::tracked]
     pub fn signature(self, db: &'db dyn crate::Db) -> SymFunctionSignature<'db> {
         let source = self.source(db);
+        let mut symbols = SignatureSymbols::default();
+        source.populate_signature_symbols(db, &mut symbols);
+        let scope = Scope::new(db, self.scope_item(db))
+            .with_link(ScopeChainLink::SignatureSymbols(&symbols));
 
-        let mut generics = vec![];
-        if let Some(declared_generics) = source.generics(db) {
-            for generic_decl in &declared_generics.values {
-                generics.push(generic_decl.symbolize(db));
-            }
+        let input_tys = source
+            .inputs(db)
+            .iter()
+            .map(|i| input_ty(db, &scope, i))
+            .collect();
+
+        let output_ty = match source.output_ty(db) {
+            Some(ast_ty) => ast_ty.symbolize_in_scope(db, &scope),
+            None => SymTy::unit(db),
+        };
+
+        SymFunctionSignature::new(db, symbols, input_tys, output_ty)
+    }
+}
+
+fn input_ty<'db>(
+    db: &'db dyn crate::Db,
+    scope: &Scope<'_, 'db>,
+    input: &AstFunctionInput<'db>,
+) -> SymTy<'db> {
+    match input {
+        AstFunctionInput::SelfArg(ast_self_arg) => {
+            // Lookup `self` in the scope
+            todo!()
         }
-
-        todo!()
+        AstFunctionInput::Variable(variable_decl) => variable_decl.ty.symbolize_in_scope(db, scope),
     }
 }

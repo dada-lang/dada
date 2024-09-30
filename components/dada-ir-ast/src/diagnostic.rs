@@ -1,7 +1,15 @@
 use std::fmt::Display;
 
 use crate::span::{AbsoluteSpan, Span};
-use salsa::Accumulator;
+use salsa::{Accumulator, Update};
+
+/// Signals that a diagnostic was reported.
+#[derive(Copy, Clone, PartialEq, Eq, PartialOrd, Ord, Hash, Update, Debug)]
+pub struct Reported;
+
+/// Signals that this may complete or report a diagnostic.
+/// In practice we use this to mean an error.
+pub type Errors<T> = Result<T, Reported>;
 
 /// A diagnostic to be reported to the user.
 #[salsa::accumulator]
@@ -69,8 +77,9 @@ impl Diagnostic {
         }
     }
 
-    pub fn report(self, db: &dyn crate::Db) {
+    pub fn report(self, db: &dyn crate::Db) -> Reported {
         self.accumulate(db);
+        Reported
     }
 
     pub fn label(

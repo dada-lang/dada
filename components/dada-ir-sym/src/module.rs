@@ -11,6 +11,8 @@ use crate::{class::SymClass, function::SymFunction, prelude::Symbolize};
 
 #[salsa::tracked]
 pub struct SymModule<'db> {
+    pub name: Identifier<'db>,
+
     // Order of fields reflects the precedence we give during name resolution.
     #[return_ref]
     pub(crate) class_map: Map<Identifier<'db>, SymClass<'db>>,
@@ -41,7 +43,7 @@ impl<'db> Symbolize<'db> for AstModule<'db> {
                 AstItem::Use(ast_use) => {
                     let id = match ast_use.as_id(db) {
                         Some(as_id) => as_id.id,
-                        None => ast_use.path(db).last_id().id,
+                        None => ast_use.path(db).last_id(db).id,
                     };
 
                     insert(db, &mut ast_use_map, id, ast_use.into());
@@ -72,7 +74,7 @@ impl<'db> Symbolize<'db> for AstModule<'db> {
         insert_into_canonical_map(db, canonical_map, &function_map);
         insert_into_canonical_map(db, canonical_map, &ast_use_map);
 
-        SymModule::new(db, class_map, function_map, ast_use_map)
+        SymModule::new(db, self.name(db), class_map, function_map, ast_use_map)
     }
 }
 

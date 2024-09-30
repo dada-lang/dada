@@ -38,6 +38,8 @@ impl<'db> std::fmt::Display for Identifier<'db> {
 
 #[salsa::tracked]
 pub struct AstModule<'db> {
+    pub name: Identifier<'db>,
+
     #[return_ref]
     pub items: SpanVec<'db, AstItem<'db>>,
 }
@@ -57,26 +59,32 @@ pub enum AstItem<'db> {
 }
 
 /// Path of identifiers (must be non-empty)
-#[derive(Clone, PartialEq, Eq, PartialOrd, Ord, Hash, Update, Debug)]
+#[salsa::tracked]
 pub struct AstPath<'db> {
+    #[return_ref]
     pub ids: Vec<SpannedIdentifier<'db>>,
 }
 
 impl<'db> AstPath<'db> {
-    pub fn first_id(&self) -> SpannedIdentifier<'db> {
-        *self.ids.first().unwrap()
+    pub fn len(self, db: &'db dyn crate::Db) -> usize {
+        self.ids(db).len()
     }
 
-    pub fn last_id(&self) -> SpannedIdentifier<'db> {
-        *self.ids.last().unwrap()
+    pub fn first_id(self, db: &'db dyn crate::Db) -> SpannedIdentifier<'db> {
+        *self.ids(db).first().unwrap()
+    }
+
+    pub fn last_id(self, db: &'db dyn crate::Db) -> SpannedIdentifier<'db> {
+        *self.ids(db).last().unwrap()
     }
 }
 
 impl<'db> Spanned<'db> for AstPath<'db> {
-    fn span(&self, _db: &'db dyn crate::Db) -> Span<'db> {
-        let len = self.ids.len();
+    fn span(&self, db: &'db dyn crate::Db) -> Span<'db> {
+        let ids = self.ids(db);
+        let len = ids.len();
         assert!(len > 0);
-        self.ids[0].span.to(self.ids[len - 1].span)
+        ids[0].span.to(ids[len - 1].span)
     }
 }
 

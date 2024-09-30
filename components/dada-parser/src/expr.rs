@@ -173,7 +173,7 @@ fn base_expr_precedence<'db>(
                 crate::tokenizer::Delimiter::CurlyBraces,
                 AstConstructorField::eat_comma,
             )? {
-                let path = AstPath { ids: vec![id] };
+                let path = AstPath::new(db, vec![id]);
                 return Ok(Some(AstExprKind::Constructor(path, fields)));
             }
         }

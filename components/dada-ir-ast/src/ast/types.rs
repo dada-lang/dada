@@ -35,6 +35,8 @@ pub enum AstTyKind<'db> {
 #[salsa::interned] // (*)
 pub struct AstPerm<'db> {
     pub span: Span<'db>,
+
+    #[return_ref]
     pub kind: AstPermKind<'db>,
 }
 
@@ -57,7 +59,7 @@ pub enum AstPermKind<'db> {
     GenericDecl(AstGenericDecl<'db>),
 }
 
-#[derive(Clone, PartialEq, Eq, PartialOrd, Ord, Hash, Update, Debug, FromImpls)]
+#[derive(Copy, Clone, PartialEq, Eq, PartialOrd, Ord, Hash, Update, Debug, FromImpls)]
 pub enum AstGenericArg<'db> {
     /// Something clearly a type
     Ty(AstTy<'db>),

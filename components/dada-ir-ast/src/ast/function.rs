@@ -22,10 +22,10 @@ pub struct AstFunction<'db> {
 
     /// Arguments to the function
     #[return_ref]
-    pub arguments: SpanVec<'db, AstFunctionArg<'db>>,
+    pub inputs: SpanVec<'db, AstFunctionInput<'db>>,
 
     /// Return type of the function (if provided)
-    pub return_ty: Option<AstTy<'db>>,
+    pub output_ty: Option<AstTy<'db>>,
 
     /// Body (if provided)
     pub body: Option<AstFunctionBody<'db>>,
@@ -52,16 +52,16 @@ impl<'db> Spanned<'db> for AstFunctionBody<'db> {
 }
 
 #[derive(Clone, PartialEq, Eq, PartialOrd, Ord, Hash, Update, Debug, FromImpls)]
-pub enum AstFunctionArg<'db> {
+pub enum AstFunctionInput<'db> {
     SelfArg(AstSelfArg<'db>),
     Variable(VariableDecl<'db>),
 }
 
-impl<'db> Spanned<'db> for AstFunctionArg<'db> {
+impl<'db> Spanned<'db> for AstFunctionInput<'db> {
     fn span(&self, db: &'db dyn crate::Db) -> Span<'db> {
         match self {
-            AstFunctionArg::SelfArg(arg) => arg.span(db),
-            AstFunctionArg::Variable(var) => var.span(db),
+            AstFunctionInput::SelfArg(arg) => arg.span(db),
+            AstFunctionInput::Variable(var) => var.span(db),
         }
     }
 }

@@ -1,7 +1,7 @@
 use dada_ir_ast::{
     ast::{
-        AstFieldDecl, AstFunction, AstFunctionArg, AstFunctionBody, AstGenericDecl, AstMember,
-        AstPerm, AstSelfArg, AstTy, AstVisibility, AstClassItem, SpanVec, VariableDecl,
+        AstClassItem, AstFieldDecl, AstFunction, AstFunctionBody, AstFunctionInput, AstGenericDecl,
+        AstMember, AstPerm, AstSelfArg, AstTy, AstVisibility, SpanVec, VariableDecl,
         VisibilityKind,
     },
     span::{Offset, Spanned},
@@ -153,11 +153,11 @@ impl<'db> Parse<'db> for AstFunction<'db> {
         )?;
 
         // Parse the arguments, accepting an empty list.
-        let arguments = AstFunctionArg::eat_delimited(
+        let arguments = AstFunctionInput::eat_delimited(
             db,
             tokens,
             Delimiter::Parentheses,
-            AstFunctionArg::opt_parse_comma,
+            AstFunctionInput::opt_parse_comma,
         )?;
         let arguments = match arguments {
             Some(arguments) => arguments,
@@ -191,7 +191,7 @@ impl<'db> Parse<'db> for AstFunction<'db> {
     }
 }
 
-impl<'db> Parse<'db> for AstFunctionArg<'db> {
+impl<'db> Parse<'db> for AstFunctionInput<'db> {
     type Output = Self;
 
     fn opt_parse(
