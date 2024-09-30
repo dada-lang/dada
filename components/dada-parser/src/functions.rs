@@ -1,134 +1,16 @@
 use dada_ir_ast::{
     ast::{
-        AstClassItem, AstFieldDecl, AstFunction, AstFunctionBody, AstFunctionInput, AstGenericDecl,
-        AstMember, AstPerm, AstSelfArg, AstTy, AstVisibility, SpanVec, VariableDecl,
-        VisibilityKind,
+        AstBlock, AstExpr, AstFunction, AstFunctionBody, AstFunctionInput, AstGenericDecl,
+        AstLetStatement, AstPerm, AstSelfArg, AstStatement, AstTy, SpanVec, VariableDecl,
     },
-    span::{Offset, Spanned},
+    span::Offset,
 };
 
-use super::{
+use crate::{
     miscellaneous::OrOptParse,
     tokenizer::{tokenize, Delimiter, Keyword, Token, TokenKind},
     Expected, Parse, Parser,
 };
-
-#[salsa::tracked]
-impl<'db> crate::prelude::ClassItemMembers<'db> for AstClassItem<'db> {
-    #[salsa::tracked]
-    fn members(self, db: &'db dyn crate::Db) -> SpanVec<'db, AstMember<'db>> {
-        let contents = self.contents(db);
-        let tokens = tokenize(db, self.into(), Offset::ZERO, contents);
-        Parser::new(db, self.into(), &tokens)
-            .parse_many_and_report_diagnostics::<AstMember<'db>>(db)
-    }
-}
-
-impl<'db> Parse<'db> for AstMember<'db> {
-    type Output = Self;
-
-    fn opt_parse(
-        db: &'db dyn crate::Db,
-        parser: &mut Parser<'_, 'db>,
-    ) -> Result<Option<Self>, super::ParseFail<'db>> {
-        AstFieldDecl::opt_parse(db, parser).or_opt_parse::<Self, AstFunction<'db>>(db, parser)
-    }
-
-    fn expected() -> Expected {
-        Expected::Nonterminal("class member")
-    }
-}
-
-impl<'db> Parse<'db> for AstFieldDecl<'db> {
-    type Output = Self;
-
-    fn opt_parse(
-        db: &'db dyn crate::Db,
-        tokens: &mut Parser<'_, 'db>,
-    ) -> Result<Option<Self>, super::ParseFail<'db>> {
-        let visibility = AstVisibility::opt_parse(db, tokens)?;
-
-        let variable = match VariableDecl::opt_parse(db, tokens) {
-            Ok(Some(v)) => v,
-            Ok(None) => {
-                return if visibility.is_some() {
-                    Err(tokens.illformed(VariableDecl::expected()))
-                } else {
-                    Ok(None)
-                }
-            }
-            Err(e) => return Err(e),
-        };
-
-        let end_span = tokens.eat_op(";")?;
-
-        Ok(Some(AstFieldDecl {
-            span: visibility
-                .as_ref()
-                .map(|v| v.span)
-                .unwrap_or_else(|| variable.span(db))
-                .to(end_span),
-            visibility,
-            variable,
-        }))
-    }
-
-    fn expected() -> Expected {
-        Expected::Nonterminal("variable declaration")
-    }
-}
-
-impl<'db> Parse<'db> for AstVisibility<'db> {
-    type Output = Self;
-
-    fn opt_parse(
-        _db: &'db dyn crate::Db,
-        tokens: &mut Parser<'_, 'db>,
-    ) -> Result<Option<Self>, super::ParseFail<'db>> {
-        if let Ok(span) = tokens.eat_keyword(Keyword::Pub) {
-            return Ok(Some(AstVisibility {
-                span,
-                kind: VisibilityKind::Pub,
-            }));
-        }
-
-        if let Ok(span) = tokens.eat_keyword(Keyword::Export) {
-            return Ok(Some(AstVisibility {
-                span,
-                kind: VisibilityKind::Export,
-            }));
-        }
-
-        Ok(None)
-    }
-
-    fn expected() -> Expected {
-        Expected::Nonterminal("visibility")
-    }
-}
-
-impl<'db> Parse<'db> for VariableDecl<'db> {
-    type Output = Self;
-
-    fn opt_parse(
-        db: &'db dyn crate::Db,
-        tokens: &mut Parser<'_, 'db>,
-    ) -> Result<Option<Self>, super::ParseFail<'db>> {
-        let Ok(name) = tokens.eat_id() else {
-            return Ok(None);
-        };
-
-        let _ = tokens.eat_op(":")?;
-
-        let ty = AstTy::eat(db, tokens)?;
-
-        Ok(Some(VariableDecl { name, ty }))
-    }
-
-    fn expected() -> Expected {
-        Expected::Nonterminal("variable declaration")
-    }
-}
 
 impl<'db> Parse<'db> for AstFunction<'db> {
     type Output = Self;
@@ -190,7 +72,6 @@ impl<'db> Parse<'db> for AstFunction<'db> {
         Expected::Nonterminal("`fn`")
     }
 }
-
 impl<'db> Parse<'db> for AstFunctionInput<'db> {
     type Output = Self;
 
@@ -277,5 +158,78 @@ impl<'db> Parse<'db> for AstFunctionBody<'db> {
 
     fn expected() -> Expected {
         Expected::Nonterminal("function body")
+    }
+}
+
+#[salsa::tracked]
+impl<'db> crate::prelude::FunctionBodyBlock<'db> for AstFunctionBody<'db> {
+    #[salsa::tracked]
+    fn block(self, db: &'db dyn crate::Db) -> AstBlock<'db> {
+        let contents = self.contents(db);
+        let tokens = tokenize(db, self.into(), Offset::ZERO, contents);
+        let statements = Parser::new(db, self.into(), &tokens)
+            .parse_many_and_report_diagnostics::<AstStatement>(db);
+        AstBlock::new(db, statements)
+    }
+}
+
+impl<'db> Parse<'db> for AstBlock<'db> {
+    type Output = Self;
+
+    fn opt_parse(
+        db: &'db dyn crate::Db,
+        parser: &mut Parser<'_, 'db>,
+    ) -> Result<Option<Self::Output>, crate::ParseFail<'db>> {
+        let Some(statements) = AstStatement::opt_parse_delimited(
+            db,
+            parser,
+            crate::tokenizer::Delimiter::CurlyBraces,
+            AstStatement::eat_many,
+        )?
+        else {
+            return Ok(None);
+        };
+
+        Ok(Some(AstBlock::new(db, statements)))
+    }
+
+    fn expected() -> crate::Expected {
+        crate::Expected::Nonterminal("block")
+    }
+}
+
+impl<'db> Parse<'db> for AstStatement<'db> {
+    type Output = Self;
+
+    fn opt_parse(
+        db: &'db dyn crate::Db,
+        parser: &mut Parser<'_, 'db>,
+    ) -> Result<Option<Self::Output>, crate::ParseFail<'db>> {
+        AstLetStatement::opt_parse(db, parser).or_opt_parse::<Self, AstExpr>(db, parser)
+    }
+
+    fn expected() -> crate::Expected {
+        crate::Expected::Nonterminal("statement")
+    }
+}
+
+impl<'db> Parse<'db> for AstLetStatement<'db> {
+    type Output = Self;
+
+    fn opt_parse(
+        db: &'db dyn crate::Db,
+        parser: &mut Parser<'_, 'db>,
+    ) -> Result<Option<Self::Output>, crate::ParseFail<'db>> {
+        let Ok(_) = parser.eat_keyword(Keyword::Let) else {
+            return Ok(None);
+        };
+        let name = parser.eat_id()?;
+        let ty = AstTy::opt_parse_guarded(":", db, parser)?;
+        let initializer = AstExpr::opt_parse_guarded("=", db, parser)?;
+        Ok(Some(AstLetStatement::new(db, name, ty, initializer)))
+    }
+
+    fn expected() -> crate::Expected {
+        crate::Expected::Nonterminal("let statement")
     }
 }

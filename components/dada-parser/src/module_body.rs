@@ -7,11 +7,7 @@ use dada_ir_ast::{
     diagnostic::Diagnostic,
 };
 
-use super::{
-    miscellaneous::OrOptParse,
-    tokenizer::{Delimiter, Keyword},
-    Expected, Parse, ParseFail, Parser,
-};
+use super::{miscellaneous::OrOptParse, tokenizer::Keyword, Expected, Parse, ParseFail, Parser};
 
 impl<'db> Parse<'db> for AstModule<'db> {
     type Output = Self;
@@ -77,36 +73,6 @@ impl<'db> Parse<'db> for AstItem<'db> {
 
     fn expected() -> Expected {
         panic!("module-level item (class, function, use)")
-    }
-}
-
-/// class Name { ... }
-impl<'db> Parse<'db> for AstClassItem<'db> {
-    type Output = Self;
-
-    fn opt_parse(
-        db: &'db dyn crate::Db,
-        parser: &mut Parser<'_, 'db>,
-    ) -> Result<Option<Self>, ParseFail<'db>> {
-        let Ok(start) = parser.eat_keyword(Keyword::Class) else {
-            return Ok(None);
-        };
-
-        let id = parser.eat_id()?;
-
-        let body = parser.eat_delimited(Delimiter::CurlyBraces)?;
-
-        Ok(Some(AstClassItem::new(
-            db,
-            start.to(parser.last_span()),
-            id.id,
-            id.span,
-            body.to_string(),
-        )))
-    }
-
-    fn expected() -> Expected {
-        Expected::Keyword(Keyword::Class)
     }
 }
 

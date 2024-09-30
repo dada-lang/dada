@@ -10,9 +10,9 @@ use dada_ir_ast::{
 
 use salsa::Database as Db;
 
-mod class_body;
+mod classes;
 mod expr;
-mod function_body;
+mod functions;
 mod generics;
 mod miscellaneous;
 mod module_body;

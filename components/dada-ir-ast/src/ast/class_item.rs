@@ -2,7 +2,7 @@ use crate::span::{Span, Spanned};
 
 use super::Identifier;
 
-/// `class $name { ... }`
+/// `class $name[$generics] { ... }`
 #[salsa::tracked]
 pub struct AstClassItem<'db> {
     pub span: Span<'db>,
