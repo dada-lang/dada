@@ -1,8 +1,314 @@
 # fn parse tree from tests/parser/operator_precedence.dada
 
-## fn `Identifier(Id(400))`
+## fn `return_identifier`
 
 AstBlock {
     [salsa id]: Id(2800),
+    statements: SpanVec {
+        span: Span {
+            anchor: FunctionBody(
+                AstFunctionBody {
+                    [salsa id]: Id(1800),
+                    span: Span {
+                        anchor: SourceFile(
+                            SourceFile {
+                                [salsa id]: Id(0),
+                                path: "tests/parser/operator_precedence.dada",
+                                contents: "#:fn_asts\n\nfn return_identifier(x: u32) -> u32 {\n    x + 22 * 33\n}",
+                            },
+                        ),
+                        start: Offset(
+                            47,
+                        ),
+                        end: Offset(
+                            66,
+                        ),
+                    },
+                    contents: "\n    x + 22 * 33\n",
+                },
+            ),
+            start: Offset(
+                5,
+            ),
+            end: Offset(
+                16,
+            ),
+        },
+        values: [
+            Expr(
+                AstExpr {
+                    span: Span {
+                        anchor: FunctionBody(
+                            AstFunctionBody {
+                                [salsa id]: Id(1800),
+                                span: Span {
+                                    anchor: SourceFile(
+                                        SourceFile {
+                                            [salsa id]: Id(0),
+                                            path: "tests/parser/operator_precedence.dada",
+                                            contents: "#:fn_asts\n\nfn return_identifier(x: u32) -> u32 {\n    x + 22 * 33\n}",
+                                        },
+                                    ),
+                                    start: Offset(
+                                        47,
+                                    ),
+                                    end: Offset(
+                                        66,
+                                    ),
+                                },
+                                contents: "\n    x + 22 * 33\n",
+                            },
+                        ),
+                        start: Offset(
+                            5,
+                        ),
+                        end: Offset(
+                            16,
+                        ),
+                    },
+                    kind: BinaryOp(
+                        SpannedBinaryOp {
+                            span: Span {
+                                anchor: FunctionBody(
+                                    AstFunctionBody {
+                                        [salsa id]: Id(1800),
+                                        span: Span {
+                                            anchor: SourceFile(
+                                                SourceFile {
+                                                    [salsa id]: Id(0),
+                                                    path: "tests/parser/operator_precedence.dada",
+                                                    contents: "#:fn_asts\n\nfn return_identifier(x: u32) -> u32 {\n    x + 22 * 33\n}",
+                                                },
+                                            ),
+                                            start: Offset(
+                                                47,
+                                            ),
+                                            end: Offset(
+                                                66,
+                                            ),
+                                        },
+                                        contents: "\n    x + 22 * 33\n",
+                                    },
+                                ),
+                                start: Offset(
+                                    7,
+                                ),
+                                end: Offset(
+                                    8,
+                                ),
+                            },
+                            op: Add,
+                        },
+                        AstExpr {
+                            span: Span {
+                                anchor: FunctionBody(
+                                    AstFunctionBody {
+                                        [salsa id]: Id(1800),
+                                        span: Span {
+                                            anchor: SourceFile(
+                                                SourceFile {
+                                                    [salsa id]: Id(0),
+                                                    path: "tests/parser/operator_precedence.dada",
+                                                    contents: "#:fn_asts\n\nfn return_identifier(x: u32) -> u32 {\n    x + 22 * 33\n}",
+                                                },
+                                            ),
+                                            start: Offset(
+                                                47,
+                                            ),
+                                            end: Offset(
+                                                66,
+                                            ),
+                                        },
+                                        contents: "\n    x + 22 * 33\n",
+                                    },
+                                ),
+                                start: Offset(
+                                    5,
+                                ),
+                                end: Offset(
+                                    8,
+                                ),
+                            },
+                            kind: Id(
+                                SpannedIdentifier {
+                                    span: Span {
+                                        anchor: FunctionBody(
+                                            AstFunctionBody {
+                                                [salsa id]: Id(1800),
+                                                span: Span {
+                                                    anchor: SourceFile(
+                                                        SourceFile {
+                                                            [salsa id]: Id(0),
+                                                            path: "tests/parser/operator_precedence.dada",
+                                                            contents: "#:fn_asts\n\nfn return_identifier(x: u32) -> u32 {\n    x + 22 * 33\n}",
+                                                        },
+                                                    ),
+                                                    start: Offset(
+                                                        47,
+                                                    ),
+                                                    end: Offset(
+                                                        66,
+                                                    ),
+                                                },
+                                                contents: "\n    x + 22 * 33\n",
+                                            },
+                                        ),
+                                        start: Offset(
+                                            5,
+                                        ),
+                                        end: Offset(
+                                            6,
+                                        ),
+                                    },
+                                    id: Identifier {
+                                        text: "x",
+                                    },
+                                },
+                            ),
+                        },
+                        AstExpr {
+                            span: Span {
+                                anchor: FunctionBody(
+                                    AstFunctionBody {
+                                        [salsa id]: Id(1800),
+                                        span: Span {
+                                            anchor: SourceFile(
+                                                SourceFile {
+                                                    [salsa id]: Id(0),
+                                                    path: "tests/parser/operator_precedence.dada",
+                                                    contents: "#:fn_asts\n\nfn return_identifier(x: u32) -> u32 {\n    x + 22 * 33\n}",
+                                                },
+                                            ),
+                                            start: Offset(
+                                                47,
+                                            ),
+                                            end: Offset(
+                                                66,
+                                            ),
+                                        },
+                                        contents: "\n    x + 22 * 33\n",
+                                    },
+                                ),
+                                start: Offset(
+                                    9,
+                                ),
+                                end: Offset(
+                                    16,
+                                ),
+                            },
+                            kind: BinaryOp(
+                                SpannedBinaryOp {
+                                    span: Span {
+                                        anchor: FunctionBody(
+                                            AstFunctionBody {
+                                                [salsa id]: Id(1800),
+                                                span: Span {
+                                                    anchor: SourceFile(
+                                                        SourceFile {
+                                                            [salsa id]: Id(0),
+                                                            path: "tests/parser/operator_precedence.dada",
+                                                            contents: "#:fn_asts\n\nfn return_identifier(x: u32) -> u32 {\n    x + 22 * 33\n}",
+                                                        },
+                                                    ),
+                                                    start: Offset(
+                                                        47,
+                                                    ),
+                                                    end: Offset(
+                                                        66,
+                                                    ),
+                                                },
+                                                contents: "\n    x + 22 * 33\n",
+                                            },
+                                        ),
+                                        start: Offset(
+                                            12,
+                                        ),
+                                        end: Offset(
+                                            13,
+                                        ),
+                                    },
+                                    op: Mul,
+                                },
+                                AstExpr {
+                                    span: Span {
+                                        anchor: FunctionBody(
+                                            AstFunctionBody {
+                                                [salsa id]: Id(1800),
+                                                span: Span {
+                                                    anchor: SourceFile(
+                                                        SourceFile {
+                                                            [salsa id]: Id(0),
+                                                            path: "tests/parser/operator_precedence.dada",
+                                                            contents: "#:fn_asts\n\nfn return_identifier(x: u32) -> u32 {\n    x + 22 * 33\n}",
+                                                        },
+                                                    ),
+                                                    start: Offset(
+                                                        47,
+                                                    ),
+                                                    end: Offset(
+                                                        66,
+                                                    ),
+                                                },
+                                                contents: "\n    x + 22 * 33\n",
+                                            },
+                                        ),
+                                        start: Offset(
+                                            9,
+                                        ),
+                                        end: Offset(
+                                            13,
+                                        ),
+                                    },
+                                    kind: Literal(
+                                        Literal {
+                                            kind: Integer,
+                                            text: "22",
+                                        },
+                                    ),
+                                },
+                                AstExpr {
+                                    span: Span {
+                                        anchor: FunctionBody(
+                                            AstFunctionBody {
+                                                [salsa id]: Id(1800),
+                                                span: Span {
+                                                    anchor: SourceFile(
+                                                        SourceFile {
+                                                            [salsa id]: Id(0),
+                                                            path: "tests/parser/operator_precedence.dada",
+                                                            contents: "#:fn_asts\n\nfn return_identifier(x: u32) -> u32 {\n    x + 22 * 33\n}",
+                                                        },
+                                                    ),
+                                                    start: Offset(
+                                                        47,
+                                                    ),
+                                                    end: Offset(
+                                                        66,
+                                                    ),
+                                                },
+                                                contents: "\n    x + 22 * 33\n",
+                                            },
+                                        ),
+                                        start: Offset(
+                                            14,
+                                        ),
+                                        end: Offset(
+                                            16,
+                                        ),
+                                    },
+                                    kind: Literal(
+                                        Literal {
+                                            kind: Integer,
+                                            text: "33",
+                                        },
+                                    ),
+                                },
+                            ),
+                        },
+                    ),
+                },
+            ),
+        ],
+    },
 }
 

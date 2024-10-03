@@ -4,6 +4,7 @@ use dada_ir_ast::{
     inputs::SourceFile,
 };
 use dada_util::{Context, Fallible};
+use salsa::Database as _;
 
 use crate::db::Database;
 use dada_parser::prelude::*;
@@ -43,15 +44,18 @@ impl Compiler {
         use std::fmt::Write;
 
         let mut output = String::new();
-        writeln!(
-            output,
-            "# fn parse tree from {}",
-            source_file.path(&self.db)
-        )
-        .unwrap();
-        writeln!(output).unwrap();
 
-        writeln!(output, "{}", fn_asts(&self.db, source_file)).unwrap();
+        self.db.attach(|_db| {
+            writeln!(
+                output,
+                "# fn parse tree from {}",
+                source_file.path(&self.db)
+            )
+            .unwrap();
+            writeln!(output).unwrap();
+
+            writeln!(output, "{}", fn_asts(&self.db, source_file)).unwrap();
+        });
 
         output
     }
