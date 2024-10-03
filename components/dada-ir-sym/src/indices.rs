@@ -24,7 +24,7 @@ use salsa::Update;
 /// generically against all types, bound variables will be represented
 /// as "free variables", most often free *universal* ("∀") variables.
 /// See e.g. [`SymUniversalVarIndex`][].
-#[derive(Clone, PartialEq, Eq, PartialOrd, Ord, Hash, Update, Debug)]
+#[derive(Copy, Clone, PartialEq, Eq, PartialOrd, Ord, Hash, Update, Debug)]
 pub struct SymBinderIndex(usize);
 
 impl SymBinderIndex {
@@ -38,7 +38,7 @@ impl From<usize> for SymBinderIndex {
 }
 
 /// Identifies a particular variable within a binder.
-#[derive(Clone, PartialEq, Eq, PartialOrd, Ord, Hash, Update, Debug)]
+#[derive(Copy, Clone, PartialEq, Eq, PartialOrd, Ord, Hash, Update, Debug)]
 pub struct SymBoundVarIndex(usize);
 
 impl From<usize> for SymBoundVarIndex {
@@ -61,7 +61,7 @@ impl From<usize> for SymBoundVarIndex {
 /// ```
 ///
 /// Inside the function body, `A` has index 0, `B` has index 1.
-#[derive(Clone, PartialEq, Eq, PartialOrd, Ord, Hash, Update, Debug)]
+#[derive(Copy, Clone, PartialEq, Eq, PartialOrd, Ord, Hash, Update, Debug)]
 pub struct SymUniversalVarIndex(usize);
 
 impl From<usize> for SymUniversalVarIndex {

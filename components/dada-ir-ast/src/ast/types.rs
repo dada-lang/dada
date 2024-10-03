@@ -3,7 +3,7 @@ use salsa::Update;
 
 use crate::span::{Span, Spanned};
 
-use super::{AstPath, Identifier, SpanVec, SpannedIdentifier};
+use super::{AstPath, SpanVec, SpannedIdentifier};
 
 #[salsa::tracked]
 pub struct AstTy<'db> {
@@ -32,7 +32,7 @@ pub enum AstTyKind<'db> {
     Unknown,
 }
 
-#[salsa::interned] // (*)
+#[salsa::tracked]
 pub struct AstPerm<'db> {
     pub span: Span<'db>,
 
@@ -53,7 +53,7 @@ pub enum AstPermKind<'db> {
     Given(Option<SpanVec<'db, AstPath<'db>>>),
     My,
     Our,
-    Variable(Identifier<'db>),
+    Variable(SpannedIdentifier<'db>),
 
     /// `perm P`
     GenericDecl(AstGenericDecl<'db>),

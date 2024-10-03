@@ -1,3 +1,5 @@
+use std::fmt::Display;
+
 use dada_ir_ast::{
     ast::{AstModule, AstPath, AstUseItem, Identifier, SpannedIdentifier},
     diagnostic::{Diagnostic, Errors, Level},
@@ -8,7 +10,7 @@ use dada_util::{FromImpls, Map};
 use salsa::Update;
 
 use crate::{
-    class::SymClass, function::{SignatureSymbols, SymFunction}, indices::{SymBinderIndex, SymBoundVarIndex, SymExistentialVarIndex, SymUniversalVarIndex}, module::SymModule, prelude::Symbolize, symbol::{SymGeneric, SymLocalVariable}
+    class::SymClass, function::{SignatureSymbols, SymFunction}, indices::{SymBinderIndex, SymBoundVarIndex, SymExistentialVarIndex, SymUniversalVarIndex}, module::SymModule, prelude::IntoSymbol, symbol::{SymGeneric, SymLocalVariable}, ty::GenericIndex
 };
 
 #[derive(Copy, Clone, PartialEq, Eq, Hash, PartialOrd, Ord, Debug, Update, FromImpls)]
@@ -52,12 +54,6 @@ pub(crate) enum NameResolution<'db> {
     SymGeneric(SymGeneric<'db>, GenericIndex)
 }
 
-#[derive(Clone, Debug, PartialEq, Eq)]
-pub(crate) enum GenericIndex {
-    Universal(SymUniversalVarIndex),
-    Bound(SymBinderIndex, SymBoundVarIndex),
-}
-
 #[derive(Copy, Clone, Debug)]
 enum BindersTraversed {
     /// Tracks the number of binders traversed.
@@ -74,7 +70,7 @@ impl<'scope, 'db> Scope<'scope, 'db> {
             ScopeItem::Module(ast_module) => {
                 Scope {
                     chain: ScopeChain {
-                        link: ScopeChainLink::from(ast_module.symbolize(db)),
+                        link: ScopeChainLink::from(ast_module.into_symbol(db)),
                         next: None,
                     },
                 }
@@ -154,7 +150,22 @@ impl<'db> Resolve<'db> for AstPath<'db> {
         let (first_id, other_ids) = self.ids(db).split_first().unwrap();
 
         let resolution = first_id.resolve_in(db, scope)?;
-        resolution.resolve_rest(db, other_ids)
+        let (r, remaining_ids) = resolution.resolve_relative(db, other_ids)?;
+
+        match remaining_ids.first() {
+            None => Ok(r),
+            Some(next_id) => {
+                Err(
+                    Diagnostic::error(
+                        db,
+                        next_id.span,
+                        "unexpected `.` in path",
+                    )
+                    .label(db, Level::Error, next_id.span, "I don't know how to interpret `.` applied to a local variable here")
+                    .report(db)
+                )
+            }        
+        }
     }
 }
 
@@ -165,15 +176,44 @@ impl<'db> Resolve<'db> for SpannedIdentifier<'db> {
 }
 
 impl<'db> NameResolution<'db> {
-    fn resolve_rest(self, db: &'db dyn crate::Db, ids: &'db [SpannedIdentifier]) -> Errors<NameResolution<'db>> {
+    /// Returns a string describing `self` that fits the mold "an X".
+    pub fn categorize(&self, db: &'db dyn crate::Db) -> impl Display + 'db {
+        match self {
+            NameResolution::SymModule(_) => "a module",
+            NameResolution::SymClass(_) => "a class",
+            NameResolution::SymLocalVariable(_) => "a local variable",
+            NameResolution::SymFunction(_) => "a function",
+            NameResolution::SymGeneric(_, _) => "a generic parameter",
+        }    
+    }
+
+    /// Returns a string describing `self` that fits the mold "an X named `foo`".
+    pub fn describe(&self, db: &'db dyn crate::Db) -> impl Display + 'db {
+        match self {
+            NameResolution::SymModule(sym_module) => format!("a module named `{}`", sym_module.name(db)),
+            NameResolution::SymClass(sym_class) => format!("a class named `{}`", sym_class.name(db)),
+            NameResolution::SymLocalVariable(sym_local_variable) => format!("a local variable named `{}`", sym_local_variable.name(db)),
+            NameResolution::SymFunction(sym_function) => format!("a function named `{}`", sym_function.name(db)),
+            NameResolution::SymGeneric(sym_generic, _) => match sym_generic.name(db) {
+                Some(n) => format!("a generic parameter named `{n}`"),
+                None => format!("an anonymous generic parameter"),
+            },
+        }    
+    }
+
+    /// Attempt to resolve `ids` relative to `self`.
+    /// Continues so long as `self` is a module.
+    /// Once it reaches a non-module, stops and returns the remaining entries (if any).
+    /// Errors if `self` is a module but the next id in `ids` is not found.
+    pub(crate) fn resolve_relative(self, db: &'db dyn crate::Db, ids: &'db [SpannedIdentifier<'db>]) -> Errors<(NameResolution<'db>, &'db [SpannedIdentifier<'db>])> {
         let Some((next_id, other_ids)) = ids.split_first() else {
-            return Ok(self);
+            return Ok((self, &[]));
         };
 
         match self {
             NameResolution::SymModule(sym_module) => {
                 match sym_module.resolve_name(db, next_id.id) {
-                    Some(r) => r.resolve_rest(db, other_ids),
+                    Some(r) => r.resolve_relative(db, other_ids),
                     None => Err(
                         Diagnostic::error(
                             db,
@@ -194,15 +234,7 @@ impl<'db> NameResolution<'db> {
                 }
             }
             _ => {
-                Err(
-                    Diagnostic::error(
-                        db,
-                        next_id.span,
-                        "unexpected `.` in path",
-                    )
-                    .label(db, Level::Error, next_id.span, "I don't know how to interpret `.` applied to a local variable here")
-                    .report(db)
-                )
+                Ok((self, ids))
             }
         }
     }
@@ -388,7 +420,7 @@ fn resolve_ast_use<'db>(
                     return None;
                 };
 
-                let sym_module = source_file.symbolize(db);
+                let sym_module = source_file.into_symbol(db);
                 let Some(resolution) = sym_module.resolve_name(db, item_name.id) else {
                     Diagnostic::error(
                         db,

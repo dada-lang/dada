@@ -161,7 +161,7 @@ impl<'db> Parse<'db> for VariableDecl<'db> {
 
         let ty = AstTy::eat(db, tokens)?;
 
-        Ok(Some(VariableDecl { name, ty }))
+        Ok(Some(VariableDecl::new(db, name, ty)))
     }
 
     fn expected() -> Expected {

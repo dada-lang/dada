@@ -7,11 +7,11 @@ use salsa::Update;
 
 use crate::{
     populate::PopulateSignatureSymbols,
-    prelude::Symbolize,
+    prelude::{IntoSymbol, ToSymbol},
     scope::{Scope, ScopeChainLink, ScopeItem},
     symbol::{SymGeneric, SymLocalVariable},
     ty::{SymTy, SymTyKind},
-    SymbolizeInScope,
+    IntoSymInScope,
 };
 
 #[salsa::tracked]
@@ -67,14 +67,19 @@ impl<'db> SymFunction<'db> {
         let scope = Scope::new(db, self.scope_item(db))
             .with_link(ScopeChainLink::SignatureSymbols(&symbols));
 
+        // Compute and store types for each input.
+        for input in source.inputs(db) {
+            specify_input_ty(db, &scope, input);
+        }
+
         let input_tys = source
             .inputs(db)
             .iter()
-            .map(|i| input_ty(db, &scope, i))
+            .map(|i| i.to_symbol(db).ty(db))
             .collect();
 
         let output_ty = match source.output_ty(db) {
-            Some(ast_ty) => ast_ty.symbolize_in_scope(db, &scope),
+            Some(ast_ty) => ast_ty.into_sym_in_scope(db, &scope),
             None => SymTy::unit(db),
         };
 
@@ -82,7 +87,7 @@ impl<'db> SymFunction<'db> {
     }
 }
 
-fn input_ty<'db>(
+fn specify_input_ty<'db>(
     db: &'db dyn crate::Db,
     scope: &Scope<'_, 'db>,
     input: &AstFunctionInput<'db>,
@@ -92,6 +97,8 @@ fn input_ty<'db>(
             // Lookup `self` in the scope
             todo!()
         }
-        AstFunctionInput::Variable(variable_decl) => variable_decl.ty.symbolize_in_scope(db, scope),
+        AstFunctionInput::Variable(variable_decl) => {
+            variable_decl.ty(db).into_sym_in_scope(db, scope)
+        }
     }
 }

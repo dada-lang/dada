@@ -104,10 +104,7 @@ impl<'db> Parse<'db> for AstSelfArg<'db> {
         if let Some(perm) = AstPerm::opt_parse(db, parser)? {
             let self_var = parser.eat_id()?;
             if self_var.id.text(db) == "self" {
-                Ok(Some(AstSelfArg {
-                    perm: Some(perm),
-                    self_span: self_var.span,
-                }))
+                Ok(Some(AstSelfArg::new(db, Some(perm), self_var.span)))
             } else {
                 Err(parser.illformed(Self::expected()))
             }
@@ -120,10 +117,7 @@ impl<'db> Parse<'db> for AstSelfArg<'db> {
             // ...otherwise, it could be self...
             if id.text(db) == "self" {
                 parser.eat_next_token()?;
-                Ok(Some(AstSelfArg {
-                    perm: None,
-                    self_span: span,
-                }))
+                Ok(Some(AstSelfArg::new(db, None, span)))
             } else {
                 Ok(None)
             }

@@ -119,7 +119,7 @@ impl<'db> TyOrPerm<'db> {
         match self {
             TyOrPerm::Path(path, None) if path.len(db) == 1 => {
                 let id = path.first_id(db);
-                Some(AstPerm::new(db, id.span, AstPermKind::Variable(id.id)))
+                Some(AstPerm::new(db, id.span, AstPermKind::Variable(id)))
             }
             TyOrPerm::Path(..) => None,
             TyOrPerm::Generic(decl) => match decl.kind(db) {

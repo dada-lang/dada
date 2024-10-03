@@ -66,7 +66,7 @@ impl<'db> Spanned<'db> for AstFunctionInput<'db> {
     }
 }
 
-#[derive(Clone, PartialEq, Eq, PartialOrd, Ord, Hash, Update, Debug)]
+#[salsa::tracked]
 pub struct AstSelfArg<'db> {
     pub perm: Option<AstPerm<'db>>,
     pub self_span: Span<'db>,
@@ -74,12 +74,13 @@ pub struct AstSelfArg<'db> {
 
 impl<'db> Spanned<'db> for AstSelfArg<'db> {
     fn span(&self, db: &'db dyn crate::Db) -> Span<'db> {
-        self.self_span.start_from(self.perm.map(|p| p.span(db)))
+        self.self_span(db)
+            .start_from(self.perm(db).map(|p| p.span(db)))
     }
 }
 
 /// `x: T`
-#[derive(Clone, PartialEq, Eq, PartialOrd, Ord, Hash, Update, Debug)]
+#[salsa::tracked]
 pub struct VariableDecl<'db> {
     pub name: SpannedIdentifier<'db>,
     pub ty: AstTy<'db>,
@@ -87,6 +88,6 @@ pub struct VariableDecl<'db> {
 
 impl<'db> Spanned<'db> for VariableDecl<'db> {
     fn span(&self, db: &'db dyn crate::Db) -> Span<'db> {
-        self.name.span.to(self.ty.span(db))
+        self.name(db).span.to(self.ty(db).span(db))
     }
 }

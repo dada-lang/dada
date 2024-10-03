@@ -7,7 +7,7 @@ use dada_ir_ast::{
 use dada_parser::prelude::SourceFileParse;
 use dada_util::Map;
 
-use crate::{class::SymClass, function::SymFunction, prelude::Symbolize};
+use crate::{class::SymClass, function::SymFunction, prelude::IntoSymbol};
 
 #[salsa::tracked]
 pub struct SymModule<'db> {
@@ -22,18 +22,18 @@ pub struct SymModule<'db> {
     pub(crate) ast_use_map: Map<Identifier<'db>, AstUseItem<'db>>,
 }
 
-impl<'db> Symbolize<'db> for SourceFile {
+impl<'db> IntoSymbol<'db> for SourceFile {
     type Symbolic = SymModule<'db>;
 
-    fn symbolize(self, db: &'db dyn crate::Db) -> Self::Symbolic {
-        self.parse(db).symbolize(db)
+    fn into_symbol(self, db: &'db dyn crate::Db) -> Self::Symbolic {
+        self.parse(db).into_symbol(db)
     }
 }
 
-impl<'db> Symbolize<'db> for AstModule<'db> {
+impl<'db> IntoSymbol<'db> for AstModule<'db> {
     type Symbolic = SymModule<'db>;
 
-    fn symbolize(self, db: &'db dyn crate::Db) -> SymModule<'db> {
+    fn into_symbol(self, db: &'db dyn crate::Db) -> SymModule<'db> {
         let mut class_map = Map::default();
         let mut function_map = Map::default();
         let mut ast_use_map = Map::default();

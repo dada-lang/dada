@@ -37,18 +37,33 @@ mod scope;
 pub mod symbol;
 pub mod ty;
 
-mod symbolize;
-
 pub mod prelude {
-    pub trait Symbolize<'db> {
+    /// Create the symbol for a given piece of the AST.
+    /// This is typically a tracked impl so that invocations are memoized.
+    pub trait IntoSymbol<'db> {
         type Symbolic;
 
-        fn symbolize(self, db: &'db dyn crate::Db) -> Self::Symbolic;
+        fn into_symbol(self, db: &'db dyn crate::Db) -> Self::Symbolic;
+    }
+
+    /// Same as [`IntoSymbol`][] but implemented by enums that are not tracked.
+    pub trait ToSymbol<'db> {
+        type Symbolic;
+
+        fn to_symbol(&self, db: &'db dyn crate::Db) -> Self::Symbolic;
+    }
+
+    impl<'db, T: ToSymbol<'db>> IntoSymbol<'db> for T {
+        type Symbolic = T::Symbolic;
+
+        fn into_symbol(self, db: &'db dyn crate::Db) -> Self::Symbolic {
+            self.to_symbol(db)
+        }
     }
 }
 
-trait SymbolizeInScope<'db> {
+trait IntoSymInScope<'db> {
     type Symbolic;
 
-    fn symbolize_in_scope(self, db: &'db dyn crate::Db, scope: &Scope<'_, 'db>) -> Self::Symbolic;
+    fn into_sym_in_scope(self, db: &'db dyn crate::Db, scope: &Scope<'_, 'db>) -> Self::Symbolic;
 }
