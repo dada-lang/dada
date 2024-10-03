@@ -3,6 +3,6 @@
 ## fn `Identifier(Id(400))`
 
 AstBlock {
-    [salsa id]: Id(2000),
+    [salsa id]: Id(2800),
 }
 
