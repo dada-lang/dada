@@ -266,6 +266,16 @@ dependencies = [
 ]
 
 [[package]]
+name = "dada-check"
+version = "0.1.0"
+dependencies = [
+ "dada-ir-ast",
+ "dada-ir-sym",
+ "dada-parser",
+ "dada-util",
+]
+
+[[package]]
 name = "dada-ir-ast"
 version = "0.1.0"
 dependencies = [
@@ -301,15 +311,6 @@ dependencies = [
  "structopt",
  "thiserror",
  "walkdir",
-]
-
-[[package]]
-name = "dada-name-resolution"
-version = "0.1.0"
-dependencies = [
- "dada-parser",
- "dada-util",
- "salsa",
 ]
 
 [[package]]

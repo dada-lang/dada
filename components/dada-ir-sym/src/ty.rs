@@ -3,7 +3,7 @@ use crate::{
     indices::{SymBinderIndex, SymBoundVarIndex, SymExistentialVarIndex, SymUniversalVarIndex},
     prelude::IntoSymbol,
     scope::{NameResolution, Resolve, Scope},
-    symbol::{SymField, SymGeneric, SymGenericKind, SymLocalVariable},
+    symbol::{SymGeneric, SymGenericKind, SymLocalVariable},
     Db, IntoSymInScope,
 };
 use dada_ir_ast::{
@@ -45,6 +45,12 @@ pub enum SymTyKind<'db> {
 
     /// Indicates some kind of error occurred and has been reported to the user.
     Error(Reported),
+}
+
+#[derive(Clone, PartialEq, Eq, PartialOrd, Ord, Hash, Debug)]
+pub struct Binder<'db, T> {
+    pub symbols: Vec<SymGeneric<'db>>,
+    pub bound_value: T,
 }
 
 #[derive(Clone, PartialEq, Eq, PartialOrd, Ord, Hash, Update, Debug, FromImpls)]

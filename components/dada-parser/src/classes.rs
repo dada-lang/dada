@@ -101,15 +101,16 @@ impl<'db> Parse<'db> for AstFieldDecl<'db> {
 
         let end_span = tokens.eat_op(";")?;
 
-        Ok(Some(AstFieldDecl {
-            span: visibility
+        Ok(Some(AstFieldDecl::new(
+            db,
+            visibility
                 .as_ref()
                 .map(|v| v.span)
                 .unwrap_or_else(|| variable.span(db))
                 .to(end_span),
             visibility,
             variable,
-        }))
+        )))
     }
 
     fn expected() -> Expected {

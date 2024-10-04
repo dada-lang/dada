@@ -5,13 +5,18 @@ use dada_ir_ast::{
     span::{Span, Spanned},
 };
 use dada_parser::prelude::SourceFileParse;
-use dada_util::Map;
+use dada_util::{FromImpls, Map};
 
-use crate::{class::SymClass, function::SymFunction, prelude::IntoSymbol};
+use crate::{
+    class::SymClass,
+    function::SymFunction,
+    prelude::IntoSymbol,
+    scope::{Resolve, Scope},
+};
 
 #[salsa::tracked]
 pub struct SymModule<'db> {
-    pub name: Identifier<'db>,
+    pub source: AstModule<'db>,
 
     // Order of fields reflects the precedence we give during name resolution.
     #[return_ref]
@@ -20,6 +25,42 @@ pub struct SymModule<'db> {
     pub(crate) function_map: Map<Identifier<'db>, SymFunction<'db>>,
     #[return_ref]
     pub(crate) ast_use_map: Map<Identifier<'db>, AstUseItem<'db>>,
+}
+
+#[derive(Copy, Clone, Debug, PartialEq, Eq, PartialOrd, Ord, Hash, FromImpls)]
+pub enum SymItem<'db> {
+    SymClass(SymClass<'db>),
+    SymFunction(SymFunction<'db>),
+}
+
+impl<'db> SymModule<'db> {
+    pub fn name(self, db: &'db dyn crate::Db) -> Identifier<'db> {
+        self.source(db).name(db)
+    }
+
+    /// Returns a list of all top-level items in the module
+    pub fn items(self, db: &'db dyn crate::Db) -> impl Iterator<Item = SymItem<'db>> {
+        self.class_map(db)
+            .values()
+            .copied()
+            .map(|i| SymItem::from(i))
+            .chain(
+                self.function_map(db)
+                    .values()
+                    .copied()
+                    .map(|i| SymItem::from(i)),
+            )
+    }
+
+    /// Resolve all use items found in this module.
+    /// This is executed by `dada-ir-check` crate
+    /// simply to force errors to be reported.
+    pub fn resolve_use_items(self, db: &'db dyn crate::Db) {
+        let scope = &Scope::new(db, self.source(db));
+        for item in self.ast_use_map(db).values() {
+            let _ = item.path(db).resolve_in(db, scope);
+        }
+    }
 }
 
 impl<'db> IntoSymbol<'db> for SourceFile {
@@ -53,7 +94,7 @@ impl<'db> IntoSymbol<'db> for AstModule<'db> {
                         db,
                         &mut class_map,
                         ast_class_item.name(db),
-                        SymClass::new(db, self, ast_class_item),
+                        SymClass::new(db, self.into(), ast_class_item),
                     );
                 }
                 AstItem::Function(ast_function) => {
@@ -74,7 +115,7 @@ impl<'db> IntoSymbol<'db> for AstModule<'db> {
         insert_into_canonical_map(db, canonical_map, &function_map);
         insert_into_canonical_map(db, canonical_map, &ast_use_map);
 
-        SymModule::new(db, self.name(db), class_map, function_map, ast_use_map)
+        SymModule::new(db, self, class_map, function_map, ast_use_map)
     }
 }
 

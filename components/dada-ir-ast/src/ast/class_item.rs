@@ -15,6 +15,9 @@ pub struct AstClassItem<'db> {
     #[return_ref]
     pub generics: Option<SpanVec<'db, AstGenericDecl<'db>>>,
 
+    /// The unparsed contents of the class.
+    /// This can be parsed via the `members`
+    /// method defined in `dada_parser::prelude`.
     #[return_ref]
     pub contents: String,
 }

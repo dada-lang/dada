@@ -1,12 +1,40 @@
+use std::borrow::Cow;
+
 use dada_ir_ast::{
-    ast::{AstClassItem, AstModule, Identifier},
+    ast::{AstClassItem, AstFieldDecl, AstMember, AstModule, Identifier, SpannedIdentifier},
     span::{Span, Spanned},
+};
+use dada_parser::prelude::*;
+use dada_util::FromImpls;
+
+use crate::{
+    function::{SignatureSymbols, SymFunction},
+    populate::PopulateSignatureSymbols,
+    prelude::IntoSymbol,
+    scope::{Scope, ScopeItem},
+    symbol::local_var_ty,
+    ty::{Binder, SymTy, SymTyKind},
+    IntoSymInScope,
 };
 
 #[salsa::tracked]
 pub struct SymClass<'db> {
-    module: AstModule<'db>,
+    scope: ScopeItem<'db>,
     source: AstClassItem<'db>,
+}
+
+#[derive(Copy, Clone, PartialEq, Eq, PartialOrd, Ord, Debug, FromImpls)]
+pub enum SymClassMember<'db> {
+    SymField(SymField<'db>),
+    SymFunction(SymFunction<'db>),
+}
+
+#[salsa::tracked]
+pub struct SymField<'db> {
+    pub class: SymClass<'db>,
+    pub name: Identifier<'db>,
+    pub name_span: Span<'db>,
+    pub source: AstFieldDecl<'db>,
 }
 
 impl<'db> Spanned<'db> for SymClass<'db> {
@@ -15,6 +43,7 @@ impl<'db> Spanned<'db> for SymClass<'db> {
     }
 }
 
+#[salsa::tracked]
 impl<'db> SymClass<'db> {
     pub fn name(&self, db: &'db dyn crate::Db) -> Identifier<'db> {
         self.source(db).name(db)
@@ -41,5 +70,87 @@ impl<'db> SymClass<'db> {
         } else {
             self.name_span(db)
         }
+    }
+
+    /// Returns the base scope used to resolve the class members.
+    /// Typically this is created by invoke [`Scope::new`][].
+    pub(crate) fn base_scope(self, db: &'db dyn crate::Db) -> Scope<'db, 'db> {
+        let mut signature_symbols = SignatureSymbols::default();
+        self.source(db)
+            .populate_signature_symbols(db, &mut signature_symbols);
+
+        // There should be exactly one local variable, self.
+        // We are responsible for specifying its type.
+        let self_var = signature_symbols.inputs[0];
+        assert_eq!(signature_symbols.inputs.len(), 1);
+        assert_eq!(self_var.name(db), db.self_id());
+
+        let scope = Scope::new(db, self.scope(db)).with_link(Cow::Owned(signature_symbols));
+
+        // Specify the self type for `self`, which is just `C<T..>`
+        // where `C` is our class and `T` is each generic parameter.
+        local_var_ty::specify(db, self_var, {
+            SymTy::new(
+                db,
+                SymTyKind::Named(
+                    self.into(),
+                    self.source(db)
+                        .generics(db)
+                        .iter()
+                        .flatten()
+                        .map(|g| g.into_symbol(db))
+                        .map(|g| {
+                            scope
+                                .resolve_generic_sym(db, g)
+                                .to_sym_generic_arg(db, &scope, g)
+                        })
+                        .collect(),
+                ),
+            )
+        });
+
+        scope
+    }
+
+    #[salsa::tracked]
+    pub fn members(self, db: &'db dyn crate::Db) -> Vec<SymClassMember<'db>> {
+        self.source(db)
+            .members(db)
+            .iter()
+            .map(|m| match *m {
+                AstMember::Field(ast_field_decl) => {
+                    let SpannedIdentifier { span, id } = ast_field_decl.variable(db).name(db);
+                    SymField::new(db, self, id, span, ast_field_decl).into()
+                }
+                AstMember::Function(ast_function) => {
+                    SymFunction::new(db, self.into(), ast_function).into()
+                }
+            })
+            .collect()
+    }
+
+    pub fn fields(self, db: &'db dyn crate::Db) -> impl Iterator<Item = SymField<'db>> {
+        self.members(db).into_iter().filter_map(|m| match m {
+            SymClassMember::SymField(f) => Some(f),
+            _ => None,
+        })
+    }
+
+    pub fn methods(self, db: &'db dyn crate::Db) -> impl Iterator<Item = SymFunction<'db>> {
+        self.members(db).into_iter().filter_map(|m| match m {
+            SymClassMember::SymFunction(f) => Some(f),
+            _ => None,
+        })
+    }
+}
+
+#[salsa::tracked]
+impl<'db> SymField<'db> {
+    #[salsa::tracked]
+    pub fn ty(self, db: &'db dyn crate::Db) -> Binder<'db, SymTy<'db>> {
+        let scope = Scope::new(db, self.class(db));
+        let ast_ty = self.source(db).variable(db).ty(db);
+        let sym_ty = ast_ty.into_sym_in_scope(db, &scope);
+        scope.into_bound(sym_ty)
     }
 }

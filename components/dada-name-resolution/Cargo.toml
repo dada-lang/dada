@@ -1,9 +1,0 @@
-[package]
-name = "dada-name-resolution"
-version = "0.1.0"
-edition = "2021"
-
-[dependencies]
-salsa = { git = "https://github.com/salsa-rs/salsa.git" }
-dada-util = { version = "0.1.0", path = "../dada-util" }
-dada-parser = { version = "0.1.0", path = "../dada-parser" }

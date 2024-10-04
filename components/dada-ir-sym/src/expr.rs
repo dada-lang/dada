@@ -7,8 +7,9 @@ use dada_util::FromImpls;
 use salsa::Update;
 
 use crate::{
+    class::SymField,
     scope::{NameResolution, Resolve},
-    symbol::{SymField, SymLocalVariable},
+    symbol::SymLocalVariable,
     ty::{SymGenericArg, SymPlace, SymPlaceKind, SymTy},
     IntoSymInScope,
 };

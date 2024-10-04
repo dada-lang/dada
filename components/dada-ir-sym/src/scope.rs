@@ -1,4 +1,4 @@
-use std::fmt::Display;
+use std::{borrow::Cow, fmt::Display};
 
 use dada_ir_ast::{
     ast::{AstModule, AstPath, AstUseItem, Identifier, SpannedIdentifier},
@@ -10,39 +10,42 @@ use dada_util::{FromImpls, Map};
 use salsa::Update;
 
 use crate::{
-    class::SymClass, function::{SignatureSymbols, SymFunction}, indices::{SymBinderIndex, SymBoundVarIndex, SymExistentialVarIndex, SymUniversalVarIndex}, module::SymModule, prelude::IntoSymbol, symbol::{SymGeneric, SymLocalVariable}, ty::GenericIndex
+    class::SymClass, function::{SignatureSymbols, SymFunction}, indices::{SymBinderIndex, SymBoundVarIndex, SymExistentialVarIndex, SymUniversalVarIndex}, module::SymModule, prelude::IntoSymbol, symbol::{SymGeneric, SymGenericKind, SymLocalVariable}, ty::{Binder, GenericIndex, SymGenericArg, SymTy}
 };
 
+/// A `ScopeItem` defines a name resolution scope.
 #[derive(Copy, Clone, PartialEq, Eq, Hash, PartialOrd, Ord, Debug, Update, FromImpls)]
 pub enum ScopeItem<'db> {
     Module(AstModule<'db>),
+    Class(SymClass<'db>),
 }
 
+/// Name resolution scope, used when converting types/function-bodies etc into symbols.
 #[derive(Clone, Debug, PartialEq, Eq)]
 pub(crate) struct Scope<'scope, 'db> {
     chain: ScopeChain<'scope, 'db>,
 }
 
+/// A step the scope resolution chain. We first attempt to resolve an identifier
+/// in the associated [`ScopeChainLink`][] and, if nothing is found, proceed to
+/// the next next.
 #[derive(Clone, Debug, PartialEq, Eq)]
 pub(crate) struct ScopeChain<'scope, 'db> {
     link: ScopeChainLink<'scope, 'db>,
     next: Option<Box<ScopeChain<'scope, 'db>>>,
 }
 
+/// A link the scope resolution chain.
 #[derive(Clone, Debug, PartialEq, Eq, FromImpls)]
 pub(crate) enum ScopeChainLink<'scope, 'db> {
     SymModule(SymModule<'db>),
-    SignatureSymbols(&'scope SignatureSymbols<'db>),
+    SignatureSymbols(Cow<'scope, SignatureSymbols<'db>>),
 
     #[no_from_impl]
     Body,
 }
 
-#[derive(Clone, Debug, PartialEq, Eq, Update)]
-pub(crate) struct LocalVariables<'db> {
-    names: Map<Identifier<'db>, SymLocalVariable<'db>>,
-}
-
+/// Result of name resolution.
 #[derive(Clone, Debug, PartialEq, Eq, FromImpls)]
 pub(crate) enum NameResolution<'db> {
     SymModule(SymModule<'db>),
@@ -54,6 +57,8 @@ pub(crate) enum NameResolution<'db> {
     SymGeneric(SymGeneric<'db>, GenericIndex)
 }
 
+/// Tracks number of binders traversed during name resolution.
+/// Used to create a [`GenericIndex`][].
 #[derive(Copy, Clone, Debug)]
 enum BindersTraversed {
     /// Tracks the number of binders traversed.
@@ -65,8 +70,9 @@ enum BindersTraversed {
 }
 
 impl<'scope, 'db> Scope<'scope, 'db> {
-    pub fn new(db: &'db dyn crate::Db, item: ScopeItem<'db>) -> Self {
-        match item {
+    /// Create a name resolution scope starting with the names from the given [`ScopeItem`][].
+    pub fn new(db: &'db dyn crate::Db, item: impl Into<ScopeItem<'db>>) -> Self {
+        match item.into() {
             ScopeItem::Module(ast_module) => {
                 Scope {
                     chain: ScopeChain {
@@ -74,6 +80,10 @@ impl<'scope, 'db> Scope<'scope, 'db> {
                         next: None,
                     },
                 }
+            }
+
+            ScopeItem::Class(sym_class) => {
+                sym_class.base_scope(db)
             }
         }
     }
@@ -136,6 +146,73 @@ impl<'scope, 'db> Scope<'scope, 'db> {
             Some(v) => v,
             None => panic!("symbole `{:?}` not found in scope: {:#?}", sym.name(db), self),
         }
+    }
+
+    pub(crate) fn into_bound<T, B>(self, value: T) -> B
+    where
+        B: Bind<'db, T>,
+    {
+        let generics = self.into_bound_generics();
+        B::bind(generics, value)
+    }
+
+    /// Convert `self` into a vec-of-vecs containing the bound generic symbols
+    fn into_bound_generics(self) -> Vec<Vec<SymGeneric<'db>>> {
+        let mut vec = vec![];
+        for link in self.chain.into_links() {
+            match link {
+                ScopeChainLink::SymModule(sym_module) => {}
+                ScopeChainLink::SignatureSymbols(cow) => {
+                    vec.push(cow.into_owned().generics);
+                }
+                ScopeChainLink::Body => {
+                    panic!("cannot create binding levels inside of body")
+                }
+            }
+        }
+        vec
+    }
+}
+
+/// Trait for creating `Binder<T>` instances.
+/// Panics if the number of binders statically expected is not what we find in the scope.
+pub(crate) trait Bind<'db, T> {
+    /// Create `Self` from:
+    /// 
+    /// * iterator over the remaining symbols in scope
+    /// * innermost bound value `value`
+    /// 
+    /// This either returns `value` *or* creates a `Binder<_>` around value
+    /// (possibly multiple binders).
+    fn bind(binding_levels: impl IntoIterator<Item = Vec<SymGeneric<'db>>>, value: T) -> Self;
+}
+
+impl<'db, T, U> Bind<'db, T> for Binder<'db, U>
+where 
+    U: Bind<'db, T>,
+{
+    fn bind(binding_levels: impl IntoIterator<Item = Vec<SymGeneric<'db>>>, value: T) -> Self {
+        let mut binding_levels = binding_levels.into_iter();
+
+        // Extract next level of bound symbols for use in this binder;
+        // if this unwrap fails, user gave wrong number of `Binder<_>` types
+        // for the scope.
+        let symbols = binding_levels.next().unwrap();
+
+        // Introduce whatever binders are needed to go from the innermost
+        // value type `T` to `U`.
+        let u = U::bind(binding_levels, value);
+        Binder { symbols, bound_value: u }
+    }
+}
+
+impl<'db> Bind<'db, SymTy<'db>> for SymTy<'db> {
+    fn bind(binding_levels: impl IntoIterator<Item = Vec<SymGeneric<'db>>>, value: SymTy<'db>) -> Self {
+        // Leaf case: symbol type is the innermost value.
+
+        let mut binding_levels = binding_levels.into_iter();
+        assert_eq!(binding_levels.next(), None);
+        value
     }
 }
 
@@ -240,7 +317,23 @@ impl<'db> NameResolution<'db> {
     }
 }
 
-impl<'db> ScopeChain<'_, 'db> {
+impl<'scope, 'db> ScopeChain<'scope, 'db> {
+    /// Convert the chain starting at `self` into an iterator of each link
+    /// from the outside in.
+    pub fn into_links(self) -> impl Iterator<Item = ScopeChainLink<'scope, 'db>> {
+        let mut p = Some(Box::new(self));
+
+        std::iter::from_fn(move || {
+            match p.take() {
+                Some(q) => {
+                    p = q.next;
+                    Some(q.link)
+                }
+                None => None,
+            }
+        })
+    }
+
     /// Walk the chain to resolve an id, generic symbol, or other name lookup key.
     /// Tracks the binders that we have traversed to help in creating the [`GenericIndex`][] that identifies a generic variable.
     fn resolve(
@@ -297,7 +390,8 @@ impl<'db> ScopeChainLink<'_, 'db> {
     ) -> Option<NameResolution<'db>> {
         match self {
             ScopeChainLink::SymModule(sym_module) => sym_module.resolve_name(db, id),
-            ScopeChainLink::SignatureSymbols(SignatureSymbols { generics, inputs }) => {
+            ScopeChainLink::SignatureSymbols(symbols) => {
+                let SignatureSymbols { generics, inputs } = &**symbols;
                 if let Some(resolution) = self.resolve_generic_sym(db, |g| g.name(db) == Some(id), binders_traversed) {
                     Some(resolution)
                 } else if let Some(input) = inputs.iter().find(|i| i.name(db) == id) {
@@ -318,7 +412,8 @@ impl<'db> ScopeChainLink<'_, 'db> {
     ) -> Option<NameResolution<'db>> {
         match self {
             ScopeChainLink::SymModule(sym_module) => None,
-            ScopeChainLink::SignatureSymbols(SignatureSymbols { generics, inputs }) => {
+            ScopeChainLink::SignatureSymbols(symbols) => {
+                let SignatureSymbols { generics, inputs } = &**symbols;
                 if let Some(generic) = generics.iter().position(test) {
                     let sym = generics[generic];
                     let index = binders_traversed.generic_index(generic, generics.len());

@@ -1,18 +1,25 @@
 use dada_ir_ast::{
     ast::{AstFieldDecl, AstFunctionInput, AstSelfArg, Identifier, VariableDecl},
-    span::Span,
+    span::{Span, Spanned},
 };
 use salsa::Update;
 
 use crate::{
+    class::SymClass,
     prelude::{IntoSymbol, ToSymbol},
-    ty::SymTy,
+    ty::{SymGenericArg, SymTy},
 };
 
 #[salsa::tracked]
 pub struct SymLocalVariable<'db> {
     pub name: Identifier<'db>,
     pub name_span: Span<'db>,
+}
+
+impl<'db> Spanned<'db> for SymLocalVariable<'db> {
+    fn span(&self, db: &'db dyn dada_ir_ast::Db) -> Span<'db> {
+        self.name_span(db)
+    }
 }
 
 impl<'db> SymLocalVariable<'db> {
@@ -36,13 +43,6 @@ pub fn local_var_ty<'db>(_db: &'db dyn crate::Db, var: SymLocalVariable<'db>) ->
     panic!("Ty for `{var:?}` not yet specified")
 }
 
-#[salsa::tracked]
-pub struct SymField<'db> {
-    pub name: Identifier<'db>,
-    pub name_span: Span<'db>,
-    pub source: AstFieldDecl<'db>,
-}
-
 /// Declaration of a generic parameter.
 #[salsa::tracked]
 pub struct SymGeneric<'db> {
@@ -51,7 +51,13 @@ pub struct SymGeneric<'db> {
     pub span: Span<'db>,
 }
 
-#[derive(Copy, Clone, PartialEq, Eq, PartialOrd, Ord, Update, Debug)]
+impl<'db> Spanned<'db> for SymGeneric<'db> {
+    fn span(&self, db: &'db dyn dada_ir_ast::Db) -> Span<'db> {
+        SymGeneric::span(*self, db)
+    }
+}
+
+#[derive(Copy, Clone, PartialEq, Eq, PartialOrd, Ord, Hash, Update, Debug)]
 pub enum SymGenericKind {
     Type,
     Perm,

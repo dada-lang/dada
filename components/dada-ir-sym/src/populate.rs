@@ -2,8 +2,8 @@ use std::sync::Arc;
 
 use dada_ir_ast::{
     ast::{
-        AstFunction, AstFunctionInput, AstGenericArg, AstGenericDecl, AstPerm, AstPermKind, AstTy,
-        AstTyKind,
+        AstClassItem, AstFunction, AstFunctionInput, AstGenericArg, AstGenericDecl, AstPerm,
+        AstPermKind, AstTy, AstTyKind,
     },
     span::Spanned,
 };
@@ -13,7 +13,7 @@ use crate::{
     populate,
     prelude::IntoSymbol,
     symbol::{SymGeneric, SymLocalVariable},
-    ty::AnonymousPermSymbol,
+    ty::{AnonymousPermSymbol, SymTy, SymTyKind},
 };
 
 /// Iterate over the items in a signature (function, class, impl, etc)
@@ -136,5 +136,22 @@ impl<'db> PopulateSignatureSymbols<'db> for AstFunctionInput<'db> {
                 variable_decl.ty(db).populate_signature_symbols(db, symbols);
             }
         }
+    }
+}
+
+impl<'db> PopulateSignatureSymbols<'db> for AstClassItem<'db> {
+    fn populate_signature_symbols(
+        &self,
+        db: &'db dyn crate::Db,
+        symbols: &mut SignatureSymbols<'db>,
+    ) {
+        self.generics(db)
+            .iter()
+            .flatten()
+            .for_each(|g| g.populate_signature_symbols(db, symbols));
+
+        symbols
+            .inputs
+            .push(SymLocalVariable::new(db, db.self_id(), self.name_span(db)));
     }
 }

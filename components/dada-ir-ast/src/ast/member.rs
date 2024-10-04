@@ -5,7 +5,7 @@ use crate::span::{Span, Spanned};
 
 use super::{AstFunction, VariableDecl};
 
-#[derive(Clone, PartialEq, Eq, PartialOrd, Ord, Hash, Update, Debug, FromImpls)]
+#[derive(Copy, Clone, PartialEq, Eq, PartialOrd, Ord, Hash, Update, Debug, FromImpls)]
 pub enum AstMember<'db> {
     Field(AstFieldDecl<'db>),
     Function(AstFunction<'db>),
@@ -20,7 +20,7 @@ impl<'db> Spanned<'db> for AstMember<'db> {
     }
 }
 
-#[derive(Clone, PartialEq, Eq, PartialOrd, Ord, Hash, Update, Debug)]
+#[salsa::tracked]
 pub struct AstFieldDecl<'db> {
     pub span: Span<'db>,
     pub visibility: Option<AstVisibility<'db>>,
@@ -28,8 +28,8 @@ pub struct AstFieldDecl<'db> {
 }
 
 impl<'db> Spanned<'db> for AstFieldDecl<'db> {
-    fn span(&self, _db: &'db dyn crate::Db) -> Span<'db> {
-        self.span
+    fn span(&self, db: &'db dyn crate::Db) -> Span<'db> {
+        AstFieldDecl::span(*self, db)
     }
 }
 

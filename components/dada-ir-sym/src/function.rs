@@ -1,3 +1,5 @@
+use std::borrow::Cow;
+
 use dada_ir_ast::{
     ast::{AstFunction, AstFunctionInput, Identifier},
     span::{Span, Spanned},
@@ -29,12 +31,12 @@ impl<'db> Spanned<'db> for SymFunction<'db> {
 #[salsa::tracked]
 pub struct SymFunctionSignature<'db> {
     #[return_ref]
-    symbols: SignatureSymbols<'db>,
+    pub symbols: SignatureSymbols<'db>,
 
     #[return_ref]
-    input_tys: Vec<SymTy<'db>>,
+    pub input_tys: Vec<SymTy<'db>>,
 
-    output_ty: SymTy<'db>,
+    pub output_ty: SymTy<'db>,
 }
 
 #[derive(Clone, Debug, Default, PartialEq, Eq, Hash, Update)]
@@ -64,8 +66,7 @@ impl<'db> SymFunction<'db> {
         let source = self.source(db);
         let mut symbols = SignatureSymbols::default();
         source.populate_signature_symbols(db, &mut symbols);
-        let scope = Scope::new(db, self.scope_item(db))
-            .with_link(ScopeChainLink::SignatureSymbols(&symbols));
+        let scope = Scope::new(db, self.scope_item(db)).with_link(Cow::Borrowed(&symbols));
 
         // Compute and store types for each input.
         for input in source.inputs(db) {
