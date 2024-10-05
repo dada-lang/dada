@@ -99,15 +99,13 @@ impl<'db> Parse<'db> for AstFieldDecl<'db> {
             Err(e) => return Err(e),
         };
 
-        let end_span = tokens.eat_op(";")?;
-
         Ok(Some(AstFieldDecl::new(
             db,
             visibility
                 .as_ref()
                 .map(|v| v.span)
                 .unwrap_or_else(|| variable.span(db))
-                .to(end_span),
+                .to(variable.span(db)),
             visibility,
             variable,
         )))

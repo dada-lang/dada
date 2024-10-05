@@ -243,6 +243,10 @@ impl<'token, 'db> Parser<'token, 'db> {
 
     /// Create a parse error because the next token is not what we expected.
     pub fn illformed(&mut self, expected: Expected) -> ParseFail<'db> {
+        if let Expected::EOF = expected {
+            return ParseFail::Expected(self.peek_span(), expected);
+        }
+
         // The way we prefer to report this is by finding the *previous* token
         // and reported that we expected it to be followed by something.
         let mut previous_token = self.next_token;
@@ -619,6 +623,15 @@ pub enum Expected {
 impl<'db> ParseFail<'db> {
     pub fn into_diagnostic(self, db: &dyn crate::Db) -> Diagnostic {
         return match self {
+            ParseFail::Expected(span, Expected::EOF) => {
+                Diagnostic::error(db, span, format!("extra input")).label(
+                    db,
+                    Level::Error,
+                    span,
+                    format!("I don't know what to do with this, it appears to be extra"),
+                )
+            }
+
             ParseFail::ExpectedTokenToBeFollowedBy(span, next_span, expected) => {
                 let message = expected_to_string(db, expected);
                 Diagnostic::error(db, span, format!("expected {message} to come next"))
@@ -635,6 +648,7 @@ impl<'db> ParseFail<'db> {
                         format!("but instead I saw this"),
                     )
             }
+
             ParseFail::Expected(span, expected) => {
                 let message = expected_to_string(db, expected);
                 Diagnostic::error(db, span, format!("expected {message}")).label(
@@ -648,8 +662,8 @@ impl<'db> ParseFail<'db> {
 
         fn expected_to_string(_db: &dyn crate::Db, expected: Expected) -> String {
             match expected {
-                Expected::EOF => "the end of input".to_string(),
-                Expected::MoreTokens => "more tokens".to_string(),
+                Expected::EOF => unreachable!(), // handled specially
+                Expected::MoreTokens => "more input".to_string(),
                 Expected::Identifier => "an identifier".to_string(),
                 Expected::Operator(op) => format!("`{op}`"),
                 Expected::Keyword(k) => format!("`{k:?}`"),

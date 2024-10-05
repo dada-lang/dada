@@ -2,7 +2,7 @@ use dada_util::Map;
 
 use dada_ir_ast::{
     ast::{Identifier, LiteralKind},
-    diagnostic::Diagnostic,
+    diagnostic::{Diagnostic, Level},
     span::{Anchor, Offset, Span},
 };
 
@@ -257,7 +257,14 @@ impl<'input, 'db> Tokenizer<'input, 'db> {
             self.tokens.push(Token {
                 span,
                 skipped: None,
-                kind: TokenKind::Error(Diagnostic::error(self.db, span, "invalid token(s)")),
+                kind: TokenKind::Error(
+                    Diagnostic::error(self.db, span, "unrecognized characters(s)").label(
+                        self.db,
+                        Level::Error,
+                        span,
+                        "I don't know how to interpret these characters",
+                    ),
+                ),
             });
         }
 

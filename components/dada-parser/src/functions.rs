@@ -48,9 +48,9 @@ impl<'db> Parse<'db> for AstFunction<'db> {
 
         let return_ty = AstTy::opt_parse_guarded("->", db, tokens)?;
 
-        let body = match tokens.eat_op(";") {
-            Ok(_) => None,
-            Err(_) => Some(tokens.defer_delimited(Delimiter::CurlyBraces)?),
+        let body = match tokens.defer_delimited(Delimiter::CurlyBraces) {
+            Ok(b) => Some(b),
+            Err(_) => None,
         };
 
         Ok(Some(AstFunction::new(
