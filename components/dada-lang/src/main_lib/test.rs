@@ -24,6 +24,7 @@ struct FailedTests {
 #[derive(Debug)]
 struct FailedTest {
     path: PathBuf,
+    full_compiler_output: String,
     failures: Vec<Failure>,
 }
 
@@ -169,6 +170,11 @@ impl FailedTest {
         let mut result = String::new();
 
         writeln!(result, "Test failed: {}", self.path.display())?;
+
+        writeln!(result)?;
+        writeln!(result, "# Compiler output")?;
+        writeln!(result)?;
+        writeln!(result, "{}", self.full_compiler_output)?;
 
         for failure in &self.failures {
             match failure {

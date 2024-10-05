@@ -9,7 +9,7 @@ use dada_util::{bail, Context, Fallible};
 use prettydiff::text::ContextConfig;
 use regex::Regex;
 
-use crate::{compiler::Compiler, db};
+use crate::{compiler::Compiler, db, error_reporting::RenderDiagnostic, GlobalOptions};
 
 use super::{FailedTest, Failure};
 
@@ -178,8 +178,11 @@ impl TestExpectations {
     }
 
     pub fn compare(self, compiler: &mut Compiler) -> Fallible<Option<FailedTest>> {
+        use std::fmt::Write;
+
         let mut test = FailedTest {
             path: PathBuf::from(self.source_file.path(compiler.db())),
+            full_compiler_output: Default::default(),
             failures: vec![],
         };
 
@@ -191,6 +194,15 @@ impl TestExpectations {
         )?);
 
         let actual_diagnostics: Vec<Diagnostic> = compiler.check_all(self.source_file);
+
+        for diagnostic in &actual_diagnostics {
+            writeln!(
+                test.full_compiler_output,
+                "{}",
+                diagnostic.render(&GlobalOptions { no_color: true }, compiler.db())
+            )?;
+        }
+
         test.failures
             .extend(self.compare_diagnostics(actual_diagnostics));
 
