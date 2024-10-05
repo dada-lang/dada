@@ -1,14 +1,11 @@
-use dada_ir_ast::{
-    ast::{
-        AstBlock, AstExpr, AstFunction, AstFunctionBody, AstFunctionInput, AstGenericDecl,
-        AstLetStatement, AstPerm, AstSelfArg, AstStatement, AstTy, SpanVec, VariableDecl,
-    },
-    span::Offset,
+use dada_ir_ast::ast::{
+    AstBlock, AstExpr, AstFunction, AstFunctionInput, AstGenericDecl, AstLetStatement, AstPerm,
+    AstSelfArg, AstStatement, AstTy, SpanVec, VariableDecl,
 };
 
 use crate::{
     miscellaneous::OrOptParse,
-    tokenizer::{tokenize, Delimiter, Keyword, Token, TokenKind},
+    tokenizer::{Delimiter, Keyword, Token, TokenKind},
     Expected, Parse, Parser,
 };
 
@@ -53,7 +50,7 @@ impl<'db> Parse<'db> for AstFunction<'db> {
 
         let body = match tokens.eat_op(";") {
             Ok(_) => None,
-            Err(_) => Some(AstFunctionBody::eat(db, tokens)?),
+            Err(_) => Some(tokens.defer_delimited(Delimiter::CurlyBraces)?),
         };
 
         Ok(Some(AstFunction::new(
@@ -132,38 +129,15 @@ impl<'db> Parse<'db> for AstSelfArg<'db> {
     }
 }
 
-impl<'db> Parse<'db> for AstFunctionBody<'db> {
-    type Output = Self;
-
-    fn opt_parse(
-        db: &'db dyn crate::Db,
-        parser: &mut Parser<'_, 'db>,
-    ) -> Result<Option<Self::Output>, super::ParseFail<'db>> {
-        let Ok(text) = parser.eat_delimited(Delimiter::CurlyBraces) else {
-            return Ok(None);
-        };
-
-        Ok(Some(AstFunctionBody::new(
-            db,
-            parser.last_span(),
-            text.to_string(),
-        )))
-    }
-
-    fn expected() -> Expected {
-        Expected::Nonterminal("function body")
-    }
-}
-
 #[salsa::tracked]
-impl<'db> crate::prelude::FunctionBodyBlock<'db> for AstFunctionBody<'db> {
+impl<'db> crate::prelude::FunctionBlock<'db> for AstFunction<'db> {
     #[salsa::tracked]
-    fn block(self, db: &'db dyn crate::Db) -> AstBlock<'db> {
-        let contents = self.contents(db);
-        let tokens = tokenize(db, self.into(), Offset::ZERO, contents);
-        let statements = Parser::new(db, self.into(), &tokens)
-            .parse_many_and_report_diagnostics::<AstStatement>(db);
-        AstBlock::new(db, statements)
+    fn body_block(self, db: &'db dyn crate::Db) -> Option<AstBlock<'db>> {
+        let body = self.body(db).as_ref()?;
+        Some(Parser::deferred(db, self, body, |parser| {
+            let statements = parser.parse_many_and_report_diagnostics::<AstStatement>(db);
+            AstBlock::new(db, statements)
+        }))
     }
 }
 

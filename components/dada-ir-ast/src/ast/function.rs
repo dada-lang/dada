@@ -2,7 +2,10 @@ use dada_util::FromImpls;
 use salsa::Update;
 
 use super::{AstGenericDecl, AstPerm, AstTy, SpanVec, SpannedIdentifier};
-use crate::span::{Span, Spanned};
+use crate::{
+    ast::DeferredParse,
+    span::{Span, Spanned},
+};
 
 /// `fn foo() { }`
 #[salsa::tracked]
@@ -28,26 +31,13 @@ pub struct AstFunction<'db> {
     pub output_ty: Option<AstTy<'db>>,
 
     /// Body (if provided)
-    pub body: Option<AstFunctionBody<'db>>,
+    #[return_ref]
+    pub body: Option<DeferredParse<'db>>,
 }
 
 impl<'db> Spanned<'db> for AstFunction<'db> {
     fn span(&self, db: &'db dyn crate::Db) -> Span<'db> {
         AstFunction::span(*self, db)
-    }
-}
-
-#[salsa::tracked]
-pub struct AstFunctionBody<'db> {
-    pub span: Span<'db>,
-
-    #[return_ref]
-    pub contents: String,
-}
-
-impl<'db> Spanned<'db> for AstFunctionBody<'db> {
-    fn span(&self, db: &'db dyn crate::Db) -> Span<'db> {
-        AstFunctionBody::span(*self, db)
     }
 }
 

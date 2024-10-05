@@ -85,9 +85,7 @@ fn check_all(db: &dyn salsa::Database, source_file: SourceFile) {
 }
 
 fn check_fn<'db>(db: &'db dyn salsa::Database, function: AstFunction<'db>) {
-    if let Some(body) = function.body(db) {
-        let _block = body.block(db);
-    }
+    function.body_block(db);
 }
 
 fn fn_asts(db: &dyn salsa::Database, source_file: SourceFile) -> String {
@@ -125,8 +123,7 @@ fn fn_asts(db: &dyn salsa::Database, source_file: SourceFile) -> String {
     return output;
 
     fn fn_asts_fn<'db>(db: &'db dyn salsa::Database, function: AstFunction<'db>) -> String {
-        if let Some(body) = function.body(db) {
-            let block = body.block(db);
+        if let Some(block) = function.body_block(db) {
             format!("{block:#?}")
         } else {
             format!("None")

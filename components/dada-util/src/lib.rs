@@ -9,3 +9,10 @@ pub use anyhow::bail;
 pub use anyhow::Context;
 
 pub use dada_util_procmacro::*;
+
+#[macro_export]
+macro_rules! debug {
+    ($($t:tt)*) => {
+        eprintln!($($t)*);
+    }
+}

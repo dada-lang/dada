@@ -3,14 +3,14 @@ use dada_ir_ast::{
         AstClassItem, AstFieldDecl, AstFunction, AstGenericDecl, AstMember, AstTy, AstVisibility,
         SpanVec, VariableDecl, VisibilityKind,
     },
-    span::{Offset, Spanned},
+    span::Spanned,
 };
 
 use crate::ParseFail;
 
 use super::{
     miscellaneous::OrOptParse,
-    tokenizer::{tokenize, Delimiter, Keyword},
+    tokenizer::{Delimiter, Keyword},
     Expected, Parse, Parser,
 };
 
@@ -35,7 +35,7 @@ impl<'db> Parse<'db> for AstClassItem<'db> {
             AstGenericDecl::eat_comma,
         )?;
 
-        let body = parser.eat_delimited(Delimiter::CurlyBraces)?;
+        let body = parser.defer_delimited(Delimiter::CurlyBraces)?;
 
         Ok(Some(AstClassItem::new(
             db,
@@ -43,7 +43,7 @@ impl<'db> Parse<'db> for AstClassItem<'db> {
             id.id,
             id.span,
             generics,
-            body.to_string(),
+            body,
         )))
     }
 
@@ -57,9 +57,9 @@ impl<'db> crate::prelude::ClassItemMembers<'db> for AstClassItem<'db> {
     #[salsa::tracked]
     fn members(self, db: &'db dyn crate::Db) -> SpanVec<'db, AstMember<'db>> {
         let contents = self.contents(db);
-        let tokens = tokenize(db, self.into(), Offset::ZERO, contents);
-        Parser::new(db, self.into(), &tokens)
-            .parse_many_and_report_diagnostics::<AstMember<'db>>(db)
+        Parser::deferred(db, self, contents, |parser| {
+            parser.parse_many_and_report_diagnostics::<AstMember<'db>>(db)
+        })
     }
 }
 

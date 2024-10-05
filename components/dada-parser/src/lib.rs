@@ -2,7 +2,7 @@ use salsa::Update;
 use tokenizer::{tokenize, Delimiter, Keyword, Skipped, Token, TokenKind};
 
 use dada_ir_ast::{
-    ast::{AstModule, SpanVec, SpannedIdentifier},
+    ast::{AstModule, DeferredParse, SpanVec, SpannedIdentifier},
     diagnostic::{Diagnostic, Reported},
     inputs::SourceFile,
     span::{Anchor, Offset, Span},
@@ -73,6 +73,43 @@ impl<'token, 'db> Parser<'token, 'db> {
         this.eat_errors();
 
         this
+    }
+
+    pub fn deferred<T>(
+        db: &'db dyn crate::Db,
+        anchor: impl Into<Anchor<'db>>,
+        deferred_parse: &'db DeferredParse<'db>,
+        op: impl FnOnce(Parser<'_, 'db>) -> T,
+    ) -> T {
+        let anchor = anchor.into();
+
+        // Compute the offset to use for the tokenizer.
+        // This is a bit subtle.
+        // We will illustrate with a class:
+        //
+        // `class Foo { ... }`
+        //            ^^^^^^^ span of the deferred parse
+        //  ^^^^^^^^^^^^^^^^^ span of the class
+        //
+        // The anchor for the tokens is going to be the class `Foo`.
+        // But those tokens shouldn't start at offset 0,
+        // because there is various front-matter.
+        //
+        // So we have to compute the offset of the deferred parse
+        // from the start of the class. In doing so, we assert
+        // that the deferred parse and the class both have spans
+        // relative to the same "grandanchor" (typically a module).
+        let input_offset = {
+            let anchor_span = anchor.span(db);
+            let grandanchor = anchor_span.anchor;
+            assert_eq!(deferred_parse.span.anchor, grandanchor);
+            deferred_parse.span.start - anchor_span.start
+        };
+
+        // Tokenize the contents of the deferred parse using `anchor`
+        let tokens = tokenize(db, anchor, input_offset, &deferred_parse.contents);
+
+        op(Parser::new(db, anchor, &tokens))
     }
 
     /// Top-level parsing function: parses zero or more instances of T and reports any errors.
@@ -280,6 +317,20 @@ impl<'token, 'db> Parser<'token, 'db> {
         Ok(start_span.to(self.last_span()))
     }
 
+    /// Returns a deferred parse of the next delimited token.
+    pub fn defer_delimited(
+        &mut self,
+        delimiter: Delimiter,
+    ) -> Result<DeferredParse<'db>, ParseFail<'db>> {
+        let text = self.eat_delimited(delimiter)?;
+        Ok(DeferredParse {
+            span: self.last_span(),
+            contents: text.to_string(),
+        })
+    }
+
+    /// Eats the next token if it is a delimited token with the given delimiter;
+    /// returns a `&str` slice of the token's contents.
     pub fn eat_delimited(&mut self, delimiter: Delimiter) -> Result<&'token str, ParseFail<'db>> {
         if let Some(&Token {
             kind:

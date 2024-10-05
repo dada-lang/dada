@@ -2,7 +2,7 @@ use dada_util::FromImpls;
 use salsa::Update;
 
 use crate::{
-    ast::{AstClassItem, AstFunction, AstFunctionBody},
+    ast::{AstClassItem, AstFunction},
     inputs::SourceFile,
 };
 
@@ -11,7 +11,6 @@ pub enum Anchor<'db> {
     SourceFile(SourceFile),
     Class(AstClassItem<'db>),
     Function(AstFunction<'db>),
-    FunctionBody(AstFunctionBody<'db>),
 }
 
 impl<'db> Anchor<'db> {
@@ -24,7 +23,6 @@ impl<'db> Anchor<'db> {
             },
             Anchor::Class(data) => data.span(db),
             Anchor::Function(data) => data.span(db),
-            Anchor::FunctionBody(function_body) => function_body.span(db),
         }
     }
 
@@ -36,7 +34,6 @@ impl<'db> Anchor<'db> {
             // For most anchors, we have to skip past the `{}` or `()` in the delimiters by invoking `narrow`.
             Anchor::Class(data) => data.span(db).absolute_span(db).narrow(),
             Anchor::Function(data) => data.span(db).absolute_span(db).narrow(),
-            Anchor::FunctionBody(data) => data.span(db).absolute_span(db).narrow(),
         }
     }
 
@@ -45,7 +42,6 @@ impl<'db> Anchor<'db> {
             Anchor::SourceFile(source_file) => *source_file,
             Anchor::Class(ast_class_item) => ast_class_item.name_span(db).source_file(db),
             Anchor::Function(ast_function) => ast_function.name(db).span.source_file(db),
-            Anchor::FunctionBody(ast_function_body) => ast_function_body.span(db).source_file(db),
         }
     }
 }
@@ -220,6 +216,14 @@ impl std::ops::Add<Offset> for Offset {
 
     fn add(self, rhs: Offset) -> Self::Output {
         Offset(self.0.checked_add(rhs.0).unwrap())
+    }
+}
+
+impl std::ops::Sub<Offset> for Offset {
+    type Output = Offset;
+
+    fn sub(self, rhs: Offset) -> Self::Output {
+        Offset(self.0.checked_sub(rhs.0).unwrap())
     }
 }
 

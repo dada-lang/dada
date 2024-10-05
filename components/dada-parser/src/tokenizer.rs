@@ -6,11 +6,21 @@ use dada_ir_ast::{
     span::{Anchor, Offset, Span},
 };
 
-#[derive(Clone, Debug)]
+#[derive(Clone)]
 pub struct Token<'input, 'db> {
     pub span: Span<'db>,
     pub skipped: Option<Skipped>,
     pub kind: TokenKind<'input, 'db>,
+}
+
+impl std::fmt::Debug for Token<'_, '_> {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        f.debug_struct("Token")
+            .field("span", &"...")
+            .field("skipped", &self.skipped)
+            .field("kind", &self.kind)
+            .finish()
+    }
 }
 
 /// Records tokens that were skipped before this token was issued.

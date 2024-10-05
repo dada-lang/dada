@@ -1,4 +1,7 @@
-use crate::span::{Span, Spanned};
+use crate::{
+    ast::DeferredParse,
+    span::{Span, Spanned},
+};
 
 use super::{AstGenericDecl, Identifier, SpanVec};
 
@@ -19,7 +22,7 @@ pub struct AstClassItem<'db> {
     /// This can be parsed via the `members`
     /// method defined in `dada_parser::prelude`.
     #[return_ref]
-    pub contents: String,
+    pub contents: DeferredParse<'db>,
 }
 
 impl<'db> AstClassItem<'db> {}

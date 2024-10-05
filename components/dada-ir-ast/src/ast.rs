@@ -99,3 +99,12 @@ impl<'db> Spanned<'db> for SpannedIdentifier<'db> {
         self.span
     }
 }
+
+/// For functions, classes, and other items we often defer parsing their contents.
+/// This struct captures the contents and the span at which they appeared.
+/// It can then be used to parse the contents later.
+#[derive(Clone, PartialEq, Eq, PartialOrd, Ord, Hash, Update, Debug)]
+pub struct DeferredParse<'db> {
+    pub span: Span<'db>,
+    pub contents: String,
+}
