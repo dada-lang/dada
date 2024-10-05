@@ -3,7 +3,7 @@ use tokenizer::{tokenize, Delimiter, Keyword, Skipped, Token, TokenKind};
 
 use dada_ir_ast::{
     ast::{AstModule, DeferredParse, SpanVec, SpannedIdentifier},
-    diagnostic::{Diagnostic, Reported},
+    diagnostic::{Diagnostic, Level, Reported},
     inputs::SourceFile,
     span::{Anchor, Offset, Span},
 };
@@ -241,11 +241,26 @@ impl<'token, 'db> Parser<'token, 'db> {
         s
     }
 
+    /// Create a parse error because the next token is not what we expected.
     pub fn illformed(&mut self, expected: Expected) -> ParseFail<'db> {
-        ParseFail {
-            span: self.peek_span(),
-            expected,
+        // The way we prefer to report this is by finding the *previous* token
+        // and reported that we expected it to be followed by something.
+        let mut previous_token = self.next_token;
+        while previous_token != 0 {
+            previous_token -= 1;
+            if let TokenKind::Error(_) = self.tokens[previous_token].kind {
+                continue;
+            }
+
+            return ParseFail::ExpectedTokenToBeFollowedBy(
+                self.tokens[previous_token].span,
+                self.peek_span(),
+                expected,
+            );
         }
+
+        // Could not find a suitable previous token. Oh well.
+        ParseFail::Expected(self.peek_span(), expected)
     }
 
     pub fn eat_keyword(&mut self, kw: Keyword) -> Result<Span<'db>, ParseFail<'db>> {
@@ -572,9 +587,13 @@ impl ParseGuard for Keyword {
 }
 
 #[derive(Clone, PartialEq, Eq, PartialOrd, Ord, Debug)]
-pub struct ParseFail<'db> {
-    span: Span<'db>,
-    expected: Expected,
+pub enum ParseFail<'db> {
+    /// Given the span of the previous token and the span of the (unsuitable) next token,
+    /// report that the next token is not what we expected.
+    ExpectedTokenToBeFollowedBy(Span<'db>, Span<'db>, Expected),
+
+    /// Report that the token(s) at the given span are not what we expected.
+    Expected(Span<'db>, Expected),
 }
 
 #[derive(Clone, PartialEq, Eq, PartialOrd, Ord, Debug)]
@@ -590,15 +609,44 @@ pub enum Expected {
 
 impl<'db> ParseFail<'db> {
     pub fn into_diagnostic(self, db: &dyn crate::Db) -> Diagnostic {
-        let message = match self.expected {
-            Expected::EOF => "expected end of input".to_string(),
-            Expected::MoreTokens => "expected more tokens".to_string(),
-            Expected::Identifier => "expected an identifier".to_string(),
-            Expected::Operator(op) => format!("expected `{op}`"),
-            Expected::Keyword(k) => format!("expected `{k:?}`"),
-            Expected::Delimited(d) => format!("expected `{}`", d.open_char()),
-            Expected::Nonterminal(n) => format!("expected {n}"),
+        return match self {
+            ParseFail::ExpectedTokenToBeFollowedBy(span, next_span, expected) => {
+                let message = expected_to_string(db, expected);
+                Diagnostic::error(db, span, format!("expected {message} to come next"))
+                    .label(
+                        db,
+                        Level::Error,
+                        span,
+                        format!("I expected this to be followed by {message}"),
+                    )
+                    .label(
+                        db,
+                        Level::Info,
+                        next_span,
+                        format!("but instead I saw this"),
+                    )
+            }
+            ParseFail::Expected(span, expected) => {
+                let message = expected_to_string(db, expected);
+                Diagnostic::error(db, span, format!("expected {message}")).label(
+                    db,
+                    Level::Error,
+                    span,
+                    format!("I expected to see {message}, not this"),
+                )
+            }
         };
-        Diagnostic::error(db, self.span, message)
+
+        fn expected_to_string(_db: &dyn crate::Db, expected: Expected) -> String {
+            match expected {
+                Expected::EOF => "the end of input".to_string(),
+                Expected::MoreTokens => "more tokens".to_string(),
+                Expected::Identifier => "an identifier".to_string(),
+                Expected::Operator(op) => format!("`{op}`"),
+                Expected::Keyword(k) => format!("`{k:?}`"),
+                Expected::Delimited(d) => format!("`{}`", d.open_char()),
+                Expected::Nonterminal(n) => format!("{n}"),
+            }
+        }
     }
 }

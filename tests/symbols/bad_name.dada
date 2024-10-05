@@ -1,5 +1,4 @@
 class Foo {
-    x: Baz
-    y: Baz
+    x: Baz;
 }
 

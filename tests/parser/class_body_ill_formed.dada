@@ -1,5 +1,5 @@
 class Foo {
     a b c d e f g
-#!    ^ expected `:`
-#!    ^ expected end of input
+#!  ^ expected `:` to come next
+#!  ^ expected the end of input to come next
 }

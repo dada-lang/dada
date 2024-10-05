@@ -51,7 +51,7 @@ impl Failure {}
 impl Main {
     pub(super) fn test(&mut self, options: &TestOptions) -> Fallible<()> {
         let tests = if options.inputs.is_empty() {
-            self.assemble_tests(&["."])?
+            self.assemble_tests(&["tests"])?
         } else {
             self.assemble_tests(&options.inputs)?
         };

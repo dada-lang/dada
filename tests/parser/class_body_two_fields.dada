@@ -1,0 +1,6 @@
+class Foo {
+    x: Int
+    #! ^^^ expected `;`
+    #! ^^^ expected the end of input
+    22
+}

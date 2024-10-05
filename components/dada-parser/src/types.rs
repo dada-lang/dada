@@ -15,7 +15,7 @@ use super::{
 
 // Parsing types and permissions is annoying.
 // Declare a cover grammar first.
-#[derive(Update)]
+#[derive(Debug, Update)]
 enum TyOrPerm<'db> {
     /// could be anything from `a` to `a.b` to `a[x]` to `a.b[x]`
     Path(AstPath<'db>, Option<SpanVec<'db, AstGenericArg<'db>>>),
@@ -93,7 +93,7 @@ impl<'db> TyOrPerm<'db> {
         db: &'db dyn crate::Db,
         parser: &mut Parser<'_, 'db>,
     ) -> Result<Option<Self>, ParseFail<'db>> {
-        if self.can_be_perm(db) {
+        if self.can_be_perm(db) && parser.next_token_on_same_line() {
             if let Some(ty) = AstTy::opt_parse(db, parser)? {
                 let perm = self.into_perm(db).unwrap();
                 return Ok(Some(TyOrPerm::Apply(perm, ty)));
@@ -179,10 +179,7 @@ impl<'db> Parse<'db> for AstTy<'db> {
             return Ok(Some(ty));
         }
 
-        Err(ParseFail {
-            span,
-            expected: Self::expected(),
-        })
+        Err(ParseFail::Expected(span, Self::expected()))
     }
 
     fn expected() -> Expected {
@@ -207,10 +204,7 @@ impl<'db> Parse<'db> for AstPerm<'db> {
             return Ok(Some(perm));
         }
 
-        Err(ParseFail {
-            span,
-            expected: Self::expected(),
-        })
+        Err(ParseFail::Expected(span, Self::expected()))
     }
 
     fn expected() -> Expected {

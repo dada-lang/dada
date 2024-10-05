@@ -213,7 +213,12 @@ impl<'input, 'db> Tokenizer<'input, 'db> {
                 // Strings
                 '"' => self.string_literal(index),
 
-                // Whitespace
+                // Newline
+                '\n' => {
+                    self.accumulate_skipped(Skipped::Newline);
+                }
+
+                // Other whitespace
                 _ if ch.is_whitespace() => {
                     self.accumulate_skipped(Skipped::Whitespace);
                 }

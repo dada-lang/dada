@@ -51,11 +51,21 @@ impl<'db> Anchor<'db> {
 /// The offsets are stored relative to the start of the **anchor**,
 /// which is some item (e.g., a class, function, etc). The use of relative offsets avoids
 /// incremental churn if lines or content is added before/after the definition.
-#[derive(Copy, Clone, PartialEq, Eq, Hash, PartialOrd, Ord, Debug, Update)]
+#[derive(Copy, Clone, PartialEq, Eq, Hash, PartialOrd, Ord, Update)]
 pub struct Span<'db> {
     pub anchor: Anchor<'db>,
     pub start: Offset,
     pub end: Offset,
+}
+
+impl<'db> std::fmt::Debug for Span<'db> {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        f.debug_struct("Span")
+            .field("start", &self.start)
+            .field("end", &self.end)
+            .field("anchor", &"...")
+            .finish()
+    }
 }
 
 /// An absolute span within the input. The offsets are stored as absolute offsets
