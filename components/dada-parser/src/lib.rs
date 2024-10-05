@@ -1,5 +1,5 @@
 use salsa::Update;
-use tokenizer::{tokenize, Delimiter, Keyword, Skipped, Token, TokenKind};
+use tokenizer::{is_op_char, tokenize, Delimiter, Keyword, Skipped, Token, TokenKind};
 
 use dada_ir_ast::{
     ast::{AstModule, DeferredParse, SpanVec, SpannedIdentifier},
@@ -292,6 +292,15 @@ impl<'token, 'db> Parser<'token, 'db> {
     }
 
     pub fn eat_op(&mut self, chars: &'static str) -> Result<Span<'db>, ParseFail<'db>> {
+        if cfg!(debug_assertions) {
+            if let Some(invalid_ch) = chars.chars().find(|ch| !is_op_char(*ch)) {
+                debug_assert!(
+                    false,
+                    "eat_op({chars:?}): `{invalid_ch:?}` is not a valid operator"
+                );
+            }
+        }
+
         let mut iter = chars.chars();
 
         let ch = iter.next().unwrap();
