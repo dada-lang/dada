@@ -74,7 +74,7 @@ impl TestExpectations {
     }
 
     fn initialize(&mut self, db: &db::Database) -> Fallible<()> {
-        let source = self.source_file.contents(db);
+        let source = self.source_file.contents_if_ok(db);
         let line_starts = std::iter::once(0)
             .chain(
                 source

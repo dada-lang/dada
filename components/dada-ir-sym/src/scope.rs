@@ -10,7 +10,13 @@ use dada_util::{FromImpls, Map};
 use salsa::Update;
 
 use crate::{
-    class::SymClass, function::{SignatureSymbols, SymFunction}, indices::{SymBinderIndex, SymBoundVarIndex, SymExistentialVarIndex, SymUniversalVarIndex}, module::SymModule, prelude::IntoSymbol, symbol::{SymGeneric, SymGenericKind, SymLocalVariable}, ty::{Binder, GenericIndex, SymGenericArg, SymTy}
+    class::SymClass,
+    function::{SignatureSymbols, SymFunction},
+    indices::{SymBinderIndex, SymBoundVarIndex, SymExistentialVarIndex, SymUniversalVarIndex},
+    module::SymModule,
+    prelude::IntoSymbol,
+    symbol::{SymGeneric, SymGenericKind, SymLocalVariable},
+    ty::{Binder, GenericIndex, SymGenericArg, SymTy},
 };
 
 /// A `ScopeItem` defines a name resolution scope.
@@ -54,7 +60,7 @@ pub(crate) enum NameResolution<'db> {
     SymFunction(SymFunction<'db>),
 
     #[no_from_impl]
-    SymGeneric(SymGeneric<'db>, GenericIndex)
+    SymGeneric(SymGeneric<'db>, GenericIndex),
 }
 
 /// Tracks number of binders traversed during name resolution.
@@ -73,24 +79,23 @@ impl<'scope, 'db> Scope<'scope, 'db> {
     /// Create a name resolution scope starting with the names from the given [`ScopeItem`][].
     pub fn new(db: &'db dyn crate::Db, item: impl Into<ScopeItem<'db>>) -> Self {
         match item.into() {
-            ScopeItem::Module(ast_module) => {
-                Scope {
-                    chain: ScopeChain {
-                        link: ScopeChainLink::from(ast_module.into_symbol(db)),
-                        next: None,
-                    },
-                }
-            }
+            ScopeItem::Module(ast_module) => Scope {
+                chain: ScopeChain {
+                    link: ScopeChainLink::from(ast_module.into_symbol(db)),
+                    next: None,
+                },
+            },
 
-            ScopeItem::Class(sym_class) => {
-                sym_class.base_scope(db)
-            }
+            ScopeItem::Class(sym_class) => sym_class.base_scope(db),
         }
     }
 
     /// Extend this scope with another link in the name resolution chain
-    pub fn with_link<'scope1>(self, link: impl Into<ScopeChainLink<'scope1, 'db>>) -> Scope<'scope1, 'db> 
-    where 
+    pub fn with_link<'scope1>(
+        self,
+        link: impl Into<ScopeChainLink<'scope1, 'db>>,
+    ) -> Scope<'scope1, 'db>
+    where
         'scope: 'scope1,
     {
         Scope {
@@ -100,7 +105,7 @@ impl<'scope, 'db> Scope<'scope, 'db> {
             },
         }
     }
-    
+
     pub fn resolve_name(
         &self,
         db: &'db dyn crate::Db,
@@ -114,25 +119,23 @@ impl<'scope, 'db> Scope<'scope, 'db> {
             Some(v) => Ok(v),
             None => {
                 Err(
-                        Diagnostic::error(
+                    Diagnostic::error(db, span, format!("could not find anything named `{}`", id,))
+                        .label(
                             db,
+                            Level::Error,
                             span,
-                            format!(
-                                "could not find anything named `{}`",
-                                id,
-                            ),
+                            "I could not find anything with this name :(",
                         )
-                        .label(db, Level::Error, span, "I could not find anything with this name :(")
-                        .report(db)
+                        .report(db),
                 )
             }
         }
     }
 
     /// Find a generic symbol in the scope and returns its name resolution.
-    /// 
+    ///
     /// # Panics
-    /// 
+    ///
     /// If the symbol is not in the scope.
     pub fn resolve_generic_sym(
         &self,
@@ -140,11 +143,17 @@ impl<'scope, 'db> Scope<'scope, 'db> {
         sym: SymGeneric<'db>,
     ) -> NameResolution<'db> {
         match self.chain.resolve(
-            |link, binders_traversed| link.resolve_generic_sym(db, |sym1| *sym1 == sym, binders_traversed),
+            |link, binders_traversed| {
+                link.resolve_generic_sym(db, |sym1| *sym1 == sym, binders_traversed)
+            },
             BindersTraversed::Bound(0),
         ) {
             Some(v) => v,
-            None => panic!("symbole `{:?}` not found in scope: {:#?}", sym.name(db), self),
+            None => panic!(
+                "symbole `{:?}` not found in scope: {:#?}",
+                sym.name(db),
+                self
+            ),
         }
     }
 
@@ -178,17 +187,17 @@ impl<'scope, 'db> Scope<'scope, 'db> {
 /// Panics if the number of binders statically expected is not what we find in the scope.
 pub(crate) trait Bind<'db, T> {
     /// Create `Self` from:
-    /// 
+    ///
     /// * iterator over the remaining symbols in scope
     /// * innermost bound value `value`
-    /// 
+    ///
     /// This either returns `value` *or* creates a `Binder<_>` around value
     /// (possibly multiple binders).
     fn bind(binding_levels: impl IntoIterator<Item = Vec<SymGeneric<'db>>>, value: T) -> Self;
 }
 
 impl<'db, T, U> Bind<'db, T> for Binder<'db, U>
-where 
+where
     U: Bind<'db, T>,
 {
     fn bind(binding_levels: impl IntoIterator<Item = Vec<SymGeneric<'db>>>, value: T) -> Self {
@@ -202,12 +211,18 @@ where
         // Introduce whatever binders are needed to go from the innermost
         // value type `T` to `U`.
         let u = U::bind(binding_levels, value);
-        Binder { symbols, bound_value: u }
+        Binder {
+            symbols,
+            bound_value: u,
+        }
     }
 }
 
 impl<'db> Bind<'db, SymTy<'db>> for SymTy<'db> {
-    fn bind(binding_levels: impl IntoIterator<Item = Vec<SymGeneric<'db>>>, value: SymTy<'db>) -> Self {
+    fn bind(
+        binding_levels: impl IntoIterator<Item = Vec<SymGeneric<'db>>>,
+        value: SymTy<'db>,
+    ) -> Self {
         // Leaf case: symbol type is the innermost value.
 
         let mut binding_levels = binding_levels.into_iter();
@@ -217,13 +232,21 @@ impl<'db> Bind<'db, SymTy<'db>> for SymTy<'db> {
 }
 
 pub trait Resolve<'db> {
-    fn resolve_in(self, db: &'db dyn crate::Db, scope: &Scope<'_, 'db>) -> Errors<NameResolution<'db>>;
+    fn resolve_in(
+        self,
+        db: &'db dyn crate::Db,
+        scope: &Scope<'_, 'db>,
+    ) -> Errors<NameResolution<'db>>;
 }
 
 impl<'db> Resolve<'db> for AstPath<'db> {
     /// Given a path that must resolve to some kind of name resolution,
     /// resolve it if we can (reporting errors if it is invalid).
-    fn resolve_in(self, db: &'db dyn crate::Db, scope: &Scope<'_, 'db>) -> Errors<NameResolution<'db>> {
+    fn resolve_in(
+        self,
+        db: &'db dyn crate::Db,
+        scope: &Scope<'_, 'db>,
+    ) -> Errors<NameResolution<'db>> {
         let (first_id, other_ids) = self.ids(db).split_first().unwrap();
 
         let resolution = first_id.resolve_in(db, scope)?;
@@ -231,23 +254,26 @@ impl<'db> Resolve<'db> for AstPath<'db> {
 
         match remaining_ids.first() {
             None => Ok(r),
-            Some(next_id) => {
-                Err(
-                    Diagnostic::error(
+            Some(next_id) => Err(
+                Diagnostic::error(db, next_id.span, "unexpected `.` in path")
+                    .label(
                         db,
+                        Level::Error,
                         next_id.span,
-                        "unexpected `.` in path",
+                        "I don't know how to interpret `.` applied to a local variable here",
                     )
-                    .label(db, Level::Error, next_id.span, "I don't know how to interpret `.` applied to a local variable here")
-                    .report(db)
-                )
-            }        
+                    .report(db),
+            ),
         }
     }
 }
 
 impl<'db> Resolve<'db> for SpannedIdentifier<'db> {
-    fn resolve_in(self, db: &'db dyn crate::Db, scope: &Scope<'_, 'db>) -> Errors<NameResolution<'db>> {
+    fn resolve_in(
+        self,
+        db: &'db dyn crate::Db,
+        scope: &Scope<'_, 'db>,
+    ) -> Errors<NameResolution<'db>> {
         scope.resolve_name(db, self.id, self.span)
     }
 }
@@ -261,28 +287,40 @@ impl<'db> NameResolution<'db> {
             NameResolution::SymLocalVariable(_) => "a local variable",
             NameResolution::SymFunction(_) => "a function",
             NameResolution::SymGeneric(_, _) => "a generic parameter",
-        }    
+        }
     }
 
     /// Returns a string describing `self` that fits the mold "an X named `foo`".
     pub fn describe(&self, db: &'db dyn crate::Db) -> impl Display + 'db {
         match self {
-            NameResolution::SymModule(sym_module) => format!("a module named `{}`", sym_module.name(db)),
-            NameResolution::SymClass(sym_class) => format!("a class named `{}`", sym_class.name(db)),
-            NameResolution::SymLocalVariable(sym_local_variable) => format!("a local variable named `{}`", sym_local_variable.name(db)),
-            NameResolution::SymFunction(sym_function) => format!("a function named `{}`", sym_function.name(db)),
+            NameResolution::SymModule(sym_module) => {
+                format!("a module named `{}`", sym_module.name(db))
+            }
+            NameResolution::SymClass(sym_class) => {
+                format!("a class named `{}`", sym_class.name(db))
+            }
+            NameResolution::SymLocalVariable(sym_local_variable) => {
+                format!("a local variable named `{}`", sym_local_variable.name(db))
+            }
+            NameResolution::SymFunction(sym_function) => {
+                format!("a function named `{}`", sym_function.name(db))
+            }
             NameResolution::SymGeneric(sym_generic, _) => match sym_generic.name(db) {
                 Some(n) => format!("a generic parameter named `{n}`"),
                 None => format!("an anonymous generic parameter"),
             },
-        }    
+        }
     }
 
     /// Attempt to resolve `ids` relative to `self`.
     /// Continues so long as `self` is a module.
     /// Once it reaches a non-module, stops and returns the remaining entries (if any).
     /// Errors if `self` is a module but the next id in `ids` is not found.
-    pub(crate) fn resolve_relative(self, db: &'db dyn crate::Db, ids: &'db [SpannedIdentifier<'db>]) -> Errors<(NameResolution<'db>, &'db [SpannedIdentifier<'db>])> {
+    pub(crate) fn resolve_relative(
+        self,
+        db: &'db dyn crate::Db,
+        ids: &'db [SpannedIdentifier<'db>],
+    ) -> Errors<(NameResolution<'db>, &'db [SpannedIdentifier<'db>])> {
         let Some((next_id, other_ids)) = ids.split_first() else {
             return Ok((self, &[]));
         };
@@ -291,28 +329,25 @@ impl<'db> NameResolution<'db> {
             NameResolution::SymModule(sym_module) => {
                 match sym_module.resolve_name(db, next_id.id) {
                     Some(r) => r.resolve_relative(db, other_ids),
-                    None => Err(
-                        Diagnostic::error(
-                            db,
-                            next_id.span,
-                            "nothing named `{}` found in module",
-                        )
-                        .label(
-                            db, 
-                            Level::Error, 
-                            next_id.span, 
-                            format!("I could not find anything named `{}` in the module `{}`",
-                                next_id.id,
-                                sym_module.name(db),
-                            )
-                        )
-                        .report(db)
-                    ),
+                    None => Err(Diagnostic::error(
+                        db,
+                        next_id.span,
+                        "nothing named `{}` found in module",
+                    )
+                    .label(
+                        db,
+                        Level::Error,
+                        next_id.span,
+                        format!(
+                            "I could not find anything named `{}` in the module `{}`",
+                            next_id.id,
+                            sym_module.name(db),
+                        ),
+                    )
+                    .report(db)),
                 }
             }
-            _ => {
-                Ok((self, ids))
-            }
+            _ => Ok((self, ids)),
         }
     }
 }
@@ -323,14 +358,12 @@ impl<'scope, 'db> ScopeChain<'scope, 'db> {
     pub fn into_links(self) -> impl Iterator<Item = ScopeChainLink<'scope, 'db>> {
         let mut p = Some(Box::new(self));
 
-        std::iter::from_fn(move || {
-            match p.take() {
-                Some(q) => {
-                    p = q.next;
-                    Some(q.link)
-                }
-                None => None,
+        std::iter::from_fn(move || match p.take() {
+            Some(q) => {
+                p = q.next;
+                Some(q.link)
             }
+            None => None,
         })
     }
 
@@ -350,11 +383,12 @@ impl<'scope, 'db> ScopeChain<'scope, 'db> {
     }
 
     fn count_universal_variables(&self) -> usize {
-        self.link.count_universal_variables() + if let Some(next) = &self.next {
-            next.count_universal_variables()
-        } else {
-            0
-        }
+        self.link.count_universal_variables()
+            + if let Some(next) = &self.next {
+                next.count_universal_variables()
+            } else {
+                0
+            }
     }
 }
 
@@ -363,14 +397,20 @@ impl<'db> ScopeChainLink<'_, 'db> {
         match binders_traversed {
             BindersTraversed::Bound(binders) => match self {
                 ScopeChainLink::SymModule(_) => BindersTraversed::Bound(binders),
-                ScopeChainLink::SignatureSymbols(signature_symbols) => BindersTraversed::Bound(binders + 1),
-                ScopeChainLink::Body => BindersTraversed::Free { universal_generics: self.count_universal_variables() },
+                ScopeChainLink::SignatureSymbols(signature_symbols) => {
+                    BindersTraversed::Bound(binders + 1)
+                }
+                ScopeChainLink::Body => BindersTraversed::Free {
+                    universal_generics: self.count_universal_variables(),
+                },
             },
             BindersTraversed::Free { universal_generics } => match self {
                 ScopeChainLink::SymModule(_) => BindersTraversed::Free { universal_generics },
-                ScopeChainLink::SignatureSymbols(signature_symbols) => BindersTraversed::Free { universal_generics: universal_generics - signature_symbols.generics.len() },
+                ScopeChainLink::SignatureSymbols(signature_symbols) => BindersTraversed::Free {
+                    universal_generics: universal_generics - signature_symbols.generics.len(),
+                },
                 ScopeChainLink::Body => BindersTraversed::Free { universal_generics },
-            }
+            },
         }
     }
 
@@ -392,7 +432,9 @@ impl<'db> ScopeChainLink<'_, 'db> {
             ScopeChainLink::SymModule(sym_module) => sym_module.resolve_name(db, id),
             ScopeChainLink::SignatureSymbols(symbols) => {
                 let SignatureSymbols { generics, inputs } = &**symbols;
-                if let Some(resolution) = self.resolve_generic_sym(db, |g| g.name(db) == Some(id), binders_traversed) {
+                if let Some(resolution) =
+                    self.resolve_generic_sym(db, |g| g.name(db) == Some(id), binders_traversed)
+                {
                     Some(resolution)
                 } else if let Some(input) = inputs.iter().find(|i| i.name(db) == id) {
                     Some(NameResolution::SymLocalVariable(*input))
@@ -430,10 +472,15 @@ impl<'db> ScopeChainLink<'_, 'db> {
 impl BindersTraversed {
     fn generic_index(self, variable_index: usize, variables_in_binder: usize) -> GenericIndex {
         match self {
-            BindersTraversed::Bound(binders) => GenericIndex::Bound(SymBinderIndex::from(binders), SymBoundVarIndex::from(variable_index)),
-            BindersTraversed::Free { universal_generics } => GenericIndex::Universal(SymUniversalVarIndex::from(
-                universal_generics - variables_in_binder + variable_index
-            )),
+            BindersTraversed::Bound(binders) => GenericIndex::Bound(
+                SymBinderIndex::from(binders),
+                SymBoundVarIndex::from(variable_index),
+            ),
+            BindersTraversed::Free { universal_generics } => {
+                GenericIndex::Universal(SymUniversalVarIndex::from(
+                    universal_generics - variables_in_binder + variable_index,
+                ))
+            }
         }
     }
 }
@@ -496,25 +543,7 @@ fn resolve_ast_use<'db>(
                 path_buf.push(file_path.id.text(db));
                 path_buf.set_extension("dada");
 
-                let Some(source_file) = db.source_file(&path_buf) else {
-                    Diagnostic::error(
-                        db,
-                        ast_use.path(db).span(db),
-                        format!("could not find a file at `{}`", path_buf.display()),
-                    )
-                    .label(
-                        db, 
-                        Level::Error, 
-                        ast_use.path(db).span(db), 
-                        format!(
-                            "this module is expected to be located at `{}`, but I could not find file with that name",
-                            path_buf.display(),
-                        )
-                    )
-                    .report(db);
-                    return None;
-                };
-
+                let source_file = db.source_file(&path_buf);
                 let sym_module = source_file.into_symbol(db);
                 let Some(resolution) = sym_module.resolve_name(db, item_name.id) else {
                     Diagnostic::error(
@@ -523,10 +552,10 @@ fn resolve_ast_use<'db>(
                         format!("could not find an item  `{}`", path_buf.display()),
                     )
                     .label(
-                        db, 
-                        Level::Error, 
+                        db,
+                        Level::Error,
                         ast_use.path(db).span(db),
-                        format!("I could find anything named `{}`", item_name.id)
+                        format!("I could find anything named `{}`", item_name.id),
                     )
                     .report(db);
                     return None;

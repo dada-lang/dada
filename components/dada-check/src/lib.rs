@@ -18,6 +18,10 @@ use dada_ir_sym::{
 pub use dada_ir_sym::Db;
 use dada_util::Map;
 
+pub mod prelude {
+    pub use crate::Check;
+}
+
 /// The main "check" routine. This defines what it means for a dada program to successfully compile.
 pub trait Check<'db> {
     fn check(&self, db: &'db dyn crate::Db);

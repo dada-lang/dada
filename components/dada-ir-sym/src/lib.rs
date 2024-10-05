@@ -21,7 +21,7 @@ pub trait Db: salsa::Database {
     fn root(&self) -> CompilationRoot;
 
     /// Load a source-file at a given path
-    fn source_file(&self, path: &Path) -> Option<SourceFile>;
+    fn source_file(&self, path: &Path) -> SourceFile;
 
     /// Create interned "self" identifier
     fn self_id(&self) -> Identifier<'_>;

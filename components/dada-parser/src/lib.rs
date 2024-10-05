@@ -5,7 +5,7 @@ use dada_ir_ast::{
     ast::{AstModule, DeferredParse, SpanVec, SpannedIdentifier},
     diagnostic::{Diagnostic, Level, Reported},
     inputs::SourceFile,
-    span::{Anchor, Offset, Span},
+    span::{Anchor, Offset, Span, Spanned},
 };
 
 use salsa::Database as Db;
@@ -25,7 +25,10 @@ impl prelude::SourceFileParse for SourceFile {
     #[salsa::tracked]
     fn parse(self, db: &dyn crate::Db) -> AstModule<'_> {
         let anchor = Anchor::SourceFile(self);
-        let text = self.contents(db);
+        if let Err(message) = self.contents(db) {
+            Diagnostic::new(db, Level::Error, self.span(db), message).report(db);
+        }
+        let text = self.contents_if_ok(db);
         let tokens = tokenizer::tokenize(db, anchor, Offset::ZERO, text);
         let mut parser = Parser::new(db, anchor, &tokens);
         let module = AstModule::eat(db, &mut parser).expect("parsing a module is infallible");

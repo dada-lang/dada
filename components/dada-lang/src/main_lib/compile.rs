@@ -1,3 +1,5 @@
+use std::path::Path;
+
 use dada_ir_ast::diagnostic::Level;
 use dada_util::{bail, Fallible};
 
@@ -8,7 +10,7 @@ use super::Main;
 impl Main {
     pub(super) fn compile(&mut self, compile_options: &CompileOptions) -> Fallible<()> {
         let mut compiler = Compiler::new();
-        let source_file = compiler.load_input(&compile_options.input)?;
+        let source_file = compiler.load_input(Path::new(&compile_options.input))?;
         let diagnostics = compiler.check_all(source_file);
 
         for diagnostic in &diagnostics {

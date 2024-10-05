@@ -19,7 +19,7 @@ impl<'db> Anchor<'db> {
             Anchor::SourceFile(source_file) => Span {
                 anchor: *self,
                 start: Offset::ZERO,
-                end: Offset::from(source_file.contents(db).len()),
+                end: Offset::from(source_file.contents_if_ok(db).len()),
             },
             Anchor::Class(data) => data.span(db),
             Anchor::Function(data) => data.span(db),

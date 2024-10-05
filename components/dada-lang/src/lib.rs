@@ -1,3 +1,5 @@
+#![feature(trait_upcasting)]
+
 use dada_util::Fallible;
 use structopt::StructOpt;
 

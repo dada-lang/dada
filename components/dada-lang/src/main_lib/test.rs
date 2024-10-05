@@ -1,7 +1,7 @@
 use std::path::{Path, PathBuf};
 
 use dada_ir_ast::diagnostic::Diagnostic;
-use dada_util::{anyhow, bail, Fallible};
+use dada_util::{bail, Fallible};
 use expected::ExpectedDiagnostic;
 use indicatif::ProgressBar;
 use rayon::prelude::*;
@@ -130,12 +130,8 @@ impl Main {
     /// * `Ok(None)` if the test passed.
     fn run_test(&self, input: &Path) -> Fallible<Option<FailedTest>> {
         assert!(is_dada_file(input));
-        let input_str = input
-            .as_os_str()
-            .to_str()
-            .ok_or_else(|| anyhow!("path cannot be represented in utf-8: `{:?}`", input))?;
         let mut compiler = Compiler::new();
-        let source_file = compiler.load_input(input_str)?;
+        let source_file = compiler.load_input(input)?;
         let expectations = expected::TestExpectations::new(compiler.db(), source_file)?;
         match expectations.compare(&mut compiler)? {
             None => {

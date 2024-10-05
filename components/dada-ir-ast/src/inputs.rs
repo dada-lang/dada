@@ -8,7 +8,7 @@ use crate::{
 #[salsa::input]
 pub struct CompilationRoot {
     #[return_ref]
-    crates: Vec<CrateSource>,
+    pub crates: Vec<CrateSource>,
 }
 
 impl CompilationRoot {
@@ -41,8 +41,9 @@ pub struct SourceFile {
     #[return_ref]
     pub path: String,
 
+    /// Contents of the source file or an error message if it was not possible to read it.
     #[return_ref]
-    pub contents: String,
+    pub contents: Result<String, String>,
 }
 
 impl<'db> Spanned<'db> for SourceFile {
@@ -50,18 +51,26 @@ impl<'db> Spanned<'db> for SourceFile {
         Span {
             anchor: Anchor::SourceFile(*self),
             start: Offset::ZERO,
-            end: Offset::from(self.contents(db).len()),
+            end: Offset::from(self.contents_if_ok(db).len()),
         }
     }
 }
 
 impl SourceFile {
+    /// Returns the contents of this file or an empty string if it couldn't be read.
+    pub fn contents_if_ok(self, db: &dyn crate::Db) -> &str {
+        match self.contents(db) {
+            Ok(s) => s,
+            Err(_) => "",
+        }
+    }
+
     /// Returns an absolute span representing the entire source file.
     pub fn absolute_span(self, db: &dyn crate::Db) -> AbsoluteSpan {
         AbsoluteSpan {
             source_file: self,
             start: AbsoluteOffset::ZERO,
-            end: AbsoluteOffset::from(self.contents(db).len()),
+            end: AbsoluteOffset::from(self.contents_if_ok(db).len()),
         }
     }
 }

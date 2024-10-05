@@ -52,7 +52,7 @@ fn to_snippet<'a>(db: &'a db::Database, diagnostic: &'a Diagnostic) -> Snippet<'
         )
     };
 
-    Snippet::source(source_file.contents(db))
+    Snippet::source(source_file.contents_if_ok(db))
         .line_start(1)
         .origin(source_file.path(db))
         .fold(true)

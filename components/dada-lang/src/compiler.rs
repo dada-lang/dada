@@ -1,24 +1,24 @@
+use std::path::Path;
+
 use dada_ir_ast::{
     ast::{AstFunction, AstItem, AstMember},
     diagnostic::Diagnostic,
     inputs::SourceFile,
 };
-use dada_util::{Context, Fallible};
+use dada_util::{bail, Fallible};
 use salsa::Database as _;
 
-use crate::db::Database;
+use crate::db::{Database, Db};
 use dada_parser::prelude::*;
 
 pub struct Compiler {
     db: Database,
-    source_files: Vec<SourceFile>,
 }
 
 impl Compiler {
     pub fn new() -> Self {
         Self {
             db: Database::default(),
-            source_files: vec![],
         }
     }
 
@@ -26,14 +26,43 @@ impl Compiler {
         &self.db
     }
 
-    pub fn load_input(&mut self, input: &str) -> Fallible<SourceFile> {
-        let contents = std::fs::read_to_string(input)
-            .with_context(|| format!("failed to read input file `{}`", input))?;
+    /// Add a crate that is rooted in the given `dada` file.
+    /// The crate is named after the file name.
+    pub fn add_crate_with_root_path(&mut self, root_path: &Path) -> Fallible<()> {
+        if root_path.extension().is_none() || root_path.extension().unwrap() != "dada" {
+            bail!(
+                "crate root path should have `.dada` extension: `{}`",
+                root_path.display()
+            );
+        }
 
-        let source_file = SourceFile::new(&self.db, input.to_string(), contents);
-        self.source_files.push(source_file);
+        let Some(crate_name) = root_path.file_stem().unwrap().to_str() else {
+            bail!(
+                "cannot add crate with non-UTF8 name `{}`",
+                root_path.display()
+            );
+        };
 
-        Ok(source_file)
+        let root_dir = root_path.with_extension("");
+        if root_dir.exists() && !root_dir.is_dir() {
+            bail!(
+                "crate root `{}` requires `{}` to be a directory, not a file",
+                root_path.display(),
+                root_dir.display(),
+            );
+        }
+
+        self.db.add_crate(
+            crate_name.to_string(),
+            dada_ir_ast::inputs::CrateKind::Directory(root_dir),
+        )?;
+
+        Ok(())
+    }
+
+    pub fn load_input(&mut self, input: &Path) -> Fallible<SourceFile> {
+        self.add_crate_with_root_path(input)?;
+        Ok(self.db.source_file(input))
     }
 
     pub fn check_all(&mut self, source_file: SourceFile) -> Vec<Diagnostic> {
@@ -49,7 +78,7 @@ impl Compiler {
             writeln!(
                 output,
                 "# fn parse tree from {}",
-                source_file.path(&self.db)
+                source_file.path(&self.db),
             )
             .unwrap();
             writeln!(output).unwrap();
@@ -62,30 +91,9 @@ impl Compiler {
 }
 
 #[salsa::tracked]
-fn check_all(db: &dyn salsa::Database, source_file: SourceFile) {
-    let module = source_file.parse(db);
-
-    for item in module.items(db) {
-        match *item {
-            AstItem::SourceFile(_source_file) => (),
-            AstItem::Use(_use_item) => (),
-            AstItem::Class(class_item) => {
-                for member in &class_item.members(db) {
-                    match member {
-                        AstMember::Field(_field_decl) => (),
-                        AstMember::Function(function) => check_fn(db, *function),
-                    }
-                }
-            }
-            AstItem::Function(function) => {
-                check_fn(db, function);
-            }
-        }
-    }
-}
-
-fn check_fn<'db>(db: &'db dyn salsa::Database, function: AstFunction<'db>) {
-    function.body_block(db);
+fn check_all(db: &dyn Db, source_file: SourceFile) {
+    use dada_check::Check;
+    source_file.check(db);
 }
 
 fn fn_asts(db: &dyn salsa::Database, source_file: SourceFile) -> String {
