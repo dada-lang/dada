@@ -201,7 +201,7 @@ impl<'db> IntoSymInScope<'db> for AstGenericArg<'db> {
             AstGenericArg::Ty(ast_ty) => ast_ty.into_sym_in_scope(db, scope).into(),
             AstGenericArg::Perm(ast_perm) => ast_perm.into_sym_in_scope(db, scope).into(),
             AstGenericArg::Id(id) => match id.resolve_in(db, scope) {
-                Ok(r) => r.to_sym_generic_arg(db, scope, id),
+                Ok(r) => r.to_sym_generic_arg(db, id),
                 Err(r) => r.into(),
             },
         }
@@ -240,22 +240,18 @@ impl<'db> IntoSymInScope<'db> for AstPerm<'db> {
             AstPermKind::Shared(None) | AstPermKind::Leased(None) | AstPermKind::Given(None) => {
                 let symbol = self.anonymous_perm_symbol(db);
                 assert_eq!(symbol.kind(db), SymGenericKind::Perm);
-                scope
-                    .resolve_generic_sym(db, symbol)
-                    .to_sym_perm(db, scope, self)
+                scope.resolve_generic_sym(db, symbol).to_sym_perm(db, self)
             }
             AstPermKind::My => SymPerm::new(db, SymPermKind::My),
             AstPermKind::Our => SymPerm::new(db, SymPermKind::Our),
             AstPermKind::Variable(id) => match id.resolve_in(db, scope) {
-                Ok(r) => r.to_sym_perm(db, scope, *id).into(),
+                Ok(r) => r.to_sym_perm(db, *id).into(),
                 Err(r) => SymPerm::new(db, SymPermKind::Error(r)),
             },
             AstPermKind::GenericDecl(decl) => {
                 let symbol = decl.into_symbol(db);
                 assert_eq!(symbol.kind(db), SymGenericKind::Perm);
-                scope
-                    .resolve_generic_sym(db, symbol)
-                    .to_sym_perm(db, scope, self)
+                scope.resolve_generic_sym(db, symbol).to_sym_perm(db, self)
             }
         }
     }
@@ -269,13 +265,12 @@ impl<'db> NameResolution<'db> {
     pub(crate) fn to_sym_generic_arg(
         self,
         db: &'db dyn crate::Db,
-        scope: &Scope<'_, 'db>,
         source: impl Spanned<'db>,
     ) -> SymGenericArg<'db> {
         if let NameResolution::SymGeneric(generic, _) = self {
             match generic.kind(db) {
                 SymGenericKind::Type => SymGenericArg::Type(self.to_sym_ty(db, source, vec![])),
-                SymGenericKind::Perm => SymGenericArg::Perm(self.to_sym_perm(db, scope, source)),
+                SymGenericKind::Perm => SymGenericArg::Perm(self.to_sym_perm(db, source)),
             }
         } else {
             self.to_sym_ty(db, source, vec![]).into()
@@ -428,12 +423,7 @@ impl<'db> NameResolution<'db> {
     }
 
     /// Convert this name resolution into a permission.
-    fn to_sym_perm(
-        &self,
-        db: &'db dyn Db,
-        scope: &Scope<'_, 'db>,
-        source: impl Spanned<'db>,
-    ) -> SymPerm<'db> {
+    fn to_sym_perm(&self, db: &'db dyn Db, source: impl Spanned<'db>) -> SymPerm<'db> {
         if let NameResolution::SymGeneric(generic, generic_index) = self {
             if let SymGenericKind::Perm = generic.kind(db) {
                 return SymPerm::new(db, SymPermKind::Var(*generic_index));

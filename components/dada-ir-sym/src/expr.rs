@@ -152,9 +152,7 @@ impl<'db> IntoSymInScope<'db> for AstPath<'db> {
     ) -> Self::Symbolic {
         let (var, fields) = self.ids(db).split_first().unwrap();
         match var.resolve_in(db, scope) {
-            Ok(r) => {
-                todo!()
-            }
+            Ok(r) => r.to_place_expr(db, &self, fields),
             Err(r) => SymPlaceExpr::new(db, self.span(db), SymPlaceExprKind::Error(r)),
         }
     }

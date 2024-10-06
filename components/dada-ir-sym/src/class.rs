@@ -91,11 +91,7 @@ impl<'db> SymClass<'db> {
                     .iter()
                     .flatten()
                     .map(|g| g.into_symbol(db))
-                    .map(|g| {
-                        scope
-                            .resolve_generic_sym(db, g)
-                            .to_sym_generic_arg(db, &scope, g)
-                    })
+                    .map(|g| scope.resolve_generic_sym(db, g).to_sym_generic_arg(db, g))
                     .collect(),
             ),
         )
