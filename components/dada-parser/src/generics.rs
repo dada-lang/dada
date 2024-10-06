@@ -1,9 +1,6 @@
 use dada_ir_ast::ast::{AstGenericDecl, AstGenericKind};
 
-use super::{
-    tokenizer::{Keyword, Token, TokenKind},
-    Expected, Parse, ParseFail, Parser,
-};
+use super::{tokenizer::Keyword, Expected, Parse, ParseFail, Parser};
 
 impl<'db> Parse<'db> for AstGenericDecl<'db> {
     type Output = Self;
@@ -32,24 +29,16 @@ impl<'db> Parse<'db> for AstGenericKind<'db> {
         _db: &'db dyn crate::Db,
         parser: &mut Parser<'_, 'db>,
     ) -> Result<Option<Self::Output>, ParseFail<'db>> {
-        match parser.peek() {
-            Some(&Token {
-                span,
-                kind: TokenKind::Keyword(Keyword::Type),
-                ..
-            }) => Ok(Some(AstGenericKind::Type(span))),
-
-            Some(&Token {
-                span,
-                kind: TokenKind::Keyword(Keyword::Perm),
-                ..
-            }) => Ok(Some(AstGenericKind::Perm(span))),
-
-            _ => Ok(None),
+        if let Ok(span) = parser.eat_keyword(Keyword::Type) {
+            Ok(Some(AstGenericKind::Type(span)))
+        } else if let Ok(span) = parser.eat_keyword(Keyword::Perm) {
+            Ok(Some(AstGenericKind::Perm(span)))
+        } else {
+            Ok(None)
         }
     }
 
     fn expected() -> Expected {
-        todo!()
+        Expected::Nonterminal("`type` or `perm`")
     }
 }

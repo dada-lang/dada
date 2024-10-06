@@ -1,0 +1,4 @@
+class Pair[type A, type B] {
+    a: A
+    b: B
+}
