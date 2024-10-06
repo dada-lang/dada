@@ -1,0 +1,4 @@
+class Data {}
+
+fn take(d: shared{x} Data) {}
+#!                ^ could not find anything named `x`
