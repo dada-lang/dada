@@ -1,14 +1,10 @@
 use dada_ir_ast::{
-    ast::{AstFieldDecl, AstFunctionInput, AstSelfArg, Identifier, VariableDecl},
+    ast::{AstFunctionInput, AstSelfArg, Identifier, VariableDecl},
     span::{Span, Spanned},
 };
 use salsa::Update;
 
-use crate::{
-    class::SymClass,
-    prelude::{IntoSymbol, ToSymbol},
-    ty::{SymGenericArg, SymTy},
-};
+use crate::prelude::{IntoSymbol, ToSymbol};
 
 #[salsa::tracked]
 pub struct SymLocalVariable<'db> {
@@ -20,27 +16,6 @@ impl<'db> Spanned<'db> for SymLocalVariable<'db> {
     fn span(&self, db: &'db dyn dada_ir_ast::Db) -> Span<'db> {
         self.name_span(db)
     }
-}
-
-impl<'db> SymLocalVariable<'db> {
-    /// Returns the type of this local variable.
-    ///
-    /// This is a "lazy field" populated by specifying
-    /// the value of the tracked function [`local_var_ty`][].
-    ///
-    /// # Panics
-    ///
-    /// Panics if `specify` has not yet been invoked on [`local_var_ty`][].
-    pub fn ty(self, db: &'db dyn crate::Db) -> SymTy<'db> {
-        local_var_ty(db, self)
-    }
-}
-
-/// See [`SymLocalVariable::ty`][]
-#[salsa::tracked(specify)]
-pub fn local_var_ty<'db>(_db: &'db dyn crate::Db, var: SymLocalVariable<'db>) -> SymTy<'db> {
-    // FIXME: This should be a salsa feature
-    panic!("Ty for `{var:?}` not yet specified")
 }
 
 /// Declaration of a generic parameter.

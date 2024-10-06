@@ -168,9 +168,17 @@ impl FailedTest {
         writeln!(result, "Test failed: {}", self.path.display())?;
 
         writeln!(result)?;
+        writeln!(
+            result,
+            "[Test file](./{})",
+            self.path.file_name().unwrap().to_string_lossy()
+        )?;
+        writeln!(result)?;
+
+        writeln!(result)?;
         writeln!(result, "# Compiler output")?;
         writeln!(result)?;
-        writeln!(result, "{}", self.full_compiler_output)?;
+        writeln!(result, "```\n{}```", self.full_compiler_output)?;
 
         for failure in &self.failures {
             match failure {

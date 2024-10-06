@@ -11,6 +11,7 @@ use crate::{
     class::SymClass,
     function::SymFunction,
     prelude::IntoSymbol,
+    primitive::SymPrimitive,
     scope::{Resolve, Scope},
 };
 
@@ -27,10 +28,17 @@ pub struct SymModule<'db> {
     pub(crate) ast_use_map: Map<Identifier<'db>, AstUseItem<'db>>,
 }
 
+/// A "prelude" is a set of item names automatically imported into scope.
+#[salsa::interned]
+pub struct SymPrelude<'db> {
+    pub items: Vec<SymItem<'db>>,
+}
+
 #[derive(Copy, Clone, Debug, PartialEq, Eq, PartialOrd, Ord, Hash, FromImpls)]
 pub enum SymItem<'db> {
     SymClass(SymClass<'db>),
     SymFunction(SymFunction<'db>),
+    SymPrimitive(SymPrimitive<'db>),
 }
 
 impl<'db> SymModule<'db> {

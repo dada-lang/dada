@@ -3,7 +3,7 @@
 ## fn `return_identifier`
 
 AstBlock {
-    [salsa id]: Id(2400),
+    [salsa id]: Id(2c00),
     statements: SpanVec {
         span: Span {
             start: Offset(

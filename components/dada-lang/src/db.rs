@@ -97,6 +97,11 @@ impl dada_check::Db for Database {
     fn self_id(&self) -> Identifier<'_> {
         Identifier::new(self, format!("self"))
     }
+
+    /// Create interned "Self" identifier
+    fn self_ty_id(&self) -> Identifier<'_> {
+        Identifier::new(self, format!("Self"))
+    }
 }
 
 #[salsa::db]

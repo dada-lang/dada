@@ -1,7 +1,7 @@
 use std::borrow::Cow;
 
 use dada_ir_ast::{
-    ast::{AstClassItem, AstFieldDecl, AstMember, AstModule, Identifier, SpannedIdentifier},
+    ast::{AstClassItem, AstFieldDecl, AstMember, Identifier, SpannedIdentifier},
     span::{Span, Spanned},
 };
 use dada_parser::prelude::*;
@@ -12,7 +12,6 @@ use crate::{
     populate::PopulateSignatureSymbols,
     prelude::IntoSymbol,
     scope::{Scope, ScopeItem},
-    symbol::local_var_ty,
     ty::{Binder, SymTy, SymTyKind},
     IntoSymInScope,
 };
@@ -74,42 +73,32 @@ impl<'db> SymClass<'db> {
 
     /// Returns the base scope used to resolve the class members.
     /// Typically this is created by invoke [`Scope::new`][].
-    pub(crate) fn base_scope(self, db: &'db dyn crate::Db) -> Scope<'db, 'db> {
-        let mut signature_symbols = SignatureSymbols::default();
+    pub(crate) fn class_scope(self, db: &'db dyn crate::Db) -> Scope<'db, 'db> {
+        let mut signature_symbols = SignatureSymbols::new(self);
         self.source(db)
             .populate_signature_symbols(db, &mut signature_symbols);
+        Scope::new(db, self.scope(db)).with_link(Cow::Owned(signature_symbols))
+    }
 
-        // There should be exactly one local variable, self.
-        // We are responsible for specifying its type.
-        let self_var = signature_symbols.inputs[0];
-        assert_eq!(signature_symbols.inputs.len(), 1);
-        assert_eq!(self_var.name(db), db.self_id());
-
-        let scope = Scope::new(db, self.scope(db)).with_link(Cow::Owned(signature_symbols));
-
-        // Specify the self type for `self`, which is just `C<T..>`
-        // where `C` is our class and `T` is each generic parameter.
-        local_var_ty::specify(db, self_var, {
-            SymTy::new(
-                db,
-                SymTyKind::Named(
-                    self.into(),
-                    self.source(db)
-                        .generics(db)
-                        .iter()
-                        .flatten()
-                        .map(|g| g.into_symbol(db))
-                        .map(|g| {
-                            scope
-                                .resolve_generic_sym(db, g)
-                                .to_sym_generic_arg(db, &scope, g)
-                        })
-                        .collect(),
-                ),
-            )
-        });
-
-        scope
+    /// Returns the type of this class, referencing the generics that appear in `scope`.
+    pub(crate) fn self_ty(self, db: &'db dyn crate::Db, scope: &Scope<'_, 'db>) -> SymTy<'db> {
+        SymTy::new(
+            db,
+            SymTyKind::Named(
+                self.into(),
+                self.source(db)
+                    .generics(db)
+                    .iter()
+                    .flatten()
+                    .map(|g| g.into_symbol(db))
+                    .map(|g| {
+                        scope
+                            .resolve_generic_sym(db, g)
+                            .to_sym_generic_arg(db, &scope, g)
+                    })
+                    .collect(),
+            ),
+        )
     }
 
     #[salsa::tracked]

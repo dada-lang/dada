@@ -1,9 +1,5 @@
 //! "Symbolic IR": High-level, checked representaton. Derived from the AST.
 #![feature(trait_upcasting)]
-// REMOVE THESE:
-#![expect(dead_code)]
-#![expect(unused_imports)]
-#![expect(unused_variables)]
 
 use std::path::Path;
 
@@ -11,7 +7,6 @@ use dada_ir_ast::{
     ast::Identifier,
     inputs::{CompilationRoot, SourceFile},
 };
-use function::SignatureSymbols;
 use scope::Scope;
 
 /// Core functionality needed to symbolize.
@@ -23,8 +18,11 @@ pub trait Db: salsa::Database {
     /// Load a source-file at a given path
     fn source_file(&self, path: &Path) -> SourceFile;
 
-    /// Create interned "self" identifier
+    /// Create interned `self` identifier
     fn self_id(&self) -> Identifier<'_>;
+
+    /// Create interned `Self` identifier
+    fn self_ty_id(&self) -> Identifier<'_>;
 }
 
 pub mod class;
@@ -33,6 +31,7 @@ pub mod function;
 pub mod indices;
 pub mod module;
 mod populate;
+mod primitive;
 mod scope;
 pub mod symbol;
 pub mod ty;

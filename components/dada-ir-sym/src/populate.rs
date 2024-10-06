@@ -1,19 +1,11 @@
-use std::sync::Arc;
-
-use dada_ir_ast::{
-    ast::{
-        AstClassItem, AstFunction, AstFunctionInput, AstGenericArg, AstGenericDecl, AstPerm,
-        AstPermKind, AstTy, AstTyKind,
-    },
-    span::Spanned,
+use dada_ir_ast::ast::{
+    AstClassItem, AstFunction, AstFunctionInput, AstGenericArg, AstGenericDecl, AstPerm,
+    AstPermKind, AstTy, AstTyKind,
 };
 
 use crate::{
-    function::SignatureSymbols,
-    populate,
-    prelude::IntoSymbol,
-    symbol::{SymGeneric, SymLocalVariable},
-    ty::{AnonymousPermSymbol, SymTy, SymTyKind},
+    function::SignatureSymbols, prelude::IntoSymbol, symbol::SymLocalVariable,
+    ty::AnonymousPermSymbol,
 };
 
 /// Iterate over the items in a signature (function, class, impl, etc)

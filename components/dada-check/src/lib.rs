@@ -45,6 +45,7 @@ impl<'db> Check<'db> for SymItem<'db> {
         match self {
             SymItem::SymClass(sym_class) => sym_class.check(db),
             SymItem::SymFunction(sym_function) => sym_function.check(db),
+            SymItem::SymPrimitive(_sym_primtive) => (),
         }
     }
 }

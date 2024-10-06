@@ -1,4 +1,5 @@
 class Foo {
     x: Baz
+    #! ^^^ could not find anything named `Baz`
 }
 

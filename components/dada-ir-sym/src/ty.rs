@@ -1,7 +1,8 @@
 use crate::{
     class::SymClass,
-    indices::{SymBinderIndex, SymBoundVarIndex, SymExistentialVarIndex, SymUniversalVarIndex},
+    indices::{SymBinderIndex, SymBoundVarIndex, SymUniversalVarIndex},
     prelude::IntoSymbol,
+    primitive::SymPrimitive,
     scope::{NameResolution, Resolve, Scope},
     symbol::{SymGeneric, SymGenericKind, SymLocalVariable},
     Db, IntoSymInScope,
@@ -13,7 +14,6 @@ use dada_ir_ast::{
     },
     diagnostic::Reported,
     diagnostic::{Diagnostic, Level},
-    span::Span,
     span::Spanned,
 };
 use dada_util::FromImpls;
@@ -55,6 +55,8 @@ pub struct Binder<'db, T> {
 
 #[derive(Clone, PartialEq, Eq, PartialOrd, Ord, Hash, Update, Debug, FromImpls)]
 pub enum SymTyName<'db> {
+    Primitive(SymPrimitive<'db>),
+
     Class(SymClass<'db>),
 
     #[no_from_impl]
@@ -175,7 +177,7 @@ impl<'db> IntoSymInScope<'db> for AstTy<'db> {
                     .map(|g| g.into_sym_in_scope(db, scope))
                     .collect::<Vec<_>>();
                 match ast_path.resolve_in(db, scope) {
-                    Ok(r) => r.to_sym_ty(db, scope, ast_path, generics),
+                    Ok(r) => r.to_sym_ty(db, ast_path, generics),
                     Err(r) => err(r),
                 }
             }
@@ -184,7 +186,7 @@ impl<'db> IntoSymInScope<'db> for AstTy<'db> {
                 assert_eq!(symbol.kind(db), SymGenericKind::Type);
                 scope
                     .resolve_generic_sym(db, symbol)
-                    .to_sym_ty(db, scope, decl, vec![])
+                    .to_sym_ty(db, decl, vec![])
             }
             AstTyKind::Unknown => SymTy::new(db, SymTyKind::Unknown),
         }
@@ -272,13 +274,11 @@ impl<'db> NameResolution<'db> {
     ) -> SymGenericArg<'db> {
         if let NameResolution::SymGeneric(generic, _) = self {
             match generic.kind(db) {
-                SymGenericKind::Type => {
-                    SymGenericArg::Type(self.to_sym_ty(db, scope, source, vec![]))
-                }
+                SymGenericKind::Type => SymGenericArg::Type(self.to_sym_ty(db, source, vec![])),
                 SymGenericKind::Perm => SymGenericArg::Perm(self.to_sym_perm(db, scope, source)),
             }
         } else {
-            self.to_sym_ty(db, scope, source, vec![]).into()
+            self.to_sym_ty(db, source, vec![]).into()
         }
     }
 
@@ -287,13 +287,11 @@ impl<'db> NameResolution<'db> {
     fn to_sym_ty(
         self,
         db: &'db dyn crate::Db,
-        scope: &Scope<'_, 'db>,
         source: impl Spanned<'db>,
         generics: Vec<SymGenericArg<'db>>,
     ) -> SymTy<'db> {
         self.to_sym_ty_skel(
             db,
-            scope,
             source,
             generics,
             |name, generics| SymTy::new(db, SymTyKind::Named(name, generics)),
@@ -307,7 +305,6 @@ impl<'db> NameResolution<'db> {
     pub(crate) fn to_sym_ty_skel<G, R>(
         self,
         db: &'db dyn crate::Db,
-        scope: &Scope<'_, 'db>,
         source: impl Spanned<'db>,
         generics: Vec<G>,
         make_named: impl Fn(SymTyName<'db>, Vec<G>) -> R,
@@ -315,6 +312,32 @@ impl<'db> NameResolution<'db> {
         make_err: impl Fn(Reported) -> R,
     ) -> R {
         match self {
+            NameResolution::SymPrimitive(sym_primitive) => {
+                if generics.len() != 0 {
+                    return make_err(
+                        Diagnostic::error(
+                            db,
+                            source.span(db),
+                            format!(
+                                "`{}` does not expect generic arguments",
+                                sym_primitive.name(db)
+                            ),
+                        )
+                        .label(
+                            db,
+                            Level::Error,
+                            source.span(db),
+                            format!(
+                                "the primitive type `{}` does not expect generic arguments",
+                                sym_primitive.name(db)
+                            ),
+                        )
+                        .report(db),
+                    );
+                }
+
+                make_named(sym_primitive.into(), vec![])
+            }
             NameResolution::SymClass(sym_class) => {
                 let expected = sym_class.len_generics(db);
                 let found = generics.len();
@@ -346,7 +369,7 @@ impl<'db> NameResolution<'db> {
 
                 make_named(sym_class.into(), generics)
             }
-            NameResolution::SymGeneric(generic, generic_index) => {
+            NameResolution::SymGeneric(_generic, generic_index) => {
                 if generics.len() != 0 {
                     return make_err(
                         Diagnostic::error(db, source.span(db), "generic types do not expect generic arguments")
