@@ -221,31 +221,28 @@ impl<'db> Parse<'db> for KeywordPerm {
         db: &'db dyn crate::Db,
         tokens: &mut Parser<'_, 'db>,
     ) -> Result<Option<AstPerm<'db>>, ParseFail<'db>> {
-        match tokens.peek() {
-            Some(&Token {
+        if let Ok(span) = tokens.eat_keyword(Keyword::Shared) {
+            Ok(Some(parse_path_perm(
+                db,
                 span,
-                skipped: _,
-                kind: TokenKind::Keyword(kw),
-            }) => match kw {
-                Keyword::Shared => Ok(Some(parse_path_perm(
-                    db,
-                    span,
-                    tokens,
-                    AstPermKind::Shared,
-                )?)),
-                Keyword::Leased => Ok(Some(parse_path_perm(
-                    db,
-                    span,
-                    tokens,
-                    AstPermKind::Leased,
-                )?)),
-                Keyword::Given => Ok(Some(parse_path_perm(db, span, tokens, AstPermKind::Given)?)),
-                Keyword::My => Ok(Some(AstPerm::new(db, span, AstPermKind::My))),
-                Keyword::Our => Ok(Some(AstPerm::new(db, span, AstPermKind::Our))),
-                _ => Ok(None),
-            },
-
-            _ => Ok(None),
+                tokens,
+                AstPermKind::Shared,
+            )?))
+        } else if let Ok(span) = tokens.eat_keyword(Keyword::Leased) {
+            Ok(Some(parse_path_perm(
+                db,
+                span,
+                tokens,
+                AstPermKind::Leased,
+            )?))
+        } else if let Ok(span) = tokens.eat_keyword(Keyword::Given) {
+            Ok(Some(parse_path_perm(db, span, tokens, AstPermKind::Given)?))
+        } else if let Ok(span) = tokens.eat_keyword(Keyword::My) {
+            Ok(Some(AstPerm::new(db, span, AstPermKind::My)))
+        } else if let Ok(span) = tokens.eat_keyword(Keyword::Our) {
+            Ok(Some(AstPerm::new(db, span, AstPermKind::Our)))
+        } else {
+            Ok(None)
         }
     }
 

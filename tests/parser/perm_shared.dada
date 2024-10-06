@@ -1,0 +1,3 @@
+class Data {}
+
+fn take(d: shared Data) {}
