@@ -8,12 +8,13 @@ use dada_ir_ast::{
 };
 use dada_ir_sym::{
     class::{SymClass, SymClassMember, SymField},
-    function::{SignatureSymbols, SymFunction, SymFunctionSignature},
+    function::{SignatureSymbols, SymFunction, SymFunctionSignature, SymInputOutput},
     module::{SymItem, SymModule},
     prelude::*,
-    symbol::{SymGeneric, SymLocalVariable},
+    symbol::{SymGeneric, SymGenericKind, SymLocalVariable},
     ty::{Binder, SymTy},
 };
+use salsa::Update;
 
 pub use dada_ir_sym::Db;
 use dada_util::Map;
@@ -81,11 +82,7 @@ impl<'db> Check<'db> for SymFunctionSignature<'db> {
     fn check(&self, db: &'db dyn crate::Db) {
         self.symbols(db).check(db);
 
-        for input_ty in self.input_tys(db) {
-            input_ty.check(db);
-        }
-
-        self.output_ty(db).check(db);
+        self.input_output(db).check(db);
     }
 }
 
@@ -138,6 +135,25 @@ fn check_for_duplicates<'db, S: Spanned<'db>>(
     map.insert(id, value);
 }
 
+impl<'db> Check<'db> for SymInputOutput<'db> {
+    fn check(&self, db: &'db dyn crate::Db) {
+        let SymInputOutput {
+            input_tys,
+            output_ty,
+        } = self;
+        input_tys.check(db);
+        output_ty.check(db);
+    }
+}
+
+impl<'db, C: Check<'db>> Check<'db> for Vec<C> {
+    fn check(&self, db: &'db dyn crate::Db) {
+        for item in self {
+            item.check(db);
+        }
+    }
+}
+
 impl<'db> Check<'db> for SymTy<'db> {
     fn check(&self, _db: &'db dyn crate::Db) {
         // There *are* validity checks that need to be done on types,
@@ -146,13 +162,17 @@ impl<'db> Check<'db> for SymTy<'db> {
     }
 }
 
-impl<'db, C: Check<'db>> Check<'db> for Binder<'db, C> {
+impl<'db, C: Check<'db> + Update> Check<'db> for Binder<C> {
     fn check(&self, db: &'db dyn crate::Db) {
         for sym in &self.symbols {
             sym.check(db);
         }
         self.bound_value.check(db);
     }
+}
+
+impl<'db> Check<'db> for SymGenericKind {
+    fn check(&self, _db: &'db dyn crate::Db) {}
 }
 
 impl<'db> Check<'db> for SymGeneric<'db> {

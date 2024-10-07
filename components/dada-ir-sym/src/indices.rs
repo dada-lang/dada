@@ -62,20 +62,10 @@ impl From<usize> for SymBoundVarIndex {
 ///
 /// Inside the function body, `A` has index 0, `B` has index 1.
 #[derive(Copy, Clone, PartialEq, Eq, PartialOrd, Ord, Hash, Update, Debug)]
-pub struct SymUniversalVarIndex(usize);
+pub struct SymVarIndex(usize);
 
-impl From<usize> for SymUniversalVarIndex {
+impl From<usize> for SymVarIndex {
     fn from(value: usize) -> Self {
-        SymUniversalVarIndex(value)
-    }
-}
-
-/// Identifies a particular existential ("∃") variable.
-#[derive(Clone, PartialEq, Eq, PartialOrd, Ord, Hash, Update, Debug)]
-pub struct SymExistentialVarIndex(usize);
-
-impl From<usize> for SymExistentialVarIndex {
-    fn from(value: usize) -> Self {
-        SymExistentialVarIndex(value)
+        SymVarIndex(value)
     }
 }

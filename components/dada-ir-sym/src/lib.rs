@@ -26,13 +26,12 @@ pub trait Db: salsa::Database {
 }
 
 pub mod class;
-pub mod expr;
 pub mod function;
 pub mod indices;
 pub mod module;
 mod populate;
 mod primitive;
-mod scope;
+pub mod scope;
 pub mod symbol;
 pub mod ty;
 

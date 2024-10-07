@@ -1,5 +1,5 @@
 use dada_ir_ast::{
-    ast::{AstPath, BinaryOp, Literal, SpanVec, SpannedIdentifier},
+    ast::{AstBlock, AstPath, AstStatement, BinaryOp, Literal, SpannedIdentifier},
     diagnostic::{Diagnostic, Level, Reported},
     span::{Span, Spanned},
 };
@@ -15,8 +15,9 @@ use crate::{
 };
 
 #[salsa::tracked]
-struct SymBlock<'db> {
-    statements: SpanVec<'db, SymStatement<'db>>,
+pub struct SymBlock<'db> {
+    #[return_ref]
+    pub statements: Vec<SymStatement<'db>>,
 }
 
 #[derive(Clone, PartialEq, Eq, PartialOrd, Ord, Hash, Update, Debug, FromImpls)]

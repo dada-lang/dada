@@ -7,7 +7,8 @@ use super::{AstGenericArg, AstPath, AstTy, SpanVec, SpannedIdentifier};
 
 #[salsa::tracked]
 pub struct AstBlock<'db> {
-    statements: SpanVec<'db, AstStatement<'db>>,
+    #[return_ref]
+    pub statements: SpanVec<'db, AstStatement<'db>>,
 }
 
 #[derive(Clone, PartialEq, Eq, PartialOrd, Ord, Hash, Update, Debug, FromImpls)]

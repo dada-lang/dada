@@ -11,8 +11,8 @@ use salsa::Update;
 
 use crate::{
     class::SymClass,
-    function::{SignatureSource, SignatureSymbols, SymFunction},
-    indices::{SymBinderIndex, SymBoundVarIndex, SymUniversalVarIndex},
+    function::{SignatureSource, SignatureSymbols, SymFunction, SymInputOutput},
+    indices::{SymBinderIndex, SymBoundVarIndex, SymVarIndex},
     module::SymModule,
     prelude::IntoSymbol,
     primitive::{primitives, SymPrimitive},
@@ -29,7 +29,7 @@ pub enum ScopeItem<'db> {
 
 /// Name resolution scope, used when converting types/function-bodies etc into symbols.
 #[derive(Clone, Debug, PartialEq, Eq)]
-pub(crate) struct Scope<'scope, 'db> {
+pub struct Scope<'scope, 'db> {
     chain: ScopeChain<'scope, 'db>,
 }
 
@@ -37,7 +37,7 @@ pub(crate) struct Scope<'scope, 'db> {
 /// in the associated [`ScopeChainLink`][] and, if nothing is found, proceed to
 /// the next next.
 #[derive(Clone, Debug, PartialEq, Eq)]
-pub(crate) struct ScopeChain<'scope, 'db> {
+struct ScopeChain<'scope, 'db> {
     link: ScopeChainLink<'scope, 'db>,
     next: Option<Box<ScopeChain<'scope, 'db>>>,
 }
@@ -56,7 +56,7 @@ pub(crate) enum ScopeChainLink<'scope, 'db> {
 
 /// Result of name resolution.
 #[derive(Clone, Debug, PartialEq, Eq, FromImpls)]
-pub(crate) enum NameResolution<'db> {
+pub enum NameResolution<'db> {
     SymModule(SymModule<'db>),
     SymClass(SymClass<'db>),
     SymLocalVariable(SymLocalVariable<'db>),
@@ -76,12 +76,23 @@ enum BindersTraversed {
 
     /// Counts *down* from the total free (universal)
     /// generic variables in scope to 0.
-    Free { universal_generics: usize },
+    Free(usize),
+}
+
+impl<'db> ScopeItem<'db> {
+    /// Convert this scope item into a scope in whatever way makes sense.
+    pub fn into_scope(self, db: &'db dyn crate::Db) -> Scope<'db, 'db> {
+        match self {
+            ScopeItem::Module(ast_module) => ast_module.into_symbol(db).mod_scope(db),
+
+            ScopeItem::Class(sym_class) => sym_class.class_scope(db),
+        }
+    }
 }
 
 impl<'scope, 'db> Scope<'scope, 'db> {
     /// A base scope containing only the primitive names.
-    fn base(_db: &'db dyn crate::Db) -> Self {
+    pub(crate) fn new(_db: &'db dyn crate::Db) -> Self {
         Scope {
             chain: ScopeChain {
                 link: ScopeChainLink::Primitives,
@@ -90,19 +101,8 @@ impl<'scope, 'db> Scope<'scope, 'db> {
         }
     }
 
-    /// Create a name resolution scope starting with the names from the given [`ScopeItem`][].
-    pub fn new(db: &'db dyn crate::Db, item: impl Into<ScopeItem<'db>>) -> Self {
-        match item.into() {
-            ScopeItem::Module(ast_module) => {
-                Self::base(db).with_link(ScopeChainLink::from(ast_module.into_symbol(db)))
-            }
-
-            ScopeItem::Class(sym_class) => sym_class.class_scope(db),
-        }
-    }
-
     /// Extend this scope with another link in the name resolution chain
-    pub fn with_link<'scope1>(
+    pub(crate) fn with_link<'scope1>(
         self,
         link: impl Into<ScopeChainLink<'scope1, 'db>>,
     ) -> Scope<'scope1, 'db>
@@ -115,6 +115,27 @@ impl<'scope, 'db> Scope<'scope, 'db> {
                 next: Some(Box::new(self.chain)),
             },
         }
+    }
+
+    /// Ensures that we have at least 1 of binders, adding a dummy binding level if needed.
+    pub fn ensure_binder(self) -> Scope<'scope, 'db> {
+        let binders: usize = self.chain.links().map(|link| link.count_binders()).sum();
+        if binders == 1 {
+            self
+        } else if binders == 0 {
+            self.with_link(Cow::Owned(SignatureSymbols {
+                source: SignatureSource::Dummy,
+                generics: vec![],
+                inputs: vec![],
+            }))
+        } else {
+            panic!("ensure_binder called with {binders} level of binders, expected 0 or 1")
+        }
+    }
+
+    /// Adds a "body" link to the scope chain. Used when resolving function bodies.
+    pub fn with_body_link(self) -> Scope<'scope, 'db> {
+        self.with_link(ScopeChainLink::Body)
     }
 
     /// Return the innermost class in scope along with its in-scope generic parameters.
@@ -190,12 +211,12 @@ impl<'scope, 'db> Scope<'scope, 'db> {
     /// # Panics
     ///
     /// If the result type does not match the numer of binders in scope.
-    pub(crate) fn into_bound<T, B>(self, value: T) -> B
+    pub(crate) fn into_bound<T, B>(self, db: &'db dyn crate::Db, value: T) -> B
     where
         B: Bind<'db, T>,
     {
         let generics = self.into_bound_generics();
-        B::bind(generics, value)
+        B::bind(db, generics, value)
     }
 
     /// Convert `self` into a vec-of-vecs containing the bound generic symbols
@@ -229,14 +250,23 @@ pub(crate) trait Bind<'db, T> {
     ///
     /// This either returns `value` *or* creates a `Binder<_>` around value
     /// (possibly multiple binders).
-    fn bind(binding_levels: impl IntoIterator<Item = Vec<SymGeneric<'db>>>, value: T) -> Self;
+    fn bind(
+        db: &'db dyn crate::Db,
+        binding_levels: impl IntoIterator<Item = Vec<SymGeneric<'db>>>,
+        value: T,
+    ) -> Self;
 }
 
-impl<'db, T, U> Bind<'db, T> for Binder<'db, U>
+impl<'db, T, U> Bind<'db, T> for Binder<U>
 where
-    U: Bind<'db, T>,
+    U: Bind<'db, T> + Update,
+    T: Update,
 {
-    fn bind(binding_levels: impl IntoIterator<Item = Vec<SymGeneric<'db>>>, value: T) -> Self {
+    fn bind(
+        db: &'db dyn crate::Db,
+        binding_levels: impl IntoIterator<Item = Vec<SymGeneric<'db>>>,
+        value: T,
+    ) -> Self {
         let mut binding_levels = binding_levels.into_iter();
 
         // Extract next level of bound symbols for use in this binder;
@@ -246,21 +276,34 @@ where
 
         // Introduce whatever binders are needed to go from the innermost
         // value type `T` to `U`.
-        let u = U::bind(binding_levels, value);
+        let u = U::bind(db, binding_levels, value);
         Binder {
-            symbols,
+            symbols: symbols.iter().map(|s| s.kind(db)).collect(),
             bound_value: u,
         }
     }
 }
 
-impl<'db> Bind<'db, SymTy<'db>> for SymTy<'db> {
+impl<'db> Bind<'db, SymInputOutput<'db>> for SymInputOutput<'db> {
     fn bind(
+        _db: &'db dyn crate::Db,
         binding_levels: impl IntoIterator<Item = Vec<SymGeneric<'db>>>,
-        value: SymTy<'db>,
+        value: Self,
     ) -> Self {
         // Leaf case: symbol type is the innermost value.
+        let mut binding_levels = binding_levels.into_iter();
+        assert_eq!(binding_levels.next(), None);
+        value
+    }
+}
 
+impl<'db> Bind<'db, SymTy<'db>> for SymTy<'db> {
+    fn bind(
+        _db: &'db dyn crate::Db,
+        binding_levels: impl IntoIterator<Item = Vec<SymGeneric<'db>>>,
+        value: Self,
+    ) -> Self {
+        // Leaf case: symbol type is the innermost value.
         let mut binding_levels = binding_levels.into_iter();
         assert_eq!(binding_levels.next(), None);
         value
@@ -430,47 +473,57 @@ impl<'scope, 'db> ScopeChain<'scope, 'db> {
     fn resolve(
         &self,
         resolve_link: impl Fn(&ScopeChainLink<'_, 'db>, BindersTraversed) -> Option<NameResolution<'db>>,
-        mut binders_traversed: BindersTraversed,
+        binders_traversed: BindersTraversed,
     ) -> Option<NameResolution<'db>> {
-        for link in self.links() {
-            if let Some(r) = resolve_link(link, binders_traversed) {
-                return Some(r);
-            }
-
-            binders_traversed = link.traverse_binders(binders_traversed);
+        if let Some(r) = resolve_link(&self.link, binders_traversed) {
+            return Some(r);
         }
-        None
+
+        // Walk outward by one scope
+        if let Some(next) = &self.next {
+            // Update `binders_traversed` based on what kind of link we are stepping through...
+            let next_binders_traversed = match &self.link {
+                // Primitives/modules do not bind anything
+                ScopeChainLink::Primitives | ScopeChainLink::SymModule(_) => binders_traversed,
+
+                // Introduce a binding level
+                ScopeChainLink::SignatureSymbols(cow) => match binders_traversed {
+                    BindersTraversed::Bound(binders) => BindersTraversed::Bound(binders + 1),
+                    BindersTraversed::Free(variables) => {
+                        BindersTraversed::Free(variables - cow.generics.len())
+                    }
+                },
+
+                // Convert to free variables
+                ScopeChainLink::Body => {
+                    BindersTraversed::Free(self.links().map(|l| l.count_variables()).sum())
+                }
+            };
+
+            next.resolve(resolve_link, next_binders_traversed)
+        } else {
+            None
+        }
     }
 }
 
 impl<'db> ScopeChainLink<'_, 'db> {
-    fn traverse_binders(&self, binders_traversed: BindersTraversed) -> BindersTraversed {
-        match binders_traversed {
-            BindersTraversed::Bound(binders) => match self {
-                ScopeChainLink::Primitives | ScopeChainLink::SymModule(_) => {
-                    BindersTraversed::Bound(binders)
-                }
-                ScopeChainLink::SignatureSymbols(_) => BindersTraversed::Bound(binders + 1),
-                ScopeChainLink::Body => BindersTraversed::Free {
-                    universal_generics: self.count_universal_variables(),
-                },
-            },
-            BindersTraversed::Free { universal_generics } => match self {
-                ScopeChainLink::Primitives | ScopeChainLink::SymModule(_) => {
-                    BindersTraversed::Free { universal_generics }
-                }
-                ScopeChainLink::SignatureSymbols(signature_symbols) => BindersTraversed::Free {
-                    universal_generics: universal_generics - signature_symbols.generics.len(),
-                },
-                ScopeChainLink::Body => BindersTraversed::Free { universal_generics },
-            },
+    /// Count the variables introduced by `self`
+    fn count_variables(&self) -> usize {
+        match self {
+            ScopeChainLink::Primitives => 0,
+            ScopeChainLink::SymModule(_) => 0,
+            ScopeChainLink::SignatureSymbols(cow) => cow.generics.len(),
+            ScopeChainLink::Body => 0,
         }
     }
 
-    fn count_universal_variables(&self) -> usize {
+    /// Count the binders introduced by `self`
+    fn count_binders(&self) -> usize {
         match self {
-            ScopeChainLink::Primitives | ScopeChainLink::SymModule(_) => 0,
-            ScopeChainLink::SignatureSymbols(symbols) => symbols.generics.len(),
+            ScopeChainLink::Primitives => 0,
+            ScopeChainLink::SymModule(_) => 0,
+            ScopeChainLink::SignatureSymbols(_) => 1,
             ScopeChainLink::Body => 0,
         }
     }
@@ -543,11 +596,9 @@ impl BindersTraversed {
                 SymBinderIndex::from(binders),
                 SymBoundVarIndex::from(variable_index),
             ),
-            BindersTraversed::Free { universal_generics } => {
-                GenericIndex::Universal(SymUniversalVarIndex::from(
-                    universal_generics - variables_in_binder + variable_index,
-                ))
-            }
+            BindersTraversed::Free(variables) => GenericIndex::Universal(SymVarIndex::from(
+                variables - variables_in_binder + variable_index,
+            )),
         }
     }
 }

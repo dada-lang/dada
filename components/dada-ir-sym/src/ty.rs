@@ -1,6 +1,6 @@
 use crate::{
     class::SymClass,
-    indices::{SymBinderIndex, SymBoundVarIndex, SymUniversalVarIndex},
+    indices::{SymBinderIndex, SymBoundVarIndex, SymVarIndex},
     prelude::IntoSymbol,
     primitive::SymPrimitive,
     scope::{NameResolution, Resolve, Scope},
@@ -9,11 +9,10 @@ use crate::{
 };
 use dada_ir_ast::{
     ast::{
-        AstGenericArg, AstGenericDecl, AstGenericKind, AstPerm, AstPermKind, AstTy, AstTyKind,
-        Identifier,
+        AstGenericArg, AstGenericDecl, AstGenericKind, AstPath, AstPerm, AstPermKind, AstTy,
+        AstTyKind, Identifier,
     },
-    diagnostic::Reported,
-    diagnostic::{Diagnostic, Level},
+    diagnostic::{Diagnostic, Level, Reported},
     span::Spanned,
 };
 use dada_util::FromImpls;
@@ -47,9 +46,9 @@ pub enum SymTyKind<'db> {
     Error(Reported),
 }
 
-#[derive(Clone, PartialEq, Eq, PartialOrd, Ord, Hash, Debug)]
-pub struct Binder<'db, T> {
-    pub symbols: Vec<SymGeneric<'db>>,
+#[derive(Clone, PartialEq, Eq, PartialOrd, Ord, Hash, Update, Debug)]
+pub struct Binder<T: Update> {
+    pub symbols: Vec<SymGenericKind>,
     pub bound_value: T,
 }
 
@@ -83,7 +82,7 @@ pub enum SymPermKind<'db> {
 
 #[derive(Copy, Clone, PartialEq, Eq, PartialOrd, Ord, Hash, Update, Debug)]
 pub enum GenericIndex {
-    Universal(SymUniversalVarIndex),
+    Universal(SymVarIndex),
     Bound(SymBinderIndex, SymBoundVarIndex),
 }
 
@@ -217,7 +216,6 @@ impl<'db> IntoSymInScope<'db> for AstPerm<'db> {
                 let places = places
                     .iter()
                     .map(|p| p.into_sym_in_scope(db, scope))
-                    .map(|p| p.into_place(db))
                     .collect();
                 SymPerm::new(db, SymPermKind::Shared(places))
             }
@@ -225,7 +223,6 @@ impl<'db> IntoSymInScope<'db> for AstPerm<'db> {
                 let places = places
                     .iter()
                     .map(|p| p.into_sym_in_scope(db, scope))
-                    .map(|p| p.into_place(db))
                     .collect();
                 SymPerm::new(db, SymPermKind::Leased(places))
             }
@@ -233,7 +230,6 @@ impl<'db> IntoSymInScope<'db> for AstPerm<'db> {
                 let places = places
                     .iter()
                     .map(|p| p.into_sym_in_scope(db, scope))
-                    .map(|p| p.into_place(db))
                     .collect();
                 SymPerm::new(db, SymPermKind::Given(places))
             }
@@ -460,4 +456,72 @@ fn unit_ty<'db>(db: &'db dyn Db) -> SymTy<'db> {
         db,
         SymTyKind::Named(SymTyName::Tuple { arity: 0 }, Default::default()),
     )
+}
+
+impl<'db> SymPlace<'db> {
+    /// Create a new place expression extended with a field `field`.
+    pub fn field(self, db: &'db dyn crate::Db, field: Identifier<'db>) -> Self {
+        SymPlace::new(db, SymPlaceKind::Field(self, field))
+    }
+}
+
+impl<'db> IntoSymInScope<'db> for AstPath<'db> {
+    type Symbolic = SymPlace<'db>;
+
+    fn into_sym_in_scope(
+        self,
+        db: &'db dyn crate::Db,
+        scope: &crate::scope::Scope<'_, 'db>,
+    ) -> Self::Symbolic {
+        let (first_id, other_ids) = self.ids(db).split_first().unwrap();
+
+        // First resolve as many of the ids as we can using "lexical" resolution.
+        // This will take care of any modules.
+        let lexical_result = first_id
+            .resolve_in(db, scope)
+            .and_then(|r| r.resolve_relative(db, other_ids));
+
+        // The final result `resolution` is what we attained via lexical resolution.
+        // The slice `fields` are the remaining ids that are relative to this item.
+        let (resolution, fields) = match lexical_result {
+            Ok(pair) => pair,
+            Err(reported) => return SymPlace::new(db, SymPlaceKind::Error(reported)),
+        };
+
+        // We expect the final resolution to be a local variable of some kind.
+        // Anything else is an error.
+        let NameResolution::SymLocalVariable(sym_local_variable) = resolution else {
+            return SymPlace::new(
+                db,
+                SymPlaceKind::Error(
+                    Diagnostic::error(
+                        db,
+                        self.span(db),
+                        format!(
+                            "expected place expression, found {}",
+                            resolution.categorize(db)
+                        ),
+                    )
+                    .label(
+                        db,
+                        Level::Error,
+                        self.span(db),
+                        format!(
+                            "I expected a place expression, but I found {}",
+                            resolution.describe(db)
+                        ),
+                    )
+                    .report(db),
+                ),
+            );
+        };
+
+        // Create the place. Note that in this phase we just include field ids with no closer examination.
+        // The type checker must validate that they are correct.
+        let mut place = SymPlace::new(db, SymPlaceKind::LocalVariable(sym_local_variable));
+        for &id in fields {
+            place = place.field(db, id.id);
+        }
+        place
+    }
 }

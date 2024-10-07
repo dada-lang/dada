@@ -9,7 +9,7 @@ use dada_ir_ast::{
 };
 
 use super::{
-    tokenizer::{Delimiter, Keyword, Token, TokenKind},
+    tokenizer::{Delimiter, Keyword},
     Expected, Parse, ParseFail, Parser,
 };
 

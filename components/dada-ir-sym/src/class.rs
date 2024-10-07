@@ -18,32 +18,42 @@ use crate::{
 
 #[salsa::tracked]
 pub struct SymClass<'db> {
-    scope: ScopeItem<'db>,
+    /// The scope in which this class is declared.
+    scope_item: ScopeItem<'db>,
+
+    /// The AST for this class.
     source: AstClassItem<'db>,
 }
 
+/// Symbol for a class member
 #[derive(Copy, Clone, PartialEq, Eq, PartialOrd, Ord, Debug, FromImpls)]
 pub enum SymClassMember<'db> {
+    /// Class fields
     SymField(SymField<'db>),
+
+    /// Class methods
     SymFunction(SymFunction<'db>),
 }
 
+/// Symbol for a field of a class, struct, or enum
 #[salsa::tracked]
 pub struct SymField<'db> {
-    pub class: SymClass<'db>,
-    pub name: Identifier<'db>,
-    pub name_span: Span<'db>,
-    pub source: AstFieldDecl<'db>,
-}
+    /// The item in which this field is declared.
+    pub scope_item: ScopeItem<'db>,
 
-impl<'db> Spanned<'db> for SymClass<'db> {
-    fn span(&self, db: &'db dyn salsa::Database) -> dada_ir_ast::span::Span<'db> {
-        self.source(db).name_span(db)
-    }
+    /// Field name
+    pub name: Identifier<'db>,
+
+    /// Span of field name. Also returned by [`Spanned`][] impl.
+    pub name_span: Span<'db>,
+
+    /// AST for field declaration
+    pub source: AstFieldDecl<'db>,
 }
 
 #[salsa::tracked]
 impl<'db> SymClass<'db> {
+    /// Name of the class.
     pub fn name(&self, db: &'db dyn crate::Db) -> Identifier<'db> {
         self.source(db).name(db)
     }
@@ -57,8 +67,9 @@ impl<'db> SymClass<'db> {
         }
     }
 
-    /// Span of the class name, typically used in diagnostics
-    pub fn name_span(&self, db: &'db dyn crate::Db) -> Span<'db> {
+    /// Span of the class name, typically used in diagnostics.
+    /// Also returned by the [`Spanned`][] impl.
+    pub fn name_span(&self, db: &'db dyn dada_ir_ast::Db) -> Span<'db> {
         self.source(db).name_span(db)
     }
 
@@ -77,7 +88,9 @@ impl<'db> SymClass<'db> {
         let mut signature_symbols = SignatureSymbols::new(self);
         self.source(db)
             .populate_signature_symbols(db, &mut signature_symbols);
-        Scope::new(db, self.scope(db)).with_link(Cow::Owned(signature_symbols))
+        self.scope_item(db)
+            .into_scope(db)
+            .with_link(Cow::Owned(signature_symbols))
     }
 
     /// Returns the type of this class, referencing the generics that appear in `scope`.
@@ -105,7 +118,7 @@ impl<'db> SymClass<'db> {
             .map(|m| match *m {
                 AstMember::Field(ast_field_decl) => {
                     let SpannedIdentifier { span, id } = ast_field_decl.variable(db).name(db);
-                    SymField::new(db, self, id, span, ast_field_decl).into()
+                    SymField::new(db, self.into(), id, span, ast_field_decl).into()
                 }
                 AstMember::Function(ast_function) => {
                     SymFunction::new(db, self.into(), ast_function).into()
@@ -132,10 +145,22 @@ impl<'db> SymClass<'db> {
 #[salsa::tracked]
 impl<'db> SymField<'db> {
     #[salsa::tracked]
-    pub fn ty(self, db: &'db dyn crate::Db) -> Binder<'db, SymTy<'db>> {
-        let scope = Scope::new(db, self.class(db));
+    pub fn ty(self, db: &'db dyn crate::Db) -> Binder<SymTy<'db>> {
+        let scope = self.scope_item(db).into_scope(db);
         let ast_ty = self.source(db).variable(db).ty(db);
         let sym_ty = ast_ty.into_sym_in_scope(db, &scope);
-        scope.into_bound(sym_ty)
+        scope.into_bound(db, sym_ty)
+    }
+}
+
+impl<'db> Spanned<'db> for SymClass<'db> {
+    fn span(&self, db: &'db dyn dada_ir_ast::Db) -> Span<'db> {
+        self.name_span(db)
+    }
+}
+
+impl<'db> Spanned<'db> for SymField<'db> {
+    fn span(&self, db: &'db dyn dada_ir_ast::Db) -> dada_ir_ast::span::Span<'db> {
+        self.name_span(db)
     }
 }

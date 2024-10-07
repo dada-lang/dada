@@ -285,6 +285,7 @@ dependencies = [
  "dada-ir-sym",
  "dada-parser",
  "dada-util",
+ "salsa",
 ]
 
 [[package]]
@@ -331,6 +332,17 @@ name = "dada-parser"
 version = "0.1.0"
 dependencies = [
  "dada-ir-ast",
+ "dada-util",
+ "salsa",
+]
+
+[[package]]
+name = "dada-type-check"
+version = "0.1.0"
+dependencies = [
+ "dada-ir-ast",
+ "dada-ir-sym",
+ "dada-parser",
  "dada-util",
  "salsa",
 ]

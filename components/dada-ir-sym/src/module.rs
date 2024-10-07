@@ -46,6 +46,11 @@ impl<'db> SymModule<'db> {
         self.source(db).name(db)
     }
 
+    /// Name resolution scope for items in this module.
+    pub fn mod_scope(self, db: &'db dyn crate::Db) -> Scope<'db, 'db> {
+        Scope::new(db).with_link(self)
+    }
+
     /// Returns a list of all top-level items in the module
     pub fn items(self, db: &'db dyn crate::Db) -> impl Iterator<Item = SymItem<'db>> {
         self.class_map(db)
@@ -64,7 +69,7 @@ impl<'db> SymModule<'db> {
     /// This is executed by `dada-ir-check` crate
     /// simply to force errors to be reported.
     pub fn resolve_use_items(self, db: &'db dyn crate::Db) {
-        let scope = &Scope::new(db, self.source(db));
+        let scope = &self.mod_scope(db);
         for item in self.ast_use_map(db).values() {
             let _ = item.path(db).resolve_in(db, scope);
         }
