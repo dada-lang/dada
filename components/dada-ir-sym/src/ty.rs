@@ -19,11 +19,34 @@ use dada_util::FromImpls;
 use salsa::Update;
 
 /// Value of a generic parameter
-#[derive(Clone, PartialEq, Eq, PartialOrd, Ord, Hash, Update, Debug, FromImpls)]
-pub enum SymGenericArg<'db> {
+#[derive(Copy, Clone, PartialEq, Eq, PartialOrd, Ord, Hash, Update, Debug, FromImpls)]
+pub enum SymGenericTerm<'db> {
     Type(SymTy<'db>),
     Perm(SymPerm<'db>),
     Error(Reported),
+}
+
+impl<'db> SymGenericTerm<'db> {
+    pub fn var(db: &'db dyn crate::Db, kind: SymGenericKind, index: GenericIndex) -> Self {
+        match kind {
+            SymGenericKind::Type => SymTy::new(db, SymTyKind::Var(index)).into(),
+            SymGenericKind::Perm => SymPerm::new(db, SymPermKind::Var(index)).into(),
+        }
+    }
+
+    pub fn assert_type(self) -> SymTy<'db> {
+        match self {
+            SymGenericTerm::Type(ty) => ty,
+            _ => unreachable!(),
+        }
+    }
+
+    pub fn assert_perm(self) -> SymPerm<'db> {
+        match self {
+            SymGenericTerm::Perm(perm) => perm,
+            _ => unreachable!(),
+        }
+    }
 }
 
 #[salsa::interned]
@@ -35,7 +58,7 @@ pub struct SymTy<'db> {
 pub enum SymTyKind<'db> {
     Perm(SymPerm<'db>, SymTy<'db>),
 
-    Named(SymTyName<'db>, Vec<SymGenericArg<'db>>),
+    Named(SymTyName<'db>, Vec<SymGenericTerm<'db>>),
 
     Var(GenericIndex),
 
@@ -52,7 +75,7 @@ pub struct Binder<T: Update> {
     pub bound_value: T,
 }
 
-#[derive(Clone, PartialEq, Eq, PartialOrd, Ord, Hash, Update, Debug, FromImpls)]
+#[derive(Copy, Clone, PartialEq, Eq, PartialOrd, Ord, Hash, Update, Debug, FromImpls)]
 pub enum SymTyName<'db> {
     Primitive(SymPrimitive<'db>),
 
@@ -83,6 +106,7 @@ pub enum SymPermKind<'db> {
 #[derive(Copy, Clone, PartialEq, Eq, PartialOrd, Ord, Hash, Update, Debug)]
 pub enum GenericIndex {
     Universal(SymVarIndex),
+    Existential(SymVarIndex),
     Bound(SymBinderIndex, SymBoundVarIndex),
 }
 
@@ -193,7 +217,7 @@ impl<'db> IntoSymInScope<'db> for AstTy<'db> {
 }
 
 impl<'db> IntoSymInScope<'db> for AstGenericArg<'db> {
-    type Symbolic = SymGenericArg<'db>;
+    type Symbolic = SymGenericTerm<'db>;
 
     fn into_sym_in_scope(self, db: &'db dyn crate::Db, scope: &Scope<'_, 'db>) -> Self::Symbolic {
         match self {
@@ -262,11 +286,11 @@ impl<'db> NameResolution<'db> {
         self,
         db: &'db dyn crate::Db,
         source: impl Spanned<'db>,
-    ) -> SymGenericArg<'db> {
+    ) -> SymGenericTerm<'db> {
         if let NameResolution::SymGeneric(generic, _) = self {
             match generic.kind(db) {
-                SymGenericKind::Type => SymGenericArg::Type(self.to_sym_ty(db, source, vec![])),
-                SymGenericKind::Perm => SymGenericArg::Perm(self.to_sym_perm(db, source)),
+                SymGenericKind::Type => SymGenericTerm::Type(self.to_sym_ty(db, source, vec![])),
+                SymGenericKind::Perm => SymGenericTerm::Perm(self.to_sym_perm(db, source)),
             }
         } else {
             self.to_sym_ty(db, source, vec![]).into()
@@ -279,7 +303,7 @@ impl<'db> NameResolution<'db> {
         self,
         db: &'db dyn crate::Db,
         source: impl Spanned<'db>,
-        generics: Vec<SymGenericArg<'db>>,
+        generics: Vec<SymGenericTerm<'db>>,
     ) -> SymTy<'db> {
         self.to_sym_ty_skel(
             db,

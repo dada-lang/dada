@@ -6,29 +6,9 @@ use dada_ir_ast::{
 use dada_ir_sym::{
     class::SymField,
     symbol::SymLocalVariable,
-    ty::{SymGenericArg, SymTy},
+    ty::{SymGenericTerm, SymTy},
 };
-use dada_util::FromImpls;
 use salsa::Update;
-
-#[salsa::tracked]
-pub struct CheckedBlock<'db> {
-    #[return_ref]
-    pub statements: Vec<CheckedStatement<'db>>,
-}
-
-#[derive(Clone, PartialEq, Eq, PartialOrd, Ord, Hash, Update, Debug, FromImpls)]
-pub enum CheckedStatement<'db> {
-    Let(CheckedLetStatement<'db>),
-    Expr(CheckedExpr<'db>),
-}
-
-/// `let x = v`, `let x: t = v`, etc
-#[salsa::tracked]
-pub struct CheckedLetStatement<'db> {
-    pub variable: SymLocalVariable<'db>,
-    pub initializer: Option<CheckedExpr<'db>>,
-}
 
 #[salsa::tracked]
 pub struct CheckedExpr<'db> {
@@ -38,6 +18,12 @@ pub struct CheckedExpr<'db> {
 
 #[derive(Clone, PartialEq, Eq, PartialOrd, Ord, Hash, Update, Debug)]
 pub enum CheckedExprKind<'db> {
+    /// `$expr1; $expr2`
+    Semi(CheckedExpr<'db>, CheckedExpr<'db>),
+
+    /// `let $lv: $ty = $expr in $expr`
+    Let(CheckedLetExpr<'db>),
+
     /// `22`
     Literal(Literal<'db>),
 
@@ -71,11 +57,20 @@ pub enum CheckedExprKind<'db> {
     BinaryOp(BinaryOp, CheckedExpr<'db>, CheckedExpr<'db>),
 }
 
+/// `let $lv: $ty = $initializer in $body`
+#[derive(Clone, PartialEq, Eq, PartialOrd, Ord, Hash, Update, Debug)]
+pub struct CheckedLetExpr<'db> {
+    pub lv: SymLocalVariable<'db>,
+    pub ty: SymTy<'db>,
+    pub initializer: Option<CheckedExpr<'db>>,
+    pub body: CheckedExpr<'db>,
+}
+
 /// `$expr.method[g1, g2](a1, a2)`
 #[derive(Clone, PartialEq, Eq, PartialOrd, Ord, Hash, Update, Debug)]
 pub struct CheckedMethodCall<'db> {
     pub owner: CheckedExpr<'db>,
-    pub generic_args: Vec<SymGenericArg<'db>>,
+    pub generic_args: Vec<SymGenericTerm<'db>>,
     pub args: Vec<CheckedExpr<'db>>,
 }
 

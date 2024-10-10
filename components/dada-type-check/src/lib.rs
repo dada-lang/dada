@@ -2,30 +2,40 @@
 //! body to the "symbol" version (`SymBlock`). Along the way it performs
 //! type checking.
 
+// FIXME
+#![expect(dead_code)]
+#![expect(unused_variables)]
+
 use dada_ir_sym::function::SymFunction;
 pub use dada_ir_sym::Db;
 use env::Env;
+use executor::Check;
 
 pub mod prelude {
-    use crate::ir::CheckedBlock;
+    use crate::ir::CheckedExpr;
 
     pub trait CheckFunctionBody<'db> {
-        fn check_function_body(self, db: &'db dyn crate::Db) -> Option<CheckedBlock<'db>>;
+        fn check_function_body(self, db: &'db dyn crate::Db) -> Option<CheckedExpr<'db>>;
     }
 }
 
 mod blocks;
+mod checking_ir;
 mod env;
+mod executor;
+mod exprs;
+mod inference;
 mod ir;
-mod statements;
+mod universe;
 
-pub trait CheckInEnv<'db> {
-    type Checked;
-    fn check_in_env(&self, db: &'db dyn crate::Db, env: &mut Env<'_, 'db>) -> Self::Checked;
+trait Checking<'chk, 'db: 'chk> {
+    type Checking;
+
+    fn check(&self, check: &mut Check<'chk, 'db>, env: &Env<'db>) -> Self::Checking;
 }
 
 impl<'db> prelude::CheckFunctionBody<'db> for SymFunction<'db> {
-    fn check_function_body(self, db: &'db dyn crate::Db) -> Option<ir::CheckedBlock<'db>> {
+    fn check_function_body(self, db: &'db dyn crate::Db) -> Option<ir::CheckedExpr<'db>> {
         blocks::check_function_body(db, self)
     }
 }

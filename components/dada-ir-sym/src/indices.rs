@@ -1,5 +1,7 @@
 use salsa::Update;
 
+use crate::function::SymInputOutput;
+
 /// Also known as a "de Bruijn index", a binder index
 /// Identifies the binder in which a bound a variable is bound.
 /// Counts outward from the innermost binder, so 0 indicates
@@ -29,11 +31,23 @@ pub struct SymBinderIndex(usize);
 
 impl SymBinderIndex {
     pub const INNERMOST: SymBinderIndex = SymBinderIndex(0);
+
+    pub fn shift_into_binders(self, binders: SymBinderIndex) -> Self {
+        SymBinderIndex(self.0 + binders.0)
+    }
 }
 
 impl From<usize> for SymBinderIndex {
     fn from(value: usize) -> Self {
         SymBinderIndex(value)
+    }
+}
+
+impl std::ops::Add<usize> for SymBinderIndex {
+    type Output = Self;
+
+    fn add(self, rhs: usize) -> Self::Output {
+        SymBinderIndex(self.0.checked_add(rhs).unwrap())
     }
 }
 

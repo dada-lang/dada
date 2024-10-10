@@ -32,6 +32,7 @@ pub mod module;
 mod populate;
 mod primitive;
 pub mod scope;
+pub mod subst;
 pub mod symbol;
 pub mod ty;
 

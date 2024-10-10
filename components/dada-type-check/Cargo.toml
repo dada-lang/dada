@@ -9,3 +9,4 @@ dada-ir-sym = { version = "0.1.0", path = "../dada-ir-sym" }
 dada-parser = { version = "0.1.0", path = "../dada-parser" }
 dada-util = { version = "0.1.0", path = "../dada-util" }
 salsa = { git = "https://github.com/salsa-rs/salsa.git" }
+typed-arena = "2.0.2"

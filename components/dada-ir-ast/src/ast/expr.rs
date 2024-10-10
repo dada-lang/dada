@@ -114,8 +114,8 @@ pub struct AstConstructorField<'db> {
 
 #[salsa::interned]
 pub struct Literal<'db> {
-    kind: LiteralKind,
-    text: String,
+    pub kind: LiteralKind,
+    pub text: String,
 }
 
 #[derive(Clone, Copy, PartialEq, Eq, PartialOrd, Ord, Hash, Update, Debug)]
