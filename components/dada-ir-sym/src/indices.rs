@@ -1,7 +1,5 @@
 use salsa::Update;
 
-use crate::function::SymInputOutput;
-
 /// Also known as a "de Bruijn index", a binder index
 /// Identifies the binder in which a bound a variable is bound.
 /// Counts outward from the innermost binder, so 0 indicates
@@ -35,6 +33,10 @@ impl SymBinderIndex {
     pub fn shift_into_binders(self, binders: SymBinderIndex) -> Self {
         SymBinderIndex(self.0 + binders.0)
     }
+
+    pub fn shift_out(self) -> Self {
+        SymBinderIndex(self.0.checked_sub(1).unwrap())
+    }
 }
 
 impl From<usize> for SymBinderIndex {
@@ -55,14 +57,20 @@ impl std::ops::Add<usize> for SymBinderIndex {
 #[derive(Copy, Clone, PartialEq, Eq, PartialOrd, Ord, Hash, Update, Debug)]
 pub struct SymBoundVarIndex(usize);
 
+impl SymBoundVarIndex {
+    pub fn as_usize(self) -> usize {
+        self.0
+    }
+}
+
 impl From<usize> for SymBoundVarIndex {
     fn from(value: usize) -> Self {
         SymBoundVarIndex(value)
     }
 }
 
-/// Identifies a particular universal ("∀") variable.
-/// Indices are assigned with `0` representing the "outermost" bound variable.
+/// Identifies a particular free variable.
+/// Indices are assigned with `0` representing the "outermost" free variable.
 ///
 /// # Example
 ///
@@ -77,6 +85,12 @@ impl From<usize> for SymBoundVarIndex {
 /// Inside the function body, `A` has index 0, `B` has index 1.
 #[derive(Copy, Clone, PartialEq, Eq, PartialOrd, Ord, Hash, Update, Debug)]
 pub struct SymVarIndex(usize);
+
+impl SymVarIndex {
+    pub fn as_usize(self) -> usize {
+        self.0
+    }
+}
 
 impl From<usize> for SymVarIndex {
     fn from(value: usize) -> Self {

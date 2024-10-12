@@ -2,6 +2,7 @@
 //! body to the "symbol" version (`SymBlock`). Along the way it performs
 //! type checking.
 
+#![feature(trait_upcasting)]
 // FIXME
 #![expect(dead_code)]
 #![expect(unused_variables)]
@@ -26,12 +27,13 @@ mod executor;
 mod exprs;
 mod inference;
 mod ir;
+mod statements;
 mod universe;
 
 trait Checking<'chk, 'db: 'chk> {
     type Checking;
 
-    fn check(&self, check: &mut Check<'chk, 'db>, env: &Env<'db>) -> Self::Checking;
+    fn check(&self, check: &mut Check<'chk, 'db>, env: Env<'db>) -> Self::Checking;
 }
 
 impl<'db> prelude::CheckFunctionBody<'db> for SymFunction<'db> {

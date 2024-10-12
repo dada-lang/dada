@@ -2,6 +2,7 @@ use dada_ir_ast::diagnostic::Reported;
 use salsa::Update;
 
 use crate::{
+    function::SymInputOutput,
     indices::{SymBinderIndex, SymBoundVarIndex},
     symbol::{SymGenericKind, SymLocalVariable},
     ty::{
@@ -11,12 +12,44 @@ use crate::{
 };
 
 pub struct SubstitutionFns<'s, 'db> {
-    bound_var: &'s mut dyn FnMut(SymGenericKind, SymBoundVarIndex) -> Option<SymGenericTerm<'db>>,
-    binder_index: &'s mut dyn FnMut(SymBinderIndex) -> SymBinderIndex,
-    local_var: &'s mut dyn FnMut(SymLocalVariable<'db>) -> Option<SymPlace<'db>>,
+    /// Invoked for variables bound in the [`INNERMOST`](`SymBinderIndex::INNERMOST`) binder
+    /// when substitution begins. The result is automatically shifted with [`Subst::shift_into_binders`][]
+    /// into any binders that we have traversed during the substitution.
+    ///
+    /// See [`Binder::open`][] for an example of this in use.
+    pub bound_var:
+        &'s mut dyn FnMut(SymGenericKind, SymBoundVarIndex) -> Option<SymGenericTerm<'db>>,
+
+    /// Invoked to adjust the binder level for bound terms when:
+    /// (a) the term is bound by some binder we have traversed or
+    /// (b) the `bound_var` callback returns `None` for that term.
+    ///
+    /// See [`Binder::open`][] or [`Subst::shift_into_binders`][]
+    /// for examples of this in use.
+    pub binder_index: &'s mut dyn FnMut(SymBinderIndex) -> SymBinderIndex,
+
+    /// Invoked to adjust the local variable that begins a [`SymPlace`][].
+    pub local_var: &'s mut dyn FnMut(SymLocalVariable<'db>) -> Option<SymPlace<'db>>,
 }
 
-pub trait Subst<'db>: Update {
+impl<'s, 'db> SubstitutionFns<'s, 'db> {
+    pub fn default_bound_var(
+        _: SymGenericKind,
+        _: SymBoundVarIndex,
+    ) -> Option<SymGenericTerm<'db>> {
+        None
+    }
+
+    pub fn default_binder_index(i: SymBinderIndex) -> SymBinderIndex {
+        i
+    }
+
+    pub fn default_local_var(_: SymLocalVariable<'db>) -> Option<SymPlace<'db>> {
+        None
+    }
+}
+
+pub trait Subst<'db> {
     type Output: Update;
 
     fn identity(&self) -> Self::Output;
@@ -28,11 +61,7 @@ pub trait Subst<'db>: Update {
         subst_fns: &mut SubstitutionFns<'_, 'db>,
     ) -> Self::Output;
 
-    fn shifted_into_binders(
-        &self,
-        db: &'db dyn crate::Db,
-        binders: SymBinderIndex,
-    ) -> Self::Output {
+    fn shift_into_binders(&self, db: &'db dyn crate::Db, binders: SymBinderIndex) -> Self::Output {
         if binders == SymBinderIndex::INNERMOST {
             self.identity()
         } else {
@@ -40,12 +69,32 @@ pub trait Subst<'db>: Update {
                 db,
                 binders,
                 &mut SubstitutionFns {
-                    bound_var: &mut |_, _| None,
                     binder_index: &mut |b| b.shift_into_binders(binders),
-                    local_var: &mut |_| None,
+                    bound_var: &mut SubstitutionFns::default_bound_var,
+                    local_var: &mut SubstitutionFns::default_local_var,
                 },
             )
         }
+    }
+}
+
+impl<'db, T> Subst<'db> for &T
+where
+    T: Subst<'db>,
+{
+    type Output = T::Output;
+
+    fn subst_with(
+        &self,
+        db: &'db dyn crate::Db,
+        depth: SymBinderIndex,
+        subst_fns: &mut SubstitutionFns<'_, 'db>,
+    ) -> Self::Output {
+        T::subst_with(self, db, depth, subst_fns)
+    }
+
+    fn identity(&self) -> Self::Output {
+        T::identity(self)
     }
 }
 
@@ -102,14 +151,13 @@ impl<'db> Subst<'db> for SymTy<'db> {
             // Interesting case
             SymTyKind::Var(generic_index) => match generic_index {
                 GenericIndex::Bound(sym_binder_index, sym_bound_var_index) => {
-                    let sym_binder_index = (subst_fns.binder_index)(sym_binder_index);
                     if sym_binder_index == depth {
                         match (subst_fns.bound_var)(SymGenericKind::Type, sym_bound_var_index) {
-                            Some(r) => r.assert_type().shifted_into_binders(db, depth),
+                            Some(r) => r.assert_type().shift_into_binders(db, depth),
                             None => SymTy::new(
                                 db,
                                 SymTyKind::Var(GenericIndex::Bound(
-                                    sym_binder_index,
+                                    (subst_fns.binder_index)(sym_binder_index),
                                     sym_bound_var_index,
                                 )),
                             ),
@@ -118,7 +166,7 @@ impl<'db> Subst<'db> for SymTy<'db> {
                         SymTy::new(
                             db,
                             SymTyKind::Var(GenericIndex::Bound(
-                                sym_binder_index,
+                                (subst_fns.binder_index)(sym_binder_index),
                                 sym_bound_var_index,
                             )),
                         )
@@ -177,7 +225,7 @@ impl<'db> Subst<'db> for SymPerm<'db> {
                     let sym_binder_index = (subst_fns.binder_index)(sym_binder_index);
                     if sym_binder_index == depth {
                         match (subst_fns.bound_var)(SymGenericKind::Perm, sym_bound_var_index) {
-                            Some(r) => r.assert_perm().shifted_into_binders(db, depth),
+                            Some(r) => r.assert_perm().shift_into_binders(db, depth),
                             None => SymPerm::new(
                                 db,
                                 SymPermKind::Var(GenericIndex::Bound(
@@ -287,12 +335,12 @@ impl<'db> Subst<'db> for SymPlace<'db> {
     }
 }
 
-impl<'db, T: Subst<'db>> Subst<'db> for Binder<T> {
+impl<'db, T: Subst<'db> + Update> Subst<'db> for Binder<T> {
     type Output = Binder<T::Output>;
 
     fn identity(&self) -> Self::Output {
         Binder {
-            symbols: self.symbols.clone(),
+            kinds: self.kinds.clone(),
             bound_value: T::identity(&self.bound_value),
         }
     }
@@ -305,8 +353,50 @@ impl<'db, T: Subst<'db>> Subst<'db> for Binder<T> {
     ) -> Self::Output {
         let bound_value = self.bound_value.subst_with(db, depth + 1, subst_fns);
         Binder {
-            symbols: self.symbols.clone(),
+            kinds: self.kinds.clone(),
             bound_value,
         }
+    }
+}
+
+impl<'db> Subst<'db> for SymInputOutput<'db> {
+    type Output = Self;
+
+    fn identity(&self) -> Self::Output {
+        self.clone()
+    }
+
+    fn subst_with(
+        &self,
+        db: &'db dyn crate::Db,
+        depth: SymBinderIndex,
+        subst_fns: &mut SubstitutionFns<'_, 'db>,
+    ) -> Self::Output {
+        SymInputOutput {
+            input_tys: self.input_tys.subst_with(db, depth, subst_fns),
+            output_ty: self.output_ty.subst_with(db, depth, subst_fns),
+        }
+    }
+}
+
+impl<'db, T> Subst<'db> for Vec<T>
+where
+    T: Subst<'db>,
+{
+    type Output = Vec<T::Output>;
+
+    fn identity(&self) -> Self::Output {
+        self.iter().map(T::identity).collect()
+    }
+
+    fn subst_with(
+        &self,
+        db: &'db dyn crate::Db,
+        depth: SymBinderIndex,
+        subst_fns: &mut SubstitutionFns<'_, 'db>,
+    ) -> Self::Output {
+        self.iter()
+            .map(|t| t.subst_with(db, depth, subst_fns))
+            .collect()
     }
 }

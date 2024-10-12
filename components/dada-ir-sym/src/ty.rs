@@ -1,11 +1,12 @@
 use crate::{
     class::SymClass,
     indices::{SymBinderIndex, SymBoundVarIndex, SymVarIndex},
-    prelude::IntoSymbol,
+    prelude::{IntoSymInScope, IntoSymbol},
     primitive::SymPrimitive,
     scope::{NameResolution, Resolve, Scope},
+    subst::{Subst, SubstitutionFns},
     symbol::{SymGeneric, SymGenericKind, SymLocalVariable},
-    Db, IntoSymInScope,
+    Db,
 };
 use dada_ir_ast::{
     ast::{
@@ -54,6 +55,49 @@ pub struct SymTy<'db> {
     pub kind: SymTyKind<'db>,
 }
 
+impl<'db> SymTy<'db> {
+    /// Returns the type for `()`
+    pub fn unit(db: &'db dyn Db) -> Self {
+        #[salsa::tracked]
+        fn unit_ty<'db>(db: &'db dyn Db) -> SymTy<'db> {
+            SymTy::new(
+                db,
+                SymTyKind::Named(SymTyName::Tuple { arity: 0 }, Default::default()),
+            )
+        }
+
+        unit_ty(db)
+    }
+
+    pub fn error(db: &'db dyn Db, reported: Reported) -> Self {
+        SymTy::new(db, SymTyKind::Error(reported))
+    }
+
+    /// Returns a version of this type shared from `place`.
+    pub fn shared(self, db: &'db dyn Db, place: SymPlace<'db>) -> Self {
+        SymTy::new(
+            db,
+            SymTyKind::Perm(SymPerm::new(db, SymPermKind::Shared(vec![place])), self),
+        )
+    }
+
+    /// Returns a version of this type leased from `place`.
+    pub fn leased(self, db: &'db dyn Db, place: SymPlace<'db>) -> Self {
+        SymTy::new(
+            db,
+            SymTyKind::Perm(SymPerm::new(db, SymPermKind::Leased(vec![place])), self),
+        )
+    }
+
+    /// Returns a version of this type given from `place`.
+    pub fn given(self, db: &'db dyn Db, place: SymPlace<'db>) -> Self {
+        SymTy::new(
+            db,
+            SymTyKind::Perm(SymPerm::new(db, SymPermKind::Given(vec![place])), self),
+        )
+    }
+}
+
 #[derive(Clone, PartialEq, Eq, PartialOrd, Ord, Hash, Update, Debug)]
 pub enum SymTyKind<'db> {
     Perm(SymPerm<'db>, SymTy<'db>),
@@ -71,8 +115,42 @@ pub enum SymTyKind<'db> {
 
 #[derive(Clone, PartialEq, Eq, PartialOrd, Ord, Hash, Update, Debug)]
 pub struct Binder<T: Update> {
-    pub symbols: Vec<SymGenericKind>,
+    pub kinds: Vec<SymGenericKind>,
     pub bound_value: T,
+}
+
+impl<T: Update> Binder<T> {
+    pub fn len(&self) -> usize {
+        self.kinds.len()
+    }
+
+    pub fn open<'db>(
+        &self,
+        db: &'db dyn crate::Db,
+        mut func: impl FnMut(SymGenericKind, SymBoundVarIndex) -> SymGenericTerm<'db>,
+    ) -> T::Output
+    where
+        T: Subst<'db>,
+    {
+        let mut cache = vec![None; self.kinds.len()];
+
+        self.bound_value.subst_with(
+            db,
+            SymBinderIndex::INNERMOST,
+            &mut SubstitutionFns {
+                bound_var: &mut |kind, sym_bound_var_index| {
+                    Some(
+                        *cache[sym_bound_var_index.as_usize()].get_or_insert_with(|| {
+                            assert_eq!(kind, self.kinds[sym_bound_var_index.as_usize()]);
+                            func(kind, sym_bound_var_index)
+                        }),
+                    )
+                },
+                binder_index: &mut |i| i.shift_out(),
+                local_var: &mut SubstitutionFns::default_local_var,
+            },
+        )
+    }
 }
 
 #[derive(Copy, Clone, PartialEq, Eq, PartialOrd, Ord, Hash, Update, Debug, FromImpls)]
@@ -464,22 +542,6 @@ impl<'db> NameResolution<'db> {
             ),
         )
     }
-}
-
-#[salsa::tracked]
-impl<'db> SymTy<'db> {
-    /// Returns the type for `()`
-    pub fn unit(db: &'db dyn Db) -> Self {
-        unit_ty(db)
-    }
-}
-
-#[salsa::tracked]
-fn unit_ty<'db>(db: &'db dyn Db) -> SymTy<'db> {
-    SymTy::new(
-        db,
-        SymTyKind::Named(SymTyName::Tuple { arity: 0 }, Default::default()),
-    )
 }
 
 impl<'db> SymPlace<'db> {

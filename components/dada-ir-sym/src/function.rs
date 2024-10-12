@@ -12,10 +12,10 @@ use salsa::Update;
 use crate::{
     class::SymClass,
     populate::PopulateSignatureSymbols,
+    prelude::IntoSymInScope,
     scope::{Scope, ScopeItem},
     symbol::{SymGeneric, SymLocalVariable},
     ty::{Binder, SymTy, SymTyKind},
-    IntoSymInScope,
 };
 
 #[salsa::tracked]

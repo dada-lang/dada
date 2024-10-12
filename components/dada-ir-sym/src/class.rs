@@ -10,10 +10,9 @@ use dada_util::FromImpls;
 use crate::{
     function::{SignatureSymbols, SymFunction},
     populate::PopulateSignatureSymbols,
-    prelude::IntoSymbol,
+    prelude::{IntoSymInScope, IntoSymbol},
     scope::{Scope, ScopeItem},
     ty::{Binder, SymTy, SymTyKind},
-    IntoSymInScope,
 };
 
 #[salsa::tracked]

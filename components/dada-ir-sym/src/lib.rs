@@ -37,6 +37,8 @@ pub mod symbol;
 pub mod ty;
 
 pub mod prelude {
+    use crate::scope::Scope;
+
     /// Create the symbol for a given piece of the AST.
     /// This is typically a tracked impl so that invocations are memoized.
     pub trait IntoSymbol<'db> {
@@ -59,10 +61,14 @@ pub mod prelude {
             self.to_symbol(db)
         }
     }
-}
 
-trait IntoSymInScope<'db> {
-    type Symbolic;
+    pub trait IntoSymInScope<'db> {
+        type Symbolic;
 
-    fn into_sym_in_scope(self, db: &'db dyn crate::Db, scope: &Scope<'_, 'db>) -> Self::Symbolic;
+        fn into_sym_in_scope(
+            self,
+            db: &'db dyn crate::Db,
+            scope: &Scope<'_, 'db>,
+        ) -> Self::Symbolic;
+    }
 }

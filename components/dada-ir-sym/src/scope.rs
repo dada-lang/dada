@@ -44,11 +44,12 @@ struct ScopeChain<'scope, 'db> {
 
 /// A link the scope resolution chain.
 #[derive(Clone, Debug, PartialEq, Eq, FromImpls)]
-pub(crate) enum ScopeChainLink<'scope, 'db> {
+pub enum ScopeChainLink<'scope, 'db> {
     #[no_from_impl]
     Primitives,
     SymModule(SymModule<'db>),
     SignatureSymbols(Cow<'scope, SignatureSymbols<'db>>),
+    LocalVariable(SymLocalVariable<'db>),
 
     #[no_from_impl]
     Body,
@@ -115,6 +116,16 @@ impl<'scope, 'db> Scope<'scope, 'db> {
                 next: Some(Box::new(self.chain)),
             },
         }
+    }
+
+    /// Extend this scope with another link in the name resolution chain
+    pub fn push_link(&mut self, link: impl Into<ScopeChainLink<'scope, 'db>>) {
+        let chain = ScopeChain {
+            link: link.into(),
+            next: None,
+        };
+        let prev_chain = std::mem::replace(&mut self.chain, chain);
+        self.chain.next = Some(Box::new(prev_chain));
     }
 
     /// Ensures that we have at least 1 of binders, adding a dummy binding level if needed.
@@ -226,7 +237,9 @@ impl<'scope, 'db> Scope<'scope, 'db> {
         let mut vec = vec![];
         for link in self.chain.into_links() {
             match link {
-                ScopeChainLink::Primitives | ScopeChainLink::SymModule(_) => {}
+                ScopeChainLink::LocalVariable(_)
+                | ScopeChainLink::Primitives
+                | ScopeChainLink::SymModule(_) => {}
                 ScopeChainLink::SignatureSymbols(cow) => {
                     vec.push(cow.into_owned().generics);
                 }
@@ -278,7 +291,7 @@ where
         // value type `T` to `U`.
         let u = U::bind(db, binding_levels, value);
         Binder {
-            symbols: symbols.iter().map(|s| s.kind(db)).collect(),
+            kinds: symbols.iter().map(|s| s.kind(db)).collect(),
             bound_value: u,
         }
     }
@@ -484,7 +497,9 @@ impl<'scope, 'db> ScopeChain<'scope, 'db> {
             // Update `binders_traversed` based on what kind of link we are stepping through...
             let next_binders_traversed = match &self.link {
                 // Primitives/modules do not bind anything
-                ScopeChainLink::Primitives | ScopeChainLink::SymModule(_) => binders_traversed,
+                ScopeChainLink::LocalVariable(_)
+                | ScopeChainLink::Primitives
+                | ScopeChainLink::SymModule(_) => binders_traversed,
 
                 // Introduce a binding level
                 ScopeChainLink::SignatureSymbols(cow) => match binders_traversed {
@@ -496,7 +511,7 @@ impl<'scope, 'db> ScopeChain<'scope, 'db> {
 
                 // Convert to free variables
                 ScopeChainLink::Body => {
-                    BindersTraversed::Free(self.links().map(|l| l.count_variables()).sum())
+                    BindersTraversed::Free(self.links().map(|l| l.count_generic_variables()).sum())
                 }
             };
 
@@ -509,10 +524,11 @@ impl<'scope, 'db> ScopeChain<'scope, 'db> {
 
 impl<'db> ScopeChainLink<'_, 'db> {
     /// Count the variables introduced by `self`
-    fn count_variables(&self) -> usize {
+    fn count_generic_variables(&self) -> usize {
         match self {
-            ScopeChainLink::Primitives => 0,
-            ScopeChainLink::SymModule(_) => 0,
+            ScopeChainLink::LocalVariable(_)
+            | ScopeChainLink::Primitives
+            | ScopeChainLink::SymModule(_) => 0,
             ScopeChainLink::SignatureSymbols(cow) => cow.generics.len(),
             ScopeChainLink::Body => 0,
         }
@@ -521,8 +537,9 @@ impl<'db> ScopeChainLink<'_, 'db> {
     /// Count the binders introduced by `self`
     fn count_binders(&self) -> usize {
         match self {
-            ScopeChainLink::Primitives => 0,
-            ScopeChainLink::SymModule(_) => 0,
+            ScopeChainLink::LocalVariable(_)
+            | ScopeChainLink::Primitives
+            | ScopeChainLink::SymModule(_) => 0,
             ScopeChainLink::SignatureSymbols(_) => 1,
             ScopeChainLink::Body => 0,
         }
@@ -559,6 +576,13 @@ impl<'db> ScopeChainLink<'_, 'db> {
                 }
             }
             ScopeChainLink::Body => None,
+            &ScopeChainLink::LocalVariable(sym_local_variable) => {
+                if sym_local_variable.name(db) == id {
+                    Some(sym_local_variable.into())
+                } else {
+                    None
+                }
+            }
         }
     }
 
@@ -569,7 +593,9 @@ impl<'db> ScopeChainLink<'_, 'db> {
         binders_traversed: BindersTraversed,
     ) -> Option<NameResolution<'db>> {
         match self {
-            ScopeChainLink::Primitives | ScopeChainLink::SymModule(_) => None,
+            ScopeChainLink::LocalVariable(_)
+            | ScopeChainLink::Primitives
+            | ScopeChainLink::SymModule(_) => None,
             ScopeChainLink::SignatureSymbols(symbols) => {
                 let SignatureSymbols {
                     source: _,

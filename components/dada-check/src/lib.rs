@@ -164,7 +164,7 @@ impl<'db> Check<'db> for SymTy<'db> {
 
 impl<'db, C: Check<'db> + Update> Check<'db> for Binder<C> {
     fn check(&self, db: &'db dyn crate::Db) {
-        for sym in &self.symbols {
+        for sym in &self.kinds {
             sym.check(db);
         }
         self.bound_value.check(db);
