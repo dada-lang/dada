@@ -50,7 +50,7 @@ impl<'db> Env<'db> {
     /// Used for class members which are under the class / member binders.
     pub fn open_universally2<T: Subst<'db, Output = T> + Update>(
         &mut self,
-        check: &mut Check<'_, 'db>,
+        check: &Check<'_, 'db>,
         symbols: &[SymGeneric<'db>],
         binder: Binder<Binder<T>>,
     ) -> T {
@@ -63,7 +63,7 @@ impl<'db> Env<'db> {
     /// Creates a new universe.
     pub fn open_universally<T: Subst<'db> + Update>(
         &mut self,
-        check: &mut Check<'_, 'db>,
+        check: &Check<'_, 'db>,
         symbols: &[SymGeneric<'db>],
         binder: Binder<T>,
     ) -> T::Output {
@@ -87,7 +87,7 @@ impl<'db> Env<'db> {
     /// in the current universe.
     pub fn open_existentially<T: Subst<'db> + Update>(
         &self,
-        check: &mut Check<'_, 'db>,
+        check: &Check<'_, 'db>,
         binder: Binder<T>,
     ) -> T::Output {
         binder.open(check.db, |kind, sym_bound_var_index| {
@@ -98,10 +98,6 @@ impl<'db> Env<'db> {
     // Modify this environment to put it in a new universe.
     pub fn increment_universe(&mut self) {
         self.universe = self.universe.next();
-    }
-
-    pub fn program_variable_ty(&self, lv: SymLocalVariable<'db>) -> Option<SymTy<'db>> {
-        self.program_variables.get(&lv).copied()
     }
 
     /// Inserts a new program variable into the environment for later lookup.
@@ -120,26 +116,26 @@ impl<'db> Env<'db> {
     /// # Panics
     ///
     /// If the program variable is not present.
-    fn program_variable_ty(&self, lv: SymLocalVariable<'db>) -> SymTy<'db> {
+    pub fn program_variable_ty(&self, lv: SymLocalVariable<'db>) -> SymTy<'db> {
         self.program_variables.get(&lv).copied().unwrap()
     }
 
     pub fn fresh_inference_var(
         &self,
-        check: &mut Check<'_, 'db>,
+        check: &Check<'_, 'db>,
         kind: SymGenericKind,
     ) -> SymGenericTerm<'db> {
         check.fresh_inference_var(SymGenericKind::Perm, self.universe)
     }
 
-    pub fn fresh_ty_inference_var(&self, check: &mut Check<'_, 'db>) -> SymTy<'db> {
+    pub fn fresh_ty_inference_var(&self, check: &Check<'_, 'db>) -> SymTy<'db> {
         let SymGenericTerm::Type(ty) = self.fresh_inference_var(check, SymGenericKind::Type) else {
             unreachable!();
         };
         ty
     }
 
-    pub fn fresh_perm_inference_var(&self, check: &mut Check<'_, 'db>) -> SymPerm<'db> {
+    pub fn fresh_perm_inference_var(&self, check: &Check<'_, 'db>) -> SymPerm<'db> {
         let SymGenericTerm::Perm(perm) = self.fresh_inference_var(check, SymGenericKind::Perm)
         else {
             unreachable!();
@@ -147,7 +143,7 @@ impl<'db> Env<'db> {
         perm
     }
 
-    pub fn require_subtype(&self, check: &mut Check<'_, 'db>, sub: SymTy<'db>, sup: SymTy<'db>) {
-        check.defer_check(self, |chk, env| todo!())
+    pub fn require_subtype(&self, check: &Check<'_, 'db>, sub: SymTy<'db>, sup: SymTy<'db>) {
+        check.defer(self, |check, env| async move { todo!() });
     }
 }

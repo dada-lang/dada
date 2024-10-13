@@ -23,20 +23,35 @@ pub(crate) enum ExprKind<'chk, 'db> {
     /// `22`
     Literal(Literal<'db>),
 
-    /// `let $lv: $ty in $expr`
-    LetIn(SymLocalVariable<'db>, SymTy<'db>, Expr<'chk, 'db>),
+    /// `let $lv: $ty [= $initializer] in $body`
+    LetIn {
+        lv: SymLocalVariable<'db>,
+        ty: SymTy<'db>,
+        initializer: Option<Expr<'chk, 'db>>,
+        body: Expr<'chk, 'db>,
+    },
 
     /// `$place = $expr`
-    Assign(PlaceExpr<'chk, 'db>, Expr<'chk, 'db>),
+    Assign {
+        place: PlaceExpr<'chk, 'db>,
+        expr: Expr<'chk, 'db>,
+    },
 
-    /// `$place.give`
+    /// `$0.give`
     Give(PlaceExpr<'chk, 'db>),
 
-    /// `$place.lease`
+    /// `$0.lease`
     Lease(PlaceExpr<'chk, 'db>),
 
-    /// `$place.share` or just `$place`
+    /// `$0.share` or just `$place`
     Share(PlaceExpr<'chk, 'db>),
+
+    /// An expression that has not yet been computed
+    /// because insufficient type information was
+    /// available. The [`Check`](crate::executor::Check)
+    /// stores an array, indexed by `DeferIndex`,
+    /// which will eventually contain the expr to use here.
+    Deferred(DeferIndex),
 
     /// Error occurred somewhere.
     Error(Reported),
@@ -67,4 +82,19 @@ pub(crate) enum PlaceExprKind<'chk, 'db> {
     Local(SymLocalVariable<'db>),
     Field(PlaceExpr<'chk, 'db>, SymField<'db>),
     Error(Reported),
+}
+
+#[derive(Copy, Clone, PartialEq, Eq, PartialOrd, Ord, Hash, Debug)]
+pub struct DeferIndex(usize);
+
+impl From<usize> for DeferIndex {
+    fn from(index: usize) -> Self {
+        DeferIndex(index)
+    }
+}
+
+impl DeferIndex {
+    pub fn as_usize(self) -> usize {
+        self.0
+    }
 }

@@ -1,13 +1,9 @@
-use dada_ir_ast::ast::{AstBlock, AstStatement};
-use dada_ir_sym::{
-    function::{SymFunction, SymInputOutput},
-    prelude::IntoSymInScope,
-    symbol::SymLocalVariable,
-    ty::SymTy,
-};
+use dada_ir_ast::ast::AstStatement;
+use dada_ir_sym::{prelude::IntoSymInScope, symbol::SymLocalVariable};
+use futures::join;
 
 use crate::{
-    checking_ir::{Expr, ExprKind, PlaceExprKind},
+    checking_ir::{Expr, ExprKind},
     env::Env,
     executor::Check,
     Checking,
@@ -16,7 +12,7 @@ use crate::{
 impl<'chk, 'db: 'chk> Checking<'chk, 'db> for [AstStatement<'db>] {
     type Checking = Expr<'chk, 'db>;
 
-    fn check(&self, check: &mut Check<'chk, 'db>, mut env: Env<'db>) -> Self::Checking {
+    async fn check(&self, check: &Check<'chk, 'db>, env: &Env<'db>) -> Self::Checking {
         let db = check.db;
 
         let Some((first, rest)) = self.split_first() else {
@@ -32,37 +28,51 @@ impl<'chk, 'db: 'chk> Checking<'chk, 'db> for [AstStatement<'db>] {
                     None => env.fresh_ty_inference_var(check),
                 };
 
-                let assign_initializer = match s.initializer(db) {
-                    Some(initializer) => {
-                        let initializer = initializer.check(check, env.clone());
-                        env.require_subtype(check, initializer.ty, ty);
-                        let lv_place =
-                            check.place_expr(lv.name_span(db), ty, PlaceExprKind::Local(lv));
-                        Some(check.expr(
-                            initializer.span,
-                            check.unit(),
-                            ExprKind::Assign(lv_place, initializer),
-                        ))
-                    }
-                    None => None,
-                };
+                let (initializer, body) = join!(
+                    async {
+                        match s.initializer(db) {
+                            Some(initializer) => {
+                                let initializer = initializer
+                                    .check(check, env)
+                                    .await
+                                    .into_expr_with_enclosed_temporaries(check, &env);
+                                env.require_subtype(check, initializer.ty, ty);
+                                Some(initializer)
+                            }
 
-                env.insert_program_variable(lv, ty);
-                let remainder = rest.check(check, env);
+                            None => None,
+                        }
+                    },
+                    async {
+                        let mut env = env.clone();
+                        env.insert_program_variable(lv, ty);
+                        rest.check(check, &env).await
+                    },
+                );
 
                 // Create `let lv: ty = lv = initializer; remainder`
-                let body = check
-                    .exprs(assign_initializer.into_iter().chain(Some(remainder)))
-                    .unwrap();
-                check.expr(s.name(db).span, body.ty, ExprKind::LetIn(lv, ty, body))
+                check.expr(
+                    s.name(db).span,
+                    body.ty,
+                    ExprKind::LetIn {
+                        lv,
+                        ty,
+                        initializer,
+                        body,
+                    },
+                )
             }
 
             AstStatement::Expr(e) => {
-                let ce = e.check(check, env.clone());
+                let check_e = async {
+                    e.check(check, env)
+                        .await
+                        .into_expr_with_enclosed_temporaries(check, &env)
+                };
                 if rest.is_empty() {
-                    ce
+                    check_e.await
                 } else {
-                    let re = rest.check(check, env);
+                    let (ce, re) = futures::join!(check_e, rest.check(check, env));
                     check.expr(ce.span.to(re.span), re.ty, ExprKind::Semi(ce, re))
                 }
             }

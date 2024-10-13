@@ -33,7 +33,7 @@ mod universe;
 trait Checking<'chk, 'db: 'chk> {
     type Checking;
 
-    fn check(&self, check: &mut Check<'chk, 'db>, env: Env<'db>) -> Self::Checking;
+    async fn check(&self, check: &Check<'chk, 'db>, env: &Env<'db>) -> Self::Checking;
 }
 
 impl<'db> prelude::CheckFunctionBody<'db> for SymFunction<'db> {

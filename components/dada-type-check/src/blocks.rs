@@ -1,7 +1,6 @@
-use dada_ir_ast::ast::{AstBlock, AstStatement};
+use dada_ir_ast::ast::AstBlock;
 use dada_ir_sym::{
     function::{SymFunction, SymInputOutput},
-    prelude::IntoSymInScope,
     ty::SymTy,
 };
 
@@ -23,7 +22,7 @@ pub fn check_function_body<'db>(
 
     let scope = function.scope(db);
     let arenas = ExecutorArenas::default();
-    let check = &mut Check::new(db, &arenas);
+    let check = Check::new(db, &arenas);
     let mut env = Env::new(scope);
 
     // Bring class/method generics into scope.
@@ -32,7 +31,7 @@ pub fn check_function_body<'db>(
         input_tys,
         output_ty,
     } = env.open_universally2(
-        check,
+        &check,
         &signature.symbols(db).generics,
         signature.input_output(db),
     );
@@ -46,14 +45,14 @@ pub fn check_function_body<'db>(
     // Set return type.
     env.set_return_ty(output_ty);
 
-    let checking_expr = body.check(check, env);
+    let checking_expr = body.check(&check, &env);
     todo!()
 }
 
 impl<'chk, 'db: 'chk> Checking<'chk, 'db> for AstBlock<'db> {
     type Checking = Expr<'chk, 'db>;
 
-    fn check(&self, check: &mut Check<'chk, 'db>, env: Env<'db>) -> Self::Checking {
+    async fn check(&self, check: &Check<'chk, 'db>, env: &Env<'db>) -> Self::Checking {
         let db = check.db;
 
         let statements = self.statements(db);
@@ -62,6 +61,6 @@ impl<'chk, 'db: 'chk> Checking<'chk, 'db> for AstBlock<'db> {
             return check.expr(statements.span, SymTy::unit(db), ExprKind::Tuple(vec![]));
         }
 
-        statements.values[..].check(check, env)
+        statements.values[..].check(check, env).await
     }
 }

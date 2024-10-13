@@ -408,15 +408,38 @@ impl<'db> NameResolution<'db> {
         }
     }
 
+    /// Attempt to resolve a singe identifier;
+    /// only works if `self` is a module or other "lexically resolved" name resolution.
+    ///
+    /// Returns `Ok(Ok(r))` if resolution succeeded.
+    ///
+    /// Returns `Ok(Err(self))` if resolution failed because this is not a lexically resolved result.
+    /// Type checking will have to handle it.
+    ///
+    /// Returns error only if this was a lexically resolved name resolution and the identifier is not found.
+    pub fn resolve_relative_id(
+        self,
+        db: &'db dyn crate::Db,
+        id: SpannedIdentifier<'db>,
+    ) -> Errors<Result<NameResolution<'db>, NameResolution<'db>>> {
+        let ids = &[id];
+        let (r, remaining_ids) = self.resolve_relative(db, ids)?;
+        if remaining_ids.is_empty() {
+            Ok(Ok(r))
+        } else {
+            Ok(Err(r))
+        }
+    }
+
     /// Attempt to resolve `ids` relative to `self`.
     /// Continues so long as `self` is a module.
     /// Once it reaches a non-module, stops and returns the remaining entries (if any).
     /// Errors if `self` is a module but the next id in `ids` is not found.
-    pub(crate) fn resolve_relative(
+    pub(crate) fn resolve_relative<'ids>(
         self,
         db: &'db dyn crate::Db,
-        ids: &'db [SpannedIdentifier<'db>],
-    ) -> Errors<(NameResolution<'db>, &'db [SpannedIdentifier<'db>])> {
+        ids: &'ids [SpannedIdentifier<'db>],
+    ) -> Errors<(NameResolution<'db>, &'ids [SpannedIdentifier<'db>])> {
         let Some((next_id, other_ids)) = ids.split_first() else {
             return Ok((self, &[]));
         };
