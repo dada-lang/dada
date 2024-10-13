@@ -7,7 +7,6 @@ use dada_ir_ast::{
     ast::Identifier,
     inputs::{CompilationRoot, SourceFile},
 };
-use scope::Scope;
 
 /// Core functionality needed to symbolize.
 #[salsa::db]
