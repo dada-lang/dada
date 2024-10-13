@@ -12,6 +12,7 @@ use dada_ir_sym::{
     ty::{SymGenericTerm, SymTy, SymTyKind, SymTyName},
 };
 use dada_util::FromImpls;
+use futures::StreamExt;
 
 use crate::{
     checking_ir::{Expr, ExprKind, PlaceExpr, PlaceExprKind}, env::Env, executor::Check, Checking
@@ -85,7 +86,7 @@ async fn check_expr<'chk, 'db>(expr: &AstExpr<'db>, check: &Check<'chk, 'db>, en
             let mut temporaries = vec![];
             let mut exprs = vec![];
             for element in &span_vec.values {
-                exprs.push(element.check(check, env).await.to_expr(check, &mut temporaries));
+                exprs.push(element.check(check, env).await.into_expr(check, &mut temporaries));
             }
 
             let ty = SymTy::new(
@@ -195,7 +196,7 @@ impl<'chk, 'db> ExprResult<'chk, 'db> {
         env: &Env<'db>,
     ) -> Expr<'chk, 'db> {
         let mut temporaries = vec![];
-        let mut expr = self.to_expr(check, &mut temporaries);
+        let mut expr = self.into_expr(check, &mut temporaries);
         for temporary in temporaries.into_iter().rev() {
             expr = check.expr(
                 expr.span,
@@ -211,7 +212,7 @@ impl<'chk, 'db> ExprResult<'chk, 'db> {
         expr
     }
 
-    fn to_place_expr(
+    fn into_place_expr(
         self,
         check: &Check<'chk, 'db>,
         env: &Env<'db>,
@@ -279,7 +280,7 @@ impl<'chk, 'db> ExprResult<'chk, 'db> {
         }
     }
 
-    pub fn to_expr(
+    pub fn into_expr(
         self,
         check: &Check<'chk, 'db>,
         temporaries: &mut Vec<Temporary<'chk, 'db>>,
@@ -301,4 +302,36 @@ impl<'chk, 'db> ExprResult<'chk, 'db> {
             } => todo!(),
         }
     }
+}
+
+async fn lookup_field<'chk, 'db>(
+    check: &Check<'chk, 'db>,
+    env: &Env<'db>,
+    owner_result: ExprResult<'chk, 'db>,
+    id: SpannedIdentifier<'db>,
+    temporaries: &mut Vec<Temporary<'chk, 'db>>,
+) -> ExprResult<'chk, 'db> {
+    let db = check.db;
+    let SpannedIdentifier { span: id_span, id } = id;
+    let place_expr = owner_result.into_place_expr(check, env, temporaries);
+
+    // Iterate over the bounds, trying to find one that
+    // lets us identify the field definitively.
+    let mut bounds = env.bounds(check, place_expr.ty);
+    while let Some(bound) = bounds.next().await {
+
+    }
+
+    ExprResult::err(
+        check, 
+        id_span, 
+        Diagnostic::error(
+            db,
+            id_span,
+            format!("unrecognized field `{}`", id),
+        )
+        .label(db, Level::Error, id_span, format!("I could not find a field declaration for `{id}`"))
+        .label(db, Level::Info, place_expr.span, format!("this has type `{ty}`, which doesn't appear to have a field `{id}`", ty = env.describe_ty(check, place_expr.ty)))
+        .report(db),
+    )
 }

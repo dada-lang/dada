@@ -35,17 +35,27 @@ impl<'db> SymGenericTerm<'db> {
         }
     }
 
-    pub fn assert_type(self) -> SymTy<'db> {
+    pub fn assert_type(self, db: &'db dyn crate::Db) -> SymTy<'db> {
         match self {
             SymGenericTerm::Type(ty) => ty,
+            SymGenericTerm::Error(reported) => SymTy::new(db, SymTyKind::Error(reported)),
             _ => unreachable!(),
         }
     }
 
-    pub fn assert_perm(self) -> SymPerm<'db> {
+    pub fn assert_perm(self, db: &'db dyn crate::Db) -> SymPerm<'db> {
         match self {
             SymGenericTerm::Perm(perm) => perm,
+            SymGenericTerm::Error(reported) => SymPerm::new(db, SymPermKind::Error(reported)),
             _ => unreachable!(),
+        }
+    }
+
+    pub fn has_kind(self, kind: SymGenericKind) -> bool {
+        match self {
+            SymGenericTerm::Type(_) => kind == SymGenericKind::Type,
+            SymGenericTerm::Perm(_) => kind == SymGenericKind::Perm,
+            SymGenericTerm::Error(Reported) => true,
         }
     }
 }

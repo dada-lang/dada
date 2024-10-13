@@ -5,12 +5,17 @@ use dada_ir_sym::{
     scope::Scope,
     subst::Subst,
     symbol::{SymGeneric, SymGenericKind, SymLocalVariable},
-    ty::{Binder, GenericIndex, SymGenericTerm, SymPerm, SymTy},
+    ty::{Binder, GenericIndex, SymGenericTerm, SymPerm, SymTy, SymTyKind},
 };
 use dada_util::Map;
+use futures::{Stream, StreamExt};
 use salsa::Update;
 
-use crate::{executor::Check, universe::Universe};
+use crate::{
+    bound::{Bound, InferenceVarBounds},
+    executor::Check,
+    universe::Universe,
+};
 
 #[derive(Clone)]
 pub struct Env<'db> {
@@ -145,5 +150,28 @@ impl<'db> Env<'db> {
 
     pub fn require_subtype(&self, check: &Check<'_, 'db>, sub: SymTy<'db>, sup: SymTy<'db>) {
         check.defer(self, |check, env| async move { todo!() });
+    }
+
+    pub fn bounds<'chk>(
+        &self,
+        check: &Check<'chk, 'db>,
+        ty: SymTy<'db>,
+    ) -> impl Stream<Item = Bound<SymTy<'db>>> + 'chk {
+        let db = check.db;
+        if let SymTyKind::Var(GenericIndex::Existential(inference_var)) = ty.kind(db) {
+            InferenceVarBounds::new(check, inference_var)
+                .map(|b| b.assert_type(db))
+                .boxed_local()
+        } else {
+            futures::stream::once(futures::future::ready(Bound::LowerBound(ty))).boxed_local()
+        }
+    }
+
+    pub fn describe_ty<'a, 'chk>(
+        &'a self,
+        check: &'a Check<'chk, 'db>,
+        ty: SymTy<'db>,
+    ) -> impl std::fmt::Display + 'a {
+        format!("{ty:?}") // FIXME
     }
 }

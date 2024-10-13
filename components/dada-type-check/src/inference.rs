@@ -1,6 +1,6 @@
 use dada_ir_sym::{symbol::SymGenericKind, ty::SymGenericTerm};
 
-use crate::universe::Universe;
+use crate::{bound::Bound, universe::Universe};
 
 pub(crate) struct InferenceVarData<'db> {
     kind: SymGenericKind,
@@ -23,11 +23,18 @@ impl<'db> InferenceVarData<'db> {
         self.kind
     }
 
-    pub fn lower_bounds(&self) -> &[SymGenericTerm<'db>] {
-        &self.lower_bounds
+    pub fn push_bound(&mut self, bound: Bound<SymGenericTerm<'db>>) {
+        assert!(bound.has_kind(self.kind));
+        match bound {
+            Bound::LowerBound(term) => self.lower_bounds.push(term),
+            Bound::UpperBound(term) => self.upper_bounds.push(term),
+        }
     }
 
     pub fn upper_bounds(&self) -> &[SymGenericTerm<'db>] {
         &self.upper_bounds
+    }
+    pub fn lower_bounds(&self) -> &[SymGenericTerm<'db>] {
+        &self.lower_bounds
     }
 }

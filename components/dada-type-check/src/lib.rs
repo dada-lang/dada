@@ -21,6 +21,7 @@ pub mod prelude {
 }
 
 mod blocks;
+mod bound;
 mod checking_ir;
 mod env;
 mod executor;

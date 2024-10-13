@@ -153,7 +153,7 @@ impl<'db> Subst<'db> for SymTy<'db> {
                 GenericIndex::Bound(sym_binder_index, sym_bound_var_index) => {
                     if sym_binder_index == depth {
                         match (subst_fns.bound_var)(SymGenericKind::Type, sym_bound_var_index) {
-                            Some(r) => r.assert_type().shift_into_binders(db, depth),
+                            Some(r) => r.assert_type(db).shift_into_binders(db, depth),
                             None => SymTy::new(
                                 db,
                                 SymTyKind::Var(GenericIndex::Bound(
@@ -225,7 +225,7 @@ impl<'db> Subst<'db> for SymPerm<'db> {
                     let sym_binder_index = (subst_fns.binder_index)(sym_binder_index);
                     if sym_binder_index == depth {
                         match (subst_fns.bound_var)(SymGenericKind::Perm, sym_bound_var_index) {
-                            Some(r) => r.assert_perm().shift_into_binders(db, depth),
+                            Some(r) => r.assert_perm(db).shift_into_binders(db, depth),
                             None => SymPerm::new(
                                 db,
                                 SymPermKind::Var(GenericIndex::Bound(
