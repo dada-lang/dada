@@ -70,7 +70,7 @@ async fn check_expr<'chk, 'db>(expr: &AstExpr<'db>, check: &Check<'chk, 'db>, en
     match &*expr.kind {
         AstExprKind::Literal(literal) => {
             let ty = env.fresh_ty_inference_var(check);
-            check.defer(env, |check, env| async move {
+            check.defer(env, async move |check, env| {
                 todo!()
             });
             ExprResult {

@@ -62,7 +62,7 @@ struct DeferredCheck<'chk, 'db> {
 }
 
 impl<'chk, 'db> Check<'chk, 'db> {
-    pub(crate) fn execute<T: 'chk, F>(
+    pub(crate) fn execute<T: 'chk>(
         db: &'db dyn crate::Db,
 
         // FIXME: This could be created internally, but https://github.com/rust-lang/rust/issues/131649
@@ -74,7 +74,6 @@ impl<'chk, 'db> Check<'chk, 'db> {
     ) -> T {
         let check = Check::new(db, arenas);
         let (channel_tx, channel_rx) = std::sync::mpsc::channel();
-
         check.spawn({
             let check = check.clone();
             async move {
@@ -83,7 +82,6 @@ impl<'chk, 'db> Check<'chk, 'db> {
             }
         });
         check.drain();
-
         channel_rx.try_recv().unwrap()
     }
 
@@ -197,10 +195,12 @@ impl<'chk, 'db> Check<'chk, 'db> {
 
     /// Execute the given future asynchronously from the main execution.
     /// It must execute to completion eventually or an error will be reported.
-    pub fn defer<F>(&self, env: &Env<'db>, thunk: impl FnOnce(Check<'chk, 'db>, Env<'db>) -> F)
-    where
-        F: Future<Output = ()> + Send + 'chk,
-    {
+    pub fn defer(
+        &self,
+        env: &Env<'db>,
+        check: impl 'chk + async FnOnce(Check<'chk, 'db>, Env<'db>),
+    ) {
+        self.spawn(check(self.clone(), env.clone()));
     }
 
     pub fn block_on_inference_var(&self, var: SymVarIndex, cx: &mut Context<'_>) -> Poll<()> {

@@ -21,7 +21,8 @@ pub fn check_function_body<'db>(
     };
 
     let scope = function.scope(db);
-    Check::execute_check(db, |check| {
+    let arenas = ExecutorArenas::default();
+    Check::execute(db, &arenas, async |check| {
         let mut env = Env::new(scope);
 
         // Bring class/method generics into scope.
@@ -34,20 +35,20 @@ pub fn check_function_body<'db>(
             &signature.symbols(db).generics,
             signature.input_output(db),
         );
-    
+
         // Bring parameters into scope.
         assert_eq!(input_tys.len(), signature.symbols(db).inputs.len());
         for (&lv, &lv_ty) in signature.symbols(db).inputs.iter().zip(&input_tys) {
             env.insert_program_variable(lv, lv_ty);
         }
-    
+
         // Set return type.
         env.set_return_ty(output_ty);
-    
-        let checking_expr = body.check(&check, &env);
-    
+
+        let checking_expr = body.check(&check, &env).await;
+
+        None
     })
-    todo!()
 }
 
 impl<'chk, 'db: 'chk> Checking<'chk, 'db> for AstBlock<'db> {
