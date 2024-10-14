@@ -78,7 +78,7 @@ impl<'chk, 'db> Check<'chk, 'db> {
             let check = check.clone();
             async move {
                 let result = op(&check).await;
-                channel_tx.send(result);
+                channel_tx.send(result).unwrap();
             }
         });
         check.drain();
