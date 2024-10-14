@@ -3,6 +3,7 @@
 //! type checking.
 
 #![feature(trait_upcasting)]
+#![feature(async_closure)]
 // FIXME
 #![expect(dead_code)]
 #![expect(unused_variables)]
