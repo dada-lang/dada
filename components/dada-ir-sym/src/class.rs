@@ -109,7 +109,7 @@ impl<'db> SymClass<'db> {
         )
     }
 
-    #[salsa::tracked]
+    #[salsa::tracked(return_ref)]
     pub fn members(self, db: &'db dyn crate::Db) -> Vec<SymClassMember<'db>> {
         self.source(db)
             .members(db)
@@ -127,14 +127,14 @@ impl<'db> SymClass<'db> {
     }
 
     pub fn fields(self, db: &'db dyn crate::Db) -> impl Iterator<Item = SymField<'db>> {
-        self.members(db).into_iter().filter_map(|m| match m {
+        self.members(db).iter().filter_map(|&m| match m {
             SymClassMember::SymField(f) => Some(f),
             _ => None,
         })
     }
 
     pub fn methods(self, db: &'db dyn crate::Db) -> impl Iterator<Item = SymFunction<'db>> {
-        self.members(db).into_iter().filter_map(|m| match m {
+        self.members(db).iter().filter_map(|&m| match m {
             SymClassMember::SymFunction(f) => Some(f),
             _ => None,
         })

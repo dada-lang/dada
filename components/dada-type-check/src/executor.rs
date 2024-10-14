@@ -8,7 +8,10 @@ use std::{
 };
 
 use check_task::CheckTask;
-use dada_ir_ast::{diagnostic::Reported, span::Span};
+use dada_ir_ast::{
+    diagnostic::{Diagnostic, Reported},
+    span::Span,
+};
 use dada_ir_sym::{
     indices::SymVarIndex,
     symbol::SymGenericKind,
@@ -65,13 +68,18 @@ impl<'chk, 'db> Check<'chk, 'db> {
     pub(crate) fn execute<T: 'chk>(
         db: &'db dyn crate::Db,
 
+        span: Span<'db>,
+
         // FIXME: This could be created internally, but https://github.com/rust-lang/rust/issues/131649
         // means that the resulting `impl for<'chk> async FnOnce()` signature doesn't
         // interact well with rustfmt. No big deal.
         arenas: &'chk ExecutorArenas<'chk, 'db>,
 
         op: impl 'chk + async FnOnce(&Check<'chk, 'db>) -> T,
-    ) -> T {
+    ) -> T
+    where
+        T: From<Reported>,
+    {
         let check = Check::new(db, arenas);
         let (channel_tx, channel_rx) = std::sync::mpsc::channel();
         check.spawn({
@@ -82,7 +90,13 @@ impl<'chk, 'db> Check<'chk, 'db> {
             }
         });
         check.drain();
-        channel_rx.try_recv().unwrap()
+
+        match channel_rx.try_recv() {
+            Ok(v) => v,
+
+            // FIXME: Obviously we need a better error message than this!
+            Err(_) => T::from(Diagnostic::error(db, span, "type annotations needed").report(db)),
+        }
     }
 
     fn new(db: &'db dyn crate::Db, arenas: &'chk ExecutorArenas<'chk, 'db>) -> Self {
@@ -104,16 +118,19 @@ impl<'chk, 'db> Check<'chk, 'db> {
         self.ready_to_execute.lock().unwrap().push(task);
     }
 
+    /// Continues running tasks until no more are left.
     fn drain(&self) {
         while let Some(ready) = self.ready_to_execute.lock().unwrap().pop() {
             ready.execute(self);
         }
     }
 
+    /// Creates the interned `()` type.
     pub fn unit(&self) -> SymTy<'db> {
         SymTy::unit(self.db)
     }
 
+    /// Returns `true` if this check has completed.
     pub fn is_complete(&self) -> bool {
         self.complete.load(Ordering::Relaxed)
     }

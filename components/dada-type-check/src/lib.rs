@@ -29,6 +29,7 @@ mod executor;
 mod exprs;
 mod inference;
 mod ir;
+mod member;
 mod statements;
 mod universe;
 

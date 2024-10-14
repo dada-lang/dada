@@ -11,9 +11,15 @@ use dada_ir_sym::{
 
 use crate::executor::Check;
 
+/// Either a lower or upper bound on an inference variable `?X`.
 #[derive(Copy, Clone, PartialEq, Eq, PartialOrd, Ord, Hash, Debug)]
 pub(crate) enum Bound<Term> {
+    /// A bound `B` where `B <: ?X` -- intuitively, `B`
+    /// is a value that flows *into* the inference variable.
     LowerBound(Term),
+
+    /// A bound `B` where `?X <: B` -- intuitively, `B`
+    /// is a value that is *read out* from the inference variable.
     UpperBound(Term),
 }
 
@@ -34,6 +40,13 @@ impl<'db, Term: BoundTerm<'db>> Bound<Term> {
         match self {
             Bound::LowerBound(term) => Bound::LowerBound(term.assert_type(db)),
             Bound::UpperBound(term) => Bound::UpperBound(term.assert_type(db)),
+        }
+    }
+
+    pub fn into_term(self) -> Term {
+        match self {
+            Bound::LowerBound(term) => term,
+            Bound::UpperBound(term) => term,
         }
     }
 }

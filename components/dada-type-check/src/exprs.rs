@@ -12,10 +12,13 @@ use dada_ir_sym::{
     ty::{SymGenericTerm, SymTy, SymTyKind, SymTyName},
 };
 use dada_util::FromImpls;
-use futures::StreamExt;
 
 use crate::{
-    checking_ir::{Expr, ExprKind, PlaceExpr, PlaceExprKind}, env::Env, executor::Check, Checking
+    checking_ir::{Expr, ExprKind, PlaceExpr, PlaceExprKind},
+    env::Env,
+    executor::Check,
+    member::lookup_member,
+    Checking,
 };
 
 pub(crate) struct ExprResult<'chk, 'db> {
@@ -43,36 +46,48 @@ pub(crate) struct Temporary<'chk, 'db> {
 
 #[derive(FromImpls, Debug)]
 enum ExprResultKind<'chk, 'db> {
-    NameResolution(NameResolution<'db>),
+    /// An expression identifying a place in memory (e.g., a local variable).
     PlaceExpr(PlaceExpr<'chk, 'db>),
+
+    /// An expression that produces a value.
     Expr(Expr<'chk, 'db>),
 
+    /// A partially completed method call.
     #[no_from_impl]
     Method {
         owner: Expr<'chk, 'db>,
         method: SymFunction<'db>,
         generics: Option<Vec<SymGenericTerm<'db>>>,
     },
+
+    /// Some kind of name resoluton that cannot be represented by as an expression.
+    Other(NameResolution<'db>),
 }
 
 impl<'chk, 'db: 'chk> Checking<'chk, 'db> for AstExpr<'db> {
     type Checking = ExprResult<'chk, 'db>;
 
-    fn check(&self, check: &Check<'chk, 'db>, env: &Env<'db>) -> impl Future<Output = Self::Checking> {
+    fn check(
+        &self,
+        check: &Check<'chk, 'db>,
+        env: &Env<'db>,
+    ) -> impl Future<Output = Self::Checking> {
         Box::pin(check_expr(self, check, env))
     }
 }
 
-async fn check_expr<'chk, 'db>(expr: &AstExpr<'db>, check: &Check<'chk, 'db>, env: &Env<'db>) -> ExprResult<'chk, 'db>{
+async fn check_expr<'chk, 'db>(
+    expr: &AstExpr<'db>,
+    check: &Check<'chk, 'db>,
+    env: &Env<'db>,
+) -> ExprResult<'chk, 'db> {
     let db = check.db;
     let span = expr.span;
 
     match &*expr.kind {
         AstExprKind::Literal(literal) => {
             let ty = env.fresh_ty_inference_var(check);
-            check.defer(env, async move |check, env| {
-                todo!()
-            });
+            check.defer(env, async move |check, env| todo!());
             ExprResult {
                 temporaries: vec![],
                 span,
@@ -86,7 +101,12 @@ async fn check_expr<'chk, 'db>(expr: &AstExpr<'db>, check: &Check<'chk, 'db>, en
             let mut temporaries = vec![];
             let mut exprs = vec![];
             for element in &span_vec.values {
-                exprs.push(element.check(check, env).await.into_expr(check, &mut temporaries));
+                exprs.push(
+                    element
+                        .check(check, env)
+                        .await
+                        .into_expr(check, &mut temporaries),
+                );
             }
 
             let ty = SymTy::new(
@@ -118,60 +138,33 @@ async fn check_expr<'chk, 'db>(expr: &AstExpr<'db>, check: &Check<'chk, 'db>, en
         AstExprKind::Id(SpannedIdentifier { span: id_span, id }) => {
             match env.scope.resolve_name(db, *id, *id_span) {
                 Err(r) => ExprResult::err(check, *id_span, r),
-                Ok(res) => ExprResult {
-                    temporaries: vec![],
-                    kind: ExprResultKind::NameResolution(res),
-                    span,
-                },
+                Ok(res) => ExprResult::from_name_resolution(check, env, res, span),
             }
         }
 
         AstExprKind::DotId(owner, id) => {
-            let mut temporaries = vec![];
             let mut owner_result = owner.check(check, env).await;
             match owner_result.kind {
-                ExprResultKind::PlaceExpr(_) |
-                ExprResultKind::Expr(_) => {
-                    lookup_field(check, &env, owner_result, *id, &mut temporaries).await
+                ExprResultKind::PlaceExpr(_) | ExprResultKind::Expr(_) => {
+                    lookup_member(check, &env, owner_result, *id).await
                 }
 
-                ExprResultKind::NameResolution(name_resolution) => {
+                ExprResultKind::Other(name_resolution) => {
                     match name_resolution.resolve_relative_id(db, *id) {
                         Err(r) => ExprResult::err(check, span, r),
-                        Ok(Ok(r)) => ExprResult {
-                            temporaries,
-                            span,
-                            kind: ExprResultKind::NameResolution(r),
-                        },
+                        Ok(Ok(r)) => ExprResult::from_name_resolution(check, env, r, span),
                         Ok(Err(r)) => {
                             owner_result.kind = r.into();
-                            lookup_field(check, &env, owner_result, *id, &mut temporaries).await
+                            lookup_member(check, &env, owner_result, *id).await
                         }
                     }
                 }
 
-                ExprResultKind::Method { method, ..} => {
-                    let r = Diagnostic::error(
-                        db, 
-                        owner_result.span, 
-                        format!("missing call to method"),
-                    ).label(
-                        db, 
-                        Level::Error, 
-                        owner_result.span, 
-                        format!(
-                            "`{}` is a method but you don't appear to be calling it",
-                            method.name(db),
-                        ),
-                    ).label(db,
-                        Level::Help,
-                    owner_result.span.at_end(),
-                "maybe add `()` here?",
-                    )
-                    .report(db);
-
-                    ExprResult::err(check, span, r)
-                }
+                ExprResultKind::Method { owner, method, .. } => ExprResult::err(
+                    check,
+                    span,
+                    report_missing_call_to_method(db, owner.span, method),
+                ),
             }
         }
         AstExprKind::SquareBracketOp(ast_expr, square_bracket_args) => todo!(),
@@ -182,7 +175,39 @@ async fn check_expr<'chk, 'db>(expr: &AstExpr<'db>, check: &Check<'chk, 'db>, en
 }
 
 impl<'chk, 'db> ExprResult<'chk, 'db> {
-    fn err(check: &Check<'chk, 'db>, span: Span<'db>, r: Reported) -> Self {
+    /// Create a result based on lexical name resolution.
+    pub fn from_name_resolution(
+        check: &Check<'chk, 'db>,
+        env: &Env<'db>,
+        res: NameResolution<'db>,
+        span: Span<'db>,
+    ) -> Self {
+        match res {
+            NameResolution::SymLocalVariable(lv) => {
+                let ty = env.program_variable_ty(lv);
+                let place_expr = check.place_expr(span, ty, PlaceExprKind::Local(lv));
+                Self {
+                    temporaries: vec![],
+                    span,
+                    kind: ExprResultKind::PlaceExpr(place_expr),
+                }
+            }
+
+            // FIXME: Should functions be expressions?
+            NameResolution::SymFunction(_)
+            | NameResolution::SymModule(_)
+            | NameResolution::SymClass(_)
+            | NameResolution::SymPrimitive(_)
+            | NameResolution::SymGeneric(..) => Self {
+                temporaries: vec![],
+                span,
+                kind: ExprResultKind::Other(res),
+            },
+        }
+    }
+
+    /// Create an error result.
+    pub fn err(check: &Check<'chk, 'db>, span: Span<'db>, r: Reported) -> Self {
         Self {
             temporaries: vec![],
             span,
@@ -190,6 +215,7 @@ impl<'chk, 'db> ExprResult<'chk, 'db> {
         }
     }
 
+    /// Convert this result into an expression, with `let ... in` statements inserted for temporaries.
     pub fn into_expr_with_enclosed_temporaries(
         self,
         check: &Check<'chk, 'db>,
@@ -205,14 +231,30 @@ impl<'chk, 'db> ExprResult<'chk, 'db> {
                     lv: temporary.lv,
                     ty: temporary.expr.ty,
                     initializer: Some(temporary.expr),
-                    body: expr
-                }
+                    body: expr,
+                },
             );
         }
         expr
     }
 
-    fn into_place_expr(
+    /// Computes the type of this, treating it as an expression.
+    /// Reports an error if this names something that cannot be made into an expression.
+    pub fn ty(self, check: &Check<'chk, 'db>, env: &Env<'db>) -> SymTy<'db> {
+        let db = check.db;
+        match self.kind {
+            ExprResultKind::PlaceExpr(place_expr) => place_expr.ty,
+            ExprResultKind::Expr(expr) => expr.ty,
+            ExprResultKind::Other(name_resolution) => {
+                SymTy::error(db, report_non_expr(db, self.span, name_resolution))
+            }
+            ExprResultKind::Method { owner, method, .. } => {
+                SymTy::error(db, report_missing_call_to_method(db, owner.span, method))
+            }
+        }
+    }
+
+    pub fn into_place_expr(
         self,
         check: &Check<'chk, 'db>,
         env: &Env<'db>,
@@ -236,45 +278,13 @@ impl<'chk, 'db> ExprResult<'chk, 'db> {
                 check.place_expr(self.span, ty, PlaceExprKind::Local(lv))
             }
 
-            ExprResultKind::NameResolution(name_resolution) => match name_resolution {
-                NameResolution::SymLocalVariable(lv) => {
-                    let ty = env.program_variable_ty(lv);
+            ExprResultKind::Other(name_resolution) => {
+                let r = report_non_expr(db, self.span, name_resolution);
+                check.place_expr(self.span, SymTy::error(db, r), PlaceExprKind::Error(r))
+            }
 
-                    check.place_expr(self.span, ty, PlaceExprKind::Local(lv))
-                }
-
-                NameResolution::SymFunction(_) // FIXME
-                | NameResolution::SymModule(_)
-                | NameResolution::SymClass(_)
-                | NameResolution::SymPrimitive(_)
-                | NameResolution::SymGeneric(..) => {
-                    let r = Diagnostic::error(
-                        db, 
-                        self.span, 
-                        format!("expected a place expression"),
-                    ).label(
-                        db, 
-                        Level::Error, 
-                        self.span, 
-                        format!(
-                            "I expected to find a place in memory, like a local variable or field, but I found {}", 
-                            name_resolution.categorize(db),
-                        ),
-                    ).report(db);
-
-                    check.place_expr(self.span, SymTy::error(db, r), PlaceExprKind::Error(r))
-                }
-            },
-
-            ExprResultKind::Method {
-                owner,
-                method,
-                generics,
-            } => {
-                let r = Diagnostic::error(db, self.span, format!("expected a place expression"))
-                .label(db, Level::Error, self.span, format!("I expected to find a place in memory, like a local variable or field, but I found a method"))
-                .report(db);
-
+            ExprResultKind::Method { owner, method, .. } => {
+                let r = report_missing_call_to_method(db, owner.span, method);
                 check.place_expr(self.span, SymTy::error(db, r), PlaceExprKind::Error(r))
             }
         }
@@ -294,44 +304,50 @@ impl<'chk, 'db> ExprResult<'chk, 'db> {
                 place_expr.ty.shared(db, place_expr.to_sym_place(db)),
                 ExprKind::Share(place_expr),
             ),
-            ExprResultKind::NameResolution(name_resolution) => todo!(),
-            ExprResultKind::Method {
-                owner,
-                method,
-                generics,
-            } => todo!(),
+            ExprResultKind::Other(name_resolution) => {
+                check.err_expr(self.span, report_non_expr(db, self.span, name_resolution))
+            }
+            ExprResultKind::Method { owner, method, .. } => check.err_expr(
+                self.span,
+                report_missing_call_to_method(db, self.span, method),
+            ),
         }
     }
 }
 
-async fn lookup_field<'chk, 'db>(
-    check: &Check<'chk, 'db>,
-    env: &Env<'db>,
-    owner_result: ExprResult<'chk, 'db>,
-    id: SpannedIdentifier<'db>,
-    temporaries: &mut Vec<Temporary<'chk, 'db>>,
-) -> ExprResult<'chk, 'db> {
-    let db = check.db;
-    let SpannedIdentifier { span: id_span, id } = id;
-    let place_expr = owner_result.into_place_expr(check, env, temporaries);
-
-    // Iterate over the bounds, trying to find one that
-    // lets us identify the field definitively.
-    let mut bounds = env.bounds(check, place_expr.ty);
-    while let Some(bound) = bounds.next().await {
-
-    }
-
-    ExprResult::err(
-        check, 
-        id_span, 
-        Diagnostic::error(
+fn report_non_expr<'db>(
+    db: &'db dyn crate::Db,
+    owner_span: Span<'db>,
+    name_resolution: NameResolution<'db>,
+) -> Reported {
+    Diagnostic::error(db, owner_span, format!("expected an expression"))
+        .label(
             db,
-            id_span,
-            format!("unrecognized field `{}`", id),
+            Level::Error,
+            owner_span,
+            format!(
+                "I expected to find an expresison but I found {}",
+                name_resolution.categorize(db),
+            ),
         )
-        .label(db, Level::Error, id_span, format!("I could not find a field declaration for `{id}`"))
-        .label(db, Level::Info, place_expr.span, format!("this has type `{ty}`, which doesn't appear to have a field `{id}`", ty = env.describe_ty(check, place_expr.ty)))
-        .report(db),
-    )
+        .report(db)
+}
+
+fn report_missing_call_to_method<'db>(
+    db: &'db dyn crate::Db,
+    owner_span: Span<'db>,
+    method: SymFunction<'db>,
+) -> Reported {
+    Diagnostic::error(db, owner_span, format!("missing call to method"))
+        .label(
+            db,
+            Level::Error,
+            owner_span,
+            format!(
+                "`{}` is a method but you don't appear to be calling it",
+                method.name(db),
+            ),
+        )
+        .label(db, Level::Help, owner_span.at_end(), "maybe add `()` here?")
+        .report(db)
 }
