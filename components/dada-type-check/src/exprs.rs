@@ -8,7 +8,7 @@ use dada_ir_ast::{
 use dada_ir_sym::{
     function::SymFunction,
     scope::NameResolution,
-    symbol::SymLocalVariable,
+    symbol::{SymGenericKind, SymVariable},
     ty::{SymGenericTerm, SymTy, SymTyKind, SymTyName},
 };
 use dada_util::FromImpls;
@@ -40,7 +40,7 @@ pub(crate) struct ExprResult<'chk, 'db> {
 /// when we reach the surrounding statement, block, or other
 /// terminating context.
 pub(crate) struct Temporary<'chk, 'db> {
-    pub lv: SymLocalVariable<'db>,
+    pub lv: SymVariable<'db>,
     pub expr: Expr<'chk, 'db>,
 }
 
@@ -182,10 +182,13 @@ impl<'chk, 'db> ExprResult<'chk, 'db> {
         res: NameResolution<'db>,
         span: Span<'db>,
     ) -> Self {
+        let db = check.db;
         match res {
-            NameResolution::SymLocalVariable(lv) => {
-                let ty = env.program_variable_ty(lv);
-                let place_expr = check.place_expr(span, ty, PlaceExprKind::Local(lv));
+            NameResolution::SymVariable(sym_var, generic_index)
+                if sym_var.kind(db) == SymGenericKind::Place =>
+            {
+                let ty = env.program_variable_ty(sym_var);
+                let place_expr = check.place_expr(span, ty, PlaceExprKind::Local(sym_var));
                 Self {
                     temporaries: vec![],
                     span,

@@ -1,9 +1,11 @@
 use dada_ir_ast::{ast::Literal, diagnostic::Reported, span::Span};
 use dada_ir_sym::{
     class::SymField,
-    symbol::SymLocalVariable,
+    symbol::SymVariable,
     ty::{SymPlace, SymPlaceKind, SymTy},
 };
+
+use crate::env::Env;
 
 #[derive(Copy, Clone, PartialEq, Eq, PartialOrd, Ord, Hash, Debug)]
 pub(crate) struct Expr<'chk, 'db> {
@@ -25,7 +27,7 @@ pub(crate) enum ExprKind<'chk, 'db> {
 
     /// `let $lv: $ty [= $initializer] in $body`
     LetIn {
-        lv: SymLocalVariable<'db>,
+        lv: SymVariable<'db>,
         ty: SymTy<'db>,
         initializer: Option<Expr<'chk, 'db>>,
         body: Expr<'chk, 'db>,
@@ -65,7 +67,7 @@ pub(crate) struct PlaceExpr<'chk, 'db> {
 }
 
 impl<'chk, 'db> PlaceExpr<'chk, 'db> {
-    pub fn to_sym_place(&self, db: &'db dyn crate::Db) -> SymPlace<'db> {
+    pub fn to_sym_place(&self, db: &'db dyn crate::Db, env: &Env<'db>) -> SymPlace<'db> {
         match self.kind {
             PlaceExprKind::Local(local) => SymPlace::new(db, SymPlaceKind::Var(*local)),
             PlaceExprKind::Field(place, field) => SymPlace::new(
@@ -79,7 +81,7 @@ impl<'chk, 'db> PlaceExpr<'chk, 'db> {
 
 #[derive(Clone, PartialEq, Eq, PartialOrd, Ord, Hash, Debug)]
 pub(crate) enum PlaceExprKind<'chk, 'db> {
-    Local(SymLocalVariable<'db>),
+    Local(SymVariable<'db>),
     Field(PlaceExpr<'chk, 'db>, SymField<'db>),
     Error(Reported),
 }

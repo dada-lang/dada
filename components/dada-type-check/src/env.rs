@@ -4,7 +4,7 @@ use dada_ir_sym::{
     indices::SymVarIndex,
     scope::Scope,
     subst::Subst,
-    symbol::{SymVariable, SymGenericKind, SymLocalVariable},
+    symbol::{SymGenericKind, SymLocalVariable, SymVariable},
     ty::{Binder, GenericIndex, SymGenericTerm, SymPerm, SymTy, SymTyKind},
 };
 use dada_util::Map;
@@ -106,7 +106,7 @@ impl<'db> Env<'db> {
     }
 
     /// Inserts a new program variable into the environment for later lookup.
-    pub fn insert_program_variable(&mut self, lv: SymLocalVariable<'db>, ty: SymTy<'db>) {
+    pub fn insert_program_variable(&mut self, lv: SymVariable<'db>, ty: SymTy<'db>) {
         Arc::make_mut(&mut self.scope).push_link(lv);
         Arc::make_mut(&mut self.program_variables).insert(lv, ty);
     }
