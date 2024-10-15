@@ -83,15 +83,22 @@ impl<'db> SymClass<'db> {
         generic.span(db)
     }
 
-    /// Returns the base scope used to resolve the class members.
-    /// Typically this is created by invoke [`Scope::new`][].
-    pub(crate) fn class_scope(self, db: &'db dyn crate::Db) -> Scope<'db, 'db> {
+    #[salsa::tracked(return_ref)]
+    pub(crate) fn symbols(self, db: &'db dyn crate::Db) -> SignatureSymbols<'db> {
         let mut signature_symbols = SignatureSymbols::new(self);
         self.source(db)
             .populate_signature_symbols(db, &mut signature_symbols);
+        signature_symbols
+    }
+
+    /// Returns the base scope used to resolve the class members.
+    /// Typically this is created by invoke [`Scope::new`][].
+    pub(crate) fn class_scope(self, db: &'db dyn crate::Db) -> Scope<'db, 'db> {
+        let symbols = self.symbols(db);
         self.scope_item(db)
             .into_scope(db)
-            .with_link(Cow::Owned(signature_symbols))
+            .with_link(self)
+            .with_link(Cow::Borrowed(&symbols.generics[..]))
     }
 
     /// Returns the type of this class, referencing the generics that appear in `scope`.

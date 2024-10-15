@@ -5,7 +5,7 @@ use crate::{
     primitive::SymPrimitive,
     scope::{NameResolution, Resolve, Scope},
     subst::{Subst, SubstitutionFns},
-    symbol::{SymGeneric, SymGenericKind, SymLocalVariable},
+    symbol::{SymVariable, SymGenericKind},
     Db,
 };
 use dada_ir_ast::{
@@ -24,6 +24,7 @@ use salsa::Update;
 pub enum SymGenericTerm<'db> {
     Type(SymTy<'db>),
     Perm(SymPerm<'db>),
+    Place(SymPlace<'db>),
     Error(Reported),
 }
 
@@ -32,10 +33,11 @@ impl<'db> SymGenericTerm<'db> {
         match kind {
             SymGenericKind::Type => SymTy::new(db, SymTyKind::Var(index)).into(),
             SymGenericKind::Perm => SymPerm::new(db, SymPermKind::Var(index)).into(),
+            SymGenericKind::Place => SymPlace::new(db, SymPlaceKind::Var(index)).into(),
         }
     }
 
-    pub fn assert_type(self, db: &'db dyn crate::Db) -> SymTy<'db> {
+    pub fn assert_ty(self, db: &'db dyn crate::Db) -> SymTy<'db> {
         match self {
             SymGenericTerm::Type(ty) => ty,
             SymGenericTerm::Error(reported) => SymTy::new(db, SymTyKind::Error(reported)),
@@ -51,10 +53,19 @@ impl<'db> SymGenericTerm<'db> {
         }
     }
 
+    pub fn assert_place(self, db: &'db dyn crate::Db) -> SymPlace<'db> {
+        match self {
+            SymGenericTerm::Place(place) => place,
+            SymGenericTerm::Error(reported) => SymPlace::new(db, SymPlaceKind::Error(reported)),
+            _ => unreachable!(),
+        }
+    }
+
     pub fn has_kind(self, kind: SymGenericKind) -> bool {
         match self {
             SymGenericTerm::Type(_) => kind == SymGenericKind::Type,
             SymGenericTerm::Perm(_) => kind == SymGenericKind::Perm,
+            SymGenericTerm::Place(_) =>kind == SymGenericKind::Place,
             SymGenericTerm::Error(Reported) => true,
         }
     }
@@ -63,6 +74,7 @@ impl<'db> SymGenericTerm<'db> {
         match self {
             SymGenericTerm::Type(_) => Ok(SymGenericKind::Type),
             SymGenericTerm::Perm(_) => Ok(SymGenericKind::Perm),
+            SymGenericTerm::Place(_) => Ok(SymGenericKind::Place),
             SymGenericTerm::Error(Reported) => Err(Reported),
         }
     }
@@ -137,9 +149,12 @@ pub enum SymTyKind<'db> {
     Error(Reported),
 }
 
+/// Indicates a binder for generic variables
 #[derive(Clone, PartialEq, Eq, PartialOrd, Ord, Hash, Update, Debug)]
 pub struct Binder<T: Update> {
+    /// Number of bound generic terms
     pub kinds: Vec<SymGenericKind>,
+
     pub bound_value: T,
 }
 
@@ -174,7 +189,6 @@ impl<T: Update> Binder<T> {
                     )
                 },
                 binder_index: &mut |i| i.shift_out(),
-                local_var: &mut SubstitutionFns::default_local_var,
             },
         )
     }
@@ -215,6 +229,7 @@ pub enum SymTyName<'db> {
 
 #[salsa::interned]
 pub struct SymPerm<'db> {
+    #[return_ref]
     pub kind: SymPermKind<'db>,
 }
 
@@ -244,7 +259,7 @@ pub struct SymPlace<'db> {
 #[derive(Clone, PartialEq, Eq, PartialOrd, Ord, Hash, Update, Debug)]
 pub enum SymPlaceKind<'db> {
     /// `x`
-    LocalVariable(SymLocalVariable<'db>),
+    Var(GenericIndex),
 
     /// `x.f`
     Field(SymPlace<'db>, Identifier<'db>),
@@ -260,11 +275,11 @@ pub enum SymPlaceKind<'db> {
 /// This is tracked so that we do it at most once.
 #[salsa::tracked]
 impl<'db> IntoSymbol<'db> for AstGenericDecl<'db> {
-    type Symbolic = SymGeneric<'db>;
+    type Symbolic = SymVariable<'db>;
 
     #[salsa::tracked]
-    fn into_symbol(self, db: &'db dyn crate::Db) -> SymGeneric<'db> {
-        SymGeneric::new(
+    fn into_symbol(self, db: &'db dyn crate::Db) -> SymVariable<'db> {
+        SymVariable::new(
             db,
             self.kind(db).into_symbol(db),
             self.name(db).map(|n| n.id),
@@ -286,7 +301,7 @@ impl<'db> IntoSymbol<'db> for AstGenericKind<'db> {
 }
 
 pub(crate) trait AnonymousPermSymbol<'db> {
-    fn anonymous_perm_symbol(self, db: &'db dyn crate::Db) -> SymGeneric<'db>;
+    fn anonymous_perm_symbol(self, db: &'db dyn crate::Db) -> SymVariable<'db>;
 }
 
 /// Create the generic symbol for an anonymous permission like `shared T` or `leased T`.
@@ -296,10 +311,10 @@ pub(crate) trait AnonymousPermSymbol<'db> {
 #[salsa::tracked]
 impl<'db> AnonymousPermSymbol<'db> for AstPerm<'db> {
     #[salsa::tracked]
-    fn anonymous_perm_symbol(self, db: &'db dyn crate::Db) -> SymGeneric<'db> {
+    fn anonymous_perm_symbol(self, db: &'db dyn crate::Db) -> SymVariable<'db> {
         match self.kind(db) {
             AstPermKind::Shared(None) | AstPermKind::Leased(None) | AstPermKind::Given(None) => {
-                SymGeneric::new(db, SymGenericKind::Perm, None, self.span(db)).into()
+                SymVariable::new(db, SymGenericKind::Perm, None, self.span(db)).into()
             }
             _ => panic!("`anonymous_perm_symbol` invoked on inappropriate perm: {self:?}"),
         }
@@ -413,10 +428,11 @@ impl<'db> NameResolution<'db> {
         db: &'db dyn crate::Db,
         source: impl Spanned<'db>,
     ) -> SymGenericTerm<'db> {
-        if let NameResolution::SymGeneric(generic, _) = self {
+        if let NameResolution::SymVariable(generic, _) = self {
             match generic.kind(db) {
                 SymGenericKind::Type => SymGenericTerm::Type(self.to_sym_ty(db, source, vec![])),
                 SymGenericKind::Perm => SymGenericTerm::Perm(self.to_sym_perm(db, source)),
+                SymGenericKind::Place => SymGenericTerm::Place(self.to_sym_place(db, source)),
             }
         } else {
             self.to_sym_ty(db, source, vec![]).into()
@@ -534,7 +550,7 @@ impl<'db> NameResolution<'db> {
 
                 make_named(sym_class.into(), generics)
             }
-            NameResolution::SymGeneric(_generic, generic_index) => {
+            NameResolution::SymVariable(generic, generic_index) => {
                 if generics.len() != 0 {
                     return make_err(
                         Diagnostic::error(db, source.span(db), "generic types do not expect generic arguments")
@@ -543,6 +559,20 @@ impl<'db> NameResolution<'db> {
                                 Level::Error,
                                 source.span(db),
                                 "this is the name of a generic type, but I also found a list of generic arguments",
+                            )
+                            .report(db),
+                    );
+                }
+
+                let generic_kind = generic.kind(db);
+                if generic_kind != SymGenericKind::Type {
+                    return make_err(
+                        Diagnostic::error(db, source.span(db), format!("expected `type`, found `{generic_kind}`"))
+                            .label(
+                                db,
+                                Level::Error,
+                                source.span(db),
+                                format!("I expected a type here, but I found a `{generic_kind}`"),
                             )
                             .report(db),
                     );
@@ -559,19 +589,6 @@ impl<'db> NameResolution<'db> {
                         format!(
                             "I expected a type here, but `{}` is a module",
                             sym_module.name(db)
-                        ),
-                    )
-                    .report(db),
-            ),
-            NameResolution::SymLocalVariable(sym_local_variable) => make_err(
-                Diagnostic::error(db, source.span(db), "modules are not valid types")
-                    .label(
-                        db,
-                        Level::Error,
-                        source.span(db),
-                        format!(
-                            "I expected a type here, but `{}` is a variable",
-                            sym_local_variable.name(db)
                         ),
                     )
                     .report(db),
@@ -594,7 +611,7 @@ impl<'db> NameResolution<'db> {
 
     /// Convert this name resolution into a permission.
     fn to_sym_perm(&self, db: &'db dyn Db, source: impl Spanned<'db>) -> SymPerm<'db> {
-        if let NameResolution::SymGeneric(generic, generic_index) = self {
+        if let NameResolution::SymVariable(generic, generic_index) = self {
             if let SymGenericKind::Perm = generic.kind(db) {
                 return SymPerm::new(db, SymPermKind::Var(*generic_index));
             }
@@ -609,6 +626,29 @@ impl<'db> NameResolution<'db> {
                         Level::Error,
                         source.span(db),
                         format!("I expected a permission here, but I found something else"),
+                    )
+                    .report(db),
+            ),
+        )
+    }
+
+    /// Convert this name resolution into a permission.
+    fn to_sym_place(&self, db: &'db dyn Db, source: impl Spanned<'db>) -> SymPlace<'db> {
+        if let NameResolution::SymVariable(generic, generic_index) = self {
+            if let SymGenericKind::Place = generic.kind(db) {
+                return SymPlace::new(db, SymPlaceKind::Var(*generic_index));
+            }
+        }
+
+        SymPlace::new(
+            db,
+            SymPlaceKind::Error(
+                Diagnostic::error(db, source.span(db), "not a valid place")
+                    .label(
+                        db,
+                        Level::Error,
+                        source.span(db),
+                        format!("I expected a place here, but I found something else"),
                     )
                     .report(db),
             ),
@@ -648,7 +688,7 @@ impl<'db> IntoSymInScope<'db> for AstPath<'db> {
 
         // We expect the final resolution to be a local variable of some kind.
         // Anything else is an error.
-        let NameResolution::SymLocalVariable(sym_local_variable) = resolution else {
+        let NameResolution::SymVariable(sym_var, generic_index) = resolution else {
             return SymPlace::new(
                 db,
                 SymPlaceKind::Error(
@@ -674,9 +714,27 @@ impl<'db> IntoSymInScope<'db> for AstPath<'db> {
             );
         };
 
+        
+        let sym_var_kind = sym_var.kind(db);
+        if sym_var_kind != SymGenericKind::Place {
+            return SymPlace::new(
+                db,
+                SymPlaceKind::Error(
+                    Diagnostic::error(db, first_id.span, format!("expected a place, found `{sym_var_kind}`"))
+                        .label(
+                            db,
+                            Level::Error,
+                            first_id.span,
+                            format!("I expected a place here, but I found a `{sym_var_kind}`"),
+                        )
+                        .report(db),
+                ),
+            );
+        }
+
         // Create the place. Note that in this phase we just include field ids with no closer examination.
         // The type checker must validate that they are correct.
-        let mut place = SymPlace::new(db, SymPlaceKind::LocalVariable(sym_local_variable));
+        let mut place = SymPlace::new(db, SymPlaceKind::Var(generic_index));
         for &id in fields {
             place = place.field(db, id.id);
         }

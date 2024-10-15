@@ -4,7 +4,7 @@ use dada_ir_sym::{
     indices::SymVarIndex,
     scope::Scope,
     subst::Subst,
-    symbol::{SymGeneric, SymGenericKind, SymLocalVariable},
+    symbol::{SymVariable, SymGenericKind, SymLocalVariable},
     ty::{Binder, GenericIndex, SymGenericTerm, SymPerm, SymTy, SymTyKind},
 };
 use dada_util::Map;
@@ -26,7 +26,7 @@ pub struct Env<'db> {
 
     /// Generic variables that are in scope as free universals.
     /// The symbols are retained for better error messages.
-    generic_variables: Arc<Vec<SymGeneric<'db>>>,
+    generic_variables: Arc<Vec<SymVariable<'db>>>,
 
     /// Local variables that are in scope along with their types.
     program_variables: Arc<Map<SymLocalVariable<'db>, SymTy<'db>>>,
@@ -56,7 +56,7 @@ impl<'db> Env<'db> {
     pub fn open_universally2<T: Subst<'db, Output = T> + Update>(
         &mut self,
         check: &Check<'_, 'db>,
-        symbols: &[SymGeneric<'db>],
+        symbols: &[SymVariable<'db>],
         binder: Binder<Binder<T>>,
     ) -> T {
         let (symbols1, symbols2) = symbols.split_at(binder.len());
@@ -69,7 +69,7 @@ impl<'db> Env<'db> {
     pub fn open_universally<T: Subst<'db> + Update>(
         &mut self,
         check: &Check<'_, 'db>,
-        symbols: &[SymGeneric<'db>],
+        symbols: &[SymVariable<'db>],
         binder: Binder<T>,
     ) -> T::Output {
         assert_eq!(symbols.len(), binder.kinds.len());

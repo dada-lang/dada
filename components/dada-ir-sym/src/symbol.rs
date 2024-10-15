@@ -6,29 +6,27 @@ use salsa::Update;
 
 use crate::prelude::{IntoSymbol, ToSymbol};
 
+/// Symbol for a generic parameter or local variable.
 #[salsa::tracked]
-pub struct SymLocalVariable<'db> {
-    pub name: Identifier<'db>,
-    pub name_span: Span<'db>,
-}
-
-impl<'db> Spanned<'db> for SymLocalVariable<'db> {
-    fn span(&self, db: &'db dyn dada_ir_ast::Db) -> Span<'db> {
-        self.name_span(db)
-    }
-}
-
-/// Declaration of a generic parameter.
-#[salsa::tracked]
-pub struct SymGeneric<'db> {
+pub struct SymVariable<'db> {
     pub kind: SymGenericKind,
     pub name: Option<Identifier<'db>>,
     pub span: Span<'db>,
 }
 
-impl<'db> Spanned<'db> for SymGeneric<'db> {
+impl<'db> Spanned<'db> for SymVariable<'db> {
     fn span(&self, db: &'db dyn dada_ir_ast::Db) -> Span<'db> {
-        SymGeneric::span(*self, db)
+        SymVariable::span(*self, db)
+    }
+}
+
+impl std::fmt::Display for SymVariable<'_> {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        salsa::with_attached_database(|db| match self.name(db) {
+            Some(name) => write!(f, "{}", name),
+            None => write!(f, "_"),
+        })
+        .unwrap_or_else(|| std::fmt::Debug::fmt(self, f))
     }
 }
 
@@ -36,12 +34,13 @@ impl<'db> Spanned<'db> for SymGeneric<'db> {
 pub enum SymGenericKind {
     Type,
     Perm,
+    Place,
 }
 
 impl<'db> ToSymbol<'db> for AstFunctionInput<'db> {
-    type Symbolic = SymLocalVariable<'db>;
+    type Symbolic = SymVariable<'db>;
 
-    fn to_symbol(&self, db: &'db dyn crate::Db) -> SymLocalVariable<'db> {
+    fn to_symbol(&self, db: &'db dyn crate::Db) -> SymVariable<'db> {
         match self {
             AstFunctionInput::SelfArg(ast_self_arg) => ast_self_arg.into_symbol(db),
             AstFunctionInput::Variable(variable_decl) => variable_decl.into_symbol(db),
@@ -54,26 +53,37 @@ impl std::fmt::Display for SymGenericKind {
         match self {
             Self::Type => write!(f, "type"),
             Self::Perm => write!(f, "perm"),
+            Self::Place => write!(f, "place"),
         }
     }
 }
 
 #[salsa::tracked]
 impl<'db> IntoSymbol<'db> for VariableDecl<'db> {
-    type Symbolic = SymLocalVariable<'db>;
+    type Symbolic = SymVariable<'db>;
 
     #[salsa::tracked]
-    fn into_symbol(self, db: &'db dyn crate::Db) -> SymLocalVariable<'db> {
-        SymLocalVariable::new(db, self.name(db).id, self.name(db).span)
+    fn into_symbol(self, db: &'db dyn crate::Db) -> SymVariable<'db> {
+        SymVariable::new(
+            db,
+            SymGenericKind::Place,
+            Some(self.name(db).id),
+            self.name(db).span,
+        )
     }
 }
 
 #[salsa::tracked]
 impl<'db> IntoSymbol<'db> for AstSelfArg<'db> {
-    type Symbolic = SymLocalVariable<'db>;
+    type Symbolic = SymVariable<'db>;
 
     #[salsa::tracked]
-    fn into_symbol(self, db: &'db dyn crate::Db) -> SymLocalVariable<'db> {
-        SymLocalVariable::new(db, db.self_id(), self.self_span(db))
+    fn into_symbol(self, db: &'db dyn crate::Db) -> SymVariable<'db> {
+        SymVariable::new(
+            db,
+            SymGenericKind::Place,
+            Some(db.self_id()),
+            self.self_span(db),
+        )
     }
 }

@@ -4,8 +4,7 @@ use dada_ir_ast::ast::{
 };
 
 use crate::{
-    function::SignatureSymbols, prelude::IntoSymbol, symbol::SymLocalVariable,
-    ty::AnonymousPermSymbol,
+    function::SignatureSymbols, prelude::IntoSymbol, symbol::SymVariable, ty::AnonymousPermSymbol,
 };
 
 /// Iterate over the items in a signature (function, class, impl, etc)
@@ -141,9 +140,5 @@ impl<'db> PopulateSignatureSymbols<'db> for AstClassItem<'db> {
             .iter()
             .flatten()
             .for_each(|g| g.populate_signature_symbols(db, symbols));
-
-        symbols
-            .inputs
-            .push(SymLocalVariable::new(db, db.self_id(), self.name_span(db)));
     }
 }

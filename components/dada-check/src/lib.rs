@@ -11,7 +11,7 @@ use dada_ir_sym::{
     function::{SignatureSymbols, SymFunction, SymFunctionSignature, SymInputOutput},
     module::{SymItem, SymModule},
     prelude::*,
-    symbol::{SymGeneric, SymGenericKind, SymLocalVariable},
+    symbol::{SymGenericKind, SymVariable},
     ty::{Binder, SymTy},
 };
 use salsa::Update;
@@ -100,7 +100,7 @@ impl<'db> Check<'db> for SignatureSymbols<'db> {
         let mut input_names = Map::default();
         for input in &self.inputs {
             input.check(db);
-            check_for_duplicates(db, &mut input_names, input.name(db), *input);
+            check_for_duplicates(db, &mut input_names, input.name(db).unwrap(), *input);
         }
     }
 }
@@ -175,15 +175,7 @@ impl<'db> Check<'db> for SymGenericKind {
     fn check(&self, _db: &'db dyn crate::Db) {}
 }
 
-impl<'db> Check<'db> for SymGeneric<'db> {
-    fn check(&self, _db: &'db dyn crate::Db) {
-        // There *are* validity checks that need to be done on types,
-        // but they are done as part of the checking the item in which
-        // the type appears.
-    }
-}
-
-impl<'db> Check<'db> for SymLocalVariable<'db> {
+impl<'db> Check<'db> for SymVariable<'db> {
     fn check(&self, _db: &'db dyn crate::Db) {
         // There *are* validity checks that need to be done on types,
         // but they are done as part of the checking the item in which

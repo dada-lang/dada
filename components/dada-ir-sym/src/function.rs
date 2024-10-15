@@ -14,7 +14,7 @@ use crate::{
     populate::PopulateSignatureSymbols,
     prelude::IntoSymInScope,
     scope::{Scope, ScopeItem},
-    symbol::{SymGeneric, SymLocalVariable},
+    symbol::SymVariable,
     ty::{Binder, SymTy, SymTyKind},
 };
 
@@ -35,10 +35,12 @@ pub struct SymFunctionSignature<'db> {
     #[return_ref]
     pub symbols: SignatureSymbols<'db>,
 
-    /// Input/output types. First level of binder is the class.
-    /// Second level of binder is the function. If this is a standalone
-    /// function, first binder is empty.
-    pub input_output: Binder<Binder<SymInputOutput<'db>>>,
+    /// Input/output types:
+    ///
+    /// * Outermost binder is the class (if a standalone function, this is empty).
+    /// * Middle binder is the function generic types.
+    /// * Inner binder is the function local variables.
+    pub input_output: Binder<Binder<Binder<SymInputOutput<'db>>>>,
 }
 
 #[derive(Clone, PartialEq, Eq, PartialOrd, Ord, Hash, Update, Debug)]
@@ -51,8 +53,8 @@ pub struct SymInputOutput<'db> {
 #[derive(Clone, Debug, PartialEq, Eq, Hash, Update)]
 pub struct SignatureSymbols<'db> {
     pub source: SignatureSource<'db>,
-    pub generics: Vec<SymGeneric<'db>>,
-    pub inputs: Vec<SymLocalVariable<'db>>,
+    pub generics: Vec<SymVariable<'db>>,
+    pub inputs: Vec<SymVariable<'db>>,
 }
 
 #[derive(Copy, Clone, Debug, PartialEq, Eq, Hash, Update, FromImpls)]
@@ -78,7 +80,7 @@ impl<'db> SignatureSymbols<'db> {
 }
 
 impl<'db> SymFunctionSignature<'db> {
-    pub fn inputs(self, db: &'db dyn crate::Db) -> &'db [SymLocalVariable<'db>] {
+    pub fn inputs(self, db: &'db dyn crate::Db) -> &'db [SymVariable<'db>] {
         &self.symbols(db).inputs
     }
 }
@@ -100,43 +102,46 @@ impl<'db> SymFunction<'db> {
         self.source(db).body_block(db)
     }
 
-    /// Function signature
-    #[salsa::tracked]
-    pub fn signature(self, db: &'db dyn crate::Db) -> SymFunctionSignature<'db> {
+    #[salsa::tracked(return_ref)]
+    pub fn symbols(self, db: &'db dyn crate::Db) -> SignatureSymbols<'db> {
         let source = self.source(db);
         let mut symbols = SignatureSymbols::new(self);
         source.populate_signature_symbols(db, &mut symbols);
+        symbols
+    }
 
-        let scope = self
-            .scope_item(db)
-            .into_scope(db)
-            .ensure_binder()
-            .with_link(Cow::Borrowed(&symbols));
+    /// Function signature
+    #[salsa::tracked]
+    pub fn signature(self, db: &'db dyn crate::Db) -> SymFunctionSignature<'db> {
+        let scope = self.scope(db);
 
         let input_output = SymInputOutput {
-            input_tys: source
+            input_tys: self
+                .source(db)
                 .inputs(db)
                 .iter()
                 .map(|i| input_ty(db, &scope, i))
                 .collect(),
 
-            output_ty: match source.output_ty(db) {
+            output_ty: match self.source(db).output_ty(db) {
                 Some(ast_ty) => ast_ty.into_sym_in_scope(db, &scope),
                 None => SymTy::unit(db),
             },
         };
         let bound_input_output = scope.into_bound(db, input_output);
 
-        SymFunctionSignature::new(db, symbols, bound_input_output)
+        SymFunctionSignature::new(db, self.symbols(db).clone(), bound_input_output)
     }
 
     /// Returns the scope for this function; this has the function generics
     /// and parameters in scope.
     pub fn scope(self, db: &'db dyn crate::Db) -> Scope<'db, 'db> {
-        let signature = self.signature(db);
+        let symbols = self.symbols(db);
         self.scope_item(db)
             .into_scope(db)
-            .with_link(Cow::Borrowed(signature.symbols(db)))
+            .ensure_binder()
+            .with_link(Cow::Borrowed(&symbols.generics[..]))
+            .with_link(Cow::Borrowed(&symbols.inputs[..]))
     }
 }
 

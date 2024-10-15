@@ -57,7 +57,7 @@ impl<'db> BoundTerm<'db> for SymGenericTerm<'db> {
     }
 
     fn assert_type(self, db: &'db dyn crate::Db) -> SymTy<'db> {
-        self.assert_type(db)
+        self.assert_ty(db)
     }
 }
 

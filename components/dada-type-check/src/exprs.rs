@@ -198,7 +198,7 @@ impl<'chk, 'db> ExprResult<'chk, 'db> {
             | NameResolution::SymModule(_)
             | NameResolution::SymClass(_)
             | NameResolution::SymPrimitive(_)
-            | NameResolution::SymGeneric(..) => Self {
+            | NameResolution::SymVariable(..) => Self {
                 temporaries: vec![],
                 span,
                 kind: ExprResultKind::Other(res),
