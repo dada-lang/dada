@@ -76,6 +76,24 @@ pub trait Subst<'db> {
             )
         }
     }
+
+    /// Replace local variable `lv` with `place` in `self`.
+    fn subst_lv(
+        &self,
+        db: &'db dyn crate::Db,
+        lv: SymLocalVariable<'db>,
+        place: SymPlace<'db>,
+    ) -> Self::Output {
+        self.subst_with(
+            db,
+            SymBinderIndex::INNERMOST,
+            &mut SubstitutionFns {
+                binder_index: &mut SubstitutionFns::default_binder_index,
+                bound_var: &mut SubstitutionFns::default_bound_var,
+                local_var: &mut |lv1| if lv == lv1 { Some(place) } else { None },
+            },
+        )
+    }
 }
 
 impl<'db, T> Subst<'db> for &T
@@ -149,7 +167,7 @@ impl<'db> Subst<'db> for SymTy<'db> {
     ) -> Self::Output {
         match self.kind(db) {
             // Interesting case
-            SymTyKind::Var(generic_index) => match generic_index {
+            SymTyKind::Var(generic_index) => match *generic_index {
                 GenericIndex::Bound(sym_binder_index, sym_bound_var_index) => {
                     if sym_binder_index == depth {
                         match (subst_fns.bound_var)(SymGenericKind::Type, sym_bound_var_index) {

@@ -206,6 +206,19 @@ impl<'chk, 'db> ExprResult<'chk, 'db> {
         }
     }
 
+    pub fn from_place_expr(
+        check: &Check<'chk, 'db>,
+        env: &Env<'db>,
+        expr: PlaceExpr<'chk, 'db>,
+        temporaries: Vec<Temporary<'chk, 'db>>,
+    ) -> Self {
+        Self {
+            temporaries,
+            span: expr.span,
+            kind: ExprResultKind::PlaceExpr(expr),
+        }
+    }
+
     /// Create an error result.
     pub fn err(check: &Check<'chk, 'db>, span: Span<'db>, r: Reported) -> Self {
         Self {
@@ -240,7 +253,7 @@ impl<'chk, 'db> ExprResult<'chk, 'db> {
 
     /// Computes the type of this, treating it as an expression.
     /// Reports an error if this names something that cannot be made into an expression.
-    pub fn ty(self, check: &Check<'chk, 'db>, env: &Env<'db>) -> SymTy<'db> {
+    pub fn ty(&self, check: &Check<'chk, 'db>, env: &Env<'db>) -> SymTy<'db> {
         let db = check.db;
         match self.kind {
             ExprResultKind::PlaceExpr(place_expr) => place_expr.ty,

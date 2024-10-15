@@ -158,7 +158,7 @@ impl<'db> Env<'db> {
         ty: SymTy<'db>,
     ) -> impl Stream<Item = Bound<SymTy<'db>>> + 'chk {
         let db = check.db;
-        if let SymTyKind::Var(GenericIndex::Existential(inference_var)) = ty.kind(db) {
+        if let &SymTyKind::Var(GenericIndex::Existential(inference_var)) = ty.kind(db) {
             InferenceVarBounds::new(check, inference_var)
                 .map(|b| b.assert_type(db))
                 .boxed_local()

@@ -56,7 +56,7 @@ pub enum ScopeChainLink<'scope, 'db> {
 }
 
 /// Result of name resolution.
-#[derive(Clone, Debug, PartialEq, Eq, FromImpls)]
+#[derive(Copy, Clone, Debug, PartialEq, Eq, FromImpls)]
 pub enum NameResolution<'db> {
     SymModule(SymModule<'db>),
     SymClass(SymClass<'db>),

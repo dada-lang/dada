@@ -1,16 +1,21 @@
+use std::pin::{self, pin};
+
 use dada_ir_ast::{
-    ast::{Identifier, SpannedIdentifier},
+    ast::{AstPerm, Identifier, SpannedIdentifier},
     diagnostic::{Diagnostic, Level, Reported},
     span::Span,
 };
 use dada_ir_sym::{
     class::{SymClass, SymClassMember, SymField},
     function::SymFunction,
-    ty::{SymTy, SymTyKind, SymTyName},
+    subst::Subst,
+    ty::{SymGenericTerm, SymPerm, SymTy, SymTyKind, SymTyName},
 };
 use futures::{Stream, StreamExt};
 
-use crate::{bound::Bound, env::Env, executor::Check, exprs::ExprResult};
+use crate::{
+    bound::Bound, checking_ir::PlaceExprKind, env::Env, executor::Check, exprs::ExprResult,
+};
 
 #[derive(Copy, Clone)]
 pub(crate) struct MemberLookup<'member, 'chk, 'db> {
@@ -43,7 +48,7 @@ impl<'member, 'chk, 'db> MemberLookup<'member, 'chk, 'db> {
                 Bound::LowerBound(ty) => {
                     // The owner will be some supertype of `ty`.
                     if let Some(member) = self.search_type_for_member(ty, id.id) {
-                        return self.confirm_member(owner, member, bounds);
+                        return self.confirm_member(owner, member, id, bounds);
                     } else {
                         // If there is no member, then since the owner must be a supertype of `ty`,
                         // this expression is invalid.
@@ -53,7 +58,7 @@ impl<'member, 'chk, 'db> MemberLookup<'member, 'chk, 'db> {
                 Bound::UpperBound(ty) => {
                     // The owner will be some subtype of `ty`.
                     if let Some(member) = self.search_type_for_member(ty, id.id) {
-                        return self.confirm_member(owner, member, bounds);
+                        return self.confirm_member(owner, member, id, bounds);
                     } else {
                         // For an upper bound, it's ok not to find a match.
                         // We may a more precise bound later that does have a match.
@@ -76,18 +81,36 @@ impl<'member, 'chk, 'db> MemberLookup<'member, 'chk, 'db> {
         id: SpannedIdentifier<'db>,
         bounds: impl Stream<Item = Bound<SymTy<'db>>> + 'chk,
     ) -> ExprResult<'chk, 'db> {
+        let db = self.check.db;
+
         // Iterate through any remaining bounds to make sure that this member is valid
         // for all of them and that no ambiguity arises.
-        self.check
-            .defer(self.env, async move |check, env| for bound in bounds {});
+        self.check.defer(self.env, async move |check, env| {
+            let bounds = pin!(bounds);
+            while let Some(bound) = bounds.next().await {}
+        });
 
         // Construct the result
         match member {
-            SearchResult::Field { owner, field } => {
+            SearchResult::Field {
+                owner: owner_class,
+                field,
+                field_ty,
+            } => {
                 let mut temporaries = vec![];
-                let place_expr = owner.into_place_expr(self.check, self.env, &mut temporaries);
+                let owner_place_expr =
+                    owner.into_place_expr(self.check, self.env, &mut temporaries);
+                let self_lv = owner_class.field_self_lv();
+                let field_ty =
+                    field_ty.subst_lv(self_lv, self_lv, owner_place_expr.to_sym_place(db));
+                let place_expr = self.check.place_expr(
+                    id.span,
+                    field_ty,
+                    PlaceExprKind::Field(owner_place_expr, field),
+                );
+                ExprResult::from_place_expr(self.check, self.env, place_expr, temporaries)
             }
-            SearchResult::Method { owner, method } => {}
+            SearchResult::Method { owner: _, method } => {}
             SearchResult::Error(reported) => ExprResult::err(self.check, id.span, reported),
         }
     }
@@ -138,10 +161,12 @@ impl<'member, 'chk, 'db> MemberLookup<'member, 'chk, 'db> {
                 SymTyName::Tuple { arity } => None,
 
                 // Classes have members.
-                SymTyName::Class(owner) => self.search_class_for_member(owner, id),
+                SymTyName::Class(owner) => self.search_class_for_member(owner, generics, id),
             },
-            // Ignore permissions for the purposes of member lookup.
-            SymTyKind::Perm(_, ty) => self.search_type_for_member(ty, id),
+
+            SymTyKind::Perm(perm, ty) => {
+                Some(self.search_type_for_member(ty, id)?.with_perm(db, perm))
+            }
 
             SymTyKind::Var(generic_index) => {
                 // FIXME: where-clauses
@@ -161,6 +186,7 @@ impl<'member, 'chk, 'db> MemberLookup<'member, 'chk, 'db> {
     fn search_class_for_member(
         self,
         owner: SymClass<'db>,
+        generics: &[SymGenericTerm<'db>],
         id: Identifier<'db>,
     ) -> Option<SearchResult<'db>> {
         let db = self.check.db;
@@ -169,7 +195,11 @@ impl<'member, 'chk, 'db> MemberLookup<'member, 'chk, 'db> {
             match member {
                 SymClassMember::SymField(field) => {
                     if field.name(db) == id {
-                        return Some(SearchResult::Field { owner, field });
+                        return Some(SearchResult::Field {
+                            owner,
+                            field,
+                            field_ty: field.ty(db).substitute(db, &generics),
+                        });
                     }
                 }
 
@@ -185,15 +215,34 @@ impl<'member, 'chk, 'db> MemberLookup<'member, 'chk, 'db> {
     }
 }
 
-#[derive(Copy, CLone)]
+#[derive(Copy, Clone)]
 enum SearchResult<'db> {
     Field {
         owner: SymClass<'db>,
         field: SymField<'db>,
+        field_ty: SymTy<'db>,
     },
     Method {
         owner: SymClass<'db>,
         method: SymFunction<'db>,
     },
     Error(Reported),
+}
+
+impl<'db> SearchResult<'db> {
+    fn with_perm(self, db: &'db dyn crate::Db, perm: SymPerm<'db>) -> Self {
+        match self {
+            SearchResult::Field {
+                owner,
+                field,
+                field_ty,
+            } => SearchResult::Field {
+                owner,
+                field,
+                field_ty: SymTy::new(db, SymTyKind::Perm(perm, field_ty)),
+            },
+            SearchResult::Method { owner, method } => SearchResult::Method { owner, method },
+            SearchResult::Error(reported) => SearchResult::Error(reported),
+        }
+    }
 }

@@ -12,6 +12,7 @@ use crate::{
     populate::PopulateSignatureSymbols,
     prelude::{IntoSymInScope, IntoSymbol},
     scope::{Scope, ScopeItem},
+    symbol::SymGenericKind,
     ty::{Binder, SymTy, SymTyKind},
 };
 
@@ -22,32 +23,6 @@ pub struct SymClass<'db> {
 
     /// The AST for this class.
     source: AstClassItem<'db>,
-}
-
-/// Symbol for a class member
-#[derive(Copy, Clone, PartialEq, Eq, PartialOrd, Ord, Debug, FromImpls)]
-pub enum SymClassMember<'db> {
-    /// Class fields
-    SymField(SymField<'db>),
-
-    /// Class methods
-    SymFunction(SymFunction<'db>),
-}
-
-/// Symbol for a field of a class, struct, or enum
-#[salsa::tracked]
-pub struct SymField<'db> {
-    /// The item in which this field is declared.
-    pub scope_item: ScopeItem<'db>,
-
-    /// Field name
-    pub name: Identifier<'db>,
-
-    /// Span of field name. Also returned by [`Spanned`][] impl.
-    pub name_span: Span<'db>,
-
-    /// AST for field declaration
-    pub source: AstFieldDecl<'db>,
 }
 
 #[salsa::tracked]
@@ -66,6 +41,18 @@ impl<'db> SymClass<'db> {
         }
     }
 
+    /// Kinds of generic parameters
+    pub fn generic_kinds(
+        &self,
+        db: &'db dyn crate::Db,
+    ) -> impl Iterator<Item = SymGenericKind> + 'db {
+        self.source(db)
+            .generics(db)
+            .iter()
+            .flatten()
+            .map(move |decl| decl.kind(db).into_symbol(db))
+    }
+
     /// Span of the class name, typically used in diagnostics.
     /// Also returned by the [`Spanned`][] impl.
     pub fn name_span(&self, db: &'db dyn dada_ir_ast::Db) -> Span<'db> {
@@ -79,6 +66,21 @@ impl<'db> SymClass<'db> {
         } else {
             self.name_span(db)
         }
+    }
+
+    /// Span where the `index`th generics are is (possibly the name span, if there are no generics)
+    ///
+    /// # Panics
+    ///
+    /// If `index` is not a valid generic index
+    pub fn generic_span(&self, db: &'db dyn crate::Db, index: usize) -> Span<'db> {
+        let Some(generic) = self.source(db).generics(db).iter().flatten().nth(index) else {
+            panic!(
+                "invalid generic index `{index}` for `{name}`",
+                name = self.name(db)
+            )
+        };
+        generic.span(db)
     }
 
     /// Returns the base scope used to resolve the class members.
@@ -139,6 +141,32 @@ impl<'db> SymClass<'db> {
             _ => None,
         })
     }
+}
+
+/// Symbol for a class member
+#[derive(Copy, Clone, PartialEq, Eq, PartialOrd, Ord, Debug, FromImpls)]
+pub enum SymClassMember<'db> {
+    /// Class fields
+    SymField(SymField<'db>),
+
+    /// Class methods
+    SymFunction(SymFunction<'db>),
+}
+
+/// Symbol for a field of a class, struct, or enum
+#[salsa::tracked]
+pub struct SymField<'db> {
+    /// The item in which this field is declared.
+    pub scope_item: ScopeItem<'db>,
+
+    /// Field name
+    pub name: Identifier<'db>,
+
+    /// Span of field name. Also returned by [`Spanned`][] impl.
+    pub name_span: Span<'db>,
+
+    /// AST for field declaration
+    pub source: AstFieldDecl<'db>,
 }
 
 #[salsa::tracked]

@@ -5,7 +5,7 @@ use dada_ir_sym::{
     ty::{SymPlace, SymPlaceKind, SymTy},
 };
 
-#[derive(Clone, PartialEq, Eq, PartialOrd, Ord, Hash, Debug)]
+#[derive(Copy, Clone, PartialEq, Eq, PartialOrd, Ord, Hash, Debug)]
 pub(crate) struct Expr<'chk, 'db> {
     pub span: Span<'db>,
     pub ty: SymTy<'db>,
@@ -57,7 +57,7 @@ pub(crate) enum ExprKind<'chk, 'db> {
     Error(Reported),
 }
 
-#[derive(Clone, PartialEq, Eq, PartialOrd, Ord, Hash, Debug)]
+#[derive(Copy, Clone, PartialEq, Eq, PartialOrd, Ord, Hash, Debug)]
 pub(crate) struct PlaceExpr<'chk, 'db> {
     pub span: Span<'db>,
     pub ty: SymTy<'db>,

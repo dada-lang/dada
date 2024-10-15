@@ -13,8 +13,8 @@ use dada_ir_ast::{
         AstGenericArg, AstGenericDecl, AstGenericKind, AstPath, AstPerm, AstPermKind, AstTy,
         AstTyKind, Identifier,
     },
-    diagnostic::{Diagnostic, Level, Reported},
-    span::Spanned,
+    diagnostic::{ordinal, Diagnostic, Errors, Level, Reported},
+    span::{Span, Spanned},
 };
 use dada_util::FromImpls;
 use salsa::Update;
@@ -58,10 +58,19 @@ impl<'db> SymGenericTerm<'db> {
             SymGenericTerm::Error(Reported) => true,
         }
     }
+
+    pub fn kind(self) -> Errors<SymGenericKind> {
+        match self {
+            SymGenericTerm::Type(_) => Ok(SymGenericKind::Type),
+            SymGenericTerm::Perm(_) => Ok(SymGenericKind::Perm),
+            SymGenericTerm::Error(Reported) => Err(Reported),
+        }
+    }
 }
 
 #[salsa::interned]
 pub struct SymTy<'db> {
+    #[return_ref]
     pub kind: SymTyKind<'db>,
 }
 
@@ -110,10 +119,15 @@ impl<'db> SymTy<'db> {
 
 #[derive(Clone, PartialEq, Eq, PartialOrd, Ord, Hash, Update, Debug)]
 pub enum SymTyKind<'db> {
+    /// `$Perm $Ty`, e.g., `shared String
     Perm(SymPerm<'db>, SymTy<'db>),
 
+    /// `path[arg1, arg2]`, e.g., `Vec[String]`
+    /// 
+    /// Important: the generic arguments must be well-kinded and of the correct number.
     Named(SymTyName<'db>, Vec<SymGenericTerm<'db>>),
 
+    /// Reference to a generic or inference variable, e.g., `T` or `?X`
     Var(GenericIndex),
 
     /// Indicates the user wrote `?` and we should use gradual typing.
@@ -134,6 +148,9 @@ impl<T: Update> Binder<T> {
         self.kinds.len()
     }
 
+    /// Generic way to "open" a binder, giving a function that computes the replacement
+    /// value for each bound variable. You may preference [`Self::substitute`][] for the
+    /// most common cases.
     pub fn open<'db>(
         &self,
         db: &'db dyn crate::Db,
@@ -160,6 +177,27 @@ impl<T: Update> Binder<T> {
                 local_var: &mut SubstitutionFns::default_local_var,
             },
         )
+    }
+
+    /// Open the binder by replacing each variable with the corresponding term from `substitution`.
+    ///
+    /// # Panics
+    ///
+    /// If `substitution` does not have the correct length or there is a kind-mismatch.
+    pub fn substitute<'db>(
+        &self,
+        db: &'db dyn crate::Db,
+        substitution: &[impl Into<SymGenericTerm<'db>> + Copy],
+    ) -> T::Output
+    where
+        T: Subst<'db>,
+    {
+        assert_eq!(self.len(), substitution.len());
+        self.open(db, |kind, index| {
+            let term = substitution[index.as_usize()].into();
+            assert!(term.has_kind(kind));
+            term
+        })
     }
 }
 
@@ -285,7 +323,7 @@ impl<'db> IntoSymInScope<'db> for AstTy<'db> {
                 let generics = span_vec
                     .iter()
                     .flatten()
-                    .map(|g| g.into_sym_in_scope(db, scope))
+                    .map(|g| (g.span(db), g.into_sym_in_scope(db, scope)))
                     .collect::<Vec<_>>();
                 match ast_path.resolve_in(db, scope) {
                     Ok(r) => r.to_sym_ty(db, ast_path, generics),
@@ -391,29 +429,12 @@ impl<'db> NameResolution<'db> {
         self,
         db: &'db dyn crate::Db,
         source: impl Spanned<'db>,
-        generics: Vec<SymGenericTerm<'db>>,
+        generics: Vec<(Span<'db>, SymGenericTerm<'db>)>,
     ) -> SymTy<'db> {
-        self.to_sym_ty_skel(
-            db,
-            source,
-            generics,
-            |name, generics| SymTy::new(db, SymTyKind::Named(name, generics)),
-            |generic_index| SymTy::new(db, SymTyKind::Var(generic_index)),
-            |r| SymTy::new(db, SymTyKind::Error(r)),
-        )
-    }
+        let make_named = |name, generics| SymTy::new(db, SymTyKind::Named(name, generics));
+        let make_err = |r| SymTy::new(db, SymTyKind::Error(r));
+        let make_var = |generic_index| SymTy::new(db, SymTyKind::Var(generic_index));
 
-    /// Helper function for creating a [`SymTy`][] or a [`SymTyc`][] from a [`NameResolution`][].
-    /// The `make_*` functions create the appropriate result.
-    pub(crate) fn to_sym_ty_skel<G, R>(
-        self,
-        db: &'db dyn crate::Db,
-        source: impl Spanned<'db>,
-        generics: Vec<G>,
-        make_named: impl Fn(SymTyName<'db>, Vec<G>) -> R,
-        make_var: impl Fn(GenericIndex) -> R,
-        make_err: impl Fn(Reported) -> R,
-    ) -> R {
         match self {
             NameResolution::SymPrimitive(sym_primitive) => {
                 if generics.len() != 0 {
@@ -441,6 +462,7 @@ impl<'db> NameResolution<'db> {
 
                 make_named(sym_primitive.into(), vec![])
             }
+
             NameResolution::SymClass(sym_class) => {
                 let expected = sym_class.len_generics(db);
                 let found = generics.len();
@@ -469,6 +491,46 @@ impl<'db> NameResolution<'db> {
                         .report(db),
                     );
                 }
+
+                let generics = sym_class
+                    .generic_kinds(db)
+                    .zip(&generics)
+                    .zip(0..)
+                    .map(|((expected_kind, &(span, generic)), index)| {
+                        if generic.has_kind(expected_kind) {
+                            generic
+                        } else {
+                            let found_kind = generic.kind().unwrap();
+                            let name = sym_class.name(db);
+                            SymGenericTerm::Error(
+                                Diagnostic::error(
+                                    db,
+                                    span,
+                                    format!("expected a `{expected_kind}`, found a `{found_kind}`"),
+                                )
+                                .label(
+                                    db,
+                                    Level::Error,
+                                    span,
+                                    format!(
+                                        "`{name}` expects a `{expected_kind}` for its {ith} generic argument, but I found a `{found_kind}`",
+                                        ith = ordinal(index + 1),
+                                    ),
+                                )
+                                .label(
+                                    db,
+                                    Level::Info,
+                                    sym_class.generic_span(db, index),
+                                    format!(
+                                        "{ith} generic argument for `{name}` is declared here",
+                                        ith = ordinal(index + 1),
+                                    ),
+                                )
+                                .report(db)    
+                            )
+                        }
+                    })
+                    .collect();
 
                 make_named(sym_class.into(), generics)
             }

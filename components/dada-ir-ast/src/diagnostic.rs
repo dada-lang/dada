@@ -1,6 +1,9 @@
 use std::fmt::Display;
 
-use crate::span::{AbsoluteSpan, Span};
+use crate::{
+    inputs::CrateKind,
+    span::{AbsoluteSpan, Span},
+};
 use salsa::{Accumulator, Update};
 
 /// Signals that a diagnostic was reported.
@@ -103,5 +106,14 @@ impl Diagnostic {
 pub fn report_all(db: &dyn crate::Db, diagnostics: Vec<Diagnostic>) {
     for diagnostic in diagnostics {
         diagnostic.report(db);
+    }
+}
+
+pub fn ordinal(n: usize) -> impl std::fmt::Display {
+    match n % 10 {
+        1 => format!("{}st", n),
+        2 => format!("{}nd", n),
+        3 => format!("{}rd", n),
+        _ => format!("{}th", n),
     }
 }

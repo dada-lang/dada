@@ -71,6 +71,16 @@ pub enum AstGenericArg<'db> {
     Id(SpannedIdentifier<'db>),
 }
 
+impl<'db> Spanned<'db> for AstGenericArg<'db> {
+    fn span(&self, db: &'db dyn crate::Db) -> Span<'db> {
+        match self {
+            AstGenericArg::Ty(ty) => ty.span(db),
+            AstGenericArg::Perm(perm) => perm.span(db),
+            AstGenericArg::Id(id) => id.span(db),
+        }
+    }
+}
+
 #[derive(Copy, Clone, PartialEq, Eq, PartialOrd, Ord, Hash, Update, Debug)]
 pub enum AstGenericKind<'db> {
     Type(Span<'db>),

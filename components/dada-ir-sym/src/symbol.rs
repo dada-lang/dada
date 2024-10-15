@@ -49,6 +49,15 @@ impl<'db> ToSymbol<'db> for AstFunctionInput<'db> {
     }
 }
 
+impl std::fmt::Display for SymGenericKind {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        match self {
+            Self::Type => write!(f, "type"),
+            Self::Perm => write!(f, "perm"),
+        }
+    }
+}
+
 #[salsa::tracked]
 impl<'db> IntoSymbol<'db> for VariableDecl<'db> {
     type Symbolic = SymLocalVariable<'db>;
