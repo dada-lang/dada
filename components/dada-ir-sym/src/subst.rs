@@ -1,10 +1,12 @@
+use std::ops::Sub;
+
 use dada_ir_ast::diagnostic::Reported;
 use salsa::Update;
 
 use crate::{
     function::SymInputOutput,
-    indices::{SymBinderIndex, SymBoundVarIndex},
-    symbol::SymGenericKind,
+    indices::{SymBinderIndex, SymBoundVarIndex, SymVarIndex},
+    symbol::{SymGenericKind, SymVariable},
     ty::{
         Binder, GenericIndex, SymGenericTerm, SymPerm, SymPermKind, SymPlace, SymPlaceKind, SymTy,
         SymTyKind, SymTyName,
@@ -16,9 +18,17 @@ pub struct SubstitutionFns<'s, 'db> {
     /// when substitution begins. The result is automatically shifted with [`Subst::shift_into_binders`][]
     /// into any binders that we have traversed during the substitution.
     ///
+    /// If this returns None, no substitution is performed.
+    ///
     /// See [`Binder::open`][] for an example of this in use.
     pub bound_var:
         &'s mut dyn FnMut(SymGenericKind, SymBoundVarIndex) -> Option<SymGenericTerm<'db>>,
+
+    /// Invoked for free variables.
+    ///
+    /// If this returns None, no substitution is performed.
+    pub free_universal_var:
+        &'s mut dyn FnMut(SymGenericKind, SymVarIndex) -> Option<SymGenericTerm<'db>>,
 
     /// Invoked to adjust the binder level for bound terms when:
     /// (a) the term is bound by some binder we have traversed or
@@ -34,6 +44,10 @@ impl<'s, 'db> SubstitutionFns<'s, 'db> {
         _: SymGenericKind,
         _: SymBoundVarIndex,
     ) -> Option<SymGenericTerm<'db>> {
+        None
+    }
+
+    pub fn default_free_var(_: SymGenericKind, _: SymVarIndex) -> Option<SymGenericTerm<'db>> {
         None
     }
 
@@ -63,10 +77,42 @@ pub trait Subst<'db> {
                 binders,
                 &mut SubstitutionFns {
                     binder_index: &mut |b| b.shift_into_binders(binders),
+                    free_universal_var: &mut SubstitutionFns::default_free_var,
                     bound_var: &mut SubstitutionFns::default_bound_var,
                 },
             )
         }
+    }
+
+    /// Returns a version of `self` where all (universal free variables
+    /// have been replaced by the corresponding entry in `terms`.
+    ///
+    /// # Panics
+    ///
+    /// Panics if `self` contain any free variables with an index outside the range of `terms`
+    /// or if the kind of a term does not match the kind of the free variable.
+    fn subst_universal_free_vars(
+        &self,
+        db: &'db dyn crate::Db,
+        mut terms: impl FnMut(SymVarIndex) -> Option<SymGenericTerm<'db>>,
+    ) -> Self::Output {
+        self.subst_with(
+            db,
+            SymBinderIndex::INNERMOST,
+            &mut SubstitutionFns {
+                binder_index: &mut SubstitutionFns::default_binder_index,
+                bound_var: &mut SubstitutionFns::default_bound_var,
+                free_universal_var: &mut |var_kind, var_index| {
+                    let Some(r) = terms(var_index) else {
+                        return None;
+                    };
+
+                    assert!(r.has_kind(var_kind));
+
+                    Some(r)
+                },
+            },
+        )
     }
 }
 
@@ -371,7 +417,13 @@ where
                 Term::bound_var(db, new_binder_index(), sym_bound_var_index)
             }
         }
-        GenericIndex::Universal(_) | GenericIndex::Existential(_) => term.identity(),
+        GenericIndex::Universal(var_index) => {
+            match (subst_fns.free_universal_var)(SymGenericKind::Perm, var_index) {
+                Some(r) => Term::assert_kind(db, r).shift_into_binders(db, depth),
+                None => Term::identity(term),
+            }
+        }
+        GenericIndex::Existential(_) => term.identity(),
     }
 }
 

@@ -128,7 +128,7 @@ impl<'db> SymFunction<'db> {
                 None => SymTy::unit(db),
             },
         };
-        let bound_input_output = scope.into_bound(db, input_output);
+        let bound_input_output = scope.into_bound_value(db, input_output);
 
         SymFunctionSignature::new(db, self.symbols(db).clone(), bound_input_output)
     }
@@ -139,7 +139,6 @@ impl<'db> SymFunction<'db> {
         let symbols = self.symbols(db);
         self.scope_item(db)
             .into_scope(db)
-            .ensure_binder()
             .with_link(Cow::Borrowed(&symbols.generics[..]))
             .with_link(Cow::Borrowed(&symbols.inputs[..]))
     }

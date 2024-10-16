@@ -12,7 +12,7 @@ use crate::{
     populate::PopulateSignatureSymbols,
     prelude::{IntoSymInScope, IntoSymbol},
     scope::{Scope, ScopeItem},
-    symbol::SymGenericKind,
+    symbol::{SymGenericKind, SymVariable},
     ty::{Binder, SymTy, SymTyKind},
 };
 
@@ -178,12 +178,26 @@ pub struct SymField<'db> {
 
 #[salsa::tracked]
 impl<'db> SymField<'db> {
+    /// The symbol for the `self` variable that appears in this field's type.
+    /// (Every field and class member has their own `self` symbol.)
     #[salsa::tracked]
-    pub fn ty(self, db: &'db dyn crate::Db) -> Binder<SymTy<'db>> {
-        let scope = self.scope_item(db).into_scope(db);
+    pub fn self_sym(self, db: &'db dyn crate::Db) -> SymVariable<'db> {
+        SymVariable::new(
+            db,
+            SymGenericKind::Place,
+            Some(db.self_id()),
+            self.name_span(db),
+        )
+    }
+
+    /// The type of this field, bound by the generics from the class and the `self` variable.
+    #[salsa::tracked]
+    pub fn ty(self, db: &'db dyn crate::Db) -> Binder<Binder<SymTy<'db>>> {
+        let self_sym = self.self_sym(db);
+        let scope = self.scope_item(db).into_scope(db).with_link(self_sym);
         let ast_ty = self.source(db).variable(db).ty(db);
         let sym_ty = ast_ty.into_sym_in_scope(db, &scope);
-        scope.into_bound(db, sym_ty)
+        scope.into_bound_value(db, sym_ty)
     }
 }
 

@@ -4,7 +4,7 @@ use dada_ir_sym::{
     indices::SymVarIndex,
     scope::Scope,
     subst::Subst,
-    symbol::{SymGenericKind, SymLocalVariable, SymVariable},
+    symbol::{SymGenericKind, SymVariable},
     ty::{Binder, GenericIndex, SymGenericTerm, SymPerm, SymTy, SymTyKind},
 };
 use dada_util::Map;
@@ -24,12 +24,13 @@ pub struct Env<'db> {
     /// Lexical scope for name resolution
     pub scope: Arc<Scope<'db, 'db>>,
 
-    /// Generic variables that are in scope as free universals.
+    /// Free variables that are in scope as free universals.
+    /// This includes generics but also place variables.
     /// The symbols are retained for better error messages.
-    generic_variables: Arc<Vec<SymVariable<'db>>>,
+    free_variables: Arc<Vec<SymVariable<'db>>>,
 
-    /// Local variables that are in scope along with their types.
-    program_variables: Arc<Map<SymLocalVariable<'db>, SymTy<'db>>>,
+    /// Place variables that are in scope along with their types.
+    variable_tys: Arc<Map<SymVariable<'db>, SymTy<'db>>>,
 
     /// If `None`, not type checking a function or method.
     return_ty: Option<SymTy<'db>>,
@@ -41,9 +42,9 @@ impl<'db> Env<'db> {
         Self {
             universe: Universe::ROOT,
             scope: Arc::new(scope),
-            program_variables: Arc::new(Map::default()),
-            generic_variables: Arc::new(Vec::new()),
-            return_ty: None,
+            variable_tys: Default::default(),
+            free_variables: Default::default(),
+            return_ty: Default::default(),
         }
     }
 
@@ -79,8 +80,8 @@ impl<'db> Env<'db> {
             .all(|(s, &k)| s.kind(check.db) == k));
 
         self.increment_universe();
-        let base_index = self.generic_variables.len();
-        Arc::make_mut(&mut self.generic_variables).extend(symbols);
+        let base_index = self.free_variables.len();
+        Arc::make_mut(&mut self.free_variables).extend(symbols);
 
         binder.open(check.db, |kind, sym_bound_var_index| {
             let index = SymVarIndex::from(base_index + sym_bound_var_index.as_usize());
@@ -108,7 +109,7 @@ impl<'db> Env<'db> {
     /// Inserts a new program variable into the environment for later lookup.
     pub fn insert_program_variable(&mut self, lv: SymVariable<'db>, ty: SymTy<'db>) {
         Arc::make_mut(&mut self.scope).push_link(lv);
-        Arc::make_mut(&mut self.program_variables).insert(lv, ty);
+        Arc::make_mut(&mut self.variable_tys).insert(lv, ty);
     }
 
     /// Set the return type of the current function.

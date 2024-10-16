@@ -188,6 +188,7 @@ impl<T: Update> Binder<T> {
                         }),
                     )
                 },
+                free_universal_var: &mut SubstitutionFns::default_free_var,
                 binder_index: &mut |i| i.shift_out(),
             },
         )

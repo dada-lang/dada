@@ -97,3 +97,19 @@ impl From<usize> for SymVarIndex {
         SymVarIndex(value)
     }
 }
+
+impl std::ops::Add<usize> for SymVarIndex {
+    type Output = SymVarIndex;
+
+    fn add(self, value: usize) -> Self {
+        Self::from(self.as_usize().checked_add(value).unwrap())
+    }
+}
+
+impl std::ops::Sub<SymVarIndex> for SymVarIndex {
+    type Output = usize;
+
+    fn sub(self, value: SymVarIndex) -> usize {
+        self.as_usize().checked_sub(value.as_usize()).unwrap()
+    }
+}
