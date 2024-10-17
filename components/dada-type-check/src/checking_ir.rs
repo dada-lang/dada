@@ -69,10 +69,10 @@ pub(crate) struct PlaceExpr<'chk, 'db> {
 impl<'chk, 'db> PlaceExpr<'chk, 'db> {
     pub fn to_sym_place(&self, db: &'db dyn crate::Db, env: &Env<'db>) -> SymPlace<'db> {
         match self.kind {
-            PlaceExprKind::Local(local) => SymPlace::new(db, SymPlaceKind::Var(*local)),
+            PlaceExprKind::Local(local) => local.into_generic_term(db, &env.scope).assert_place(db),
             PlaceExprKind::Field(place, field) => SymPlace::new(
                 db,
-                SymPlaceKind::Field(place.to_sym_place(db), field.name(db)),
+                SymPlaceKind::Field(place.to_sym_place(db, env), field.name(db)),
             ),
             PlaceExprKind::Error(r) => SymPlace::new(db, SymPlaceKind::Error(*r)),
         }

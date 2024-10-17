@@ -287,7 +287,7 @@ impl<'chk, 'db> ExprResult<'chk, 'db> {
 
                 // Create a temporary to store the result of this expression.
                 let name = Identifier::new(db, format!("#tmp{expr:?}"));
-                let lv = SymLocalVariable::new(db, name, expr.span);
+                let lv = SymVariable::new(db, SymGenericKind::Place, Some(name), expr.span);
                 temporaries.push(Temporary { lv, expr: expr });
 
                 // The result will be a reference to that temporary.

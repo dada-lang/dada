@@ -6,19 +6,19 @@ use dada_ir_ast::{
     inputs::CrateKind,
     span::{Span, Spanned},
 };
-use dada_util::FromImpls;
+use dada_util::{FromImpls, Map};
 use salsa::Update;
 
 use crate::{
     class::SymClass,
     function::{SymFunction, SymInputOutput},
-    indices::{SymBinderIndex, SymBoundVarIndex, SymVarIndex},
+    indices::{SymBinderIndex, SymBoundVarIndex},
     module::SymModule,
     prelude::IntoSymbol,
     primitive::{primitives, SymPrimitive},
     subst::Subst,
-    symbol::SymVariable,
-    ty::{Binder, GenericIndex, SymGenericTerm, SymTy},
+    symbol::{SymGenericKind, SymVariable},
+    ty::{Binder, SymGenericTerm, SymTy, Var},
 };
 
 /// A `ScopeItem` defines a name resolution scope.
@@ -39,17 +39,6 @@ pub struct Scope<'scope, 'db> {
 /// the next link.
 #[derive(Clone, Debug, PartialEq, Eq)]
 struct ScopeChain<'scope, 'db> {
-    /// Starting index for any variables created by this link.
-    ///
-    /// Variable numbering is somewhat subtle. It starts from `0` in the final link
-    /// and increases as you go backwards through the chain -- so each time we add
-    /// a link, the variable indices start from the end of the previous link.
-    ///
-    /// Name resolution always returns free variables. But you can take the term
-    /// that results and use [`Scope::into_bound`][] to replace those free variables
-    /// with bound variables inside of a `Binder`.
-    start_index: SymVarIndex,
-
     /// Kind of this link.
     kind: ScopeChainKind<'scope, 'db>,
 
@@ -87,9 +76,7 @@ pub enum NameResolution<'db> {
     SymClass(SymClass<'db>),
     SymFunction(SymFunction<'db>),
     SymPrimitive(SymPrimitive<'db>),
-
-    #[no_from_impl]
-    SymVariable(SymVariable<'db>, GenericIndex),
+    SymVariable(SymVariable<'db>),
 }
 
 impl<'db> ScopeItem<'db> {
@@ -129,7 +116,6 @@ impl<'scope, 'db> Scope<'scope, 'db> {
         let chain = ScopeChain {
             kind: kind.into(),
             next: None,
-            start_index: self.chain.end_index(),
         };
         let prev_chain = std::mem::replace(&mut self.chain, chain);
         self.chain.next = Some(Box::new(prev_chain));
@@ -174,15 +160,11 @@ impl<'scope, 'db> Scope<'scope, 'db> {
     /// # Panics
     ///
     /// If the symbol is not in the scope.
-    pub fn resolve_generic_sym(
-        &self,
-        db: &'db dyn crate::Db,
-        sym: SymVariable<'db>,
-    ) -> NameResolution<'db> {
+    pub fn resolve_generic_sym(&self, db: &'db dyn crate::Db, sym: SymVariable<'db>) -> Var<'db> {
         if let Some(r) = self
             .chain
             .iter()
-            .find_map(|link| link.resolve_symbol(db, |s| s == sym))
+            .find_map(|link| link.resolve_symbol(db, sym))
         {
             return r;
         }
@@ -236,31 +218,23 @@ impl<'scope, 'db> Scope<'scope, 'db> {
         // Compute a vector that contains the substitution (if any) for each
         // free variable that could appear in `value` (all of which are assumed
         // to have come from this scope).
-        let free_var_substitution: Vec<Option<SymGenericTerm<'db>>> = {
-            // Each variable in a skipped binder will be left unsubstituted.
-            let terms_for_skipped_binders = binders
-                .iter()
-                .take(num_skipped_binders)
-                .map(|_binder_var| None);
-
+        let free_var_substitution: Map<SymVariable<'db>, SymGenericTerm<'db>> = {
             // Variables in the binders to be popped will be replaced by a bound var.
             // Given `[[A, B], [C, D, E]]`, we will create variables like
             // `[^1.0, ^1.1, ^0.0, ^0.1, ^0.2]`, where `^0` and `^1` indicate
             // binder indices, with `^0` representing the innermost binder.
-            let terms_for_popped_binders =
-                binders.iter().zip(0..).skip(num_skipped_binders).flat_map(
-                    |(binder_vars, binder_index)| {
-                        let binder_index = SymBinderIndex::from(binders.len() - binder_index - 1);
-                        binder_vars.iter().zip(0..).map(move |(v, i)| {
-                            let bound_index = SymBoundVarIndex::from(i);
-                            let generic_index = GenericIndex::Bound(binder_index, bound_index);
-                            Some(SymGenericTerm::var(db, v.kind(db), generic_index))
-                        })
-                    },
-                );
-
-            terms_for_skipped_binders
-                .chain(terms_for_popped_binders)
+            binders
+                .iter()
+                .zip(0..)
+                .skip(num_skipped_binders)
+                .flat_map(|(binder_vars, binder_index)| {
+                    let binder_index = SymBinderIndex::from(binders.len() - binder_index - 1);
+                    binder_vars.iter().copied().zip(0..).map(move |(v, i)| {
+                        let bound_index = SymBoundVarIndex::from(i);
+                        let generic_index = Var::Bound(binder_index, bound_index);
+                        (v, SymGenericTerm::var(db, v.kind(db), generic_index))
+                    })
+                })
                 .collect()
         };
 
@@ -324,7 +298,7 @@ pub(crate) trait Bind<'db, T> {
     fn bind(
         db: &'db dyn crate::Db,
         symbols_to_bind: impl Iterator<Item = Vec<SymVariable<'db>>>,
-        free_var_substitution: &[Option<SymGenericTerm<'db>>],
+        free_var_substitution: &Map<SymVariable<'db>, SymGenericTerm<'db>>,
         value: T,
     ) -> Self;
 }
@@ -337,7 +311,7 @@ where
     fn bind(
         db: &'db dyn crate::Db,
         mut symbols_to_bind: impl Iterator<Item = Vec<SymVariable<'db>>>,
-        free_var_substitution: &[Option<SymGenericTerm<'db>>],
+        free_var_substitution: &Map<SymVariable<'db>, SymGenericTerm<'db>>,
         value: T,
     ) -> Self {
         // Extract next level of bound symbols for use in this binder;
@@ -361,7 +335,7 @@ impl<'db> Bind<'db, SymInputOutput<'db>> for SymInputOutput<'db> {
     fn bind(
         db: &'db dyn crate::Db,
         symbols_to_bind: impl Iterator<Item = Vec<SymVariable<'db>>>,
-        free_var_substitution: &[Option<SymGenericTerm<'db>>],
+        free_var_substitution: &Map<SymVariable<'db>, SymGenericTerm<'db>>,
         value: Self,
     ) -> Self {
         bind_leaf(db, symbols_to_bind, free_var_substitution, value)
@@ -374,7 +348,7 @@ impl<'db> Bind<'db, SymTy<'db>> for SymTy<'db> {
     fn bind(
         db: &'db dyn crate::Db,
         symbols_to_bind: impl Iterator<Item = Vec<SymVariable<'db>>>,
-        free_var_substitution: &[Option<SymGenericTerm<'db>>],
+        free_var_substitution: &Map<SymVariable<'db>, SymGenericTerm<'db>>,
         value: Self,
     ) -> Self {
         bind_leaf(db, symbols_to_bind, free_var_substitution, value)
@@ -386,13 +360,13 @@ impl<'db> Bind<'db, SymTy<'db>> for SymTy<'db> {
 fn bind_leaf<'db, L: Subst<'db, Output = L>>(
     db: &'db dyn crate::Db,
     mut symbols_to_bind: impl Iterator<Item = Vec<SymVariable<'db>>>,
-    free_var_substitution: &[Option<SymGenericTerm<'db>>],
+    free_var_substitution: &Map<SymVariable<'db>, SymGenericTerm<'db>>,
     value: L,
 ) -> L {
     // Leaf case: symbol type is the innermost value.
     assert_eq!(symbols_to_bind.next(), None);
 
-    value.subst_universal_free_vars(db, |i| free_var_substitution[i.as_usize()])
+    value.subst_universal_free_vars(db, |v| free_var_substitution.get(&v).copied())
 }
 
 pub trait Resolve<'db> {
@@ -449,7 +423,11 @@ impl<'db> NameResolution<'db> {
             NameResolution::SymModule(_) => Box::new("a module") as Box<dyn Display + 'db>,
             NameResolution::SymClass(_) => Box::new("a class"),
             NameResolution::SymFunction(_) => Box::new("a function"),
-            NameResolution::SymVariable(_, _) => Box::new("a generic parameter"),
+            NameResolution::SymVariable(var) => match var.kind(db) {
+                SymGenericKind::Type => Box::new("a generic type"),
+                SymGenericKind::Perm => Box::new("a generic permission"),
+                SymGenericKind::Place => Box::new("a local variable"),
+            },
             NameResolution::SymPrimitive(p) => Box::new(format!("`{}`", p.name(db))),
         }
     }
@@ -466,8 +444,8 @@ impl<'db> NameResolution<'db> {
             NameResolution::SymFunction(sym_function) => {
                 format!("a function named `{}`", sym_function.name(db))
             }
-            NameResolution::SymVariable(sym_variable, _) => match sym_variable.name(db) {
-                Some(n) => format!("a variable named `{n}`"),
+            NameResolution::SymVariable(var) => match var.name(db) {
+                Some(n) => format!("{} named `{n}`", self.categorize(db)),
                 None => format!("an anonymous generic parameter"),
             },
             NameResolution::SymPrimitive(sym_primitive) => {
@@ -543,7 +521,6 @@ impl<'scope, 'db> ScopeChain<'scope, 'db> {
     /// Creates the base of the name resolution chain (primitive types).
     fn new() -> Self {
         ScopeChain {
-            start_index: SymVarIndex::from(0),
             kind: ScopeChainKind::Primitives,
             next: None,
         }
@@ -567,17 +544,6 @@ impl<'scope, 'db> ScopeChain<'scope, 'db> {
         })
     }
 
-    /// One past the last index
-    fn end_index(&self) -> SymVarIndex {
-        self.start_index
-            + match &self.kind {
-                ScopeChainKind::Primitives
-                | ScopeChainKind::SymModule(_)
-                | ScopeChainKind::SymClass(_) => 0,
-                ScopeChainKind::ForAll(cow) => cow.len(),
-            }
-    }
-
     fn resolve_name(
         &self,
         db: &'db dyn crate::Db,
@@ -591,27 +557,28 @@ impl<'scope, 'db> ScopeChain<'scope, 'db> {
                 .map(|p| p.into())
                 .next(),
 
-            _ => self.resolve_symbol(db, |sym| sym.name(db) == Some(id)),
+            ScopeChainKind::SymClass(_) | ScopeChainKind::SymModule(_) => None,
+
+            ScopeChainKind::ForAll(symbols) => {
+                if let Some(index) = symbols.iter().position(|&s| s.name(db) == Some(id)) {
+                    let sym = symbols[index];
+                    Some(NameResolution::SymVariable(sym))
+                } else {
+                    None
+                }
+            }
         }
     }
 
-    fn resolve_symbol(
-        &self,
-        _db: &'db dyn crate::Db,
-        test: impl Fn(SymVariable<'db>) -> bool,
-    ) -> Option<NameResolution<'db>> {
+    fn resolve_symbol(&self, _db: &'db dyn crate::Db, sym: SymVariable<'db>) -> Option<Var<'db>> {
         match &self.kind {
             ScopeChainKind::SymClass(_)
             | ScopeChainKind::Primitives
             | ScopeChainKind::SymModule(_) => None,
 
             ScopeChainKind::ForAll(symbols) => {
-                if let Some(index) = symbols.iter().position(|&s| test(s)) {
-                    let sym = symbols[index];
-                    Some(NameResolution::SymVariable(
-                        sym,
-                        GenericIndex::Universal(self.start_index + index),
-                    ))
+                if symbols.iter().any(|&s| s == sym) {
+                    Some(Var::Universal(sym))
                 } else {
                     None
                 }

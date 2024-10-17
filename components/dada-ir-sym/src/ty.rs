@@ -1,6 +1,6 @@
 use crate::{
     class::SymClass,
-    indices::{SymBinderIndex, SymBoundVarIndex, SymVarIndex},
+    indices::{SymBinderIndex, SymBoundVarIndex, SymInferVarIndex},
     prelude::{IntoSymInScope, IntoSymbol},
     primitive::SymPrimitive,
     scope::{NameResolution, Resolve, Scope},
@@ -29,11 +29,11 @@ pub enum SymGenericTerm<'db> {
 }
 
 impl<'db> SymGenericTerm<'db> {
-    pub fn var(db: &'db dyn crate::Db, kind: SymGenericKind, index: GenericIndex) -> Self {
+    pub fn var(db: &'db dyn crate::Db, kind: SymGenericKind, var: Var<'db>) -> Self {
         match kind {
-            SymGenericKind::Type => SymTy::new(db, SymTyKind::Var(index)).into(),
-            SymGenericKind::Perm => SymPerm::new(db, SymPermKind::Var(index)).into(),
-            SymGenericKind::Place => SymPlace::new(db, SymPlaceKind::Var(index)).into(),
+            SymGenericKind::Type => SymTy::new(db, SymTyKind::Var(var)).into(),
+            SymGenericKind::Perm => SymPerm::new(db, SymPermKind::Var(var)).into(),
+            SymGenericKind::Place => SymPlace::new(db, SymPlaceKind::Var(var)).into(),
         }
     }
 
@@ -140,7 +140,7 @@ pub enum SymTyKind<'db> {
     Named(SymTyName<'db>, Vec<SymGenericTerm<'db>>),
 
     /// Reference to a generic or inference variable, e.g., `T` or `?X`
-    Var(GenericIndex),
+    Var(Var<'db>),
 
     /// Indicates the user wrote `?` and we should use gradual typing.
     Unknown,
@@ -241,14 +241,21 @@ pub enum SymPermKind<'db> {
     Shared(Vec<SymPlace<'db>>),
     Leased(Vec<SymPlace<'db>>),
     Given(Vec<SymPlace<'db>>),
-    Var(GenericIndex),
+    Var(Var<'db>),
     Error(Reported),
 }
 
 #[derive(Copy, Clone, PartialEq, Eq, PartialOrd, Ord, Hash, Update, Debug)]
-pub enum GenericIndex {
-    Universal(SymVarIndex),
-    Existential(SymVarIndex),
+pub enum Var<'db> {
+    /// A "universal" variable is meant to represent "any value" that meets its constraints.
+    /// These are variables users declare, like generics, but also local variables (any value of the given type).
+    Universal(SymVariable<'db>),
+
+    /// An inference variable is one whose value is not yet determined.
+    /// We accumulate constraints and try to find a value for it.
+    Infer(SymInferVarIndex),
+
+    /// A bound variable refers to a binder and is expected to be substituted.
     Bound(SymBinderIndex, SymBoundVarIndex),
 }
 
@@ -260,7 +267,7 @@ pub struct SymPlace<'db> {
 #[derive(Clone, PartialEq, Eq, PartialOrd, Ord, Hash, Update, Debug)]
 pub enum SymPlaceKind<'db> {
     /// `x`
-    Var(GenericIndex),
+    Var(Var<'db>),
 
     /// `x.f`
     Field(SymPlace<'db>, Identifier<'db>),
@@ -349,9 +356,9 @@ impl<'db> IntoSymInScope<'db> for AstTy<'db> {
             AstTyKind::GenericDecl(decl) => {
                 let symbol = decl.into_symbol(db);
                 assert_eq!(symbol.kind(db), SymGenericKind::Type);
-                scope
-                    .resolve_generic_sym(db, symbol)
-                    .to_sym_ty(db, decl, vec![])
+                symbol
+                    .into_generic_term(db, scope)
+                    .assert_ty(db)
             }
             AstTyKind::Unknown => SymTy::new(db, SymTyKind::Unknown),
         }
@@ -402,7 +409,7 @@ impl<'db> IntoSymInScope<'db> for AstPerm<'db> {
             AstPermKind::Shared(None) | AstPermKind::Leased(None) | AstPermKind::Given(None) => {
                 let symbol = self.anonymous_perm_symbol(db);
                 assert_eq!(symbol.kind(db), SymGenericKind::Perm);
-                scope.resolve_generic_sym(db, symbol).to_sym_perm(db, self)
+                symbol.into_generic_term(db, scope).assert_perm(db)
             }
             AstPermKind::My => SymPerm::new(db, SymPermKind::My),
             AstPermKind::Our => SymPerm::new(db, SymPermKind::Our),
@@ -413,7 +420,7 @@ impl<'db> IntoSymInScope<'db> for AstPerm<'db> {
             AstPermKind::GenericDecl(decl) => {
                 let symbol = decl.into_symbol(db);
                 assert_eq!(symbol.kind(db), SymGenericKind::Perm);
-                scope.resolve_generic_sym(db, symbol).to_sym_perm(db, self)
+                symbol.into_generic_term(db, scope).assert_perm(db)
             }
         }
     }
@@ -429,8 +436,8 @@ impl<'db> NameResolution<'db> {
         db: &'db dyn crate::Db,
         source: impl Spanned<'db>,
     ) -> SymGenericTerm<'db> {
-        if let NameResolution::SymVariable(generic, _) = self {
-            match generic.kind(db) {
+        if let NameResolution::SymVariable(var) = self {
+            match var.kind(db) {
                 SymGenericKind::Type => SymGenericTerm::Type(self.to_sym_ty(db, source, vec![])),
                 SymGenericKind::Perm => SymGenericTerm::Perm(self.to_sym_perm(db, source)),
                 SymGenericKind::Place => SymGenericTerm::Place(self.to_sym_place(db, source)),
@@ -450,7 +457,7 @@ impl<'db> NameResolution<'db> {
     ) -> SymTy<'db> {
         let make_named = |name, generics| SymTy::new(db, SymTyKind::Named(name, generics));
         let make_err = |r| SymTy::new(db, SymTyKind::Error(r));
-        let make_var = |generic_index| SymTy::new(db, SymTyKind::Var(generic_index));
+        let make_var = |var| SymTy::new(db, SymTyKind::Var(var));
 
         match self {
             NameResolution::SymPrimitive(sym_primitive) => {
@@ -551,7 +558,7 @@ impl<'db> NameResolution<'db> {
 
                 make_named(sym_class.into(), generics)
             }
-            NameResolution::SymVariable(generic, generic_index) => {
+            NameResolution::SymVariable(var) => {
                 if generics.len() != 0 {
                     return make_err(
                         Diagnostic::error(db, source.span(db), "generic types do not expect generic arguments")
@@ -565,7 +572,7 @@ impl<'db> NameResolution<'db> {
                     );
                 }
 
-                let generic_kind = generic.kind(db);
+                let generic_kind = var.kind(db);
                 if generic_kind != SymGenericKind::Type {
                     return make_err(
                         Diagnostic::error(db, source.span(db), format!("expected `type`, found `{generic_kind}`"))
@@ -579,7 +586,7 @@ impl<'db> NameResolution<'db> {
                     );
                 }
 
-                make_var(generic_index)
+                make_var(Var::Universal(var))
             }
             NameResolution::SymModule(sym_module) => make_err(
                 Diagnostic::error(db, source.span(db), "modules are not valid types")
@@ -612,9 +619,9 @@ impl<'db> NameResolution<'db> {
 
     /// Convert this name resolution into a permission.
     fn to_sym_perm(&self, db: &'db dyn Db, source: impl Spanned<'db>) -> SymPerm<'db> {
-        if let NameResolution::SymVariable(generic, generic_index) = self {
-            if let SymGenericKind::Perm = generic.kind(db) {
-                return SymPerm::new(db, SymPermKind::Var(*generic_index));
+        if let &NameResolution::SymVariable(var) = self {
+            if let SymGenericKind::Perm = var.kind(db) {
+                return SymPerm::new(db, SymPermKind::Var(Var::Universal(var)));
             }
         }
 
@@ -635,9 +642,9 @@ impl<'db> NameResolution<'db> {
 
     /// Convert this name resolution into a permission.
     fn to_sym_place(&self, db: &'db dyn Db, source: impl Spanned<'db>) -> SymPlace<'db> {
-        if let NameResolution::SymVariable(generic, generic_index) = self {
-            if let SymGenericKind::Place = generic.kind(db) {
-                return SymPlace::new(db, SymPlaceKind::Var(*generic_index));
+        if let &NameResolution::SymVariable(var) = self {
+            if let SymGenericKind::Place = var.kind(db) {
+                return SymPlace::new(db, SymPlaceKind::Var(Var::Universal(var)));
             }
         }
 
@@ -689,7 +696,7 @@ impl<'db> IntoSymInScope<'db> for AstPath<'db> {
 
         // We expect the final resolution to be a local variable of some kind.
         // Anything else is an error.
-        let NameResolution::SymVariable(sym_var, generic_index) = resolution else {
+        let NameResolution::SymVariable(var) = resolution else {
             return SymPlace::new(
                 db,
                 SymPlaceKind::Error(
@@ -716,17 +723,17 @@ impl<'db> IntoSymInScope<'db> for AstPath<'db> {
         };
 
         
-        let sym_var_kind = sym_var.kind(db);
-        if sym_var_kind != SymGenericKind::Place {
+        let var_kind = var.kind(db);
+        if var_kind != SymGenericKind::Place {
             return SymPlace::new(
                 db,
                 SymPlaceKind::Error(
-                    Diagnostic::error(db, first_id.span, format!("expected a place, found `{sym_var_kind}`"))
+                    Diagnostic::error(db, first_id.span, format!("expected a place, found `{var_kind}`"))
                         .label(
                             db,
                             Level::Error,
                             first_id.span,
-                            format!("I expected a place here, but I found a `{sym_var_kind}`"),
+                            format!("I expected a place here, but I found a `{var_kind}`"),
                         )
                         .report(db),
                 ),
@@ -735,7 +742,7 @@ impl<'db> IntoSymInScope<'db> for AstPath<'db> {
 
         // Create the place. Note that in this phase we just include field ids with no closer examination.
         // The type checker must validate that they are correct.
-        let mut place = SymPlace::new(db, SymPlaceKind::Var(generic_index));
+        let mut place = SymPlace::new(db, SymPlaceKind::Var(Var::Universal(var)));
         for &id in fields {
             place = place.field(db, id.id);
         }

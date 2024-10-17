@@ -1,11 +1,11 @@
 use std::sync::Arc;
 
 use dada_ir_sym::{
-    indices::SymVarIndex,
+    indices::SymInferVarIndex,
     scope::Scope,
     subst::Subst,
     symbol::{SymGenericKind, SymVariable},
-    ty::{Binder, GenericIndex, SymGenericTerm, SymPerm, SymTy, SymTyKind},
+    ty::{Binder, SymGenericTerm, SymPerm, SymTy, SymTyKind, Var},
 };
 use dada_util::Map;
 use futures::{Stream, StreamExt};
@@ -84,8 +84,8 @@ impl<'db> Env<'db> {
         Arc::make_mut(&mut self.free_variables).extend(symbols);
 
         binder.open(check.db, |kind, sym_bound_var_index| {
-            let index = SymVarIndex::from(base_index + sym_bound_var_index.as_usize());
-            SymGenericTerm::var(check.db, kind, GenericIndex::Universal(index))
+            let index = SymInferVarIndex::from(base_index + sym_bound_var_index.as_usize());
+            SymGenericTerm::var(check.db, kind, Var::Universal(index))
         })
     }
 
@@ -159,7 +159,7 @@ impl<'db> Env<'db> {
         ty: SymTy<'db>,
     ) -> impl Stream<Item = Bound<SymTy<'db>>> + 'chk {
         let db = check.db;
-        if let &SymTyKind::Var(GenericIndex::Existential(inference_var)) = ty.kind(db) {
+        if let &SymTyKind::Var(Var::Infer(inference_var)) = ty.kind(db) {
             InferenceVarBounds::new(check, inference_var)
                 .map(|b| b.assert_type(db))
                 .boxed_local()

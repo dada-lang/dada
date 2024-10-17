@@ -13,9 +13,9 @@ use dada_ir_ast::{
     span::Span,
 };
 use dada_ir_sym::{
-    indices::SymVarIndex,
+    indices::SymInferVarIndex,
     symbol::SymGenericKind,
-    ty::{GenericIndex, SymGenericTerm, SymTy},
+    ty::{SymGenericTerm, SymTy, Var},
 };
 use dada_util::Map;
 use futures::future::LocalBoxFuture;
@@ -41,7 +41,7 @@ pub(crate) struct CheckData<'chk, 'db> {
     arenas: &'chk ExecutorArenas<'chk, 'db>,
     inference_vars: RwLock<Vec<InferenceVarData<'db>>>,
     ready_to_execute: Mutex<Vec<Arc<CheckTask>>>,
-    waiting_on_inference_var: Mutex<Map<SymVarIndex, Vec<Waker>>>,
+    waiting_on_inference_var: Mutex<Map<SymInferVarIndex, Vec<Waker>>>,
     complete: AtomicBool,
 }
 
@@ -189,21 +189,25 @@ impl<'chk, 'db> Check<'chk, 'db> {
         universe: Universe,
     ) -> SymGenericTerm<'db> {
         let mut inference_vars = self.inference_vars.write().unwrap();
-        let var_index = SymVarIndex::from(inference_vars.len());
+        let var_index = SymInferVarIndex::from(inference_vars.len());
         inference_vars.push(InferenceVarData::new(kind, universe));
-        SymGenericTerm::var(self.db, kind, GenericIndex::Existential(var_index))
+        SymGenericTerm::var(self.db, kind, Var::Infer(var_index))
     }
 
     pub fn with_inference_var_data<T>(
         &self,
-        var: SymVarIndex,
+        var: SymInferVarIndex,
         op: impl FnOnce(&InferenceVarData<'db>) -> T,
     ) -> T {
         let inference_vars = self.inference_vars.read().unwrap();
         op(&inference_vars[var.as_usize()])
     }
 
-    pub fn push_inference_var_bound(&self, var: SymVarIndex, bound: Bound<SymGenericTerm<'db>>) {
+    pub fn push_inference_var_bound(
+        &self,
+        var: SymInferVarIndex,
+        bound: Bound<SymGenericTerm<'db>>,
+    ) {
         let mut inference_vars = self.inference_vars.write().unwrap();
         inference_vars[var.as_usize()].push_bound(bound);
 
@@ -220,7 +224,7 @@ impl<'chk, 'db> Check<'chk, 'db> {
         self.spawn(check(self.clone(), env.clone()));
     }
 
-    pub fn block_on_inference_var(&self, var: SymVarIndex, cx: &mut Context<'_>) -> Poll<()> {
+    pub fn block_on_inference_var(&self, var: SymInferVarIndex, cx: &mut Context<'_>) -> Poll<()> {
         if self.is_complete() {
             Poll::Ready(())
         } else {

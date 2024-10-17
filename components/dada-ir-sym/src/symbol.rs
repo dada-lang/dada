@@ -4,7 +4,11 @@ use dada_ir_ast::{
 };
 use salsa::Update;
 
-use crate::prelude::{IntoSymbol, ToSymbol};
+use crate::{
+    prelude::{IntoSymbol, ToSymbol},
+    scope::Scope,
+    ty::SymGenericTerm,
+};
 
 /// Symbol for a generic parameter or local variable.
 #[salsa::tracked]
@@ -12,6 +16,17 @@ pub struct SymVariable<'db> {
     pub kind: SymGenericKind,
     pub name: Option<Identifier<'db>>,
     pub span: Span<'db>,
+}
+
+impl<'db> SymVariable<'db> {
+    pub fn into_generic_term(
+        self,
+        db: &'db dyn crate::Db,
+        scope: &Scope<'_, 'db>,
+    ) -> SymGenericTerm<'db> {
+        let var = scope.resolve_generic_sym(db, self);
+        SymGenericTerm::var(db, self.kind(db), var)
+    }
 }
 
 impl<'db> Spanned<'db> for SymVariable<'db> {

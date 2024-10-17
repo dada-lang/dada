@@ -1,15 +1,13 @@
-use std::ops::Sub;
-
 use dada_ir_ast::diagnostic::Reported;
 use salsa::Update;
 
 use crate::{
     function::SymInputOutput,
-    indices::{SymBinderIndex, SymBoundVarIndex, SymVarIndex},
+    indices::{SymBinderIndex, SymBoundVarIndex, SymInferVarIndex},
     symbol::{SymGenericKind, SymVariable},
     ty::{
-        Binder, GenericIndex, SymGenericTerm, SymPerm, SymPermKind, SymPlace, SymPlaceKind, SymTy,
-        SymTyKind, SymTyName,
+        Binder, SymGenericTerm, SymPerm, SymPermKind, SymPlace, SymPlaceKind, SymTy, SymTyKind,
+        SymTyName, Var,
     },
 };
 
@@ -27,8 +25,7 @@ pub struct SubstitutionFns<'s, 'db> {
     /// Invoked for free variables.
     ///
     /// If this returns None, no substitution is performed.
-    pub free_universal_var:
-        &'s mut dyn FnMut(SymGenericKind, SymVarIndex) -> Option<SymGenericTerm<'db>>,
+    pub free_universal_var: &'s mut dyn FnMut(SymVariable<'db>) -> Option<SymGenericTerm<'db>>,
 
     /// Invoked to adjust the binder level for bound terms when:
     /// (a) the term is bound by some binder we have traversed or
@@ -47,7 +44,7 @@ impl<'s, 'db> SubstitutionFns<'s, 'db> {
         None
     }
 
-    pub fn default_free_var(_: SymGenericKind, _: SymVarIndex) -> Option<SymGenericTerm<'db>> {
+    pub fn default_free_var(_: SymVariable<'db>) -> Option<SymGenericTerm<'db>> {
         None
     }
 
@@ -94,7 +91,7 @@ pub trait Subst<'db> {
     fn subst_universal_free_vars(
         &self,
         db: &'db dyn crate::Db,
-        mut terms: impl FnMut(SymVarIndex) -> Option<SymGenericTerm<'db>>,
+        mut terms: impl FnMut(SymVariable<'db>) -> Option<SymGenericTerm<'db>>,
     ) -> Self::Output {
         self.subst_with(
             db,
@@ -102,12 +99,12 @@ pub trait Subst<'db> {
             &mut SubstitutionFns {
                 binder_index: &mut SubstitutionFns::default_binder_index,
                 bound_var: &mut SubstitutionFns::default_bound_var,
-                free_universal_var: &mut |var_kind, var_index| {
-                    let Some(r) = terms(var_index) else {
+                free_universal_var: &mut |var| {
+                    let Some(r) = terms(var) else {
                         return None;
                     };
 
-                    assert!(r.has_kind(var_kind));
+                    assert!(r.has_kind(var.kind(db)));
 
                     Some(r)
                 },
@@ -400,13 +397,13 @@ fn subst_var<'db, Term>(
     depth: SymBinderIndex,
     subst_fns: &mut SubstitutionFns<'_, 'db>,
     term: &Term,
-    generic_index: GenericIndex,
+    generic_index: Var<'db>,
 ) -> Term
 where
     Term: SubstGenericVar<'db>,
 {
     match generic_index {
-        GenericIndex::Bound(original_binder_index, sym_bound_var_index) => {
+        Var::Bound(original_binder_index, sym_bound_var_index) => {
             let mut new_binder_index = || (subst_fns.binder_index)(original_binder_index);
             if original_binder_index == depth {
                 match (subst_fns.bound_var)(SymGenericKind::Perm, sym_bound_var_index) {
@@ -417,13 +414,11 @@ where
                 Term::bound_var(db, new_binder_index(), sym_bound_var_index)
             }
         }
-        GenericIndex::Universal(var_index) => {
-            match (subst_fns.free_universal_var)(SymGenericKind::Perm, var_index) {
-                Some(r) => Term::assert_kind(db, r).shift_into_binders(db, depth),
-                None => Term::identity(term),
-            }
-        }
-        GenericIndex::Existential(_) => term.identity(),
+        Var::Universal(var) => match (subst_fns.free_universal_var)(var) {
+            Some(r) => Term::assert_kind(db, r).shift_into_binders(db, depth),
+            None => Term::identity(term),
+        },
+        Var::Infer(_) => term.identity(),
     }
 }
 
@@ -449,7 +444,7 @@ impl<'db> SubstGenericVar<'db> for SymPlace<'db> {
     ) -> Self {
         SymPlace::new(
             db,
-            SymPlaceKind::Var(GenericIndex::Bound(binder_index, bound_var_index)),
+            SymPlaceKind::Var(Var::Bound(binder_index, bound_var_index)),
         )
     }
 }
@@ -466,7 +461,7 @@ impl<'db> SubstGenericVar<'db> for SymPerm<'db> {
     ) -> Self {
         SymPerm::new(
             db,
-            SymPermKind::Var(GenericIndex::Bound(binder_index, bound_var_index)),
+            SymPermKind::Var(Var::Bound(binder_index, bound_var_index)),
         )
     }
 }
@@ -483,7 +478,7 @@ impl<'db> SubstGenericVar<'db> for SymTy<'db> {
     ) -> Self {
         SymTy::new(
             db,
-            SymTyKind::Var(GenericIndex::Bound(binder_index, bound_var_index)),
+            SymTyKind::Var(Var::Bound(binder_index, bound_var_index)),
         )
     }
 }

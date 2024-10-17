@@ -28,12 +28,31 @@ use salsa::Update;
 pub struct SymBinderIndex(usize);
 
 impl SymBinderIndex {
+    /// The innermost binder starts with index 0.
     pub const INNERMOST: SymBinderIndex = SymBinderIndex(0);
 
+    /// Shifting *into* a binder means incrementing the index.
+    /// Consider
+    ///
+    /// ```dada
+    /// class Foo[type A] { // <-- binder for class
+    ///     let field: A;
+    ///     fn bar(self) { // <-- binder for method
+    ///     }
+    /// }
+    /// ```
+    ///
+    /// If we want to refer to `A` inside the field, it has binder depth 0,
+    /// as the class is the innermost body.
+    ///
+    /// But if we want to "shift" a reference to `A` so its valid inside the method,
+    /// we have to increment the index to 1, to account for the method's binder.
     pub fn shift_into_binders(self, binders: SymBinderIndex) -> Self {
         SymBinderIndex(self.0 + binders.0)
     }
 
+    /// Shifting out is the inverse of shifting in.
+    /// See [`Self::shift_into_binders`][] for an example.
     pub fn shift_out(self) -> Self {
         SymBinderIndex(self.0.checked_sub(1).unwrap())
     }
@@ -69,47 +88,34 @@ impl From<usize> for SymBoundVarIndex {
     }
 }
 
-/// Identifies a particular free variable.
-/// Indices are assigned with `0` representing the "outermost" free variable.
-///
-/// # Example
-///
-/// ```dada
-/// class Vec[type A] { // <-- binder
-///     fn find(self, value: type B: Comparable[A]) -> bool { // <-- binder
-///         ... // (Note: in the body, A and B "appear free".)
-///     }
-/// }
-/// ```
-///
-/// Inside the function body, `A` has index 0, `B` has index 1.
+/// Identifies a particular inference variable during type checking.
 #[derive(Copy, Clone, PartialEq, Eq, PartialOrd, Ord, Hash, Update, Debug)]
-pub struct SymVarIndex(usize);
+pub struct SymInferVarIndex(usize);
 
-impl SymVarIndex {
+impl SymInferVarIndex {
     pub fn as_usize(self) -> usize {
         self.0
     }
 }
 
-impl From<usize> for SymVarIndex {
+impl From<usize> for SymInferVarIndex {
     fn from(value: usize) -> Self {
-        SymVarIndex(value)
+        SymInferVarIndex(value)
     }
 }
 
-impl std::ops::Add<usize> for SymVarIndex {
-    type Output = SymVarIndex;
+impl std::ops::Add<usize> for SymInferVarIndex {
+    type Output = SymInferVarIndex;
 
     fn add(self, value: usize) -> Self {
         Self::from(self.as_usize().checked_add(value).unwrap())
     }
 }
 
-impl std::ops::Sub<SymVarIndex> for SymVarIndex {
+impl std::ops::Sub<SymInferVarIndex> for SymInferVarIndex {
     type Output = usize;
 
-    fn sub(self, value: SymVarIndex) -> usize {
+    fn sub(self, value: SymInferVarIndex) -> usize {
         self.as_usize().checked_sub(value.as_usize()).unwrap()
     }
 }

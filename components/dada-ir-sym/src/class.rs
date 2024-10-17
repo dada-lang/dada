@@ -13,7 +13,7 @@ use crate::{
     prelude::{IntoSymInScope, IntoSymbol},
     scope::{Scope, ScopeItem},
     symbol::{SymGenericKind, SymVariable},
-    ty::{Binder, SymTy, SymTyKind},
+    ty::{Binder, SymGenericTerm, SymTy, SymTyKind},
 };
 
 #[salsa::tracked]
@@ -112,7 +112,7 @@ impl<'db> SymClass<'db> {
                     .iter()
                     .flatten()
                     .map(|g| g.into_symbol(db))
-                    .map(|g| scope.resolve_generic_sym(db, g).to_sym_generic_arg(db, g))
+                    .map(|g| g.into_generic_term(db, scope))
                     .collect(),
             ),
         )

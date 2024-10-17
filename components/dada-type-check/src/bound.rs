@@ -4,7 +4,7 @@ use std::{
 };
 
 use dada_ir_sym::{
-    indices::SymVarIndex,
+    indices::SymInferVarIndex,
     symbol::SymGenericKind,
     ty::{SymGenericTerm, SymPerm, SymTy},
 };
@@ -101,13 +101,13 @@ impl<'db> From<Bound<SymPerm<'db>>> for Bound<SymGenericTerm<'db>> {
 /// A stream over the bounds on an inference variable.
 pub(crate) struct InferenceVarBounds<'chk, 'db> {
     check: Check<'chk, 'db>,
-    inference_var: SymVarIndex,
+    inference_var: SymInferVarIndex,
     upper_bounds: usize,
     lower_bounds: usize,
 }
 
 impl<'chk, 'db> InferenceVarBounds<'chk, 'db> {
-    pub fn new(check: &Check<'chk, 'db>, inference_var: SymVarIndex) -> Self {
+    pub fn new(check: &Check<'chk, 'db>, inference_var: SymInferVarIndex) -> Self {
         Self {
             check: check.clone(),
             inference_var,
