@@ -10,7 +10,7 @@ use crate::{
 };
 use dada_ir_ast::{
     ast::{
-        AstGenericArg, AstGenericDecl, AstGenericKind, AstPath, AstPerm, AstPermKind, AstTy,
+        AstGenericTerm, AstGenericDecl, AstGenericKind, AstPath, AstPerm, AstPermKind, AstTy,
         AstTyKind, Identifier,
     },
     diagnostic::{ordinal, Diagnostic, Errors, Level, Reported},
@@ -386,14 +386,14 @@ impl<'db> IntoSymInScope<'db> for AstTy<'db> {
     }
 }
 
-impl<'db> IntoSymInScope<'db> for AstGenericArg<'db> {
+impl<'db> IntoSymInScope<'db> for AstGenericTerm<'db> {
     type Symbolic = SymGenericTerm<'db>;
 
     fn into_sym_in_scope(self, db: &'db dyn crate::Db, scope: &Scope<'_, 'db>) -> Self::Symbolic {
         match self {
-            AstGenericArg::Ty(ast_ty) => ast_ty.into_sym_in_scope(db, scope).into(),
-            AstGenericArg::Perm(ast_perm) => ast_perm.into_sym_in_scope(db, scope).into(),
-            AstGenericArg::Id(id) => match id.resolve_in(db, scope) {
+            AstGenericTerm::Ty(ast_ty) => ast_ty.into_sym_in_scope(db, scope).into(),
+            AstGenericTerm::Perm(ast_perm) => ast_perm.into_sym_in_scope(db, scope).into(),
+            AstGenericTerm::Id(id) => match id.resolve_in(db, scope) {
                 Ok(r) => r.to_sym_generic_arg(db, id),
                 Err(r) => r.into(),
             },

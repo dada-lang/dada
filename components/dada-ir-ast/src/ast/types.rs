@@ -23,7 +23,7 @@ pub enum AstTyKind<'db> {
     Perm(AstPerm<'db>, AstTy<'db>),
 
     /// `path[arg1, arg2]`, e.g., `Vec[String]`
-    Named(AstPath<'db>, Option<SpanVec<'db, AstGenericArg<'db>>>),
+    Named(AstPath<'db>, Option<SpanVec<'db, AstGenericTerm<'db>>>),
 
     /// `type T`
     GenericDecl(AstGenericDecl<'db>),
@@ -60,7 +60,7 @@ pub enum AstPermKind<'db> {
 }
 
 #[derive(Copy, Clone, PartialEq, Eq, PartialOrd, Ord, Hash, Update, Debug, FromImpls)]
-pub enum AstGenericArg<'db> {
+pub enum AstGenericTerm<'db> {
     /// Something clearly a type
     Ty(AstTy<'db>),
 
@@ -71,12 +71,12 @@ pub enum AstGenericArg<'db> {
     Id(SpannedIdentifier<'db>),
 }
 
-impl<'db> Spanned<'db> for AstGenericArg<'db> {
+impl<'db> Spanned<'db> for AstGenericTerm<'db> {
     fn span(&self, db: &'db dyn crate::Db) -> Span<'db> {
         match self {
-            AstGenericArg::Ty(ty) => ty.span(db),
-            AstGenericArg::Perm(perm) => perm.span(db),
-            AstGenericArg::Id(id) => id.span(db),
+            AstGenericTerm::Ty(ty) => ty.span(db),
+            AstGenericTerm::Perm(perm) => perm.span(db),
+            AstGenericTerm::Id(id) => id.span(db),
         }
     }
 }

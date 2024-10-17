@@ -1,6 +1,6 @@
 use dada_ir_ast::ast::{
-    AstConstructorField, AstExpr, AstExprKind, AstPath, BinaryOp, Literal, SpannedBinaryOp,
-    SquareBracketArgs,
+    AstConstructorField, AstExpr, AstExprKind, AstPath, BinaryOp, DeferredParse, Literal,
+    SpannedBinaryOp, SquareBracketArgs,
 };
 
 use crate::{
@@ -132,7 +132,11 @@ fn postfix_expr_precedence<'db>(
         if parser.next_token_on_same_line() {
             if let Ok(text) = parser.eat_delimited(crate::tokenizer::Delimiter::SquareBrackets) {
                 let owner = AstExpr::new(start_span.to(mid_span), kind);
-                let args = SquareBracketArgs::new(db, parser.last_span(), text.to_string());
+                let deferred = DeferredParse {
+                    span: parser.last_span(),
+                    contents: text.to_string(),
+                };
+                let args = SquareBracketArgs::new(db, deferred);
                 kind = AstExprKind::SquareBracketOp(owner, args);
                 continue;
             }

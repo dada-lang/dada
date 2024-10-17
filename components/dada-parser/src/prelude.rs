@@ -1,4 +1,4 @@
-use dada_ir_ast::ast::{AstBlock, AstMember};
+use dada_ir_ast::ast::{AstBlock, AstGenericTerm, AstMember, AstTy};
 
 use super::*;
 
@@ -15,4 +15,9 @@ pub trait ClassItemMembers<'db> {
 /// Given a [`Function`], parse its associated body into a block
 pub trait FunctionBlock<'db> {
     fn body_block(self, db: &'db dyn crate::Db) -> Option<AstBlock<'db>>;
+}
+
+/// Given a [`Function`], parse its associated body into a block
+pub trait SquareBracketArgs<'db> {
+    fn parse_as_generics(self, db: &'db dyn crate::Db) -> SpanVec<'db, AstGenericTerm<'db>>;
 }

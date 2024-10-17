@@ -7,10 +7,12 @@ use dada_ir_ast::{
 };
 use dada_ir_sym::{
     function::SymFunction,
+    prelude::IntoSymInScope,
     scope::NameResolution,
     symbol::{SymGenericKind, SymVariable},
     ty::{SymGenericTerm, SymTy, SymTyKind, SymTyName},
 };
+use dada_parser::prelude::*;
 use dada_util::FromImpls;
 
 use crate::{
@@ -84,6 +86,7 @@ async fn check_expr<'chk, 'db>(
     env: &Env<'db>,
 ) -> ExprResult<'chk, 'db> {
     let db = check.db;
+    let scope = &env.scope;
     let span = expr.span;
 
     match &*expr.kind {
@@ -173,11 +176,104 @@ async fn check_expr<'chk, 'db>(
                 ),
             }
         }
-        AstExprKind::SquareBracketOp(ast_expr, square_bracket_args) => todo!(),
-        AstExprKind::ParenthesisOp(ast_expr, span_vec) => todo!(),
+
+        AstExprKind::SquareBracketOp(owner, square_bracket_args) => {
+            let owner_result = owner.check(check, env).await;
+            match &owner_result.kind {
+                &ExprResultKind::Method {
+                    owner,
+                    method,
+                    generics: None,
+                } => {
+                    let ast_terms = square_bracket_args.parse_as_generics(db);
+
+                    let sym_terms = ast_terms
+                        .values
+                        .iter()
+                        .map(|ast_term| ast_term.into_sym_in_scope(db, scope))
+                        .collect();
+
+                    ExprResult {
+                        kind: ExprResultKind::Method {
+                            owner,
+                            method,
+                            generics: Some(sym_terms),
+                        },
+                        ..owner_result
+                    }
+                }
+
+                ExprResultKind::PlaceExpr(_) | ExprResultKind::Expr(_) => ExprResult::err(
+                    check,
+                    span,
+                    report_not_implemented(db, span, "indexing expressions"),
+                ),
+
+                // We see something like `foo.bar[][]` where `bar` is a method.
+                // The only correct thing here would be `foo.bar[]()[]`, i.e., call the method and then index.
+                // We give an error under that assumption.
+                // It seems likely we can do a better job.
+                &ExprResultKind::Method {
+                    owner,
+                    method,
+                    generics: Some(_),
+                } => ExprResult::err(check, span, report_missing_call_to_method(db, span, method)),
+
+                &ExprResultKind::Other(name_resolution) => ExprResult::err(
+                    check,
+                    span,
+                    report_non_expr(db, owner.span, name_resolution),
+                ),
+            }
+        }
+
+        AstExprKind::ParenthesisOp(owner, ast_args) => {
+            let owner_result = owner.check(check, env).await;
+            match owner_result {
+                ExprResult {
+                    mut temporaries,
+                    span: _,
+                    kind:
+                        ExprResultKind::Method {
+                            owner,
+                            method,
+                            generics,
+                        },
+                } => {
+                    let mut args = vec![owner];
+                    for ast_arg in ast_args {
+                        args.push(ast_arg.check(check, env).await.into_expr(
+                            check,
+                            env,
+                            &mut temporaries,
+                        ));
+                    }
+
+                    ExprResult {
+                        temporaries,
+                        span,
+                        kind: check.expr(span, XX),
+                    }
+                }
+
+                _ => {
+                    // FIXME: we probably want to support functions and function typed values?
+                    ExprResult::err(check, span, report_not_callable(db, span))
+                }
+            }
+        }
+
         AstExprKind::Constructor(ast_path, span_vec) => todo!(),
         AstExprKind::Return(ast_expr) => todo!(),
     }
+}
+
+async fn check_call<'chk, 'db>(
+    check: &Check<'chk, 'db>,
+    env: &Env<'db>,
+    self_expr: Option<Expr<'chk, 'db>>,
+    temporaries: &mut Vec<Temporary<'chk, 'db>>,
+) -> Expr<'db> {
 }
 
 impl<'chk, 'db> ExprResult<'chk, 'db> {
@@ -336,6 +432,16 @@ impl<'chk, 'db> ExprResult<'chk, 'db> {
     }
 }
 
+fn report_not_implemented<'db>(db: &'db dyn crate::Db, span: Span<'db>, what: &str) -> Reported {
+    Diagnostic::error(db, span, format!("not implemented yet :("))
+        .label(
+            db,
+            Level::Error,
+            span,
+            format!("sorry, but {what} have not been implemented yet :(",),
+        )
+        .report(db)
+}
 fn report_non_expr<'db>(
     db: &'db dyn crate::Db,
     owner_span: Span<'db>,
@@ -370,5 +476,16 @@ fn report_missing_call_to_method<'db>(
             ),
         )
         .label(db, Level::Help, owner_span.at_end(), "maybe add `()` here?")
+        .report(db)
+}
+
+fn report_not_callable<'db>(db: &'db dyn crate::Db, owner_span: Span<'db>) -> Reported {
+    Diagnostic::error(db, owner_span, format!("not callable"))
+        .label(
+            db,
+            Level::Error,
+            owner_span,
+            format!("this is not something you can call"),
+        )
         .report(db)
 }

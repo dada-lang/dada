@@ -3,7 +3,7 @@ use salsa::Update;
 
 use crate::span::Span;
 
-use super::{AstGenericArg, AstPath, AstTy, SpanVec, SpannedIdentifier};
+use super::{AstGenericTerm, AstPath, AstTy, DeferredParse, SpanVec, SpannedIdentifier};
 
 #[salsa::tracked]
 pub struct AstBlock<'db> {
@@ -100,10 +100,8 @@ pub enum BinaryOp {
 /// as types or expressions.
 #[salsa::tracked]
 pub struct SquareBracketArgs<'db> {
-    span: Span<'db>,
-
     #[return_ref]
-    text: String,
+    pub deferred: DeferredParse<'db>,
 }
 
 #[derive(Clone, PartialEq, Eq, PartialOrd, Ord, Hash, Update, Debug)]
@@ -127,6 +125,6 @@ pub enum LiteralKind {
 #[derive(Clone, PartialEq, Eq, PartialOrd, Ord, Hash, Update, Debug)]
 pub struct AstParenExpr<'db> {
     pub callee: AstExpr<'db>,
-    pub generic_args: Option<SpanVec<'db, AstGenericArg<'db>>>,
+    pub generic_args: Option<SpanVec<'db, AstGenericTerm<'db>>>,
     pub args: SpanVec<'db, AstExpr<'db>>,
 }

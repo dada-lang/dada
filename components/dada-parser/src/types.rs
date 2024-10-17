@@ -2,7 +2,7 @@ use salsa::Update;
 
 use dada_ir_ast::{
     ast::{
-        AstGenericArg, AstGenericDecl, AstGenericKind, AstPath, AstPerm, AstPermKind, AstTy,
+        AstGenericTerm, AstGenericDecl, AstGenericKind, AstPath, AstPerm, AstPermKind, AstTy,
         AstTyKind, SpanVec,
     },
     span::{Span, Spanned},
@@ -18,7 +18,7 @@ use super::{
 #[derive(Debug, Update)]
 enum TyOrPerm<'db> {
     /// could be anything from `a` to `a.b` to `a[x]` to `a.b[x]`
-    Path(AstPath<'db>, Option<SpanVec<'db, AstGenericArg<'db>>>),
+    Path(AstPath<'db>, Option<SpanVec<'db, AstGenericTerm<'db>>>),
 
     /// `type T` or `perm P`
     Generic(AstGenericDecl<'db>),
@@ -41,11 +41,11 @@ impl<'db> Parse<'db> for TyOrPerm<'db> {
         parser: &mut Parser<'_, 'db>,
     ) -> Result<Option<Self::Output>, ParseFail<'db>> {
         if let Some(path) = AstPath::opt_parse(db, parser)? {
-            let generic_args = AstGenericArg::opt_parse_delimited(
+            let generic_args = AstGenericTerm::opt_parse_delimited(
                 db,
                 parser,
                 Delimiter::SquareBrackets,
-                AstGenericArg::eat_comma,
+                AstGenericTerm::eat_comma,
             )?;
 
             return TyOrPerm::Path(path, generic_args).maybe_apply(db, parser);
@@ -263,8 +263,8 @@ fn parse_path_perm<'db>(
     Ok(AstPerm::new(db, span.to(parser.last_span()), kind))
 }
 
-impl<'db> Parse<'db> for AstGenericArg<'db> {
-    type Output = AstGenericArg<'db>;
+impl<'db> Parse<'db> for AstGenericTerm<'db> {
+    type Output = AstGenericTerm<'db>;
 
     fn opt_parse(
         db: &'db dyn crate::Db,
@@ -277,7 +277,7 @@ impl<'db> Parse<'db> for AstGenericArg<'db> {
         match ty_or_perm {
             // There is one case that could be either a type or a permission.
             TyOrPerm::Path(path, None) if path.len(db) == 1 => {
-                Ok(Some(AstGenericArg::Id(path.first_id(db))))
+                Ok(Some(AstGenericTerm::Id(path.first_id(db))))
             }
 
             // For the rest, we can be guided by the syntax.

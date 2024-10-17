@@ -17,6 +17,7 @@ mod generics;
 mod miscellaneous;
 mod module_body;
 pub mod prelude;
+mod square_bracket_args;
 mod tokenizer;
 mod types;
 

@@ -1,8 +1,9 @@
 use dada_ir_ast::{ast::Literal, diagnostic::Reported, span::Span};
 use dada_ir_sym::{
     class::SymField,
+    function::SymFunction,
     symbol::SymVariable,
-    ty::{SymPlace, SymPlaceKind, SymTy},
+    ty::{SymGenericTerm, SymPlace, SymPlaceKind, SymTy},
 };
 
 use crate::env::Env;
@@ -48,12 +49,15 @@ pub(crate) enum ExprKind<'chk, 'db> {
     /// `$0.share` or just `$place`
     Share(PlaceExpr<'chk, 'db>),
 
-    /// An expression that has not yet been computed
-    /// because insufficient type information was
-    /// available. The [`Check`](crate::executor::Check)
-    /// stores an array, indexed by `DeferIndex`,
-    /// which will eventually contain the expr to use here.
-    Deferred(DeferIndex),
+    /// `$0[$1..]($2..)`
+    ///
+    /// During construction we ensure that the arities match and terms are well-kinded
+    /// (or generate errors).
+    Call(
+        SymFunction<'db>,
+        Vec<SymGenericTerm<'db>>,
+        Vec<Expr<'chk, 'db>>,
+    ),
 
     /// Error occurred somewhere.
     Error(Reported),
