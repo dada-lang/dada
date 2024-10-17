@@ -19,6 +19,11 @@ pub struct SymVariable<'db> {
 }
 
 impl<'db> SymVariable<'db> {
+    /// New symbol for a local variable
+    pub fn new_local(db: &'db dyn crate::Db, id: Identifier<'db>, span: Span<'db>) -> Self {
+        Self::new(db, SymGenericKind::Place, Some(id), span)
+    }
+
     pub fn into_generic_term(
         self,
         db: &'db dyn crate::Db,
@@ -26,6 +31,11 @@ impl<'db> SymVariable<'db> {
     ) -> SymGenericTerm<'db> {
         let var = scope.resolve_generic_sym(db, self);
         SymGenericTerm::var(db, self.kind(db), var)
+    }
+
+    /// True if `self` has the kind `kind`.
+    pub fn has_kind(self, db: &'db dyn crate::Db, kind: SymGenericKind) -> bool {
+        self.kind(db) == kind
     }
 }
 

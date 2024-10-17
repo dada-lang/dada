@@ -214,6 +214,27 @@ impl<T: Update> Binder<T> {
             term
         })
     }
+
+    /// Maps the bound contents to something else
+    /// using the contents of argument term `arg`.
+    /// 
+    /// `arg` will automatically have any bound variables
+    /// shifted by 1 to account for having been inserted
+    /// into a new binder.
+    /// 
+    /// If no arg is needed just supply `()`.
+    /// 
+    /// NB. The argument is a `fn` to prevent accidentally leaking context.
+    pub fn map<'db, U, A>(self, db: &'db dyn crate::Db, arg: A, op: fn(&'db dyn crate::Db, T, A::Output) -> U) -> Binder<U>
+    where 
+        U: Update,
+        A: Subst<'db>,
+    {
+        Binder {
+            kinds: self.kinds,
+            bound_value: op(db, self.bound_value, arg.shift_into_binders(db, 1)),
+        }
+    }
 }
 
 #[derive(Copy, Clone, PartialEq, Eq, PartialOrd, Ord, Hash, Update, Debug, FromImpls)]

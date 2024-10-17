@@ -1,5 +1,5 @@
 use dada_ir_ast::ast::AstStatement;
-use dada_ir_sym::{prelude::IntoSymInScope, symbol::SymLocalVariable};
+use dada_ir_sym::{prelude::IntoSymInScope, symbol::SymVariable};
 use futures::join;
 
 use crate::{
@@ -21,7 +21,7 @@ impl<'chk, 'db: 'chk> Checking<'chk, 'db> for [AstStatement<'db>] {
 
         match first {
             AstStatement::Let(s) => {
-                let lv = SymLocalVariable::new(db, s.name(db).id, s.name(db).span);
+                let lv = SymVariable::new_local(db, s.name(db).id, s.name(db).span);
 
                 let ty = match s.ty(db) {
                     Some(ty) => ty.into_sym_in_scope(db, &env.scope),

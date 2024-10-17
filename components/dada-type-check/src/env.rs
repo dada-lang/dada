@@ -84,8 +84,9 @@ impl<'db> Env<'db> {
         Arc::make_mut(&mut self.free_variables).extend(symbols);
 
         binder.open(check.db, |kind, sym_bound_var_index| {
-            let index = SymInferVarIndex::from(base_index + sym_bound_var_index.as_usize());
-            SymGenericTerm::var(check.db, kind, Var::Universal(index))
+            let symbol = symbols[sym_bound_var_index.as_usize()];
+            assert!(symbol.has_kind(check.db, kind));
+            SymGenericTerm::var(check.db, kind, Var::Universal(symbol))
         })
     }
 
@@ -117,13 +118,13 @@ impl<'db> Env<'db> {
         self.return_ty = Some(ty);
     }
 
-    /// Returns the type of the given program variable.
+    /// Returns the type of the given variable.
     ///
     /// # Panics
     ///
-    /// If the program variable is not present.
-    pub fn program_variable_ty(&self, lv: SymLocalVariable<'db>) -> SymTy<'db> {
-        self.program_variables.get(&lv).copied().unwrap()
+    /// If the variable is not present.
+    pub fn variable_ty(&self, lv: SymVariable<'db>) -> SymTy<'db> {
+        self.variable_tys.get(&lv).copied().unwrap()
     }
 
     pub fn fresh_inference_var(

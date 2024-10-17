@@ -17,20 +17,21 @@ use crate::{
     checking_ir::{Expr, ExprKind, PlaceExpr, PlaceExprKind},
     env::Env,
     executor::Check,
-    member::lookup_member,
+    member::MemberLookup,
     Checking,
 };
 
+#[derive(Clone)]
 pub(crate) struct ExprResult<'chk, 'db> {
     /// List of [`Temporary`][] variables created by this expression.
-    temporaries: Vec<Temporary<'chk, 'db>>,
+    pub temporaries: Vec<Temporary<'chk, 'db>>,
 
     /// Span of the expression
     pub span: Span<'db>,
 
     /// The primary result from translating an expression.
     /// Note that an ast-expr can result in many kinds of things.
-    kind: ExprResultKind<'chk, 'db>,
+    pub kind: ExprResultKind<'chk, 'db>,
 }
 
 /// Translating an expression can result in the creation of
@@ -39,13 +40,14 @@ pub(crate) struct ExprResult<'chk, 'db> {
 /// and will eventually be translated into `let-in` expressions
 /// when we reach the surrounding statement, block, or other
 /// terminating context.
+#[derive(Clone)]
 pub(crate) struct Temporary<'chk, 'db> {
     pub lv: SymVariable<'db>,
     pub expr: Expr<'chk, 'db>,
 }
 
-#[derive(FromImpls, Debug)]
-enum ExprResultKind<'chk, 'db> {
+#[derive(Clone, Debug, FromImpls)]
+pub(crate) enum ExprResultKind<'chk, 'db> {
     /// An expression identifying a place in memory (e.g., a local variable).
     PlaceExpr(PlaceExpr<'chk, 'db>),
 
@@ -105,7 +107,7 @@ async fn check_expr<'chk, 'db>(
                     element
                         .check(check, env)
                         .await
-                        .into_expr(check, &mut temporaries),
+                        .into_expr(check, env, &mut temporaries),
                 );
             }
 
@@ -146,7 +148,9 @@ async fn check_expr<'chk, 'db>(
             let mut owner_result = owner.check(check, env).await;
             match owner_result.kind {
                 ExprResultKind::PlaceExpr(_) | ExprResultKind::Expr(_) => {
-                    lookup_member(check, &env, owner_result, *id).await
+                    MemberLookup::new(check, &env)
+                        .lookup_member(owner_result, *id)
+                        .await
                 }
 
                 ExprResultKind::Other(name_resolution) => {
@@ -155,7 +159,9 @@ async fn check_expr<'chk, 'db>(
                         Ok(Ok(r)) => ExprResult::from_name_resolution(check, env, r, span),
                         Ok(Err(r)) => {
                             owner_result.kind = r.into();
-                            lookup_member(check, &env, owner_result, *id).await
+                            MemberLookup::new(check, &env)
+                                .lookup_member(owner_result, *id)
+                                .await
                         }
                     }
                 }
@@ -184,11 +190,9 @@ impl<'chk, 'db> ExprResult<'chk, 'db> {
     ) -> Self {
         let db = check.db;
         match res {
-            NameResolution::SymVariable(sym_var, generic_index)
-                if sym_var.kind(db) == SymGenericKind::Place =>
-            {
-                let ty = env.program_variable_ty(sym_var);
-                let place_expr = check.place_expr(span, ty, PlaceExprKind::Local(sym_var));
+            NameResolution::SymVariable(var) if var.kind(db) == SymGenericKind::Place => {
+                let ty = env.variable_ty(var);
+                let place_expr = check.place_expr(span, ty, PlaceExprKind::Var(var));
                 Self {
                     temporaries: vec![],
                     span,
@@ -238,7 +242,7 @@ impl<'chk, 'db> ExprResult<'chk, 'db> {
         env: &Env<'db>,
     ) -> Expr<'chk, 'db> {
         let mut temporaries = vec![];
-        let mut expr = self.into_expr(check, &mut temporaries);
+        let mut expr = self.into_expr(check, env, &mut temporaries);
         for temporary in temporaries.into_iter().rev() {
             expr = check.expr(
                 expr.span,
@@ -291,7 +295,7 @@ impl<'chk, 'db> ExprResult<'chk, 'db> {
                 temporaries.push(Temporary { lv, expr: expr });
 
                 // The result will be a reference to that temporary.
-                check.place_expr(self.span, ty, PlaceExprKind::Local(lv))
+                check.place_expr(self.span, ty, PlaceExprKind::Var(lv))
             }
 
             ExprResultKind::Other(name_resolution) => {
@@ -309,6 +313,7 @@ impl<'chk, 'db> ExprResult<'chk, 'db> {
     pub fn into_expr(
         self,
         check: &Check<'chk, 'db>,
+        env: &Env<'db>,
         temporaries: &mut Vec<Temporary<'chk, 'db>>,
     ) -> Expr<'chk, 'db> {
         let db = check.db;
@@ -317,7 +322,7 @@ impl<'chk, 'db> ExprResult<'chk, 'db> {
             ExprResultKind::Expr(expr) => expr,
             ExprResultKind::PlaceExpr(place_expr) => check.expr(
                 place_expr.span,
-                place_expr.ty.shared(db, place_expr.to_sym_place(db)),
+                place_expr.ty.shared(db, place_expr.to_sym_place(db, env)),
                 ExprKind::Share(place_expr),
             ),
             ExprResultKind::Other(name_resolution) => {

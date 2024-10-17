@@ -1,9 +1,10 @@
 use dada_ir_ast::diagnostic::Reported;
+use dada_util::Map;
 use salsa::Update;
 
 use crate::{
     function::SymInputOutput,
-    indices::{SymBinderIndex, SymBoundVarIndex, SymInferVarIndex},
+    indices::{SymBinderIndex, SymBoundVarIndex},
     symbol::{SymGenericKind, SymVariable},
     ty::{
         Binder, SymGenericTerm, SymPerm, SymPermKind, SymPlace, SymPlaceKind, SymTy, SymTyKind,
@@ -53,25 +54,42 @@ impl<'s, 'db> SubstitutionFns<'s, 'db> {
     }
 }
 
+/// Core substitution trait: used to walk terms and produce new ones,
+/// applying changes to the variables within.
 pub trait Subst<'db> {
+    /// The type of the resulting term; typically `Self` but not always.
     type Output: Update;
 
+    /// Reproduce `self` with no edits.
     fn identity(&self) -> Self::Output;
 
+    /// Replace `self` applying the changes from `subst_fns`.
+    ///
+    /// # Parameters
+    ///
+    /// * `db`, the database
+    /// * `start_binder`, the index of the binder we started from.
+    ///   This always begins as `SymBinderIndex::INNERMOST`
+    ///   but gets incremented as we traverse binders.
+    /// * `subst_fns`, a struct containing callbacks for substitution
     fn subst_with(
         &self,
         db: &'db dyn crate::Db,
-        depth: SymBinderIndex,
+        start_binder: SymBinderIndex,
         subst_fns: &mut SubstitutionFns<'_, 'db>,
     ) -> Self::Output;
 
-    fn shift_into_binders(&self, db: &'db dyn crate::Db, binders: SymBinderIndex) -> Self::Output {
-        if binders == SymBinderIndex::INNERMOST {
+    /// Convenient operation to shift all binder levels in `self` by `binders`.
+    /// No-op if `binders` equals 0.
+    ///
+    /// See [`SymBinderIndex::shift_into_binders`][].
+    fn shift_into_binders(&self, db: &'db dyn crate::Db, binders: usize) -> Self::Output {
+        if binders == 0 {
             self.identity()
         } else {
             self.subst_with(
                 db,
-                binders,
+                SymBinderIndex::INNERMOST,
                 &mut SubstitutionFns {
                     binder_index: &mut |b| b.shift_into_binders(binders),
                     free_universal_var: &mut SubstitutionFns::default_free_var,
@@ -81,33 +99,43 @@ pub trait Subst<'db> {
         }
     }
 
-    /// Returns a version of `self` where all (universal free variables
+    /// Returns a version of `self` where universal free variables
     /// have been replaced by the corresponding entry in `terms`.
-    ///
-    /// # Panics
-    ///
-    /// Panics if `self` contain any free variables with an index outside the range of `terms`
-    /// or if the kind of a term does not match the kind of the free variable.
-    fn subst_universal_free_vars(
+    /// If a variable is not present in `terms` it is not substituted.
+    fn subst_vars(
         &self,
         db: &'db dyn crate::Db,
-        mut terms: impl FnMut(SymVariable<'db>) -> Option<SymGenericTerm<'db>>,
+        map: &Map<SymVariable<'db>, SymGenericTerm<'db>>,
     ) -> Self::Output {
+        debug_assert!(map.iter().all(|(&var, term)| term.has_kind(var.kind(db))));
+
         self.subst_with(
             db,
             SymBinderIndex::INNERMOST,
             &mut SubstitutionFns {
                 binder_index: &mut SubstitutionFns::default_binder_index,
                 bound_var: &mut SubstitutionFns::default_bound_var,
-                free_universal_var: &mut |var| {
-                    let Some(r) = terms(var) else {
-                        return None;
-                    };
+                free_universal_var: &mut |var| map.get(&var).copied(),
+            },
+        )
+    }
 
-                    assert!(r.has_kind(var.kind(db)));
+    /// Replace the variable `var` with `term`.
+    fn subst_var(
+        &self,
+        db: &'db dyn crate::Db,
+        var: SymVariable<'db>,
+        term: SymGenericTerm<'db>,
+    ) -> Self::Output {
+        debug_assert!(term.has_kind(var.kind(db)));
 
-                    Some(r)
-                },
+        self.subst_with(
+            db,
+            SymBinderIndex::INNERMOST,
+            &mut SubstitutionFns {
+                binder_index: &mut SubstitutionFns::default_binder_index,
+                bound_var: &mut SubstitutionFns::default_bound_var,
+                free_universal_var: &mut |v| if v == var { Some(term) } else { None },
             },
         )
     }
@@ -122,10 +150,10 @@ where
     fn subst_with(
         &self,
         db: &'db dyn crate::Db,
-        depth: SymBinderIndex,
+        start_binder: SymBinderIndex,
         subst_fns: &mut SubstitutionFns<'_, 'db>,
     ) -> Self::Output {
-        T::subst_with(self, db, depth, subst_fns)
+        T::subst_with(self, db, start_binder, subst_fns)
     }
 
     fn identity(&self) -> Self::Output {
@@ -139,18 +167,22 @@ impl<'db> Subst<'db> for SymGenericTerm<'db> {
     fn subst_with(
         &self,
         db: &'db dyn crate::Db,
-        depth: SymBinderIndex,
+        start_binder: SymBinderIndex,
         subst_fns: &mut SubstitutionFns<'_, 'db>,
     ) -> Self::Output {
         match self {
-            SymGenericTerm::Type(ty) => SymGenericTerm::Type(ty.subst_with(db, depth, subst_fns)),
+            SymGenericTerm::Type(ty) => {
+                SymGenericTerm::Type(ty.subst_with(db, start_binder, subst_fns))
+            }
             SymGenericTerm::Perm(perm) => {
-                SymGenericTerm::Perm(perm.subst_with(db, depth, subst_fns))
+                SymGenericTerm::Perm(perm.subst_with(db, start_binder, subst_fns))
             }
             SymGenericTerm::Place(place) => {
-                SymGenericTerm::Place(place.subst_with(db, depth, subst_fns))
+                SymGenericTerm::Place(place.subst_with(db, start_binder, subst_fns))
             }
-            SymGenericTerm::Error(e) => SymGenericTerm::Error(e.subst_with(db, depth, subst_fns)),
+            SymGenericTerm::Error(e) => {
+                SymGenericTerm::Error(e.subst_with(db, start_binder, subst_fns))
+            }
         }
     }
 
@@ -165,7 +197,7 @@ impl<'db> Subst<'db> for Reported {
     fn subst_with(
         &self,
         _db: &'db dyn crate::Db,
-        _depth: SymBinderIndex,
+        _start_binder: SymBinderIndex,
         _subst_fns: &mut SubstitutionFns<'_, 'db>,
     ) -> Self::Output {
         self.identity()
@@ -182,34 +214,36 @@ impl<'db> Subst<'db> for SymTy<'db> {
     fn subst_with(
         &self,
         db: &'db dyn crate::Db,
-        depth: SymBinderIndex,
+        start_binder: SymBinderIndex,
         subst_fns: &mut SubstitutionFns<'_, 'db>,
     ) -> Self::Output {
         match self.kind(db) {
             // Variables
-            SymTyKind::Var(generic_index) => subst_var(db, depth, subst_fns, self, *generic_index),
+            SymTyKind::Var(generic_index) => {
+                subst_var(db, start_binder, subst_fns, self, *generic_index)
+            }
 
             // Structucal cases
             SymTyKind::Perm(sym_perm, sym_ty) => SymTy::new(
                 db,
                 SymTyKind::Perm(
-                    sym_perm.subst_with(db, depth, subst_fns),
-                    sym_ty.subst_with(db, depth, subst_fns),
+                    sym_perm.subst_with(db, start_binder, subst_fns),
+                    sym_ty.subst_with(db, start_binder, subst_fns),
                 ),
             ),
             SymTyKind::Named(sym_ty_name, vec) => SymTy::new(
                 db,
                 SymTyKind::Named(
-                    sym_ty_name.subst_with(db, depth, subst_fns),
+                    sym_ty_name.subst_with(db, start_binder, subst_fns),
                     vec.iter()
-                        .map(|g| g.subst_with(db, depth, subst_fns))
+                        .map(|g| g.subst_with(db, start_binder, subst_fns))
                         .collect(),
                 ),
             ),
             SymTyKind::Unknown => self.identity(),
             SymTyKind::Error(reported) => SymTy::new(
                 db,
-                SymTyKind::Error(reported.subst_with(db, depth, subst_fns)),
+                SymTyKind::Error(reported.subst_with(db, start_binder, subst_fns)),
             ),
         }
     }
@@ -229,13 +263,13 @@ impl<'db> Subst<'db> for SymPerm<'db> {
     fn subst_with(
         &self,
         db: &'db dyn crate::Db,
-        depth: SymBinderIndex,
+        start_binder: SymBinderIndex,
         subst_fns: &mut SubstitutionFns<'_, 'db>,
     ) -> Self::Output {
         match self.kind(db) {
             // Variables
             SymPermKind::Var(generic_index) => {
-                subst_var(db, depth, subst_fns, self, *generic_index)
+                subst_var(db, start_binder, subst_fns, self, *generic_index)
             }
 
             // Structural cases
@@ -243,7 +277,7 @@ impl<'db> Subst<'db> for SymPerm<'db> {
                 db,
                 SymPermKind::Shared(
                     vec.iter()
-                        .map(|g| g.subst_with(db, depth, subst_fns))
+                        .map(|g| g.subst_with(db, start_binder, subst_fns))
                         .collect(),
                 ),
             ),
@@ -251,7 +285,7 @@ impl<'db> Subst<'db> for SymPerm<'db> {
                 db,
                 SymPermKind::Leased(
                     vec.iter()
-                        .map(|g| g.subst_with(db, depth, subst_fns))
+                        .map(|g| g.subst_with(db, start_binder, subst_fns))
                         .collect(),
                 ),
             ),
@@ -259,13 +293,13 @@ impl<'db> Subst<'db> for SymPerm<'db> {
                 db,
                 SymPermKind::Given(
                     vec.iter()
-                        .map(|g| g.subst_with(db, depth, subst_fns))
+                        .map(|g| g.subst_with(db, start_binder, subst_fns))
                         .collect(),
                 ),
             ),
             SymPermKind::Error(reported) => SymPerm::new(
                 db,
-                SymPermKind::Error(reported.subst_with(db, depth, subst_fns)),
+                SymPermKind::Error(reported.subst_with(db, start_binder, subst_fns)),
             ),
             SymPermKind::My => self.identity(),
             SymPermKind::Our => self.identity(),
@@ -283,7 +317,7 @@ impl<'db> Subst<'db> for SymTyName<'db> {
     fn subst_with(
         &self,
         _db: &'db dyn crate::Db,
-        _depth: SymBinderIndex,
+        _start_binder: SymBinderIndex,
         _subst_fns: &mut SubstitutionFns<'_, 'db>,
     ) -> Self::Output {
         self.identity()
@@ -300,27 +334,30 @@ impl<'db> Subst<'db> for SymPlace<'db> {
     fn subst_with(
         &self,
         db: &'db dyn crate::Db,
-        depth: SymBinderIndex,
+        start_binder: SymBinderIndex,
         subst_fns: &mut SubstitutionFns<'_, 'db>,
     ) -> Self::Output {
         match self.kind(db) {
             // Variables
             SymPlaceKind::Var(generic_index) => {
-                subst_var(db, depth, subst_fns, self, generic_index)
+                subst_var(db, start_binder, subst_fns, self, generic_index)
             }
 
             // Structural cases
             SymPlaceKind::Field(sym_place, identifier) => SymPlace::new(
                 db,
-                SymPlaceKind::Field(sym_place.subst_with(db, depth, subst_fns), identifier),
+                SymPlaceKind::Field(
+                    sym_place.subst_with(db, start_binder, subst_fns),
+                    identifier,
+                ),
             ),
             SymPlaceKind::Index(sym_place) => SymPlace::new(
                 db,
-                SymPlaceKind::Index(sym_place.subst_with(db, depth, subst_fns)),
+                SymPlaceKind::Index(sym_place.subst_with(db, start_binder, subst_fns)),
             ),
             SymPlaceKind::Error(reported) => SymPlace::new(
                 db,
-                SymPlaceKind::Error(reported.subst_with(db, depth, subst_fns)),
+                SymPlaceKind::Error(reported.subst_with(db, start_binder, subst_fns)),
             ),
         }
     }
@@ -339,10 +376,10 @@ impl<'db, T: Subst<'db> + Update> Subst<'db> for Binder<T> {
     fn subst_with(
         &self,
         db: &'db dyn crate::Db,
-        depth: SymBinderIndex,
+        start_binder: SymBinderIndex,
         subst_fns: &mut SubstitutionFns<'_, 'db>,
     ) -> Self::Output {
-        let bound_value = self.bound_value.subst_with(db, depth + 1, subst_fns);
+        let bound_value = self.bound_value.subst_with(db, start_binder + 1, subst_fns);
         Binder {
             kinds: self.kinds.clone(),
             bound_value,
@@ -360,12 +397,12 @@ impl<'db> Subst<'db> for SymInputOutput<'db> {
     fn subst_with(
         &self,
         db: &'db dyn crate::Db,
-        depth: SymBinderIndex,
+        start_binder: SymBinderIndex,
         subst_fns: &mut SubstitutionFns<'_, 'db>,
     ) -> Self::Output {
         SymInputOutput {
-            input_tys: self.input_tys.subst_with(db, depth, subst_fns),
-            output_ty: self.output_ty.subst_with(db, depth, subst_fns),
+            input_tys: self.input_tys.subst_with(db, start_binder, subst_fns),
+            output_ty: self.output_ty.subst_with(db, start_binder, subst_fns),
         }
     }
 }
@@ -383,18 +420,18 @@ where
     fn subst_with(
         &self,
         db: &'db dyn crate::Db,
-        depth: SymBinderIndex,
+        start_binder: SymBinderIndex,
         subst_fns: &mut SubstitutionFns<'_, 'db>,
     ) -> Self::Output {
         self.iter()
-            .map(|t| t.subst_with(db, depth, subst_fns))
+            .map(|t| t.subst_with(db, start_binder, subst_fns))
             .collect()
     }
 }
 
 fn subst_var<'db, Term>(
     db: &'db dyn crate::Db,
-    depth: SymBinderIndex,
+    start_binder: SymBinderIndex,
     subst_fns: &mut SubstitutionFns<'_, 'db>,
     term: &Term,
     generic_index: Var<'db>,
@@ -405,9 +442,11 @@ where
     match generic_index {
         Var::Bound(original_binder_index, sym_bound_var_index) => {
             let mut new_binder_index = || (subst_fns.binder_index)(original_binder_index);
-            if original_binder_index == depth {
+            if original_binder_index == start_binder {
                 match (subst_fns.bound_var)(SymGenericKind::Perm, sym_bound_var_index) {
-                    Some(r) => Term::assert_kind(db, r).shift_into_binders(db, depth),
+                    Some(r) => {
+                        Term::assert_kind(db, r).shift_into_binders(db, start_binder.as_usize())
+                    }
                     None => Term::bound_var(db, new_binder_index(), sym_bound_var_index),
                 }
             } else {
@@ -415,7 +454,7 @@ where
             }
         }
         Var::Universal(var) => match (subst_fns.free_universal_var)(var) {
-            Some(r) => Term::assert_kind(db, r).shift_into_binders(db, depth),
+            Some(r) => Term::assert_kind(db, r).shift_into_binders(db, start_binder.as_usize()),
             None => Term::identity(term),
         },
         Var::Infer(_) => term.identity(),

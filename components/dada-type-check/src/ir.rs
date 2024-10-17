@@ -5,7 +5,7 @@ use dada_ir_ast::{
 };
 use dada_ir_sym::{
     class::SymField,
-    symbol::SymLocalVariable,
+    symbol::SymVariable,
     ty::{SymGenericTerm, SymTy},
 };
 use salsa::Update;
@@ -60,7 +60,7 @@ pub enum CheckedExprKind<'db> {
 /// `let $lv: $ty = $initializer in $body`
 #[derive(Clone, PartialEq, Eq, PartialOrd, Ord, Hash, Update, Debug)]
 pub struct CheckedLetExpr<'db> {
-    pub lv: SymLocalVariable<'db>,
+    pub lv: SymVariable<'db>,
     pub ty: SymTy<'db>,
     pub initializer: Option<CheckedExpr<'db>>,
     pub body: CheckedExpr<'db>,
@@ -97,7 +97,7 @@ pub struct CheckedPlaceExpr<'db> {
 #[derive(Clone, PartialEq, Eq, PartialOrd, Ord, Hash, Update, Debug)]
 pub enum CheckedPlaceExprKind<'db> {
     /// `x`
-    LocalVariable(SymLocalVariable<'db>),
+    Var(SymVariable<'db>),
 
     /// `x.f`
     Field(CheckedPlaceExpr<'db>, SymField<'db>),

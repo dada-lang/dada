@@ -69,7 +69,7 @@ pub(crate) struct PlaceExpr<'chk, 'db> {
 impl<'chk, 'db> PlaceExpr<'chk, 'db> {
     pub fn to_sym_place(&self, db: &'db dyn crate::Db, env: &Env<'db>) -> SymPlace<'db> {
         match self.kind {
-            PlaceExprKind::Local(local) => local.into_generic_term(db, &env.scope).assert_place(db),
+            PlaceExprKind::Var(local) => local.into_generic_term(db, &env.scope).assert_place(db),
             PlaceExprKind::Field(place, field) => SymPlace::new(
                 db,
                 SymPlaceKind::Field(place.to_sym_place(db, env), field.name(db)),
@@ -81,7 +81,7 @@ impl<'chk, 'db> PlaceExpr<'chk, 'db> {
 
 #[derive(Clone, PartialEq, Eq, PartialOrd, Ord, Hash, Debug)]
 pub(crate) enum PlaceExprKind<'chk, 'db> {
-    Local(SymVariable<'db>),
+    Var(SymVariable<'db>),
     Field(PlaceExpr<'chk, 'db>, SymField<'db>),
     Error(Reported),
 }

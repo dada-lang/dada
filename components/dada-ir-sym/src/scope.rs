@@ -365,8 +365,7 @@ fn bind_leaf<'db, L: Subst<'db, Output = L>>(
 ) -> L {
     // Leaf case: symbol type is the innermost value.
     assert_eq!(symbols_to_bind.next(), None);
-
-    value.subst_universal_free_vars(db, |v| free_var_substitution.get(&v).copied())
+    value.subst_vars(db, free_var_substitution)
 }
 
 pub trait Resolve<'db> {

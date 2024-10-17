@@ -31,6 +31,11 @@ impl SymBinderIndex {
     /// The innermost binder starts with index 0.
     pub const INNERMOST: SymBinderIndex = SymBinderIndex(0);
 
+    /// Get the binder level as an integer, with 0 indicating the innermost binder.
+    pub fn as_usize(self) -> usize {
+        self.0
+    }
+
     /// Shifting *into* a binder means incrementing the index.
     /// Consider
     ///
@@ -47,8 +52,14 @@ impl SymBinderIndex {
     ///
     /// But if we want to "shift" a reference to `A` so its valid inside the method,
     /// we have to increment the index to 1, to account for the method's binder.
-    pub fn shift_into_binders(self, binders: SymBinderIndex) -> Self {
-        SymBinderIndex(self.0 + binders.0)
+    pub fn shift_into_binders(self, binders: usize) -> Self {
+        SymBinderIndex(self.0 + binders)
+    }
+
+    /// Shift in by 1 binding level.
+    /// See [`Self::shift_into_binders`][] for an example.
+    pub fn shift_in(self) -> Self {
+        self.shift_into_binders(1)
     }
 
     /// Shifting out is the inverse of shifting in.
