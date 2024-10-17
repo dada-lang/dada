@@ -40,6 +40,7 @@ pub struct SymFunctionSignature<'db> {
     /// * Outermost binder is the class (if a standalone function, this is empty).
     /// * Middle binder is the function generic types.
     /// * Inner binder is the function local variables.
+    #[return_ref]
     pub input_output: Binder<Binder<Binder<SymInputOutput<'db>>>>,
 }
 
@@ -111,7 +112,7 @@ impl<'db> SymFunction<'db> {
     }
 
     /// Function signature
-    #[salsa::tracked]
+    #[salsa::tracked(return_ref)]
     pub fn signature(self, db: &'db dyn crate::Db) -> SymFunctionSignature<'db> {
         let scope = self.scope(db);
 

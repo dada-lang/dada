@@ -53,11 +53,13 @@ pub(crate) enum ExprKind<'chk, 'db> {
     ///
     /// During construction we ensure that the arities match and terms are well-kinded
     /// (or generate errors).
-    Call(
-        SymFunction<'db>,
-        Vec<SymGenericTerm<'db>>,
-        Vec<Expr<'chk, 'db>>,
-    ),
+    Call {
+        function: SymFunction<'db>,
+        class_generics: Vec<SymGenericTerm<'db>>,
+        method_generics: Vec<SymGenericTerm<'db>>,
+        arg_places: Vec<SymGenericTerm<'db>>,
+        arg_exprs: Vec<Expr<'chk, 'db>>,
+    },
 
     /// Error occurred somewhere.
     Error(Reported),

@@ -95,7 +95,7 @@ impl<'db> Env<'db> {
     pub fn open_existentially<T: Subst<'db> + Update>(
         &self,
         check: &Check<'_, 'db>,
-        binder: Binder<T>,
+        binder: &Binder<T>,
     ) -> T::Output {
         binder.open(check.db, |kind, sym_bound_var_index| {
             self.fresh_inference_var(check, kind)

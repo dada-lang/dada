@@ -1,8 +1,8 @@
-use std::future::Future;
+use std::{fmt::Display, future::Future};
 
 use dada_ir_ast::{
     ast::{AstExpr, AstExprKind, BinaryOp, Identifier, SpannedIdentifier},
-    diagnostic::{Diagnostic, Level, Reported},
+    diagnostic::{Diagnostic, Errors, Level, Reported},
     span::Span,
 };
 use dada_ir_sym::{
@@ -10,10 +10,11 @@ use dada_ir_sym::{
     prelude::IntoSymInScope,
     scope::NameResolution,
     symbol::{SymGenericKind, SymVariable},
-    ty::{SymGenericTerm, SymTy, SymTyKind, SymTyName},
+    ty::{SymGenericTerm, SymTy, SymTyKind, SymTyName, Var},
 };
 use dada_parser::prelude::*;
 use dada_util::FromImpls;
+use salsa::plumbing::{input, setup_input_struct};
 
 use crate::{
     checking_ir::{Expr, ExprKind, PlaceExpr, PlaceExprKind},
@@ -45,7 +46,24 @@ pub(crate) struct ExprResult<'chk, 'db> {
 #[derive(Clone)]
 pub(crate) struct Temporary<'chk, 'db> {
     pub lv: SymVariable<'db>,
-    pub expr: Expr<'chk, 'db>,
+    pub ty: SymTy<'db>,
+    pub initializer: Option<Expr<'chk, 'db>>,
+}
+
+impl<'chk, 'db> Temporary<'chk, 'db> {
+    pub fn new(
+        db: &'db dyn crate::Db,
+        span: Span<'db>,
+        ty: SymTy<'db>,
+        initializer: Option<Expr<'chk, 'db>>,
+    ) -> Self {
+        let lv = SymVariable::new(db, SymGenericKind::Place, None, span);
+        Self {
+            lv,
+            ty,
+            initializer,
+        }
+    }
 }
 
 #[derive(Clone, Debug, FromImpls)]
@@ -239,22 +257,7 @@ async fn check_expr<'chk, 'db>(
                             method,
                             generics,
                         },
-                } => {
-                    let mut args = vec![owner];
-                    for ast_arg in ast_args {
-                        args.push(ast_arg.check(check, env).await.into_expr(
-                            check,
-                            env,
-                            &mut temporaries,
-                        ));
-                    }
-
-                    ExprResult {
-                        temporaries,
-                        span,
-                        kind: check.expr(span, XX),
-                    }
-                }
+                } => {}
 
                 _ => {
                     // FIXME: we probably want to support functions and function typed values?
@@ -271,9 +274,103 @@ async fn check_expr<'chk, 'db>(
 async fn check_call<'chk, 'db>(
     check: &Check<'chk, 'db>,
     env: &Env<'db>,
+    id_span: Span<'db>,
+    expr_span: Span<'db>,
+    function: SymFunction<'db>,
     self_expr: Option<Expr<'chk, 'db>>,
-    temporaries: &mut Vec<Temporary<'chk, 'db>>,
-) -> Expr<'db> {
+    ast_args: &[AstExpr<'db>],
+    generics: Option<Vec<SymGenericTerm<'db>>>,
+    mut temporaries: Vec<Temporary<'chk, 'db>>,
+) -> ExprResult<'chk, 'db> {
+    let db = check.db;
+
+    // Get the signature.
+    let signature = function.signature(db);
+
+    // Instantiate the class generics.
+
+    // Instantiate the first two levels of generics with inference variables.
+    let input_output = env.open_existentially(check, signature.input_output(db));
+    let input_output = env.open_existentially(check, &input_output);
+
+    // Check the arity of the actual arguments.
+    let expected_inputs = input_output.bound_value.input_tys.len();
+    let found_inputs = ast_args.len();
+    if ast_args.len() != expected_inputs {
+        let function_name = function.name(db);
+        return ExprResult::err(
+            check,
+            id_span,
+            Diagnostic::error(
+                db,
+                id_span,
+                format!("expected {expected_inputs} arguments, found {found_inputs}"),
+            )
+            .label(
+                db,
+                Level::Error,
+                id_span,
+                format!("I expected `{function_name}` to take {expected_inputs} arguments but I found {found_inputs}",),
+            )
+            .label(
+                db,
+                Level::Info,
+                function.name_span(db),
+                format!("`{function_name}` defined here"),
+            )
+            .report(db),
+        );
+    }
+
+    // Create the temporaries that will hold the values for each argument.
+    let arg_temp_span = |i: usize| ast_args.get(i).map(|a| a.span).unwrap_or(id_span);
+    let arg_temp_symbols = (0..)
+        .map(|i| SymVariable::new(db, SymGenericKind::Place, None, arg_temp_span(i)))
+        .collect::<Vec<_>>();
+    let arg_temp_terms = arg_temp_symbols
+        .iter()
+        .map(|&sym| SymGenericTerm::var(db, sym.kind(db), Var::Universal(sym)))
+        .collect::<Vec<_>>();
+
+    // Instantiate the final level of binding with those temporaries
+    let input_output = input_output.substitute(db, &arg_temp_terms);
+
+    // Function to type check a single argument and check it has the correct type.
+    let check_arg = async |i: usize| -> ExprResult<'chk, 'db> {
+        let mut arg_temporaries = vec![];
+        let ast_arg = ast_args[i];
+        let expr = ast_arg
+            .check(check, env)
+            .await
+            .into_expr(check, env, &mut arg_temporaries);
+        env.require_subtype(check, expr.ty, input_output.input_tys[i]);
+        ExprResult::from_expr(check, env, expr, arg_temporaries)
+    };
+
+    // Type check the arguments; these can proceed concurrently.
+    let mut arg_exprs = vec![];
+    arg_exprs.extend(self_expr);
+    for arg_result in futures::future::join_all((0..ast_args.len()).map(check_arg)).await {
+        arg_exprs.push(arg_result.into_expr(check, env, &mut temporaries));
+    }
+
+    // Create the final result.
+    ExprResult::from_expr(
+        check,
+        env,
+        check.expr(
+            expr_span,
+            input_output.output_ty,
+            ExprKind::Call {
+                function,
+                class_generics: vec![],
+                method_generics: todo!(),
+                arg_places: arg_temp_terms,
+                arg_exprs: arg_exprs,
+            },
+        ),
+        temporaries,
+    )
 }
 
 impl<'chk, 'db> ExprResult<'chk, 'db> {
@@ -322,6 +419,19 @@ impl<'chk, 'db> ExprResult<'chk, 'db> {
         }
     }
 
+    pub fn from_expr(
+        check: &Check<'chk, 'db>,
+        env: &Env<'db>,
+        expr: Expr<'chk, 'db>,
+        temporaries: Vec<Temporary<'chk, 'db>>,
+    ) -> Self {
+        Self {
+            temporaries,
+            span: expr.span,
+            kind: ExprResultKind::Expr(expr),
+        }
+    }
+
     /// Create an error result.
     pub fn err(check: &Check<'chk, 'db>, span: Span<'db>, r: Reported) -> Self {
         Self {
@@ -345,12 +455,13 @@ impl<'chk, 'db> ExprResult<'chk, 'db> {
                 expr.ty,
                 ExprKind::LetIn {
                     lv: temporary.lv,
-                    ty: temporary.expr.ty,
-                    initializer: Some(temporary.expr),
+                    ty: temporary.ty,
+                    initializer: temporary.initializer,
                     body: expr,
                 },
             );
         }
+
         expr
     }
 
@@ -386,9 +497,9 @@ impl<'chk, 'db> ExprResult<'chk, 'db> {
                 let ty = expr.ty;
 
                 // Create a temporary to store the result of this expression.
-                let name = Identifier::new(db, format!("#tmp{expr:?}"));
-                let lv = SymVariable::new(db, SymGenericKind::Place, Some(name), expr.span);
-                temporaries.push(Temporary { lv, expr: expr });
+                let temporary = Temporary::new(db, expr.span, expr.ty, Some(expr));
+                let lv = temporary.lv;
+                temporaries.push(temporary);
 
                 // The result will be a reference to that temporary.
                 check.place_expr(self.span, ty, PlaceExprKind::Var(lv))
@@ -442,6 +553,7 @@ fn report_not_implemented<'db>(db: &'db dyn crate::Db, span: Span<'db>, what: &s
         )
         .report(db)
 }
+
 fn report_non_expr<'db>(
     db: &'db dyn crate::Db,
     owner_span: Span<'db>,
