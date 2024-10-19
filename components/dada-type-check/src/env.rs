@@ -1,10 +1,9 @@
 use std::sync::Arc;
 
 use dada_ir_sym::{
-    indices::SymInferVarIndex,
     scope::Scope,
     subst::Subst,
-    symbol::{SymGenericKind, SymVariable},
+    symbol::{HasKind, SymGenericKind, SymVariable},
     ty::{Binder, SymGenericTerm, SymPerm, SymTy, SymTyKind, Var},
 };
 use dada_util::Map;
@@ -13,7 +12,7 @@ use salsa::Update;
 
 use crate::{
     bound::{Bound, InferenceVarBounds},
-    checking_ir::{ObjectGenericTerm, ObjectTy, ToObject},
+    checking_ir::{IntoObjectIr, ObjectGenericTerm, ObjectTy, ObjectTyKind},
     executor::Check,
     universe::Universe,
 };
@@ -55,12 +54,15 @@ impl<'db> Env<'db> {
 
     /// Opens two sets of binders at once where the symbols have been concatenated.
     /// Used for class members which are under the class / member binders.
-    pub fn open_universally2<T: Subst<'db, Output = T> + Update>(
+    pub fn open_universally2<T>(
         &mut self,
         check: &Check<'_, 'db>,
         symbols: &[SymVariable<'db>],
         binder: Binder<Binder<T>>,
-    ) -> T {
+    ) -> T
+    where
+        T: Subst<'db, GenericTerm = SymGenericTerm<'db>, Output = T> + Update,
+    {
         let (symbols1, symbols2) = symbols.split_at(binder.len());
         let b2 = self.open_universally(check, symbols1, binder);
         self.open_universally(check, symbols2, b2)
@@ -68,12 +70,17 @@ impl<'db> Env<'db> {
 
     /// Open the given symbols as universally quantified.
     /// Creates a new universe.
-    pub fn open_universally<T: Subst<'db> + Update>(
+    pub fn open_universally<T>(
         &mut self,
         check: &Check<'_, 'db>,
         symbols: &[SymVariable<'db>],
         binder: Binder<T>,
-    ) -> T::Output {
+    ) -> T::Output
+    where
+        T: Subst<'db, GenericTerm = SymGenericTerm<'db>, Output = T> + Update,
+    {
+        let db = check.db;
+
         assert_eq!(symbols.len(), binder.kinds.len());
         assert!(symbols
             .iter()
@@ -84,21 +91,21 @@ impl<'db> Env<'db> {
         let base_index = self.free_variables.len();
         Arc::make_mut(&mut self.free_variables).extend(symbols);
 
-        binder.open(check.db, |kind, sym_bound_var_index| {
+        binder.open(db, |kind, sym_bound_var_index| {
             let symbol = symbols[sym_bound_var_index.as_usize()];
-            assert!(symbol.has_kind(check.db, kind));
-            SymGenericTerm::var(check.db, kind, Var::Universal(symbol))
+            assert!(symbol.has_kind(db, kind));
+            SymGenericTerm::var(db, kind, Var::Universal(symbol))
         })
     }
 
     /// Open the given symbols as existential inference variables
     /// in the current universe.
-    pub fn open_existentially<T: Subst<'db> + Update>(
-        &self,
-        check: &Check<'_, 'db>,
-        binder: &Binder<T>,
-    ) -> T::Output {
-        binder.open(check.db, |kind, sym_bound_var_index| {
+    pub fn open_existentially<T>(&self, check: &Check<'_, 'db>, binder: &Binder<T>) -> T::Output
+    where
+        T: Subst<'db, GenericTerm = SymGenericTerm<'db>, Output = T> + Update,
+    {
+        let db = check.db;
+        binder.open(db, |kind, sym_bound_var_index| {
             self.fresh_inference_var(check, kind)
         })
     }
@@ -155,7 +162,7 @@ impl<'db> Env<'db> {
     }
 
     pub fn fresh_object_ty_inference_var(&self, check: &Check<'_, 'db>) -> ObjectTy<'db> {
-        self.fresh_ty_inference_var(check).to_object(check.db)
+        self.fresh_ty_inference_var(check).into_object_ir(check.db)
     }
 
     pub fn fresh_perm_inference_var(&self, check: &Check<'_, 'db>) -> SymPerm<'db> {
@@ -166,8 +173,8 @@ impl<'db> Env<'db> {
     pub fn require_subobject(
         &self,
         check: &Check<'_, 'db>,
-        sub: impl ToObject<'db>,
-        sup: impl ToObject<'db>,
+        sub: impl IntoObjectIr<'db>,
+        sup: impl IntoObjectIr<'db>,
     ) {
         check.defer(self, |check, env| async move { todo!() });
     }
@@ -190,15 +197,14 @@ impl<'db> Env<'db> {
     pub fn object_bounds<'chk>(
         &self,
         check: &Check<'chk, 'db>,
-        ty: SymTy<'db>,
+        ty: ObjectTy<'db>,
     ) -> impl Stream<Item = Bound<ObjectTy<'db>>> + 'chk {
         let db = check.db;
-        if let &SymTyKind::Var(Var::Infer(inference_var)) = ty.kind(db) {
+        if let &ObjectTyKind::Var(Var::Infer(inference_var)) = ty.kind(db) {
             <InferenceVarBounds<'_, '_, ObjectGenericTerm<'db>>>::new(check, inference_var)
                 .map(|b| b.assert_type(db))
                 .boxed_local()
         } else {
-            let ty = ty.to_object(db);
             futures::stream::once(futures::future::ready(Bound::LowerBound(ty))).boxed_local()
         }
     }
@@ -206,7 +212,7 @@ impl<'db> Env<'db> {
     pub fn describe_ty<'a, 'chk>(
         &'a self,
         check: &'a Check<'chk, 'db>,
-        ty: SymTy<'db>,
+        ty: ObjectTy<'db>,
     ) -> impl std::fmt::Display + 'a {
         format!("{ty:?}") // FIXME
     }

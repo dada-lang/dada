@@ -14,7 +14,7 @@ use futures::{Stream, StreamExt};
 
 use crate::{
     bound::Bound,
-    checking_ir::{ObjectGenericTerm, ObjectTy, ObjectTyKind, PlaceExprKind},
+    checking_ir::{IntoObjectIr, ObjectGenericTerm, ObjectTy, ObjectTyKind, PlaceExprKind},
     env::Env,
     executor::Check,
     exprs::{ExprResult, ExprResultKind},
@@ -76,7 +76,7 @@ impl<'member, 'chk, 'db> MemberLookup<'member, 'chk, 'db> {
     fn confirm_member(
         self,
         owner: ExprResult<'chk, 'db>,
-        owner_ty: SymTy<'db>,
+        owner_ty: ObjectTy<'db>,
         member: SearchResult<'db>,
         id: SpannedIdentifier<'db>,
         lower_bounds: impl Stream<Item = ObjectTy<'db>> + 'chk,
@@ -115,8 +115,7 @@ impl<'member, 'chk, 'db> MemberLookup<'member, 'chk, 'db> {
                 let mut temporaries = vec![];
                 let owner_place_expr =
                     owner.into_place_expr(self.check, self.env, &mut temporaries);
-                let field_ty =
-                    field_ty.substitute(db, &[owner_place_expr.to_sym_place(db, self.env)]);
+                let field_ty = field_ty.substitute(db, &[owner_place_expr.to_object_place()]);
                 let place_expr = self.check.place_expr(
                     id.span,
                     field_ty,
@@ -151,9 +150,9 @@ impl<'member, 'chk, 'db> MemberLookup<'member, 'chk, 'db> {
         self,
         owner: &ExprResult<'chk, 'db>,
         id: SpannedIdentifier<'db>,
-        prev_ty: SymTy<'db>,
+        prev_ty: ObjectTy<'db>,
         prev_member: &SearchResult<'db>,
-        new_ty: SymTy<'db>,
+        new_ty: ObjectTy<'db>,
     ) -> Errors<()> {
         match self.search_type_for_member(new_ty, id.id) {
             Some(new_member) => {
@@ -181,8 +180,8 @@ impl<'member, 'chk, 'db> MemberLookup<'member, 'chk, 'db> {
         self,
         id: SpannedIdentifier<'db>,
         owner_span: Span<'db>,
-        prev_ty: SymTy<'db>,
-        new_ty: SymTy<'db>,
+        prev_ty: ObjectTy<'db>,
+        new_ty: ObjectTy<'db>,
         prev_member: &SearchResult<'db>,
         new_member: &SearchResult<'db>,
     ) -> Reported {
@@ -245,7 +244,7 @@ impl<'member, 'chk, 'db> MemberLookup<'member, 'chk, 'db> {
         self,
         id: SpannedIdentifier<'db>,
         owner_span: Span<'db>,
-        owner_ty: SymTy<'db>,
+        owner_ty: ObjectTy<'db>,
     ) -> ExprResult<'chk, 'db> {
         ExprResult::err(
             self.check,
@@ -258,7 +257,7 @@ impl<'member, 'chk, 'db> MemberLookup<'member, 'chk, 'db> {
         self,
         id: SpannedIdentifier<'db>,
         owner_span: Span<'db>,
-        owner_ty: SymTy<'db>,
+        owner_ty: ObjectTy<'db>,
     ) -> Reported {
         let db = self.check.db;
         let SpannedIdentifier { span: id_span, id } = id;
@@ -335,7 +334,7 @@ impl<'member, 'chk, 'db> MemberLookup<'member, 'chk, 'db> {
                         return Some(SearchResult::Field {
                             owner,
                             field,
-                            field_ty: field.ty(db).substitute(db, &generics),
+                            field_ty: field.ty(db).into_object_ir(db).substitute(db, &generics),
                         });
                     }
                 }
@@ -357,31 +356,11 @@ enum SearchResult<'db> {
     Field {
         owner: SymClass<'db>,
         field: SymField<'db>,
-        field_ty: Binder<SymTy<'db>>,
+        field_ty: Binder<ObjectTy<'db>>,
     },
     Method {
         owner: SymClass<'db>,
         method: SymFunction<'db>,
     },
     Error(Reported),
-}
-
-impl<'db> SearchResult<'db> {
-    fn with_perm(self, db: &'db dyn crate::Db, perm: SymPerm<'db>) -> Self {
-        match self {
-            SearchResult::Field {
-                owner,
-                field,
-                field_ty,
-            } => SearchResult::Field {
-                owner,
-                field,
-                field_ty: field_ty.map(db, perm, |db, field_ty, perm| {
-                    SymTy::new(db, SymTyKind::Perm(perm, field_ty))
-                }),
-            },
-            SearchResult::Method { owner, method } => SearchResult::Method { owner, method },
-            SearchResult::Error(reported) => SearchResult::Error(reported),
-        }
-    }
 }

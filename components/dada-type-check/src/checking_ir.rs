@@ -2,7 +2,8 @@ use dada_ir_ast::{ast::Literal, diagnostic::Reported, span::Span};
 use dada_ir_sym::{
     class::SymField,
     function::SymFunction,
-    symbol::{SymGenericKind, SymVariable},
+    subst::{Subst, SubstWith},
+    symbol::{HasKind, SymGenericKind, SymVariable},
     ty::{Binder, SymGenericTerm, SymPlace, SymPlaceKind, SymTy, SymTyKind, SymTyName, Var},
 };
 use dada_util::FromImpls;
@@ -74,15 +75,8 @@ pub(crate) struct PlaceExpr<'chk, 'db> {
 }
 
 impl<'chk, 'db> PlaceExpr<'chk, 'db> {
-    pub fn to_sym_place(&self, db: &'db dyn crate::Db, env: &Env<'db>) -> SymPlace<'db> {
-        match self.kind {
-            PlaceExprKind::Var(local) => local.into_generic_term(db, &env.scope).assert_place(db),
-            PlaceExprKind::Field(place, field) => SymPlace::new(
-                db,
-                SymPlaceKind::Field(place.to_sym_place(db, env), field.name(db)),
-            ),
-            PlaceExprKind::Error(r) => SymPlace::new(db, SymPlaceKind::Error(*r)),
-        }
+    pub fn to_object_place(&self) -> ObjectGenericTerm<'db> {
+        ObjectGenericTerm::Place
     }
 }
 
@@ -118,7 +112,15 @@ pub(crate) enum ObjectTyKind<'db> {
 
 impl<'db> ObjectTy<'db> {
     pub fn unit(db: &'db dyn crate::Db) -> ObjectTy<'db> {
-        SymTy::unit(db).to_object(db)
+        SymTy::unit(db).into_object_ir(db)
+    }
+
+    pub fn error(db: &'db dyn crate::Db, reported: Reported) -> ObjectTy<'db> {
+        ObjectTy::new(db, ObjectTyKind::Error(reported))
+    }
+
+    pub fn shared(self, db: &'db dyn crate::Db) -> ObjectTy<'db> {
+        self
     }
 }
 
@@ -133,8 +135,8 @@ pub(crate) enum ObjectGenericTerm<'db> {
     Error(Reported),
 }
 
-impl<'db> ObjectGenericTerm<'db> {
-    pub fn has_kind(self, kind: SymGenericKind) -> bool {
+impl<'db> HasKind<'db> for ObjectGenericTerm<'db> {
+    fn has_kind(&self, _db: &'db dyn crate::Db, kind: SymGenericKind) -> bool {
         match self {
             ObjectGenericTerm::Type(_) => kind == SymGenericKind::Type,
             ObjectGenericTerm::Perm => kind == SymGenericKind::Perm,
@@ -142,7 +144,9 @@ impl<'db> ObjectGenericTerm<'db> {
             ObjectGenericTerm::Error(Reported) => true,
         }
     }
+}
 
+impl<'db> ObjectGenericTerm<'db> {
     pub fn assert_type(self, db: &'db dyn crate::Db) -> ObjectTy<'db> {
         match self {
             ObjectGenericTerm::Type(ty) => ty,
@@ -152,57 +156,11 @@ impl<'db> ObjectGenericTerm<'db> {
     }
 }
 
-pub trait ToObject<'db>: Update {
+pub trait IntoObjectIr<'db>: Update {
     type Object: Update;
 
-    fn to_object(&self, db: &'db dyn crate::Db) -> Self::Object;
+    fn into_object_ir(self, db: &'db dyn crate::Db) -> Self::Object;
 }
 
-impl<'db> ToObject<'db> for ObjectTy<'db> {
-    type Object = Self;
-
-    fn to_object(&self, _db: &'db dyn crate::Db) -> ObjectTy<'db> {
-        self
-    }
-}
-
-impl<'db> ToObject<'db> for SymTy<'db> {
-    type Object = ObjectTy<'db>;
-
-    fn to_object(&self, db: &'db dyn crate::Db) -> ObjectTy<'db> {
-        match self.kind(db) {
-            SymTyKind::Perm(_, ty) => ty.to_object(db),
-            SymTyKind::Named(name, vec) => ObjectTy::new(
-                db,
-                ObjectTyKind::Named(*name, vec.iter().map(|t| t.to_object(db)).collect()),
-            ),
-            SymTyKind::Var(var) => ObjectTy::new(db, ObjectTyKind::Var(*var)),
-            SymTyKind::Unknown => ObjectTy::new(db, ObjectTyKind::Unknown),
-            SymTyKind::Error(reported) => ObjectTy::new(db, ObjectTyKind::Error(*reported)),
-        }
-    }
-}
-
-impl<'db> ToObject<'db> for SymGenericTerm<'db> {
-    type Object = ObjectGenericTerm<'db>;
-
-    fn to_object(&self, db: &'db dyn crate::Db) -> ObjectGenericTerm<'db> {
-        match self {
-            SymGenericTerm::Type(ty) => ObjectGenericTerm::Type(ty.to_object(db)),
-            SymGenericTerm::Perm(_) => ObjectGenericTerm::Perm,
-            SymGenericTerm::Error(reported) => ObjectGenericTerm::Error(*reported),
-            SymGenericTerm::Place(_) => ObjectGenericTerm::Place,
-        }
-    }
-}
-
-impl<'db, T> ToObject<'db> for Binder<T>
-where
-    T: ToObject<'db>,
-{
-    type Object = Binder<T::Object>;
-
-    fn to_object(&self, db: &'db dyn crate::Db) -> Self::Object {
-        self.map(db, (), |db, (), t| t.to_object(db))
-    }
-}
+mod subst_impls;
+mod to_object_impls;

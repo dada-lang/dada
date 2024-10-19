@@ -17,7 +17,7 @@ use dada_util::FromImpls;
 use salsa::plumbing::{input, setup_input_struct};
 
 use crate::{
-    checking_ir::{Expr, ExprKind, ObjectTy, ObjectTyKind, PlaceExpr, PlaceExprKind, ToObject},
+    checking_ir::{Expr, ExprKind, IntoObjectIr, ObjectTy, ObjectTyKind, PlaceExpr, PlaceExprKind},
     env::Env,
     executor::Check,
     member::MemberLookup,
@@ -46,7 +46,7 @@ pub(crate) struct ExprResult<'chk, 'db> {
 #[derive(Clone)]
 pub(crate) struct Temporary<'chk, 'db> {
     pub lv: SymVariable<'db>,
-    pub ty: SymTy<'db>,
+    pub ty: ObjectTy<'db>,
     pub initializer: Option<Expr<'chk, 'db>>,
 }
 
@@ -54,7 +54,7 @@ impl<'chk, 'db> Temporary<'chk, 'db> {
     pub fn new(
         db: &'db dyn crate::Db,
         span: Span<'db>,
-        ty: SymTy<'db>,
+        ty: ObjectTy<'db>,
         initializer: Option<Expr<'chk, 'db>>,
     ) -> Self {
         let lv = SymVariable::new(db, SymGenericKind::Place, None, span);
@@ -426,7 +426,7 @@ async fn check_call<'chk, 'db>(
     //     call(tmp1, tmp2, ...)
     let mut call_expr = check.expr(
         expr_span,
-        input_output.output_ty.into_object_ty(db),
+        input_output.output_ty.into_object_ir(db),
         ExprKind::Call {
             function,
             class_substitution,
@@ -466,7 +466,7 @@ impl<'chk, 'db> ExprResult<'chk, 'db> {
         let db = check.db;
         match res {
             NameResolution::SymVariable(var) if var.kind(db) == SymGenericKind::Place => {
-                let ty = env.variable_ty(var);
+                let ty = env.variable_ty(var).into_object_ir(db);
                 let place_expr = check.place_expr(span, ty, PlaceExprKind::Var(var));
                 Self {
                     temporaries: vec![],
@@ -529,6 +529,7 @@ impl<'chk, 'db> ExprResult<'chk, 'db> {
         check: &Check<'chk, 'db>,
         env: &Env<'db>,
     ) -> Expr<'chk, 'db> {
+        let db = check.db;
         let mut temporaries = vec![];
         let mut expr = self.into_expr(check, env, &mut temporaries);
         for temporary in temporaries.into_iter().rev() {
@@ -537,7 +538,7 @@ impl<'chk, 'db> ExprResult<'chk, 'db> {
                 expr.ty,
                 ExprKind::LetIn {
                     lv: temporary.lv,
-                    ty: temporary.ty,
+                    ty: temporary.ty.into_object_ir(db),
                     initializer: temporary.initializer,
                     body: expr,
                 },
@@ -549,19 +550,19 @@ impl<'chk, 'db> ExprResult<'chk, 'db> {
 
     /// Computes the type of this, treating it as an expression.
     /// Reports an error if this names something that cannot be made into an expression.
-    pub fn ty(&self, check: &Check<'chk, 'db>, env: &Env<'db>) -> SymTy<'db> {
+    pub fn ty(&self, check: &Check<'chk, 'db>, env: &Env<'db>) -> ObjectTy<'db> {
         let db = check.db;
         match self.kind {
             ExprResultKind::PlaceExpr(place_expr) => place_expr.ty,
             ExprResultKind::Expr(expr) => expr.ty,
             ExprResultKind::Other(name_resolution) => {
-                SymTy::error(db, report_non_expr(db, self.span, name_resolution))
+                ObjectTy::error(db, report_non_expr(db, self.span, name_resolution))
             }
             ExprResultKind::Method {
                 self_expr: owner,
                 function: method,
                 ..
-            } => SymTy::error(db, report_missing_call_to_method(db, owner.span, method)),
+            } => ObjectTy::error(db, report_missing_call_to_method(db, owner.span, method)),
         }
     }
 
@@ -591,7 +592,7 @@ impl<'chk, 'db> ExprResult<'chk, 'db> {
 
             ExprResultKind::Other(name_resolution) => {
                 let r = report_non_expr(db, self.span, name_resolution);
-                check.place_expr(self.span, SymTy::error(db, r), PlaceExprKind::Error(r))
+                check.place_expr(self.span, ObjectTy::error(db, r), PlaceExprKind::Error(r))
             }
 
             ExprResultKind::Method {
@@ -600,7 +601,7 @@ impl<'chk, 'db> ExprResult<'chk, 'db> {
                 ..
             } => {
                 let r = report_missing_call_to_method(db, owner.span, method);
-                check.place_expr(self.span, SymTy::error(db, r), PlaceExprKind::Error(r))
+                check.place_expr(self.span, ObjectTy::error(db, r), PlaceExprKind::Error(r))
             }
         }
     }
@@ -617,7 +618,7 @@ impl<'chk, 'db> ExprResult<'chk, 'db> {
             ExprResultKind::Expr(expr) => expr,
             ExprResultKind::PlaceExpr(place_expr) => check.expr(
                 place_expr.span,
-                place_expr.ty.shared(db, place_expr.to_sym_place(db, env)),
+                place_expr.ty.shared(db),
                 ExprKind::Share(place_expr),
             ),
             ExprResultKind::Other(name_resolution) => {

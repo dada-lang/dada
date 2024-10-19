@@ -433,17 +433,17 @@ impl<'db, T: Subst<'db>> SubstWith<'db, T::GenericTerm> for Vec<T> {
     }
 }
 
-fn subst_var<'db, KTerm>(
+pub fn subst_var<'db, KTerm>(
     db: &'db dyn crate::Db,
     start_binder: SymBinderIndex,
     subst_fns: &mut SubstitutionFns<'_, 'db, KTerm::GenericTerm>,
     term: &KTerm,
-    generic_index: Var<'db>,
+    var: Var<'db>,
 ) -> KTerm
 where
     KTerm: SubstGenericVar<'db>,
 {
-    match generic_index {
+    match var {
         Var::Bound(original_binder_index, sym_bound_var_index) => {
             let mut new_binder_index = || (subst_fns.binder_index)(original_binder_index);
             if original_binder_index == start_binder {
@@ -465,7 +465,7 @@ where
     }
 }
 
-trait SubstGenericVar<'db>: Subst<'db, Output = Self> {
+pub trait SubstGenericVar<'db>: Subst<'db, Output = Self> {
     fn assert_kind(db: &'db dyn crate::Db, term: Self::GenericTerm) -> Self;
 
     fn bound_var(
