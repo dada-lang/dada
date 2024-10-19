@@ -25,7 +25,7 @@ use crate::{
     bound::Bound,
     env::Env,
     inference::InferenceVarData,
-    object_ir::{ObjectExpr, ObjectExprKind, ObjectPlaceExpr, ObjectTy, ObjectPlaceExprKind},
+    object_ir::{ObjectExpr, ObjectExprKind, ObjectPlaceExpr, ObjectPlaceExprKind, ObjectTy},
     universe::Universe,
 };
 
@@ -209,9 +209,12 @@ impl<'chk, 'db> Check<'chk, 'db> {
         bound: Bound<SymGenericTerm<'db>>,
     ) {
         let mut inference_vars = self.inference_vars.write().unwrap();
+        let mut waiting_on_inference_var = self.waiting_on_inference_var.lock().unwrap();
         inference_vars[var.as_usize()].push_bound(bound);
-
-        todo!() // have to notify wakers
+        let wakers = waiting_on_inference_var.remove(&var);
+        for waker in wakers.into_iter().flatten() {
+            waker.wake();
+        }
     }
 
     /// Execute the given future asynchronously from the main execution.
