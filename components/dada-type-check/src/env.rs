@@ -1,10 +1,11 @@
 use std::sync::Arc;
 
 use dada_ir_sym::{
+    binder::Binder,
     scope::Scope,
     subst::Subst,
     symbol::{HasKind, SymGenericKind, SymVariable},
-    ty::{Binder, SymGenericTerm, SymPerm, SymTy, SymTyKind, Var},
+    ty::{SymGenericTerm, SymPerm, SymTy, SymTyKind, Var},
 };
 use dada_util::Map;
 use futures::{Stream, StreamExt};

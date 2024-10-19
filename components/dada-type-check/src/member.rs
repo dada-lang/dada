@@ -6,9 +6,10 @@ use dada_ir_ast::{
     span::Span,
 };
 use dada_ir_sym::{
+    binder::Binder,
     class::{SymClass, SymClassMember, SymField},
     function::SymFunction,
-    ty::{Binder, SymTyName},
+    ty::SymTyName,
 };
 use futures::{Stream, StreamExt};
 

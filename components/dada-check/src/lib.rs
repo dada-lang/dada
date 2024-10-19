@@ -7,12 +7,13 @@ use dada_ir_ast::{
     span::Spanned,
 };
 use dada_ir_sym::{
+    binder::Binder,
     class::{SymClass, SymClassMember, SymField},
     function::{SignatureSymbols, SymFunction, SymFunctionSignature, SymInputOutput},
     module::{SymItem, SymModule},
     prelude::*,
     symbol::{SymGenericKind, SymVariable},
-    ty::{Binder, SymTy},
+    ty::SymTy,
 };
 use salsa::Update;
 
@@ -88,19 +89,13 @@ impl<'db> Check<'db> for SymFunctionSignature<'db> {
 
 impl<'db> Check<'db> for SignatureSymbols<'db> {
     fn check(&self, db: &'db dyn crate::Db) {
-        let mut generic_names = Map::default();
-        for generic in &self.generics {
-            generic.check(db);
+        let mut variable_names = Map::default();
+        for &variable in &self.variables {
+            variable.check(db);
 
-            if let Some(id) = generic.name(db) {
-                check_for_duplicates(db, &mut generic_names, id, *generic);
+            if let Some(id) = variable.name(db) {
+                check_for_duplicates(db, &mut variable_names, id, variable);
             }
-        }
-
-        let mut input_names = Map::default();
-        for input in &self.inputs {
-            input.check(db);
-            check_for_duplicates(db, &mut input_names, input.name(db).unwrap(), *input);
         }
     }
 }

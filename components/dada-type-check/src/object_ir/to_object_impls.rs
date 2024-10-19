@@ -1,4 +1,7 @@
-use dada_ir_sym::ty::{Binder, SymGenericTerm, SymTy, SymTyKind};
+use dada_ir_sym::{
+    binder::Binder,
+    ty::{SymGenericTerm, SymTy, SymTyKind},
+};
 
 use super::{IntoObjectIr, ObjectGenericTerm, ObjectTy, ObjectTyKind};
 

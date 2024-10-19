@@ -3,12 +3,13 @@ use dada_util::Map;
 use salsa::Update;
 
 use crate::{
+    binder::Binder,
     function::SymInputOutput,
     indices::{SymBinderIndex, SymBoundVarIndex},
     symbol::{HasKind, SymGenericKind, SymVariable},
     ty::{
-        Binder, SymGenericTerm, SymPerm, SymPermKind, SymPlace, SymPlaceKind, SymTy, SymTyKind,
-        SymTyName, Var,
+        SymGenericTerm, SymPerm, SymPermKind, SymPlace, SymPlaceKind, SymTy, SymTyKind, SymTyName,
+        Var,
     },
 };
 

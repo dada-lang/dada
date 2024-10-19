@@ -10,12 +10,13 @@ use dada_util::FromImpls;
 use salsa::Update;
 
 use crate::{
+    binder::Binder,
     class::SymClass,
     populate::PopulateSignatureSymbols,
     prelude::IntoSymInScope,
     scope::{Scope, ScopeItem},
     symbol::SymVariable,
-    ty::{Binder, SymTy, SymTyKind},
+    ty::{SymTy, SymTyKind},
 };
 
 #[salsa::tracked]
@@ -54,8 +55,7 @@ pub struct SymInputOutput<'db> {
 #[derive(Clone, Debug, PartialEq, Eq, Hash, Update)]
 pub struct SignatureSymbols<'db> {
     pub source: SignatureSource<'db>,
-    pub generics: Vec<SymVariable<'db>>,
-    pub inputs: Vec<SymVariable<'db>>,
+    pub variables: Vec<SymVariable<'db>>,
 }
 
 #[derive(Copy, Clone, Debug, PartialEq, Eq, Hash, Update, FromImpls)]
@@ -74,15 +74,8 @@ impl<'db> SignatureSymbols<'db> {
     pub fn new(source: impl Into<SignatureSource<'db>>) -> Self {
         Self {
             source: source.into(),
-            generics: Vec::new(),
-            inputs: Vec::new(),
+            variables: Vec::new(),
         }
-    }
-}
-
-impl<'db> SymFunctionSignature<'db> {
-    pub fn inputs(self, db: &'db dyn crate::Db) -> &'db [SymVariable<'db>] {
-        &self.symbols(db).inputs
     }
 }
 
@@ -140,8 +133,7 @@ impl<'db> SymFunction<'db> {
         let symbols = self.symbols(db);
         self.scope_item(db)
             .into_scope(db)
-            .with_link(Cow::Borrowed(&symbols.generics[..]))
-            .with_link(Cow::Borrowed(&symbols.inputs[..]))
+            .with_link(Cow::Borrowed(&symbols.variables[..]))
     }
 }
 

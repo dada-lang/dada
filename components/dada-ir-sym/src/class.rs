@@ -8,12 +8,13 @@ use dada_parser::prelude::*;
 use dada_util::FromImpls;
 
 use crate::{
+    binder::Binder,
     function::{SignatureSymbols, SymFunction},
     populate::PopulateSignatureSymbols,
     prelude::{IntoSymInScope, IntoSymbol},
     scope::{Scope, ScopeItem},
     symbol::{SymGenericKind, SymVariable},
-    ty::{Binder, SymGenericTerm, SymTy, SymTyKind},
+    ty::{SymTy, SymTyKind},
 };
 
 #[salsa::tracked]
@@ -98,7 +99,7 @@ impl<'db> SymClass<'db> {
         self.scope_item(db)
             .into_scope(db)
             .with_link(self)
-            .with_link(Cow::Borrowed(&symbols.generics[..]))
+            .with_link(Cow::Borrowed(&symbols.variables[..]))
     }
 
     /// Returns the type of this class, referencing the generics that appear in `scope`.

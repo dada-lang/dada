@@ -24,6 +24,7 @@ pub trait Db: salsa::Database {
     fn self_ty_id(&self) -> Identifier<'_>;
 }
 
+pub mod binder;
 pub mod class;
 pub mod function;
 pub mod indices;

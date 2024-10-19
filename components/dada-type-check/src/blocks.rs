@@ -5,10 +5,10 @@ use dada_ir_sym::{
 };
 
 use crate::{
-    check::{Check, ExecutorArenas},
+    check::Check,
     env::Env,
     ir::CheckedExpr,
-    object_ir::{ObjectExpr, ObjectExprKind},
+    object_ir::{ObjectExpr, ObjectExprKind, ObjectTy},
     Checking,
 };
 
@@ -21,13 +21,16 @@ pub fn check_function_body<'db>(
     };
 
     let scope = function.scope(db);
-    let arenas = ExecutorArenas::default();
     Some(Check::execute(
         db,
         function.name_span(db),
         &arenas,
         async |check| {
             let mut env = Env::new(scope);
+
+            let symbols = signature.symbols(db);
+
+            let class_symbols = &symbols.generics[0..];
 
             // Bring class/method generics into scope.
             let signature = function.signature(db);
@@ -49,9 +52,7 @@ pub fn check_function_body<'db>(
             // Set return type.
             env.set_return_ty(output_ty);
 
-            let checking_expr = body.check(&check, &env).await;
-
-            todo!()
+            body.check(&check, &env).await
         },
     ))
 }
@@ -65,9 +66,10 @@ impl<'db> Checking<'db> for AstBlock<'db> {
         let statements = self.statements(db);
 
         if statements.is_empty() {
-            return check.expr(
+            return ObjectExpr::new(
+                db,
                 statements.span,
-                SymTy::unit(db),
+                ObjectTy::unit(db),
                 ObjectExprKind::Tuple(vec![]),
             );
         }

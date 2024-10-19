@@ -10,6 +10,7 @@ use dada_util::{FromImpls, Map};
 use salsa::Update;
 
 use crate::{
+    binder::Binder,
     class::SymClass,
     function::{SymFunction, SymInputOutput},
     indices::{SymBinderIndex, SymBoundVarIndex},
@@ -18,7 +19,7 @@ use crate::{
     primitive::{primitives, SymPrimitive},
     subst::Subst,
     symbol::{SymGenericKind, SymVariable},
-    ty::{Binder, SymGenericTerm, SymTy, Var},
+    ty::{SymGenericTerm, SymTy, Var},
 };
 
 /// A `ScopeItem` defines a name resolution scope.
@@ -191,7 +192,7 @@ impl<'scope, 'db> Scope<'scope, 'db> {
     /// instead.
     pub(crate) fn pop_binders<T, B>(&mut self, db: &'db dyn crate::Db, value: T) -> B
     where
-        B: Bind<'db, T>,
+        B: Binders<'db, T>,
     {
         let mut binders = self.all_binders();
 
@@ -255,7 +256,7 @@ impl<'scope, 'db> Scope<'scope, 'db> {
     /// Version of [`Self::pop_binders`][] that asserts that all binder links have been popped.
     pub(crate) fn into_bound_value<T, B>(mut self, db: &'db dyn crate::Db, value: T) -> B
     where
-        B: Bind<'db, T>,
+        B: Binders<'db, T>,
     {
         let value = self.pop_binders(db, value);
         let binder_link = self.chain.iter().find(|link| link.is_binder());
@@ -285,7 +286,7 @@ impl<'scope, 'db> Scope<'scope, 'db> {
 
 /// Trait for creating `Binder<T>` instances.
 /// Panics if the number of binders statically expected is not what we find in the scope.
-pub(crate) trait Bind<'db, T> {
+pub(crate) trait Binders<'db, T> {
     const BINDER_LEVELS: usize;
 
     /// Create `Self` from:
@@ -303,9 +304,9 @@ pub(crate) trait Bind<'db, T> {
     ) -> Self;
 }
 
-impl<'db, T, U> Bind<'db, T> for Binder<U>
+impl<'db, T, U> Binders<'db, T> for Binder<U>
 where
-    U: Bind<'db, T> + Update,
+    U: Binders<'db, T> + Update,
     T: Update,
 {
     fn bind(
@@ -331,7 +332,7 @@ where
     const BINDER_LEVELS: usize = U::BINDER_LEVELS + 1;
 }
 
-impl<'db> Bind<'db, SymInputOutput<'db>> for SymInputOutput<'db> {
+impl<'db> Binders<'db, SymInputOutput<'db>> for SymInputOutput<'db> {
     fn bind(
         db: &'db dyn crate::Db,
         symbols_to_bind: impl Iterator<Item = Vec<SymVariable<'db>>>,
@@ -344,7 +345,7 @@ impl<'db> Bind<'db, SymInputOutput<'db>> for SymInputOutput<'db> {
     const BINDER_LEVELS: usize = 0;
 }
 
-impl<'db> Bind<'db, SymTy<'db>> for SymTy<'db> {
+impl<'db> Binders<'db, SymTy<'db>> for SymTy<'db> {
     fn bind(
         db: &'db dyn crate::Db,
         symbols_to_bind: impl Iterator<Item = Vec<SymVariable<'db>>>,
