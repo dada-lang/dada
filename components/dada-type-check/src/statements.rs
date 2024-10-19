@@ -5,18 +5,18 @@ use dada_ir_sym::{prelude::IntoSymInScope, symbol::SymVariable};
 use futures::join;
 
 use crate::{
-    env::Env,
     check::Check,
+    env::Env,
     object_ir::{IntoObjectIr, ObjectExpr, ObjectExprKind},
     Checking,
 };
 
-impl<'chk, 'db: 'chk> Checking<'chk, 'db> for [AstStatement<'db>] {
-    type Checking = ObjectExpr<'chk, 'db>;
+impl<'db> Checking<'db> for [AstStatement<'db>] {
+    type Checking = ObjectExpr<'db>;
 
     fn check(
         &self,
-        check: &Check<'chk, 'db>,
+        check: &Check<'db>,
         env: &Env<'db>,
     ) -> impl Future<Output = Self::Checking> {
         // (the box here permits recursion)
@@ -45,7 +45,7 @@ impl<'chk, 'db: 'chk> Checking<'chk, 'db> for [AstStatement<'db>] {
                                         .check(check, env)
                                         .await
                                         .into_expr_with_enclosed_temporaries(check, &env);
-                                    env.require_subobject(check, initializer.ty, ty);
+                                    env.require_subobject(check, initializer.ty(db), ty);
                                     Some(initializer)
                                 }
 
@@ -60,9 +60,10 @@ impl<'chk, 'db: 'chk> Checking<'chk, 'db> for [AstStatement<'db>] {
                     );
 
                     // Create `let lv: ty = lv = initializer; remainder`
-                    check.expr(
+                    ObjectExpr::new(
+                        db,
                         s.name(db).span,
-                        body.ty,
+                        body.ty(db),
                         ObjectExprKind::LetIn {
                             lv,
                             sym_ty: Some(ty),
@@ -83,7 +84,12 @@ impl<'chk, 'db: 'chk> Checking<'chk, 'db> for [AstStatement<'db>] {
                         check_e.await
                     } else {
                         let (ce, re) = futures::join!(check_e, rest.check(check, env));
-                        check.expr(ce.span.to(re.span), re.ty, ObjectExprKind::Semi(ce, re))
+                        ObjectExpr::new(
+                            db,
+                            ce.span(db).to(re.span(db)),
+                            re.ty(db),
+                            ObjectExprKind::Semi(ce, re),
+                        )
                     }
                 }
             }

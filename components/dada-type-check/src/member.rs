@@ -8,34 +8,37 @@ use dada_ir_ast::{
 use dada_ir_sym::{
     class::{SymClass, SymClassMember, SymField},
     function::SymFunction,
-    ty::{Binder, SymGenericTerm, SymPerm, SymTy, SymTyKind, SymTyName},
+    ty::{Binder, SymTyName},
 };
 use futures::{Stream, StreamExt};
 
 use crate::{
     bound::Bound,
-    env::Env,
     check::Check,
+    env::Env,
     exprs::{ExprResult, ExprResultKind},
-    object_ir::{IntoObjectIr, ObjectGenericTerm, ObjectPlaceExprKind, ObjectTy, ObjectTyKind},
+    object_ir::{
+        IntoObjectIr, ObjectGenericTerm, ObjectPlaceExpr, ObjectPlaceExprKind, ObjectTy,
+        ObjectTyKind,
+    },
 };
 
 #[derive(Copy, Clone)]
-pub(crate) struct MemberLookup<'member, 'chk, 'db> {
-    check: &'member Check<'chk, 'db>,
+pub(crate) struct MemberLookup<'member, 'db> {
+    check: &'member Check<'db>,
     env: &'member Env<'db>,
 }
 
-impl<'member, 'chk, 'db> MemberLookup<'member, 'chk, 'db> {
-    pub fn new(check: &'member Check<'chk, 'db>, env: &'member Env<'db>) -> Self {
+impl<'member, 'db> MemberLookup<'member, 'db> {
+    pub fn new(check: &'member Check<'db>, env: &'member Env<'db>) -> Self {
         Self { check, env }
     }
 
     pub async fn lookup_member(
         self,
-        owner: ExprResult<'chk, 'db>,
+        owner: ExprResult<'db>,
         id: SpannedIdentifier<'db>,
-    ) -> ExprResult<'chk, 'db> {
+    ) -> ExprResult<'db> {
         let db = self.check.db;
         let owner_ty = owner.ty(self.check, self.env);
 
@@ -75,12 +78,12 @@ impl<'member, 'chk, 'db> MemberLookup<'member, 'chk, 'db> {
 
     fn confirm_member(
         self,
-        owner: ExprResult<'chk, 'db>,
+        owner: ExprResult<'db>,
         owner_ty: ObjectTy<'db>,
         member: SearchResult<'db>,
         id: SpannedIdentifier<'db>,
-        lower_bounds: impl Stream<Item = ObjectTy<'db>> + 'chk,
-    ) -> ExprResult<'chk, 'db> {
+        lower_bounds: impl Stream<Item = ObjectTy<'db>> + 'db,
+    ) -> ExprResult<'db> {
         let db = self.check.db;
 
         // Iterate through any remaining bounds to make sure that this member is valid
@@ -116,7 +119,8 @@ impl<'member, 'chk, 'db> MemberLookup<'member, 'chk, 'db> {
                 let owner_place_expr =
                     owner.into_place_expr(self.check, self.env, &mut temporaries);
                 let field_ty = field_ty.substitute(db, &[owner_place_expr.to_object_place()]);
-                let place_expr = self.check.place_expr(
+                let place_expr = ObjectPlaceExpr::new(
+                    db,
                     id.span,
                     field_ty,
                     ObjectPlaceExprKind::Field(owner_place_expr, field),
@@ -128,7 +132,7 @@ impl<'member, 'chk, 'db> MemberLookup<'member, 'chk, 'db> {
                 let owner = owner.into_expr(self.check, self.env, &mut temporaries);
                 ExprResult {
                     temporaries,
-                    span: owner.span.to(id.span),
+                    span: owner.span(db).to(id.span),
                     kind: ExprResultKind::Method {
                         self_expr: owner,
                         function: method,
@@ -148,7 +152,7 @@ impl<'member, 'chk, 'db> MemberLookup<'member, 'chk, 'db> {
     /// or else there is ambiguity.
     fn check_member(
         self,
-        owner: &ExprResult<'chk, 'db>,
+        owner: &ExprResult<'db>,
         id: SpannedIdentifier<'db>,
         prev_ty: ObjectTy<'db>,
         prev_member: &SearchResult<'db>,
@@ -245,7 +249,7 @@ impl<'member, 'chk, 'db> MemberLookup<'member, 'chk, 'db> {
         id: SpannedIdentifier<'db>,
         owner_span: Span<'db>,
         owner_ty: ObjectTy<'db>,
-    ) -> ExprResult<'chk, 'db> {
+    ) -> ExprResult<'db> {
         ExprResult::err(
             self.check,
             id.span,

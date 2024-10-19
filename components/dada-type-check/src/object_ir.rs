@@ -13,6 +13,8 @@
 //! result or invoking a method `foo` with generic arguments.
 //! The object IR gives us enough information to make those determinations.
 
+use std::result;
+
 use dada_ir_ast::{ast::Literal, diagnostic::Reported, span::Span};
 use dada_ir_sym::{
     class::SymField,
@@ -23,20 +25,28 @@ use dada_ir_sym::{
 use dada_util::FromImpls;
 use salsa::Update;
 
-#[derive(Copy, Clone, PartialEq, Eq, PartialOrd, Ord, Hash, Debug)]
-pub(crate) struct ObjectExpr<'chk, 'db> {
+#[salsa::tracked]
+pub(crate) struct ObjectExpr<'db> {
     pub span: Span<'db>,
     pub ty: ObjectTy<'db>,
-    pub kind: &'chk ObjectExprKind<'chk, 'db>,
+
+    #[return_ref]
+    pub kind: ObjectExprKind<'db>,
 }
 
-#[derive(Clone, PartialEq, Eq, PartialOrd, Ord, Hash, Debug)]
-pub(crate) enum ObjectExprKind<'chk, 'db> {
+impl<'db> ObjectExpr<'db> {
+    pub fn err(db: &'db dyn crate::Db, span: Span<'db>, r: Reported) -> Self {
+        ObjectExpr::new(db, span, ObjectTy::err(db, r), ObjectExprKind::Error(r))
+    }
+}
+
+#[derive(Clone, PartialEq, Eq, PartialOrd, Ord, Hash, Debug, Update)]
+pub(crate) enum ObjectExprKind<'db> {
     /// `$expr1; $expr2`
-    Semi(ObjectExpr<'chk, 'db>, ObjectExpr<'chk, 'db>),
+    Semi(ObjectExpr<'db>, ObjectExpr<'db>),
 
     /// `(...)`
-    Tuple(Vec<ObjectExpr<'chk, 'db>>),
+    Tuple(Vec<ObjectExpr<'db>>),
 
     /// `22`
     Literal(Literal<'db>),
@@ -51,24 +61,24 @@ pub(crate) enum ObjectExprKind<'chk, 'db> {
         sym_ty: Option<SymTy<'db>>,
 
         ty: ObjectTy<'db>,
-        initializer: Option<ObjectExpr<'chk, 'db>>,
-        body: ObjectExpr<'chk, 'db>,
+        initializer: Option<ObjectExpr<'db>>,
+        body: ObjectExpr<'db>,
     },
 
     /// `$place = $expr`
     Assign {
-        place: ObjectPlaceExpr<'chk, 'db>,
-        expr: ObjectExpr<'chk, 'db>,
+        place: ObjectPlaceExpr<'db>,
+        expr: ObjectExpr<'db>,
     },
 
     /// `$0.give`
-    Give(ObjectPlaceExpr<'chk, 'db>),
+    Give(ObjectPlaceExpr<'db>),
 
     /// `$0.lease`
-    Lease(ObjectPlaceExpr<'chk, 'db>),
+    Lease(ObjectPlaceExpr<'db>),
 
     /// `$0.share` or just `$place`
-    Share(ObjectPlaceExpr<'chk, 'db>),
+    Share(ObjectPlaceExpr<'db>),
 
     /// `$0[$1..]($2..)`
     ///
@@ -85,23 +95,34 @@ pub(crate) enum ObjectExprKind<'chk, 'db> {
     Error(Reported),
 }
 
-#[derive(Copy, Clone, PartialEq, Eq, PartialOrd, Ord, Hash, Debug)]
-pub(crate) struct ObjectPlaceExpr<'chk, 'db> {
+#[salsa::tracked]
+pub(crate) struct ObjectPlaceExpr<'db> {
     pub span: Span<'db>,
     pub ty: ObjectTy<'db>,
-    pub kind: &'chk ObjectPlaceExprKind<'chk, 'db>,
+
+    #[return_ref]
+    pub kind: ObjectPlaceExprKind<'db>,
 }
 
-impl<'chk, 'db> ObjectPlaceExpr<'chk, 'db> {
+impl<'db> ObjectPlaceExpr<'db> {
+    pub fn err(db: &'db dyn crate::Db, span: Span<'db>, r: Reported) -> Self {
+        ObjectPlaceExpr::new(
+            db,
+            span,
+            ObjectTy::err(db, r),
+            ObjectPlaceExprKind::Error(r),
+        )
+    }
+
     pub fn to_object_place(&self) -> ObjectGenericTerm<'db> {
         ObjectGenericTerm::Place
     }
 }
 
-#[derive(Clone, PartialEq, Eq, PartialOrd, Ord, Hash, Debug)]
-pub(crate) enum ObjectPlaceExprKind<'chk, 'db> {
+#[derive(Clone, PartialEq, Eq, PartialOrd, Ord, Hash, Debug, Update)]
+pub(crate) enum ObjectPlaceExprKind<'db> {
     Var(SymVariable<'db>),
-    Field(ObjectPlaceExpr<'chk, 'db>, SymField<'db>),
+    Field(ObjectPlaceExpr<'db>, SymField<'db>),
     Error(Reported),
 }
 
@@ -109,6 +130,18 @@ pub(crate) enum ObjectPlaceExprKind<'chk, 'db> {
 pub(crate) struct ObjectTy<'db> {
     #[return_ref]
     pub kind: ObjectTyKind<'db>,
+}
+
+impl<'db> ObjectTy<'db> {
+    pub fn err(db: &'db dyn crate::Db, r: Reported) -> Self {
+        ObjectTy::new(db, ObjectTyKind::Error(r))
+    }
+}
+
+impl<'db> HasKind<'db> for ObjectTy<'db> {
+    fn has_kind(&self, _db: &'db dyn crate::Db, kind: SymGenericKind) -> bool {
+        kind == SymGenericKind::Type
+    }
 }
 
 #[derive(Clone, PartialEq, Eq, PartialOrd, Ord, Hash, Update, Debug)]

@@ -33,10 +33,10 @@ mod object_ir;
 mod statements;
 mod universe;
 
-trait Checking<'chk, 'db: 'chk> {
+trait Checking<'db> {
     type Checking;
 
-    async fn check(&self, check: &Check<'chk, 'db>, env: &Env<'db>) -> Self::Checking;
+    async fn check(&self, check: &Check<'db>, env: &Env<'db>) -> Self::Checking;
 }
 
 impl<'db> prelude::CheckFunctionBody<'db> for SymFunction<'db> {

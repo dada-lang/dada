@@ -131,6 +131,12 @@ impl<'db> SymTy<'db> {
     }
 }
 
+impl<'db> HasKind<'db> for SymTy<'db> {
+    fn has_kind(&self, _db: &'db dyn crate::Db, kind: SymGenericKind) -> bool {
+        kind == SymGenericKind::Type
+    }
+}
+
 #[derive(Clone, PartialEq, Eq, PartialOrd, Ord, Hash, Update, Debug)]
 pub enum SymTyKind<'db> {
     /// `$Perm $Ty`, e.g., `shared String
@@ -255,6 +261,12 @@ pub enum SymTyName<'db> {
 pub struct SymPerm<'db> {
     #[return_ref]
     pub kind: SymPermKind<'db>,
+}
+
+impl<'db> HasKind<'db> for SymPerm<'db> {
+    fn has_kind(&self, _db: &'db dyn crate::Db, kind: SymGenericKind) -> bool {
+        kind == SymGenericKind::Perm
+    }
 }
 
 #[derive(Clone, PartialEq, Eq, PartialOrd, Ord, Hash, Update, Debug)]

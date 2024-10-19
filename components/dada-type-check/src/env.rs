@@ -12,8 +12,8 @@ use salsa::Update;
 
 use crate::{
     bound::{Bound, InferenceVarBounds},
-    object_ir::{IntoObjectIr, ObjectGenericTerm, ObjectTy, ObjectTyKind},
     check::Check,
+    object_ir::{IntoObjectIr, ObjectGenericTerm, ObjectTy, ObjectTyKind},
     universe::Universe,
 };
 
@@ -56,7 +56,7 @@ impl<'db> Env<'db> {
     /// Used for class members which are under the class / member binders.
     pub fn open_universally2<T>(
         &mut self,
-        check: &Check<'_, 'db>,
+        check: &Check<'db>,
         symbols: &[SymVariable<'db>],
         binder: Binder<Binder<T>>,
     ) -> T
@@ -72,7 +72,7 @@ impl<'db> Env<'db> {
     /// Creates a new universe.
     pub fn open_universally<T>(
         &mut self,
-        check: &Check<'_, 'db>,
+        check: &Check<'db>,
         symbols: &[SymVariable<'db>],
         binder: Binder<T>,
     ) -> T::Output
@@ -100,7 +100,7 @@ impl<'db> Env<'db> {
 
     /// Open the given symbols as existential inference variables
     /// in the current universe.
-    pub fn open_existentially<T>(&self, check: &Check<'_, 'db>, binder: &Binder<T>) -> T::Output
+    pub fn open_existentially<T>(&self, check: &Check<'db>, binder: &Binder<T>) -> T::Output
     where
         T: Subst<'db, GenericTerm = SymGenericTerm<'db>, Output = T> + Update,
     {
@@ -113,7 +113,7 @@ impl<'db> Env<'db> {
     /// Create a substitution for `binder` consisting of inference variables
     pub fn existential_substitution<T: Update>(
         &self,
-        check: &Check<'_, 'db>,
+        check: &Check<'db>,
         binder: &Binder<T>,
     ) -> Vec<SymGenericTerm<'db>> {
         binder
@@ -150,43 +150,43 @@ impl<'db> Env<'db> {
 
     pub fn fresh_inference_var(
         &self,
-        check: &Check<'_, 'db>,
+        check: &Check<'db>,
         kind: SymGenericKind,
     ) -> SymGenericTerm<'db> {
         check.fresh_inference_var(SymGenericKind::Perm, self.universe)
     }
 
-    pub fn fresh_ty_inference_var(&self, check: &Check<'_, 'db>) -> SymTy<'db> {
+    pub fn fresh_ty_inference_var(&self, check: &Check<'db>) -> SymTy<'db> {
         self.fresh_inference_var(check, SymGenericKind::Type)
             .assert_type(check.db)
     }
 
-    pub fn fresh_object_ty_inference_var(&self, check: &Check<'_, 'db>) -> ObjectTy<'db> {
+    pub fn fresh_object_ty_inference_var(&self, check: &Check<'db>) -> ObjectTy<'db> {
         self.fresh_ty_inference_var(check).into_object_ir(check.db)
     }
 
-    pub fn fresh_perm_inference_var(&self, check: &Check<'_, 'db>) -> SymPerm<'db> {
+    pub fn fresh_perm_inference_var(&self, check: &Check<'db>) -> SymPerm<'db> {
         self.fresh_inference_var(check, SymGenericKind::Type)
             .assert_perm(check.db)
     }
 
     pub fn require_subobject(
         &self,
-        check: &Check<'_, 'db>,
+        check: &Check<'db>,
         sub: impl IntoObjectIr<'db>,
         sup: impl IntoObjectIr<'db>,
     ) {
         check.defer(self, |check, env| async move { todo!() });
     }
 
-    pub fn bounds<'chk>(
+    pub fn bounds(
         &self,
-        check: &Check<'chk, 'db>,
+        check: &Check<'db>,
         ty: SymTy<'db>,
-    ) -> impl Stream<Item = Bound<SymTy<'db>>> + 'chk {
+    ) -> impl Stream<Item = Bound<SymTy<'db>>> + 'db {
         let db = check.db;
         if let &SymTyKind::Var(Var::Infer(inference_var)) = ty.kind(db) {
-            <InferenceVarBounds<'_, '_, SymGenericTerm<'db>>>::new(check, inference_var)
+            <InferenceVarBounds<'db, SymGenericTerm<'db>>>::new(check, inference_var)
                 .map(|b| b.assert_type(db))
                 .boxed_local()
         } else {
@@ -194,14 +194,14 @@ impl<'db> Env<'db> {
         }
     }
 
-    pub fn object_bounds<'chk>(
+    pub fn object_bounds(
         &self,
-        check: &Check<'chk, 'db>,
+        check: &Check<'db>,
         ty: ObjectTy<'db>,
-    ) -> impl Stream<Item = Bound<ObjectTy<'db>>> + 'chk {
+    ) -> impl Stream<Item = Bound<ObjectTy<'db>>> + 'db {
         let db = check.db;
         if let &ObjectTyKind::Var(Var::Infer(inference_var)) = ty.kind(db) {
-            <InferenceVarBounds<'_, '_, ObjectGenericTerm<'db>>>::new(check, inference_var)
+            <InferenceVarBounds<'db, ObjectGenericTerm<'db>>>::new(check, inference_var)
                 .map(|b| b.assert_type(db))
                 .boxed_local()
         } else {
@@ -211,7 +211,7 @@ impl<'db> Env<'db> {
 
     pub fn describe_ty<'a, 'chk>(
         &'a self,
-        check: &'a Check<'chk, 'db>,
+        check: &'a Check<'db>,
         ty: ObjectTy<'db>,
     ) -> impl std::fmt::Display + 'a {
         format!("{ty:?}") // FIXME

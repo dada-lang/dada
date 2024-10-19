@@ -6,7 +6,7 @@ use std::{
 
 use dada_ir_sym::{
     indices::SymInferVarIndex,
-    symbol::SymGenericKind,
+    symbol::{HasKind, SymGenericKind},
     ty::{SymGenericTerm, SymPerm, SymTy},
 };
 
@@ -28,20 +28,21 @@ pub(crate) enum Bound<Term> {
     UpperBound(Term),
 }
 
-pub(crate) trait BoundTerm<'db> {
+pub(crate) trait BoundTerm<'db>: HasKind<'db> {
     type Type;
-    fn has_kind(self, kind: SymGenericKind) -> bool;
     fn assert_type(self, db: &'db dyn crate::Db) -> Self::Type;
 }
 
-impl<'db, Term: BoundTerm<'db>> Bound<Term> {
-    pub fn has_kind(self, kind: SymGenericKind) -> bool {
+impl<'db, Term: BoundTerm<'db>> HasKind<'db> for Bound<Term> {
+    fn has_kind(&self, db: &'db dyn crate::Db, kind: SymGenericKind) -> bool {
         match self {
-            Bound::LowerBound(ty) => ty.has_kind(kind),
-            Bound::UpperBound(ty) => ty.has_kind(kind),
+            Bound::LowerBound(ty) => ty.has_kind(db, kind),
+            Bound::UpperBound(ty) => ty.has_kind(db, kind),
         }
     }
+}
 
+impl<'db, Term: BoundTerm<'db>> Bound<Term> {
     pub fn assert_type(self, db: &'db dyn crate::Db) -> Bound<Term::Type> {
         match self {
             Bound::LowerBound(term) => Bound::LowerBound(term.assert_type(db)),
@@ -60,10 +61,6 @@ impl<'db, Term: BoundTerm<'db>> Bound<Term> {
 impl<'db> BoundTerm<'db> for SymGenericTerm<'db> {
     type Type = SymTy<'db>;
 
-    fn has_kind(self, kind: SymGenericKind) -> bool {
-        self.has_kind(kind)
-    }
-
     fn assert_type(self, db: &'db dyn crate::Db) -> SymTy<'db> {
         self.assert_type(db)
     }
@@ -71,10 +68,6 @@ impl<'db> BoundTerm<'db> for SymGenericTerm<'db> {
 
 impl<'db> BoundTerm<'db> for SymTy<'db> {
     type Type = SymTy<'db>;
-
-    fn has_kind(self, kind: SymGenericKind) -> bool {
-        kind == SymGenericKind::Type
-    }
 
     fn assert_type(self, _db: &'db dyn crate::Db) -> SymTy<'db> {
         self
@@ -84,10 +77,6 @@ impl<'db> BoundTerm<'db> for SymTy<'db> {
 impl<'db> BoundTerm<'db> for ObjectGenericTerm<'db> {
     type Type = ObjectTy<'db>;
 
-    fn has_kind(self, kind: SymGenericKind) -> bool {
-        self.has_kind(kind)
-    }
-
     fn assert_type(self, db: &'db dyn crate::Db) -> ObjectTy<'db> {
         self.assert_type(db)
     }
@@ -95,10 +84,6 @@ impl<'db> BoundTerm<'db> for ObjectGenericTerm<'db> {
 
 impl<'db> BoundTerm<'db> for ObjectTy<'db> {
     type Type = ObjectTy<'db>;
-
-    fn has_kind(self, kind: SymGenericKind) -> bool {
-        kind == SymGenericKind::Type
-    }
 
     fn assert_type(self, _db: &'db dyn crate::Db) -> ObjectTy<'db> {
         self
@@ -117,10 +102,6 @@ impl<'db> From<Bound<SymTy<'db>>> for Bound<SymGenericTerm<'db>> {
 impl<'db> BoundTerm<'db> for SymPerm<'db> {
     type Type = SymTy<'db>;
 
-    fn has_kind(self, kind: SymGenericKind) -> bool {
-        kind == SymGenericKind::Type
-    }
-
     fn assert_type(self, _db: &'db dyn crate::Db) -> SymTy<'db> {
         panic!("expected a type, found a perm: `{self:?}`")
     }
@@ -136,16 +117,16 @@ impl<'db> From<Bound<SymPerm<'db>>> for Bound<SymGenericTerm<'db>> {
 }
 
 /// A stream over the bounds on an inference variable.
-pub(crate) struct InferenceVarBounds<'chk, 'db, Term: OutputTerm<'db>> {
-    check: Check<'chk, 'db>,
+pub(crate) struct InferenceVarBounds<'db, Term: OutputTerm<'db>> {
+    check: Check<'db>,
     inference_var: SymInferVarIndex,
     upper_bounds: usize,
     lower_bounds: usize,
     phantom: PhantomData<fn() -> Term>,
 }
 
-impl<'chk, 'db, Term: OutputTerm<'db>> InferenceVarBounds<'chk, 'db, Term> {
-    pub fn new(check: &Check<'chk, 'db>, inference_var: SymInferVarIndex) -> Self {
+impl<'db, Term: OutputTerm<'db>> InferenceVarBounds<'db, Term> {
+    pub fn new(check: &Check<'db>, inference_var: SymInferVarIndex) -> Self {
         Self {
             check: check.clone(),
             inference_var,
@@ -156,7 +137,7 @@ impl<'chk, 'db, Term: OutputTerm<'db>> InferenceVarBounds<'chk, 'db, Term> {
     }
 }
 
-impl<'chk, 'db, Term: OutputTerm<'db>> futures::Stream for InferenceVarBounds<'chk, 'db, Term> {
+impl<'db, Term: OutputTerm<'db>> futures::Stream for InferenceVarBounds<'db, Term> {
     type Item = Bound<Term>;
 
     fn poll_next(mut self: Pin<&mut Self>, cx: &mut Context<'_>) -> Poll<Option<Self::Item>> {

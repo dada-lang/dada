@@ -56,10 +56,10 @@ pub fn check_function_body<'db>(
     ))
 }
 
-impl<'chk, 'db: 'chk> Checking<'chk, 'db> for AstBlock<'db> {
-    type Checking = ObjectExpr<'chk, 'db>;
+impl<'db> Checking<'db> for AstBlock<'db> {
+    type Checking = ObjectExpr<'db>;
 
-    async fn check(&self, check: &Check<'chk, 'db>, env: &Env<'db>) -> Self::Checking {
+    async fn check(&self, check: &Check<'db>, env: &Env<'db>) -> Self::Checking {
         let db = check.db;
 
         let statements = self.statements(db);

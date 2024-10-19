@@ -1,8 +1,8 @@
-use std::{fmt::Display, future::Future};
+use std::future::Future;
 
 use dada_ir_ast::{
-    ast::{AstExpr, AstExprKind, BinaryOp, Identifier, SpannedIdentifier},
-    diagnostic::{Diagnostic, Errors, Level, Reported},
+    ast::{AstExpr, AstExprKind, BinaryOp, SpannedIdentifier},
+    diagnostic::{Diagnostic, Level, Reported},
     span::Span,
 };
 use dada_ir_sym::{
@@ -10,11 +10,10 @@ use dada_ir_sym::{
     prelude::IntoSymInScope,
     scope::NameResolution,
     symbol::{SymGenericKind, SymVariable},
-    ty::{SymGenericTerm, SymTy, SymTyKind, SymTyName, Var},
+    ty::{SymGenericTerm, SymTyName, Var},
 };
 use dada_parser::prelude::*;
 use dada_util::FromImpls;
-use salsa::plumbing::{input, setup_input_struct};
 
 use crate::{
     check::Check,
@@ -28,16 +27,16 @@ use crate::{
 };
 
 #[derive(Clone)]
-pub(crate) struct ExprResult<'chk, 'db> {
+pub(crate) struct ExprResult<'db> {
     /// List of [`Temporary`][] variables created by this expression.
-    pub temporaries: Vec<Temporary<'chk, 'db>>,
+    pub temporaries: Vec<Temporary<'db>>,
 
     /// Span of the expression
     pub span: Span<'db>,
 
     /// The primary result from translating an expression.
     /// Note that an ast-expr can result in many kinds of things.
-    pub kind: ExprResultKind<'chk, 'db>,
+    pub kind: ExprResultKind<'db>,
 }
 
 /// Translating an expression can result in the creation of
@@ -47,18 +46,18 @@ pub(crate) struct ExprResult<'chk, 'db> {
 /// when we reach the surrounding statement, block, or other
 /// terminating context.
 #[derive(Clone)]
-pub(crate) struct Temporary<'chk, 'db> {
+pub(crate) struct Temporary<'db> {
     pub lv: SymVariable<'db>,
     pub ty: ObjectTy<'db>,
-    pub initializer: Option<ObjectExpr<'chk, 'db>>,
+    pub initializer: Option<ObjectExpr<'db>>,
 }
 
-impl<'chk, 'db> Temporary<'chk, 'db> {
+impl<'db> Temporary<'db> {
     pub fn new(
         db: &'db dyn crate::Db,
         span: Span<'db>,
         ty: ObjectTy<'db>,
-        initializer: Option<ObjectExpr<'chk, 'db>>,
+        initializer: Option<ObjectExpr<'db>>,
     ) -> Self {
         let lv = SymVariable::new(db, SymGenericKind::Place, None, span);
         Self {
@@ -70,17 +69,17 @@ impl<'chk, 'db> Temporary<'chk, 'db> {
 }
 
 #[derive(Clone, Debug, FromImpls)]
-pub(crate) enum ExprResultKind<'chk, 'db> {
+pub(crate) enum ExprResultKind<'db> {
     /// An expression identifying a place in memory (e.g., a local variable).
-    PlaceExpr(ObjectPlaceExpr<'chk, 'db>),
+    PlaceExpr(ObjectPlaceExpr<'db>),
 
     /// An expression that produces a value.
-    Expr(ObjectExpr<'chk, 'db>),
+    Expr(ObjectExpr<'db>),
 
     /// A partially completed method call.
     #[no_from_impl]
     Method {
-        self_expr: ObjectExpr<'chk, 'db>,
+        self_expr: ObjectExpr<'db>,
         id_span: Span<'db>,
         function: SymFunction<'db>,
         generics: Option<Vec<SymGenericTerm<'db>>>,
@@ -90,23 +89,19 @@ pub(crate) enum ExprResultKind<'chk, 'db> {
     Other(NameResolution<'db>),
 }
 
-impl<'chk, 'db: 'chk> Checking<'chk, 'db> for AstExpr<'db> {
-    type Checking = ExprResult<'chk, 'db>;
+impl<'db> Checking<'db> for AstExpr<'db> {
+    type Checking = ExprResult<'db>;
 
-    fn check(
-        &self,
-        check: &Check<'chk, 'db>,
-        env: &Env<'db>,
-    ) -> impl Future<Output = Self::Checking> {
+    fn check(&self, check: &Check<'db>, env: &Env<'db>) -> impl Future<Output = Self::Checking> {
         Box::pin(check_expr(self, check, env))
     }
 }
 
-async fn check_expr<'chk, 'db>(
+async fn check_expr<'db>(
     expr: &AstExpr<'db>,
-    check: &Check<'chk, 'db>,
+    check: &Check<'db>,
     env: &Env<'db>,
-) -> ExprResult<'chk, 'db> {
+) -> ExprResult<'db> {
     let db = check.db;
     let scope = &env.scope;
     let span = expr.span;
@@ -118,8 +113,7 @@ async fn check_expr<'chk, 'db>(
             ExprResult {
                 temporaries: vec![],
                 span,
-                kind: check
-                    .expr(span, ty, ObjectExprKind::Literal(literal.clone()))
+                kind: ObjectExpr::new(db, span, ty, ObjectExprKind::Literal(literal.clone()))
                     .into(),
             }
         }
@@ -140,14 +134,19 @@ async fn check_expr<'chk, 'db>(
                 db,
                 ObjectTyKind::Named(
                     SymTyName::Tuple { arity: exprs.len() },
-                    exprs.iter().map(|e| e.ty.into()).collect(),
+                    exprs.iter().map(|e| e.ty(db).into()).collect(),
                 ),
             );
 
             ExprResult {
                 temporaries,
                 span,
-                kind: ExprResultKind::Expr(check.expr(span, ty, ObjectExprKind::Tuple(exprs))),
+                kind: ExprResultKind::Expr(ObjectExpr::new(
+                    db,
+                    span,
+                    ty,
+                    ObjectExprKind::Tuple(exprs),
+                )),
             }
         }
 
@@ -198,7 +197,7 @@ async fn check_expr<'chk, 'db>(
                 } => ExprResult::err(
                     check,
                     span,
-                    report_missing_call_to_method(db, owner.span, method),
+                    report_missing_call_to_method(db, owner.span(db), method),
                 ),
             }
         }
@@ -296,17 +295,17 @@ async fn check_expr<'chk, 'db>(
     }
 }
 
-async fn check_call<'chk, 'db>(
-    check: &Check<'chk, 'db>,
+async fn check_call<'db>(
+    check: &Check<'db>,
     env: &Env<'db>,
     id_span: Span<'db>,
     expr_span: Span<'db>,
     function: SymFunction<'db>,
-    self_expr: Option<ObjectExpr<'chk, 'db>>,
+    self_expr: Option<ObjectExpr<'db>>,
     ast_args: &[AstExpr<'db>],
     generics: Option<Vec<SymGenericTerm<'db>>>,
-    mut temporaries: Vec<Temporary<'chk, 'db>>,
-) -> ExprResult<'chk, 'db> {
+    mut temporaries: Vec<Temporary<'db>>,
+) -> ExprResult<'db> {
     let db = check.db;
 
     // Get the signature.
@@ -403,14 +402,14 @@ async fn check_call<'chk, 'db>(
     let input_output = input_output.substitute(db, &arg_temp_terms);
 
     // Function to type check a single argument and check it has the correct type.
-    let check_arg = async |i: usize| -> ExprResult<'chk, 'db> {
+    let check_arg = async |i: usize| -> ExprResult<'db> {
         let mut arg_temporaries = vec![];
         let ast_arg = &ast_args[i];
         let expr = ast_arg
             .check(check, env)
             .await
             .into_expr(check, env, &mut arg_temporaries);
-        env.require_subobject(check, expr.ty, input_output.input_tys[i]);
+        env.require_subobject(check, expr.ty(db), input_output.input_tys[i]);
         ExprResult::from_expr(check, env, expr, arg_temporaries)
     };
 
@@ -427,7 +426,8 @@ async fn check_call<'chk, 'db>(
     //     let tmp2 = arg2 in
     //     ...
     //     call(tmp1, tmp2, ...)
-    let mut call_expr = check.expr(
+    let mut call_expr = ObjectExpr::new(
+        db,
         expr_span,
         input_output.output_ty.into_object_ir(db),
         ObjectExprKind::Call {
@@ -442,13 +442,14 @@ async fn check_call<'chk, 'db>(
         .rev()
         .zip(arg_exprs.into_iter().rev())
     {
-        call_expr = check.expr(
-            call_expr.span,
-            arg_expr.ty,
+        call_expr = ObjectExpr::new(
+            db,
+            call_expr.span(db),
+            arg_expr.ty(db),
             ObjectExprKind::LetIn {
                 lv: arg_temp_symbol,
                 sym_ty: None,
-                ty: arg_expr.ty,
+                ty: arg_expr.ty(db),
                 initializer: Some(arg_expr),
                 body: call_expr,
             },
@@ -459,10 +460,10 @@ async fn check_call<'chk, 'db>(
     ExprResult::from_expr(check, env, call_expr, temporaries)
 }
 
-impl<'chk, 'db> ExprResult<'chk, 'db> {
+impl<'db> ExprResult<'db> {
     /// Create a result based on lexical name resolution.
     pub fn from_name_resolution(
-        check: &Check<'chk, 'db>,
+        check: &Check<'db>,
         env: &Env<'db>,
         res: NameResolution<'db>,
         span: Span<'db>,
@@ -471,7 +472,7 @@ impl<'chk, 'db> ExprResult<'chk, 'db> {
         match res {
             NameResolution::SymVariable(var) if var.kind(db) == SymGenericKind::Place => {
                 let ty = env.variable_ty(var).into_object_ir(db);
-                let place_expr = check.place_expr(span, ty, ObjectPlaceExprKind::Var(var));
+                let place_expr = ObjectPlaceExpr::new(db, span, ty, ObjectPlaceExprKind::Var(var));
                 Self {
                     temporaries: vec![],
                     span,
@@ -493,53 +494,57 @@ impl<'chk, 'db> ExprResult<'chk, 'db> {
     }
 
     pub fn from_place_expr(
-        check: &Check<'chk, 'db>,
+        check: &Check<'db>,
         env: &Env<'db>,
-        expr: ObjectPlaceExpr<'chk, 'db>,
-        temporaries: Vec<Temporary<'chk, 'db>>,
+        expr: ObjectPlaceExpr<'db>,
+        temporaries: Vec<Temporary<'db>>,
     ) -> Self {
+        let db = check.db;
         Self {
             temporaries,
-            span: expr.span,
+            span: expr.span(db),
             kind: ExprResultKind::PlaceExpr(expr),
         }
     }
 
     pub fn from_expr(
-        check: &Check<'chk, 'db>,
+        check: &Check<'db>,
         env: &Env<'db>,
-        expr: ObjectExpr<'chk, 'db>,
-        temporaries: Vec<Temporary<'chk, 'db>>,
+        expr: ObjectExpr<'db>,
+        temporaries: Vec<Temporary<'db>>,
     ) -> Self {
+        let db = check.db;
         Self {
             temporaries,
-            span: expr.span,
+            span: expr.span(db),
             kind: ExprResultKind::Expr(expr),
         }
     }
 
     /// Create an error result.
-    pub fn err(check: &Check<'chk, 'db>, span: Span<'db>, r: Reported) -> Self {
+    pub fn err(check: &Check<'db>, span: Span<'db>, r: Reported) -> Self {
+        let db = check.db;
         Self {
             temporaries: vec![],
             span,
-            kind: ExprResultKind::Expr(check.err_expr(span, r)),
+            kind: ExprResultKind::Expr(ObjectExpr::err(db, span, r)),
         }
     }
 
     /// Convert this result into an expression, with `let ... in` statements inserted for temporaries.
     pub fn into_expr_with_enclosed_temporaries(
         self,
-        check: &Check<'chk, 'db>,
+        check: &Check<'db>,
         env: &Env<'db>,
-    ) -> ObjectExpr<'chk, 'db> {
+    ) -> ObjectExpr<'db> {
         let db = check.db;
         let mut temporaries = vec![];
         let mut expr = self.into_expr(check, env, &mut temporaries);
         for temporary in temporaries.into_iter().rev() {
-            expr = check.expr(
-                expr.span,
-                expr.ty,
+            expr = ObjectExpr::new(
+                db,
+                expr.span(db),
+                expr.ty(db),
                 ObjectExprKind::LetIn {
                     lv: temporary.lv,
                     sym_ty: None,
@@ -555,11 +560,11 @@ impl<'chk, 'db> ExprResult<'chk, 'db> {
 
     /// Computes the type of this, treating it as an expression.
     /// Reports an error if this names something that cannot be made into an expression.
-    pub fn ty(&self, check: &Check<'chk, 'db>, env: &Env<'db>) -> ObjectTy<'db> {
+    pub fn ty(&self, check: &Check<'db>, env: &Env<'db>) -> ObjectTy<'db> {
         let db = check.db;
         match self.kind {
-            ExprResultKind::PlaceExpr(place_expr) => place_expr.ty,
-            ExprResultKind::Expr(expr) => expr.ty,
+            ExprResultKind::PlaceExpr(place_expr) => place_expr.ty(db),
+            ExprResultKind::Expr(expr) => expr.ty(db),
             ExprResultKind::Other(name_resolution) => {
                 ObjectTy::error(db, report_non_expr(db, self.span, name_resolution))
             }
@@ -567,16 +572,19 @@ impl<'chk, 'db> ExprResult<'chk, 'db> {
                 self_expr: owner,
                 function: method,
                 ..
-            } => ObjectTy::error(db, report_missing_call_to_method(db, owner.span, method)),
+            } => ObjectTy::error(
+                db,
+                report_missing_call_to_method(db, owner.span(db), method),
+            ),
         }
     }
 
     pub fn into_place_expr(
         self,
-        check: &Check<'chk, 'db>,
+        check: &Check<'db>,
         env: &Env<'db>,
-        temporaries: &mut Vec<Temporary<'chk, 'db>>,
-    ) -> ObjectPlaceExpr<'chk, 'db> {
+        temporaries: &mut Vec<Temporary<'db>>,
+    ) -> ObjectPlaceExpr<'db> {
         let db = check.db;
         temporaries.extend(self.temporaries);
         match self.kind {
@@ -584,24 +592,20 @@ impl<'chk, 'db> ExprResult<'chk, 'db> {
 
             // This is a value that needs to be stored in a temporary.
             ExprResultKind::Expr(expr) => {
-                let ty = expr.ty;
+                let ty = expr.ty(db);
 
                 // Create a temporary to store the result of this expression.
-                let temporary = Temporary::new(db, expr.span, expr.ty, Some(expr));
+                let temporary = Temporary::new(db, expr.span(db), expr.ty(db), Some(expr));
                 let lv = temporary.lv;
                 temporaries.push(temporary);
 
                 // The result will be a reference to that temporary.
-                check.place_expr(self.span, ty, ObjectPlaceExprKind::Var(lv))
+                ObjectPlaceExpr::new(db, self.span, ty, ObjectPlaceExprKind::Var(lv))
             }
 
             ExprResultKind::Other(name_resolution) => {
                 let r = report_non_expr(db, self.span, name_resolution);
-                check.place_expr(
-                    self.span,
-                    ObjectTy::error(db, r),
-                    ObjectPlaceExprKind::Error(r),
-                )
+                ObjectPlaceExpr::err(db, self.span, r)
             }
 
             ExprResultKind::Method {
@@ -609,39 +613,39 @@ impl<'chk, 'db> ExprResult<'chk, 'db> {
                 function: method,
                 ..
             } => {
-                let r = report_missing_call_to_method(db, owner.span, method);
-                check.place_expr(
-                    self.span,
-                    ObjectTy::error(db, r),
-                    ObjectPlaceExprKind::Error(r),
-                )
+                let r = report_missing_call_to_method(db, owner.span(db), method);
+                ObjectPlaceExpr::err(db, self.span, r)
             }
         }
     }
 
     pub fn into_expr(
         self,
-        check: &Check<'chk, 'db>,
+        check: &Check<'db>,
         env: &Env<'db>,
-        temporaries: &mut Vec<Temporary<'chk, 'db>>,
-    ) -> ObjectExpr<'chk, 'db> {
+        temporaries: &mut Vec<Temporary<'db>>,
+    ) -> ObjectExpr<'db> {
         let db = check.db;
         temporaries.extend(self.temporaries);
         match self.kind {
             ExprResultKind::Expr(expr) => expr,
-            ExprResultKind::PlaceExpr(place_expr) => check.expr(
-                place_expr.span,
-                place_expr.ty.shared(db),
+            ExprResultKind::PlaceExpr(place_expr) => ObjectExpr::new(
+                db,
+                place_expr.span(db),
+                place_expr.ty(db).shared(db),
                 ObjectExprKind::Share(place_expr),
             ),
-            ExprResultKind::Other(name_resolution) => {
-                check.err_expr(self.span, report_non_expr(db, self.span, name_resolution))
-            }
+            ExprResultKind::Other(name_resolution) => ObjectExpr::err(
+                db,
+                self.span,
+                report_non_expr(db, self.span, name_resolution),
+            ),
             ExprResultKind::Method {
                 self_expr: owner,
                 function: method,
                 ..
-            } => check.err_expr(
+            } => ObjectExpr::err(
+                db,
                 self.span,
                 report_missing_call_to_method(db, self.span, method),
             ),

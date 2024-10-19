@@ -15,72 +15,53 @@ use dada_ir_ast::{
 use dada_ir_sym::{
     indices::SymInferVarIndex,
     symbol::SymGenericKind,
-    ty::{SymGenericTerm, SymTy, Var},
+    ty::{SymGenericTerm, Var},
 };
 use dada_util::Map;
 use futures::future::LocalBoxFuture;
-use typed_arena::Arena;
 
 use crate::{
-    bound::Bound,
-    env::Env,
-    inference::InferenceVarData,
-    object_ir::{ObjectExpr, ObjectExprKind, ObjectPlaceExpr, ObjectPlaceExprKind, ObjectTy},
-    universe::Universe,
+    bound::Bound, env::Env, inference::InferenceVarData, object_ir::ObjectTy, universe::Universe,
 };
 
 type Deferred<'chk> = LocalBoxFuture<'chk, ()>;
 
 #[derive(Clone)]
-pub(crate) struct Check<'chk, 'db> {
-    data: Arc<CheckData<'chk, 'db>>,
+pub(crate) struct Check<'db> {
+    data: Arc<CheckData<'db>>,
 }
 
-pub(crate) struct CheckData<'chk, 'db> {
+pub(crate) struct CheckData<'db> {
     pub db: &'db dyn crate::Db,
-    arenas: &'chk ExecutorArenas<'chk, 'db>,
     inference_vars: RwLock<Vec<InferenceVarData<'db>>>,
     ready_to_execute: Mutex<Vec<Arc<CheckTask>>>,
     waiting_on_inference_var: Mutex<Map<SymInferVarIndex, Vec<Waker>>>,
     complete: AtomicBool,
 }
 
-impl<'chk, 'db> std::ops::Deref for Check<'chk, 'db> {
-    type Target = CheckData<'chk, 'db>;
+impl<'db> std::ops::Deref for Check<'db> {
+    type Target = CheckData<'db>;
 
     fn deref(&self) -> &Self::Target {
         &self.data
     }
 }
 
-#[derive(Default)]
-pub struct ExecutorArenas<'chk, 'db> {
-    expr_kinds: Arena<ObjectExprKind<'chk, 'db>>,
-    place_expr_kinds: Arena<ObjectPlaceExprKind<'chk, 'db>>,
-}
-
-struct DeferredCheck<'chk, 'db> {
+struct DeferredCheck<'db> {
     env: Env<'db>,
-    thunk: Box<dyn FnOnce(&Check<'chk, 'db>, Env<'db>) + 'chk>,
+    thunk: Box<dyn FnOnce(&Check<'db>, Env<'db>) + 'db>,
 }
 
-impl<'chk, 'db> Check<'chk, 'db> {
-    pub(crate) fn execute<T: 'chk>(
+impl<'db> Check<'db> {
+    pub(crate) fn execute<T: 'db>(
         db: &'db dyn crate::Db,
-
         span: Span<'db>,
-
-        // FIXME: This could be created internally, but https://github.com/rust-lang/rust/issues/131649
-        // means that the resulting `impl for<'chk> async FnOnce()` signature doesn't
-        // interact well with rustfmt. No big deal.
-        arenas: &'chk ExecutorArenas<'chk, 'db>,
-
-        op: impl 'chk + async FnOnce(&Check<'chk, 'db>) -> T,
+        op: impl async FnOnce(&Check<'db>) -> T + 'db,
     ) -> T
     where
         T: From<Reported>,
     {
-        let check = Check::new(db, arenas);
+        let check = Check::new(db);
         let (channel_tx, channel_rx) = std::sync::mpsc::channel();
         check.spawn({
             let check = check.clone();
@@ -99,11 +80,10 @@ impl<'chk, 'db> Check<'chk, 'db> {
         }
     }
 
-    fn new(db: &'db dyn crate::Db, arenas: &'chk ExecutorArenas<'chk, 'db>) -> Self {
+    fn new(db: &'db dyn crate::Db) -> Self {
         Self {
             data: Arc::new(CheckData {
                 db,
-                arenas,
                 complete: Default::default(),
                 inference_vars: Default::default(),
                 ready_to_execute: Default::default(),
@@ -113,7 +93,7 @@ impl<'chk, 'db> Check<'chk, 'db> {
     }
 
     /// Spawn a new check-task.
-    fn spawn(&self, future: impl Future<Output = ()> + 'chk) {
+    fn spawn(&self, future: impl Future<Output = ()> + 'db) {
         let task = CheckTask::new(self, future);
         self.ready_to_execute.lock().unwrap().push(task);
     }
@@ -133,54 +113,6 @@ impl<'chk, 'db> Check<'chk, 'db> {
     /// Returns `true` if this check has completed.
     pub fn is_complete(&self) -> bool {
         self.complete.load(Ordering::Relaxed)
-    }
-
-    /// Allocate an expression
-    pub fn expr(
-        &self,
-        span: Span<'db>,
-        ty: ObjectTy<'db>,
-        kind: ObjectExprKind<'chk, 'db>,
-    ) -> ObjectExpr<'chk, 'db> {
-        let kind = self.arenas.expr_kinds.alloc(kind);
-        ObjectExpr { span, ty, kind }
-    }
-
-    pub fn err_expr(&self, span: Span<'db>, reported: Reported) -> ObjectExpr<'chk, 'db> {
-        self.expr(span, self.unit(), ObjectExprKind::Error(reported))
-    }
-
-    /// Allocate a place expression
-    pub fn place_expr(
-        &self,
-        span: Span<'db>,
-        ty: ObjectTy<'db>,
-        kind: ObjectPlaceExprKind<'chk, 'db>,
-    ) -> ObjectPlaceExpr<'chk, 'db> {
-        let kind = self.arenas.place_expr_kinds.alloc(kind);
-        ObjectPlaceExpr { span, ty, kind }
-    }
-
-    /// Create a series of semi-colon separated expressions.
-    /// The final result type will be the type of the last expression.
-    /// Returns `None` if exprs is empty.
-    pub fn exprs(
-        &self,
-        exprs: impl IntoIterator<Item = ObjectExpr<'chk, 'db>>,
-    ) -> Option<ObjectExpr<'chk, 'db>> {
-        let mut lhs: Option<ObjectExpr<'_, '_>> = None;
-        for rhs in exprs {
-            lhs = Some(match lhs {
-                None => rhs,
-                Some(result) => self.expr(
-                    result.span.to(rhs.span),
-                    rhs.ty,
-                    ObjectExprKind::Semi(result, rhs),
-                ),
-            });
-        }
-
-        lhs
     }
 
     pub fn fresh_inference_var(
@@ -210,7 +142,7 @@ impl<'chk, 'db> Check<'chk, 'db> {
     ) {
         let mut inference_vars = self.inference_vars.write().unwrap();
         let mut waiting_on_inference_var = self.waiting_on_inference_var.lock().unwrap();
-        inference_vars[var.as_usize()].push_bound(bound);
+        inference_vars[var.as_usize()].push_bound(self.db, bound);
         let wakers = waiting_on_inference_var.remove(&var);
         for waker in wakers.into_iter().flatten() {
             waker.wake();
@@ -219,11 +151,7 @@ impl<'chk, 'db> Check<'chk, 'db> {
 
     /// Execute the given future asynchronously from the main execution.
     /// It must execute to completion eventually or an error will be reported.
-    pub fn defer(
-        &self,
-        env: &Env<'db>,
-        check: impl 'chk + async FnOnce(Check<'chk, 'db>, Env<'db>),
-    ) {
+    pub fn defer(&self, env: &Env<'db>, check: impl 'db + async FnOnce(Check<'db>, Env<'db>)) {
         self.spawn(check(self.clone(), env.clone()));
     }
 
@@ -253,22 +181,21 @@ mod check_task {
 
     /// # Safety notes
     ///
-    /// This `Check` type is actually valid for some (existential) `'chk` and `'db`.
+    /// This `Check` type is actually valid for some (existential) `'db`.
+    /// We erase this from the type system and simply use `'static` in the field types.
     ///
-    /// We erase those from the type system and simply use `'static` in the field types.
-    ///
-    /// As a result, we cannot safely access `state` unless we can be sure that `'chk` and `'db`
-    /// are still in scope.
+    /// As a result, we cannot safely access `state` unless we can be sure that `'db`
+    /// is still in scope.
     ///
     /// To do that, we keep a handle to `check` and then compare using `Arc::ptr_eq` to another `check` instance
-    /// which we have threaded through as an ordinary parameter.
+    /// which we have threaded through as an ordinary parameter (whose type must therefore be valid).
     ///
     /// If we are able to supply a `check` that has the same underlying `Arc`, and its type is valid,
     /// then we know that `self.check` has that same type, and that therefore the
     /// lifetimes in `self.state` are valid.
     pub(super) struct CheckTask {
-        /// Erased type: `Check<'chk, 'db>`
-        check: Check<'static, 'static>,
+        /// Erased type: `Check<'db>`
+        check: Check<'static>,
 
         /// Erased type: `CheckTaskState<'chk>`
         state: Mutex<CheckTaskState<'static>>,
@@ -281,17 +208,16 @@ mod check_task {
     }
 
     impl CheckTask {
-        pub(super) fn new<'chk, 'db>(
-            check: &Check<'chk, 'db>,
-            future: impl Future<Output = ()> + 'chk,
+        pub(super) fn new<'db>(
+            check: &Check<'db>,
+            future: impl Future<Output = ()> + 'db,
         ) -> Arc<Self> {
             let this = {
                 let my_check = check.clone();
 
                 // UNSAFE: Erase lifetimes as described on [`CheckTask`][] above.
-                let my_check = unsafe {
-                    std::mem::transmute::<Check<'chk, 'db>, Check<'static, 'static>>(my_check)
-                };
+                let my_check =
+                    unsafe { std::mem::transmute::<Check<'db>, Check<'static>>(my_check) };
 
                 Arc::new(Self {
                     check: my_check,
@@ -304,7 +230,7 @@ mod check_task {
             this
         }
 
-        fn take_state<'chk, 'db>(&self, from_check: &Check<'chk, 'db>) -> CheckTaskState<'chk> {
+        fn take_state<'db>(&self, from_check: &Check<'db>) -> CheckTaskState<'db> {
             assert!(std::ptr::addr_eq(
                 Arc::as_ptr(&self.check.data),
                 Arc::as_ptr(&from_check.data),
@@ -314,14 +240,10 @@ mod check_task {
                 std::mem::replace(&mut *self.state.lock().unwrap(), CheckTaskState::Executing);
 
             // UNSAFE: Hide the lifetimes as described in the safety notes for [`CheckTask`][].
-            unsafe { std::mem::transmute::<CheckTaskState<'static>, CheckTaskState<'chk>>(state) }
+            unsafe { std::mem::transmute::<CheckTaskState<'static>, CheckTaskState<'db>>(state) }
         }
 
-        fn set_to_wait_state<'chk, 'db>(
-            &self,
-            from_check: &Check<'chk, 'db>,
-            future: LocalBoxFuture<'chk, ()>,
-        ) {
+        fn set_to_wait_state<'db>(&self, from_check: &Check<'db>, future: LocalBoxFuture<'db, ()>) {
             assert!(std::ptr::addr_eq(
                 Arc::as_ptr(&self.check.data),
                 Arc::as_ptr(&from_check.data),
@@ -329,7 +251,7 @@ mod check_task {
 
             // UNSAFE: Hide the lifetimes as described in the safety notes for [`CheckTask`][].
             let future = unsafe {
-                std::mem::transmute::<LocalBoxFuture<'chk, ()>, LocalBoxFuture<'static, ()>>(future)
+                std::mem::transmute::<LocalBoxFuture<'db, ()>, LocalBoxFuture<'static, ()>>(future)
             };
 
             let old_state = std::mem::replace(
@@ -375,7 +297,7 @@ mod check_task {
             ready_to_execute.push(self);
         }
 
-        pub(super) fn execute<'chk, 'db>(self: Arc<Self>, from_check: &Check<'chk, 'db>) {
+        pub(super) fn execute<'db>(self: Arc<Self>, from_check: &Check<'db>) {
             let state = self.take_state(from_check);
             match state {
                 CheckTaskState::Complete => {
@@ -438,7 +360,7 @@ mod current_check {
         static CURRENT_CHECK: std::cell::Cell<Option<NonNull<()>>> = std::cell::Cell::new(None);
     }
 
-    pub(super) fn with_check_set<T>(check: &Check<'_, '_>, op: impl FnOnce() -> T) {
+    pub(super) fn with_check_set<T>(check: &Check<'_>, op: impl FnOnce() -> T) {
         let ptr = NonNull::from(check);
         let ptr: NonNull<()> = ptr.cast();
         CURRENT_CHECK.with(|cell| {
@@ -447,10 +369,10 @@ mod current_check {
         });
     }
 
-    pub(super) fn read_check<T>(op: impl for<'chk, 'db> FnOnce(&Check<'chk, 'db>) -> T) {
+    pub(super) fn read_check<T>(op: impl for<'db> FnOnce(&Check<'db>) -> T) {
         CURRENT_CHECK.with(|cell| {
             if let Some(ptr) = cell.get() {
-                let ptr: NonNull<Check<'_, '_>> = ptr.cast();
+                let ptr: NonNull<Check<'_>> = ptr.cast();
 
                 // SAFETY: `with_check_set` ensures `CURRENT_CHECK` is a valid reference when set to `Some`
                 op(unsafe { ptr.as_ref() })
