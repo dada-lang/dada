@@ -5,7 +5,7 @@ use crate::{
     primitive::SymPrimitive,
     scope::{NameResolution, Resolve, Scope},
     subst::{Subst, SubstitutionFns},
-    symbol::{SymVariable, SymGenericKind},
+    symbol::{HasKind, SymGenericKind, SymVariable},
     Db,
 };
 use dada_ir_ast::{
@@ -28,6 +28,17 @@ pub enum SymGenericTerm<'db> {
     Error(Reported),
 }
 
+impl<'db> HasKind<'db> for SymGenericTerm<'db> {
+    fn has_kind(&self, _db: &'db dyn crate::Db, kind: SymGenericKind) -> bool {
+        match self {
+            SymGenericTerm::Type(_) => kind == SymGenericKind::Type,
+            SymGenericTerm::Perm(_) => kind == SymGenericKind::Perm,
+            SymGenericTerm::Place(_) =>kind == SymGenericKind::Place,
+            SymGenericTerm::Error(Reported) => true,
+        }
+    }
+}
+
 impl<'db> SymGenericTerm<'db> {
     pub fn var(db: &'db dyn crate::Db, kind: SymGenericKind, var: Var<'db>) -> Self {
         match kind {
@@ -37,7 +48,7 @@ impl<'db> SymGenericTerm<'db> {
         }
     }
 
-    pub fn assert_ty(self, db: &'db dyn crate::Db) -> SymTy<'db> {
+    pub fn assert_type(self, db: &'db dyn crate::Db) -> SymTy<'db> {
         match self {
             SymGenericTerm::Type(ty) => ty,
             SymGenericTerm::Error(reported) => SymTy::new(db, SymTyKind::Error(reported)),
@@ -58,15 +69,6 @@ impl<'db> SymGenericTerm<'db> {
             SymGenericTerm::Place(place) => place,
             SymGenericTerm::Error(reported) => SymPlace::new(db, SymPlaceKind::Error(reported)),
             _ => unreachable!(),
-        }
-    }
-
-    pub fn has_kind(self, kind: SymGenericKind) -> bool {
-        match self {
-            SymGenericTerm::Type(_) => kind == SymGenericKind::Type,
-            SymGenericTerm::Perm(_) => kind == SymGenericKind::Perm,
-            SymGenericTerm::Place(_) =>kind == SymGenericKind::Place,
-            SymGenericTerm::Error(Reported) => true,
         }
     }
 
@@ -169,7 +171,7 @@ impl<T: Update> Binder<T> {
     pub fn open<'db>(
         &self,
         db: &'db dyn crate::Db,
-        mut func: impl FnMut(SymGenericKind, SymBoundVarIndex) -> SymGenericTerm<'db>,
+        mut func: impl FnMut(SymGenericKind, SymBoundVarIndex) -> T::Term,
     ) -> T::Output
     where
         T: Subst<'db>,
@@ -202,7 +204,7 @@ impl<T: Update> Binder<T> {
     pub fn substitute<'db>(
         &self,
         db: &'db dyn crate::Db,
-        substitution: &[impl Into<SymGenericTerm<'db>> + Copy],
+        substitution: &[impl Into<T::Term> + Copy],
     ) -> T::Output
     where
         T: Subst<'db>,
@@ -210,7 +212,7 @@ impl<T: Update> Binder<T> {
         assert_eq!(self.len(), substitution.len());
         self.open(db, |kind, index| {
             let term = substitution[index.as_usize()].into();
-            assert!(term.has_kind(kind));
+            assert!(term.has_kind(db, kind));
             term
         })
     }
@@ -379,7 +381,7 @@ impl<'db> IntoSymInScope<'db> for AstTy<'db> {
                 assert_eq!(symbol.kind(db), SymGenericKind::Type);
                 symbol
                     .into_generic_term(db, scope)
-                    .assert_ty(db)
+                    .assert_type(db)
             }
             AstTyKind::Unknown => SymTy::new(db, SymTyKind::Unknown),
         }
@@ -542,7 +544,7 @@ impl<'db> NameResolution<'db> {
                     .zip(&generics)
                     .zip(0..)
                     .map(|((expected_kind, &(span, generic)), index)| {
-                        if generic.has_kind(expected_kind) {
+                        if generic.has_kind(db, expected_kind) {
                             generic
                         } else {
                             let found_kind = generic.kind().unwrap();

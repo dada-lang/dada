@@ -17,7 +17,7 @@ use dada_util::FromImpls;
 use salsa::plumbing::{input, setup_input_struct};
 
 use crate::{
-    checking_ir::{Expr, ExprKind, PlaceExpr, PlaceExprKind},
+    checking_ir::{Expr, ExprKind, IntoObjectTy, ObjectTy, ObjectTyKind, PlaceExpr, PlaceExprKind},
     env::Env,
     executor::Check,
     member::MemberLookup,
@@ -77,8 +77,9 @@ pub(crate) enum ExprResultKind<'chk, 'db> {
     /// A partially completed method call.
     #[no_from_impl]
     Method {
-        owner: Expr<'chk, 'db>,
-        method: SymFunction<'db>,
+        self_expr: Expr<'chk, 'db>,
+        id_span: Span<'db>,
+        function: SymFunction<'db>,
         generics: Option<Vec<SymGenericTerm<'db>>>,
     },
 
@@ -109,7 +110,7 @@ async fn check_expr<'chk, 'db>(
 
     match &*expr.kind {
         AstExprKind::Literal(literal) => {
-            let ty = env.fresh_ty_inference_var(check);
+            let ty = env.fresh_object_ty_inference_var(check);
             check.defer(env, async move |check, env| todo!());
             ExprResult {
                 temporaries: vec![],
@@ -132,9 +133,9 @@ async fn check_expr<'chk, 'db>(
                 );
             }
 
-            let ty = SymTy::new(
+            let ty = ObjectTy::new(
                 db,
-                SymTyKind::Named(
+                ObjectTyKind::Named(
                     SymTyName::Tuple { arity: exprs.len() },
                     exprs.iter().map(|e| e.ty.into()).collect(),
                 ),
@@ -187,7 +188,11 @@ async fn check_expr<'chk, 'db>(
                     }
                 }
 
-                ExprResultKind::Method { owner, method, .. } => ExprResult::err(
+                ExprResultKind::Method {
+                    self_expr: owner,
+                    function: method,
+                    ..
+                } => ExprResult::err(
                     check,
                     span,
                     report_missing_call_to_method(db, owner.span, method),
@@ -199,9 +204,10 @@ async fn check_expr<'chk, 'db>(
             let owner_result = owner.check(check, env).await;
             match &owner_result.kind {
                 &ExprResultKind::Method {
-                    owner,
-                    method,
+                    self_expr: owner,
+                    function: method,
                     generics: None,
+                    id_span,
                 } => {
                     let ast_terms = square_bracket_args.parse_as_generics(db);
 
@@ -213,9 +219,10 @@ async fn check_expr<'chk, 'db>(
 
                     ExprResult {
                         kind: ExprResultKind::Method {
-                            owner,
-                            method,
+                            self_expr: owner,
+                            function: method,
                             generics: Some(sym_terms),
+                            id_span,
                         },
                         ..owner_result
                     }
@@ -232,9 +239,10 @@ async fn check_expr<'chk, 'db>(
                 // We give an error under that assumption.
                 // It seems likely we can do a better job.
                 &ExprResultKind::Method {
-                    owner,
-                    method,
+                    self_expr: owner,
+                    function: method,
                     generics: Some(_),
+                    ..
                 } => ExprResult::err(check, span, report_missing_call_to_method(db, span, method)),
 
                 &ExprResultKind::Other(name_resolution) => ExprResult::err(
@@ -249,15 +257,29 @@ async fn check_expr<'chk, 'db>(
             let owner_result = owner.check(check, env).await;
             match owner_result {
                 ExprResult {
-                    mut temporaries,
-                    span: _,
+                    temporaries,
+                    span: expr_span,
                     kind:
                         ExprResultKind::Method {
-                            owner,
-                            method,
+                            self_expr,
+                            id_span,
+                            function,
                             generics,
                         },
-                } => {}
+                } => {
+                    check_call(
+                        check,
+                        env,
+                        id_span,
+                        expr_span,
+                        function,
+                        Some(self_expr),
+                        ast_args,
+                        generics,
+                        temporaries,
+                    )
+                    .await
+                }
 
                 _ => {
                     // FIXME: we probably want to support functions and function typed values?
@@ -286,8 +308,50 @@ async fn check_call<'chk, 'db>(
 
     // Get the signature.
     let signature = function.signature(db);
+    let input_output = signature.input_output(db);
 
-    // Instantiate the class generics.
+    // Instantiate the class generics with inference variables.
+    // (FIXME: Is there a way for people to specify these explicitly?)
+    let class_substitution = env.existential_substitution(check, input_output);
+    let input_output = input_output.substitute(db, &class_substitution);
+
+    // Instantiate the method generics with inference variables
+    // or use the provided values (if any).
+    let method_substitution = match generics {
+        Some(generics) => {
+            let expected_generics = input_output.len();
+            let found_generics = generics.len();
+            let function_name = function.name(db);
+            if expected_generics != found_generics {
+                return ExprResult::err(
+                    check,
+                    id_span,
+                    Diagnostic::error(
+                        db,
+                        id_span,
+                        format!("expected {expected_generics} generic arguments, found {found_generics}"),
+                    )
+                    .label(
+                        db,
+                        Level::Error,
+                        id_span,
+                        format!("I expected `{function_name}` to take {expected_generics} arguments but I found {found_generics}",),
+                    )
+                    .label(
+                        db,
+                        Level::Info,
+                        function.name_span(db),
+                        format!("`{function_name}` defined here"),
+                    )
+                    .report(db),
+                );
+            }
+
+            generics
+        }
+        None => env.existential_substitution(check, &input_output),
+    };
+    let input_ouput = input_output.substitute(db, &method_substitution);
 
     // Instantiate the first two levels of generics with inference variables.
     let input_output = env.open_existentially(check, signature.input_output(db));
@@ -338,12 +402,12 @@ async fn check_call<'chk, 'db>(
     // Function to type check a single argument and check it has the correct type.
     let check_arg = async |i: usize| -> ExprResult<'chk, 'db> {
         let mut arg_temporaries = vec![];
-        let ast_arg = ast_args[i];
+        let ast_arg = &ast_args[i];
         let expr = ast_arg
             .check(check, env)
             .await
             .into_expr(check, env, &mut arg_temporaries);
-        env.require_subtype(check, expr.ty, input_output.input_tys[i]);
+        env.require_subobject(check, expr.ty, input_output.input_tys[i]);
         ExprResult::from_expr(check, env, expr, arg_temporaries)
     };
 
@@ -354,23 +418,41 @@ async fn check_call<'chk, 'db>(
         arg_exprs.push(arg_result.into_expr(check, env, &mut temporaries));
     }
 
-    // Create the final result.
-    ExprResult::from_expr(
-        check,
-        env,
-        check.expr(
-            expr_span,
-            input_output.output_ty,
-            ExprKind::Call {
-                function,
-                class_generics: vec![],
-                method_generics: todo!(),
-                arg_places: arg_temp_terms,
-                arg_exprs: arg_exprs,
+    // Create the resulting call, which always looks like
+    //
+    //     let tmp1 = arg1 in
+    //     let tmp2 = arg2 in
+    //     ...
+    //     call(tmp1, tmp2, ...)
+    let mut call_expr = check.expr(
+        expr_span,
+        input_output.output_ty.into_object_ty(db),
+        ExprKind::Call {
+            function,
+            class_substitution,
+            method_substitution,
+            arg_temps: arg_temp_symbols.clone(),
+        },
+    );
+    for (arg_temp_symbol, arg_expr) in arg_temp_symbols
+        .into_iter()
+        .rev()
+        .zip(arg_exprs.into_iter().rev())
+    {
+        call_expr = check.expr(
+            call_expr.span,
+            arg_expr.ty,
+            ExprKind::LetIn {
+                lv: arg_temp_symbol,
+                ty: arg_expr.ty,
+                initializer: Some(arg_expr),
+                body: call_expr,
             },
-        ),
-        temporaries,
-    )
+        );
+    }
+
+    // Create the final result.
+    ExprResult::from_expr(check, env, call_expr, temporaries)
 }
 
 impl<'chk, 'db> ExprResult<'chk, 'db> {
@@ -475,9 +557,11 @@ impl<'chk, 'db> ExprResult<'chk, 'db> {
             ExprResultKind::Other(name_resolution) => {
                 SymTy::error(db, report_non_expr(db, self.span, name_resolution))
             }
-            ExprResultKind::Method { owner, method, .. } => {
-                SymTy::error(db, report_missing_call_to_method(db, owner.span, method))
-            }
+            ExprResultKind::Method {
+                self_expr: owner,
+                function: method,
+                ..
+            } => SymTy::error(db, report_missing_call_to_method(db, owner.span, method)),
         }
     }
 
@@ -510,7 +594,11 @@ impl<'chk, 'db> ExprResult<'chk, 'db> {
                 check.place_expr(self.span, SymTy::error(db, r), PlaceExprKind::Error(r))
             }
 
-            ExprResultKind::Method { owner, method, .. } => {
+            ExprResultKind::Method {
+                self_expr: owner,
+                function: method,
+                ..
+            } => {
                 let r = report_missing_call_to_method(db, owner.span, method);
                 check.place_expr(self.span, SymTy::error(db, r), PlaceExprKind::Error(r))
             }
@@ -535,7 +623,11 @@ impl<'chk, 'db> ExprResult<'chk, 'db> {
             ExprResultKind::Other(name_resolution) => {
                 check.err_expr(self.span, report_non_expr(db, self.span, name_resolution))
             }
-            ExprResultKind::Method { owner, method, .. } => check.err_expr(
+            ExprResultKind::Method {
+                self_expr: owner,
+                function: method,
+                ..
+            } => check.err_expr(
                 self.span,
                 report_missing_call_to_method(db, self.span, method),
             ),

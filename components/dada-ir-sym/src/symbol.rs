@@ -32,9 +32,10 @@ impl<'db> SymVariable<'db> {
         let var = scope.resolve_generic_sym(db, self);
         SymGenericTerm::var(db, self.kind(db), var)
     }
+}
 
-    /// True if `self` has the kind `kind`.
-    pub fn has_kind(self, db: &'db dyn crate::Db, kind: SymGenericKind) -> bool {
+impl<'db> HasKind<'db> for SymVariable<'db> {
+    fn has_kind(self, db: &'db dyn crate::Db, kind: SymGenericKind) -> bool {
         self.kind(db) == kind
     }
 }
@@ -60,6 +61,13 @@ pub enum SymGenericKind {
     Type,
     Perm,
     Place,
+}
+
+/// Test if `self` can be said to have the given kind (i.e., is it a type? a permission?).
+///
+/// Note that when errors occur, this may return true for multiple kinds.
+pub trait HasKind<'db> {
+    fn has_kind(&self, db: &'db dyn crate::Db, kind: SymGenericKind) -> bool;
 }
 
 impl<'db> ToSymbol<'db> for AstFunctionInput<'db> {

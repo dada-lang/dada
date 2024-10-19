@@ -16,3 +16,6 @@ macro_rules! debug {
         eprintln!($($t)*);
     }
 }
+
+pub mod typedvec;
+pub mod vecset;

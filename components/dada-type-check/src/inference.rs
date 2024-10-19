@@ -1,12 +1,17 @@
 use dada_ir_sym::{symbol::SymGenericKind, ty::SymGenericTerm};
+use dada_util::vecset::VecSet;
 
-use crate::{bound::Bound, universe::Universe};
+use crate::{bound::Bound, checking_ir::ObjectGenericTerm, universe::Universe};
 
 pub(crate) struct InferenceVarData<'db> {
     kind: SymGenericKind,
     universe: Universe,
+
     lower_bounds: Vec<SymGenericTerm<'db>>,
     upper_bounds: Vec<SymGenericTerm<'db>>,
+
+    lower_object_bounds: VecSet<ObjectGenericTerm<'db>>,
+    upper_object_bounds: VecSet<ObjectGenericTerm<'db>>,
 }
 
 impl<'db> InferenceVarData<'db> {
@@ -16,6 +21,8 @@ impl<'db> InferenceVarData<'db> {
             universe,
             lower_bounds: vec![],
             upper_bounds: vec![],
+            lower_object_bounds: Default::default(),
+            upper_object_bounds: Default::default(),
         }
     }
 
@@ -31,10 +38,16 @@ impl<'db> InferenceVarData<'db> {
         }
     }
 
+    pub fn lower_bounds(&self) -> &[SymGenericTerm<'db>] {
+        &self.lower_bounds
+    }
     pub fn upper_bounds(&self) -> &[SymGenericTerm<'db>] {
         &self.upper_bounds
     }
-    pub fn lower_bounds(&self) -> &[SymGenericTerm<'db>] {
-        &self.lower_bounds
+    pub fn lower_object_bounds(&self) -> &[ObjectGenericTerm<'db>] {
+        &self.lower_object_bounds
+    }
+    pub fn upper_object_bounds(&self) -> &[ObjectGenericTerm<'db>] {
+        &self.upper_object_bounds
     }
 }

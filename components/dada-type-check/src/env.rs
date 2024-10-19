@@ -13,6 +13,7 @@ use salsa::Update;
 
 use crate::{
     bound::{Bound, InferenceVarBounds},
+    checking_ir::{IntoObjectTy, ObjectGenericTerm, ObjectTy},
     executor::Check,
     universe::Universe,
 };
@@ -102,6 +103,19 @@ impl<'db> Env<'db> {
         })
     }
 
+    /// Create a substitution for `binder` consisting of inference variables
+    pub fn existential_substitution<T: Update>(
+        &self,
+        check: &Check<'_, 'db>,
+        binder: &Binder<T>,
+    ) -> Vec<SymGenericTerm<'db>> {
+        binder
+            .kinds
+            .iter()
+            .map(|&kind| self.fresh_inference_var(check, kind))
+            .collect()
+    }
+
     // Modify this environment to put it in a new universe.
     pub fn increment_universe(&mut self) {
         self.universe = self.universe.next();
@@ -136,21 +150,25 @@ impl<'db> Env<'db> {
     }
 
     pub fn fresh_ty_inference_var(&self, check: &Check<'_, 'db>) -> SymTy<'db> {
-        let SymGenericTerm::Type(ty) = self.fresh_inference_var(check, SymGenericKind::Type) else {
-            unreachable!();
-        };
-        ty
+        self.fresh_inference_var(check, SymGenericKind::Type)
+            .assert_type(check.db)
+    }
+
+    pub fn fresh_object_ty_inference_var(&self, check: &Check<'_, 'db>) -> ObjectTy<'db> {
+        self.fresh_ty_inference_var(check).into_object_ty(check.db)
     }
 
     pub fn fresh_perm_inference_var(&self, check: &Check<'_, 'db>) -> SymPerm<'db> {
-        let SymGenericTerm::Perm(perm) = self.fresh_inference_var(check, SymGenericKind::Perm)
-        else {
-            unreachable!();
-        };
-        perm
+        self.fresh_inference_var(check, SymGenericKind::Type)
+            .assert_perm(check.db)
     }
 
-    pub fn require_subtype(&self, check: &Check<'_, 'db>, sub: SymTy<'db>, sup: SymTy<'db>) {
+    pub fn require_subobject(
+        &self,
+        check: &Check<'_, 'db>,
+        sub: impl IntoObjectTy<'db>,
+        sup: impl IntoObjectTy<'db>,
+    ) {
         check.defer(self, |check, env| async move { todo!() });
     }
 
@@ -161,10 +179,26 @@ impl<'db> Env<'db> {
     ) -> impl Stream<Item = Bound<SymTy<'db>>> + 'chk {
         let db = check.db;
         if let &SymTyKind::Var(Var::Infer(inference_var)) = ty.kind(db) {
-            InferenceVarBounds::new(check, inference_var)
+            <InferenceVarBounds<'_, '_, SymGenericTerm<'db>>>::new(check, inference_var)
                 .map(|b| b.assert_type(db))
                 .boxed_local()
         } else {
+            futures::stream::once(futures::future::ready(Bound::LowerBound(ty))).boxed_local()
+        }
+    }
+
+    pub fn object_bounds<'chk>(
+        &self,
+        check: &Check<'chk, 'db>,
+        ty: SymTy<'db>,
+    ) -> impl Stream<Item = Bound<ObjectTy<'db>>> + 'chk {
+        let db = check.db;
+        if let &SymTyKind::Var(Var::Infer(inference_var)) = ty.kind(db) {
+            <InferenceVarBounds<'_, '_, ObjectGenericTerm<'db>>>::new(check, inference_var)
+                .map(|b| b.assert_type(db))
+                .boxed_local()
+        } else {
+            let ty = ty.into_object_ty(db);
             futures::stream::once(futures::future::ready(Bound::LowerBound(ty))).boxed_local()
         }
     }

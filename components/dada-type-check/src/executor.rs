@@ -23,7 +23,7 @@ use typed_arena::Arena;
 
 use crate::{
     bound::Bound,
-    checking_ir::{Expr, ExprKind, PlaceExpr, PlaceExprKind},
+    checking_ir::{Expr, ExprKind, ObjectTy, PlaceExpr, PlaceExprKind},
     env::Env,
     inference::InferenceVarData,
     universe::Universe,
@@ -126,8 +126,8 @@ impl<'chk, 'db> Check<'chk, 'db> {
     }
 
     /// Creates the interned `()` type.
-    pub fn unit(&self) -> SymTy<'db> {
-        SymTy::unit(self.db)
+    pub fn unit(&self) -> ObjectTy<'db> {
+        ObjectTy::unit(self.db)
     }
 
     /// Returns `true` if this check has completed.
@@ -139,7 +139,7 @@ impl<'chk, 'db> Check<'chk, 'db> {
     pub fn expr(
         &self,
         span: Span<'db>,
-        ty: SymTy<'db>,
+        ty: ObjectTy<'db>,
         kind: ExprKind<'chk, 'db>,
     ) -> Expr<'chk, 'db> {
         let kind = self.arenas.expr_kinds.alloc(kind);
@@ -154,7 +154,7 @@ impl<'chk, 'db> Check<'chk, 'db> {
     pub fn place_expr(
         &self,
         span: Span<'db>,
-        ty: SymTy<'db>,
+        ty: ObjectTy<'db>,
         kind: PlaceExprKind<'chk, 'db>,
     ) -> PlaceExpr<'chk, 'db> {
         let kind = self.arenas.place_expr_kinds.alloc(kind);

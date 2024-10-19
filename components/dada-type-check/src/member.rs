@@ -14,7 +14,7 @@ use futures::{Stream, StreamExt};
 
 use crate::{
     bound::Bound,
-    checking_ir::PlaceExprKind,
+    checking_ir::{ObjectGenericTerm, ObjectTy, ObjectTyKind, PlaceExprKind},
     env::Env,
     executor::Check,
     exprs::{ExprResult, ExprResultKind},
@@ -45,12 +45,15 @@ impl<'member, 'chk, 'db> MemberLookup<'member, 'chk, 'db> {
         // * If we find a lower bound:
         //
         // Once we
-        let mut lower_bounds = self.env.bounds(self.check, owner_ty).filter_map(|b| {
-            futures::future::ready(match b {
-                Bound::LowerBound(ty) => Some(ty),
-                Bound::UpperBound(_) => None,
-            })
-        });
+        let mut lower_bounds = self
+            .env
+            .object_bounds(self.check, owner_ty)
+            .filter_map(|b| {
+                futures::future::ready(match b {
+                    Bound::LowerBound(ty) => Some(ty),
+                    Bound::UpperBound(_) => None,
+                })
+            });
 
         while let Some(ty) = lower_bounds.next().await {
             // The owner will be some supertype of `ty`.
@@ -76,7 +79,7 @@ impl<'member, 'chk, 'db> MemberLookup<'member, 'chk, 'db> {
         owner_ty: SymTy<'db>,
         member: SearchResult<'db>,
         id: SpannedIdentifier<'db>,
-        lower_bounds: impl Stream<Item = SymTy<'db>> + 'chk,
+        lower_bounds: impl Stream<Item = ObjectTy<'db>> + 'chk,
     ) -> ExprResult<'chk, 'db> {
         let db = self.check.db;
 
@@ -126,11 +129,12 @@ impl<'member, 'chk, 'db> MemberLookup<'member, 'chk, 'db> {
                 let owner = owner.into_expr(self.check, self.env, &mut temporaries);
                 ExprResult {
                     temporaries,
-                    span: id.span,
+                    span: owner.span.to(id.span),
                     kind: ExprResultKind::Method {
-                        owner,
-                        method,
+                        self_expr: owner,
+                        function: method,
                         generics: None,
+                        id_span: id.span,
                     },
                 }
             }
@@ -283,12 +287,12 @@ impl<'member, 'chk, 'db> MemberLookup<'member, 'chk, 'db> {
 
     fn search_type_for_member(
         self,
-        ty: SymTy<'db>,
+        ty: ObjectTy<'db>,
         id: Identifier<'db>,
     ) -> Option<SearchResult<'db>> {
         let db = self.check.db;
         match ty.kind(db) {
-            SymTyKind::Named(name, generics) => match *name {
+            ObjectTyKind::Named(name, generics) => match *name {
                 // Primitive types don't have members.
                 SymTyName::Primitive(_) => None,
 
@@ -299,16 +303,12 @@ impl<'member, 'chk, 'db> MemberLookup<'member, 'chk, 'db> {
                 SymTyName::Class(owner) => self.search_class_for_member(owner, generics, id),
             },
 
-            SymTyKind::Perm(perm, ty) => {
-                Some(self.search_type_for_member(*ty, id)?.with_perm(db, *perm))
-            }
-
-            SymTyKind::Var(generic_index) => {
+            ObjectTyKind::Var(generic_index) => {
                 // FIXME: where-clauses
                 None
             }
 
-            SymTyKind::Unknown => {
+            ObjectTyKind::Unknown => {
                 // How to manage "any" types? Not sure what I even *want* here.
                 // Parsing is ambiguous, for example.
                 // Given `x: Any`, is `x.foo[...]` a method call or an indexed field access?
@@ -323,7 +323,7 @@ impl<'member, 'chk, 'db> MemberLookup<'member, 'chk, 'db> {
     fn search_class_for_member(
         self,
         owner: SymClass<'db>,
-        generics: &[SymGenericTerm<'db>],
+        generics: &[ObjectGenericTerm<'db>],
         id: Identifier<'db>,
     ) -> Option<SearchResult<'db>> {
         let db = self.check.db;
