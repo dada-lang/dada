@@ -5,14 +5,14 @@ use dada_ir_sym::{prelude::IntoSymInScope, symbol::SymVariable};
 use futures::join;
 
 use crate::{
-    object_ir::{Expr, ExprKind, IntoObjectIr},
     env::Env,
     executor::Check,
+    object_ir::{IntoObjectIr, ObjectExpr, ObjectExprKind},
     Checking,
 };
 
 impl<'chk, 'db: 'chk> Checking<'chk, 'db> for [AstStatement<'db>] {
-    type Checking = Expr<'chk, 'db>;
+    type Checking = ObjectExpr<'chk, 'db>;
 
     fn check(
         &self,
@@ -31,6 +31,7 @@ impl<'chk, 'db: 'chk> Checking<'chk, 'db> for [AstStatement<'db>] {
                 AstStatement::Let(s) => {
                     let lv = SymVariable::new_local(db, s.name(db).id, s.name(db).span);
 
+                    // For explicit local variables, we compute their type as a full symbol type first.
                     let ty = match s.ty(db) {
                         Some(ty) => ty.into_sym_in_scope(db, &env.scope),
                         None => env.fresh_ty_inference_var(check),
@@ -62,8 +63,9 @@ impl<'chk, 'db: 'chk> Checking<'chk, 'db> for [AstStatement<'db>] {
                     check.expr(
                         s.name(db).span,
                         body.ty,
-                        ExprKind::LetIn {
+                        ObjectExprKind::LetIn {
                             lv,
+                            sym_ty: Some(ty),
                             ty: ty.into_object_ir(db),
                             initializer,
                             body,
@@ -81,7 +83,7 @@ impl<'chk, 'db: 'chk> Checking<'chk, 'db> for [AstStatement<'db>] {
                         check_e.await
                     } else {
                         let (ce, re) = futures::join!(check_e, rest.check(check, env));
-                        check.expr(ce.span.to(re.span), re.ty, ExprKind::Semi(ce, re))
+                        check.expr(ce.span.to(re.span), re.ty, ObjectExprKind::Semi(ce, re))
                     }
                 }
             }

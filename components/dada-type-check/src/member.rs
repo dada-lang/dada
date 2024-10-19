@@ -17,7 +17,7 @@ use crate::{
     env::Env,
     executor::Check,
     exprs::{ExprResult, ExprResultKind},
-    object_ir::{IntoObjectIr, ObjectGenericTerm, ObjectTy, ObjectTyKind, PlaceExprKind},
+    object_ir::{IntoObjectIr, ObjectGenericTerm, ObjectPlaceExprKind, ObjectTy, ObjectTyKind},
 };
 
 #[derive(Copy, Clone)]
@@ -119,7 +119,7 @@ impl<'member, 'chk, 'db> MemberLookup<'member, 'chk, 'db> {
                 let place_expr = self.check.place_expr(
                     id.span,
                     field_ty,
-                    PlaceExprKind::Field(owner_place_expr, field),
+                    ObjectPlaceExprKind::Field(owner_place_expr, field),
                 );
                 ExprResult::from_place_expr(self.check, self.env, place_expr, temporaries)
             }

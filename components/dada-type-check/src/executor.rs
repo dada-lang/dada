@@ -23,9 +23,9 @@ use typed_arena::Arena;
 
 use crate::{
     bound::Bound,
-    object_ir::{Expr, ExprKind, ObjectTy, PlaceExpr, PlaceExprKind},
     env::Env,
     inference::InferenceVarData,
+    object_ir::{ObjectExpr, ObjectExprKind, ObjectPlaceExpr, ObjectTy, ObjectPlaceExprKind},
     universe::Universe,
 };
 
@@ -55,8 +55,8 @@ impl<'chk, 'db> std::ops::Deref for Check<'chk, 'db> {
 
 #[derive(Default)]
 pub struct ExecutorArenas<'chk, 'db> {
-    expr_kinds: Arena<ExprKind<'chk, 'db>>,
-    place_expr_kinds: Arena<PlaceExprKind<'chk, 'db>>,
+    expr_kinds: Arena<ObjectExprKind<'chk, 'db>>,
+    place_expr_kinds: Arena<ObjectPlaceExprKind<'chk, 'db>>,
 }
 
 struct DeferredCheck<'chk, 'db> {
@@ -140,14 +140,14 @@ impl<'chk, 'db> Check<'chk, 'db> {
         &self,
         span: Span<'db>,
         ty: ObjectTy<'db>,
-        kind: ExprKind<'chk, 'db>,
-    ) -> Expr<'chk, 'db> {
+        kind: ObjectExprKind<'chk, 'db>,
+    ) -> ObjectExpr<'chk, 'db> {
         let kind = self.arenas.expr_kinds.alloc(kind);
-        Expr { span, ty, kind }
+        ObjectExpr { span, ty, kind }
     }
 
-    pub fn err_expr(&self, span: Span<'db>, reported: Reported) -> Expr<'chk, 'db> {
-        self.expr(span, self.unit(), ExprKind::Error(reported))
+    pub fn err_expr(&self, span: Span<'db>, reported: Reported) -> ObjectExpr<'chk, 'db> {
+        self.expr(span, self.unit(), ObjectExprKind::Error(reported))
     }
 
     /// Allocate a place expression
@@ -155,10 +155,10 @@ impl<'chk, 'db> Check<'chk, 'db> {
         &self,
         span: Span<'db>,
         ty: ObjectTy<'db>,
-        kind: PlaceExprKind<'chk, 'db>,
-    ) -> PlaceExpr<'chk, 'db> {
+        kind: ObjectPlaceExprKind<'chk, 'db>,
+    ) -> ObjectPlaceExpr<'chk, 'db> {
         let kind = self.arenas.place_expr_kinds.alloc(kind);
-        PlaceExpr { span, ty, kind }
+        ObjectPlaceExpr { span, ty, kind }
     }
 
     /// Create a series of semi-colon separated expressions.
@@ -166,16 +166,16 @@ impl<'chk, 'db> Check<'chk, 'db> {
     /// Returns `None` if exprs is empty.
     pub fn exprs(
         &self,
-        exprs: impl IntoIterator<Item = Expr<'chk, 'db>>,
-    ) -> Option<Expr<'chk, 'db>> {
-        let mut lhs: Option<Expr<'_, '_>> = None;
+        exprs: impl IntoIterator<Item = ObjectExpr<'chk, 'db>>,
+    ) -> Option<ObjectExpr<'chk, 'db>> {
+        let mut lhs: Option<ObjectExpr<'_, '_>> = None;
         for rhs in exprs {
             lhs = Some(match lhs {
                 None => rhs,
                 Some(result) => self.expr(
                     result.span.to(rhs.span),
                     rhs.ty,
-                    ExprKind::Semi(result, rhs),
+                    ObjectExprKind::Semi(result, rhs),
                 ),
             });
         }

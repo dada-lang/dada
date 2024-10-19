@@ -8,7 +8,7 @@ use crate::{
     env::Env,
     executor::{Check, ExecutorArenas},
     ir::CheckedExpr,
-    object_ir::{Expr, ExprKind},
+    object_ir::{ObjectExpr, ObjectExprKind},
     Checking,
 };
 
@@ -57,7 +57,7 @@ pub fn check_function_body<'db>(
 }
 
 impl<'chk, 'db: 'chk> Checking<'chk, 'db> for AstBlock<'db> {
-    type Checking = Expr<'chk, 'db>;
+    type Checking = ObjectExpr<'chk, 'db>;
 
     async fn check(&self, check: &Check<'chk, 'db>, env: &Env<'db>) -> Self::Checking {
         let db = check.db;
@@ -65,7 +65,11 @@ impl<'chk, 'db: 'chk> Checking<'chk, 'db> for AstBlock<'db> {
         let statements = self.statements(db);
 
         if statements.is_empty() {
-            return check.expr(statements.span, SymTy::unit(db), ExprKind::Tuple(vec![]));
+            return check.expr(
+                statements.span,
+                SymTy::unit(db),
+                ObjectExprKind::Tuple(vec![]),
+            );
         }
 
         statements.values[..].check(check, env).await

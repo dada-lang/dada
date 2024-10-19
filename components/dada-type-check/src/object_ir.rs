@@ -1,3 +1,18 @@
+//! The "object IR" is an intermediate IR that we create
+//! as a first pass for type checking. The name "object"
+//! derives from the fact that it doesn't track precise
+//! types, but rather just the type of the underlying
+//! object without any permissions (i.e., what class/struct/enum/etc is it?).
+//! This can then be used to bootstrap full type checking.
+//!
+//! We need to create this IR first because full type checking will
+//! require knowing which variables are live. Knowing that
+//! requires that we have fully parsed the AST. But fully parsing
+//! the AST requires being able to disambiguate things like `x.foo[..]()`,
+//! which could be either indexing a field `foo` and then calling the
+//! result or invoking a method `foo` with generic arguments.
+//! The object IR gives us enough information to make those determinations.
+
 use dada_ir_ast::{ast::Literal, diagnostic::Reported, span::Span};
 use dada_ir_sym::{
     class::SymField,
@@ -9,19 +24,19 @@ use dada_util::FromImpls;
 use salsa::Update;
 
 #[derive(Copy, Clone, PartialEq, Eq, PartialOrd, Ord, Hash, Debug)]
-pub(crate) struct Expr<'chk, 'db> {
+pub(crate) struct ObjectExpr<'chk, 'db> {
     pub span: Span<'db>,
     pub ty: ObjectTy<'db>,
-    pub kind: &'chk ExprKind<'chk, 'db>,
+    pub kind: &'chk ObjectExprKind<'chk, 'db>,
 }
 
 #[derive(Clone, PartialEq, Eq, PartialOrd, Ord, Hash, Debug)]
-pub(crate) enum ExprKind<'chk, 'db> {
+pub(crate) enum ObjectExprKind<'chk, 'db> {
     /// `$expr1; $expr2`
-    Semi(Expr<'chk, 'db>, Expr<'chk, 'db>),
+    Semi(ObjectExpr<'chk, 'db>, ObjectExpr<'chk, 'db>),
 
     /// `(...)`
-    Tuple(Vec<Expr<'chk, 'db>>),
+    Tuple(Vec<ObjectExpr<'chk, 'db>>),
 
     /// `22`
     Literal(Literal<'db>),
@@ -29,25 +44,31 @@ pub(crate) enum ExprKind<'chk, 'db> {
     /// `let $lv: $ty [= $initializer] in $body`
     LetIn {
         lv: SymVariable<'db>,
+
+        // If this is a true local variable (as opposed to a temporary),
+        // then this will be its "sym ty". For temporaries, it's just None
+        // because no sym ty has been created yet.
+        sym_ty: Option<SymTy<'db>>,
+
         ty: ObjectTy<'db>,
-        initializer: Option<Expr<'chk, 'db>>,
-        body: Expr<'chk, 'db>,
+        initializer: Option<ObjectExpr<'chk, 'db>>,
+        body: ObjectExpr<'chk, 'db>,
     },
 
     /// `$place = $expr`
     Assign {
-        place: PlaceExpr<'chk, 'db>,
-        expr: Expr<'chk, 'db>,
+        place: ObjectPlaceExpr<'chk, 'db>,
+        expr: ObjectExpr<'chk, 'db>,
     },
 
     /// `$0.give`
-    Give(PlaceExpr<'chk, 'db>),
+    Give(ObjectPlaceExpr<'chk, 'db>),
 
     /// `$0.lease`
-    Lease(PlaceExpr<'chk, 'db>),
+    Lease(ObjectPlaceExpr<'chk, 'db>),
 
     /// `$0.share` or just `$place`
-    Share(PlaceExpr<'chk, 'db>),
+    Share(ObjectPlaceExpr<'chk, 'db>),
 
     /// `$0[$1..]($2..)`
     ///
@@ -65,22 +86,22 @@ pub(crate) enum ExprKind<'chk, 'db> {
 }
 
 #[derive(Copy, Clone, PartialEq, Eq, PartialOrd, Ord, Hash, Debug)]
-pub(crate) struct PlaceExpr<'chk, 'db> {
+pub(crate) struct ObjectPlaceExpr<'chk, 'db> {
     pub span: Span<'db>,
     pub ty: ObjectTy<'db>,
-    pub kind: &'chk PlaceExprKind<'chk, 'db>,
+    pub kind: &'chk ObjectPlaceExprKind<'chk, 'db>,
 }
 
-impl<'chk, 'db> PlaceExpr<'chk, 'db> {
+impl<'chk, 'db> ObjectPlaceExpr<'chk, 'db> {
     pub fn to_object_place(&self) -> ObjectGenericTerm<'db> {
         ObjectGenericTerm::Place
     }
 }
 
 #[derive(Clone, PartialEq, Eq, PartialOrd, Ord, Hash, Debug)]
-pub(crate) enum PlaceExprKind<'chk, 'db> {
+pub(crate) enum ObjectPlaceExprKind<'chk, 'db> {
     Var(SymVariable<'db>),
-    Field(PlaceExpr<'chk, 'db>, SymField<'db>),
+    Field(ObjectPlaceExpr<'chk, 'db>, SymField<'db>),
     Error(Reported),
 }
 
