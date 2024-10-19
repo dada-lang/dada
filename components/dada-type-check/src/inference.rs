@@ -1,7 +1,7 @@
 use dada_ir_sym::{symbol::SymGenericKind, ty::SymGenericTerm};
 use dada_util::vecset::VecSet;
 
-use crate::{bound::Bound, checking_ir::ObjectGenericTerm, universe::Universe};
+use crate::{bound::Bound, object_ir::ObjectGenericTerm, universe::Universe};
 
 pub(crate) struct InferenceVarData<'db> {
     kind: SymGenericKind,

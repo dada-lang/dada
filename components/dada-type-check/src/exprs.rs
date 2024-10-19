@@ -17,7 +17,7 @@ use dada_util::FromImpls;
 use salsa::plumbing::{input, setup_input_struct};
 
 use crate::{
-    checking_ir::{Expr, ExprKind, IntoObjectIr, ObjectTy, ObjectTyKind, PlaceExpr, PlaceExprKind},
+    object_ir::{Expr, ExprKind, IntoObjectIr, ObjectTy, ObjectTyKind, PlaceExpr, PlaceExprKind},
     env::Env,
     executor::Check,
     member::MemberLookup,

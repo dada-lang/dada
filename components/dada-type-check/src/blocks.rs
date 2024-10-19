@@ -5,10 +5,10 @@ use dada_ir_sym::{
 };
 
 use crate::{
-    checking_ir::{Expr, ExprKind},
     env::Env,
     executor::{Check, ExecutorArenas},
     ir::CheckedExpr,
+    object_ir::{Expr, ExprKind},
     Checking,
 };
 

@@ -2,14 +2,11 @@ use dada_ir_ast::{ast::Literal, diagnostic::Reported, span::Span};
 use dada_ir_sym::{
     class::SymField,
     function::SymFunction,
-    subst::{Subst, SubstWith},
     symbol::{HasKind, SymGenericKind, SymVariable},
-    ty::{Binder, SymGenericTerm, SymPlace, SymPlaceKind, SymTy, SymTyKind, SymTyName, Var},
+    ty::{SymGenericTerm, SymTy, SymTyName, Var},
 };
 use dada_util::FromImpls;
 use salsa::Update;
-
-use crate::env::Env;
 
 #[derive(Copy, Clone, PartialEq, Eq, PartialOrd, Ord, Hash, Debug)]
 pub(crate) struct Expr<'chk, 'db> {

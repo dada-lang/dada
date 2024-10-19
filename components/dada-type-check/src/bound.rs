@@ -11,9 +11,9 @@ use dada_ir_sym::{
 };
 
 use crate::{
-    checking_ir::{ObjectGenericTerm, ObjectTy},
     executor::Check,
     inference::InferenceVarData,
+    object_ir::{ObjectGenericTerm, ObjectTy},
 };
 
 /// Either a lower or upper bound on an inference variable `?X`.

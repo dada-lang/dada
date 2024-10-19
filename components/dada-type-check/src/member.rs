@@ -14,10 +14,10 @@ use futures::{Stream, StreamExt};
 
 use crate::{
     bound::Bound,
-    checking_ir::{IntoObjectIr, ObjectGenericTerm, ObjectTy, ObjectTyKind, PlaceExprKind},
     env::Env,
     executor::Check,
     exprs::{ExprResult, ExprResultKind},
+    object_ir::{IntoObjectIr, ObjectGenericTerm, ObjectTy, ObjectTyKind, PlaceExprKind},
 };
 
 #[derive(Copy, Clone)]

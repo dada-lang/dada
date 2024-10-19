@@ -5,7 +5,7 @@ use dada_ir_sym::{prelude::IntoSymInScope, symbol::SymVariable};
 use futures::join;
 
 use crate::{
-    checking_ir::{Expr, ExprKind, IntoObjectIr},
+    object_ir::{Expr, ExprKind, IntoObjectIr},
     env::Env,
     executor::Check,
     Checking,

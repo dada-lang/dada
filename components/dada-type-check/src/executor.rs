@@ -23,7 +23,7 @@ use typed_arena::Arena;
 
 use crate::{
     bound::Bound,
-    checking_ir::{Expr, ExprKind, ObjectTy, PlaceExpr, PlaceExprKind},
+    object_ir::{Expr, ExprKind, ObjectTy, PlaceExpr, PlaceExprKind},
     env::Env,
     inference::InferenceVarData,
     universe::Universe,

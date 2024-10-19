@@ -23,13 +23,13 @@ pub mod prelude {
 
 mod blocks;
 mod bound;
-mod checking_ir;
 mod env;
 mod executor;
 mod exprs;
 mod inference;
 mod ir;
 mod member;
+mod object_ir;
 mod statements;
 mod universe;
 
