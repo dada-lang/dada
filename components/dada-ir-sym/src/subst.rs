@@ -48,33 +48,11 @@ pub fn default_binder_index(i: SymBinderIndex) -> SymBinderIndex {
     i
 }
 
-/// Core substitution trait: used to walk terms and produce new ones,
-/// applying changes to the variables within.
-pub trait Subst<'db> {
-    /// The notion of a generic term appropriate for this type.
-    type Term: Copy + HasKind<'db>;
-
-    /// The type of the resulting term; typically `Self` but not always.
-    type Output: Update;
-
-    /// Reproduce `self` with no edits.
-    fn identity(&self) -> Self::Output;
-
-    /// Replace `self` applying the changes from `subst_fns`.
-    ///
-    /// # Parameters
-    ///
-    /// * `db`, the database
-    /// * `start_binder`, the index of the binder we started from.
-    ///   This always begins as `SymBinderIndex::INNERMOST`
-    ///   but gets incremented as we traverse binders.
-    /// * `subst_fns`, a struct containing callbacks for substitution
-    fn subst_with(
-        &self,
-        db: &'db dyn crate::Db,
-        start_binder: SymBinderIndex,
-        subst_fns: &mut SubstitutionFns<'_, 'db, Self::Term>,
-    ) -> Self::Output;
+/// A type implemented by terms that can be substituted.
+pub trait Subst<'db>: SubstWith<'db, Self::GenericTerm> {
+    /// The notion of generic term appropriate for this type.
+    /// When we substitute variables, this is the type of value that we replace them with.
+    type GenericTerm: Copy + HasKind<'db>;
 
     /// Convenient operation to shift all binder levels in `self` by `binders`.
     /// No-op if `binders` equals 0.
@@ -102,7 +80,7 @@ pub trait Subst<'db> {
     fn subst_vars(
         &self,
         db: &'db dyn crate::Db,
-        map: &Map<SymVariable<'db>, Self::Term>,
+        map: &Map<SymVariable<'db>, Self::GenericTerm>,
     ) -> Self::Output {
         debug_assert!(map
             .iter()
@@ -124,7 +102,7 @@ pub trait Subst<'db> {
         &self,
         db: &'db dyn crate::Db,
         var: SymVariable<'db>,
-        term: Self::Term,
+        term: Self::GenericTerm,
     ) -> Self::Output {
         debug_assert!(term.has_kind(db, var.kind(db)));
 
@@ -140,18 +118,53 @@ pub trait Subst<'db> {
     }
 }
 
+/// Core substitution operation: produce a version of this type
+/// with variables replaced with instances of `Term`.
+///
+/// Most types implement this for only a single `Term`, but not all
+/// (see the macro [`identity_subst`][]).
+pub trait SubstWith<'db, Term> {
+    /// The type of the resulting term; typically `Self` but not always.
+    type Output: Update;
+
+    /// Reproduce `self` with no edits.
+    fn identity(&self) -> Self::Output;
+
+    /// Replace `self` applying the changes from `subst_fns`.
+    ///
+    /// # Parameters
+    ///
+    /// * `db`, the database
+    /// * `start_binder`, the index of the binder we started from.
+    ///   This always begins as `SymBinderIndex::INNERMOST`
+    ///   but gets incremented as we traverse binders.
+    /// * `subst_fns`, a struct containing callbacks for substitution
+    fn subst_with(
+        &self,
+        db: &'db dyn crate::Db,
+        start_binder: SymBinderIndex,
+        subst_fns: &mut SubstitutionFns<'_, 'db, Term>,
+    ) -> Self::Output;
+}
+
 impl<'db, T> Subst<'db> for &T
 where
     T: Subst<'db>,
 {
-    type Term = T::Term;
+    type GenericTerm = T::GenericTerm;
+}
+
+impl<'db, T, Term> SubstWith<'db, Term> for &T
+where
+    T: SubstWith<'db, Term>,
+{
     type Output = T::Output;
 
     fn subst_with(
         &self,
         db: &'db dyn crate::Db,
         start_binder: SymBinderIndex,
-        subst_fns: &mut SubstitutionFns<'_, 'db, Self::Term>,
+        subst_fns: &mut SubstitutionFns<'_, 'db, Term>,
     ) -> Self::Output {
         T::subst_with(self, db, start_binder, subst_fns)
     }
@@ -162,14 +175,17 @@ where
 }
 
 impl<'db> Subst<'db> for SymGenericTerm<'db> {
-    type Term = SymGenericTerm<'db>;
+    type GenericTerm = SymGenericTerm<'db>;
+}
+
+impl<'db> SubstWith<'db, SymGenericTerm<'db>> for SymGenericTerm<'db> {
     type Output = Self;
 
     fn subst_with(
         &self,
         db: &'db dyn crate::Db,
         start_binder: SymBinderIndex,
-        subst_fns: &mut SubstitutionFns<'_, 'db, Self::Term>,
+        subst_fns: &mut SubstitutionFns<'_, 'db, SymGenericTerm<'db>>,
     ) -> Self::Output {
         match self {
             SymGenericTerm::Type(ty) => {
@@ -192,31 +208,18 @@ impl<'db> Subst<'db> for SymGenericTerm<'db> {
     }
 }
 
-impl<'db> Subst<'db> for Reported {
-    type Output = Self;
-
-    fn subst_with(
-        &self,
-        _db: &'db dyn crate::Db,
-        _start_binder: SymBinderIndex,
-        _subst_fns: &mut SubstitutionFns<'_, 'db, Self::Term>,
-    ) -> Self::Output {
-        self.identity()
-    }
-
-    fn identity(&self) -> Self::Output {
-        *self
-    }
+impl<'db> Subst<'db> for SymTy<'db> {
+    type GenericTerm = SymGenericTerm<'db>;
 }
 
-impl<'db> Subst<'db> for SymTy<'db> {
+impl<'db> SubstWith<'db, SymGenericTerm<'db>> for SymTy<'db> {
     type Output = Self;
 
     fn subst_with(
         &self,
         db: &'db dyn crate::Db,
         start_binder: SymBinderIndex,
-        subst_fns: &mut SubstitutionFns<'_, 'db, Self::Term>,
+        subst_fns: &mut SubstitutionFns<'_, 'db, SymGenericTerm<'db>>,
     ) -> Self::Output {
         match self.kind(db) {
             // Variables
@@ -252,6 +255,10 @@ impl<'db> Subst<'db> for SymTy<'db> {
 }
 
 impl<'db> Subst<'db> for SymPerm<'db> {
+    type GenericTerm = SymGenericTerm<'db>;
+}
+
+impl<'db> SubstWith<'db, SymGenericTerm<'db>> for SymPerm<'db> {
     type Output = Self;
 
     fn identity(&self) -> Self::Output {
@@ -262,7 +269,7 @@ impl<'db> Subst<'db> for SymPerm<'db> {
         &self,
         db: &'db dyn crate::Db,
         start_binder: SymBinderIndex,
-        subst_fns: &mut SubstitutionFns<'_, 'db, Self::Term>,
+        subst_fns: &mut SubstitutionFns<'_, 'db, SymGenericTerm<'db>>,
     ) -> Self::Output {
         match self.kind(db) {
             // Variables
@@ -305,24 +312,11 @@ impl<'db> Subst<'db> for SymPerm<'db> {
     }
 }
 
-impl<'db> Subst<'db> for SymTyName<'db> {
-    type Output = Self;
-
-    fn identity(&self) -> Self::Output {
-        *self
-    }
-
-    fn subst_with(
-        &self,
-        _db: &'db dyn crate::Db,
-        _start_binder: SymBinderIndex,
-        _subst_fns: &mut SubstitutionFns<'_, 'db, Self::Term>,
-    ) -> Self::Output {
-        self.identity()
-    }
+impl<'db> Subst<'db> for SymPlace<'db> {
+    type GenericTerm = SymGenericTerm<'db>;
 }
 
-impl<'db> Subst<'db> for SymPlace<'db> {
+impl<'db> SubstWith<'db, SymGenericTerm<'db>> for SymPlace<'db> {
     type Output = Self;
 
     fn identity(&self) -> Self::Output {
@@ -333,7 +327,7 @@ impl<'db> Subst<'db> for SymPlace<'db> {
         &self,
         db: &'db dyn crate::Db,
         start_binder: SymBinderIndex,
-        subst_fns: &mut SubstitutionFns<'_, 'db, Self::Term>,
+        subst_fns: &mut SubstitutionFns<'_, 'db, SymGenericTerm<'db>>,
     ) -> Self::Output {
         match self.kind(db) {
             // Variables
@@ -362,6 +356,10 @@ impl<'db> Subst<'db> for SymPlace<'db> {
 }
 
 impl<'db, T: Subst<'db> + Update> Subst<'db> for Binder<T> {
+    type GenericTerm = T::GenericTerm;
+}
+
+impl<'db, T: Subst<'db> + Update> SubstWith<'db, T::GenericTerm> for Binder<T> {
     type Output = Binder<T::Output>;
 
     fn identity(&self) -> Self::Output {
@@ -375,7 +373,7 @@ impl<'db, T: Subst<'db> + Update> Subst<'db> for Binder<T> {
         &self,
         db: &'db dyn crate::Db,
         start_binder: SymBinderIndex,
-        subst_fns: &mut SubstitutionFns<'_, 'db, Self::Term>,
+        subst_fns: &mut SubstitutionFns<'_, 'db, T::GenericTerm>,
     ) -> Self::Output {
         let bound_value = self.bound_value.subst_with(db, start_binder + 1, subst_fns);
         Binder {
@@ -386,6 +384,10 @@ impl<'db, T: Subst<'db> + Update> Subst<'db> for Binder<T> {
 }
 
 impl<'db> Subst<'db> for SymInputOutput<'db> {
+    type GenericTerm = SymGenericTerm<'db>;
+}
+
+impl<'db> SubstWith<'db, SymGenericTerm<'db>> for SymInputOutput<'db> {
     type Output = Self;
 
     fn identity(&self) -> Self::Output {
@@ -396,7 +398,7 @@ impl<'db> Subst<'db> for SymInputOutput<'db> {
         &self,
         db: &'db dyn crate::Db,
         start_binder: SymBinderIndex,
-        subst_fns: &mut SubstitutionFns<'_, 'db, Self::Term>,
+        subst_fns: &mut SubstitutionFns<'_, 'db, SymGenericTerm<'db>>,
     ) -> Self::Output {
         SymInputOutput {
             input_tys: self.input_tys.subst_with(db, start_binder, subst_fns),
@@ -409,6 +411,10 @@ impl<'db, T> Subst<'db> for Vec<T>
 where
     T: Subst<'db>,
 {
+    type GenericTerm = T::GenericTerm;
+}
+
+impl<'db, T: Subst<'db>> SubstWith<'db, T::GenericTerm> for Vec<T> {
     type Output = Vec<T::Output>;
 
     fn identity(&self) -> Self::Output {
@@ -419,7 +425,7 @@ where
         &self,
         db: &'db dyn crate::Db,
         start_binder: SymBinderIndex,
-        subst_fns: &mut SubstitutionFns<'_, 'db, Self::Term>,
+        subst_fns: &mut SubstitutionFns<'_, 'db, T::GenericTerm>,
     ) -> Self::Output {
         self.iter()
             .map(|t| t.subst_with(db, start_binder, subst_fns))
@@ -427,15 +433,15 @@ where
     }
 }
 
-fn subst_var<'db, Term>(
+fn subst_var<'db, KTerm>(
     db: &'db dyn crate::Db,
     start_binder: SymBinderIndex,
-    subst_fns: &mut SubstitutionFns<'_, 'db, Self::Term>,
-    term: &Term,
+    subst_fns: &mut SubstitutionFns<'_, 'db, KTerm::GenericTerm>,
+    term: &KTerm,
     generic_index: Var<'db>,
-) -> Term
+) -> KTerm
 where
-    Term: SubstGenericVar<'db>,
+    KTerm: SubstGenericVar<'db>,
 {
     match generic_index {
         Var::Bound(original_binder_index, sym_bound_var_index) => {
@@ -443,24 +449,24 @@ where
             if original_binder_index == start_binder {
                 match (subst_fns.bound_var)(SymGenericKind::Perm, sym_bound_var_index) {
                     Some(r) => {
-                        Term::assert_kind(db, r).shift_into_binders(db, start_binder.as_usize())
+                        KTerm::assert_kind(db, r).shift_into_binders(db, start_binder.as_usize())
                     }
-                    None => Term::bound_var(db, new_binder_index(), sym_bound_var_index),
+                    None => KTerm::bound_var(db, new_binder_index(), sym_bound_var_index),
                 }
             } else {
-                Term::bound_var(db, new_binder_index(), sym_bound_var_index)
+                KTerm::bound_var(db, new_binder_index(), sym_bound_var_index)
             }
         }
         Var::Universal(var) => match (subst_fns.free_universal_var)(var) {
-            Some(r) => Term::assert_kind(db, r).shift_into_binders(db, start_binder.as_usize()),
-            None => Term::identity(term),
+            Some(r) => KTerm::assert_kind(db, r).shift_into_binders(db, start_binder.as_usize()),
+            None => KTerm::identity(term),
         },
         Var::Infer(_) => term.identity(),
     }
 }
 
 trait SubstGenericVar<'db>: Subst<'db, Output = Self> {
-    fn assert_kind(db: &'db dyn crate::Db, term: SymGenericTerm<'db>) -> Self;
+    fn assert_kind(db: &'db dyn crate::Db, term: Self::GenericTerm) -> Self;
 
     fn bound_var(
         db: &'db dyn crate::Db,
@@ -517,5 +523,46 @@ impl<'db> SubstGenericVar<'db> for SymTy<'db> {
             db,
             SymTyKind::Var(Var::Bound(binder_index, bound_var_index)),
         )
+    }
+}
+
+/// For types that do not contain any potentially substitutable
+/// content, we can use a simple impl. Note that while these types
+/// default [`Subst::Term`][] type to `SymGenericTerm`,
+/// that is just for convenience -- they implement [`SubstWith`][]
+/// for any type `Term`.
+macro_rules! identity_subst {
+    (for $l:lifetime { $($t:ty,)* }) => {
+        $(
+            impl<$l> Subst<$l> for $t {
+                type GenericTerm = SymGenericTerm<$l>;
+            }
+
+            impl<$l, Term> SubstWith<$l, Term> for $t {
+                type Output = Self;
+
+                fn identity(&self) -> Self::Output {
+                    *self
+                }
+
+                fn subst_with(
+                    &self,
+                    _db: &$l dyn crate::Db,
+                    _start_binder: SymBinderIndex,
+                    _subst_fns: &mut SubstitutionFns<'_, $l, Term>,
+                ) -> Self::Output {
+                    *self
+                }
+            }
+        )*
+    };
+}
+
+identity_subst! {
+    for 'db {
+        (),
+        Reported,
+        SymGenericKind,
+        SymTyName<'db>,
     }
 }

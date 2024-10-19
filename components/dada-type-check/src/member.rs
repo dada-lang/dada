@@ -316,7 +316,7 @@ impl<'member, 'chk, 'db> MemberLookup<'member, 'chk, 'db> {
                 None
             }
 
-            SymTyKind::Error(reported) => Some(SearchResult::Error(*reported)),
+            ObjectTyKind::Error(reported) => Some(SearchResult::Error(*reported)),
         }
     }
 

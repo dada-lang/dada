@@ -13,7 +13,7 @@ use salsa::Update;
 
 use crate::{
     bound::{Bound, InferenceVarBounds},
-    checking_ir::{IntoObjectTy, ObjectGenericTerm, ObjectTy},
+    checking_ir::{ObjectGenericTerm, ObjectTy, ToObject},
     executor::Check,
     universe::Universe,
 };
@@ -155,7 +155,7 @@ impl<'db> Env<'db> {
     }
 
     pub fn fresh_object_ty_inference_var(&self, check: &Check<'_, 'db>) -> ObjectTy<'db> {
-        self.fresh_ty_inference_var(check).into_object_ty(check.db)
+        self.fresh_ty_inference_var(check).to_object(check.db)
     }
 
     pub fn fresh_perm_inference_var(&self, check: &Check<'_, 'db>) -> SymPerm<'db> {
@@ -166,8 +166,8 @@ impl<'db> Env<'db> {
     pub fn require_subobject(
         &self,
         check: &Check<'_, 'db>,
-        sub: impl IntoObjectTy<'db>,
-        sup: impl IntoObjectTy<'db>,
+        sub: impl ToObject<'db>,
+        sup: impl ToObject<'db>,
     ) {
         check.defer(self, |check, env| async move { todo!() });
     }
@@ -198,7 +198,7 @@ impl<'db> Env<'db> {
                 .map(|b| b.assert_type(db))
                 .boxed_local()
         } else {
-            let ty = ty.into_object_ty(db);
+            let ty = ty.to_object(db);
             futures::stream::once(futures::future::ready(Bound::LowerBound(ty))).boxed_local()
         }
     }

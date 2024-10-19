@@ -5,7 +5,7 @@ use dada_ir_sym::{prelude::IntoSymInScope, symbol::SymVariable};
 use futures::join;
 
 use crate::{
-    checking_ir::{Expr, ExprKind},
+    checking_ir::{Expr, ExprKind, ToObject},
     env::Env,
     executor::Check,
     Checking,
@@ -44,7 +44,7 @@ impl<'chk, 'db: 'chk> Checking<'chk, 'db> for [AstStatement<'db>] {
                                         .check(check, env)
                                         .await
                                         .into_expr_with_enclosed_temporaries(check, &env);
-                                    env.require_subtype(check, initializer.ty, ty);
+                                    env.require_subobject(check, initializer.ty, ty);
                                     Some(initializer)
                                 }
 
@@ -64,7 +64,7 @@ impl<'chk, 'db: 'chk> Checking<'chk, 'db> for [AstStatement<'db>] {
                         body.ty,
                         ExprKind::LetIn {
                             lv,
-                            ty,
+                            ty: ty.to_object(db),
                             initializer,
                             body,
                         },

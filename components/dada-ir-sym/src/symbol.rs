@@ -35,7 +35,7 @@ impl<'db> SymVariable<'db> {
 }
 
 impl<'db> HasKind<'db> for SymVariable<'db> {
-    fn has_kind(self, db: &'db dyn crate::Db, kind: SymGenericKind) -> bool {
+    fn has_kind(&self, db: &'db dyn crate::Db, kind: SymGenericKind) -> bool {
         self.kind(db) == kind
     }
 }

@@ -4,7 +4,7 @@ use crate::{
     prelude::{IntoSymInScope, IntoSymbol},
     primitive::SymPrimitive,
     scope::{NameResolution, Resolve, Scope},
-    subst::{Subst, SubstitutionFns},
+    subst::{self, Subst, SubstitutionFns},
     symbol::{HasKind, SymGenericKind, SymVariable},
     Db,
 };
@@ -171,7 +171,7 @@ impl<T: Update> Binder<T> {
     pub fn open<'db>(
         &self,
         db: &'db dyn crate::Db,
-        mut func: impl FnMut(SymGenericKind, SymBoundVarIndex) -> T::Term,
+        mut func: impl FnMut(SymGenericKind, SymBoundVarIndex) -> T::GenericTerm,
     ) -> T::Output
     where
         T: Subst<'db>,
@@ -190,7 +190,7 @@ impl<T: Update> Binder<T> {
                         }),
                     )
                 },
-                free_universal_var: &mut SubstitutionFns::default_free_var,
+                free_universal_var: &mut subst::default_free_var,
                 binder_index: &mut |i| i.shift_out(),
             },
         )
@@ -204,7 +204,7 @@ impl<T: Update> Binder<T> {
     pub fn substitute<'db>(
         &self,
         db: &'db dyn crate::Db,
-        substitution: &[impl Into<T::Term> + Copy],
+        substitution: &[impl Into<T::GenericTerm> + Copy],
     ) -> T::Output
     where
         T: Subst<'db>,

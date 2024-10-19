@@ -360,7 +360,7 @@ impl<'db> Bind<'db, SymTy<'db>> for SymTy<'db> {
 fn bind_leaf<'db, L: Subst<'db, Output = L>>(
     db: &'db dyn crate::Db,
     mut symbols_to_bind: impl Iterator<Item = Vec<SymVariable<'db>>>,
-    free_var_substitution: &Map<SymVariable<'db>, SymGenericTerm<'db>>,
+    free_var_substitution: &Map<SymVariable<'db>, L::GenericTerm>,
     value: L,
 ) -> L {
     // Leaf case: symbol type is the innermost value.

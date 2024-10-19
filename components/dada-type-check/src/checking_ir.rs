@@ -3,7 +3,7 @@ use dada_ir_sym::{
     class::SymField,
     function::SymFunction,
     symbol::{SymGenericKind, SymVariable},
-    ty::{SymGenericTerm, SymPlace, SymPlaceKind, SymTy, SymTyKind, SymTyName, Var},
+    ty::{Binder, SymGenericTerm, SymPlace, SymPlaceKind, SymTy, SymTyKind, SymTyName, Var},
 };
 use dada_util::FromImpls;
 use salsa::Update;
@@ -118,7 +118,7 @@ pub(crate) enum ObjectTyKind<'db> {
 
 impl<'db> ObjectTy<'db> {
     pub fn unit(db: &'db dyn crate::Db) -> ObjectTy<'db> {
-        SymTy::unit(db).into_object_ty(db)
+        SymTy::unit(db).to_object(db)
     }
 }
 
@@ -134,15 +134,6 @@ pub(crate) enum ObjectGenericTerm<'db> {
 }
 
 impl<'db> ObjectGenericTerm<'db> {
-    pub fn from_sym(db: &'db dyn crate::Db, term: SymGenericTerm<'db>) -> ObjectGenericTerm<'db> {
-        match term {
-            SymGenericTerm::Type(ty) => ObjectGenericTerm::Type(ty.into_object_ty(db)),
-            SymGenericTerm::Perm(_) => ObjectGenericTerm::Perm,
-            SymGenericTerm::Error(reported) => ObjectGenericTerm::Error(reported),
-            SymGenericTerm::Place(_) => ObjectGenericTerm::Place,
-        }
-    }
-
     pub fn has_kind(self, kind: SymGenericKind) -> bool {
         match self {
             ObjectGenericTerm::Type(_) => kind == SymGenericKind::Type,
@@ -161,32 +152,57 @@ impl<'db> ObjectGenericTerm<'db> {
     }
 }
 
-pub trait IntoObjectTy<'db> {
-    fn into_object_ty(self, db: &'db dyn crate::Db) -> ObjectTy<'db>;
+pub trait ToObject<'db>: Update {
+    type Object: Update;
+
+    fn to_object(&self, db: &'db dyn crate::Db) -> Self::Object;
 }
 
-impl<'db> IntoObjectTy<'db> for ObjectTy<'db> {
-    fn into_object_ty(self, _db: &'db dyn crate::Db) -> ObjectTy<'db> {
+impl<'db> ToObject<'db> for ObjectTy<'db> {
+    type Object = Self;
+
+    fn to_object(&self, _db: &'db dyn crate::Db) -> ObjectTy<'db> {
         self
     }
 }
 
-impl<'db> IntoObjectTy<'db> for SymTy<'db> {
-    fn into_object_ty(self, db: &'db dyn crate::Db) -> ObjectTy<'db> {
+impl<'db> ToObject<'db> for SymTy<'db> {
+    type Object = ObjectTy<'db>;
+
+    fn to_object(&self, db: &'db dyn crate::Db) -> ObjectTy<'db> {
         match self.kind(db) {
-            SymTyKind::Perm(_, ty) => ty.into_object_ty(db),
+            SymTyKind::Perm(_, ty) => ty.to_object(db),
             SymTyKind::Named(name, vec) => ObjectTy::new(
                 db,
-                ObjectTyKind::Named(
-                    *name,
-                    vec.iter()
-                        .map(|t| ObjectGenericTerm::from_sym(db, *t))
-                        .collect(),
-                ),
+                ObjectTyKind::Named(*name, vec.iter().map(|t| t.to_object(db)).collect()),
             ),
             SymTyKind::Var(var) => ObjectTy::new(db, ObjectTyKind::Var(*var)),
             SymTyKind::Unknown => ObjectTy::new(db, ObjectTyKind::Unknown),
             SymTyKind::Error(reported) => ObjectTy::new(db, ObjectTyKind::Error(*reported)),
         }
+    }
+}
+
+impl<'db> ToObject<'db> for SymGenericTerm<'db> {
+    type Object = ObjectGenericTerm<'db>;
+
+    fn to_object(&self, db: &'db dyn crate::Db) -> ObjectGenericTerm<'db> {
+        match self {
+            SymGenericTerm::Type(ty) => ObjectGenericTerm::Type(ty.to_object(db)),
+            SymGenericTerm::Perm(_) => ObjectGenericTerm::Perm,
+            SymGenericTerm::Error(reported) => ObjectGenericTerm::Error(*reported),
+            SymGenericTerm::Place(_) => ObjectGenericTerm::Place,
+        }
+    }
+}
+
+impl<'db, T> ToObject<'db> for Binder<T>
+where
+    T: ToObject<'db>,
+{
+    type Object = Binder<T::Object>;
+
+    fn to_object(&self, db: &'db dyn crate::Db) -> Self::Object {
+        self.map(db, (), |db, (), t| t.to_object(db))
     }
 }
