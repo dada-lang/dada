@@ -11,7 +11,7 @@ use dada_ir_sym::{
 };
 
 use crate::{
-    executor::Check,
+    check::Check,
     inference::InferenceVarData,
     object_ir::{ObjectGenericTerm, ObjectTy},
 };

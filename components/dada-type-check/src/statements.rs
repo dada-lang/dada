@@ -6,7 +6,7 @@ use futures::join;
 
 use crate::{
     env::Env,
-    executor::Check,
+    check::Check,
     object_ir::{IntoObjectIr, ObjectExpr, ObjectExprKind},
     Checking,
 };

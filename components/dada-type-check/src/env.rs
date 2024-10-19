@@ -13,7 +13,7 @@ use salsa::Update;
 use crate::{
     bound::{Bound, InferenceVarBounds},
     object_ir::{IntoObjectIr, ObjectGenericTerm, ObjectTy, ObjectTyKind},
-    executor::Check,
+    check::Check,
     universe::Universe,
 };
 

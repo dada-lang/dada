@@ -5,8 +5,8 @@ use dada_ir_sym::{
 };
 
 use crate::{
+    check::{Check, ExecutorArenas},
     env::Env,
-    executor::{Check, ExecutorArenas},
     ir::CheckedExpr,
     object_ir::{ObjectExpr, ObjectExprKind},
     Checking,

@@ -8,10 +8,10 @@
 #![expect(dead_code)]
 #![expect(unused_variables)]
 
+use check::Check;
 use dada_ir_sym::function::SymFunction;
 pub use dada_ir_sym::Db;
 use env::Env;
-use executor::Check;
 
 pub mod prelude {
     use crate::ir::CheckedExpr;
@@ -23,8 +23,8 @@ pub mod prelude {
 
 mod blocks;
 mod bound;
+mod check;
 mod env;
-mod executor;
 mod exprs;
 mod inference;
 mod ir;

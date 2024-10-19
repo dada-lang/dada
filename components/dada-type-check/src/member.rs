@@ -15,7 +15,7 @@ use futures::{Stream, StreamExt};
 use crate::{
     bound::Bound,
     env::Env,
-    executor::Check,
+    check::Check,
     exprs::{ExprResult, ExprResultKind},
     object_ir::{IntoObjectIr, ObjectGenericTerm, ObjectPlaceExprKind, ObjectTy, ObjectTyKind},
 };
