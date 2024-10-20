@@ -328,16 +328,7 @@ dependencies = [
 ]
 
 [[package]]
-name = "dada-parser"
-version = "0.1.0"
-dependencies = [
- "dada-ir-ast",
- "dada-util",
- "salsa",
-]
-
-[[package]]
-name = "dada-type-check"
+name = "dada-object-check"
 version = "0.1.0"
 dependencies = [
  "dada-ir-ast",
@@ -347,6 +338,15 @@ dependencies = [
  "futures",
  "salsa",
  "typed-arena",
+]
+
+[[package]]
+name = "dada-parser"
+version = "0.1.0"
+dependencies = [
+ "dada-ir-ast",
+ "dada-util",
+ "salsa",
 ]
 
 [[package]]
