@@ -13,9 +13,11 @@
 //! result or invoking a method `foo` with generic arguments.
 //! The object IR gives us enough information to make those determinations.
 
-use std::result;
-
-use dada_ir_ast::{ast::Literal, diagnostic::Reported, span::Span};
+use dada_ir_ast::{
+    ast::Literal,
+    diagnostic::{Err, Reported},
+    span::Span,
+};
 use dada_ir_sym::{
     class::SymField,
     function::SymFunction,
@@ -26,7 +28,7 @@ use dada_util::FromImpls;
 use salsa::Update;
 
 #[salsa::tracked]
-pub(crate) struct ObjectExpr<'db> {
+pub struct ObjectExpr<'db> {
     pub span: Span<'db>,
     pub ty: ObjectTy<'db>,
 
@@ -34,14 +36,19 @@ pub(crate) struct ObjectExpr<'db> {
     pub kind: ObjectExprKind<'db>,
 }
 
-impl<'db> ObjectExpr<'db> {
-    pub fn err(db: &'db dyn crate::Db, span: Span<'db>, r: Reported) -> Self {
-        ObjectExpr::new(db, span, ObjectTy::err(db, r), ObjectExprKind::Error(r))
+impl<'db> Err<'db> for ObjectExpr<'db> {
+    fn err(db: &'db dyn salsa::Database, span: Span<'db>, r: Reported) -> Self {
+        ObjectExpr::new(
+            db,
+            span,
+            ObjectTy::err(db, span, r),
+            ObjectExprKind::Error(r),
+        )
     }
 }
 
 #[derive(Clone, PartialEq, Eq, PartialOrd, Ord, Hash, Debug, Update)]
-pub(crate) enum ObjectExprKind<'db> {
+pub enum ObjectExprKind<'db> {
     /// `$expr1; $expr2`
     Semi(ObjectExpr<'db>, ObjectExpr<'db>),
 
@@ -96,7 +103,7 @@ pub(crate) enum ObjectExprKind<'db> {
 }
 
 #[salsa::tracked]
-pub(crate) struct ObjectPlaceExpr<'db> {
+pub struct ObjectPlaceExpr<'db> {
     pub span: Span<'db>,
     pub ty: ObjectTy<'db>,
 
@@ -104,36 +111,38 @@ pub(crate) struct ObjectPlaceExpr<'db> {
     pub kind: ObjectPlaceExprKind<'db>,
 }
 
-impl<'db> ObjectPlaceExpr<'db> {
-    pub fn err(db: &'db dyn crate::Db, span: Span<'db>, r: Reported) -> Self {
+impl<'db> Err<'db> for ObjectPlaceExpr<'db> {
+    fn err(db: &'db dyn salsa::Database, span: Span<'db>, r: Reported) -> Self {
         ObjectPlaceExpr::new(
             db,
             span,
-            ObjectTy::err(db, r),
+            ObjectTy::err(db, span, r),
             ObjectPlaceExprKind::Error(r),
         )
     }
+}
 
+impl<'db> ObjectPlaceExpr<'db> {
     pub fn to_object_place(&self) -> ObjectGenericTerm<'db> {
         ObjectGenericTerm::Place
     }
 }
 
 #[derive(Clone, PartialEq, Eq, PartialOrd, Ord, Hash, Debug, Update)]
-pub(crate) enum ObjectPlaceExprKind<'db> {
+pub enum ObjectPlaceExprKind<'db> {
     Var(SymVariable<'db>),
     Field(ObjectPlaceExpr<'db>, SymField<'db>),
     Error(Reported),
 }
 
 #[salsa::interned]
-pub(crate) struct ObjectTy<'db> {
+pub struct ObjectTy<'db> {
     #[return_ref]
     pub kind: ObjectTyKind<'db>,
 }
 
-impl<'db> ObjectTy<'db> {
-    pub fn err(db: &'db dyn crate::Db, r: Reported) -> Self {
+impl<'db> Err<'db> for ObjectTy<'db> {
+    fn err(db: &'db dyn salsa::Database, _span: Span<'db>, r: Reported) -> Self {
         ObjectTy::new(db, ObjectTyKind::Error(r))
     }
 }
@@ -145,7 +154,7 @@ impl<'db> HasKind<'db> for ObjectTy<'db> {
 }
 
 #[derive(Clone, PartialEq, Eq, PartialOrd, Ord, Hash, Update, Debug)]
-pub(crate) enum ObjectTyKind<'db> {
+pub enum ObjectTyKind<'db> {
     /// `path[arg1, arg2]`, e.g., `Vec[String]`
     ///
     /// Important: the generic arguments must be well-kinded and of the correct number.
@@ -177,7 +186,7 @@ impl<'db> ObjectTy<'db> {
 
 /// Value of a generic parameter
 #[derive(Copy, Clone, PartialEq, Eq, PartialOrd, Ord, Hash, Update, Debug, FromImpls)]
-pub(crate) enum ObjectGenericTerm<'db> {
+pub enum ObjectGenericTerm<'db> {
     Type(ObjectTy<'db>),
     #[no_from_impl]
     Perm,
@@ -207,7 +216,7 @@ impl<'db> ObjectGenericTerm<'db> {
     }
 }
 
-pub trait IntoObjectIr<'db>: Update {
+pub(crate) trait IntoObjectIr<'db>: Update {
     type Object: Update;
 
     fn into_object_ir(self, db: &'db dyn crate::Db) -> Self::Object;

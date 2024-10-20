@@ -25,12 +25,10 @@ pub struct Env<'db> {
     /// Lexical scope for name resolution
     pub scope: Arc<Scope<'db, 'db>>,
 
-    /// Free variables that are in scope as free universals.
-    /// This includes generics but also place variables.
-    /// The symbols are retained for better error messages.
-    free_variables: Arc<Vec<SymVariable<'db>>>,
+    /// Universe of each free variable that is in scope.
+    variable_universes: Arc<Map<SymVariable<'db>, Universe>>,
 
-    /// Place variables that are in scope along with their types.
+    /// For place variables, keep their type.
     variable_tys: Arc<Map<SymVariable<'db>, SymTy<'db>>>,
 
     /// If `None`, not type checking a function or method.
@@ -44,7 +42,7 @@ impl<'db> Env<'db> {
             universe: Universe::ROOT,
             scope: Arc::new(scope),
             variable_tys: Default::default(),
-            free_variables: Default::default(),
+            variable_universes: Default::default(),
             return_ty: Default::default(),
         }
     }
@@ -53,47 +51,31 @@ impl<'db> Env<'db> {
         self.universe
     }
 
-    /// Opens two sets of binders at once where the symbols have been concatenated.
-    /// Used for class members which are under the class / member binders.
-    pub fn open_universally2<T>(
-        &mut self,
-        check: &Check<'db>,
-        symbols: &[SymVariable<'db>],
-        binder: Binder<Binder<T>>,
-    ) -> T
-    where
-        T: Subst<'db, GenericTerm = SymGenericTerm<'db>, Output = T> + Update,
-    {
-        let (symbols1, symbols2) = symbols.split_at(binder.len());
-        let b2 = self.open_universally(check, symbols1, binder);
-        self.open_universally(check, symbols2, b2)
-    }
-
     /// Open the given symbols as universally quantified.
     /// Creates a new universe.
     pub fn open_universally<T>(
         &mut self,
         check: &Check<'db>,
-        symbols: &[SymVariable<'db>],
-        binder: Binder<T>,
+        variables: &[SymVariable<'db>],
+        binder: &Binder<T>,
     ) -> T::Output
     where
         T: Subst<'db, GenericTerm = SymGenericTerm<'db>, Output = T> + Update,
     {
         let db = check.db;
 
-        assert_eq!(symbols.len(), binder.kinds.len());
-        assert!(symbols
+        assert_eq!(variables.len(), binder.kinds.len());
+        assert!(variables
             .iter()
             .zip(&binder.kinds)
             .all(|(s, &k)| s.kind(check.db) == k));
 
         self.increment_universe();
-        let base_index = self.free_variables.len();
-        Arc::make_mut(&mut self.free_variables).extend(symbols);
+        Arc::make_mut(&mut self.variable_universes)
+            .extend(variables.iter().map(|&v| (v, self.universe)));
 
         binder.open(db, |kind, sym_bound_var_index| {
-            let symbol = symbols[sym_bound_var_index.as_usize()];
+            let symbol = variables[sym_bound_var_index.as_usize()];
             assert!(symbol.has_kind(db, kind));
             SymGenericTerm::var(db, kind, Var::Universal(symbol))
         })

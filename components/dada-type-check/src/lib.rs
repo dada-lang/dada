@@ -12,12 +12,13 @@ use check::Check;
 use dada_ir_sym::function::SymFunction;
 pub use dada_ir_sym::Db;
 use env::Env;
+use object_ir::ObjectExpr;
 
 pub mod prelude {
-    use crate::ir::CheckedExpr;
+    use crate::object_ir::ObjectExpr;
 
     pub trait CheckFunctionBody<'db> {
-        fn check_function_body(self, db: &'db dyn crate::Db) -> Option<CheckedExpr<'db>>;
+        fn check_function_body(self, db: &'db dyn crate::Db) -> Option<ObjectExpr<'db>>;
     }
 }
 
@@ -27,9 +28,8 @@ mod check;
 mod env;
 mod exprs;
 mod inference;
-mod ir;
 mod member;
-mod object_ir;
+pub mod object_ir;
 mod statements;
 mod universe;
 
@@ -40,7 +40,7 @@ trait Checking<'db> {
 }
 
 impl<'db> prelude::CheckFunctionBody<'db> for SymFunction<'db> {
-    fn check_function_body(self, db: &'db dyn crate::Db) -> Option<ir::CheckedExpr<'db>> {
+    fn check_function_body(self, db: &'db dyn crate::Db) -> Option<ObjectExpr<'db>> {
         blocks::check_function_body(db, self)
     }
 }

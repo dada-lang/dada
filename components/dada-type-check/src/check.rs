@@ -9,7 +9,7 @@ use std::{
 
 use check_task::CheckTask;
 use dada_ir_ast::{
-    diagnostic::{Diagnostic, Reported},
+    diagnostic::{Diagnostic, Err, Reported},
     span::Span,
 };
 use dada_ir_sym::{
@@ -59,7 +59,7 @@ impl<'db> Check<'db> {
         op: impl async FnOnce(&Check<'db>) -> T + 'db,
     ) -> T
     where
-        T: From<Reported>,
+        T: Err<'db>,
     {
         let check = Check::new(db);
         let (channel_tx, channel_rx) = std::sync::mpsc::channel();
@@ -76,7 +76,11 @@ impl<'db> Check<'db> {
             Ok(v) => v,
 
             // FIXME: Obviously we need a better error message than this!
-            Err(_) => T::from(Diagnostic::error(db, span, "type annotations needed").report(db)),
+            Err(_) => T::err(
+                db,
+                span,
+                Diagnostic::error(db, span, "type annotations needed").report(db),
+            ),
         }
     }
 

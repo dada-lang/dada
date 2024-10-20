@@ -2,7 +2,7 @@ use std::pin::pin;
 
 use dada_ir_ast::{
     ast::{Identifier, SpannedIdentifier},
-    diagnostic::{Diagnostic, Errors, Level, Reported},
+    diagnostic::{Diagnostic, Err, Errors, Level, Reported},
     span::Span,
 };
 use dada_ir_sym::{
@@ -142,7 +142,7 @@ impl<'member, 'db> MemberLookup<'member, 'db> {
                     },
                 }
             }
-            SearchResult::Error(reported) => ExprResult::err(self.check, id.span, reported),
+            SearchResult::Error(reported) => ExprResult::err(db, id.span, reported),
         }
     }
 
@@ -252,7 +252,7 @@ impl<'member, 'db> MemberLookup<'member, 'db> {
         owner_ty: ObjectTy<'db>,
     ) -> ExprResult<'db> {
         ExprResult::err(
-            self.check,
+            self.check.db,
             id.span,
             self.no_such_member(id, owner_span, owner_ty),
         )

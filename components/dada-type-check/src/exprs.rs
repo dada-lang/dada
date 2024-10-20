@@ -2,7 +2,7 @@ use std::future::Future;
 
 use dada_ir_ast::{
     ast::{AstExpr, AstExprKind, BinaryOp, SpannedIdentifier},
-    diagnostic::{Diagnostic, Level, Reported},
+    diagnostic::{Diagnostic, Err, Level, Reported},
     span::Span,
 };
 use dada_ir_sym::{
@@ -163,7 +163,7 @@ async fn check_expr<'db>(
 
         AstExprKind::Id(SpannedIdentifier { span: id_span, id }) => {
             match env.scope.resolve_name(db, *id, *id_span) {
-                Err(r) => ExprResult::err(check, *id_span, r),
+                Err(r) => ExprResult::err(db, *id_span, r),
                 Ok(res) => ExprResult::from_name_resolution(check, env, res, span),
             }
         }
@@ -179,7 +179,7 @@ async fn check_expr<'db>(
 
                 ExprResultKind::Other(name_resolution) => {
                     match name_resolution.resolve_relative_id(db, *id) {
-                        Err(r) => ExprResult::err(check, span, r),
+                        Err(r) => ExprResult::err(db, span, r),
                         Ok(Ok(r)) => ExprResult::from_name_resolution(check, env, r, span),
                         Ok(Err(r)) => {
                             owner_result.kind = r.into();
@@ -195,7 +195,7 @@ async fn check_expr<'db>(
                     function: method,
                     ..
                 } => ExprResult::err(
-                    check,
+                    db,
                     span,
                     report_missing_call_to_method(db, owner.span(db), method),
                 ),
@@ -231,7 +231,7 @@ async fn check_expr<'db>(
                 }
 
                 ExprResultKind::PlaceExpr(_) | ExprResultKind::Expr(_) => ExprResult::err(
-                    check,
+                    db,
                     span,
                     report_not_implemented(db, span, "indexing expressions"),
                 ),
@@ -245,13 +245,11 @@ async fn check_expr<'db>(
                     function: method,
                     generics: Some(_),
                     ..
-                } => ExprResult::err(check, span, report_missing_call_to_method(db, span, method)),
+                } => ExprResult::err(db, span, report_missing_call_to_method(db, span, method)),
 
-                &ExprResultKind::Other(name_resolution) => ExprResult::err(
-                    check,
-                    span,
-                    report_non_expr(db, owner.span, name_resolution),
-                ),
+                &ExprResultKind::Other(name_resolution) => {
+                    ExprResult::err(db, span, report_non_expr(db, owner.span, name_resolution))
+                }
             }
         }
 
@@ -285,7 +283,7 @@ async fn check_expr<'db>(
 
                 _ => {
                     // FIXME: we probably want to support functions and function typed values?
-                    ExprResult::err(check, span, report_not_callable(db, span))
+                    ExprResult::err(db, span, report_not_callable(db, span))
                 }
             }
         }
@@ -326,7 +324,7 @@ async fn check_call<'db>(
             let function_name = function.name(db);
             if expected_generics != found_generics {
                 return ExprResult::err(
-                    check,
+                    db,
                     id_span,
                     Diagnostic::error(
                         db,
@@ -365,7 +363,7 @@ async fn check_call<'db>(
     if ast_args.len() != expected_inputs {
         let function_name = function.name(db);
         return ExprResult::err(
-            check,
+            db,
             id_span,
             Diagnostic::error(
                 db,
@@ -460,6 +458,16 @@ async fn check_call<'db>(
     ExprResult::from_expr(check, env, call_expr, temporaries)
 }
 
+impl<'db> Err<'db> for ExprResult<'db> {
+    fn err(db: &'db dyn salsa::Database, span: Span<'db>, r: Reported) -> Self {
+        Self {
+            temporaries: vec![],
+            span,
+            kind: ExprResultKind::Expr(ObjectExpr::err(db, span, r)),
+        }
+    }
+}
+
 impl<'db> ExprResult<'db> {
     /// Create a result based on lexical name resolution.
     pub fn from_name_resolution(
@@ -518,16 +526,6 @@ impl<'db> ExprResult<'db> {
             temporaries,
             span: expr.span(db),
             kind: ExprResultKind::Expr(expr),
-        }
-    }
-
-    /// Create an error result.
-    pub fn err(check: &Check<'db>, span: Span<'db>, r: Reported) -> Self {
-        let db = check.db;
-        Self {
-            temporaries: vec![],
-            span,
-            kind: ExprResultKind::Expr(ObjectExpr::err(db, span, r)),
         }
     }
 

@@ -1,9 +1,6 @@
 use std::fmt::Display;
 
-use crate::{
-    inputs::CrateKind,
-    span::{AbsoluteSpan, Span},
-};
+use crate::span::{AbsoluteSpan, Span};
 use salsa::{Accumulator, Update};
 
 /// Signals that a diagnostic was reported.
@@ -116,4 +113,9 @@ pub fn ordinal(n: usize) -> impl std::fmt::Display {
         3 => format!("{}rd", n),
         _ => format!("{}th", n),
     }
+}
+
+/// Many of our types have some value that represents an error in the input.
+pub trait Err<'db> {
+    fn err(db: &'db dyn salsa::Database, span: Span<'db>, reported: Reported) -> Self;
 }
