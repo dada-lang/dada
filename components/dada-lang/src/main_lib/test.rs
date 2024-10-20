@@ -1,9 +1,13 @@
-use std::path::{Path, PathBuf};
+use std::{
+    panic::AssertUnwindSafe,
+    path::{Path, PathBuf},
+};
 
 use dada_ir_ast::diagnostic::Diagnostic;
 use dada_util::{bail, Fallible};
 use expected::ExpectedDiagnostic;
 use indicatif::ProgressBar;
+use panic_hook::CapturedPanic;
 use rayon::prelude::*;
 use walkdir::WalkDir;
 
@@ -33,6 +37,7 @@ enum Failure {
     UnexpectedDiagnostic(Diagnostic),
     MultipleMatches(ExpectedDiagnostic, Diagnostic),
     MissingDiagnostic(ExpectedDiagnostic),
+    InternalCompilerError(Option<CapturedPanic>),
 
     /// Auxiliary file at `path` did not have expected contents.
     ///
@@ -49,6 +54,8 @@ enum Failure {
 
 impl Failure {}
 
+mod panic_hook;
+
 impl Main {
     pub(super) fn test(&mut self, options: &TestOptions) -> Fallible<()> {
         let tests = if options.inputs.is_empty() {
@@ -59,25 +66,30 @@ impl Main {
 
         let progress_bar = ProgressBar::new(tests.len() as u64);
 
-        let failed_or_errored_tests: Vec<Fallible<Option<FailedTest>>> = tests
-            .par_iter()
-            .map(|input| {
-                let result = self.run_test(input);
-                match &result {
-                    Ok(None) => {}
-                    Ok(Some(error)) => {
-                        progress_bar.println(format!("{}: {}", input.display(), error.summarize()))
-                    }
-                    Err(error) => progress_bar.println(format!(
-                        "{}: test harness errored, {}",
-                        input.display(),
-                        error
-                    )),
-                }
-                progress_bar.inc(1);
-                result
-            })
-            .collect();
+        let failed_or_errored_tests: Vec<Fallible<Option<FailedTest>>> =
+            panic_hook::recording_panics(|| {
+                tests
+                    .par_iter()
+                    .map(|input| {
+                        let result = self.run_test(input);
+                        match &result {
+                            Ok(None) => {}
+                            Ok(Some(error)) => progress_bar.println(format!(
+                                "{}: {}",
+                                input.display(),
+                                error.summarize()
+                            )),
+                            Err(error) => progress_bar.println(format!(
+                                "{}: test harness errored, {}",
+                                input.display(),
+                                error
+                            )),
+                        }
+                        progress_bar.inc(1);
+                        result
+                    })
+                    .collect()
+            });
 
         let mut failed_tests = vec![];
         for failed_or_errored_test in failed_or_errored_tests {
@@ -131,9 +143,26 @@ impl Main {
     fn run_test(&self, input: &Path) -> Fallible<Option<FailedTest>> {
         assert!(is_dada_file(input));
         let mut compiler = Compiler::new();
-        let source_file = compiler.load_input(input)?;
-        let expectations = expected::TestExpectations::new(compiler.db(), source_file)?;
-        match expectations.compare(&mut compiler)? {
+
+        // Run the test and capture panics
+        let result = std::panic::catch_unwind(AssertUnwindSafe(|| {
+            let source_file = compiler.load_input(input)?;
+            let expectations = expected::TestExpectations::new(compiler.db(), source_file)?;
+            expectations.compare(&mut compiler)
+        }));
+
+        let failed_test = match result {
+            // No panic occurred: just propagate test harness errors and continue
+            Ok(r) => r?,
+
+            // Panic occurred: convert that into a test failure
+            Err(_unwound) => {
+                let captured_panic = panic_hook::captured_panic();
+                Some(FailedTest::ice(input, captured_panic))
+            }
+        };
+
+        match failed_test {
             None => {
                 delete_test_report(input)?;
                 Ok(None)
@@ -151,6 +180,14 @@ fn is_dada_file(input: &Path) -> bool {
 }
 
 impl FailedTest {
+    fn ice(path: &Path, captured_panic: Option<CapturedPanic>) -> Self {
+        FailedTest {
+            path: path.to_path_buf(),
+            full_compiler_output: format!("(Internal Compiler Error)\n"),
+            failures: vec![Failure::InternalCompilerError(captured_panic)],
+        }
+    }
+
     fn summarize(&self) -> String {
         format!(
             "{} failures, see {}",
@@ -236,6 +273,16 @@ impl FailedTest {
 
                     writeln!(result, "Diff:")?;
                     writeln!(result, "```diff\n{diff}\n```")?;
+                }
+                Failure::InternalCompilerError(captured_panic) => {
+                    writeln!(result)?;
+                    writeln!(result, "# Internal compiler error")?;
+                    writeln!(result)?;
+                    if let Some(captured_panic) = captured_panic {
+                        writeln!(result, "{}", captured_panic.render())?;
+                    } else {
+                        writeln!(result, "No details available. :(")?;
+                    }
                 }
             }
         }
