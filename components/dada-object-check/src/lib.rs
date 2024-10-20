@@ -17,8 +17,8 @@ use object_ir::ObjectExpr;
 pub mod prelude {
     use crate::object_ir::ObjectExpr;
 
-    pub trait CheckFunctionBody<'db> {
-        fn check_function_body(self, db: &'db dyn crate::Db) -> Option<ObjectExpr<'db>>;
+    pub trait ObjectCheckFunctionBody<'db> {
+        fn object_check_body(self, db: &'db dyn crate::Db) -> Option<ObjectExpr<'db>>;
     }
 }
 
@@ -39,8 +39,8 @@ trait Checking<'db> {
     async fn check(&self, check: &Check<'db>, env: &Env<'db>) -> Self::Checking;
 }
 
-impl<'db> prelude::CheckFunctionBody<'db> for SymFunction<'db> {
-    fn check_function_body(self, db: &'db dyn crate::Db) -> Option<ObjectExpr<'db>> {
+impl<'db> prelude::ObjectCheckFunctionBody<'db> for SymFunction<'db> {
+    fn object_check_body(self, db: &'db dyn crate::Db) -> Option<ObjectExpr<'db>> {
         blocks::check_function_body(db, self)
     }
 }

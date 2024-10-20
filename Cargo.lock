@@ -283,6 +283,7 @@ version = "0.1.0"
 dependencies = [
  "dada-ir-ast",
  "dada-ir-sym",
+ "dada-object-check",
  "dada-parser",
  "dada-util",
  "salsa",

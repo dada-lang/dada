@@ -15,6 +15,7 @@ use dada_ir_sym::{
     symbol::{SymGenericKind, SymVariable},
     ty::SymTy,
 };
+use dada_object_check::{object_ir::ObjectExpr, prelude::*};
 use salsa::Update;
 
 pub use dada_ir_sym::Db;
@@ -27,6 +28,14 @@ pub mod prelude {
 /// The main "check" routine. This defines what it means for a dada program to successfully compile.
 pub trait Check<'db> {
     fn check(&self, db: &'db dyn crate::Db);
+}
+
+impl<'db, T: Check<'db>> Check<'db> for Option<T> {
+    fn check(&self, db: &'db dyn crate::Db) {
+        if let Some(t) = self {
+            t.check(db);
+        }
+    }
 }
 
 impl<'db> Check<'db> for SourceFile {
@@ -76,6 +85,7 @@ impl<'db> Check<'db> for SymField<'db> {
 impl<'db> Check<'db> for SymFunction<'db> {
     fn check(&self, db: &'db dyn crate::Db) {
         self.signature(db).check(db);
+        self.object_check_body(db).check(db);
     }
 }
 
@@ -175,5 +185,11 @@ impl<'db> Check<'db> for SymVariable<'db> {
         // There *are* validity checks that need to be done on types,
         // but they are done as part of the checking the item in which
         // the type appears.
+    }
+}
+
+impl<'db> Check<'db> for ObjectExpr<'db> {
+    fn check(&self, db: &'db dyn crate::Db) {
+        // FIXME: true check-check
     }
 }
