@@ -27,7 +27,8 @@ impl<'db> SubstWith<'db, ObjectGenericTerm<'db>> for ObjectTy<'db> {
             ObjectTyKind::Named(sym_ty_name, vec) => todo!(),
             ObjectTyKind::Var(var) => subst_var(db, start_binder, subst_fns, self, *var),
             ObjectTyKind::Unknown => self.identity(),
-            ObjectTyKind::Error(r) => ObjectTy::new(db, ObjectTyKind::Error(*r)),
+            ObjectTyKind::Error(_) => self.identity(),
+            ObjectTyKind::Never => self.identity(),
         }
     }
 }

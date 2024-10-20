@@ -32,7 +32,7 @@ pub struct Env<'db> {
     variable_tys: Arc<Map<SymVariable<'db>, SymTy<'db>>>,
 
     /// If `None`, not type checking a function or method.
-    return_ty: Option<SymTy<'db>>,
+    pub return_ty: Option<SymTy<'db>>,
 }
 
 impl<'db> Env<'db> {

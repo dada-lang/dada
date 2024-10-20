@@ -101,6 +101,19 @@ impl<'db> SymTy<'db> {
         unit_ty(db)
     }
 
+    /// Returns the type for `!`
+    pub fn never(db: &'db dyn Db) -> Self {
+        #[salsa::tracked]
+        fn never_ty<'db>(db: &'db dyn Db) -> SymTy<'db> {
+            SymTy::new(
+                db,
+                SymTyKind::Never,
+            )
+        }
+
+        never_ty(db)
+    }
+
     pub fn error(db: &'db dyn Db, reported: Reported) -> Self {
         SymTy::new(db, SymTyKind::Error(reported))
     }
@@ -148,6 +161,9 @@ pub enum SymTyKind<'db> {
 
     /// Reference to a generic or inference variable, e.g., `T` or `?X`
     Var(Var<'db>),
+
+    /// A value that can never be created, denoted `!`.
+    Never,
 
     /// Indicates the user wrote `?` and we should use gradual typing.
     Unknown,

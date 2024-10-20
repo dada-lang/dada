@@ -98,6 +98,9 @@ pub enum ObjectExprKind<'db> {
         arg_temps: Vec<SymVariable<'db>>,
     },
 
+    /// Return a value from this function
+    Return(ObjectExpr<'db>),
+
     /// Error occurred somewhere.
     Error(Reported),
 }
@@ -141,6 +144,20 @@ pub struct ObjectTy<'db> {
     pub kind: ObjectTyKind<'db>,
 }
 
+impl<'db> ObjectTy<'db> {
+    pub fn unit(db: &'db dyn crate::Db) -> ObjectTy<'db> {
+        SymTy::unit(db).into_object_ir(db)
+    }
+
+    pub fn shared(self, db: &'db dyn crate::Db) -> ObjectTy<'db> {
+        self
+    }
+
+    pub fn never(db: &'db dyn crate::Db) -> ObjectTy<'db> {
+        SymTy::never(db).into_object_ir(db)
+    }
+}
+
 impl<'db> Err<'db> for ObjectTy<'db> {
     fn err(db: &'db dyn salsa::Database, r: Reported) -> Self {
         ObjectTy::new(db, ObjectTyKind::Error(r))
@@ -163,25 +180,14 @@ pub enum ObjectTyKind<'db> {
     /// Reference to a generic or inference variable, e.g., `T` or `?X`
     Var(Var<'db>),
 
+    /// Indicates a value that can never be created, denoted `!`.
+    Never,
+
     /// Indicates the user wrote `?` and we should use gradual typing.
     Unknown,
 
     /// Indicates some kind of error occurred and has been reported to the user.
     Error(Reported),
-}
-
-impl<'db> ObjectTy<'db> {
-    pub fn unit(db: &'db dyn crate::Db) -> ObjectTy<'db> {
-        SymTy::unit(db).into_object_ir(db)
-    }
-
-    pub fn error(db: &'db dyn crate::Db, reported: Reported) -> ObjectTy<'db> {
-        ObjectTy::new(db, ObjectTyKind::Error(reported))
-    }
-
-    pub fn shared(self, db: &'db dyn crate::Db) -> ObjectTy<'db> {
-        self
-    }
 }
 
 /// Value of a generic parameter

@@ -309,6 +309,8 @@ impl<'member, 'db> MemberLookup<'member, 'db> {
                 None
             }
 
+            ObjectTyKind::Never => None,
+
             ObjectTyKind::Unknown => {
                 // How to manage "any" types? Not sure what I even *want* here.
                 // Parsing is ambiguous, for example.

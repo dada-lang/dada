@@ -245,8 +245,12 @@ impl<'db> SubstWith<'db, SymGenericTerm<'db>> for SymTy<'db> {
                         .collect(),
                 ),
             ),
+
+            SymTyKind::Never => self.identity(),
+
             SymTyKind::Unknown => self.identity(),
-            SymTyKind::Error(reported) => SymTy::new(db, SymTyKind::Error(*reported)),
+
+            SymTyKind::Error(_) => self.identity(),
         }
     }
 

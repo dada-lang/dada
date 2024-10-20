@@ -286,7 +286,47 @@ async fn check_expr<'db>(
         }
 
         AstExprKind::Constructor(ast_path, span_vec) => todo!(),
-        AstExprKind::Return(ast_expr) => todo!(),
+        AstExprKind::Return(ast_expr) => {
+            let mut temporaries = vec![];
+
+            let return_expr = if let Some(ast_expr) = ast_expr {
+                ast_expr
+                    .check(check, env)
+                    .await
+                    .into_expr(check, env, &mut temporaries)
+            } else {
+                // the default is `return ()`
+                ObjectExpr::new(db, span, ObjectTy::unit(db), ObjectExprKind::Tuple(vec![]))
+            };
+
+            let Some(expected_return_ty) = env.return_ty else {
+                return ExprResult::err(
+                    db,
+                    Diagnostic::error(db, span, format!("unexpected `return` statement"))
+                        .label(
+                            db,
+                            Level::Error,
+                            span,
+                            format!("I did not expect to see a `return` statement here"),
+                        )
+                        .report(db),
+                );
+            };
+
+            env.require_subobject(check, return_expr.ty(db), expected_return_ty);
+
+            ExprResult {
+                temporaries,
+                span,
+                kind: ObjectExpr::new(
+                    db,
+                    span,
+                    ObjectTy::never(db),
+                    ObjectExprKind::Return(return_expr),
+                )
+                .into(),
+            }
+        }
     }
 }
 
@@ -559,13 +599,13 @@ impl<'db> ExprResult<'db> {
             ExprResultKind::PlaceExpr(place_expr) => place_expr.ty(db),
             ExprResultKind::Expr(expr) => expr.ty(db),
             ExprResultKind::Other(name_resolution) => {
-                ObjectTy::error(db, report_non_expr(db, self.span, name_resolution))
+                ObjectTy::err(db, report_non_expr(db, self.span, name_resolution))
             }
             ExprResultKind::Method {
                 self_expr: owner,
                 function: method,
                 ..
-            } => ObjectTy::error(
+            } => ObjectTy::err(
                 db,
                 report_missing_call_to_method(db, owner.span(db), method),
             ),

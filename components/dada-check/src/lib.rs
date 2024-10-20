@@ -189,7 +189,7 @@ impl<'db> Check<'db> for SymVariable<'db> {
 }
 
 impl<'db> Check<'db> for ObjectExpr<'db> {
-    fn check(&self, db: &'db dyn crate::Db) {
+    fn check(&self, _db: &'db dyn crate::Db) {
         // FIXME: true check-check
     }
 }

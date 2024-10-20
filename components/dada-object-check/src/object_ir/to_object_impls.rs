@@ -26,6 +26,7 @@ impl<'db> IntoObjectIr<'db> for SymTy<'db> {
             SymTyKind::Var(var) => ObjectTy::new(db, ObjectTyKind::Var(*var)),
             SymTyKind::Unknown => ObjectTy::new(db, ObjectTyKind::Unknown),
             SymTyKind::Error(reported) => ObjectTy::new(db, ObjectTyKind::Error(*reported)),
+            SymTyKind::Never => ObjectTy::new(db, ObjectTyKind::Never),
         }
     }
 }
