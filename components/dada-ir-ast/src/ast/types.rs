@@ -27,9 +27,6 @@ pub enum AstTyKind<'db> {
 
     /// `type T`
     GenericDecl(AstGenericDecl<'db>),
-
-    /// `?`
-    Unknown,
 }
 
 #[salsa::tracked]

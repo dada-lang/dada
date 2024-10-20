@@ -248,8 +248,6 @@ impl<'db> SubstWith<'db, SymGenericTerm<'db>> for SymTy<'db> {
 
             SymTyKind::Never => self.identity(),
 
-            SymTyKind::Unknown => self.identity(),
-
             SymTyKind::Error(_) => self.identity(),
         }
     }

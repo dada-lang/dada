@@ -183,9 +183,6 @@ pub enum ObjectTyKind<'db> {
     /// Indicates a value that can never be created, denoted `!`.
     Never,
 
-    /// Indicates the user wrote `?` and we should use gradual typing.
-    Unknown,
-
     /// Indicates some kind of error occurred and has been reported to the user.
     Error(Reported),
 }

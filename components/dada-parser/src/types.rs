@@ -2,7 +2,7 @@ use salsa::Update;
 
 use dada_ir_ast::{
     ast::{
-        AstGenericTerm, AstGenericDecl, AstGenericKind, AstPath, AstPerm, AstPermKind, AstTy,
+        AstGenericDecl, AstGenericKind, AstGenericTerm, AstPath, AstPerm, AstPermKind, AstTy,
         AstTyKind, SpanVec,
     },
     span::{Span, Spanned},
@@ -25,9 +25,6 @@ enum TyOrPerm<'db> {
 
     /// Perm that starts with a keyword, like `my`
     PermKeyword(AstPerm<'db>),
-
-    /// `?`
-    QuestionMark(Span<'db>),
 
     /// P1 P2
     Apply(AstPerm<'db>, AstTy<'db>),
@@ -59,10 +56,6 @@ impl<'db> Parse<'db> for TyOrPerm<'db> {
             return TyOrPerm::PermKeyword(p).maybe_apply(db, parser);
         }
 
-        if let Ok(span) = parser.eat_op("?") {
-            return TyOrPerm::QuestionMark(span).maybe_apply(db, parser);
-        }
-
         Ok(None)
     }
 
@@ -80,7 +73,6 @@ impl<'db> Spanned<'db> for TyOrPerm<'db> {
             }
             TyOrPerm::Generic(decl) => decl.span(db),
             TyOrPerm::PermKeyword(p) => p.span(db),
-            TyOrPerm::QuestionMark(span) => *span,
             TyOrPerm::Apply(p, ty) => p.span(db).to(ty.span(db)),
         }
     }
@@ -110,7 +102,6 @@ impl<'db> TyOrPerm<'db> {
             TyOrPerm::Path(_path, Some(_)) => false,
             TyOrPerm::Generic(decl) => matches!(decl.kind(db), AstGenericKind::Perm(_)),
             TyOrPerm::PermKeyword(_) => true,
-            TyOrPerm::QuestionMark(_) => false,
             TyOrPerm::Apply(_, _) => false,
         }
     }
@@ -131,7 +122,6 @@ impl<'db> TyOrPerm<'db> {
                 _ => None,
             },
             TyOrPerm::PermKeyword(p) => Some(p),
-            TyOrPerm::QuestionMark(_) => None,
             TyOrPerm::Apply(_, _) => None,
         }
     }
@@ -142,7 +132,6 @@ impl<'db> TyOrPerm<'db> {
             TyOrPerm::Path(..) => true,
             TyOrPerm::Generic(decl) => matches!(decl.kind(db), AstGenericKind::Type(_)),
             TyOrPerm::PermKeyword(_) => false,
-            TyOrPerm::QuestionMark(_) => true,
             TyOrPerm::Apply(_, _) => true,
         }
     }
@@ -156,7 +145,6 @@ impl<'db> TyOrPerm<'db> {
                 _ => None,
             },
             TyOrPerm::PermKeyword(_) => None,
-            TyOrPerm::QuestionMark(_) => Some(AstTy::new(db, span, AstTyKind::Unknown)),
             TyOrPerm::Apply(p, t) => Some(AstTy::new(db, span, AstTyKind::Perm(p, t))),
         }
     }
@@ -284,7 +272,6 @@ impl<'db> Parse<'db> for AstGenericTerm<'db> {
             TyOrPerm::Generic(_)
             | TyOrPerm::PermKeyword(_)
             | TyOrPerm::Path(..)
-            | TyOrPerm::QuestionMark(_)
             | TyOrPerm::Apply(_, _) => {
                 let can_be_perm = ty_or_perm.can_be_perm(db);
                 let can_be_ty = ty_or_perm.can_be_ty(db);

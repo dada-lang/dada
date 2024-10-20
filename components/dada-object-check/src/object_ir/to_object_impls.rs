@@ -24,7 +24,6 @@ impl<'db> IntoObjectIr<'db> for SymTy<'db> {
                 ObjectTyKind::Named(*name, vec.iter().map(|t| t.into_object_ir(db)).collect()),
             ),
             SymTyKind::Var(var) => ObjectTy::new(db, ObjectTyKind::Var(*var)),
-            SymTyKind::Unknown => ObjectTy::new(db, ObjectTyKind::Unknown),
             SymTyKind::Error(reported) => ObjectTy::new(db, ObjectTyKind::Error(*reported)),
             SymTyKind::Never => ObjectTy::new(db, ObjectTyKind::Never),
         }

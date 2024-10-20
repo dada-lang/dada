@@ -41,7 +41,6 @@ impl<'db> PopulateSignatureSymbols<'db> for AstTy<'db> {
             AstTyKind::GenericDecl(ast_generic_decl) => {
                 ast_generic_decl.populate_signature_symbols(db, symbols)
             }
-            AstTyKind::Unknown => (),
         }
     }
 }

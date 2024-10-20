@@ -311,14 +311,6 @@ impl<'member, 'db> MemberLookup<'member, 'db> {
 
             ObjectTyKind::Never => None,
 
-            ObjectTyKind::Unknown => {
-                // How to manage "any" types? Not sure what I even *want* here.
-                // Parsing is ambiguous, for example.
-                // Given `x: Any`, is `x.foo[...]` a method call or an indexed field access?
-                // For now just force users to downcast.
-                None
-            }
-
             ObjectTyKind::Error(reported) => Some(SearchResult::Error(*reported)),
         }
     }

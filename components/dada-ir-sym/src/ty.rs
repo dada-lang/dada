@@ -165,9 +165,6 @@ pub enum SymTyKind<'db> {
     /// A value that can never be created, denoted `!`.
     Never,
 
-    /// Indicates the user wrote `?` and we should use gradual typing.
-    Unknown,
-
     /// Indicates some kind of error occurred and has been reported to the user.
     Error(Reported),
 }
@@ -322,7 +319,6 @@ impl<'db> IntoSymInScope<'db> for AstTy<'db> {
                     .into_generic_term(db, scope)
                     .assert_type(db)
             }
-            AstTyKind::Unknown => SymTy::new(db, SymTyKind::Unknown),
         }
     }
 }
