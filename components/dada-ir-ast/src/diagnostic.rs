@@ -3,9 +3,15 @@ use std::fmt::Display;
 use crate::span::{AbsoluteSpan, Span};
 use salsa::{Accumulator, Update};
 
-/// Signals that a diagnostic was reported.
+/// Signals that a diagnostic was reported at the given span.
 #[derive(Copy, Clone, PartialEq, Eq, PartialOrd, Ord, Hash, Update, Debug)]
-pub struct Reported;
+pub struct Reported(pub AbsoluteSpan);
+
+impl Reported {
+    pub fn span<'db>(self, db: &'db dyn crate::Db) -> Span<'db> {
+        self.0.into_span(db)
+    }
+}
 
 /// Signals that this may complete or report a diagnostic.
 /// In practice we use this to mean an error.
@@ -78,8 +84,9 @@ impl Diagnostic {
     }
 
     pub fn report(self, db: &dyn crate::Db) -> Reported {
+        let span = self.span;
         self.accumulate(db);
-        Reported
+        Reported(span)
     }
 
     pub fn label(
@@ -117,5 +124,5 @@ pub fn ordinal(n: usize) -> impl std::fmt::Display {
 
 /// Many of our types have some value that represents an error in the input.
 pub trait Err<'db> {
-    fn err(db: &'db dyn salsa::Database, span: Span<'db>, reported: Reported) -> Self;
+    fn err(db: &'db dyn salsa::Database, reported: Reported) -> Self;
 }

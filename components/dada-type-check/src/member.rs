@@ -89,7 +89,7 @@ impl<'member, 'db> MemberLookup<'member, 'db> {
 
         // Iterate through any remaining bounds to make sure that this member is valid
         // for all of them and that no ambiguity arises.
-        if !matches!(SearchResult::Error(Reported), member) {
+        if !matches!(member, SearchResult::Error(Reported(_))) {
             self.check.defer(self.env, {
                 let owner = owner.clone();
                 let member = member.clone();
@@ -100,7 +100,8 @@ impl<'member, 'db> MemberLookup<'member, 'db> {
                     };
                     let mut lower_bounds = pin!(lower_bounds);
                     while let Some(ty) = lower_bounds.next().await {
-                        if let Err(Reported) = this.check_member(&owner, id, owner_ty, &member, ty)
+                        if let Err(Reported(_)) =
+                            this.check_member(&owner, id, owner_ty, &member, ty)
                         {
                             return;
                         }
@@ -142,7 +143,7 @@ impl<'member, 'db> MemberLookup<'member, 'db> {
                     },
                 }
             }
-            SearchResult::Error(reported) => ExprResult::err(db, id.span, reported),
+            SearchResult::Error(reported) => ExprResult::err(db, reported),
         }
     }
 
@@ -251,11 +252,7 @@ impl<'member, 'db> MemberLookup<'member, 'db> {
         owner_span: Span<'db>,
         owner_ty: ObjectTy<'db>,
     ) -> ExprResult<'db> {
-        ExprResult::err(
-            self.check.db,
-            id.span,
-            self.no_such_member(id, owner_span, owner_ty),
-        )
+        ExprResult::err(self.check.db, self.no_such_member(id, owner_span, owner_ty))
     }
 
     fn no_such_member(

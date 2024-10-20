@@ -1,4 +1,4 @@
-use dada_ir_ast::ast::{AstBlock, AstGenericTerm, AstMember, AstTy};
+use dada_ir_ast::ast::{AstBlock, AstGenericTerm, AstMember};
 
 use super::*;
 

@@ -37,11 +37,11 @@ pub struct ObjectExpr<'db> {
 }
 
 impl<'db> Err<'db> for ObjectExpr<'db> {
-    fn err(db: &'db dyn salsa::Database, span: Span<'db>, r: Reported) -> Self {
+    fn err(db: &'db dyn salsa::Database, r: Reported) -> Self {
         ObjectExpr::new(
             db,
-            span,
-            ObjectTy::err(db, span, r),
+            r.span(db),
+            ObjectTy::err(db, r),
             ObjectExprKind::Error(r),
         )
     }
@@ -112,11 +112,11 @@ pub struct ObjectPlaceExpr<'db> {
 }
 
 impl<'db> Err<'db> for ObjectPlaceExpr<'db> {
-    fn err(db: &'db dyn salsa::Database, span: Span<'db>, r: Reported) -> Self {
+    fn err(db: &'db dyn salsa::Database, r: Reported) -> Self {
         ObjectPlaceExpr::new(
             db,
-            span,
-            ObjectTy::err(db, span, r),
+            r.span(db),
+            ObjectTy::err(db, r),
             ObjectPlaceExprKind::Error(r),
         )
     }
@@ -142,7 +142,7 @@ pub struct ObjectTy<'db> {
 }
 
 impl<'db> Err<'db> for ObjectTy<'db> {
-    fn err(db: &'db dyn salsa::Database, _span: Span<'db>, r: Reported) -> Self {
+    fn err(db: &'db dyn salsa::Database, r: Reported) -> Self {
         ObjectTy::new(db, ObjectTyKind::Error(r))
     }
 }
@@ -201,7 +201,7 @@ impl<'db> HasKind<'db> for ObjectGenericTerm<'db> {
             ObjectGenericTerm::Type(_) => kind == SymGenericKind::Type,
             ObjectGenericTerm::Perm => kind == SymGenericKind::Perm,
             ObjectGenericTerm::Place => kind == SymGenericKind::Place,
-            ObjectGenericTerm::Error(Reported) => true,
+            ObjectGenericTerm::Error(Reported(_)) => true,
         }
     }
 }

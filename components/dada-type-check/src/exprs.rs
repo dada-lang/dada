@@ -163,7 +163,7 @@ async fn check_expr<'db>(
 
         AstExprKind::Id(SpannedIdentifier { span: id_span, id }) => {
             match env.scope.resolve_name(db, *id, *id_span) {
-                Err(r) => ExprResult::err(db, *id_span, r),
+                Err(reported) => ExprResult::err(db, reported),
                 Ok(res) => ExprResult::from_name_resolution(check, env, res, span),
             }
         }
@@ -179,7 +179,7 @@ async fn check_expr<'db>(
 
                 ExprResultKind::Other(name_resolution) => {
                     match name_resolution.resolve_relative_id(db, *id) {
-                        Err(r) => ExprResult::err(db, span, r),
+                        Err(reported) => ExprResult::err(db, reported),
                         Ok(Ok(r)) => ExprResult::from_name_resolution(check, env, r, span),
                         Ok(Err(r)) => {
                             owner_result.kind = r.into();
@@ -196,7 +196,6 @@ async fn check_expr<'db>(
                     ..
                 } => ExprResult::err(
                     db,
-                    span,
                     report_missing_call_to_method(db, owner.span(db), method),
                 ),
             }
@@ -230,11 +229,9 @@ async fn check_expr<'db>(
                     }
                 }
 
-                ExprResultKind::PlaceExpr(_) | ExprResultKind::Expr(_) => ExprResult::err(
-                    db,
-                    span,
-                    report_not_implemented(db, span, "indexing expressions"),
-                ),
+                ExprResultKind::PlaceExpr(_) | ExprResultKind::Expr(_) => {
+                    ExprResult::err(db, report_not_implemented(db, span, "indexing expressions"))
+                }
 
                 // We see something like `foo.bar[][]` where `bar` is a method.
                 // The only correct thing here would be `foo.bar[]()[]`, i.e., call the method and then index.
@@ -245,10 +242,10 @@ async fn check_expr<'db>(
                     function: method,
                     generics: Some(_),
                     ..
-                } => ExprResult::err(db, span, report_missing_call_to_method(db, span, method)),
+                } => ExprResult::err(db, report_missing_call_to_method(db, span, method)),
 
                 &ExprResultKind::Other(name_resolution) => {
-                    ExprResult::err(db, span, report_non_expr(db, owner.span, name_resolution))
+                    ExprResult::err(db, report_non_expr(db, owner.span, name_resolution))
                 }
             }
         }
@@ -283,7 +280,7 @@ async fn check_expr<'db>(
 
                 _ => {
                     // FIXME: we probably want to support functions and function typed values?
-                    ExprResult::err(db, span, report_not_callable(db, span))
+                    ExprResult::err(db, report_not_callable(db, span))
                 }
             }
         }
@@ -325,7 +322,6 @@ async fn check_call<'db>(
             if expected_generics != found_generics {
                 return ExprResult::err(
                     db,
-                    id_span,
                     Diagnostic::error(
                         db,
                         id_span,
@@ -364,7 +360,6 @@ async fn check_call<'db>(
         let function_name = function.name(db);
         return ExprResult::err(
             db,
-            id_span,
             Diagnostic::error(
                 db,
                 id_span,
@@ -459,11 +454,11 @@ async fn check_call<'db>(
 }
 
 impl<'db> Err<'db> for ExprResult<'db> {
-    fn err(db: &'db dyn salsa::Database, span: Span<'db>, r: Reported) -> Self {
+    fn err(db: &'db dyn salsa::Database, r: Reported) -> Self {
         Self {
             temporaries: vec![],
-            span,
-            kind: ExprResultKind::Expr(ObjectExpr::err(db, span, r)),
+            span: r.span(db),
+            kind: ExprResultKind::Expr(ObjectExpr::err(db, r)),
         }
     }
 }
@@ -602,18 +597,18 @@ impl<'db> ExprResult<'db> {
             }
 
             ExprResultKind::Other(name_resolution) => {
-                let r = report_non_expr(db, self.span, name_resolution);
-                ObjectPlaceExpr::err(db, self.span, r)
+                let reported = report_non_expr(db, self.span, name_resolution);
+                ObjectPlaceExpr::err(db, reported)
             }
 
             ExprResultKind::Method {
                 self_expr: owner,
                 function: method,
                 ..
-            } => {
-                let r = report_missing_call_to_method(db, owner.span(db), method);
-                ObjectPlaceExpr::err(db, self.span, r)
-            }
+            } => ObjectPlaceExpr::err(
+                db,
+                report_missing_call_to_method(db, owner.span(db), method),
+            ),
         }
     }
 
@@ -633,20 +628,14 @@ impl<'db> ExprResult<'db> {
                 place_expr.ty(db).shared(db),
                 ObjectExprKind::Share(place_expr),
             ),
-            ExprResultKind::Other(name_resolution) => ObjectExpr::err(
-                db,
-                self.span,
-                report_non_expr(db, self.span, name_resolution),
-            ),
+            ExprResultKind::Other(name_resolution) => {
+                ObjectExpr::err(db, report_non_expr(db, self.span, name_resolution))
+            }
             ExprResultKind::Method {
                 self_expr: owner,
                 function: method,
                 ..
-            } => ObjectExpr::err(
-                db,
-                self.span,
-                report_missing_call_to_method(db, self.span, method),
-            ),
+            } => ObjectExpr::err(db, report_missing_call_to_method(db, self.span, method)),
         }
     }
 }

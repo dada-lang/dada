@@ -87,6 +87,15 @@ impl AbsoluteSpan {
         assert!(self.start <= self.end);
         self
     }
+
+    /// Convert into a span anchored at the source file.
+    pub fn into_span<'db>(self, _db: &'db dyn crate::Db) -> Span<'db> {
+        Span {
+            anchor: self.source_file.into(),
+            start: Offset::from(self.start),
+            end: Offset::from(self.end),
+        }
+    }
 }
 
 impl<'db> Span<'db> {
@@ -196,6 +205,12 @@ impl From<usize> for Offset {
 impl From<u32> for Offset {
     fn from(offset: u32) -> Self {
         Offset(offset)
+    }
+}
+
+impl From<AbsoluteOffset> for Offset {
+    fn from(offset: AbsoluteOffset) -> Self {
+        Offset(offset.0)
     }
 }
 

@@ -9,7 +9,7 @@ use std::{
 
 use check_task::CheckTask;
 use dada_ir_ast::{
-    diagnostic::{Diagnostic, Err, Reported},
+    diagnostic::{Diagnostic, Err},
     span::Span,
 };
 use dada_ir_sym::{
@@ -78,7 +78,6 @@ impl<'db> Check<'db> {
             // FIXME: Obviously we need a better error message than this!
             Err(_) => T::err(
                 db,
-                span,
                 Diagnostic::error(db, span, "type annotations needed").report(db),
             ),
         }

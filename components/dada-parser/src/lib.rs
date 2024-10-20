@@ -34,7 +34,7 @@ impl prelude::SourceFileParse for SourceFile {
         let mut parser = Parser::new(db, anchor, &tokens);
         let module = AstModule::eat(db, &mut parser).expect("parsing a module is infallible");
         parser.into_diagnostics(db).into_iter().for_each(|d| {
-            let Reported = d.report(db);
+            let Reported(_) = d.report(db);
         });
         module
     }

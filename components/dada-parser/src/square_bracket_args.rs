@@ -1,4 +1,4 @@
-use dada_ir_ast::ast::{AstGenericTerm, AstTy, SpanVec, SquareBracketArgs};
+use dada_ir_ast::ast::{AstGenericTerm, SpanVec, SquareBracketArgs};
 
 use crate::Parser;
 

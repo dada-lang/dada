@@ -4,7 +4,6 @@ use crate::{
     prelude::{IntoSymInScope, IntoSymbol},
     primitive::SymPrimitive,
     scope::{NameResolution, Resolve, Scope},
-    subst::{self, Subst, SubstitutionFns},
     symbol::{HasKind, SymGenericKind, SymVariable},
     Db,
 };
@@ -34,7 +33,7 @@ impl<'db> HasKind<'db> for SymGenericTerm<'db> {
             SymGenericTerm::Type(_) => kind == SymGenericKind::Type,
             SymGenericTerm::Perm(_) => kind == SymGenericKind::Perm,
             SymGenericTerm::Place(_) =>kind == SymGenericKind::Place,
-            SymGenericTerm::Error(Reported) => true,
+            SymGenericTerm::Error(Reported(_)) => true,
         }
     }
 }
@@ -77,7 +76,7 @@ impl<'db> SymGenericTerm<'db> {
             SymGenericTerm::Type(_) => Ok(SymGenericKind::Type),
             SymGenericTerm::Perm(_) => Ok(SymGenericKind::Perm),
             SymGenericTerm::Place(_) => Ok(SymGenericKind::Place),
-            SymGenericTerm::Error(Reported) => Err(Reported),
+            SymGenericTerm::Error(r) => Err(r),
         }
     }
 }
