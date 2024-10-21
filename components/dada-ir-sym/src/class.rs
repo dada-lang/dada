@@ -96,10 +96,11 @@ impl<'db> SymClass<'db> {
     /// Typically this is created by invoke [`Scope::new`][].
     pub(crate) fn class_scope(self, db: &'db dyn crate::Db) -> Scope<'db, 'db> {
         let symbols = self.symbols(db);
+        assert!(symbols.input_variables.is_empty());
         self.scope_item(db)
             .into_scope(db)
             .with_link(self)
-            .with_link(Cow::Borrowed(&symbols.variables[..]))
+            .with_link(Cow::Borrowed(&symbols.generic_variables[..]))
     }
 
     /// Returns the type of this class, referencing the generics that appear in `scope`.

@@ -56,7 +56,9 @@ impl<'db> PopulateSignatureSymbols<'db> for AstPerm<'db> {
             | AstPermKind::Leased(Some(_))
             | AstPermKind::Given(Some(_)) => (),
             AstPermKind::Shared(None) | AstPermKind::Leased(None) | AstPermKind::Given(None) => {
-                symbols.variables.push(self.anonymous_perm_symbol(db));
+                symbols
+                    .generic_variables
+                    .push(self.anonymous_perm_symbol(db));
             }
             AstPermKind::My => (),
             AstPermKind::Our => (),
@@ -88,7 +90,7 @@ impl<'db> PopulateSignatureSymbols<'db> for AstGenericDecl<'db> {
         db: &'db dyn crate::Db,
         symbols: &mut SignatureSymbols<'db>,
     ) {
-        symbols.variables.push(self.into_symbol(db));
+        symbols.generic_variables.push(self.into_symbol(db));
     }
 }
 
@@ -117,10 +119,10 @@ impl<'db> PopulateSignatureSymbols<'db> for AstFunctionInput<'db> {
     ) {
         match self {
             AstFunctionInput::SelfArg(ast_self_arg) => {
-                symbols.variables.push(ast_self_arg.into_symbol(db));
+                symbols.input_variables.push(ast_self_arg.into_symbol(db));
             }
             AstFunctionInput::Variable(variable_decl) => {
-                symbols.variables.push(variable_decl.into_symbol(db));
+                symbols.input_variables.push(variable_decl.into_symbol(db));
                 variable_decl.ty(db).populate_signature_symbols(db, symbols);
             }
         }

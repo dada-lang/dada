@@ -100,7 +100,7 @@ impl<'db> Check<'db> for SymFunctionSignature<'db> {
 impl<'db> Check<'db> for SignatureSymbols<'db> {
     fn check(&self, db: &'db dyn crate::Db) {
         let mut variable_names = Map::default();
-        for &variable in &self.variables {
+        for &variable in self.generic_variables.iter().chain(&self.input_variables) {
             variable.check(db);
 
             if let Some(id) = variable.name(db) {

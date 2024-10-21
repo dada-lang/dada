@@ -89,6 +89,14 @@ impl<'db> ScopeItem<'db> {
             ScopeItem::Class(sym_class) => sym_class.class_scope(db),
         }
     }
+
+    /// Get the list of symbols from the class (if any)
+    pub fn into_symbols(self, db: &'db dyn crate::Db) -> &'db [SymVariable<'db>] {
+        match self {
+            ScopeItem::Module(_) => &[],
+            ScopeItem::Class(sym_class) => &sym_class.symbols(db).generic_variables,
+        }
+    }
 }
 
 impl<'scope, 'db> Scope<'scope, 'db> {

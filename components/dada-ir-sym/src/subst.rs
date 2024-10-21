@@ -446,16 +446,14 @@ pub fn subst_var<'db, KTerm>(
 where
     KTerm: SubstGenericVar<'db>,
 {
-    eprintln!("subst_var({start_binder:?}, {var:?})");
     match var {
         Var::Bound(binder_index, sym_bound_var_index) => {
             if binder_index >= start_binder {
                 if let Some(r) = (subst_fns.free_bound_var)(
-                    SymGenericKind::Perm,
-                    binder_index,
+                    KTerm::KIND,
+                    binder_index.shift_out_to(start_binder),
                     sym_bound_var_index,
                 ) {
-                    eprintln!("subst_var: got {r:?}, shiting into {start_binder:?}");
                     return KTerm::assert_kind(db, r)
                         .shift_into_binders(db, start_binder.as_usize());
                 }
@@ -472,6 +470,8 @@ where
 }
 
 pub trait SubstGenericVar<'db>: Subst<'db, Output = Self> + Debug {
+    const KIND: SymGenericKind;
+
     fn assert_kind(db: &'db dyn crate::Db, term: Self::GenericTerm) -> Self;
 
     fn bound_var(
@@ -482,6 +482,8 @@ pub trait SubstGenericVar<'db>: Subst<'db, Output = Self> + Debug {
 }
 
 impl<'db> SubstGenericVar<'db> for SymPlace<'db> {
+    const KIND: SymGenericKind = SymGenericKind::Place;
+
     fn assert_kind(db: &'db dyn crate::Db, term: SymGenericTerm<'db>) -> Self {
         term.assert_place(db)
     }
@@ -499,6 +501,8 @@ impl<'db> SubstGenericVar<'db> for SymPlace<'db> {
 }
 
 impl<'db> SubstGenericVar<'db> for SymPerm<'db> {
+    const KIND: SymGenericKind = SymGenericKind::Perm;
+
     fn assert_kind(db: &'db dyn crate::Db, term: SymGenericTerm<'db>) -> Self {
         term.assert_perm(db)
     }
@@ -516,6 +520,8 @@ impl<'db> SubstGenericVar<'db> for SymPerm<'db> {
 }
 
 impl<'db> SubstGenericVar<'db> for SymTy<'db> {
+    const KIND: SymGenericKind = SymGenericKind::Type;
+
     fn assert_kind(db: &'db dyn crate::Db, term: SymGenericTerm<'db>) -> Self {
         term.assert_type(db)
     }

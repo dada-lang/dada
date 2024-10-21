@@ -21,7 +21,7 @@ use crate::{
 
 #[salsa::tracked]
 pub struct SymFunction<'db> {
-    scope_item: ScopeItem<'db>,
+    pub scope_item: ScopeItem<'db>,
     source: AstFunction<'db>,
 }
 
@@ -54,8 +54,14 @@ pub struct SymInputOutput<'db> {
 
 #[derive(Clone, Debug, PartialEq, Eq, Hash, Update)]
 pub struct SignatureSymbols<'db> {
+    /// Source of these symbols
     pub source: SignatureSource<'db>,
-    pub variables: Vec<SymVariable<'db>>,
+
+    /// Generic parmaeters on the class or function (concatenated)
+    pub generic_variables: Vec<SymVariable<'db>>,
+
+    /// Symbols for the function input variables (if any)
+    pub input_variables: Vec<SymVariable<'db>>,
 }
 
 #[derive(Copy, Clone, Debug, PartialEq, Eq, Hash, Update, FromImpls)]
@@ -74,7 +80,8 @@ impl<'db> SignatureSymbols<'db> {
     pub fn new(source: impl Into<SignatureSource<'db>>) -> Self {
         Self {
             source: source.into(),
-            variables: Vec::new(),
+            generic_variables: Vec::new(),
+            input_variables: Vec::new(),
         }
     }
 }
@@ -133,7 +140,8 @@ impl<'db> SymFunction<'db> {
         let symbols = self.symbols(db);
         self.scope_item(db)
             .into_scope(db)
-            .with_link(Cow::Borrowed(&symbols.variables[..]))
+            .with_link(Cow::Borrowed(&symbols.generic_variables[..]))
+            .with_link(Cow::Borrowed(&symbols.input_variables[..]))
     }
 }
 

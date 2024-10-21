@@ -67,6 +67,17 @@ impl SymBinderIndex {
     pub fn shift_out(self) -> Self {
         SymBinderIndex(self.0.checked_sub(1).unwrap())
     }
+
+    /// Shift this binder index out such that `binder_index` is considered
+    /// the innermost binder.
+    ///
+    /// # Panics
+    ///
+    /// Panics if this binder is within `binder_index`.
+    pub fn shift_out_to(self, binder_index: Self) -> Self {
+        assert!(self >= binder_index);
+        SymBinderIndex(self.0.checked_sub(binder_index.0).unwrap())
+    }
 }
 
 impl From<usize> for SymBinderIndex {

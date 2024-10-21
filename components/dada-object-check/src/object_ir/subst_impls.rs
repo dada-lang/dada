@@ -1,6 +1,7 @@
 use dada_ir_sym::{
     indices::SymBinderIndex,
     subst::{subst_var, Subst, SubstGenericVar, SubstWith},
+    symbol::SymGenericKind,
     ty::Var,
 };
 
@@ -33,6 +34,8 @@ impl<'db> SubstWith<'db, ObjectGenericTerm<'db>> for ObjectTy<'db> {
 }
 
 impl<'db> SubstGenericVar<'db> for ObjectTy<'db> {
+    const KIND: SymGenericKind = SymGenericKind::Type;
+
     fn assert_kind(db: &'db dyn crate::Db, term: ObjectGenericTerm<'db>) -> Self {
         term.assert_type(db)
     }
