@@ -7,7 +7,7 @@ use salsa::Update;
 use crate::{
     prelude::{IntoSymbol, ToSymbol},
     scope::Scope,
-    ty::SymGenericTerm,
+    ty::{FromVar, SymGenericTerm},
 };
 
 /// Symbol for a generic parameter or local variable.

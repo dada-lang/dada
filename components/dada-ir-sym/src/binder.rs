@@ -37,16 +37,17 @@ impl<T: Update> Binder<T> {
             db,
             SymBinderIndex::INNERMOST,
             &mut SubstitutionFns {
-                bound_var: &mut |kind, sym_bound_var_index| {
-                    Some(
-                        *cache[sym_bound_var_index.as_usize()].get_or_insert_with(|| {
-                            assert_eq!(kind, self.kinds[sym_bound_var_index.as_usize()]);
-                            func(kind, sym_bound_var_index)
-                        }),
-                    )
+                free_bound_var: &mut |kind, binder_index, bound_var_index| {
+                    // We don't expect to invoke `open` for some inner binder that still contains references
+                    // to things bound in outer binders.
+                    assert_eq!(binder_index, SymBinderIndex::INNERMOST);
+
+                    Some(*cache[bound_var_index.as_usize()].get_or_insert_with(|| {
+                        assert_eq!(kind, self.kinds[bound_var_index.as_usize()]);
+                        func(kind, bound_var_index)
+                    }))
                 },
-                free_universal_var: &mut subst::default_free_var,
-                binder_index: &mut |i| i.shift_out(),
+                free_universal_var: &mut subst::default_free_universal_var,
             },
         )
     }

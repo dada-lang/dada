@@ -1,3 +1,5 @@
+use std::fmt::Debug;
+
 use dada_ir_ast::diagnostic::Reported;
 use dada_util::Map;
 use salsa::Update;
@@ -8,52 +10,47 @@ use crate::{
     indices::{SymBinderIndex, SymBoundVarIndex},
     symbol::{HasKind, SymGenericKind, SymVariable},
     ty::{
-        SymGenericTerm, SymPerm, SymPermKind, SymPlace, SymPlaceKind, SymTy, SymTyKind, SymTyName,
-        Var,
+        FromVar, SymGenericTerm, SymPerm, SymPermKind, SymPlace, SymPlaceKind, SymTy, SymTyKind,
+        SymTyName, Var,
     },
 };
 
 pub struct SubstitutionFns<'s, 'db, Term> {
-    /// Invoked for variables bound in the [`INNERMOST`](`SymBinderIndex::INNERMOST`) binder
-    /// when substitution begins. The result is automatically shifted with [`Subst::shift_into_binders`][]
-    /// into any binders that we have traversed during the substitution.
+    /// Invoked for variables bound by some binder that has not been traversed during substitution;
+    /// the binder index is relative to the start of the substitution.
+    ///
+    /// The result is automatically shifted with [`Subst::shift_into_binders`][] into any binders
+    /// that we have traversed during the substitution.
     ///
     /// If this returns None, no substitution is performed.
     ///
     /// See [`Binder::open`][] for an example of this in use.
-    pub bound_var: &'s mut dyn FnMut(SymGenericKind, SymBoundVarIndex) -> Option<Term>,
+    pub free_bound_var:
+        &'s mut dyn FnMut(SymGenericKind, SymBinderIndex, SymBoundVarIndex) -> Option<Term>,
 
     /// Invoked for free variables.
     ///
     /// If this returns None, no substitution is performed.
     pub free_universal_var: &'s mut dyn FnMut(SymVariable<'db>) -> Option<Term>,
-
-    /// Invoked to adjust the binder level for bound terms when:
-    /// (a) the term is bound by some binder we have traversed or
-    /// (b) the `bound_var` callback returns `None` for that term.
-    ///
-    /// See [`Binder::open`][] or [`Subst::shift_into_binders`][]
-    /// for examples of this in use.
-    pub binder_index: &'s mut dyn FnMut(SymBinderIndex) -> SymBinderIndex,
 }
 
-pub fn default_bound_var<Term>(_: SymGenericKind, _: SymBoundVarIndex) -> Option<Term> {
+pub fn default_free_bound_var<Term>(
+    _: SymGenericKind,
+    _: SymBinderIndex,
+    _: SymBoundVarIndex,
+) -> Option<Term> {
     None
 }
 
-pub fn default_free_var<'db, Term>(_: SymVariable<'db>) -> Option<Term> {
+pub fn default_free_universal_var<'db, Term>(_: SymVariable<'db>) -> Option<Term> {
     None
-}
-
-pub fn default_binder_index(i: SymBinderIndex) -> SymBinderIndex {
-    i
 }
 
 /// A type implemented by terms that can be substituted.
-pub trait Subst<'db>: SubstWith<'db, Self::GenericTerm> {
+pub trait Subst<'db>: SubstWith<'db, Self::GenericTerm> + Debug {
     /// The notion of generic term appropriate for this type.
     /// When we substitute variables, this is the type of value that we replace them with.
-    type GenericTerm: Copy + HasKind<'db>;
+    type GenericTerm: Copy + HasKind<'db> + Debug + FromVar<'db>;
 
     /// Convenient operation to shift all binder levels in `self` by `binders`.
     /// No-op if `binders` equals 0.
@@ -67,9 +64,14 @@ pub trait Subst<'db>: SubstWith<'db, Self::GenericTerm> {
                 db,
                 SymBinderIndex::INNERMOST,
                 &mut SubstitutionFns {
-                    binder_index: &mut |b| b.shift_into_binders(binders),
-                    free_universal_var: &mut default_free_var,
-                    bound_var: &mut default_bound_var,
+                    free_universal_var: &mut default_free_universal_var,
+                    free_bound_var: &mut |kind, binder_index, bound_var_index| {
+                        Some(FromVar::var(
+                            db,
+                            kind,
+                            Var::Bound(binder_index.shift_into_binders(binders), bound_var_index),
+                        ))
+                    },
                 },
             )
         }
@@ -91,8 +93,7 @@ pub trait Subst<'db>: SubstWith<'db, Self::GenericTerm> {
             db,
             SymBinderIndex::INNERMOST,
             &mut SubstitutionFns {
-                binder_index: &mut default_binder_index,
-                bound_var: &mut default_bound_var,
+                free_bound_var: &mut default_free_bound_var,
                 free_universal_var: &mut |var| map.get(&var).copied(),
             },
         )
@@ -111,8 +112,7 @@ pub trait Subst<'db>: SubstWith<'db, Self::GenericTerm> {
             db,
             SymBinderIndex::INNERMOST,
             &mut SubstitutionFns {
-                binder_index: &mut default_binder_index,
-                bound_var: &mut default_bound_var,
+                free_bound_var: &mut default_free_bound_var,
                 free_universal_var: &mut |v| if v == var { Some(term) } else { None },
             },
         )
@@ -446,19 +446,22 @@ pub fn subst_var<'db, KTerm>(
 where
     KTerm: SubstGenericVar<'db>,
 {
+    eprintln!("subst_var({start_binder:?}, {var:?})");
     match var {
-        Var::Bound(original_binder_index, sym_bound_var_index) => {
-            let mut new_binder_index = || (subst_fns.binder_index)(original_binder_index);
-            if original_binder_index == start_binder {
-                match (subst_fns.bound_var)(SymGenericKind::Perm, sym_bound_var_index) {
-                    Some(r) => {
-                        KTerm::assert_kind(db, r).shift_into_binders(db, start_binder.as_usize())
-                    }
-                    None => KTerm::bound_var(db, new_binder_index(), sym_bound_var_index),
+        Var::Bound(binder_index, sym_bound_var_index) => {
+            if binder_index >= start_binder {
+                if let Some(r) = (subst_fns.free_bound_var)(
+                    SymGenericKind::Perm,
+                    binder_index,
+                    sym_bound_var_index,
+                ) {
+                    eprintln!("subst_var: got {r:?}, shiting into {start_binder:?}");
+                    return KTerm::assert_kind(db, r)
+                        .shift_into_binders(db, start_binder.as_usize());
                 }
-            } else {
-                KTerm::bound_var(db, new_binder_index(), sym_bound_var_index)
             }
+
+            KTerm::bound_var(db, binder_index, sym_bound_var_index)
         }
         Var::Universal(var) => match (subst_fns.free_universal_var)(var) {
             Some(r) => KTerm::assert_kind(db, r).shift_into_binders(db, start_binder.as_usize()),
@@ -468,7 +471,7 @@ where
     }
 }
 
-pub trait SubstGenericVar<'db>: Subst<'db, Output = Self> {
+pub trait SubstGenericVar<'db>: Subst<'db, Output = Self> + Debug {
     fn assert_kind(db: &'db dyn crate::Db, term: Self::GenericTerm) -> Self;
 
     fn bound_var(

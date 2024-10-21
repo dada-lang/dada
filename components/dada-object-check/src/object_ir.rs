@@ -22,7 +22,7 @@ use dada_ir_sym::{
     class::SymField,
     function::SymFunction,
     symbol::{HasKind, SymGenericKind, SymVariable},
-    ty::{SymGenericTerm, SymTy, SymTyName, Var},
+    ty::{FromVar, SymGenericTerm, SymTy, SymTyName, Var},
 };
 use dada_util::FromImpls;
 use salsa::Update;
@@ -209,6 +209,12 @@ impl<'db> HasKind<'db> for ObjectGenericTerm<'db> {
     }
 }
 
+impl<'db> FromVar<'db> for ObjectGenericTerm<'db> {
+    fn var(db: &'db dyn crate::Db, kind: SymGenericKind, var: Var<'db>) -> Self {
+        SymGenericTerm::var(db, kind, var).into_object_ir(db)
+    }
+}
+
 impl<'db> ObjectGenericTerm<'db> {
     pub fn assert_type(self, db: &'db dyn crate::Db) -> ObjectTy<'db> {
         match self {
@@ -225,5 +231,5 @@ pub(crate) trait IntoObjectIr<'db>: Update {
     fn into_object_ir(self, db: &'db dyn crate::Db) -> Self::Object;
 }
 
+mod into_object_ir_impls;
 mod subst_impls;
-mod to_object_impls;

@@ -10,7 +10,7 @@ use dada_ir_sym::{
     prelude::IntoSymInScope,
     scope::NameResolution,
     symbol::{SymGenericKind, SymVariable},
-    ty::{SymGenericTerm, SymTyName, Var},
+    ty::{FromVar, SymGenericTerm, SymTyName, Var},
 };
 use dada_parser::prelude::*;
 use dada_util::FromImpls;

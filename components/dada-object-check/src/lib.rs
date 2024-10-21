@@ -39,7 +39,9 @@ trait Checking<'db> {
     async fn check(&self, check: &Check<'db>, env: &Env<'db>) -> Self::Checking;
 }
 
+#[salsa::tracked]
 impl<'db> prelude::ObjectCheckFunctionBody<'db> for SymFunction<'db> {
+    #[salsa::tracked]
     fn object_check_body(self, db: &'db dyn crate::Db) -> Option<ObjectExpr<'db>> {
         blocks::check_function_body(db, self)
     }

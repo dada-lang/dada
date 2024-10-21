@@ -15,7 +15,7 @@ use dada_ir_ast::{
 use dada_ir_sym::{
     indices::SymInferVarIndex,
     symbol::SymGenericKind,
-    ty::{SymGenericTerm, Var},
+    ty::{FromVar, SymGenericTerm, Var},
 };
 use dada_util::Map;
 use futures::future::LocalBoxFuture;

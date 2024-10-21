@@ -19,7 +19,7 @@ use crate::{
     primitive::{primitives, SymPrimitive},
     subst::Subst,
     symbol::{SymGenericKind, SymVariable},
-    ty::{SymGenericTerm, SymTy, Var},
+    ty::{FromVar, SymGenericTerm, SymTy, Var},
 };
 
 /// A `ScopeItem` defines a name resolution scope.

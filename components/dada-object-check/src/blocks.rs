@@ -27,6 +27,7 @@ pub fn check_function_body<'db>(
             let input_output_binder = signature.input_output(db);
 
             // Bring class/method generics into scope.
+            eprintln!("input_output_binder: {input_output_binder:#?}");
             let other_variables = &signature.symbols(db).variables;
             let (class_generic_variables, other_variables) =
                 other_variables.split_at(input_output_binder.len());

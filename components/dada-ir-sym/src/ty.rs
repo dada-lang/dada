@@ -38,15 +38,17 @@ impl<'db> HasKind<'db> for SymGenericTerm<'db> {
     }
 }
 
-impl<'db> SymGenericTerm<'db> {
-    pub fn var(db: &'db dyn crate::Db, kind: SymGenericKind, var: Var<'db>) -> Self {
+impl<'db> FromVar<'db> for SymGenericTerm<'db> {
+    fn var(db: &'db dyn crate::Db, kind: SymGenericKind, var: Var<'db>) -> Self {
         match kind {
             SymGenericKind::Type => SymTy::new(db, SymTyKind::Var(var)).into(),
             SymGenericKind::Perm => SymPerm::new(db, SymPermKind::Var(var)).into(),
             SymGenericKind::Place => SymPlace::new(db, SymPlaceKind::Var(var)).into(),
         }
-    }
+    }    
+}
 
+impl<'db> SymGenericTerm<'db> {
     pub fn assert_type(self, db: &'db dyn crate::Db) -> SymTy<'db> {
         match self {
             SymGenericTerm::Type(ty) => ty,
@@ -216,6 +218,11 @@ pub enum Var<'db> {
 
     /// A bound variable refers to a binder and is expected to be substituted.
     Bound(SymBinderIndex, SymBoundVarIndex),
+}
+
+/// Many of our types can be created from a variable
+pub trait FromVar<'db> {
+    fn var(db: &'db dyn crate::Db, kind: SymGenericKind, var: Var<'db>) -> Self;
 }
 
 #[salsa::tracked]

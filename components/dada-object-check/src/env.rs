@@ -5,7 +5,7 @@ use dada_ir_sym::{
     scope::Scope,
     subst::Subst,
     symbol::{HasKind, SymGenericKind, SymVariable},
-    ty::{SymGenericTerm, SymPerm, SymTy, SymTyKind, Var},
+    ty::{FromVar, SymGenericTerm, SymPerm, SymTy, SymTyKind, Var},
 };
 use dada_util::Map;
 use futures::{Stream, StreamExt};
