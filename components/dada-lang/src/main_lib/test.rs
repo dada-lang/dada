@@ -18,6 +18,7 @@ use crate::{
 use super::Main;
 
 mod expected;
+mod timeout_warning;
 
 #[derive(thiserror::Error, Debug)]
 #[error("{} test failures", failed_tests.len())]
@@ -71,22 +72,24 @@ impl Main {
                 tests
                     .par_iter()
                     .map(|input| {
-                        let result = self.run_test(input);
-                        match &result {
-                            Ok(None) => {}
-                            Ok(Some(error)) => progress_bar.println(format!(
-                                "{}: {}",
-                                input.display(),
-                                error.summarize()
-                            )),
-                            Err(error) => progress_bar.println(format!(
-                                "{}: test harness errored, {}",
-                                input.display(),
-                                error
-                            )),
-                        }
-                        progress_bar.inc(1);
-                        result
+                        timeout_warning::timeout_warning(input, || {
+                            let result = self.run_test(input);
+                            match &result {
+                                Ok(None) => {}
+                                Ok(Some(error)) => progress_bar.println(format!(
+                                    "{}: {}",
+                                    input.display(),
+                                    error.summarize()
+                                )),
+                                Err(error) => progress_bar.println(format!(
+                                    "{}: test harness errored, {}",
+                                    input.display(),
+                                    error
+                                )),
+                            }
+                            progress_bar.inc(1);
+                            result
+                        })
                     })
                     .collect()
             });
