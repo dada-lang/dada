@@ -4,6 +4,7 @@
     // For more information, visit: https://go.microsoft.com/fwlink/?linkid=830387
     "version": "0.2.0",
     "configurations": [
+      
         {
             "type": "lldb",
             "request": "launch",
@@ -20,8 +21,8 @@
                 }
             },
             "args": [
-                "check",
-                "dada_tests/hello_world.dada"
+                "compile",
+                "tests/parser/fn_body.dada"
             ],
             "cwd": "${workspaceFolder}"
         },
