@@ -101,9 +101,14 @@ impl<'db> Check<'db> {
         self.ready_to_execute.lock().unwrap().push(task);
     }
 
+    /// Pop and return a task that is ready to execute (if any).
+    fn pop_task(&self) -> Option<Arc<CheckTask>> {
+        self.ready_to_execute.lock().unwrap().pop()
+    }
+
     /// Continues running tasks until no more are left.
     fn drain(&self) {
-        while let Some(ready) = self.ready_to_execute.lock().unwrap().pop() {
+        while let Some(ready) = self.pop_task() {
             ready.execute(self);
         }
     }
@@ -233,14 +238,17 @@ mod check_task {
             this
         }
 
+        fn replace_state(&self, new_state: CheckTaskState<'static>) -> CheckTaskState<'static> {
+            std::mem::replace(&mut *self.state.lock().unwrap(), new_state)
+        }
+
         fn take_state<'db>(&self, from_check: &Check<'db>) -> CheckTaskState<'db> {
             assert!(std::ptr::addr_eq(
                 Arc::as_ptr(&self.check.data),
                 Arc::as_ptr(&from_check.data),
             ));
 
-            let state =
-                std::mem::replace(&mut *self.state.lock().unwrap(), CheckTaskState::Executing);
+            let state = self.replace_state(CheckTaskState::Executing);
 
             // UNSAFE: Hide the lifetimes as described in the safety notes for [`CheckTask`][].
             unsafe { std::mem::transmute::<CheckTaskState<'static>, CheckTaskState<'db>>(state) }
@@ -257,10 +265,7 @@ mod check_task {
                 std::mem::transmute::<LocalBoxFuture<'db, ()>, LocalBoxFuture<'static, ()>>(future)
             };
 
-            let old_state = std::mem::replace(
-                &mut *self.state.lock().unwrap(),
-                CheckTaskState::Waiting(future),
-            );
+            let old_state = self.replace_state(CheckTaskState::Waiting(future));
 
             assert!(matches!(old_state, CheckTaskState::Executing));
         }
