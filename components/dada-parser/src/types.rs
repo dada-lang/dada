@@ -246,7 +246,7 @@ fn parse_path_perm<'db>(
     op: impl Fn(Option<SpanVec<'db, AstPath<'db>>>) -> AstPermKind<'db>,
 ) -> Result<AstPerm<'db>, ParseFail<'db>> {
     let paths =
-        AstPath::opt_parse_delimited(db, parser, Delimiter::CurlyBraces, AstPath::eat_comma)?;
+        AstPath::opt_parse_delimited(db, parser, Delimiter::SquareBrackets, AstPath::eat_comma)?;
     let kind = op(paths);
     Ok(AstPerm::new(db, span.to(parser.last_span()), kind))
 }
