@@ -31,6 +31,7 @@ mod inference;
 mod member;
 pub mod object_ir;
 mod statements;
+mod subobject;
 mod universe;
 
 trait Checking<'db> {

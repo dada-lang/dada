@@ -14,11 +14,7 @@ use crate::{
 impl<'db> Checking<'db> for [AstStatement<'db>] {
     type Checking = ObjectExpr<'db>;
 
-    fn check(
-        &self,
-        check: &Check<'db>,
-        env: &Env<'db>,
-    ) -> impl Future<Output = Self::Checking> {
+    fn check(&self, check: &Check<'db>, env: &Env<'db>) -> impl Future<Output = Self::Checking> {
         // (the box here permits recursion)
         Box::pin(async move {
             let db = check.db;
@@ -45,7 +41,12 @@ impl<'db> Checking<'db> for [AstStatement<'db>] {
                                         .check(check, env)
                                         .await
                                         .into_expr_with_enclosed_temporaries(check, &env);
-                                    env.require_subobject(check, initializer.ty(db), ty);
+                                    env.require_assignable_object_type(
+                                        check,
+                                        initializer.span(db),
+                                        initializer.ty(db),
+                                        ty,
+                                    );
                                     Some(initializer)
                                 }
 

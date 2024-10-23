@@ -29,6 +29,16 @@ pub struct SymPrimitive<'db> {
     pub kind: SymPrimitiveKind,
 }
 
+impl std::fmt::Display for SymPrimitive<'_> {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        salsa::with_attached_database(|db| {
+            let db: &dyn crate::Db = db.as_view();
+            write!(f, "{}", self.name(db))
+        })
+        .unwrap_or_else(|| std::fmt::Debug::fmt(self, f))
+    }
+}
+
 /// A "primitive" is a scalar type that is built-in to Dada and cannot be defined as a struct.
 #[derive(Copy, Clone, PartialEq, Eq, PartialOrd, Ord, Hash, Update, Debug)]
 pub enum SymPrimitiveKind {

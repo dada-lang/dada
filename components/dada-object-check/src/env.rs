@@ -1,5 +1,6 @@
 use std::sync::Arc;
 
+use dada_ir_ast::{diagnostic::Reported, span::Span};
 use dada_ir_sym::{
     binder::Binder,
     scope::Scope,
@@ -15,6 +16,7 @@ use crate::{
     bound::{Bound, InferenceVarBounds},
     check::Check,
     object_ir::{IntoObjectIr, ObjectGenericTerm, ObjectTy, ObjectTyKind},
+    subobject::{require_assignable_object_type, require_sub_object_type},
     universe::Universe,
 };
 
@@ -153,13 +155,40 @@ impl<'db> Env<'db> {
             .assert_perm(check.db)
     }
 
-    pub fn require_subobject(
+    pub fn require_assignable_object_type(
         &self,
         check: &Check<'db>,
-        sub: impl IntoObjectIr<'db>,
-        sup: impl IntoObjectIr<'db>,
+        value_span: Span<'db>,
+        value_ty: impl IntoObjectIr<'db, Object = ObjectTy<'db>>,
+        place_ty: impl IntoObjectIr<'db, Object = ObjectTy<'db>>,
     ) {
-        check.defer(self, |check, env| async move { todo!() });
+        let db = check.db;
+        let value_ty = value_ty.into_object_ir(db);
+        let place_ty = value_ty.into_object_ir(db);
+        check.defer(self, move |check, env| async move {
+            match require_assignable_object_type(&check, &env, value_span, value_ty, place_ty) {
+                Ok(()) => (),
+                Err(Reported(_)) => (),
+            }
+        })
+    }
+
+    pub fn require_sub_object_type(
+        &self,
+        check: &Check<'db>,
+        span: Span<'db>,
+        sub_ty: impl IntoObjectIr<'db, Object = ObjectTy<'db>>,
+        sup_ty: impl IntoObjectIr<'db, Object = ObjectTy<'db>>,
+    ) {
+        let db = check.db;
+        let value_ty = sub_ty.into_object_ir(db);
+        let place_ty = value_ty.into_object_ir(db);
+        check.defer(self, move |check, env| async move {
+            match require_sub_object_type(&check, &env, span, value_ty, place_ty) {
+                Ok(()) => (),
+                Err(Reported(_)) => (),
+            }
+        })
     }
 
     pub fn bounds(

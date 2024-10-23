@@ -49,8 +49,8 @@ impl<'db> Spanned<'db> for SymVariable<'db> {
 impl std::fmt::Display for SymVariable<'_> {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
         salsa::with_attached_database(|db| match self.name(db) {
-            Some(name) => write!(f, "{}", name),
-            None => write!(f, "_"),
+            Some(name) => write!(f, "`{}`", name),
+            None => write!(f, "generic `{kind}`", kind = self.kind(db)),
         })
         .unwrap_or_else(|| std::fmt::Debug::fmt(self, f))
     }

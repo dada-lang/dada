@@ -183,6 +183,19 @@ pub enum SymTyName<'db> {
     },
 }
 
+impl std::fmt::Display for SymTyName<'_> {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        salsa::with_attached_database(|db| {
+            let db: &dyn crate::Db = db.as_view();
+            match self {
+                SymTyName::Primitive(primitive) => write!(f, "`{}`", primitive),
+                SymTyName::Class(class) => write!(f, "`{}`", class.name(db)),
+                SymTyName::Tuple { arity } => write!(f, "{arity}-tuple"),
+            }    
+        }).unwrap_or_else(|| std::fmt::Debug::fmt(self, f))
+    }
+}
+
 #[salsa::interned]
 pub struct SymPerm<'db> {
     #[return_ref]

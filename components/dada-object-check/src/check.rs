@@ -123,6 +123,7 @@ impl<'db> Check<'db> {
         self.complete.load(Ordering::Relaxed)
     }
 
+    /// Creates a fresh inference variable of the given kind and universe.
     pub fn fresh_inference_var(
         &self,
         kind: SymGenericKind,
@@ -134,6 +135,10 @@ impl<'db> Check<'db> {
         SymGenericTerm::var(self.db, kind, Var::Infer(var_index))
     }
 
+    /// Read the current data for the given inference variable.
+    ///
+    /// A lock is held while the read occurs; deadlock will occur if there is an
+    /// attempt to mutate the data during the read.
     pub fn with_inference_var_data<T>(
         &self,
         var: SymInferVarIndex,
@@ -143,6 +148,8 @@ impl<'db> Check<'db> {
         op(&inference_vars[var.as_usize()])
     }
 
+    /// Modify the list of bounds for `var`, awakening any tasks that are monitoring this variable.
+    /// This is a low-level function that should only be used as part of subtyping.
     pub fn push_inference_var_bound(
         &self,
         var: SymInferVarIndex,
@@ -163,6 +170,8 @@ impl<'db> Check<'db> {
         self.spawn(check(self.clone(), env.clone()));
     }
 
+    /// Block the current task on new bounds being added to the given inference variable.
+    /// Used as part of implementing the [`InferenceVarBounds`](`crate::bound::InferenceVarBounds`) stream.
     pub fn block_on_inference_var(&self, var: SymInferVarIndex, cx: &mut Context<'_>) -> Poll<()> {
         if self.is_complete() {
             Poll::Ready(())

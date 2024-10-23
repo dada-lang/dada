@@ -313,7 +313,12 @@ async fn check_expr<'db>(
                 );
             };
 
-            env.require_subobject(check, return_expr.ty(db), expected_return_ty);
+            env.require_assignable_object_type(
+                check,
+                return_expr.span(db),
+                return_expr.ty(db),
+                expected_return_ty,
+            );
 
             ExprResult {
                 temporaries,
@@ -442,7 +447,12 @@ async fn check_call<'db>(
             .check(check, env)
             .await
             .into_expr(check, env, &mut arg_temporaries);
-        env.require_subobject(check, expr.ty(db), input_output.input_tys[i]);
+        env.require_assignable_object_type(
+            check,
+            expr.span(db),
+            expr.ty(db),
+            input_output.input_tys[i],
+        );
         ExprResult::from_expr(check, env, expr, arg_temporaries)
     };
 

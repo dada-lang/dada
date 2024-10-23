@@ -44,12 +44,15 @@ impl<'db> InferenceVarData<'db> {
     pub fn lower_bounds(&self) -> &[SymGenericTerm<'db>] {
         &self.lower_bounds
     }
+
     pub fn upper_bounds(&self) -> &[SymGenericTerm<'db>] {
         &self.upper_bounds
     }
+
     pub fn lower_object_bounds(&self) -> &[ObjectGenericTerm<'db>] {
         &self.lower_object_bounds
     }
+
     pub fn upper_object_bounds(&self) -> &[ObjectGenericTerm<'db>] {
         &self.upper_object_bounds
     }
