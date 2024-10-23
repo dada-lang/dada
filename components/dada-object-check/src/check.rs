@@ -13,9 +13,9 @@ use dada_ir_ast::{
     span::Span,
 };
 use dada_ir_sym::{
-    indices::SymInferVarIndex,
+    indices::{FromInferVar, SymInferVarIndex},
     symbol::SymGenericKind,
-    ty::{FromVar, SymGenericTerm, Var},
+    ty::SymGenericTerm,
 };
 use dada_util::Map;
 use futures::future::LocalBoxFuture;
@@ -132,7 +132,7 @@ impl<'db> Check<'db> {
         let mut inference_vars = self.inference_vars.write().unwrap();
         let var_index = SymInferVarIndex::from(inference_vars.len());
         inference_vars.push(InferenceVarData::new(kind, universe));
-        SymGenericTerm::var(self.db, kind, Var::Infer(var_index))
+        SymGenericTerm::infer(self.db, kind, var_index)
     }
 
     /// Read the current data for the given inference variable.

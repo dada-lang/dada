@@ -61,7 +61,7 @@ impl<'member, 'db> MemberLookup<'member, 'db> {
 
         while let Some(ty) = lower_bounds.next().await {
             // The owner will be some supertype of `ty`.
-            if let Some(member) = self.search_type_for_member(ty, id.id) {
+            if let Some(member) = self.search_lower_bound_for_member(ty, id.id) {
                 return self.confirm_member(owner, ty, member, id, lower_bounds);
             } else {
                 // If there is no member, then since the owner must be a supertype of `ty`,
@@ -160,7 +160,7 @@ impl<'member, 'db> MemberLookup<'member, 'db> {
         prev_member: &SearchResult<'db>,
         new_ty: ObjectTy<'db>,
     ) -> Errors<()> {
-        match self.search_type_for_member(new_ty, id.id) {
+        match self.search_lower_bound_for_member(new_ty, id.id) {
             Some(new_member) => {
                 if *prev_member == new_member {
                     Ok(())
@@ -286,7 +286,7 @@ impl<'member, 'db> MemberLookup<'member, 'db> {
         .report(db)
     }
 
-    fn search_type_for_member(
+    fn search_lower_bound_for_member(
         self,
         ty: ObjectTy<'db>,
         id: Identifier<'db>,
@@ -303,6 +303,12 @@ impl<'member, 'db> MemberLookup<'member, 'db> {
                 // Classes have members.
                 SymTyName::Class(owner) => self.search_class_for_member(owner, generics, id),
             },
+
+            ObjectTyKind::Infer(_) => {
+                // We can ignore inference variables because we are already iterating over lower bounds.
+                // Any bounds they acquire will therefore show up as actual types.
+                None
+            }
 
             ObjectTyKind::Var(generic_index) => {
                 // FIXME: where-clauses

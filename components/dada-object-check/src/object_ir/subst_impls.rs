@@ -29,6 +29,7 @@ impl<'db> SubstWith<'db, ObjectGenericTerm<'db>> for ObjectTy<'db> {
             ObjectTyKind::Var(var) => subst_var(db, start_binder, subst_fns, self, *var),
             ObjectTyKind::Error(_) => self.identity(),
             ObjectTyKind::Never => self.identity(),
+            ObjectTyKind::Infer(_) => self.identity(),
         }
     }
 }

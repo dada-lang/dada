@@ -197,7 +197,7 @@ impl<'db> Env<'db> {
         ty: SymTy<'db>,
     ) -> impl Stream<Item = Bound<SymTy<'db>>> + 'db {
         let db = check.db;
-        if let &SymTyKind::Var(Var::Infer(inference_var)) = ty.kind(db) {
+        if let &SymTyKind::Infer(inference_var) = ty.kind(db) {
             <InferenceVarBounds<'db, SymGenericTerm<'db>>>::new(check, inference_var)
                 .map(|b| b.assert_type(db))
                 .boxed_local()
@@ -212,7 +212,7 @@ impl<'db> Env<'db> {
         ty: ObjectTy<'db>,
     ) -> impl Stream<Item = Bound<ObjectTy<'db>>> + 'db {
         let db = check.db;
-        if let &ObjectTyKind::Var(Var::Infer(inference_var)) = ty.kind(db) {
+        if let &ObjectTyKind::Infer(inference_var) = ty.kind(db) {
             <InferenceVarBounds<'db, ObjectGenericTerm<'db>>>::new(check, inference_var)
                 .map(|b| b.assert_type(db))
                 .boxed_local()

@@ -1,6 +1,6 @@
 use crate::{
     class::SymClass,
-    indices::{SymBinderIndex, SymBoundVarIndex, SymInferVarIndex},
+    indices::{FromInferVar, SymBinderIndex, SymBoundVarIndex, SymInferVarIndex},
     prelude::{IntoSymInScope, IntoSymbol},
     primitive::SymPrimitive,
     scope::{NameResolution, Resolve, Scope},
@@ -46,6 +46,16 @@ impl<'db> FromVar<'db> for SymGenericTerm<'db> {
             SymGenericKind::Place => SymPlace::new(db, SymPlaceKind::Var(var)).into(),
         }
     }    
+}
+
+impl<'db> FromInferVar<'db> for SymGenericTerm<'db> {
+    fn infer(db: &'db dyn crate::Db, kind: SymGenericKind, index: SymInferVarIndex) -> Self {
+        match kind {
+            SymGenericKind::Type => SymTy::new(db, SymTyKind::Infer(index)).into(),
+            SymGenericKind::Perm => SymPerm::new(db, SymPermKind::Infer(index)).into(),
+            SymGenericKind::Place => SymPlace::new(db, SymPlaceKind::Infer(index)).into(),
+        }
+    }
 }
 
 impl<'db> SymGenericTerm<'db> {
@@ -161,7 +171,10 @@ pub enum SymTyKind<'db> {
     /// Important: the generic arguments must be well-kinded and of the correct number.
     Named(SymTyName<'db>, Vec<SymGenericTerm<'db>>),
 
-    /// Reference to a generic or inference variable, e.g., `T` or `?X`
+    /// An inference variable (e.g., `?X`).
+    Infer(SymInferVarIndex),
+
+    /// Reference to a generic variable, e.g., `T`.
     Var(Var<'db>),
 
     /// A value that can never be created, denoted `!`.
@@ -215,6 +228,10 @@ pub enum SymPermKind<'db> {
     Shared(Vec<SymPlace<'db>>),
     Leased(Vec<SymPlace<'db>>),
     Given(Vec<SymPlace<'db>>),
+    
+    /// An inference variable (e.g., `?X`).
+    Infer(SymInferVarIndex),
+
     Var(Var<'db>),
     Error(Reported),
 }
@@ -224,10 +241,6 @@ pub enum Var<'db> {
     /// A "universal" variable is meant to represent "any value" that meets its constraints.
     /// These are variables users declare, like generics, but also local variables (any value of the given type).
     Universal(SymVariable<'db>),
-
-    /// An inference variable is one whose value is not yet determined.
-    /// We accumulate constraints and try to find a value for it.
-    Infer(SymInferVarIndex),
 
     /// A bound variable refers to a binder and is expected to be substituted.
     Bound(SymBinderIndex, SymBoundVarIndex),
@@ -247,6 +260,9 @@ pub struct SymPlace<'db> {
 pub enum SymPlaceKind<'db> {
     /// `x`
     Var(Var<'db>),
+
+    /// `?x`
+    Infer(SymInferVarIndex),
 
     /// `x.f`
     Field(SymPlace<'db>, Identifier<'db>),

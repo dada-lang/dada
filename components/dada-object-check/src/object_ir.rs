@@ -21,6 +21,7 @@ use dada_ir_ast::{
 use dada_ir_sym::{
     class::SymField,
     function::SymFunction,
+    indices::SymInferVarIndex,
     symbol::{HasKind, SymGenericKind, SymVariable},
     ty::{FromVar, SymGenericTerm, SymTy, SymTyName, Var},
 };
@@ -177,8 +178,11 @@ pub enum ObjectTyKind<'db> {
     /// Important: the generic arguments must be well-kinded and of the correct number.
     Named(SymTyName<'db>, Vec<ObjectGenericTerm<'db>>),
 
-    /// Reference to a generic or inference variable, e.g., `T` or `?X`
+    /// Reference to a generic, e.g., `T`.
     Var(Var<'db>),
+
+    /// Inference variable, e.g., `?X`.
+    Infer(SymInferVarIndex),
 
     /// Indicates a value that can never be created, denoted `!`.
     Never,

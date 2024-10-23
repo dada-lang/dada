@@ -247,8 +247,8 @@ impl<'db> SubstWith<'db, SymGenericTerm<'db>> for SymTy<'db> {
             ),
 
             SymTyKind::Never => self.identity(),
-
             SymTyKind::Error(_) => self.identity(),
+            SymTyKind::Infer(_) => self.identity(),
         }
     }
 
@@ -311,6 +311,7 @@ impl<'db> SubstWith<'db, SymGenericTerm<'db>> for SymPerm<'db> {
             ),
             SymPermKind::My => self.identity(),
             SymPermKind::Our => self.identity(),
+            SymPermKind::Infer(_) => self.identity(),
         }
     }
 }
@@ -354,6 +355,7 @@ impl<'db> SubstWith<'db, SymGenericTerm<'db>> for SymPlace<'db> {
                 db,
                 SymPlaceKind::Error(reported.subst_with(db, start_binder, subst_fns)),
             ),
+            SymPlaceKind::Infer(_) => self.identity(),
         }
     }
 }
@@ -465,7 +467,6 @@ where
             Some(r) => KTerm::assert_kind(db, r).shift_into_binders(db, start_binder.as_usize()),
             None => KTerm::identity(term),
         },
-        Var::Infer(_) => term.identity(),
     }
 }
 

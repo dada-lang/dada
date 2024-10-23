@@ -1,5 +1,7 @@
 use salsa::Update;
 
+use crate::symbol::SymGenericKind;
+
 /// Also known as a "de Bruijn index", a binder index
 /// Identifies the binder in which a bound a variable is bound.
 /// Counts outward from the innermost binder, so 0 indicates
@@ -140,4 +142,9 @@ impl std::ops::Sub<SymInferVarIndex> for SymInferVarIndex {
     fn sub(self, value: SymInferVarIndex) -> usize {
         self.as_usize().checked_sub(value.as_usize()).unwrap()
     }
+}
+
+/// Many of our types can be created from a variable
+pub trait FromInferVar<'db> {
+    fn infer(db: &'db dyn crate::Db, kind: SymGenericKind, var: SymInferVarIndex) -> Self;
 }
