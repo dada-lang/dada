@@ -3,7 +3,7 @@ use crate::{
     indices::{FromInferVar, SymBinderIndex, SymBoundVarIndex, SymInferVarIndex},
     prelude::{IntoSymInScope, IntoSymbol},
     primitive::SymPrimitive,
-    scope::{NameResolution, Resolve, Scope},
+    scope::{NameResolution, NameResolutionSym, Resolve, Scope},
     symbol::{HasKind, SymGenericKind, SymVariable},
     Db,
 };
@@ -430,7 +430,7 @@ impl<'db> NameResolution<'db> {
         db: &'db dyn crate::Db,
         source: impl Spanned<'db>,
     ) -> SymGenericTerm<'db> {
-        if let NameResolution::SymVariable(var) = self {
+        if let NameResolutionSym::SymVariable(var) = self.sym {
             match var.kind(db) {
                 SymGenericKind::Type => SymGenericTerm::Type(self.to_sym_ty(db, source, vec![])),
                 SymGenericKind::Perm => SymGenericTerm::Perm(self.to_sym_perm(db, source)),
@@ -453,8 +453,8 @@ impl<'db> NameResolution<'db> {
         let make_err = |r| SymTy::new(db, SymTyKind::Error(r));
         let make_var = |var| SymTy::new(db, SymTyKind::Var(var));
 
-        match self {
-            NameResolution::SymPrimitive(sym_primitive) => {
+        match self.sym {
+            NameResolutionSym::SymPrimitive(sym_primitive) => {
                 if generics.len() != 0 {
                     return make_err(
                         Diagnostic::error(
@@ -481,7 +481,7 @@ impl<'db> NameResolution<'db> {
                 make_named(sym_primitive.into(), vec![])
             }
 
-            NameResolution::SymClass(sym_class) => {
+            NameResolutionSym::SymClass(sym_class) => {
                 let expected = sym_class.len_generics(db);
                 let found = generics.len();
                 if found != expected {
@@ -552,7 +552,7 @@ impl<'db> NameResolution<'db> {
 
                 make_named(sym_class.into(), generics)
             }
-            NameResolution::SymVariable(var) => {
+            NameResolutionSym::SymVariable(var) => {
                 if generics.len() != 0 {
                     return make_err(
                         Diagnostic::error(db, source.span(db), "generic types do not expect generic arguments")
@@ -582,7 +582,7 @@ impl<'db> NameResolution<'db> {
 
                 make_var(Var::Universal(var))
             }
-            NameResolution::SymModule(sym_module) => make_err(
+            NameResolutionSym::SymModule(sym_module) => make_err(
                 Diagnostic::error(db, source.span(db), "modules are not valid types")
                     .label(
                         db,
@@ -595,7 +595,7 @@ impl<'db> NameResolution<'db> {
                     )
                     .report(db),
             ),
-            NameResolution::SymFunction(sym_function) => make_err(
+            NameResolutionSym::SymFunction(sym_function) => make_err(
                 Diagnostic::error(db, source.span(db), "modules are not valid types")
                     .label(
                         db,
@@ -612,8 +612,8 @@ impl<'db> NameResolution<'db> {
     }
 
     /// Convert this name resolution into a permission.
-    fn to_sym_perm(&self, db: &'db dyn Db, source: impl Spanned<'db>) -> SymPerm<'db> {
-        if let &NameResolution::SymVariable(var) = self {
+    fn to_sym_perm(self, db: &'db dyn Db, source: impl Spanned<'db>) -> SymPerm<'db> {
+        if let NameResolutionSym::SymVariable(var) = self.sym {
             if let SymGenericKind::Perm = var.kind(db) {
                 return SymPerm::new(db, SymPermKind::Var(Var::Universal(var)));
             }
@@ -635,8 +635,8 @@ impl<'db> NameResolution<'db> {
     }
 
     /// Convert this name resolution into a permission.
-    fn to_sym_place(&self, db: &'db dyn Db, source: impl Spanned<'db>) -> SymPlace<'db> {
-        if let &NameResolution::SymVariable(var) = self {
+    fn to_sym_place(self, db: &'db dyn Db, source: impl Spanned<'db>) -> SymPlace<'db> {
+        if let NameResolutionSym::SymVariable(var) = self.sym {
             if let SymGenericKind::Place = var.kind(db) {
                 return SymPlace::new(db, SymPlaceKind::Var(Var::Universal(var)));
             }
@@ -690,7 +690,7 @@ impl<'db> IntoSymInScope<'db> for AstPath<'db> {
 
         // We expect the final resolution to be a local variable of some kind.
         // Anything else is an error.
-        let NameResolution::SymVariable(var) = resolution else {
+        let NameResolutionSym::SymVariable(var) = resolution.sym else {
             return SymPlace::new(
                 db,
                 SymPlaceKind::Error(

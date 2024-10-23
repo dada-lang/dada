@@ -8,7 +8,7 @@ use dada_ir_ast::{
 use dada_ir_sym::{
     function::SymFunction,
     prelude::IntoSymInScope,
-    scope::NameResolution,
+    scope::{NameResolution, NameResolutionSym},
     symbol::{SymGenericKind, SymVariable},
     ty::{FromVar, SymGenericTerm, SymTyName, Var},
 };
@@ -522,8 +522,8 @@ impl<'db> ExprResult<'db> {
         span: Span<'db>,
     ) -> Self {
         let db = check.db;
-        match res {
-            NameResolution::SymVariable(var) if var.kind(db) == SymGenericKind::Place => {
+        match res.sym {
+            NameResolutionSym::SymVariable(var) if var.kind(db) == SymGenericKind::Place => {
                 let ty = env.variable_ty(var).into_object_ir(db);
                 let place_expr = ObjectPlaceExpr::new(db, span, ty, ObjectPlaceExprKind::Var(var));
                 Self {
@@ -534,11 +534,11 @@ impl<'db> ExprResult<'db> {
             }
 
             // FIXME: Should functions be expressions?
-            NameResolution::SymFunction(_)
-            | NameResolution::SymModule(_)
-            | NameResolution::SymClass(_)
-            | NameResolution::SymPrimitive(_)
-            | NameResolution::SymVariable(..) => Self {
+            NameResolutionSym::SymFunction(_)
+            | NameResolutionSym::SymModule(_)
+            | NameResolutionSym::SymClass(_)
+            | NameResolutionSym::SymPrimitive(_)
+            | NameResolutionSym::SymVariable(..) => Self {
                 temporaries: vec![],
                 span,
                 kind: ExprResultKind::Other(res),
