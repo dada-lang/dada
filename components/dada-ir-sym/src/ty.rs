@@ -9,10 +9,9 @@ use crate::{
 };
 use dada_ir_ast::{
     ast::{
-        AstGenericTerm, AstGenericDecl, AstGenericKind, AstPath, AstPerm, AstPermKind, AstTy,
-        AstTyKind, Identifier,
+        AstGenericDecl, AstGenericKind, AstGenericTerm, AstPath, AstPathKind, AstPerm, AstPermKind, AstTy, AstTyKind, Identifier
     },
-    diagnostic::{ordinal, Diagnostic, Errors, Level, Reported},
+    diagnostic::{ordinal, Diagnostic, Err, Errors, Level, Reported},
     span::{Span, Spanned},
 };
 use dada_util::FromImpls;
@@ -126,10 +125,6 @@ impl<'db> SymTy<'db> {
         never_ty(db)
     }
 
-    pub fn error(db: &'db dyn Db, reported: Reported) -> Self {
-        SymTy::new(db, SymTyKind::Error(reported))
-    }
-
     /// Returns a version of this type shared from `place`.
     pub fn shared(self, db: &'db dyn Db, place: SymPlace<'db>) -> Self {
         SymTy::new(
@@ -152,6 +147,12 @@ impl<'db> SymTy<'db> {
             db,
             SymTyKind::Perm(SymPerm::new(db, SymPermKind::Given(vec![place])), self),
         )
+    }
+}
+
+impl<'db> Err<'db> for SymTy<'db> {
+    fn err(db: &'db dyn salsa::Database, reported: Reported) -> Self {
+        SymTy::new(db, SymTyKind::Error(reported))
     }
 }
 
@@ -254,6 +255,19 @@ pub trait FromVar<'db> {
 #[salsa::tracked]
 pub struct SymPlace<'db> {
     pub kind: SymPlaceKind<'db>,
+}
+
+impl<'db> Err<'db> for SymPlace<'db> {
+    fn err(db: &'db dyn salsa::Database, reported: Reported) -> Self {
+        SymPlace::new(db, SymPlaceKind::Error(reported))
+    }
+}
+
+impl<'db> FromVar<'db> for SymPlace<'db> {
+    fn var(db: &'db dyn crate::Db, kind: SymGenericKind, var: Var<'db>) -> Self {
+        assert_eq!(kind, SymGenericKind::Place);
+        SymPlace::new(db, SymPlaceKind::Var(var))
+    }    
 }
 
 #[derive(Clone, PartialEq, Eq, PartialOrd, Ord, Hash, Update, Debug)]
@@ -382,21 +396,21 @@ impl<'db> IntoSymInScope<'db> for AstPerm<'db> {
             AstPermKind::Shared(Some(places)) => {
                 let places = places
                     .iter()
-                    .map(|p| p.into_sym_in_scope(db, scope))
+                    .map(|&p| path_to_place(db, scope, p))
                     .collect();
                 SymPerm::new(db, SymPermKind::Shared(places))
             }
             AstPermKind::Leased(Some(places)) => {
                 let places = places
                     .iter()
-                    .map(|p| p.into_sym_in_scope(db, scope))
+                    .map(|&p| path_to_place(db, scope, p))
                     .collect();
                 SymPerm::new(db, SymPermKind::Leased(places))
             }
             AstPermKind::Given(Some(places)) => {
                 let places = places
                     .iter()
-                    .map(|p| p.into_sym_in_scope(db, scope))
+                    .map(|&p| path_to_place(db, scope, p))
                     .collect();
                 SymPerm::new(db, SymPermKind::Given(places))
             }
@@ -665,81 +679,85 @@ impl<'db> SymPlace<'db> {
     }
 }
 
-impl<'db> IntoSymInScope<'db> for AstPath<'db> {
-    type Symbolic = SymPlace<'db>;
+fn path_to_place<'db>(db: &'db dyn crate::Db, scope: &Scope<'_, 'db>, path: AstPath<'db>) -> SymPlace<'db> {
+        match path.kind(db) {
+            AstPathKind::Identifier(id) => {
+                match scope.resolve_name(db, id.id, id.span) {
+                    Ok(name) => match name.sym {
+                        NameResolutionSym::SymVariable(var) => {
+                            let var_kind = var.kind(db);
+                            if var_kind == SymGenericKind::Place {
+                                SymPlace::var(db, var_kind, Var::Universal(var))
+                            } else {
+                                SymPlace::new(
+                                    db,
+                                    SymPlaceKind::Error(
+                                        Diagnostic::error(db, id.span, format!("expected a place, found `{var_kind}`"))
+                                            .label(
+                                                db,
+                                                Level::Error,
+                                                id.span,
+                                                format!("I expected a place here, but I found a `{var_kind}`"),
+                                            )
+                                            .report(db),
+                                    ),
+                                )
+                            }
+                        }
 
-    fn into_sym_in_scope(
-        self,
-        db: &'db dyn crate::Db,
-        scope: &crate::scope::Scope<'_, 'db>,
-    ) -> Self::Symbolic {
-        let (first_id, other_ids) = self.ids(db).split_first().unwrap();
-
-        // First resolve as many of the ids as we can using "lexical" resolution.
-        // This will take care of any modules.
-        let lexical_result = first_id
-            .resolve_in(db, scope)
-            .and_then(|r| r.resolve_relative(db, other_ids));
-
-        // The final result `resolution` is what we attained via lexical resolution.
-        // The slice `fields` are the remaining ids that are relative to this item.
-        let (resolution, fields) = match lexical_result {
-            Ok(pair) => pair,
-            Err(reported) => return SymPlace::new(db, SymPlaceKind::Error(reported)),
-        };
-
-        // We expect the final resolution to be a local variable of some kind.
-        // Anything else is an error.
-        let NameResolutionSym::SymVariable(var) = resolution.sym else {
-            return SymPlace::new(
-                db,
-                SymPlaceKind::Error(
-                    Diagnostic::error(
-                        db,
-                        self.span(db),
-                        format!(
-                            "expected place expression, found {}",
-                            resolution.categorize(db)
+                        _ => SymPlace::new(
+                            db,
+                            SymPlaceKind::Error(
+                                Diagnostic::error(
+                                    db,
+                                    id.span(db),
+                                    format!(
+                                        "expected place expression, found {}",
+                                        name.categorize(db)
+                                    ),
+                                )
+                                .label(
+                                    db,
+                                    Level::Error,
+                                    id.span(db),
+                                    format!(
+                                        "I expected a place expression, but I found {}",
+                                        name.describe(db)
+                                    ),
+                                )
+                                .report(db),
+                            ),
                         ),
-                    )
-                    .label(
-                        db,
-                        Level::Error,
-                        self.span(db),
-                        format!(
-                            "I expected a place expression, but I found {}",
-                            resolution.describe(db)
-                        ),
-                    )
-                    .report(db),
-                ),
-            );
-        };
+                    },
+                    Err(r) => SymPlace::err(db, r),
+                }
+            }
 
-        
-        let var_kind = var.kind(db);
-        if var_kind != SymGenericKind::Place {
-            return SymPlace::new(
-                db,
-                SymPlaceKind::Error(
-                    Diagnostic::error(db, first_id.span, format!("expected a place, found `{var_kind}`"))
+            AstPathKind::GenericArgs { path: _, args } => {
+                SymPlace::new(
+                    db,
+                    SymPlaceKind::Error(
+                        Diagnostic::error(
+                            db,
+                            args.span,
+                            format!(
+                                "did not expect `[]` in place expression",
+                            ),
+                        )
                         .label(
                             db,
                             Level::Error,
-                            first_id.span,
-                            format!("I expected a place here, but I found a `{var_kind}`"),
+                            args.span,
+                            format!(
+                                "I did not expect to find `[]` here",
+                            ),
                         )
                         .report(db),
-                ),
-            );
-        }
+                    ),
+                )
+            }
 
-        // Create the place. Note that in this phase we just include field ids with no closer examination.
-        // The type checker must validate that they are correct.
-        let mut place = SymPlace::new(db, SymPlaceKind::Var(Var::Universal(var)));
-        for &id in fields {
-            place = place.field(db, id.id);
+            AstPathKind::Member { path, id } => SymPlace::new(db, SymPlaceKind::Field(path_to_place(db, scope, *path), id.id)),
         }
-        place
     }
-}
+

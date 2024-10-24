@@ -1,4 +1,4 @@
-use dada_ir_ast::ast::AstPath;
+use dada_ir_ast::ast::{AstGenericTerm, AstPath, AstPathKind};
 
 use super::{Expected, Parse, ParseFail, Parser};
 
@@ -12,14 +12,27 @@ impl<'db> Parse<'db> for AstPath<'db> {
         let Ok(id) = parser.eat_id() else {
             return Ok(None);
         };
-        let mut ids = vec![id];
+        let mut path = AstPath::new(db, AstPathKind::Identifier(id));
 
-        while parser.eat_op(".").is_ok() {
-            let id = parser.eat_id()?;
-            ids.push(id);
+        loop {
+            if let Ok(_) = parser.eat_op(".") {
+                let id = parser.eat_id()?;
+                path = AstPath::new(db, AstPathKind::Member { path, id });
+                continue;
+            }
+
+            if let Some(args) = AstGenericTerm::opt_parse_delimited(
+                db,
+                parser,
+                crate::tokenizer::Delimiter::SquareBrackets,
+                AstGenericTerm::eat_comma,
+            )? {
+                path = AstPath::new(db, AstPathKind::GenericArgs { path, args });
+                continue;
+            }
+
+            return Ok(Some(path));
         }
-
-        Ok(Some(AstPath::new(db, ids)))
     }
 
     fn expected() -> Expected {

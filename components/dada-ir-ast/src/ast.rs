@@ -58,33 +58,64 @@ pub enum AstItem<'db> {
     Function(AstFunction<'db>),
 }
 
-/// Path of identifiers (must be non-empty)
+/// A "path" identifies an item and a partial set of substitutions.
 #[salsa::tracked]
 pub struct AstPath<'db> {
     #[return_ref]
-    pub ids: Vec<SpannedIdentifier<'db>>,
+    pub kind: AstPathKind<'db>,
+}
+
+#[derive(Clone, PartialEq, Eq, Hash, PartialOrd, Ord, Debug, Update)]
+pub enum AstPathKind<'db> {
+    /// `$id` that starts a path
+    Identifier(SpannedIdentifier<'db>),
+
+    /// `$path[...]`
+    GenericArgs {
+        path: AstPath<'db>,
+        args: SpanVec<'db, AstGenericTerm<'db>>,
+    },
+
+    /// `$path.$id`
+    Member {
+        path: AstPath<'db>,
+        id: SpannedIdentifier<'db>,
+    },
 }
 
 impl<'db> AstPath<'db> {
     pub fn len(self, db: &'db dyn crate::Db) -> usize {
-        self.ids(db).len()
+        match self.kind(db) {
+            AstPathKind::Identifier(_) => 1,
+            AstPathKind::GenericArgs { path, .. } => path.len(db) + 1,
+            AstPathKind::Member { path, .. } => path.len(db) + 1,
+        }
     }
 
     pub fn first_id(self, db: &'db dyn crate::Db) -> SpannedIdentifier<'db> {
-        *self.ids(db).first().unwrap()
+        match *self.kind(db) {
+            AstPathKind::Identifier(id) => id,
+            AstPathKind::GenericArgs { path, .. } => path.first_id(db),
+            AstPathKind::Member { path, .. } => path.first_id(db),
+        }
     }
 
     pub fn last_id(self, db: &'db dyn crate::Db) -> SpannedIdentifier<'db> {
-        *self.ids(db).last().unwrap()
+        match *self.kind(db) {
+            AstPathKind::Identifier(id) => id,
+            AstPathKind::GenericArgs { path, .. } => path.first_id(db),
+            AstPathKind::Member { id: ident, .. } => ident,
+        }
     }
 }
 
 impl<'db> Spanned<'db> for AstPath<'db> {
     fn span(&self, db: &'db dyn crate::Db) -> Span<'db> {
-        let ids = self.ids(db);
-        let len = ids.len();
-        assert!(len > 0);
-        ids[0].span.to(ids[len - 1].span)
+        match self.kind(db) {
+            AstPathKind::Identifier(id) => id.span,
+            AstPathKind::GenericArgs { path, args } => path.first_id(db).span.to(args.span),
+            AstPathKind::Member { path, id: ident } => path.first_id(db).span.to(ident.span),
+        }
     }
 }
 

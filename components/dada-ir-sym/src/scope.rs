@@ -1,7 +1,7 @@
 use std::{borrow::Cow, cmp::min, fmt::Display};
 
 use dada_ir_ast::{
-    ast::{AstModule, AstPath, AstUseItem, Identifier, SpannedIdentifier},
+    ast::{AstModule, AstPath, AstPathKind, AstUseItem, Identifier, SpannedIdentifier},
     diagnostic::{Diagnostic, Errors, Level},
     inputs::CrateKind,
     span::{Span, Spanned},
@@ -398,23 +398,26 @@ impl<'db> Resolve<'db> for AstPath<'db> {
         db: &'db dyn crate::Db,
         scope: &Scope<'_, 'db>,
     ) -> Errors<NameResolution<'db>> {
-        let (first_id, other_ids) = self.ids(db).split_first().unwrap();
-
-        let resolution = first_id.resolve_in(db, scope)?;
-        let (r, remaining_ids) = resolution.resolve_relative(db, other_ids)?;
-
-        match remaining_ids.first() {
-            None => Ok(r),
-            Some(next_id) => Err(
-                Diagnostic::error(db, next_id.span, "unexpected `.` in path")
-                    .label(
-                        db,
-                        Level::Error,
-                        next_id.span,
-                        "I don't know how to interpret `.` applied to a local variable here",
-                    )
-                    .report(db),
-            ),
+        match self.kind(db) {
+            AstPathKind::Identifier(first_id) => first_id.resolve_in(db, scope),
+            AstPathKind::GenericArgs { path: _, args: _ } => todo!(),
+            AstPathKind::Member { path, id } => {
+                let base = path.resolve_in(db, scope)?;
+                match base.resolve_relative_id(db, *id)? {
+                    Ok(r) => Ok(r),
+                    Err(base) => Err(Diagnostic::error(db, id.span, "unexpected `.` in path")
+                        .label(
+                            db,
+                            Level::Error,
+                            id.span,
+                            format!(
+                                "I don't know how to interpret `.` applied to {} here",
+                                base.categorize(db),
+                            ),
+                        )
+                        .report(db)),
+                }
+            }
         }
     }
 }
@@ -481,51 +484,25 @@ impl<'db> NameResolution<'db> {
         db: &'db dyn crate::Db,
         id: SpannedIdentifier<'db>,
     ) -> Errors<Result<NameResolution<'db>, NameResolution<'db>>> {
-        let ids = &[id];
-        let (r, remaining_ids) = self.resolve_relative(db, ids)?;
-        if remaining_ids.is_empty() {
-            Ok(Ok(r))
-        } else {
-            Ok(Err(r))
-        }
-    }
-
-    /// Attempt to resolve `ids` relative to `self`.
-    /// Continues so long as `self` is a module.
-    /// Once it reaches a non-module, stops and returns the remaining entries (if any).
-    /// Errors if `self` is a module but the next id in `ids` is not found.
-    pub(crate) fn resolve_relative<'ids>(
-        self,
-        db: &'db dyn crate::Db,
-        ids: &'ids [SpannedIdentifier<'db>],
-    ) -> Errors<(NameResolution<'db>, &'ids [SpannedIdentifier<'db>])> {
-        let Some((next_id, other_ids)) = ids.split_first() else {
-            return Ok((self, &[]));
-        };
-
         match self.sym {
-            NameResolutionSym::SymModule(sym_module) => {
-                match sym_module.resolve_name(db, next_id.id) {
-                    Some(sym) => NameResolution { sym }.resolve_relative(db, other_ids),
-                    None => Err(Diagnostic::error(
-                        db,
-                        next_id.span,
-                        "nothing named `{}` found in module",
-                    )
-                    .label(
-                        db,
-                        Level::Error,
-                        next_id.span,
-                        format!(
-                            "I could not find anything named `{}` in the module `{}`",
-                            next_id.id,
-                            sym_module.name(db),
-                        ),
-                    )
-                    .report(db)),
-                }
-            }
-            _ => Ok((self, ids)),
+            NameResolutionSym::SymModule(sym_module) => match sym_module.resolve_name(db, id.id) {
+                Some(resolution) => Ok(Ok(resolution)),
+                None => Err(
+                    Diagnostic::error(db, id.span, "nothing named `{}` found in module")
+                        .label(
+                            db,
+                            Level::Error,
+                            id.span,
+                            format!(
+                                "I could not find anything named `{}` in the module `{}`",
+                                id.id,
+                                sym_module.name(db),
+                            ),
+                        )
+                        .report(db),
+                ),
+            },
+            _ => Ok(Err(self)),
         }
     }
 }
@@ -629,13 +606,13 @@ impl<'db> SymModule<'db> {
         self,
         db: &'db dyn crate::Db,
         id: Identifier<'db>,
-    ) -> Option<NameResolutionSym<'db>> {
+    ) -> Option<NameResolution<'db>> {
         if let Some(&v) = self.class_map(db).get(&id) {
-            return Some(v.into());
+            return Some(NameResolution { sym: v.into() });
         }
 
         if let Some(&v) = self.function_map(db).get(&id) {
-            return Some(v.into());
+            return Some(NameResolution { sym: v.into() });
         }
 
         let Some(ast_use) = self.ast_use_map(db).get(&id) else {
@@ -650,7 +627,7 @@ impl<'db> SymModule<'db> {
 fn resolve_ast_use<'db>(
     db: &'db dyn crate::Db,
     ast_use: AstUseItem<'db>,
-) -> Option<NameResolutionSym<'db>> {
+) -> Option<NameResolution<'db>> {
     let crate_name = ast_use.crate_name(db);
     let Some(crate_source) = db.root().crate_source(db, crate_name.id) else {
         Diagnostic::error(
@@ -672,38 +649,37 @@ fn resolve_ast_use<'db>(
     };
 
     match crate_source.kind(db) {
-        CrateKind::Directory(path_buf) => {
-            let (item_name, module_path) = ast_use.path(db).ids(db).split_last().unwrap();
-            if let Some((file_path, dir_path)) = module_path.split_last() {
-                let mut path_buf = path_buf.clone();
-                for id in dir_path {
-                    path_buf.push(id.id.text(db));
+        CrateKind::Directory(dir_path) => ast_use.path(db).resolve_against(db, |id| {
+            let module_path = dir_path.join(id.id.text(db)).with_extension("dada");
+            let source_file = db.source_file(&module_path);
+            match source_file.contents(db) {
+                Ok(_) => {
+                    let sym_module = source_file.into_symbol(db);
+                    Ok(sym_module.into())
                 }
-                path_buf.push(file_path.id.text(db));
-                path_buf.set_extension("dada");
 
-                let source_file = db.source_file(&path_buf);
-                let sym_module = source_file.into_symbol(db);
-                let Some(resolution) = sym_module.resolve_name(db, item_name.id) else {
-                    Diagnostic::error(
-                        db,
-                        item_name.span,
-                        format!("could not find an item  `{}`", path_buf.display()),
-                    )
-                    .label(
-                        db,
-                        Level::Error,
-                        ast_use.path(db).span(db),
-                        format!("I could find anything named `{}`", item_name.id),
-                    )
-                    .report(db);
-                    return None;
-                };
-
-                Some(resolution)
-            } else {
-                todo!()
+                Err(message) => {
+                    Err(Diagnostic::new(db, Level::Error, id.span(db), message).report(db))
+                }
             }
-        }
+        }),
+    }
+}
+
+trait ResolveAgainst<'db> {
+    fn resolve_against(
+        self,
+        db: &'db dyn crate::Db,
+        op: impl FnOnce(SpannedIdentifier<'db>) -> Errors<NameResolutionSym<'db>>,
+    ) -> Option<NameResolution<'db>>;
+}
+
+impl<'db> ResolveAgainst<'db> for AstPath<'db> {
+    fn resolve_against(
+        self,
+        _db: &'db dyn crate::Db,
+        _op: impl FnOnce(SpannedIdentifier<'db>) -> Errors<NameResolutionSym<'db>>,
+    ) -> Option<NameResolution<'db>> {
+        todo!()
     }
 }

@@ -95,7 +95,7 @@ pub enum BinaryOp {
     Div,
 }
 
-/// Created when we parse a `x[..]` expression to store the `..` contents.
+/// Created when we parse `x[..]` expressions or paths to store the `..` contents.
 /// We can't eagerly parse it because we don't yet know whether to parse it
 /// as types or expressions.
 #[salsa::tracked]
