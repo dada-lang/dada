@@ -244,7 +244,7 @@ async fn check_expr<'db>(
                     ..
                 } => ExprResult::err(db, report_missing_call_to_method(db, span, method)),
 
-                &ExprResultKind::Other(name_resolution) => {
+                ExprResultKind::Other(name_resolution) => {
                     ExprResult::err(db, report_non_expr(db, owner.span, name_resolution))
                 }
             }
@@ -605,13 +605,13 @@ impl<'db> ExprResult<'db> {
     /// Reports an error if this names something that cannot be made into an expression.
     pub fn ty(&self, check: &Check<'db>, env: &Env<'db>) -> ObjectTy<'db> {
         let db = check.db;
-        match self.kind {
-            ExprResultKind::PlaceExpr(place_expr) => place_expr.ty(db),
-            ExprResultKind::Expr(expr) => expr.ty(db),
+        match &self.kind {
+            &ExprResultKind::PlaceExpr(place_expr) => place_expr.ty(db),
+            &ExprResultKind::Expr(expr) => expr.ty(db),
             ExprResultKind::Other(name_resolution) => {
                 ObjectTy::err(db, report_non_expr(db, self.span, name_resolution))
             }
-            ExprResultKind::Method {
+            &ExprResultKind::Method {
                 self_expr: owner,
                 function: method,
                 ..
@@ -647,7 +647,7 @@ impl<'db> ExprResult<'db> {
             }
 
             ExprResultKind::Other(name_resolution) => {
-                let reported = report_non_expr(db, self.span, name_resolution);
+                let reported = report_non_expr(db, self.span, &name_resolution);
                 ObjectPlaceExpr::err(db, reported)
             }
 
@@ -679,7 +679,7 @@ impl<'db> ExprResult<'db> {
                 ObjectExprKind::Share(place_expr),
             ),
             ExprResultKind::Other(name_resolution) => {
-                ObjectExpr::err(db, report_non_expr(db, self.span, name_resolution))
+                ObjectExpr::err(db, report_non_expr(db, self.span, &name_resolution))
             }
             ExprResultKind::Method {
                 self_expr: owner,
@@ -704,7 +704,7 @@ fn report_not_implemented<'db>(db: &'db dyn crate::Db, span: Span<'db>, what: &s
 fn report_non_expr<'db>(
     db: &'db dyn crate::Db,
     owner_span: Span<'db>,
-    name_resolution: NameResolution<'db>,
+    name_resolution: &NameResolution<'db>,
 ) -> Reported {
     Diagnostic::error(db, owner_span, format!("expected an expression"))
         .label(

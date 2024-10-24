@@ -12,7 +12,8 @@ use crate::{
     function::{SignatureSymbols, SymFunction},
     populate::PopulateSignatureSymbols,
     prelude::{IntoSymInScope, IntoSymbol},
-    scope::{Scope, ScopeItem},
+    scope::Scope,
+    scope_tree::{ScopeItem, ScopeTreeNode},
     symbol::{SymGenericKind, SymVariable},
     ty::{SymTy, SymTyKind},
 };
@@ -20,7 +21,7 @@ use crate::{
 #[salsa::tracked]
 pub struct SymClass<'db> {
     /// The scope in which this class is declared.
-    scope_item: ScopeItem<'db>,
+    super_scope: ScopeItem<'db>,
 
     /// The AST for this class.
     source: AstClassItem<'db>,
@@ -97,7 +98,7 @@ impl<'db> SymClass<'db> {
     pub(crate) fn class_scope(self, db: &'db dyn crate::Db) -> Scope<'db, 'db> {
         let symbols = self.symbols(db);
         assert!(symbols.input_variables.is_empty());
-        self.scope_item(db)
+        self.super_scope(db)
             .into_scope(db)
             .with_link(self)
             .with_link(Cow::Borrowed(&symbols.generic_variables[..]))
@@ -149,6 +150,20 @@ impl<'db> SymClass<'db> {
             SymClassMember::SymFunction(f) => Some(f),
             _ => None,
         })
+    }
+}
+
+impl<'db> ScopeTreeNode<'db> for SymClass<'db> {
+    fn direct_super_scope(self, db: &'db dyn crate::Db) -> Option<ScopeItem<'db>> {
+        Some(self.super_scope(db))
+    }
+
+    fn direct_generic_parameters(self, db: &'db dyn crate::Db) -> &'db Vec<SymVariable<'db>> {
+        &self.symbols(db).generic_variables
+    }
+
+    fn into_scope(self, db: &'db dyn crate::Db) -> Scope<'db, 'db> {
+        self.class_scope(db)
     }
 }
 

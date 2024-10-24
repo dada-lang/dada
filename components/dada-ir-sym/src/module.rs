@@ -13,6 +13,8 @@ use crate::{
     prelude::IntoSymbol,
     primitive::SymPrimitive,
     scope::{Resolve, Scope},
+    scope_tree::{ScopeItem, ScopeTreeNode},
+    symbol::SymVariable,
 };
 
 #[salsa::tracked]
@@ -41,6 +43,7 @@ pub enum SymItem<'db> {
     SymPrimitive(SymPrimitive<'db>),
 }
 
+#[salsa::tracked]
 impl<'db> SymModule<'db> {
     pub fn name(self, db: &'db dyn crate::Db) -> Identifier<'db> {
         self.source(db).name(db)
@@ -73,6 +76,22 @@ impl<'db> SymModule<'db> {
         for item in self.ast_use_map(db).values() {
             let _ = item.path(db).resolve_in(db, scope);
         }
+    }
+}
+
+#[salsa::tracked]
+impl<'db> ScopeTreeNode<'db> for SymModule<'db> {
+    fn direct_super_scope(self, _db: &'db dyn crate::Db) -> Option<ScopeItem<'db>> {
+        None // FIXME
+    }
+
+    #[salsa::tracked(return_ref)]
+    fn direct_generic_parameters(self, _db: &'db dyn crate::Db) -> Vec<SymVariable<'db>> {
+        vec![] // FIXME: we expect to add these in the future
+    }
+
+    fn into_scope(self, db: &'db dyn crate::Db) -> Scope<'db, 'db> {
+        self.mod_scope(db)
     }
 }
 
@@ -129,6 +148,20 @@ impl<'db> IntoSymbol<'db> for AstModule<'db> {
         insert_into_canonical_map(db, canonical_map, &ast_use_map);
 
         SymModule::new(db, self, class_map, function_map, ast_use_map)
+    }
+}
+
+impl<'db> ScopeTreeNode<'db> for AstModule<'db> {
+    fn direct_super_scope(self, db: &'db dyn crate::Db) -> Option<ScopeItem<'db>> {
+        self.into_symbol(db).direct_super_scope(db)
+    }
+
+    fn direct_generic_parameters(self, db: &'db dyn crate::Db) -> &'db Vec<SymVariable<'db>> {
+        self.into_symbol(db).direct_generic_parameters(db)
+    }
+
+    fn into_scope(self, db: &'db dyn crate::Db) -> Scope<'db, 'db> {
+        self.into_symbol(db).into_scope(db)
     }
 }
 

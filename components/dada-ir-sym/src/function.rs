@@ -14,14 +14,15 @@ use crate::{
     class::SymClass,
     populate::PopulateSignatureSymbols,
     prelude::IntoSymInScope,
-    scope::{Scope, ScopeItem},
+    scope::Scope,
+    scope_tree::ScopeItem,
     symbol::SymVariable,
     ty::{SymTy, SymTyKind},
 };
 
 #[salsa::tracked]
 pub struct SymFunction<'db> {
-    pub scope_item: ScopeItem<'db>,
+    pub super_scope: ScopeItem<'db>,
     source: AstFunction<'db>,
 }
 
@@ -138,7 +139,7 @@ impl<'db> SymFunction<'db> {
     /// and parameters in scope.
     pub fn scope(self, db: &'db dyn crate::Db) -> Scope<'db, 'db> {
         let symbols = self.symbols(db);
-        self.scope_item(db)
+        self.super_scope(db)
             .into_scope(db)
             .with_link(Cow::Borrowed(&symbols.generic_variables[..]))
             .with_link(Cow::Borrowed(&symbols.input_variables[..]))
