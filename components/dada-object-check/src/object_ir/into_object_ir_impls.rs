@@ -46,13 +46,13 @@ impl<'db> IntoObjectIr<'db> for SymGenericTerm<'db> {
     }
 }
 
-impl<'db, T> IntoObjectIr<'db> for Binder<T>
+impl<'db, T> IntoObjectIr<'db> for Binder<'db, T>
 where
     T: IntoObjectIr<'db>,
 {
-    type Object = Binder<T::Object>;
+    type Object = Binder<'db, T::Object>;
 
     fn into_object_ir(self, db: &'db dyn crate::Db) -> Self::Object {
-        self.map(db, (), |db, t, ()| t.into_object_ir(db))
+        self.map(db, |t| t.into_object_ir(db))
     }
 }

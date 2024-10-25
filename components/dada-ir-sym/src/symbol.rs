@@ -7,7 +7,7 @@ use salsa::Update;
 use crate::{
     prelude::{IntoSymbol, ToSymbol},
     scope::Scope,
-    ty::{FromVar, SymGenericTerm},
+    ty::SymGenericTerm,
 };
 
 /// Symbol for a generic parameter or local variable.
@@ -29,8 +29,8 @@ impl<'db> SymVariable<'db> {
         db: &'db dyn crate::Db,
         scope: &Scope<'_, 'db>,
     ) -> SymGenericTerm<'db> {
-        let var = scope.resolve_generic_sym(db, self);
-        SymGenericTerm::var(db, self.kind(db), var)
+        assert!(scope.generic_sym_in_scope(db, self));
+        SymGenericTerm::var(db, self)
     }
 }
 
@@ -56,6 +56,11 @@ impl std::fmt::Display for SymVariable<'_> {
     }
 }
 
+/// Many of our types can be created from a variable
+pub trait FromVar<'db> {
+    fn var(db: &'db dyn crate::Db, var: SymVariable<'db>) -> Self;
+}
+
 #[derive(Copy, Clone, PartialEq, Eq, PartialOrd, Ord, Hash, Update, Debug)]
 pub enum SymGenericKind {
     Type,
@@ -68,6 +73,12 @@ pub enum SymGenericKind {
 /// Note that when errors occur, this may return true for multiple kinds.
 pub trait HasKind<'db> {
     fn has_kind(&self, db: &'db dyn crate::Db, kind: SymGenericKind) -> bool;
+}
+
+/// Assert that `self` has the appropriate kind to produce an `R` value.
+/// Implemented by e.g. [`SymGenericTerm`][] to permit downcasting to [`SymTy`](`crate::ty::SymTy`).
+pub trait AssertKind<'db, R> {
+    fn assert_kind(self, db: &'db dyn crate::Db) -> R;
 }
 
 impl<'db> ToSymbol<'db> for AstFunctionInput<'db> {

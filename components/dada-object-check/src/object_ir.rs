@@ -22,8 +22,8 @@ use dada_ir_sym::{
     class::SymField,
     function::SymFunction,
     indices::SymInferVarIndex,
-    symbol::{HasKind, SymGenericKind, SymVariable},
-    ty::{FromVar, SymGenericTerm, SymTy, SymTyName, Var},
+    symbol::{FromVar, HasKind, SymGenericKind, SymVariable},
+    ty::{SymGenericTerm, SymTy, SymTyName},
 };
 use dada_util::FromImpls;
 use salsa::Update;
@@ -171,6 +171,13 @@ impl<'db> HasKind<'db> for ObjectTy<'db> {
     }
 }
 
+impl<'db> FromVar<'db> for ObjectTy<'db> {
+    fn var(db: &'db dyn crate::Db, var: SymVariable<'db>) -> Self {
+        assert_eq!(var.kind(db), SymGenericKind::Type);
+        ObjectTy::new(db, ObjectTyKind::Var(var))
+    }
+}
+
 #[derive(Clone, PartialEq, Eq, PartialOrd, Ord, Hash, Update, Debug)]
 pub enum ObjectTyKind<'db> {
     /// `path[arg1, arg2]`, e.g., `Vec[String]`
@@ -179,7 +186,7 @@ pub enum ObjectTyKind<'db> {
     Named(SymTyName<'db>, Vec<ObjectGenericTerm<'db>>),
 
     /// Reference to a generic, e.g., `T`.
-    Var(Var<'db>),
+    Var(SymVariable<'db>),
 
     /// Inference variable, e.g., `?X`.
     Infer(SymInferVarIndex),
@@ -214,8 +221,8 @@ impl<'db> HasKind<'db> for ObjectGenericTerm<'db> {
 }
 
 impl<'db> FromVar<'db> for ObjectGenericTerm<'db> {
-    fn var(db: &'db dyn crate::Db, kind: SymGenericKind, var: Var<'db>) -> Self {
-        SymGenericTerm::var(db, kind, var).into_object_ir(db)
+    fn var(db: &'db dyn crate::Db, var: SymVariable<'db>) -> Self {
+        SymGenericTerm::var(db, var).into_object_ir(db)
     }
 }
 

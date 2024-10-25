@@ -6,21 +6,19 @@ use dada_ir_ast::{
     inputs::CrateKind,
     span::{Span, Spanned},
 };
-use dada_util::{FromImpls, Map};
+use dada_util::FromImpls;
 use salsa::Update;
 
 use crate::{
-    binder::Binder,
+    binder::{Binder, BoundTerm},
     class::SymClass,
     function::{SymFunction, SymInputOutput},
-    indices::{SymBinderIndex, SymBoundVarIndex},
     module::SymModule,
     prelude::IntoSymbol,
     primitive::{primitives, SymPrimitive},
     scope_tree::ScopeTreeNode,
-    subst::Subst,
-    symbol::{SymGenericKind, SymVariable},
-    ty::{FromVar, SymGenericTerm, SymTy, Var},
+    symbol::{FromVar, SymGenericKind, SymVariable},
+    ty::{SymGenericTerm, SymTy},
 };
 
 /// Name resolution scope, used when converting types/function-bodies etc into symbols.
@@ -98,107 +96,65 @@ impl<'scope, 'db> Scope<'scope, 'db> {
     /// # Panics
     ///
     /// If the symbol is not in the scope.
-    pub fn resolve_generic_sym(&self, db: &'db dyn crate::Db, sym: SymVariable<'db>) -> Var<'db> {
-        if let Some(r) = self
-            .chain
-            .iter()
-            .find_map(|link| link.resolve_symbol(db, sym))
-        {
-            return r;
-        }
-
-        panic!(
-            "symbol `{:?}` not found in scope: {:#?}",
-            sym.name(db),
-            self
-        )
+    pub fn generic_sym_in_scope(&self, db: &'db dyn crate::Db, sym: SymVariable<'db>) -> bool {
+        self.chain.iter().any(|link| link.binds_symbol(db, sym))
     }
 
     /// Given a value of type `T` that was resolved against this scope,
-    /// creates a bound version like `Binder<T>`. In the process it
-    /// replaces the "free variable" references within `T` bound variables.
-    /// `T` must only contain free variables that arose from this scope.
+    /// creates a bound version like `Binder<T>` or `Binder<Binder<T>>`
+    /// where all variables defined in scope are contained in these binders.
     ///
-    /// The number of binders created is determined by the result type `B`.
-    /// This function removes binder levels from the chain
-    /// corresponding to the number of binders in `B`. If `B` has more binders
-    /// than are present in our chain, then the extra outermost binders in `B`
-    /// are created as empty binders.
+    /// Each inner binding level in the output binds the symbols from one binding level
+    /// in the scope. The outermost binding level in the output then binds all remaining
+    /// symbols.
     ///
-    /// Callers that expect to pop *all* binder levels should use [`into_binders`][]
-    /// instead.
-    pub(crate) fn pop_binders<T, B>(&mut self, db: &'db dyn crate::Db, value: T) -> B
+    /// Example: Given a scope that has three levels like
+    ///
+    /// * `Class` binding `[A, B]`
+    /// * `Function` binding `[C, D]`
+    /// * Local variables binding `[x, y]`
+    ///
+    /// if we produce a `Binder<'db, Binder<'db, T>>`, then the result would be
+    ///
+    /// * an outer `Binder<Binder<T>>` binds `[A, B, C, D]` that contains...
+    ///     * an inner `Binder<T>` binding `[x, y]` that contains...
+    ///         * the `T` value referencing `A`, `B`, `C`, `D`, `x`, and `y`
+    ///
+    /// # Panics
+    ///
+    /// If the target type `B` requires more binding levels than are present in scope.
+    pub(crate) fn into_bound_value<B>(self, db: &'db dyn crate::Db, value: B::LeafTerm) -> B
     where
-        B: Binders<'db, T>,
+        B: BoundTerm<'db>,
     {
-        let mut binders = self.all_binders();
+        // Compute all the bound variables in this scope.
+        let binders = self.all_binders();
 
-        // The number of binding levels in `B` may not match the number that are in scope.
-        //
-        // If `B` contains *fewer* binders than the scope, then we will leave variables from
-        // the outermost binders as free variables.
-        //
-        // If `B` contains *more* binders than the scope, then we will pad it with extra empty
-        // binders later.
-        let num_skipped_binders = binders.len().saturating_sub(B::BINDER_LEVELS);
-        let num_popped_binders = min(binders.len(), B::BINDER_LEVELS);
-        let num_extra_binders = B::BINDER_LEVELS - binders.len();
-
-        // Pad `binders` with extra binders if needed.
-        if num_extra_binders > 0 {
-            assert_eq!(num_skipped_binders, 0);
-            binders = (0..num_extra_binders)
-                .map(|_| vec![])
-                .chain(binders)
-                .collect();
-        }
-
-        // Compute a vector that contains the substitution (if any) for each
-        // free variable that could appear in `value` (all of which are assumed
-        // to have come from this scope).
-        let free_var_substitution: Map<SymVariable<'db>, SymGenericTerm<'db>> = {
-            // Variables in the binders to be popped will be replaced by a bound var.
-            // Given `[[A, B], [C, D, E]]`, we will create variables like
-            // `[^1.0, ^1.1, ^0.0, ^0.1, ^0.2]`, where `^0` and `^1` indicate
-            // binder indices, with `^0` representing the innermost binder.
-            binders
-                .iter()
-                .zip(0..)
-                .skip(num_skipped_binders)
-                .flat_map(|(binder_vars, binder_index)| {
-                    let binder_index = SymBinderIndex::from(binders.len() - binder_index - 1);
-                    binder_vars.iter().copied().zip(0..).map(move |(v, i)| {
-                        let bound_index = SymBoundVarIndex::from(i);
-                        let generic_index = Var::Bound(binder_index, bound_index);
-                        (v, SymGenericTerm::var(db, v.kind(db), generic_index))
-                    })
-                })
-                .collect()
-        };
-
-        let result = B::bind(
-            db,
-            binders.into_iter().skip(num_skipped_binders),
-            &free_var_substitution,
-            value,
+        // If the target type has more binder levels than we do, that is a bug in the caller.
+        assert!(
+            B::BINDER_LEVELS >= binders.len(),
+            "target type has {} binder levels but the scope only has {}",
+            B::BINDER_LEVELS,
+            binders.len()
         );
 
-        // Pop off the binders we need to pop.
-        let chain = std::mem::replace(&mut self.chain, ScopeChain::new());
-        self.chain = chain.pop_binders(num_popped_binders);
+        // Do we need to flatten any levels?
+        let extra_binder_levels = binders.len() - B::BINDER_LEVELS;
+        if extra_binder_levels == 0 {
+            // Nope.
+            return B::bind(db, &mut binders.into_iter(), value);
+        }
 
-        result
-    }
-
-    /// Version of [`Self::pop_binders`][] that asserts that all binder links have been popped.
-    pub(crate) fn into_bound_value<T, B>(mut self, db: &'db dyn crate::Db, value: T) -> B
-    where
-        B: Binders<'db, T>,
-    {
-        let value = self.pop_binders(db, value);
-        let binder_link = self.chain.iter().find(|link| link.is_binder());
-        assert!(binder_link.is_none(), "failed to pop binder link");
-        value
+        // Yep.
+        let flattened_binder_levels = extra_binder_levels + 1;
+        let outer_binder = binders
+            .iter()
+            .take(flattened_binder_levels)
+            .flat_map(|v| v.iter().copied())
+            .collect::<Vec<_>>();
+        let remaining_binders = binders.into_iter().skip(flattened_binder_levels);
+        let mut symbols_to_bind = std::iter::once(outer_binder).chain(remaining_binders);
+        B::bind(db, &mut symbols_to_bind, value)
     }
 
     /// Convert `self` into a vec-of-vecs containing the bound generic symbols
@@ -351,92 +307,6 @@ pub enum NameResolutionSym<'db> {
     SymPrimitive(SymPrimitive<'db>),
     SymVariable(SymVariable<'db>),
 }
-
-/// Trait for creating `Binder<T>` instances.
-/// Panics if the number of binders statically expected is not what we find in the scope.
-pub(crate) trait Binders<'db, T> {
-    const BINDER_LEVELS: usize;
-
-    /// Create `Self` from:
-    ///
-    /// * iterator over the remaining symbols in scope
-    /// * innermost bound value `value`
-    ///
-    /// This either returns `value` *or* creates a `Binder<_>` around value
-    /// (possibly multiple binders).
-    fn bind(
-        db: &'db dyn crate::Db,
-        symbols_to_bind: impl Iterator<Item = Vec<SymVariable<'db>>>,
-        free_var_substitution: &Map<SymVariable<'db>, SymGenericTerm<'db>>,
-        value: T,
-    ) -> Self;
-}
-
-impl<'db, T, U> Binders<'db, T> for Binder<U>
-where
-    U: Binders<'db, T> + Update,
-    T: Update,
-{
-    fn bind(
-        db: &'db dyn crate::Db,
-        mut symbols_to_bind: impl Iterator<Item = Vec<SymVariable<'db>>>,
-        free_var_substitution: &Map<SymVariable<'db>, SymGenericTerm<'db>>,
-        value: T,
-    ) -> Self {
-        // Extract next level of bound symbols for use in this binder;
-        // if this unwrap fails, user gave wrong number of `Binder<_>` types
-        // for the scope.
-        let symbols = symbols_to_bind.next().unwrap();
-
-        // Introduce whatever binders are needed to go from the innermost
-        // value type `T` to `U`.
-        let u = U::bind(db, symbols_to_bind, free_var_substitution, value);
-        Binder {
-            kinds: symbols.iter().map(|s| s.kind(db)).collect(),
-            bound_value: u,
-        }
-    }
-
-    const BINDER_LEVELS: usize = U::BINDER_LEVELS + 1;
-}
-
-impl<'db> Binders<'db, SymInputOutput<'db>> for SymInputOutput<'db> {
-    fn bind(
-        db: &'db dyn crate::Db,
-        symbols_to_bind: impl Iterator<Item = Vec<SymVariable<'db>>>,
-        free_var_substitution: &Map<SymVariable<'db>, SymGenericTerm<'db>>,
-        value: Self,
-    ) -> Self {
-        bind_leaf(db, symbols_to_bind, free_var_substitution, value)
-    }
-
-    const BINDER_LEVELS: usize = 0;
-}
-
-impl<'db> Binders<'db, SymTy<'db>> for SymTy<'db> {
-    fn bind(
-        db: &'db dyn crate::Db,
-        symbols_to_bind: impl Iterator<Item = Vec<SymVariable<'db>>>,
-        free_var_substitution: &Map<SymVariable<'db>, SymGenericTerm<'db>>,
-        value: Self,
-    ) -> Self {
-        bind_leaf(db, symbols_to_bind, free_var_substitution, value)
-    }
-
-    const BINDER_LEVELS: usize = 0;
-}
-
-fn bind_leaf<'db, L: Subst<'db, Output = L>>(
-    db: &'db dyn crate::Db,
-    mut symbols_to_bind: impl Iterator<Item = Vec<SymVariable<'db>>>,
-    free_var_substitution: &Map<SymVariable<'db>, L::GenericTerm>,
-    value: L,
-) -> L {
-    // Leaf case: symbol type is the innermost value.
-    assert_eq!(symbols_to_bind.next(), None);
-    value.subst_vars(db, free_var_substitution)
-}
-
 pub trait Resolve<'db> {
     fn resolve_in(
         self,
@@ -582,25 +452,19 @@ impl<'scope, 'db> ScopeChain<'scope, 'db> {
             generics: sym
                 .transitive_generic_parameters(db)
                 .iter()
-                .map(|v| SymGenericTerm::var(db, v.kind(db), Var::Universal(*v)))
+                .map(|v| SymGenericTerm::var(db, *v))
                 .collect(),
             sym: sym.into(),
         }
     }
 
-    fn resolve_symbol(&self, _db: &'db dyn crate::Db, sym: SymVariable<'db>) -> Option<Var<'db>> {
+    fn binds_symbol(&self, _db: &'db dyn crate::Db, sym: SymVariable<'db>) -> bool {
         match &self.kind {
             ScopeChainKind::SymClass(_)
             | ScopeChainKind::Primitives
-            | ScopeChainKind::SymModule(_) => None,
+            | ScopeChainKind::SymModule(_) => false,
 
-            ScopeChainKind::ForAll(symbols) => {
-                if symbols.iter().any(|&s| s == sym) {
-                    Some(Var::Universal(sym))
-                } else {
-                    None
-                }
-            }
+            ScopeChainKind::ForAll(symbols) => symbols.iter().any(|&s| s == sym),
         }
     }
 

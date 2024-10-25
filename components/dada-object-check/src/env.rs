@@ -2,11 +2,11 @@ use std::sync::Arc;
 
 use dada_ir_ast::{diagnostic::Reported, span::Span};
 use dada_ir_sym::{
-    binder::Binder,
+    binder::{Binder, BoundTerm},
     scope::Scope,
     subst::Subst,
-    symbol::{HasKind, SymGenericKind, SymVariable},
-    ty::{FromVar, SymGenericTerm, SymPerm, SymTy, SymTyKind, Var},
+    symbol::{FromVar, HasKind, SymGenericKind, SymVariable},
+    ty::{SymGenericTerm, SymPerm, SymTy, SymTyKind},
 };
 use dada_util::Map;
 use futures::{Stream, StreamExt};
@@ -59,28 +59,23 @@ impl<'db> Env<'db> {
         &mut self,
         check: &Check<'db>,
         variables: &[SymVariable<'db>],
-        binder: &Binder<T>,
-    ) -> T::Output
+        binder: &T,
+    ) -> T::LeafTerm
     where
-        T: Subst<'db, GenericTerm = SymGenericTerm<'db>, Output = T> + Update,
+        T: BoundTerm<'db, GenericTerm: FromVar<'db>>,
     {
         let db = check.db;
 
-        assert_eq!(variables.len(), binder.kinds.len());
-        assert!(variables
-            .iter()
-            .zip(&binder.kinds)
-            .all(|(s, &k)| s.kind(check.db) == k));
+        if T::BINDER_LEVELS == 0 {
+            return binder.leaf_term();
+        }
 
         self.increment_universe();
+        let variables = binder.bound_values();
         Arc::make_mut(&mut self.variable_universes)
             .extend(variables.iter().map(|&v| (v, self.universe)));
 
-        binder.open(db, |kind, sym_bound_var_index| {
-            let symbol = variables[sym_bound_var_index.as_usize()];
-            assert!(symbol.has_kind(db, kind));
-            SymGenericTerm::var(db, kind, Var::Universal(symbol))
-        })
+        self.open_universally(check, variables, &binder.bound_value())
     }
 
     /// Open the given symbols as existential inference variables

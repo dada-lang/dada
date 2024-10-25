@@ -10,7 +10,7 @@ use dada_util::FromImpls;
 use salsa::Update;
 
 use crate::{
-    binder::Binder,
+    binder::{Binder, LeafBoundTerm},
     class::SymClass,
     populate::PopulateSignatureSymbols,
     prelude::IntoSymInScope,
@@ -53,11 +53,10 @@ pub struct SymFunctionSignature<'db> {
 
     /// Input/output types:
     ///
-    /// * Outermost binder is the class (if a standalone function, this is empty).
-    /// * Middle binder is the function generic types.
+    /// * Outer binder is for generic symbols from the function and its surrounding scopes
     /// * Inner binder is the function local variables.
     #[return_ref]
-    pub input_output: Binder<Binder<Binder<SymInputOutput<'db>>>>,
+    pub input_output: Binder<'db, Binder<'db, SymInputOutput<'db>>>,
 }
 
 #[derive(Clone, PartialEq, Eq, PartialOrd, Ord, Hash, Update, Debug)]
@@ -66,6 +65,8 @@ pub struct SymInputOutput<'db> {
 
     pub output_ty: SymTy<'db>,
 }
+
+impl<'db> LeafBoundTerm<'db> for SymInputOutput<'db> {}
 
 #[derive(Clone, Debug, PartialEq, Eq, Hash, Update)]
 pub struct SignatureSymbols<'db> {

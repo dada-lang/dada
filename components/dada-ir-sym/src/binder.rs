@@ -1,53 +1,57 @@
+use std::convert::Infallible;
+
 use salsa::Update;
 
 use crate::{
-    indices::{SymBinderIndex, SymBoundVarIndex},
-    subst::{self, Subst, SubstitutionFns},
-    symbol::{HasKind, SymGenericKind},
+    subst::{Subst, SubstitutionFns},
+    symbol::{HasKind, SymGenericKind, SymVariable},
 };
 
 /// Indicates a binder for generic variables
 #[derive(Clone, PartialEq, Eq, PartialOrd, Ord, Hash, Update, Debug)]
-pub struct Binder<T: Update> {
-    /// Number of bound generic terms
-    pub kinds: Vec<SymGenericKind>,
-
+pub struct Binder<'db, T: BoundTerm<'db>> {
+    pub variables: Vec<SymVariable<'db>>,
     pub bound_value: T,
 }
 
-impl<T: Update> Binder<T> {
+impl<'db, T: BoundTerm<'db>> Binder<'db, T> {
     pub fn len(&self) -> usize {
-        self.kinds.len()
+        self.variables.len()
+    }
+
+    pub fn kind(&self, db: &'db dyn crate::Db, index: usize) -> SymGenericKind {
+        self.variables[index].kind(db)
     }
 
     /// Generic way to "open" a binder, giving a function that computes the replacement
     /// value for each bound variable. You may preference [`Self::substitute`][] for the
     /// most common cases.
-    pub fn open<'db>(
+    ///
+    /// # Parameters
+    ///
+    /// * `db`, the database
+    /// * `func`, compute the replacement for bound variable at the given index
+    pub fn open(
         &self,
         db: &'db dyn crate::Db,
-        mut func: impl FnMut(SymGenericKind, SymBoundVarIndex) -> T::GenericTerm,
+        mut func: impl FnMut(usize) -> T::GenericTerm,
     ) -> T::Output
     where
         T: Subst<'db>,
     {
-        let mut cache = vec![None; self.kinds.len()];
+        let mut cache = vec![None; self.len()];
 
         self.bound_value.subst_with(
             db,
-            SymBinderIndex::INNERMOST,
+            &mut Default::default(),
             &mut SubstitutionFns {
-                free_bound_var: &mut |kind, binder_index, bound_var_index| {
-                    // We don't expect to invoke `open` for some inner binder that still contains references
-                    // to things bound in outer binders.
-                    assert_eq!(binder_index, SymBinderIndex::INNERMOST);
-
-                    Some(*cache[bound_var_index.as_usize()].get_or_insert_with(|| {
-                        assert_eq!(kind, self.kinds[bound_var_index.as_usize()]);
-                        func(kind, bound_var_index)
-                    }))
+                free_var: &mut |var| {
+                    if let Some(index) = self.variables.iter().position(|v| *v == var) {
+                        Some(*cache[index].get_or_insert_with(|| func(index)))
+                    } else {
+                        None
+                    }
                 },
-                free_universal_var: &mut subst::default_free_universal_var,
             },
         )
     }
@@ -57,18 +61,15 @@ impl<T: Update> Binder<T> {
     /// # Panics
     ///
     /// If `substitution` does not have the correct length or there is a kind-mismatch.
-    pub fn substitute<'db>(
+    pub fn substitute(
         &self,
         db: &'db dyn crate::Db,
         substitution: &[impl Into<T::GenericTerm> + Copy],
-    ) -> T::Output
-    where
-        T: Subst<'db>,
-    {
+    ) -> T::Output {
         assert_eq!(self.len(), substitution.len());
-        self.open(db, |kind, index| {
-            let term = substitution[index.as_usize()].into();
-            assert!(term.has_kind(db, kind));
+        self.open(db, |index| {
+            let term = substitution[index].into();
+            assert!(term.has_kind(db, self.kind(db, index)));
             term
         })
     }
@@ -83,19 +84,100 @@ impl<T: Update> Binder<T> {
     /// If no arg is needed just supply `()`.
     ///
     /// NB. The argument is a `fn` to prevent accidentally leaking context.
-    pub fn map<'db, U, A>(
-        self,
-        db: &'db dyn crate::Db,
-        arg: A,
-        op: fn(&'db dyn crate::Db, T, A::Output) -> U,
-    ) -> Binder<U>
+    pub fn map<U>(self, db: &'db dyn crate::Db, op: impl FnOnce(T) -> U) -> Binder<'db, U>
     where
-        U: Update,
-        A: Subst<'db>,
+        U: BoundTerm<'db>,
     {
         Binder {
-            kinds: self.kinds,
-            bound_value: op(db, self.bound_value, arg.shift_into_binders(db, 1)),
+            variables: self.variables,
+            bound_value: op(self.bound_value),
         }
+    }
+}
+
+impl<'db, T> std::ops::Index<usize> for Binder<'db, T>
+where
+    T: BoundTerm<'db>,
+{
+    type Output = SymVariable<'db>;
+
+    fn index(&self, index: usize) -> &Self::Output {
+        &self.variables[index]
+    }
+}
+
+/// A value that can appear in a binder
+pub trait BoundTerm<'db>: Update + Subst<'db, Output = Self> + Sized {
+    const BINDER_LEVELS: usize;
+    type BoundTerm: BoundTerm<'db>;
+    type LeafTerm;
+
+    fn bind(
+        db: &'db dyn crate::Db,
+        symbols_to_bind: &mut dyn Iterator<Item = Vec<SymVariable<'db>>>,
+        leaf_value: Self::LeafTerm,
+    ) -> Self;
+
+    fn as_binder(&self) -> Result<&Binder<'db, Self::BoundTerm>, &Self>;
+}
+
+pub trait LeafBoundTerm<'db>: Update + Subst<'db, Output = Self> {}
+
+impl<'db, T> BoundTerm<'db> for T
+where
+    T: LeafBoundTerm<'db>,
+{
+    const BINDER_LEVELS: usize = 0;
+    type BoundTerm = Infallible;
+    type LeafTerm = T;
+
+    fn bind(
+        _db: &'db dyn crate::Db,
+        symbols_to_bind: &mut dyn Iterator<Item = Vec<SymVariable<'db>>>,
+        value: T,
+    ) -> Self {
+        assert!(
+            symbols_to_bind.next().is_none(),
+            "incorrect number of binding levels in iterator"
+        );
+        value
+    }
+
+    fn as_binder(&self) -> Result<&Binder<'db, Infallible>, &Self> {
+        Err(self)
+    }
+}
+
+impl<'db> LeafBoundTerm<'db> for Infallible {}
+
+impl<'db, T> BoundTerm<'db> for Binder<'db, T>
+where
+    T: BoundTerm<'db>,
+{
+    const BINDER_LEVELS: usize = T::BINDER_LEVELS + 1;
+    type BoundTerm = T;
+    type LeafTerm = T::LeafTerm;
+
+    fn bind(
+        db: &'db dyn crate::Db,
+        symbols_to_bind: &mut dyn Iterator<Item = Vec<SymVariable<'db>>>,
+        leaf_value: T::LeafTerm,
+    ) -> Self {
+        // Extract next level of bound symbols for use in this binder;
+        // if this unwrap fails, user gave wrong number of `Binder<_>` types
+        // for the scope.
+        let variables = symbols_to_bind.next().unwrap();
+
+        // Introduce whatever binders are needed to go from the innermost
+        // value type `T` to `U`.
+        let u = T::bind(db, symbols_to_bind, leaf_value);
+        Binder {
+            variables,
+            bound_value: u,
+        }
+    }
+
+    fn as_binder(&self) -> Result<&Binder<'db, T>, &Self> {
+        Ok(self)
     }
 }

@@ -358,7 +358,7 @@ enum SearchResult<'db> {
     Field {
         owner: SymClass<'db>,
         field: SymField<'db>,
-        field_ty: Binder<ObjectTy<'db>>,
+        field_ty: Binder<'db, ObjectTy<'db>>,
     },
     Method {
         owner: SymClass<'db>,

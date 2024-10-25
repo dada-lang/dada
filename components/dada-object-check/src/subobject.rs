@@ -2,10 +2,7 @@ use dada_ir_ast::{
     diagnostic::{Diagnostic, Errors, Level, Reported},
     span::Span,
 };
-use dada_ir_sym::{
-    symbol::SymVariable,
-    ty::{SymTyName, Var},
-};
+use dada_ir_sym::{symbol::SymVariable, ty::SymTyName};
 
 use crate::{
     check::Check,
@@ -39,10 +36,7 @@ pub fn require_sub_object_type<'db>(
 
     match (sub.kind(db), sup.kind(db)) {
         (ObjectTyKind::Error(_), _) | (_, ObjectTyKind::Error(_)) => Ok(()),
-        (
-            ObjectTyKind::Var(Var::Universal(univ_sub)),
-            ObjectTyKind::Var(Var::Universal(univ_sup)),
-        ) => {
+        (ObjectTyKind::Var(univ_sub), ObjectTyKind::Var(univ_sup)) => {
             if univ_sub == univ_sup {
                 Ok(())
             } else {
