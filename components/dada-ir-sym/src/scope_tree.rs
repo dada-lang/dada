@@ -3,7 +3,7 @@ use dada_util::FromImpls;
 use salsa::Update;
 
 use crate::{
-    class::SymClass, module::SymModule, prelude::IntoSymbol, scope::Scope, symbol::SymVariable,
+    class::SymClass, function::SymFunction, module::SymModule, scope::Scope, symbol::SymVariable,
 };
 
 /// A `ScopeItem` defines a name resolution scope.
@@ -15,6 +15,9 @@ pub enum ScopeItem<'db> {
     /// A module
     SymModule(SymModule<'db>),
     Class(SymClass<'db>),
+
+    /// A function or method
+    SymFunction(SymFunction<'db>),
 }
 
 pub trait ScopeTreeNode<'db>: Sized + Into<ScopeItem<'db>> {
@@ -54,6 +57,7 @@ impl<'db> ScopeTreeNode<'db> for ScopeItem<'db> {
             ScopeItem::AstModule(sym) => sym.direct_super_scope(db),
             ScopeItem::SymModule(sym) => sym.direct_super_scope(db),
             ScopeItem::Class(sym) => sym.direct_super_scope(db),
+            ScopeItem::SymFunction(sym) => sym.direct_super_scope(db),
         }
     }
 
@@ -62,6 +66,7 @@ impl<'db> ScopeTreeNode<'db> for ScopeItem<'db> {
             ScopeItem::AstModule(sym) => sym.direct_generic_parameters(db),
             ScopeItem::SymModule(sym) => sym.direct_generic_parameters(db),
             ScopeItem::Class(sym) => sym.direct_generic_parameters(db),
+            ScopeItem::SymFunction(sym) => sym.direct_generic_parameters(db),
         }
     }
 
@@ -70,6 +75,7 @@ impl<'db> ScopeTreeNode<'db> for ScopeItem<'db> {
             ScopeItem::AstModule(sym) => sym.into_scope(db),
             ScopeItem::SymModule(sym) => sym.into_scope(db),
             ScopeItem::Class(sym) => sym.into_scope(db),
+            ScopeItem::SymFunction(sym) => sym.into_scope(db),
         }
     }
 }

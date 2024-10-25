@@ -15,15 +15,29 @@ use crate::{
     populate::PopulateSignatureSymbols,
     prelude::IntoSymInScope,
     scope::Scope,
-    scope_tree::ScopeItem,
+    scope_tree::{ScopeItem, ScopeTreeNode},
     symbol::SymVariable,
     ty::{SymTy, SymTyKind},
 };
 
 #[salsa::tracked]
 pub struct SymFunction<'db> {
-    pub super_scope: ScopeItem<'db>,
+    pub super_scope_item: ScopeItem<'db>,
     source: AstFunction<'db>,
+}
+
+impl<'db> ScopeTreeNode<'db> for SymFunction<'db> {
+    fn into_scope(self, db: &'db dyn crate::Db) -> Scope<'db, 'db> {
+        self.scope(db)
+    }
+
+    fn direct_super_scope(self, db: &'db dyn crate::Db) -> Option<ScopeItem<'db>> {
+        Some(self.super_scope_item(db))
+    }
+
+    fn direct_generic_parameters(self, db: &'db dyn crate::Db) -> &'db Vec<SymVariable<'db>> {
+        &self.symbols(db).generic_variables
+    }
 }
 
 impl<'db> Spanned<'db> for SymFunction<'db> {
@@ -139,7 +153,7 @@ impl<'db> SymFunction<'db> {
     /// and parameters in scope.
     pub fn scope(self, db: &'db dyn crate::Db) -> Scope<'db, 'db> {
         let symbols = self.symbols(db);
-        self.super_scope(db)
+        self.super_scope_item(db)
             .into_scope(db)
             .with_link(Cow::Borrowed(&symbols.generic_variables[..]))
             .with_link(Cow::Borrowed(&symbols.input_variables[..]))
