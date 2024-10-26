@@ -7,7 +7,7 @@ use dada_ir_ast::{
     span::Spanned,
 };
 use dada_ir_sym::{
-    binder::Binder,
+    binder::{Binder, BoundTerm},
     class::{SymClass, SymClassMember, SymField},
     function::{SignatureSymbols, SymFunction, SymFunctionSignature, SymInputOutput},
     module::{SymItem, SymModule},
@@ -16,7 +16,6 @@ use dada_ir_sym::{
     ty::SymTy,
 };
 use dada_object_check::{object_ir::ObjectExpr, prelude::*};
-use salsa::Update;
 
 pub use dada_ir_sym::Db;
 use dada_util::Map;
@@ -167,9 +166,9 @@ impl<'db> Check<'db> for SymTy<'db> {
     }
 }
 
-impl<'db, C: Check<'db> + Update> Check<'db> for Binder<C> {
+impl<'db, C: Check<'db> + BoundTerm<'db>> Check<'db> for Binder<'db, C> {
     fn check(&self, db: &'db dyn crate::Db) {
-        for sym in &self.kinds {
+        for sym in &self.variables {
             sym.check(db);
         }
         self.bound_value.check(db);

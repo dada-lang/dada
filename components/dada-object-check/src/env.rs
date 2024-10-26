@@ -2,7 +2,7 @@ use std::sync::Arc;
 
 use dada_ir_ast::{diagnostic::Reported, span::Span};
 use dada_ir_sym::{
-    binder::{Binder, BoundTerm},
+    binder::BoundTerm,
     scope::Scope,
     subst::SubstWith,
     symbol::{SymGenericKind, SymVariable},
@@ -75,7 +75,7 @@ impl<'db> Env<'db> {
                 Arc::make_mut(&mut self.variable_universes)
                     .extend(binder.variables.iter().map(|&v| (v, self.universe)));
 
-                self.open_universally(check, variables, binder)
+                self.open_universally(check, variables, &binder.bound_value)
             }
         }
     }

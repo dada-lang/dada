@@ -466,30 +466,6 @@ impl<'scope, 'db> ScopeChain<'scope, 'db> {
             ScopeChainKind::ForAll(symbols) => symbols.iter().any(|&s| s == sym),
         }
     }
-
-    fn is_binder(&self) -> bool {
-        match &self.kind {
-            ScopeChainKind::Primitives
-            | ScopeChainKind::SymModule(_)
-            | ScopeChainKind::SymClass(_) => false,
-            ScopeChainKind::ForAll(_) => true,
-        }
-    }
-
-    // Pop off binders from chain until `num_popped_binders` have been popped.
-    fn pop_binders(self, num_popped_binders: usize) -> Self {
-        if num_popped_binders == 0 {
-            return self;
-        }
-
-        let is_binder = self.is_binder();
-        let next = self.next.unwrap();
-        if is_binder {
-            next.pop_binders(num_popped_binders - 1)
-        } else {
-            next.pop_binders(num_popped_binders)
-        }
-    }
 }
 
 impl<'db> SymModule<'db> {
