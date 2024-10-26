@@ -8,7 +8,7 @@
         {
             "type": "lldb",
             "request": "launch",
-            "name": "Debug executable 'dada' on hello-world",
+            "name": "Debug executable 'dada' on a test",
             "cargo": {
                 "args": [
                     "build",
@@ -22,7 +22,7 @@
             },
             "args": [
                 "compile",
-                "tests/parser/fn_body.dada"
+                "${input:enterProgram}"
             ],
             "cwd": "${workspaceFolder}"
         },
@@ -47,5 +47,13 @@
               "__DADA_LSP_SERVER_DEBUG": "${workspaceFolder}/target/debug/dada"
             }
           },
+    ],
+    "inputs": [
+      {
+        "id": "enterProgram",
+        "type": "promptString",
+        "description": "Program to compile",
+        "default": "tests/"
+      }
     ]
 }

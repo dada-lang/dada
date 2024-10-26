@@ -1,5 +1,6 @@
 use dada_ir_sym::{
     binder::{Binder, BoundTerm},
+    primitive::SymPrimitive,
     ty::{SymGenericTerm, SymTy, SymTyKind},
 };
 
@@ -54,5 +55,13 @@ where
 
     fn into_object_ir(self, db: &'db dyn crate::Db) -> Self::Object {
         self.map(db, |t| t.into_object_ir(db))
+    }
+}
+
+impl<'db> IntoObjectIr<'db> for SymPrimitive<'db> {
+    type Object = ObjectTy<'db>;
+
+    fn into_object_ir(self, db: &'db dyn crate::Db) -> ObjectTy<'db> {
+        ObjectTy::new(db, ObjectTyKind::Named(self.into(), vec![]))
     }
 }

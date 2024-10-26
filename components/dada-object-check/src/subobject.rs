@@ -72,7 +72,8 @@ pub async fn require_numeric_type<'db>(
 ) -> Errors<()> {
     let db = check.db;
 
-    while let Some(bound) = env.object_bounds(check, start_ty).next().await {
+    let mut bounds = env.object_bounds(check, start_ty);
+    while let Some(bound) = bounds.next().await {
         let ty = bound.into_term();
         match ty.kind(db) {
             ObjectTyKind::Error(_) => {}

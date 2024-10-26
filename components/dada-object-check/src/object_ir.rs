@@ -14,7 +14,7 @@
 //! The object IR gives us enough information to make those determinations.
 
 use dada_ir_ast::{
-    ast::Literal,
+    ast::{Literal, SpannedBinaryOp},
     diagnostic::{Err, Reported},
     span::Span,
 };
@@ -101,6 +101,9 @@ pub enum ObjectExprKind<'db> {
 
     /// Return a value from this function
     Return(ObjectExpr<'db>),
+
+    /// `a + b` etc
+    BinaryOp(SpannedBinaryOp<'db>, ObjectExpr<'db>, ObjectExpr<'db>),
 
     /// Error occurred somewhere.
     Error(Reported),

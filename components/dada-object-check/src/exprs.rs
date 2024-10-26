@@ -1,13 +1,14 @@
 use std::future::Future;
 
 use dada_ir_ast::{
-    ast::{AstExpr, AstExprKind, AstGenericTerm, BinaryOp, SpanVec, SpannedIdentifier},
+    ast::{AstExpr, AstExprKind, AstGenericTerm, LiteralKind, SpanVec, SpannedIdentifier},
     diagnostic::{Diagnostic, Err, Level, Reported},
     span::{Span, Spanned},
 };
 use dada_ir_sym::{
     function::SymFunction,
     prelude::IntoSymInScope,
+    primitive::{SymPrimitive, SymPrimitiveKind},
     scope::{NameResolution, NameResolutionSym},
     symbol::{FromVar, HasKind, SymGenericKind, SymVariable},
     ty::{SymGenericTerm, SymTyName},
@@ -107,16 +108,28 @@ async fn check_expr<'db>(
     let span = expr.span;
 
     match &*expr.kind {
-        AstExprKind::Literal(literal) => {
-            let ty = env.fresh_object_ty_inference_var(check);
-            check.defer(env, async move |check, env| todo!());
-            ExprResult {
-                temporaries: vec![],
-                span,
-                kind: ObjectExpr::new(db, span, ty, ObjectExprKind::Literal(literal.clone()))
-                    .into(),
+        AstExprKind::Literal(literal) => match literal.kind(db) {
+            LiteralKind::Integer => {
+                let ty = env.fresh_object_ty_inference_var(check);
+                env.require_numeric_type(check, span, ty);
+                ExprResult {
+                    temporaries: vec![],
+                    span,
+                    kind: ObjectExpr::new(db, span, ty, ObjectExprKind::Literal(literal.clone()))
+                        .into(),
+                }
             }
-        }
+            LiteralKind::String => {
+                // FIXME: strings should be in the stdlib I think
+                let ty = SymPrimitive::new(db, SymPrimitiveKind::Str).into_object_ir(db);
+                ExprResult {
+                    temporaries: vec![],
+                    span,
+                    kind: ObjectExpr::new(db, span, ty, ObjectExprKind::Literal(literal.clone()))
+                        .into(),
+                }
+            }
+        },
 
         AstExprKind::Tuple(span_vec) => {
             let mut temporaries = vec![];
@@ -164,16 +177,29 @@ async fn check_expr<'db>(
             // For now, let's do a dumb rule that operands must be
             // of the same primitive (and scalar) type.
 
-            env.require_sub_object_type(check, span, lhs.ty(db), rhs.ty(db));
-            env.require_sub_object_type(check, span, rhs.ty(db), lhs.ty(db));
-            env.require_scalar_type(check, span, lhs.ty(db));
+            env.require_numeric_type(check, span, lhs.ty(db));
+            env.require_numeric_type(check, span, rhs.ty(db));
+            env.if_not_never(check, &[lhs.ty(db), rhs.ty(db)], async move |check, env| {
+                env.require_sub_object_type(&check, span, lhs.ty(db), rhs.ty(db));
+                env.require_sub_object_type(&check, span, rhs.ty(db), lhs.ty(db));
+            });
 
-            match span_op.op {
-                BinaryOp::Add => todo!(),
-                BinaryOp::Sub => todo!(),
-                BinaryOp::Mul => todo!(),
-                BinaryOp::Div => todo!(),
-            }
+            // What type do we want these operators to have?
+            // For now I'll just take the LHS, but that seems
+            // wrong if e.g. one side is `!`, then we probably
+            // want `!`, right?
+
+            ExprResult::from_expr(
+                check,
+                env,
+                ObjectExpr::new(
+                    db,
+                    span,
+                    lhs.ty(db),
+                    ObjectExprKind::BinaryOp(*span_op, lhs, rhs),
+                ),
+                temporaries,
+            )
         }
 
         AstExprKind::Id(SpannedIdentifier { span: id_span, id }) => {

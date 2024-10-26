@@ -177,7 +177,7 @@ impl<'db> Env<'db> {
         })
     }
 
-    pub fn require_scalar_type(
+    pub fn require_numeric_type(
         &self,
         check: &Check<'db>,
         span: Span<'db>,
@@ -190,6 +190,33 @@ impl<'db> Env<'db> {
                 Ok(()) => (),
                 Err(Reported(_)) => (),
             }
+        })
+    }
+
+    /// Check whether any type in `tys` is known to be never (or error).
+    /// If so, do nothing.
+    /// Otherwise, if no type in `tys` is known to be never, invoke `op` (asynchronously).
+    pub fn if_not_never(
+        &self,
+        check: &Check<'db>,
+        tys: &[ObjectTy<'db>],
+        op: impl async FnOnce(Check<'db>, Env<'db>) + 'db,
+    ) {
+        let tys = tys.to_vec();
+        check.defer(self, move |check, env: Env<'db>| async move {
+            'next_ty: for ty in tys {
+                'next_bound: while let Some(bound) = env.object_bounds(&check, ty).next().await {
+                    let bound_ty = bound.into_term();
+                    match bound_ty.kind(check.db) {
+                        ObjectTyKind::Never => return,
+                        ObjectTyKind::Error(reported) => return,
+                        ObjectTyKind::Infer(sym_infer_var_index) => continue 'next_bound,
+                        ObjectTyKind::Named(..) | ObjectTyKind::Var(_) => continue 'next_ty,
+                    }
+                }
+            }
+
+            op(check, env).await
         })
     }
 
