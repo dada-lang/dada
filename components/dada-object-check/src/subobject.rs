@@ -2,7 +2,8 @@ use dada_ir_ast::{
     diagnostic::{Diagnostic, Errors, Level, Reported},
     span::Span,
 };
-use dada_ir_sym::{symbol::SymVariable, ty::SymTyName};
+use dada_ir_sym::{primitive::SymPrimitiveKind, symbol::SymVariable, ty::SymTyName};
+use futures::StreamExt;
 
 use crate::{
     check::Check,
@@ -10,7 +11,7 @@ use crate::{
     object_ir::{ObjectTy, ObjectTyKind},
 };
 
-pub fn require_assignable_object_type<'db>(
+pub async fn require_assignable_object_type<'db>(
     check: &Check<'db>,
     env: &Env<'db>,
     span: Span<'db>,
@@ -21,11 +22,11 @@ pub fn require_assignable_object_type<'db>(
 
     match (value_ty.kind(db), place_ty.kind(db)) {
         (ObjectTyKind::Never, _) => Ok(()),
-        _ => require_sub_object_type(check, env, span, value_ty, place_ty),
+        _ => require_sub_object_type(check, env, span, value_ty, place_ty).await,
     }
 }
 
-pub fn require_sub_object_type<'db>(
+pub async fn require_sub_object_type<'db>(
     check: &Check<'db>,
     env: &Env<'db>,
     span: Span<'db>,
@@ -61,6 +62,42 @@ pub fn require_sub_object_type<'db>(
             Ok(())
         }
     }
+}
+
+pub async fn require_numeric_type<'db>(
+    check: &Check<'db>,
+    env: &Env<'db>,
+    span: Span<'db>,
+    start_ty: ObjectTy<'db>,
+) -> Errors<()> {
+    let db = check.db;
+
+    while let Some(bound) = env.object_bounds(check, start_ty).next().await {
+        let ty = bound.into_term();
+        match ty.kind(db) {
+            ObjectTyKind::Error(_) => {}
+            ObjectTyKind::Never => {}
+            ObjectTyKind::Named(name, vec) => match name {
+                SymTyName::Primitive(prim) => match prim.kind(db) {
+                    SymPrimitiveKind::Int { .. }
+                    | SymPrimitiveKind::Isize
+                    | SymPrimitiveKind::Uint { .. }
+                    | SymPrimitiveKind::Usize
+                    | SymPrimitiveKind::Float { .. } => {}
+                    SymPrimitiveKind::Bool | SymPrimitiveKind::Char | SymPrimitiveKind::Str => {
+                        return Err(report_numeric_type_expected(check, env, span, ty))
+                    }
+                },
+                SymTyName::Class(_) | SymTyName::Tuple { .. } => {
+                    return Err(report_numeric_type_expected(check, env, span, ty))
+                }
+            },
+            ObjectTyKind::Var(_) => return Err(report_numeric_type_expected(check, env, span, ty)),
+            ObjectTyKind::Infer(var) => {}
+        }
+    }
+
+    Ok(())
 }
 
 fn report_class_name_mismatch<'db>(
@@ -139,4 +176,21 @@ fn report_universal_mismatch<'db>(
         )
         .report(db),
     }
+}
+
+fn report_numeric_type_expected<'db>(
+    check: &Check<'db>,
+    env: &Env<'db>,
+    span: Span<'db>,
+    ty: ObjectTy<'db>,
+) -> Reported {
+    let db = check.db;
+    Diagnostic::error(db, span, format!("expected a numeric type, found `{ty}`"))
+        .label(
+            db,
+            Level::Error,
+            span,
+            format!("I expected a numeric type, but I found a `{ty}`"),
+        )
+        .report(db)
 }

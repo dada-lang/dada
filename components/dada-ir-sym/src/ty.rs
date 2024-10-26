@@ -87,6 +87,7 @@ impl<'db> FromInferVar<'db> for SymGenericTerm<'db> {
 }
 
 impl<'db> SymGenericTerm<'db> {
+    #[track_caller]
     pub fn assert_type(self, db: &'db dyn crate::Db) -> SymTy<'db> {
         match self {
             SymGenericTerm::Type(ty) => ty,
@@ -95,6 +96,7 @@ impl<'db> SymGenericTerm<'db> {
         }
     }
 
+    #[track_caller]
     pub fn assert_perm(self, db: &'db dyn crate::Db) -> SymPerm<'db> {
         match self {
             SymGenericTerm::Perm(perm) => perm,
@@ -103,6 +105,7 @@ impl<'db> SymGenericTerm<'db> {
         }
     }
 
+    #[track_caller]
     pub fn assert_place(self, db: &'db dyn crate::Db) -> SymPlace<'db> {
         match self {
             SymGenericTerm::Place(place) => place,

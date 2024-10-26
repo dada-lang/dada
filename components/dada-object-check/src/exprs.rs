@@ -151,8 +151,23 @@ async fn check_expr<'db>(
         }
 
         AstExprKind::BinaryOp(span_op, lhs, rhs) => {
-            let lhs = lhs.check(check, env).await;
-            let rhs = rhs.check(check, env).await;
+            let mut temporaries = vec![];
+            let lhs = lhs
+                .check(check, env)
+                .await
+                .into_expr(check, env, &mut temporaries);
+            let rhs = rhs
+                .check(check, env)
+                .await
+                .into_expr(check, env, &mut temporaries);
+
+            // For now, let's do a dumb rule that operands must be
+            // of the same primitive (and scalar) type.
+
+            env.require_sub_object_type(check, span, lhs.ty(db), rhs.ty(db));
+            env.require_sub_object_type(check, span, rhs.ty(db), lhs.ty(db));
+            env.require_scalar_type(check, span, lhs.ty(db));
+
             match span_op.op {
                 BinaryOp::Add => todo!(),
                 BinaryOp::Sub => todo!(),

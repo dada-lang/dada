@@ -180,6 +180,37 @@ impl<'db> FromVar<'db> for ObjectTy<'db> {
     }
 }
 
+impl std::fmt::Display for ObjectTy<'_> {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        salsa::with_attached_database(|db| match self.kind(db) {
+            ObjectTyKind::Named(name, vec) => {
+                write!(f, "{name}")?;
+
+                if !vec.is_empty() {
+                    write!(f, "[")?;
+                    for (arg, index) in vec.iter().zip(0..) {
+                        if index > 0 {
+                            write!(f, ", ")?;
+                        }
+                        write!(f, "{arg}")?;
+                    }
+                    write!(f, "]")?;
+                }
+
+                Ok(())
+            }
+            ObjectTyKind::Var(var) => match var.name(db) {
+                Some(name) => write!(f, "{name}"),
+                None => write!(f, "/* some {} */", var.kind(db)),
+            },
+            ObjectTyKind::Infer(var) => write!(f, "/* ?{} */", var.as_usize()),
+            ObjectTyKind::Never => write!(f, "!"),
+            ObjectTyKind::Error(reported) => write!(f, "/* error */"),
+        })
+        .unwrap_or_else(|| std::fmt::Debug::fmt(self, f))
+    }
+}
+
 #[derive(Clone, PartialEq, Eq, PartialOrd, Ord, Hash, Update, Debug)]
 pub enum ObjectTyKind<'db> {
     /// `path[arg1, arg2]`, e.g., `Vec[String]`
@@ -209,6 +240,12 @@ pub enum ObjectGenericTerm<'db> {
     #[no_from_impl]
     Place,
     Error(Reported),
+}
+
+impl std::fmt::Display for ObjectGenericTerm<'_> {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        todo!()
+    }
 }
 
 impl<'db> HasKind<'db> for ObjectGenericTerm<'db> {

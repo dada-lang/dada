@@ -15,7 +15,7 @@ use crate::{
     bound::{Bound, InferenceVarBounds},
     check::Check,
     object_ir::{IntoObjectIr, ObjectGenericTerm, ObjectTy, ObjectTyKind},
-    subobject::{require_assignable_object_type, require_sub_object_type},
+    subobject::{require_assignable_object_type, require_numeric_type, require_sub_object_type},
     universe::Universe,
 };
 
@@ -123,7 +123,7 @@ impl<'db> Env<'db> {
         check: &Check<'db>,
         kind: SymGenericKind,
     ) -> SymGenericTerm<'db> {
-        check.fresh_inference_var(SymGenericKind::Perm, self.universe)
+        check.fresh_inference_var(kind, self.universe)
     }
 
     pub fn fresh_ty_inference_var(&self, check: &Check<'db>) -> SymTy<'db> {
@@ -151,7 +151,8 @@ impl<'db> Env<'db> {
         let value_ty = value_ty.into_object_ir(db);
         let place_ty = value_ty.into_object_ir(db);
         check.defer(self, move |check, env| async move {
-            match require_assignable_object_type(&check, &env, value_span, value_ty, place_ty) {
+            match require_assignable_object_type(&check, &env, value_span, value_ty, place_ty).await
+            {
                 Ok(()) => (),
                 Err(Reported(_)) => (),
             }
@@ -169,7 +170,23 @@ impl<'db> Env<'db> {
         let value_ty = sub_ty.into_object_ir(db);
         let place_ty = value_ty.into_object_ir(db);
         check.defer(self, move |check, env| async move {
-            match require_sub_object_type(&check, &env, span, value_ty, place_ty) {
+            match require_sub_object_type(&check, &env, span, value_ty, place_ty).await {
+                Ok(()) => (),
+                Err(Reported(_)) => (),
+            }
+        })
+    }
+
+    pub fn require_scalar_type(
+        &self,
+        check: &Check<'db>,
+        span: Span<'db>,
+        ty: impl IntoObjectIr<'db, Object = ObjectTy<'db>>,
+    ) {
+        let db = check.db;
+        let ty = ty.into_object_ir(db);
+        check.defer(self, move |check, env| async move {
+            match require_numeric_type(&check, &env, span, ty).await {
                 Ok(()) => (),
                 Err(Reported(_)) => (),
             }

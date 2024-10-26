@@ -30,7 +30,7 @@ pub mod function;
 pub mod indices;
 pub mod module;
 mod populate;
-mod primitive;
+pub mod primitive;
 pub mod scope;
 pub mod scope_tree;
 pub mod subst;
