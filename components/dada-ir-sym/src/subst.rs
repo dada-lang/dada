@@ -1,11 +1,11 @@
-use std::{convert::Infallible, fmt::Debug, intrinsics::unreachable};
+use std::fmt::Debug;
 
 use dada_ir_ast::diagnostic::Reported;
-use dada_util::Map;
+use dada_util::{Map, Never};
 use salsa::Update;
 
 use crate::{
-    binder::{Binder, BoundTerm},
+    binder::{Binder, BoundTerm, NeverBinder},
     function::SymInputOutput,
     symbol::{AssertKind, FromVar, HasKind, SymGenericKind, SymVariable},
     ty::{
@@ -99,12 +99,12 @@ pub trait SubstWith<'db, Term> {
     ) -> Self::Output;
 }
 
-impl<'db> Subst<'db> for Infallible {
+impl<'db> Subst<'db> for Never {
     type GenericTerm = SymGenericTerm<'db>;
 }
 
-impl<'db, Term> SubstWith<'db, Term> for Infallible {
-    type Output = ();
+impl<'db, Term> SubstWith<'db, Term> for Never {
+    type Output = Never;
 
     fn identity(&self) -> Self::Output {
         unreachable!()
@@ -354,6 +354,30 @@ impl<'db, T: BoundTerm<'db>> SubstWith<'db, T::GenericTerm> for Binder<'db, T> {
             variables: self.variables.clone(),
             bound_value,
         }
+    }
+}
+
+impl<'db, T> Subst<'db> for NeverBinder<T>
+where
+    T: Debug,
+{
+    type GenericTerm = SymGenericTerm<'db>;
+}
+
+impl<'db, T, Term> SubstWith<'db, Term> for NeverBinder<T> {
+    type Output = Self;
+
+    fn identity(&self) -> Self::Output {
+        unreachable!()
+    }
+
+    fn subst_with<'subst>(
+        &'subst self,
+        _db: &'db dyn crate::Db,
+        _bound_vars: &mut Vec<&'subst [SymVariable<'db>]>,
+        _subst_fns: &mut SubstitutionFns<'_, 'db, Term>,
+    ) -> Self::Output {
+        unreachable!()
     }
 }
 

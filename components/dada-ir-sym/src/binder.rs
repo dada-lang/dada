@@ -1,5 +1,6 @@
-use std::convert::Infallible;
+use std::fmt::Debug;
 
+use dada_util::Never;
 use salsa::Update;
 
 use crate::{
@@ -84,7 +85,7 @@ impl<'db, T: BoundTerm<'db>> Binder<'db, T> {
     /// If no arg is needed just supply `()`.
     ///
     /// NB. The argument is a `fn` to prevent accidentally leaking context.
-    pub fn map<U>(self, db: &'db dyn crate::Db, op: impl FnOnce(T) -> U) -> Binder<'db, U>
+    pub fn map<U>(self, _db: &'db dyn crate::Db, op: impl FnOnce(T) -> U) -> Binder<'db, U>
     where
         U: BoundTerm<'db>,
     {
@@ -109,8 +110,8 @@ where
 /// A value that can appear in a binder
 pub trait BoundTerm<'db>: Update + Subst<'db, Output = Self> + Sized {
     const BINDER_LEVELS: usize;
-    type BoundTerm: BoundTerm<'db>;
-    type LeafTerm;
+    type BoundTerm: BoundTerm<'db, LeafTerm = Self::LeafTerm>;
+    type LeafTerm: Subst<'db, Output = Self::LeafTerm>;
 
     fn bind(
         db: &'db dyn crate::Db,
@@ -118,7 +119,7 @@ pub trait BoundTerm<'db>: Update + Subst<'db, Output = Self> + Sized {
         leaf_value: Self::LeafTerm,
     ) -> Self;
 
-    fn as_binder(&self) -> Result<&Binder<'db, Self::BoundTerm>, &Self>;
+    fn as_binder(&self) -> Result<&Binder<'db, Self::BoundTerm>, &Self::LeafTerm>;
 }
 
 pub trait LeafBoundTerm<'db>: Update + Subst<'db, Output = Self> {}
@@ -128,7 +129,7 @@ where
     T: LeafBoundTerm<'db>,
 {
     const BINDER_LEVELS: usize = 0;
-    type BoundTerm = Infallible;
+    type BoundTerm = NeverBinder<T>;
     type LeafTerm = T;
 
     fn bind(
@@ -143,12 +144,12 @@ where
         value
     }
 
-    fn as_binder(&self) -> Result<&Binder<'db, Infallible>, &Self> {
+    fn as_binder(&self) -> Result<&Binder<'db, NeverBinder<Self>>, &Self> {
         Err(self)
     }
 }
 
-impl<'db> LeafBoundTerm<'db> for Infallible {}
+impl<'db> LeafBoundTerm<'db> for Never {}
 
 impl<'db, T> BoundTerm<'db> for Binder<'db, T>
 where
@@ -177,7 +178,39 @@ where
         }
     }
 
-    fn as_binder(&self) -> Result<&Binder<'db, T>, &Self> {
+    fn as_binder(&self) -> Result<&Binder<'db, T>, &Self::LeafTerm> {
         Ok(self)
+    }
+}
+
+#[derive(Copy, Clone, PartialEq, Eq, PartialOrd, Ord, Hash, Debug)]
+pub struct NeverBinder<T> {
+    _data: Never,
+    _value: T,
+}
+
+unsafe impl<T> Update for NeverBinder<T> {
+    unsafe fn maybe_update(_old_pointer: *mut Self, _new_value: Self) -> bool {
+        unreachable!()
+    }
+}
+
+impl<'db, T: Subst<'db, Output = T>> BoundTerm<'db> for NeverBinder<T> {
+    const BINDER_LEVELS: usize = 0;
+
+    type BoundTerm = NeverBinder<T>;
+
+    type LeafTerm = T;
+
+    fn bind(
+        _db: &'db dyn crate::Db,
+        _symbols_to_bind: &mut dyn Iterator<Item = Vec<SymVariable<'db>>>,
+        _leaf_value: Self::LeafTerm,
+    ) -> Self {
+        unreachable!()
+    }
+
+    fn as_binder(&self) -> Result<&Binder<'db, Self::BoundTerm>, &Self::LeafTerm> {
+        unreachable!()
     }
 }

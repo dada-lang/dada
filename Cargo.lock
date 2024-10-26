@@ -358,6 +358,7 @@ dependencies = [
  "dada-util-procmacro",
  "fxhash",
  "imstr",
+ "salsa",
 ]
 
 [[package]]

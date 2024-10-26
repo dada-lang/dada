@@ -28,12 +28,12 @@ pub(crate) enum Bound<Term> {
     UpperBound(Term),
 }
 
-pub(crate) trait BoundTerm<'db>: HasKind<'db> {
+pub(crate) trait BoundedTerm<'db>: HasKind<'db> {
     type Type;
     fn assert_type(self, db: &'db dyn crate::Db) -> Self::Type;
 }
 
-impl<'db, Term: BoundTerm<'db>> HasKind<'db> for Bound<Term> {
+impl<'db, Term: BoundedTerm<'db>> HasKind<'db> for Bound<Term> {
     fn has_kind(&self, db: &'db dyn crate::Db, kind: SymGenericKind) -> bool {
         match self {
             Bound::LowerBound(ty) => ty.has_kind(db, kind),
@@ -42,7 +42,7 @@ impl<'db, Term: BoundTerm<'db>> HasKind<'db> for Bound<Term> {
     }
 }
 
-impl<'db, Term: BoundTerm<'db>> Bound<Term> {
+impl<'db, Term: BoundedTerm<'db>> Bound<Term> {
     pub fn assert_type(self, db: &'db dyn crate::Db) -> Bound<Term::Type> {
         match self {
             Bound::LowerBound(term) => Bound::LowerBound(term.assert_type(db)),
@@ -58,7 +58,7 @@ impl<'db, Term: BoundTerm<'db>> Bound<Term> {
     }
 }
 
-impl<'db> BoundTerm<'db> for SymGenericTerm<'db> {
+impl<'db> BoundedTerm<'db> for SymGenericTerm<'db> {
     type Type = SymTy<'db>;
 
     fn assert_type(self, db: &'db dyn crate::Db) -> SymTy<'db> {
@@ -66,7 +66,7 @@ impl<'db> BoundTerm<'db> for SymGenericTerm<'db> {
     }
 }
 
-impl<'db> BoundTerm<'db> for SymTy<'db> {
+impl<'db> BoundedTerm<'db> for SymTy<'db> {
     type Type = SymTy<'db>;
 
     fn assert_type(self, _db: &'db dyn crate::Db) -> SymTy<'db> {
@@ -74,7 +74,7 @@ impl<'db> BoundTerm<'db> for SymTy<'db> {
     }
 }
 
-impl<'db> BoundTerm<'db> for ObjectGenericTerm<'db> {
+impl<'db> BoundedTerm<'db> for ObjectGenericTerm<'db> {
     type Type = ObjectTy<'db>;
 
     fn assert_type(self, db: &'db dyn crate::Db) -> ObjectTy<'db> {
@@ -82,7 +82,7 @@ impl<'db> BoundTerm<'db> for ObjectGenericTerm<'db> {
     }
 }
 
-impl<'db> BoundTerm<'db> for ObjectTy<'db> {
+impl<'db> BoundedTerm<'db> for ObjectTy<'db> {
     type Type = ObjectTy<'db>;
 
     fn assert_type(self, _db: &'db dyn crate::Db) -> ObjectTy<'db> {
@@ -99,7 +99,7 @@ impl<'db> From<Bound<SymTy<'db>>> for Bound<SymGenericTerm<'db>> {
     }
 }
 
-impl<'db> BoundTerm<'db> for SymPerm<'db> {
+impl<'db> BoundedTerm<'db> for SymPerm<'db> {
     type Type = SymTy<'db>;
 
     fn assert_type(self, _db: &'db dyn crate::Db) -> SymTy<'db> {

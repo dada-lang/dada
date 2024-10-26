@@ -1,15 +1,15 @@
 use std::future::Future;
 
 use dada_ir_ast::{
-    ast::{AstExpr, AstExprKind, BinaryOp, SpannedIdentifier},
+    ast::{AstExpr, AstExprKind, AstGenericTerm, BinaryOp, SpanVec, SpannedIdentifier},
     diagnostic::{Diagnostic, Err, Level, Reported},
-    span::Span,
+    span::{Span, Spanned},
 };
 use dada_ir_sym::{
     function::SymFunction,
     prelude::IntoSymInScope,
     scope::{NameResolution, NameResolutionSym},
-    symbol::{SymGenericKind, SymVariable},
+    symbol::{FromVar, HasKind, SymGenericKind, SymVariable},
     ty::{SymGenericTerm, SymTyName},
 };
 use dada_parser::prelude::*;
@@ -82,7 +82,7 @@ pub(crate) enum ExprResultKind<'db> {
         self_expr: ObjectExpr<'db>,
         id_span: Span<'db>,
         function: SymFunction<'db>,
-        generics: Option<Vec<SymGenericTerm<'db>>>,
+        generics: Option<SpanVec<'db, AstGenericTerm<'db>>>,
     },
 
     /// Some kind of name resoluton that cannot be represented by as an expression.
@@ -212,17 +212,11 @@ async fn check_expr<'db>(
                 } => {
                     let ast_terms = square_bracket_args.parse_as_generics(db);
 
-                    let sym_terms = ast_terms
-                        .values
-                        .iter()
-                        .map(|ast_term| ast_term.into_sym_in_scope(db, scope))
-                        .collect();
-
                     ExprResult {
                         kind: ExprResultKind::Method {
                             self_expr: owner,
                             function: method,
-                            generics: Some(sym_terms),
+                            generics: Some(ast_terms),
                             id_span,
                         },
                         ..owner_result
@@ -343,7 +337,7 @@ async fn check_call<'db>(
     function: SymFunction<'db>,
     self_expr: Option<ObjectExpr<'db>>,
     ast_args: &[AstExpr<'db>],
-    generics: Option<Vec<SymGenericTerm<'db>>>,
+    generics: Option<SpanVec<'db, AstGenericTerm<'db>>>,
     mut temporaries: Vec<Temporary<'db>>,
 ) -> ExprResult<'db> {
     let db = check.db;
@@ -352,51 +346,110 @@ async fn check_call<'db>(
     let signature = function.signature(db);
     let input_output = signature.input_output(db);
 
-    // Instantiate the class generics with inference variables.
-    // (FIXME: Is there a way for people to specify these explicitly?)
-    let class_substitution = env.existential_substitution(check, input_output);
-    let input_output = input_output.substitute(db, &class_substitution);
+    // Prepare the substitution for the function.
+    let substitution = match generics {
+        None => {
+            // Easy case: nothing provided by user, just create inference variables for everything.
+            env.existential_substitution(check, &input_output.variables)
+        }
 
-    // Instantiate the method generics with inference variables
-    // or use the provided values (if any).
-    let method_substitution = match generics {
         Some(generics) => {
-            let expected_generics = input_output.len();
-            let found_generics = generics.len();
-            let function_name = function.name(db);
-            if expected_generics != found_generics {
+            // Harder case: user provided generics. Given that we are parsing a call like `a.b()`,
+            // then generic arguments would be `a.b[x, y]()` and therefore correspond to the generics declared on
+            // the function itself. But the `input_output` binder can contain additional parameters from
+            // the class or surrounding scope. Those add'l parameters are instantiated with inference
+            // variables-- and then the user-provided generics are added afterwards.
+
+            // Create existential substitution for any other generics.
+            let function_generics = &signature.symbols(db).generic_variables;
+            assert!(input_output.variables.ends_with(function_generics));
+            let outer_variables =
+                &input_output.variables[0..input_output.variables.len() - function_generics.len()];
+            let mut substitution: Vec<SymGenericTerm<'_>> =
+                env.existential_substitution(check, outer_variables);
+
+            // Check the user gave the expected number of arguments.
+            if function_generics.len() != generics.len() {
                 return ExprResult::err(
                     db,
                     Diagnostic::error(
                         db,
                         id_span,
-                        format!("expected {expected_generics} generic arguments, found {found_generics}"),
+                        format!(
+                            "expected {expected} generic arguments, but found {found}",
+                            expected = function_generics.len(),
+                            found = generics.len()
+                        ),
                     )
                     .label(
                         db,
                         Level::Error,
                         id_span,
-                        format!("I expected `{function_name}` to take {expected_generics} arguments but I found {found_generics}",),
+                        format!(
+                            "{found} generic arguments were provided",
+                            found = generics.len()
+                        ),
                     )
                     .label(
                         db,
-                        Level::Info,
+                        Level::Error,
                         function.name_span(db),
-                        format!("`{function_name}` defined here"),
+                        format!(
+                            "the function `{name}` is declared with {expected} generic arguments",
+                            name = function.name(db),
+                            expected = function_generics.len(),
+                        ),
                     )
                     .report(db),
                 );
             }
 
-            generics
-        }
-        None => env.existential_substitution(check, &input_output),
-    };
-    let input_ouput = input_output.substitute(db, &method_substitution);
+            // Convert each generic to a `SymGenericTerm` and check it has the correct kind.
+            // If everything looks good, add it to the substitution.
+            for (ast_generic_term, var) in generics.iter().zip(function_generics.iter()) {
+                let sym_generic_term = ast_generic_term.into_sym_in_scope(db, &env.scope);
+                if !sym_generic_term.has_kind(db, var.kind(db)) {
+                    return ExprResult::err(
+                        db,
+                        Diagnostic::error(
+                            db,
+                            ast_generic_term.span(db),
+                            format!(
+                                "expected `{expected_kind}`, found `{found_kind}`",
+                                expected_kind = var.kind(db),
+                                found_kind = sym_generic_term.kind().unwrap(),
+                            ),
+                        )
+                        .label(
+                            db,
+                            Level::Error,
+                            id_span,
+                            format!(
+                                "this is a `{found_kind}`",
+                                found_kind = sym_generic_term.kind().unwrap(),
+                            ),
+                        )
+                        .label(
+                            db,
+                            Level::Info,
+                            var.span(db),
+                            format!(
+                                "I expected to find a `{expected_kind}`",
+                                expected_kind = var.kind(db),
+                            ),
+                        )
+                        .report(db),
+                    );
+                }
+                substitution.push(sym_generic_term);
+            }
 
-    // Instantiate the first two levels of generics with inference variables.
-    let input_output = env.open_existentially(check, signature.input_output(db));
-    let input_output = env.open_existentially(check, &input_output);
+            substitution
+        }
+    };
+
+    // Instantiate the input-output with the substitution.
+    let input_output = input_output.substitute(db, &substitution);
 
     // Check the arity of the actual arguments.
     let expected_inputs = input_output.bound_value.input_tys.len();
@@ -433,7 +486,7 @@ async fn check_call<'db>(
         .collect::<Vec<_>>();
     let arg_temp_terms = arg_temp_symbols
         .iter()
-        .map(|&sym| SymGenericTerm::var(db, sym.kind(db), Var::Universal(sym)))
+        .map(|&sym| SymGenericTerm::var(db, sym))
         .collect::<Vec<_>>();
 
     // Instantiate the final level of binding with those temporaries
@@ -475,8 +528,7 @@ async fn check_call<'db>(
         input_output.output_ty.into_object_ir(db),
         ObjectExprKind::Call {
             function,
-            class_substitution,
-            method_substitution,
+            substitution,
             arg_temps: arg_temp_symbols.clone(),
         },
     );

@@ -4,13 +4,12 @@ use dada_ir_ast::{diagnostic::Reported, span::Span};
 use dada_ir_sym::{
     binder::{Binder, BoundTerm},
     scope::Scope,
-    subst::Subst,
-    symbol::{FromVar, HasKind, SymGenericKind, SymVariable},
+    subst::SubstWith,
+    symbol::{SymGenericKind, SymVariable},
     ty::{SymGenericTerm, SymPerm, SymTy, SymTyKind},
 };
 use dada_util::Map;
 use futures::{Stream, StreamExt};
-use salsa::Update;
 
 use crate::{
     bound::{Bound, InferenceVarBounds},
@@ -59,47 +58,38 @@ impl<'db> Env<'db> {
         &mut self,
         check: &Check<'db>,
         variables: &[SymVariable<'db>],
-        binder: &T,
+        value: &T,
     ) -> T::LeafTerm
     where
-        T: BoundTerm<'db, GenericTerm: FromVar<'db>>,
+        T: BoundTerm<'db>,
     {
         let db = check.db;
 
-        if T::BINDER_LEVELS == 0 {
-            return binder.leaf_term();
+        match value.as_binder() {
+            Err(leaf) => {
+                return leaf.identity();
+            }
+
+            Ok(binder) => {
+                self.increment_universe();
+                Arc::make_mut(&mut self.variable_universes)
+                    .extend(binder.variables.iter().map(|&v| (v, self.universe)));
+
+                self.open_universally(check, variables, binder)
+            }
         }
-
-        self.increment_universe();
-        let variables = binder.bound_values();
-        Arc::make_mut(&mut self.variable_universes)
-            .extend(variables.iter().map(|&v| (v, self.universe)));
-
-        self.open_universally(check, variables, &binder.bound_value())
-    }
-
-    /// Open the given symbols as existential inference variables
-    /// in the current universe.
-    pub fn open_existentially<T>(&self, check: &Check<'db>, binder: &Binder<T>) -> T::Output
-    where
-        T: Subst<'db, GenericTerm = SymGenericTerm<'db>, Output = T> + Update,
-    {
-        let db = check.db;
-        binder.open(db, |kind, sym_bound_var_index| {
-            self.fresh_inference_var(check, kind)
-        })
     }
 
     /// Create a substitution for `binder` consisting of inference variables
-    pub fn existential_substitution<T: Update>(
+    pub fn existential_substitution(
         &self,
         check: &Check<'db>,
-        binder: &Binder<T>,
+        variables: &[SymVariable<'db>],
     ) -> Vec<SymGenericTerm<'db>> {
-        binder
-            .kinds
+        let db = check.db;
+        variables
             .iter()
-            .map(|&kind| self.fresh_inference_var(check, kind))
+            .map(|&var| self.fresh_inference_var(check, var.kind(db)))
             .collect()
     }
 

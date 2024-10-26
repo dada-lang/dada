@@ -8,3 +8,4 @@ anyhow = "1.0.86"
 dada-util-procmacro = { version = "0.1.0", path = "../dada-util-procmacro" }
 fxhash = "0.2.1"
 imstr = "0.2.0"
+salsa = { git = "https://github.com/salsa-rs/salsa.git", version = "0.18.0" }

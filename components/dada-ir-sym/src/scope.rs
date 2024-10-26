@@ -1,4 +1,4 @@
-use std::{borrow::Cow, cmp::min, fmt::Display};
+use std::{borrow::Cow, fmt::Display};
 
 use dada_ir_ast::{
     ast::{AstPath, AstPathKind, AstUseItem, Identifier, SpannedIdentifier},
@@ -7,18 +7,17 @@ use dada_ir_ast::{
     span::{Span, Spanned},
 };
 use dada_util::FromImpls;
-use salsa::Update;
 
 use crate::{
-    binder::{Binder, BoundTerm},
+    binder::BoundTerm,
     class::SymClass,
-    function::{SymFunction, SymInputOutput},
+    function::SymFunction,
     module::SymModule,
     prelude::IntoSymbol,
     primitive::{primitives, SymPrimitive},
     scope_tree::ScopeTreeNode,
     symbol::{FromVar, SymGenericKind, SymVariable},
-    ty::{SymGenericTerm, SymTy},
+    ty::SymGenericTerm,
 };
 
 /// Name resolution scope, used when converting types/function-bodies etc into symbols.

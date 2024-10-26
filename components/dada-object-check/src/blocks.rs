@@ -27,17 +27,11 @@ pub fn check_function_body<'db>(
             let input_output_binder = signature.input_output(db);
 
             // Bring class/method generics into scope.
-            let class_generic_variables = function.super_scope_item(db).into_symbols(db);
-            let input_output_binder =
-                env.open_universally(check, class_generic_variables, input_output_binder);
-            let method_generic_variables = &signature.symbols(db).generic_variables;
-            let input_output_binder =
-                env.open_universally(check, method_generic_variables, &input_output_binder);
             let method_input_variables = &signature.symbols(db).input_variables;
             let SymInputOutput {
                 input_tys,
                 output_ty,
-            } = env.open_universally(check, method_input_variables, &input_output_binder);
+            } = env.open_universally(check, method_input_variables, input_output_binder);
 
             // Bring parameters into scope.
             assert_eq!(input_tys.len(), method_input_variables.len());

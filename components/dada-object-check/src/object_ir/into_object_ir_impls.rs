@@ -1,5 +1,5 @@
 use dada_ir_sym::{
-    binder::Binder,
+    binder::{Binder, BoundTerm},
     ty::{SymGenericTerm, SymTy, SymTyKind},
 };
 
@@ -48,7 +48,7 @@ impl<'db> IntoObjectIr<'db> for SymGenericTerm<'db> {
 
 impl<'db, T> IntoObjectIr<'db> for Binder<'db, T>
 where
-    T: IntoObjectIr<'db>,
+    T: BoundTerm<'db> + IntoObjectIr<'db, Object: BoundTerm<'db>>,
 {
     type Object = Binder<'db, T::Object>;
 

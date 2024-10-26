@@ -19,3 +19,12 @@ macro_rules! debug {
 
 pub mod typedvec;
 pub mod vecset;
+
+#[derive(Clone, Copy, PartialEq, Eq, PartialOrd, Ord, Hash, Debug)]
+pub enum Never {}
+
+unsafe impl salsa::Update for Never {
+    unsafe fn maybe_update(_old_pointer: *mut Self, _new_value: Self) -> bool {
+        unreachable!()
+    }
+}

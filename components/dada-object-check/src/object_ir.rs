@@ -19,6 +19,7 @@ use dada_ir_ast::{
     span::Span,
 };
 use dada_ir_sym::{
+    binder::LeafBoundTerm,
     class::SymField,
     function::SymFunction,
     indices::SymInferVarIndex,
@@ -94,8 +95,7 @@ pub enum ObjectExprKind<'db> {
     /// (or generate errors).
     Call {
         function: SymFunction<'db>,
-        class_substitution: Vec<SymGenericTerm<'db>>,
-        method_substitution: Vec<SymGenericTerm<'db>>,
+        substitution: Vec<SymGenericTerm<'db>>,
         arg_temps: Vec<SymVariable<'db>>,
     },
 
@@ -158,6 +158,8 @@ impl<'db> ObjectTy<'db> {
         SymTy::never(db).into_object_ir(db)
     }
 }
+
+impl<'db> LeafBoundTerm<'db> for ObjectTy<'db> {}
 
 impl<'db> Err<'db> for ObjectTy<'db> {
     fn err(db: &'db dyn salsa::Database, r: Reported) -> Self {
