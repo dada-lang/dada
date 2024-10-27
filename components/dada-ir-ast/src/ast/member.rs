@@ -1,7 +1,10 @@
 use dada_util::FromImpls;
 use salsa::Update;
 
-use crate::span::{Span, Spanned};
+use crate::{
+    ast::AstVisibility,
+    span::{Span, Spanned},
+};
 
 use super::{AstFunction, VariableDecl};
 
@@ -31,22 +34,4 @@ impl<'db> Spanned<'db> for AstFieldDecl<'db> {
     fn span(&self, db: &'db dyn crate::Db) -> Span<'db> {
         AstFieldDecl::span(*self, db)
     }
-}
-
-#[derive(Clone, PartialEq, Eq, PartialOrd, Ord, Hash, Update, Debug)]
-pub struct AstVisibility<'db> {
-    pub span: Span<'db>,
-    pub kind: VisibilityKind,
-}
-
-impl<'db> Spanned<'db> for AstVisibility<'db> {
-    fn span(&self, _db: &'db dyn crate::Db) -> Span<'db> {
-        self.span
-    }
-}
-
-#[derive(Copy, Clone, PartialEq, Eq, PartialOrd, Ord, Hash, Update, Debug)]
-pub enum VisibilityKind {
-    Export,
-    Pub,
 }

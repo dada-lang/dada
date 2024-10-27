@@ -139,3 +139,21 @@ pub struct DeferredParse<'db> {
     pub span: Span<'db>,
     pub contents: String,
 }
+
+#[derive(Clone, PartialEq, Eq, PartialOrd, Ord, Hash, Update, Debug)]
+pub struct AstVisibility<'db> {
+    pub span: Span<'db>,
+    pub kind: VisibilityKind,
+}
+
+impl<'db> Spanned<'db> for AstVisibility<'db> {
+    fn span(&self, _db: &'db dyn crate::Db) -> Span<'db> {
+        self.span
+    }
+}
+
+#[derive(Copy, Clone, PartialEq, Eq, PartialOrd, Ord, Hash, Update, Debug)]
+pub enum VisibilityKind {
+    Export,
+    Pub,
+}

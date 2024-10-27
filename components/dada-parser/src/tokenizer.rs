@@ -89,8 +89,11 @@ macro_rules! keywords {
 keywords! {
     pub enum Keyword {
         As,
+        Box,
+        Boxed,
         Class,
         Crate,
+        Dyn,
         Enum,
         Export,
         Fn,
@@ -103,6 +106,7 @@ keywords! {
         My,
         Our,
         Perm,
+        Place,
         Pub,
         Return,
         Share,
