@@ -199,7 +199,7 @@ impl TestExpectations {
             writeln!(
                 test.full_compiler_output,
                 "{}",
-                diagnostic.render(&GlobalOptions { no_color: true }, compiler.db())
+                diagnostic.render(&GlobalOptions::test_options(), compiler.db())
             )?;
         }
 

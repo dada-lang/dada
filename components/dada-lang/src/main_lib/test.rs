@@ -201,7 +201,7 @@ impl FailedTest {
 
     fn report(&self, db: &db::Database) -> Fallible<String> {
         use std::fmt::Write;
-        let opts = GlobalOptions { no_color: false };
+        let opts = GlobalOptions::test_options();
 
         let mut result = String::new();
 

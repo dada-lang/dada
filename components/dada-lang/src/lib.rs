@@ -24,6 +24,12 @@ pub struct GlobalOptions {
     no_color: bool,
 }
 
+impl GlobalOptions {
+    pub(crate) fn test_options() -> Self {
+        Self { no_color: false }
+    }
+}
+
 #[derive(Debug, StructOpt)]
 pub enum Command {
     Compile {
