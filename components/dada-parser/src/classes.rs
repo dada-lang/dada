@@ -3,8 +3,9 @@ use dada_ir_ast::{
         AstClassItem, AstFieldDecl, AstFunction, AstGenericDecl, AstMember, AstTy, AstVisibility,
         SpanVec, VariableDecl, VisibilityKind,
     },
-    span::Spanned,
+    span::{Span, Spanned},
 };
+use salsa::Update;
 
 use crate::ParseFail;
 
@@ -22,9 +23,16 @@ impl<'db> Parse<'db> for AstClassItem<'db> {
         db: &'db dyn crate::Db,
         parser: &mut Parser<'_, 'db>,
     ) -> Result<Option<Self>, ParseFail<'db>> {
-        let Ok(start) = parser.eat_keyword(Keyword::Class) else {
+        if !AstClassItemPrefix::can_eat(db, parser) {
             return Ok(None);
-        };
+        }
+
+        let start = parser.peek_span();
+
+        let AstClassItemPrefix {
+            visibility,
+            class_keyword: _,
+        } = AstClassItemPrefix::eat(db, parser)?;
 
         let id = parser.eat_id()?;
 
@@ -40,6 +48,7 @@ impl<'db> Parse<'db> for AstClassItem<'db> {
         Ok(Some(AstClassItem::new(
             db,
             start.to(parser.last_span()),
+            visibility,
             id.id,
             id.span,
             generics,
@@ -49,6 +58,36 @@ impl<'db> Parse<'db> for AstClassItem<'db> {
 
     fn expected() -> Expected {
         Expected::Keyword(Keyword::Class)
+    }
+}
+
+/// The *prefix* parses a class declaration up until
+/// the `class` keyword. That is what we need to see
+/// to know that we should be parsing a class.
+/// Parsing always succeeds with `Ok(Some)` or errors;
+/// the intent is that you probe with `can_eat`.
+#[derive(Update)]
+struct AstClassItemPrefix<'db> {
+    /// Visibility of the class
+    visibility: Option<AstVisibility<'db>>,
+    class_keyword: Span<'db>,
+}
+
+impl<'db> Parse<'db> for AstClassItemPrefix<'db> {
+    type Output = Self;
+
+    fn opt_parse(
+        db: &'db dyn crate::Db,
+        parser: &mut Parser<'_, 'db>,
+    ) -> Result<Option<Self>, ParseFail<'db>> {
+        Ok(Some(AstClassItemPrefix {
+            visibility: AstVisibility::opt_parse(db, parser)?,
+            class_keyword: parser.eat_keyword(Keyword::Class)?,
+        }))
+    }
+
+    fn expected() -> Expected {
+        Expected::Nonterminal("class")
     }
 }
 

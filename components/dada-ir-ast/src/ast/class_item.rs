@@ -1,5 +1,5 @@
 use crate::{
-    ast::DeferredParse,
+    ast::{AstVisibility, DeferredParse},
     span::{Span, Spanned},
 };
 
@@ -9,6 +9,9 @@ use super::{AstGenericDecl, Identifier, SpanVec};
 #[salsa::tracked]
 pub struct AstClassItem<'db> {
     pub span: Span<'db>,
+
+    /// Visibility of the class
+    pub visibility: Option<AstVisibility<'db>>,
 
     #[id]
     pub name: Identifier<'db>,

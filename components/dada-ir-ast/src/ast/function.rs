@@ -3,7 +3,7 @@ use salsa::Update;
 
 use super::{AstGenericDecl, AstPerm, AstTy, SpanVec, SpannedIdentifier};
 use crate::{
-    ast::DeferredParse,
+    ast::{AstVisibility, DeferredParse},
     span::{Span, Spanned},
 };
 
@@ -15,6 +15,9 @@ pub struct AstFunction<'db> {
 
     /// Span of the `fn` keyword
     pub fn_span: Span<'db>,
+
+    /// Visibility of the function
+    pub visibility: Option<AstVisibility<'db>>,
 
     /// Name of the function
     pub name: SpannedIdentifier<'db>,

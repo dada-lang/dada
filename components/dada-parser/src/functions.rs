@@ -1,12 +1,16 @@
-use dada_ir_ast::ast::{
-    AstBlock, AstExpr, AstFunction, AstFunctionInput, AstGenericDecl, AstLetStatement, AstPerm,
-    AstSelfArg, AstStatement, AstTy, SpanVec, VariableDecl,
+use dada_ir_ast::{
+    ast::{
+        AstBlock, AstExpr, AstFunction, AstFunctionInput, AstGenericDecl, AstLetStatement, AstPerm,
+        AstSelfArg, AstStatement, AstTy, AstVisibility, SpanVec, VariableDecl,
+    },
+    span::Span,
 };
+use salsa::Update;
 
 use crate::{
     miscellaneous::OrOptParse,
     tokenizer::{Delimiter, Keyword, Token, TokenKind},
-    Expected, Parse, Parser,
+    Expected, Parse, ParseFail, Parser,
 };
 
 impl<'db> Parse<'db> for AstFunction<'db> {
@@ -14,19 +18,24 @@ impl<'db> Parse<'db> for AstFunction<'db> {
 
     fn opt_parse(
         db: &'db dyn crate::Db,
-        tokens: &mut Parser<'_, 'db>,
+        parser: &mut Parser<'_, 'db>,
     ) -> Result<Option<Self>, super::ParseFail<'db>> {
-        let start_span = tokens.peek_span();
-
-        let Ok(fn_span) = tokens.eat_keyword(Keyword::Fn) else {
+        if !AstFunctionPrefix::can_eat(db, parser) {
             return Ok(None);
-        };
+        }
 
-        let name = tokens.eat_id()?;
+        let start_span = parser.peek_span();
+
+        let AstFunctionPrefix {
+            visibility,
+            fn_keyword: fn_span,
+        } = AstFunctionPrefix::eat(db, parser)?;
+
+        let name = parser.eat_id()?;
 
         let generics = AstGenericDecl::opt_parse_delimited(
             db,
-            tokens,
+            parser,
             Delimiter::SquareBrackets,
             AstGenericDecl::eat_comma,
         )?;
@@ -34,29 +43,30 @@ impl<'db> Parse<'db> for AstFunction<'db> {
         // Parse the arguments, accepting an empty list.
         let arguments = AstFunctionInput::eat_delimited(
             db,
-            tokens,
+            parser,
             Delimiter::Parentheses,
             AstFunctionInput::opt_parse_comma,
         )?;
         let arguments = match arguments {
             Some(arguments) => arguments,
             None => SpanVec {
-                span: tokens.last_span(),
+                span: parser.last_span(),
                 values: vec![],
             },
         };
 
-        let return_ty = AstTy::opt_parse_guarded("->", db, tokens)?;
+        let return_ty = AstTy::opt_parse_guarded("->", db, parser)?;
 
-        let body = match tokens.defer_delimited(Delimiter::CurlyBraces) {
+        let body = match parser.defer_delimited(Delimiter::CurlyBraces) {
             Ok(b) => Some(b),
             Err(_) => None,
         };
 
         Ok(Some(AstFunction::new(
             db,
-            start_span.to(tokens.last_span()),
+            start_span.to(parser.last_span()),
             fn_span,
+            visibility,
             name,
             generics,
             arguments,
@@ -69,6 +79,37 @@ impl<'db> Parse<'db> for AstFunction<'db> {
         Expected::Nonterminal("`fn`")
     }
 }
+
+/// The *prefix* parses a fn declaration up until
+/// the `fn` keyword. That is what we need to see
+/// to know that we should be parsing a function.
+/// Parsing always succeeds with `Ok(Some)` or errors;
+/// the intent is that you probe with `can_eat`.
+#[derive(Update)]
+struct AstFunctionPrefix<'db> {
+    /// Visibility of the class
+    visibility: Option<AstVisibility<'db>>,
+    fn_keyword: Span<'db>,
+}
+
+impl<'db> Parse<'db> for AstFunctionPrefix<'db> {
+    type Output = Self;
+
+    fn opt_parse(
+        db: &'db dyn crate::Db,
+        parser: &mut Parser<'_, 'db>,
+    ) -> Result<Option<Self>, ParseFail<'db>> {
+        Ok(Some(AstFunctionPrefix {
+            visibility: AstVisibility::opt_parse(db, parser)?,
+            fn_keyword: parser.eat_keyword(Keyword::Fn)?,
+        }))
+    }
+
+    fn expected() -> Expected {
+        Expected::Nonterminal("fn")
+    }
+}
+
 impl<'db> Parse<'db> for AstFunctionInput<'db> {
     type Output = Self;
 
