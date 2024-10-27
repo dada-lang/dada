@@ -201,7 +201,7 @@ impl FailedTest {
 
     fn report(&self, db: &db::Database) -> Fallible<String> {
         use std::fmt::Write;
-        let opts = GlobalOptions { no_color: true };
+        let opts = GlobalOptions { no_color: false };
 
         let mut result = String::new();
 
@@ -316,5 +316,5 @@ fn delete_test_report(path: &Path) -> Fallible<()> {
 }
 
 fn test_report_path(path: &Path) -> PathBuf {
-    path.with_extension("test-report.md")
+    path.with_extension("test-report.ansi")
 }
