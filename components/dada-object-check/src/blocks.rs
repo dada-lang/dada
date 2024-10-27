@@ -2,10 +2,7 @@ use dada_ir_ast::ast::AstBlock;
 use dada_ir_sym::function::{SymFunction, SymInputOutput};
 
 use crate::{
-    check::Check,
-    env::Env,
-    object_ir::{ObjectExpr, ObjectExprKind, ObjectTy},
-    Checking,
+    check::Check, env::Env, object_ir::ObjectExpr, statements::check_block_statements, Checking,
 };
 
 pub fn check_function_body<'db>(
@@ -56,16 +53,6 @@ impl<'db> Checking<'db> for AstBlock<'db> {
         let db = check.db;
 
         let statements = self.statements(db);
-
-        if statements.is_empty() {
-            return ObjectExpr::new(
-                db,
-                statements.span,
-                ObjectTy::unit(db),
-                ObjectExprKind::Tuple(vec![]),
-            );
-        }
-
-        statements.values[..].check(check, env).await
+        check_block_statements(check, env, statements.span, statements).await
     }
 }

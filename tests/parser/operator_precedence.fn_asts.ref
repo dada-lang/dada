@@ -10,7 +10,7 @@ AstBlock {
                 41,
             ),
             end: Offset(
-                52,
+                53,
             ),
             anchor: "...",
         },
@@ -22,7 +22,7 @@ AstBlock {
                             41,
                         ),
                         end: Offset(
-                            52,
+                            53,
                         ),
                         anchor: "...",
                     },
@@ -30,10 +30,10 @@ AstBlock {
                         SpannedBinaryOp {
                             span: Span {
                                 start: Offset(
-                                    43,
+                                    44,
                                 ),
                                 end: Offset(
-                                    44,
+                                    45,
                                 ),
                                 anchor: "...",
                             },
@@ -45,34 +45,24 @@ AstBlock {
                                     41,
                                 ),
                                 end: Offset(
-                                    44,
+                                    45,
                                 ),
                                 anchor: "...",
                             },
-                            kind: Id(
-                                SpannedIdentifier {
-                                    span: Span {
-                                        start: Offset(
-                                            41,
-                                        ),
-                                        end: Offset(
-                                            42,
-                                        ),
-                                        anchor: "...",
-                                    },
-                                    id: Identifier {
-                                        text: "x",
-                                    },
+                            kind: Literal(
+                                Literal {
+                                    kind: Integer,
+                                    text: "44",
                                 },
                             ),
                         },
                         AstExpr {
                             span: Span {
                                 start: Offset(
-                                    45,
+                                    46,
                                 ),
                                 end: Offset(
-                                    52,
+                                    53,
                                 ),
                                 anchor: "...",
                             },
@@ -80,10 +70,10 @@ AstBlock {
                                 SpannedBinaryOp {
                                     span: Span {
                                         start: Offset(
-                                            48,
+                                            49,
                                         ),
                                         end: Offset(
-                                            49,
+                                            50,
                                         ),
                                         anchor: "...",
                                     },
@@ -92,10 +82,10 @@ AstBlock {
                                 AstExpr {
                                     span: Span {
                                         start: Offset(
-                                            45,
+                                            46,
                                         ),
                                         end: Offset(
-                                            49,
+                                            50,
                                         ),
                                         anchor: "...",
                                     },
@@ -109,10 +99,10 @@ AstBlock {
                                 AstExpr {
                                     span: Span {
                                         start: Offset(
-                                            50,
+                                            51,
                                         ),
                                         end: Offset(
-                                            52,
+                                            53,
                                         ),
                                         anchor: "...",
                                     },
