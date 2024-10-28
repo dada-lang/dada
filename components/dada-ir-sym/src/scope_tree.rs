@@ -49,6 +49,15 @@ pub trait ScopeTreeNode<'db>: Sized + Into<ScopeItem<'db>> {
         generic_parameters.reverse();
         generic_parameters
     }
+
+    /// Compute the set of transitive generic parameters.
+    /// The returned vector begins with the parameters from the outermost vector.
+    fn expected_generic_parameters(self, db: &'db dyn crate::Db) -> usize {
+        self.iter_super_scopes(db)
+            .flat_map(|s| s.direct_generic_parameters(db).iter().rev())
+            .copied()
+            .count()
+    }
 }
 
 impl<'db> ScopeTreeNode<'db> for ScopeItem<'db> {

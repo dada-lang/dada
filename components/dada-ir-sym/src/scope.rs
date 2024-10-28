@@ -1,7 +1,9 @@
 use std::{borrow::Cow, fmt::Display};
 
 use dada_ir_ast::{
-    ast::{AstPath, AstPathKind, AstUseItem, Identifier, SpannedIdentifier},
+    ast::{
+        AstGenericTerm, AstPath, AstPathKind, AstUseItem, Identifier, SpanVec, SpannedIdentifier,
+    },
     diagnostic::{Diagnostic, Errors, Level, Reported},
     inputs::{CrateKind, CrateSource},
     span::{Span, Spanned},
@@ -13,7 +15,7 @@ use crate::{
     class::SymClass,
     function::SymFunction,
     module::SymModule,
-    prelude::IntoSymbol,
+    prelude::{IntoSymInScope, IntoSymbol},
     primitive::{primitives, SymPrimitive},
     scope_tree::ScopeTreeNode,
     symbol::{FromVar, SymGenericKind, SymVariable},
@@ -272,7 +274,7 @@ impl<'db> NameResolution<'db> {
         self.sym.describe(db)
     }
 
-    /// Attempt to resolve a singe identifier;
+    /// Attempt to resolve a single identifier;
     /// only works if `self` is a module or other "lexically resolved" name resolution.
     ///
     /// Returns `Ok(Ok(r))` if resolution succeeded.
@@ -311,6 +313,53 @@ impl<'db> NameResolution<'db> {
             },
             _ => Ok(Err(self)),
         }
+    }
+
+    /// Attempts to resolve generic argments like `foo[u32]`.    
+    pub fn resolve_relative_generic_args(
+        mut self,
+        db: &'db dyn crate::Db,
+        scope: &Scope<'_, 'db>,
+        generics: &SpanVec<'db, AstGenericTerm<'db>>,
+    ) -> Errors<NameResolution<'db>> {
+        let expected_arguments = self.sym.expected_generic_parameters(db);
+        let found_arguments = self.generics.len();
+        assert!(found_arguments <= expected_arguments);
+        let remaining_arguments = expected_arguments - found_arguments;
+
+        if generics.len() > remaining_arguments {
+            let extra_arguments = &generics.values[remaining_arguments..];
+            let extra_span = extra_arguments
+                .first()
+                .unwrap()
+                .span(db)
+                .to(extra_arguments.last().unwrap().span(db));
+            return Err(Diagnostic::error(
+                db,
+                extra_span,
+                format!(
+                    "extra generic arguments provided",
+                ),
+            )
+            .label(
+                db,
+                Level::Error,
+                extra_span,
+                format!(
+                    "I expected to find at most {remaining_arguments} generic arguments, these are extra"
+                ),
+            )
+        .report(db));
+        }
+
+        self.generics.extend(
+            generics
+                .values
+                .iter()
+                .map(|v| v.into_sym_in_scope(db, scope)),
+        );
+
+        Ok(self)
     }
 }
 
@@ -361,6 +410,16 @@ impl<'db> NameResolutionSym<'db> {
             }
         }
     }
+
+    fn expected_generic_parameters(&self, db: &'db dyn crate::Db) -> usize {
+        match self {
+            NameResolutionSym::SymModule(sym) => sym.expected_generic_parameters(db),
+            NameResolutionSym::SymClass(sym) => sym.expected_generic_parameters(db),
+            NameResolutionSym::SymFunction(sym) => sym.expected_generic_parameters(db),
+            NameResolutionSym::SymPrimitive(_) => 0,
+            NameResolutionSym::SymVariable(_) => 0,
+        }
+    }
 }
 
 impl<'db> NameResolutionSym<'db> {
@@ -393,7 +452,10 @@ impl<'db> Resolve<'db> for AstPath<'db> {
     ) -> Errors<NameResolution<'db>> {
         match self.kind(db) {
             AstPathKind::Identifier(first_id) => first_id.resolve_in(db, scope),
-            AstPathKind::GenericArgs { path: _, args: _ } => todo!(),
+            AstPathKind::GenericArgs { path, args } => {
+                let base = path.resolve_in(db, scope)?;
+                base.resolve_relative_generic_args(db, scope, args)
+            }
             AstPathKind::Member { path, id } => {
                 let base = path.resolve_in(db, scope)?;
                 match base.resolve_relative_id(db, *id)? {

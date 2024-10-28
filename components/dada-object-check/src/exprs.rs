@@ -6,10 +6,12 @@ use dada_ir_ast::{
     span::{Span, Spanned},
 };
 use dada_ir_sym::{
-    function::SymFunction,
+    binder::Binder,
+    function::{SymFunction, SymInputOutput},
     prelude::IntoSymInScope,
     primitive::{SymPrimitive, SymPrimitiveKind},
     scope::{NameResolution, NameResolutionSym},
+    scope_tree::ScopeTreeNode,
     symbol::{FromVar, HasKind, SymGenericKind, SymVariable},
     ty::{SymGenericTerm, SymTyName},
 };
@@ -105,18 +107,23 @@ async fn check_expr<'db>(
 ) -> ExprResult<'db> {
     let db = check.db;
     let scope = &env.scope;
-    let span = expr.span;
+    let expr_span = expr.span;
 
     match &*expr.kind {
         AstExprKind::Literal(literal) => match literal.kind(db) {
             LiteralKind::Integer => {
                 let ty = env.fresh_object_ty_inference_var(check);
-                env.require_numeric_type(check, span, ty);
+                env.require_numeric_type(check, expr_span, ty);
                 ExprResult {
                     temporaries: vec![],
-                    span,
-                    kind: ObjectExpr::new(db, span, ty, ObjectExprKind::Literal(literal.clone()))
-                        .into(),
+                    span: expr_span,
+                    kind: ObjectExpr::new(
+                        db,
+                        expr_span,
+                        ty,
+                        ObjectExprKind::Literal(literal.clone()),
+                    )
+                    .into(),
                 }
             }
             LiteralKind::String => {
@@ -124,9 +131,14 @@ async fn check_expr<'db>(
                 let ty = SymPrimitive::new(db, SymPrimitiveKind::Str).into_object_ir(db);
                 ExprResult {
                     temporaries: vec![],
-                    span,
-                    kind: ObjectExpr::new(db, span, ty, ObjectExprKind::Literal(literal.clone()))
-                        .into(),
+                    span: expr_span,
+                    kind: ObjectExpr::new(
+                        db,
+                        expr_span,
+                        ty,
+                        ObjectExprKind::Literal(literal.clone()),
+                    )
+                    .into(),
                 }
             }
         },
@@ -153,10 +165,10 @@ async fn check_expr<'db>(
 
             ExprResult {
                 temporaries,
-                span,
+                span: expr_span,
                 kind: ExprResultKind::Expr(ObjectExpr::new(
                     db,
-                    span,
+                    expr_span,
                     ty,
                     ObjectExprKind::Tuple(exprs),
                 )),
@@ -177,11 +189,11 @@ async fn check_expr<'db>(
             // For now, let's do a dumb rule that operands must be
             // of the same primitive (and scalar) type.
 
-            env.require_numeric_type(check, span, lhs.ty(db));
-            env.require_numeric_type(check, span, rhs.ty(db));
+            env.require_numeric_type(check, expr_span, lhs.ty(db));
+            env.require_numeric_type(check, expr_span, rhs.ty(db));
             env.if_not_never(check, &[lhs.ty(db), rhs.ty(db)], async move |check, env| {
-                env.require_sub_object_type(&check, span, lhs.ty(db), rhs.ty(db));
-                env.require_sub_object_type(&check, span, rhs.ty(db), lhs.ty(db));
+                env.require_sub_object_type(&check, expr_span, lhs.ty(db), rhs.ty(db));
+                env.require_sub_object_type(&check, expr_span, rhs.ty(db), lhs.ty(db));
             });
 
             // What type do we want these operators to have?
@@ -194,7 +206,7 @@ async fn check_expr<'db>(
                 env,
                 ObjectExpr::new(
                     db,
-                    span,
+                    expr_span,
                     lhs.ty(db),
                     ObjectExprKind::BinaryOp(*span_op, lhs, rhs),
                 ),
@@ -205,7 +217,7 @@ async fn check_expr<'db>(
         AstExprKind::Id(SpannedIdentifier { span: id_span, id }) => {
             match env.scope.resolve_name(db, *id, *id_span) {
                 Err(reported) => ExprResult::err(db, reported),
-                Ok(res) => ExprResult::from_name_resolution(check, env, res, span),
+                Ok(res) => ExprResult::from_name_resolution(check, env, res, expr_span),
             }
         }
 
@@ -220,10 +232,15 @@ async fn check_expr<'db>(
 
                 ExprResultKind::Other(name_resolution) => {
                     match name_resolution.resolve_relative_id(db, *id) {
+                        // Got an error? Bail out.
                         Err(reported) => ExprResult::err(db, reported),
-                        Ok(Ok(r)) => ExprResult::from_name_resolution(check, env, r, span),
-                        Ok(Err(r)) => {
-                            owner_result.kind = r.into();
+
+                        // Found something with lexical resolution? Continue.
+                        Ok(Ok(r)) => ExprResult::from_name_resolution(check, env, r, expr_span),
+
+                        // Otherwise, try type-dependent lookup.
+                        Ok(Err(name_resolution)) => {
+                            owner_result.kind = name_resolution.into();
                             MemberLookup::new(check, &env)
                                 .lookup_member(owner_result, *id)
                                 .await
@@ -244,8 +261,8 @@ async fn check_expr<'db>(
 
         AstExprKind::SquareBracketOp(owner, square_bracket_args) => {
             let owner_result = owner.check(check, env).await;
-            match &owner_result.kind {
-                &ExprResultKind::Method {
+            match owner_result.kind {
+                ExprResultKind::Method {
                     self_expr: owner,
                     function: method,
                     generics: None,
@@ -264,23 +281,32 @@ async fn check_expr<'db>(
                     }
                 }
 
-                ExprResultKind::PlaceExpr(_) | ExprResultKind::Expr(_) => {
-                    ExprResult::err(db, report_not_implemented(db, span, "indexing expressions"))
-                }
+                ExprResultKind::PlaceExpr(_) | ExprResultKind::Expr(_) => ExprResult::err(
+                    db,
+                    report_not_implemented(db, expr_span, "indexing expressions"),
+                ),
 
                 // We see something like `foo.bar[][]` where `bar` is a method.
                 // The only correct thing here would be `foo.bar[]()[]`, i.e., call the method and then index.
                 // We give an error under that assumption.
                 // It seems likely we can do a better job.
-                &ExprResultKind::Method {
+                ExprResultKind::Method {
                     self_expr: owner,
                     function: method,
                     generics: Some(_),
                     ..
-                } => ExprResult::err(db, report_missing_call_to_method(db, span, method)),
+                } => ExprResult::err(db, report_missing_call_to_method(db, expr_span, method)),
 
                 ExprResultKind::Other(name_resolution) => {
-                    ExprResult::err(db, report_non_expr(db, owner.span, name_resolution))
+                    let generics = square_bracket_args.parse_as_generics(db);
+                    match name_resolution.resolve_relative_generic_args(db, scope, &generics) {
+                        Ok(name_resolution) => ExprResult {
+                            temporaries: owner_result.temporaries,
+                            span: expr_span,
+                            kind: name_resolution.into(),
+                        },
+                        Err(r) => ExprResult::err(db, r),
+                    }
                 }
             }
         }
@@ -299,13 +325,36 @@ async fn check_expr<'db>(
                             generics,
                         },
                 } => {
-                    check_call(
+                    check_method_call(
                         check,
                         env,
                         id_span,
                         expr_span,
                         function,
                         Some(self_expr),
+                        ast_args,
+                        generics,
+                        temporaries,
+                    )
+                    .await
+                }
+
+                ExprResult {
+                    temporaries,
+                    span: function_span,
+                    kind:
+                        ExprResultKind::Other(NameResolution {
+                            generics,
+                            sym: NameResolutionSym::SymFunction(sym),
+                            ..
+                        }),
+                } => {
+                    check_function_call(
+                        check,
+                        env,
+                        function_span,
+                        expr_span,
+                        sym,
                         ast_args,
                         generics,
                         temporaries,
@@ -333,17 +382,22 @@ async fn check_expr<'db>(
                     .into_expr(check, env, &mut temporaries)
             } else {
                 // the default is `return ()`
-                ObjectExpr::new(db, span, ObjectTy::unit(db), ObjectExprKind::Tuple(vec![]))
+                ObjectExpr::new(
+                    db,
+                    expr_span,
+                    ObjectTy::unit(db),
+                    ObjectExprKind::Tuple(vec![]),
+                )
             };
 
             let Some(expected_return_ty) = env.return_ty else {
                 return ExprResult::err(
                     db,
-                    Diagnostic::error(db, span, format!("unexpected `return` statement"))
+                    Diagnostic::error(db, expr_span, format!("unexpected `return` statement"))
                         .label(
                             db,
                             Level::Error,
-                            span,
+                            expr_span,
                             format!("I did not expect to see a `return` statement here"),
                         )
                         .report(db),
@@ -359,10 +413,10 @@ async fn check_expr<'db>(
 
             ExprResult {
                 temporaries,
-                span,
+                span: expr_span,
                 kind: ObjectExpr::new(
                     db,
-                    span,
+                    expr_span,
                     ObjectTy::never(db),
                     ObjectExprKind::Return(return_expr),
                 )
@@ -372,7 +426,50 @@ async fn check_expr<'db>(
     }
 }
 
-async fn check_call<'db>(
+async fn check_function_call<'db>(
+    check: &Check<'db>,
+    env: &Env<'db>,
+    function_span: Span<'db>,
+    expr_span: Span<'db>,
+    function: SymFunction<'db>,
+    ast_args: &SpanVec<'db, AstExpr<'db>>,
+    generics: Vec<SymGenericTerm<'db>>,
+    temporaries: Vec<Temporary<'db>>,
+) -> ExprResult<'db> {
+    let db = check.db;
+
+    // Get the signature.
+    let signature = function.signature(db);
+    let input_output = signature.input_output(db);
+
+    // Create inference vairables for any generic arguments not provided.
+    let expected_generics = function.transitive_generic_parameters(db);
+    let mut substitution = generics.clone();
+    substitution.extend(
+        expected_generics[generics.len()..]
+            .iter()
+            .map(|&var| env.fresh_inference_var(check, var.kind(db))),
+    );
+
+    check_call_common(
+        check,
+        env,
+        function,
+        expr_span,
+        function_span,
+        input_output,
+        substitution,
+        ast_args,
+        None,
+        temporaries,
+    )
+    .await
+}
+
+/// Check a call like `a.b()` where `b` is a method.
+/// These are somewhat different than calls like `b(a)` because of how
+/// type arguments are handled.
+async fn check_method_call<'db>(
     check: &Check<'db>,
     env: &Env<'db>,
     id_span: Span<'db>,
@@ -381,7 +478,7 @@ async fn check_call<'db>(
     self_expr: Option<ObjectExpr<'db>>,
     ast_args: &[AstExpr<'db>],
     generics: Option<SpanVec<'db, AstGenericTerm<'db>>>,
-    mut temporaries: Vec<Temporary<'db>>,
+    temporaries: Vec<Temporary<'db>>,
 ) -> ExprResult<'db> {
     let db = check.db;
 
@@ -491,6 +588,35 @@ async fn check_call<'db>(
         }
     };
 
+    check_call_common(
+        check,
+        env,
+        function,
+        expr_span,
+        id_span,
+        input_output,
+        substitution,
+        ast_args,
+        self_expr,
+        temporaries,
+    )
+    .await
+}
+
+async fn check_call_common<'db>(
+    check: &Check<'db>,
+    env: &Env<'db>,
+    function: SymFunction<'db>,
+    expr_span: Span<'db>,
+    callee_span: Span<'db>,
+    input_output: &Binder<'db, Binder<'db, SymInputOutput<'db>>>,
+    substitution: Vec<SymGenericTerm<'db>>,
+    ast_args: &[AstExpr<'db>],
+    self_expr: Option<ObjectExpr<'db>>,
+    mut temporaries: Vec<Temporary<'db>>,
+) -> ExprResult<'db> {
+    let db = check.db;
+
     // Instantiate the input-output with the substitution.
     let input_output = input_output.substitute(db, &substitution);
 
@@ -503,13 +629,13 @@ async fn check_call<'db>(
             db,
             Diagnostic::error(
                 db,
-                id_span,
+                callee_span,
                 format!("expected {expected_inputs} arguments, found {found_inputs}"),
             )
             .label(
                 db,
                 Level::Error,
-                id_span,
+                callee_span,
                 format!("I expected `{function_name}` to take {expected_inputs} arguments but I found {found_inputs}",),
             )
             .label(
@@ -523,8 +649,8 @@ async fn check_call<'db>(
     }
 
     // Create the temporaries that will hold the values for each argument.
-    let arg_temp_span = |i: usize| ast_args.get(i).map(|a| a.span).unwrap_or(id_span);
-    let arg_temp_symbols = (0..)
+    let arg_temp_span = |i: usize| ast_args.get(i).map(|a| a.span).unwrap_or(callee_span);
+    let arg_temp_symbols = (0..expected_inputs)
         .map(|i| SymVariable::new(db, SymGenericKind::Place, None, arg_temp_span(i)))
         .collect::<Vec<_>>();
     let arg_temp_terms = arg_temp_symbols
