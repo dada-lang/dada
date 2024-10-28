@@ -2,8 +2,8 @@ use std::{borrow::Cow, fmt::Display};
 
 use dada_ir_ast::{
     ast::{AstPath, AstPathKind, AstUseItem, Identifier, SpannedIdentifier},
-    diagnostic::{Diagnostic, Errors, Level},
-    inputs::CrateKind,
+    diagnostic::{Diagnostic, Errors, Level, Reported},
+    inputs::{CrateKind, CrateSource},
     span::{Span, Spanned},
 };
 use dada_util::FromImpls;
@@ -27,10 +27,17 @@ pub struct Scope<'scope, 'db> {
 }
 impl<'scope, 'db> Scope<'scope, 'db> {
     /// A base scope containing only the primitive names.
-    pub(crate) fn new(_db: &'db dyn crate::Db) -> Self {
-        Scope {
-            chain: ScopeChain::new(),
+    pub(crate) fn new(db: &'db dyn crate::Db, span: Span<'db>) -> Self {
+        let mut this = Scope {
+            chain: ScopeChain::primitives(),
+        };
+
+        let root = db.root();
+        if let Some(crate_source) = root.libdada_crate(db) {
+            this = this.with_prelude(db, span, crate_source);
         }
+
+        this
     }
 
     /// Extend this scope with another link in the name resolution chain
@@ -44,6 +51,43 @@ impl<'scope, 'db> Scope<'scope, 'db> {
         let mut this: Scope<'scope1, 'db> = self;
         this.push_link(link);
         this
+    }
+
+    /// Extend this scope wit the prelude from a crate.
+    /// Crates can define a module named `prelude`.
+    fn with_prelude(
+        self,
+        db: &'db dyn crate::Db,
+        span: Span<'db>,
+        crate_source: CrateSource,
+    ) -> Self {
+        let prelude_id = Identifier::prelude(db);
+        match resolve_name_against_crate(
+            db,
+            crate_source,
+            SpannedIdentifier {
+                id: prelude_id,
+                span,
+            },
+        ) {
+            Ok(NameResolutionSym::SymModule(sym)) => self.with_link(ScopeChainKind::SymModule(sym)),
+            Ok(sym) => {
+                let span = sym.span(db).unwrap_or(span);
+                Diagnostic::error(db, span, format!("prelude is not a module"))
+                    .label(
+                        db,
+                        Level::Error,
+                        span,
+                        format!(
+                            "I expected `prelude` to be a module, but I found {category}",
+                            category = sym.categorize(db)
+                        ),
+                    )
+                    .report(db);
+                self
+            }
+            Err(Reported(_)) => self,
+        }
     }
 
     /// Extend this scope with another link in the name resolution chain
@@ -220,39 +264,12 @@ pub struct NameResolution<'db> {
 impl<'db> NameResolution<'db> {
     /// Returns a string describing `self` that fits the mold "an X".
     pub fn categorize(&self, db: &'db dyn crate::Db) -> impl Display + 'db {
-        match self.sym {
-            NameResolutionSym::SymModule(_) => Box::new("a module") as Box<dyn Display + 'db>,
-            NameResolutionSym::SymClass(_) => Box::new("a class"),
-            NameResolutionSym::SymFunction(_) => Box::new("a function"),
-            NameResolutionSym::SymVariable(var) => match var.kind(db) {
-                SymGenericKind::Type => Box::new("a generic type"),
-                SymGenericKind::Perm => Box::new("a generic permission"),
-                SymGenericKind::Place => Box::new("a local variable"),
-            },
-            NameResolutionSym::SymPrimitive(p) => Box::new(format!("`{}`", p.name(db))),
-        }
+        self.sym.categorize(db)
     }
 
     /// Returns a string describing `self` that fits the mold "an X named `foo`".
     pub fn describe(&self, db: &'db dyn crate::Db) -> impl Display + 'db {
-        match self.sym {
-            NameResolutionSym::SymModule(sym_module) => {
-                format!("a module named `{}`", sym_module.name(db))
-            }
-            NameResolutionSym::SymClass(sym_class) => {
-                format!("a class named `{}`", sym_class.name(db))
-            }
-            NameResolutionSym::SymFunction(sym_function) => {
-                format!("a function named `{}`", sym_function.name(db))
-            }
-            NameResolutionSym::SymVariable(var) => match var.name(db) {
-                Some(n) => format!("{} named `{n}`", self.categorize(db)),
-                None => format!("an anonymous generic parameter"),
-            },
-            NameResolutionSym::SymPrimitive(sym_primitive) => {
-                format!("the primitive type `{}`", sym_primitive.name(db))
-            }
-        }
+        self.sym.describe(db)
     }
 
     /// Attempt to resolve a singe identifier;
@@ -306,6 +323,58 @@ pub enum NameResolutionSym<'db> {
     SymPrimitive(SymPrimitive<'db>),
     SymVariable(SymVariable<'db>),
 }
+
+impl<'db> NameResolutionSym<'db> {
+    /// Returns a string describing `self` that fits the mold "an X".
+    pub fn categorize(self, db: &'db dyn crate::Db) -> impl Display + 'db {
+        match self {
+            NameResolutionSym::SymModule(_) => Box::new("a module") as Box<dyn Display + 'db>,
+            NameResolutionSym::SymClass(_) => Box::new("a class"),
+            NameResolutionSym::SymFunction(_) => Box::new("a function"),
+            NameResolutionSym::SymVariable(var) => match var.kind(db) {
+                SymGenericKind::Type => Box::new("a generic type"),
+                SymGenericKind::Perm => Box::new("a generic permission"),
+                SymGenericKind::Place => Box::new("a local variable"),
+            },
+            NameResolutionSym::SymPrimitive(p) => Box::new(format!("`{}`", p.name(db))),
+        }
+    }
+
+    /// Returns a string describing `self` that fits the mold "an X named `foo`".
+    pub fn describe(self, db: &'db dyn crate::Db) -> impl Display + 'db {
+        match self {
+            NameResolutionSym::SymModule(sym_module) => {
+                format!("a module named `{}`", sym_module.name(db))
+            }
+            NameResolutionSym::SymClass(sym_class) => {
+                format!("a class named `{}`", sym_class.name(db))
+            }
+            NameResolutionSym::SymFunction(sym_function) => {
+                format!("a function named `{}`", sym_function.name(db))
+            }
+            NameResolutionSym::SymVariable(var) => match var.name(db) {
+                Some(n) => format!("{} named `{n}`", self.categorize(db)),
+                None => format!("an anonymous generic parameter"),
+            },
+            NameResolutionSym::SymPrimitive(sym_primitive) => {
+                format!("the primitive type `{}`", sym_primitive.name(db))
+            }
+        }
+    }
+}
+
+impl<'db> NameResolutionSym<'db> {
+    fn span(&self, db: &'db dyn salsa::Database) -> Option<Span<'db>> {
+        match self {
+            NameResolutionSym::SymModule(sym) => Some(sym.span(db)),
+            NameResolutionSym::SymClass(sym) => Some(sym.span(db)),
+            NameResolutionSym::SymFunction(sym) => Some(sym.span(db)),
+            NameResolutionSym::SymPrimitive(_) => None,
+            NameResolutionSym::SymVariable(sym) => Some(sym.span(db)),
+        }
+    }
+}
+
 pub trait Resolve<'db> {
     fn resolve_in(
         self,
@@ -358,7 +427,7 @@ impl<'db> Resolve<'db> for SpannedIdentifier<'db> {
 
 impl<'scope, 'db> ScopeChain<'scope, 'db> {
     /// Creates the base of the name resolution chain (primitive types).
-    fn new() -> Self {
+    fn primitives() -> Self {
         ScopeChain {
             kind: ScopeChainKind::Primitives,
             next: None,
@@ -523,8 +592,18 @@ fn resolve_ast_use<'db>(
         return None;
     };
 
+    ast_use
+        .path(db)
+        .resolve_against(db, |id| resolve_name_against_crate(db, crate_source, id))
+}
+
+fn resolve_name_against_crate<'db>(
+    db: &'db dyn crate::Db,
+    crate_source: CrateSource,
+    id: SpannedIdentifier<'db>,
+) -> Errors<NameResolutionSym<'db>> {
     match crate_source.kind(db) {
-        CrateKind::Directory(dir_path) => ast_use.path(db).resolve_against(db, |id| {
+        CrateKind::Directory(dir_path) => {
             let module_path = dir_path.join(id.id.text(db)).with_extension("dada");
             let source_file = db.source_file(&module_path);
             match source_file.contents(db) {
@@ -537,7 +616,7 @@ fn resolve_ast_use<'db>(
                     Err(Diagnostic::new(db, Level::Error, id.span(db), message).report(db))
                 }
             }
-        }),
+        }
     }
 }
 

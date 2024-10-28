@@ -29,6 +29,16 @@ pub struct Identifier<'db> {
     pub text: String,
 }
 
+impl<'db> Identifier<'db> {
+    pub fn prelude(db: &'db dyn crate::Db) -> Identifier<'db> {
+        Identifier::new(db, "prelude".to_string())
+    }
+
+    pub fn dada(db: &'db dyn crate::Db) -> Identifier<'db> {
+        Identifier::new(db, "dada".to_string())
+    }
+}
+
 impl<'db> std::fmt::Display for Identifier<'db> {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
         salsa::with_attached_database(|db| write!(f, "{}", self.text(db)))

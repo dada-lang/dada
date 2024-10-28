@@ -16,9 +16,30 @@ impl CompilationRoot {
         self,
         db: &'db dyn crate::Db,
         crate_name: Identifier<'db>,
-    ) -> Option<&'db CrateSource> {
-        let crate_name = crate_name.text(db);
-        self.crates(db).iter().find(|c| c.name(db) == crate_name)
+    ) -> Option<CrateSource> {
+        #[salsa::tracked]
+        fn inner<'db>(
+            db: &'db dyn crate::Db,
+            root: CompilationRoot,
+            crate_name: Identifier<'db>,
+        ) -> Option<CrateSource> {
+            let crate_name = crate_name.text(db);
+            root.crates(db)
+                .iter()
+                .find(|c| c.name(db) == crate_name)
+                .copied()
+        }
+
+        inner(db, self, crate_name)
+    }
+
+    pub fn libdada_crate<'db>(self, db: &'db dyn crate::Db) -> Option<CrateSource> {
+        #[salsa::tracked]
+        fn inner<'db>(db: &'db dyn crate::Db, root: CompilationRoot) -> Option<CrateSource> {
+            root.crate_source(db, Identifier::dada(db))
+        }
+
+        inner(db, self)
     }
 }
 

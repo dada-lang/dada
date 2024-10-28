@@ -31,7 +31,12 @@ impl Database {
             return root;
         }
 
-        let root = CompilationRoot::new(self, vec![]);
+        // For now, just load libdada from the directory in the source tree
+        let libdada_path = Path::new(env!("CARGO_MANIFEST_DIR")).join("../../libdada");
+        let libdada =
+            CrateSource::new(self, "dada".to_string(), CrateKind::Directory(libdada_path));
+
+        let root = CompilationRoot::new(self, vec![libdada]);
         inputs.root = Some(root);
         root
     }
@@ -64,7 +69,11 @@ impl Database {
         let contents = match std::fs::read_to_string(path) {
             Ok(data) => Ok(data),
 
-            Err(e) => Err(e.to_string()),
+            Err(e) => Err(format!(
+                "error reading `{}`: {}",
+                path.display(),
+                e.to_string()
+            )),
         };
 
         let result = SourceFile::new(self, path.display().to_string(), contents);

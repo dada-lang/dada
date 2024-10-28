@@ -30,6 +30,12 @@ pub struct SymModule<'db> {
     pub(crate) ast_use_map: Map<Identifier<'db>, AstUseItem<'db>>,
 }
 
+impl<'db> Spanned<'db> for SymModule<'db> {
+    fn span(&self, db: &'db dyn salsa::Database) -> Span<'db> {
+        self.source(db).span(db)
+    }
+}
+
 /// A "prelude" is a set of item names automatically imported into scope.
 #[salsa::interned]
 pub struct SymPrelude<'db> {
@@ -51,7 +57,7 @@ impl<'db> SymModule<'db> {
 
     /// Name resolution scope for items in this module.
     pub fn mod_scope(self, db: &'db dyn crate::Db) -> Scope<'db, 'db> {
-        Scope::new(db).with_link(self)
+        Scope::new(db, self.span(db)).with_link(self)
     }
 
     /// Returns a list of all top-level items in the module
