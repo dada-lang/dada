@@ -313,9 +313,11 @@ async fn check_expr<'db>(
                     .await
                 }
 
-                _ => {
+                ExprResult {
+                    span: owner_span, ..
+                } => {
                     // FIXME: we probably want to support functions and function typed values?
-                    ExprResult::err(db, report_not_callable(db, span))
+                    ExprResult::err(db, report_not_callable(db, owner_span))
                 }
             }
         }

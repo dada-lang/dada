@@ -118,7 +118,7 @@ fn postfix_expr_precedence<'db>(
     };
 
     loop {
-        let mid_span = parser.peek_span();
+        let mid_span = parser.last_span();
 
         // `.` can skip newlines
         if let Ok(_) = parser.eat_op(".") {
