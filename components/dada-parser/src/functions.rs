@@ -1,7 +1,8 @@
 use dada_ir_ast::{
     ast::{
-        AstBlock, AstExpr, AstFunction, AstFunctionInput, AstGenericDecl, AstLetStatement, AstPerm,
-        AstSelfArg, AstStatement, AstTy, AstVisibility, SpanVec, VariableDecl,
+        AstBlock, AstExpr, AstFunction, AstFunctionEffects, AstFunctionInput, AstGenericDecl,
+        AstLetStatement, AstPerm, AstSelfArg, AstStatement, AstTy, AstVisibility, SpanVec,
+        VariableDecl,
     },
     span::Span,
 };
@@ -28,6 +29,7 @@ impl<'db> Parse<'db> for AstFunction<'db> {
 
         let AstFunctionPrefix {
             visibility,
+            effects,
             fn_keyword: fn_span,
         } = AstFunctionPrefix::eat(db, parser)?;
 
@@ -65,6 +67,7 @@ impl<'db> Parse<'db> for AstFunction<'db> {
         Ok(Some(AstFunction::new(
             db,
             start_span.to(parser.last_span()),
+            effects,
             fn_span,
             visibility,
             name,
@@ -89,6 +92,7 @@ impl<'db> Parse<'db> for AstFunction<'db> {
 struct AstFunctionPrefix<'db> {
     /// Visibility of the class
     visibility: Option<AstVisibility<'db>>,
+    effects: AstFunctionEffects<'db>,
     fn_keyword: Span<'db>,
 }
 
@@ -101,12 +105,34 @@ impl<'db> Parse<'db> for AstFunctionPrefix<'db> {
     ) -> Result<Option<Self>, ParseFail<'db>> {
         Ok(Some(AstFunctionPrefix {
             visibility: AstVisibility::opt_parse(db, parser)?,
+            effects: AstFunctionEffects::eat(db, parser)?,
             fn_keyword: parser.eat_keyword(Keyword::Fn)?,
         }))
     }
 
     fn expected() -> Expected {
         Expected::Nonterminal("fn")
+    }
+}
+
+impl<'db> Parse<'db> for AstFunctionEffects<'db> {
+    type Output = Self;
+
+    fn opt_parse(
+        _db: &'db dyn crate::Db,
+        parser: &mut Parser<'_, 'db>,
+    ) -> Result<Option<Self>, super::ParseFail<'db>> {
+        let mut effects = AstFunctionEffects::default();
+
+        if let Ok(span) = parser.eat_keyword(Keyword::Async) {
+            effects.async_effect = Some(span);
+        }
+
+        Ok(Some(effects))
+    }
+
+    fn expected() -> Expected {
+        Expected::Nonterminal("function effects")
     }
 }
 

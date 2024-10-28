@@ -74,6 +74,12 @@ pub enum ObjectExprKind<'db> {
         body: ObjectExpr<'db>,
     },
 
+    /// `future.await`
+    Await {
+        future: ObjectExpr<'db>,
+        await_keyword: Span<'db>,
+    },
+
     /// `$place = $expr`
     Assign {
         place: ObjectPlaceExpr<'db>,

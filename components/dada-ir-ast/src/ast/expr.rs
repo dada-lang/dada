@@ -78,6 +78,12 @@ pub enum AstExprKind<'db> {
     /// `return x`
     Return(Option<AstExpr<'db>>),
 
+    /// `x.await`
+    Await {
+        future: AstExpr<'db>,
+        await_keyword: Span<'db>,
+    },
+
     BinaryOp(SpannedBinaryOp<'db>, AstExpr<'db>, AstExpr<'db>),
 }
 

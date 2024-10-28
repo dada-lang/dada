@@ -89,6 +89,8 @@ macro_rules! keywords {
 keywords! {
     pub enum Keyword {
         As,
+        Async,
+        Await,
         Box,
         Boxed,
         Class,

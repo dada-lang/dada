@@ -1,7 +1,10 @@
 use std::future::Future;
 
 use dada_ir_ast::{
-    ast::{AstExpr, AstExprKind, AstGenericTerm, LiteralKind, SpanVec, SpannedIdentifier},
+    ast::{
+        AstExpr, AstExprKind, AstGenericTerm, LiteralKind, SpanVec, SpannedBinaryOp,
+        SpannedIdentifier,
+    },
     diagnostic::{Diagnostic, Err, Level, Reported},
     span::{Span, Spanned},
 };
@@ -17,8 +20,10 @@ use dada_ir_sym::{
 };
 use dada_parser::prelude::*;
 use dada_util::FromImpls;
+use futures::StreamExt;
 
 use crate::{
+    bound::Bound,
     check::Check,
     env::Env,
     member::MemberLookup,
@@ -176,15 +181,17 @@ async fn check_expr<'db>(
         }
 
         AstExprKind::BinaryOp(span_op, lhs, rhs) => {
-            let mut temporaries = vec![];
-            let lhs = lhs
-                .check(check, env)
-                .await
-                .into_expr(check, env, &mut temporaries);
-            let rhs = rhs
-                .check(check, env)
-                .await
-                .into_expr(check, env, &mut temporaries);
+            let span_op: SpannedBinaryOp<'db> = *span_op;
+
+            let mut temporaries: Vec<Temporary<'db>> = vec![];
+            let lhs: ObjectExpr<'db> =
+                lhs.check(check, env)
+                    .await
+                    .into_expr(check, env, &mut temporaries);
+            let rhs: ObjectExpr<'db> =
+                rhs.check(check, env)
+                    .await
+                    .into_expr(check, env, &mut temporaries);
 
             // For now, let's do a dumb rule that operands must be
             // of the same primitive (and scalar) type.
@@ -208,7 +215,7 @@ async fn check_expr<'db>(
                     db,
                     expr_span,
                     lhs.ty(db),
-                    ObjectExprKind::BinaryOp(*span_op, lhs, rhs),
+                    ObjectExprKind::BinaryOp(span_op, lhs, rhs),
                 ),
                 temporaries,
             )
@@ -422,6 +429,100 @@ async fn check_expr<'db>(
                 )
                 .into(),
             }
+        }
+
+        AstExprKind::Await {
+            future,
+            await_keyword,
+        } => {
+            let future_span = future.span;
+            let await_span = *await_keyword;
+
+            let mut temporaries = vec![];
+
+            let future_expr =
+                future
+                    .check(check, env)
+                    .await
+                    .into_expr(check, env, &mut temporaries);
+            let future_ty = future_expr.ty(db);
+
+            let awaited_ty = env.fresh_object_ty_inference_var(check);
+
+            check.defer(env, async move |check, env| {
+                let db = check.db;
+                require_future(&check, &env, future_span, await_span, future_ty, awaited_ty).await
+            });
+
+            ExprResult {
+                temporaries,
+                span: expr_span,
+                kind: ObjectExpr::new(
+                    db,
+                    expr_span,
+                    awaited_ty,
+                    ObjectExprKind::Await {
+                        future: future_expr,
+                        await_keyword: await_span,
+                    },
+                )
+                .into(),
+            }
+        }
+    }
+}
+
+async fn require_future<'db>(
+    check: &Check<'db>,
+    env: &Env<'db>,
+    future_span: Span<'db>,
+    await_span: Span<'db>,
+    future_ty: ObjectTy<'db>,
+    awaited_ty: ObjectTy<'db>,
+) {
+    let db = check.db;
+
+    let infer_var = match awaited_ty.kind(db) {
+        ObjectTyKind::Infer(v) => *v,
+        _ => unreachable!(),
+    };
+
+    let mut bounds = env.bounds(check, future_ty);
+
+    while let Some(bound) = bounds.next().await {
+        match bound {
+            Bound::UpperBound(_) => continue,
+            Bound::LowerBound(ty) => match ty.kind(db) {
+                ObjectTyKind::Infer(_) => (),
+                ObjectTyKind::Never => {
+                    check.push_inference_var_bound(infer_var, Bound::LowerBound(ty.into()));
+                }
+                ObjectTyKind::Error(_) => {
+                    check.push_inference_var_bound(infer_var, Bound::LowerBound(ty.into()));
+                    return;
+                }
+
+                ObjectTyKind::Named(SymTyName::Future, vec) => {
+                    let awaited_bound = vec[0].assert_type(db);
+                    check.push_inference_var_bound(
+                        infer_var,
+                        Bound::LowerBound(awaited_bound.into()),
+                    );
+                }
+
+                ObjectTyKind::Named(..) | ObjectTyKind::Var(..) => {
+                    Diagnostic::error(db, await_span, format!("await requires a future"))
+                        .label(
+                            db,
+                            Level::Error,
+                            await_span,
+                            format!("`await` requires a future"),
+                        )
+                        .label(db, Level::Info, future_span, format!("I found a {ty}"))
+                        .report(db);
+                    return;
+                }
+            },
         }
     }
 }
@@ -709,7 +810,7 @@ async fn check_call_common<'db>(
         call_expr = ObjectExpr::new(
             db,
             call_expr.span(db),
-            arg_expr.ty(db),
+            call_expr.ty(db),
             ObjectExprKind::LetIn {
                 lv: arg_temp_symbol,
                 sym_ty: None,

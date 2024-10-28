@@ -176,14 +176,8 @@ pub(crate) trait OutputTerm<'db>: Copy {
     fn bound_slices<'i>(data: &'i InferenceVarData<'db>) -> (&'i [Self], &'i [Self]);
 }
 
-impl<'db> OutputTerm<'db> for SymGenericTerm<'db> {
-    fn bound_slices<'i>(data: &'i InferenceVarData<'db>) -> (&'i [Self], &'i [Self]) {
-        (data.lower_bounds(), data.upper_bounds())
-    }
-}
-
 impl<'db> OutputTerm<'db> for ObjectGenericTerm<'db> {
     fn bound_slices<'i>(data: &'i InferenceVarData<'db>) -> (&'i [Self], &'i [Self]) {
-        (data.lower_object_bounds(), data.upper_object_bounds())
+        (data.lower_bounds(), data.upper_bounds())
     }
 }

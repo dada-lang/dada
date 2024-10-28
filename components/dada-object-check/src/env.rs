@@ -6,7 +6,7 @@ use dada_ir_sym::{
     scope::Scope,
     subst::SubstWith,
     symbol::{SymGenericKind, SymVariable},
-    ty::{SymGenericTerm, SymPerm, SymTy, SymTyKind},
+    ty::{SymGenericTerm, SymPerm, SymTy},
 };
 use dada_util::Map;
 use futures::{Stream, StreamExt};
@@ -205,7 +205,7 @@ impl<'db> Env<'db> {
         let tys = tys.to_vec();
         check.defer(self, move |check, env: Env<'db>| async move {
             'next_ty: for ty in tys {
-                'next_bound: while let Some(bound) = env.object_bounds(&check, ty).next().await {
+                'next_bound: while let Some(bound) = env.bounds(&check, ty).next().await {
                     let bound_ty = bound.into_term();
                     match bound_ty.kind(check.db) {
                         ObjectTyKind::Never => return,
@@ -221,21 +221,6 @@ impl<'db> Env<'db> {
     }
 
     pub fn bounds(
-        &self,
-        check: &Check<'db>,
-        ty: SymTy<'db>,
-    ) -> impl Stream<Item = Bound<SymTy<'db>>> + 'db {
-        let db = check.db;
-        if let &SymTyKind::Infer(inference_var) = ty.kind(db) {
-            <InferenceVarBounds<'db, SymGenericTerm<'db>>>::new(check, inference_var)
-                .map(|b| b.assert_type(db))
-                .boxed_local()
-        } else {
-            futures::stream::once(futures::future::ready(Bound::LowerBound(ty))).boxed_local()
-        }
-    }
-
-    pub fn object_bounds(
         &self,
         check: &Check<'db>,
         ty: ObjectTy<'db>,

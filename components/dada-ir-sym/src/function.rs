@@ -17,13 +17,24 @@ use crate::{
     scope::Scope,
     scope_tree::{ScopeItem, ScopeTreeNode},
     symbol::SymVariable,
-    ty::{SymTy, SymTyKind},
+    ty::{SymTy, SymTyKind, SymTyName},
 };
 
 #[salsa::tracked]
 pub struct SymFunction<'db> {
     pub super_scope_item: ScopeItem<'db>,
     source: AstFunction<'db>,
+}
+
+#[salsa::tracked]
+impl<'db> SymFunction<'db> {
+    #[salsa::tracked]
+    pub fn effects(self, db: &'db dyn crate::Db) -> SymFunctionEffects {
+        let source = self.source(db).effects(db);
+        SymFunctionEffects {
+            async_effect: source.async_effect.is_some(),
+        }
+    }
 }
 
 impl<'db> ScopeTreeNode<'db> for SymFunction<'db> {
@@ -44,6 +55,12 @@ impl<'db> Spanned<'db> for SymFunction<'db> {
     fn span(&self, db: &'db dyn dada_ir_ast::Db) -> Span<'db> {
         self.source(db).name(db).span
     }
+}
+
+/// Set of effects that can be declared on the function.
+#[derive(Copy, Clone, PartialEq, Eq, PartialOrd, Ord, Debug)]
+pub struct SymFunctionEffects {
+    pub async_effect: bool,
 }
 
 #[salsa::tracked]
@@ -132,7 +149,7 @@ impl<'db> SymFunction<'db> {
     pub fn signature(self, db: &'db dyn crate::Db) -> SymFunctionSignature<'db> {
         let scope = self.scope(db);
 
-        let input_output = SymInputOutput {
+        let mut input_output = SymInputOutput {
             input_tys: self
                 .source(db)
                 .inputs(db)
@@ -145,6 +162,12 @@ impl<'db> SymFunction<'db> {
                 None => SymTy::unit(db),
             },
         };
+
+        if self.source(db).effects(db).async_effect.is_some() {
+            input_output.output_ty =
+                SymTy::named(db, SymTyName::Future, vec![input_output.output_ty.into()]);
+        }
+
         let bound_input_output = scope.into_bound_value(db, input_output);
 
         SymFunctionSignature::new(db, self.symbols(db).clone(), bound_input_output)

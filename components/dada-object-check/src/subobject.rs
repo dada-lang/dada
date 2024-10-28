@@ -72,7 +72,7 @@ pub async fn require_numeric_type<'db>(
 ) -> Errors<()> {
     let db = check.db;
 
-    let mut bounds = env.object_bounds(check, start_ty);
+    let mut bounds = env.bounds(check, start_ty);
     while let Some(bound) = bounds.next().await {
         let ty = bound.into_term();
         match ty.kind(db) {
@@ -89,7 +89,7 @@ pub async fn require_numeric_type<'db>(
                         return Err(report_numeric_type_expected(check, env, span, ty))
                     }
                 },
-                SymTyName::Class(_) | SymTyName::Tuple { .. } => {
+                SymTyName::Future | SymTyName::Class(_) | SymTyName::Tuple { .. } => {
                     return Err(report_numeric_type_expected(check, env, span, ty))
                 }
             },

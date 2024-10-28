@@ -122,10 +122,20 @@ fn postfix_expr_precedence<'db>(
 
         // `.` can skip newlines
         if let Ok(_) = parser.eat_op(".") {
-            let id = parser.eat_id()?;
-            let owner = AstExpr::new(start_span.to(mid_span), kind);
-            kind = AstExprKind::DotId(owner, id);
-            continue;
+            if let Ok(id) = parser.eat_id() {
+                let owner = AstExpr::new(start_span.to(mid_span), kind);
+                kind = AstExprKind::DotId(owner, id);
+                continue;
+            }
+
+            if let Ok(await_keyword) = parser.eat_keyword(Keyword::Await) {
+                let future = AstExpr::new(start_span.to(mid_span), kind);
+                kind = AstExprKind::Await {
+                    future,
+                    await_keyword,
+                };
+                continue;
+            }
         }
 
         // Postfix `[]` is only valid on the same line, since `[..]` is also valid as the start of an expression

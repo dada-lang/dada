@@ -21,7 +21,11 @@ use dada_util::Map;
 use futures::future::LocalBoxFuture;
 
 use crate::{
-    bound::Bound, env::Env, inference::InferenceVarData, object_ir::ObjectTy, universe::Universe,
+    bound::Bound,
+    env::Env,
+    inference::InferenceVarData,
+    object_ir::{ObjectGenericTerm, ObjectTy},
+    universe::Universe,
 };
 
 type Deferred<'chk> = LocalBoxFuture<'chk, ()>;
@@ -153,7 +157,7 @@ impl<'db> Check<'db> {
     pub fn push_inference_var_bound(
         &self,
         var: SymInferVarIndex,
-        bound: Bound<SymGenericTerm<'db>>,
+        bound: Bound<ObjectGenericTerm<'db>>,
     ) {
         let mut inference_vars = self.inference_vars.write().unwrap();
         let mut waiting_on_inference_var = self.waiting_on_inference_var.lock().unwrap();

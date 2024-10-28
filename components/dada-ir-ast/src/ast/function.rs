@@ -13,6 +13,9 @@ pub struct AstFunction<'db> {
     /// Overall span of the function declaration
     pub span: Span<'db>,
 
+    /// Declared effects (e.g., `async`)
+    pub effects: AstFunctionEffects<'db>,
+
     /// Span of the `fn` keyword
     pub fn_span: Span<'db>,
 
@@ -36,6 +39,11 @@ pub struct AstFunction<'db> {
     /// Body (if provided)
     #[return_ref]
     pub body: Option<DeferredParse<'db>>,
+}
+
+#[derive(Copy, Clone, Default, PartialEq, Eq, PartialOrd, Ord, Hash, Update, Debug)]
+pub struct AstFunctionEffects<'db> {
+    pub async_effect: Option<Span<'db>>,
 }
 
 impl<'db> Spanned<'db> for AstFunction<'db> {

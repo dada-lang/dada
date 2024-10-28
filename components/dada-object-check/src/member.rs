@@ -49,15 +49,12 @@ impl<'member, 'db> MemberLookup<'member, 'db> {
         // * If we find a lower bound:
         //
         // Once we
-        let mut lower_bounds = self
-            .env
-            .object_bounds(self.check, owner_ty)
-            .filter_map(|b| {
-                futures::future::ready(match b {
-                    Bound::LowerBound(ty) => Some(ty),
-                    Bound::UpperBound(_) => None,
-                })
-            });
+        let mut lower_bounds = self.env.bounds(self.check, owner_ty).filter_map(|b| {
+            futures::future::ready(match b {
+                Bound::LowerBound(ty) => Some(ty),
+                Bound::UpperBound(_) => None,
+            })
+        });
 
         while let Some(ty) = lower_bounds.next().await {
             // The owner will be some supertype of `ty`.
@@ -302,6 +299,9 @@ impl<'member, 'db> MemberLookup<'member, 'db> {
 
                 // Classes have members.
                 SymTyName::Class(owner) => self.search_class_for_member(owner, generics, id),
+
+                // Future types have no members.
+                SymTyName::Future => None,
             },
 
             ObjectTyKind::Infer(_) => {

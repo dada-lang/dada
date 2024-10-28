@@ -238,6 +238,10 @@ pub enum SymTyName<'db> {
 
     Class(SymClass<'db>),
 
+    /// For now, just make future a builtin type
+    #[no_from_impl]
+    Future,
+
     #[no_from_impl]
     Tuple {
         arity: usize,
@@ -252,6 +256,7 @@ impl std::fmt::Display for SymTyName<'_> {
                 SymTyName::Primitive(primitive) => write!(f, "`{}`", primitive),
                 SymTyName::Class(class) => write!(f, "`{}`", class.name(db)),
                 SymTyName::Tuple { arity } => write!(f, "{arity}-tuple"),
+                SymTyName::Future => write!(f, "Future"),
             }    
         }).unwrap_or_else(|| std::fmt::Debug::fmt(self, f))
     }
