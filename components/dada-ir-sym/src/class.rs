@@ -30,7 +30,7 @@ pub struct SymClass<'db> {
 #[salsa::tracked]
 impl<'db> SymClass<'db> {
     /// Name of the class.
-    pub fn name(&self, db: &'db dyn crate::Db) -> Identifier<'db> {
+    pub fn name(&self, db: &'db dyn salsa::Database) -> Identifier<'db> {
         self.source(db).name(db)
     }
 
@@ -138,6 +138,18 @@ impl<'db> SymClass<'db> {
             .collect()
     }
 
+    #[salsa::tracked]
+    pub fn inherent_member(
+        self,
+        db: &'db dyn crate::Db,
+        id: Identifier<'db>,
+    ) -> Option<SymClassMember<'db>> {
+        self.members(db)
+            .into_iter()
+            .copied()
+            .find(|m| m.has_name(db, id))
+    }
+
     pub fn fields(self, db: &'db dyn crate::Db) -> impl Iterator<Item = SymField<'db>> {
         self.members(db).iter().filter_map(|&m| match m {
             SymClassMember::SymField(f) => Some(f),
@@ -150,6 +162,13 @@ impl<'db> SymClass<'db> {
             SymClassMember::SymFunction(f) => Some(f),
             _ => None,
         })
+    }
+}
+
+impl std::fmt::Display for SymClass<'_> {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        salsa::with_attached_database(|db| write!(f, "{}", self.name(db)))
+            .unwrap_or_else(|| std::fmt::Debug::fmt(self, f))
     }
 }
 
@@ -175,6 +194,16 @@ pub enum SymClassMember<'db> {
 
     /// Class methods
     SymFunction(SymFunction<'db>),
+}
+
+impl<'db> SymClassMember<'db> {
+    /// True if this class member has the given name.
+    pub fn has_name(self, db: &'db dyn crate::Db, id: Identifier<'db>) -> bool {
+        match self {
+            SymClassMember::SymField(f) => f.name(db) == id,
+            SymClassMember::SymFunction(f) => f.name(db) == id,
+        }
+    }
 }
 
 /// Symbol for a field of a class, struct, or enum

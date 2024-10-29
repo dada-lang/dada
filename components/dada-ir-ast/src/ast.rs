@@ -37,6 +37,10 @@ impl<'db> Identifier<'db> {
     pub fn dada(db: &'db dyn crate::Db) -> Identifier<'db> {
         Identifier::new(db, "dada".to_string())
     }
+
+    pub fn new_ident(db: &'db dyn crate::Db) -> Identifier<'db> {
+        Identifier::new(db, "new".to_string())
+    }
 }
 
 impl<'db> std::fmt::Display for Identifier<'db> {

@@ -12,7 +12,7 @@ use dada_util::FromImpls;
 
 use crate::{
     binder::BoundTerm,
-    class::SymClass,
+    class::{SymClass, SymClassMember},
     function::SymFunction,
     module::SymModule,
     prelude::{IntoSymInScope, IntoSymbol},
@@ -283,6 +283,9 @@ impl<'db> NameResolution<'db> {
     /// Type checking will have to handle it.
     ///
     /// Returns error only if this was a lexically resolved name resolution and the identifier is not found.
+    ///
+    /// FIXME: Remove all error reporting from here and push it further up the chain,
+    /// since the context of the lookup may matter to how we report the error.
     pub fn resolve_relative_id(
         self,
         db: &'db dyn crate::Db,
@@ -311,6 +314,24 @@ impl<'db> NameResolution<'db> {
                         .report(db),
                 ),
             },
+
+            // FIXME: When we add traits, we have to decide how we want to manage trait member lookup.
+            // * Does this mean we have to merge name resolution plus type checking?
+            // * Do we not support `SomeClass.TraitMember` and instead prefer `SomeTrait.Member[SomeClass]`?
+            // * Do we only support `SomeClass.TraitMember` in expression contexts?
+            NameResolutionSym::SymClass(sym_class) => match sym_class.inherent_member(db, id.id) {
+                Some(class_member) => match class_member {
+                    SymClassMember::SymFunction(sym) => Ok(Ok(NameResolution {
+                        generics: self.generics,
+                        sym: NameResolutionSym::SymFunction(sym),
+                    })),
+
+                    // FIXME: we should probably have a NameResolutionSym::Field?
+                    SymClassMember::SymField(_) => Ok(Err(self)),
+                },
+                None => Ok(Err(self)),
+            },
+
             _ => Ok(Err(self)),
         }
     }
@@ -360,6 +381,12 @@ impl<'db> NameResolution<'db> {
         );
 
         Ok(self)
+    }
+
+    /// Returns the span where the item that is being referenced was declared.
+    /// Returns `None` for primitives or things that have no declaration.
+    pub fn span(&self, db: &'db dyn salsa::Database) -> Option<Span<'db>> {
+        self.sym.span(db)
     }
 }
 

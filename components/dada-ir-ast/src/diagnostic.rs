@@ -105,6 +105,11 @@ impl Diagnostic {
         });
         self
     }
+
+    pub fn child(mut self, child: Diagnostic) -> Self {
+        self.children.push(child);
+        self
+    }
 }
 
 pub fn report_all(db: &dyn crate::Db, diagnostics: Vec<Diagnostic>) {

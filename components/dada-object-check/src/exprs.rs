@@ -2,7 +2,7 @@ use std::future::Future;
 
 use dada_ir_ast::{
     ast::{
-        AstExpr, AstExprKind, AstGenericTerm, LiteralKind, SpanVec, SpannedBinaryOp,
+        AstExpr, AstExprKind, AstGenericTerm, Identifier, LiteralKind, SpanVec, SpannedBinaryOp,
         SpannedIdentifier,
     },
     diagnostic::{Diagnostic, Err, Level, Reported},
@@ -10,6 +10,7 @@ use dada_ir_ast::{
 };
 use dada_ir_sym::{
     binder::Binder,
+    class::SymClass,
     function::{SymFunction, SymInputOutput},
     prelude::IntoSymInScope,
     primitive::{SymPrimitive, SymPrimitiveKind},
@@ -369,6 +370,32 @@ async fn check_expr<'db>(
                     .await
                 }
 
+                // Calling a class like `Class(a, b)`: convert to
+                // `Class.new(a, b)`.
+                ExprResult {
+                    temporaries,
+                    span: class_span,
+                    kind:
+                        ExprResultKind::Other(
+                            name_resolution @ NameResolution {
+                                sym: NameResolutionSym::SymClass(class_sym),
+                                ..
+                            },
+                        ),
+                } => {
+                    check_class_call(
+                        check,
+                        env,
+                        class_span,
+                        expr_span,
+                        name_resolution,
+                        class_sym,
+                        ast_args,
+                        temporaries,
+                    )
+                    .await
+                }
+
                 ExprResult {
                     span: owner_span, ..
                 } => {
@@ -470,6 +497,108 @@ async fn check_expr<'db>(
             }
         }
     }
+}
+
+async fn check_class_call<'db>(
+    check: &Check<'db>,
+    env: &Env<'db>,
+    class_span: Span<'db>,
+    expr_span: Span<'db>,
+    name_resolution: NameResolution<'db>,
+    class_sym: SymClass<'db>,
+    ast_args: &SpanVec<'db, AstExpr<'db>>,
+    temporaries: Vec<Temporary<'db>>,
+) -> ExprResult<'db> {
+    let db = check.db;
+
+    let new_ident = SpannedIdentifier {
+        span: class_span,
+        id: Identifier::new_ident(db),
+    };
+
+    let (generics, new_function) = match name_resolution.resolve_relative_id(db, new_ident) {
+        Ok(Ok(NameResolution {
+            generics,
+            sym: NameResolutionSym::SymFunction(m),
+        })) => (generics, m),
+        Ok(r) => return ExprResult::err(db, report_no_new_method(db, class_span, class_sym, r)),
+        Err(reported) => return ExprResult::err(db, reported),
+    };
+
+    check_function_call(
+        check,
+        env,
+        class_span,
+        expr_span,
+        new_function,
+        ast_args,
+        generics,
+        temporaries,
+    )
+    .await
+}
+
+fn report_no_new_method<'db>(
+    db: &'db dyn crate::Db,
+    class_span: Span<'db>,
+    class_sym: SymClass<'db>,
+    resolution: Result<NameResolution<'db>, NameResolution<'db>>,
+) -> Reported {
+    let mut diag = Diagnostic::error(
+        db,
+        class_span,
+        format!("the class `{class_sym}` has no `new` method"),
+    )
+    .label(
+        db,
+        Level::Error,
+        class_span,
+        format!("I could not find a `new` method on the class `{class_sym}`"),
+    );
+
+    match resolution {
+        Ok(name_resolution) => {
+            diag = diag.child(
+                Diagnostic::new(
+                    db,
+                    Level::Note,
+                    class_sym.name_span(db),
+                    format!(
+                        "calling a class is equivalent to calling `new`, but `new` is not a method"
+                    ),
+                )
+                .label(
+                    db,
+                    Level::Note,
+                    name_resolution.span(db).unwrap(),
+                    format!(
+                        "I found a class member named `new` but it is {}, not a method",
+                        name_resolution.categorize(db)
+                    ),
+                ),
+            );
+        }
+        Err(_) => {
+            diag = diag.child(
+                Diagnostic::new(
+                    db,
+                    Level::Note,
+                    class_sym.name_span(db),
+                    format!(
+                        "calling a class is equivalent to calling `new`, but `{class_sym}` does not define a `new` method"
+                    ),
+                )
+                .label(
+                    db,
+                    Level::Note,
+                    class_sym.name_span(db),
+                    format!("I could not find any class member named `new`"),
+                ),
+            );
+        }
+    }
+
+    diag.report(db)
 }
 
 async fn require_future<'db>(
