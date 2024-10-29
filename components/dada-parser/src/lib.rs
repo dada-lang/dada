@@ -350,6 +350,7 @@ impl<'token, 'db> Parser<'token, 'db> {
     }
 
     /// Returns a deferred parse of the next delimited token.
+    /// If this returns `Err`, then nothing has been consumed.
     pub fn defer_delimited(
         &mut self,
         delimiter: Delimiter,

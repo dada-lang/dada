@@ -1,11 +1,11 @@
 use crate::{
-    ast::{AstVisibility, DeferredParse},
+    ast::{AstVisibility, DeferredParse, VariableDecl},
     span::{Span, Spanned},
 };
 
 use super::{AstGenericDecl, Identifier, SpanVec};
 
-/// `class $name[$generics] { ... }`
+/// `class $name[$generics] { ... }` or `class $name[$generics](...) { ... }`
 #[salsa::tracked]
 pub struct AstClassItem<'db> {
     pub span: Span<'db>,
@@ -21,11 +21,15 @@ pub struct AstClassItem<'db> {
     #[return_ref]
     pub generics: Option<SpanVec<'db, AstGenericDecl<'db>>>,
 
+    /// If a `()` section is present...
+    #[return_ref]
+    pub inputs: Option<SpanVec<'db, VariableDecl<'db>>>,
+
     /// The unparsed contents of the class.
     /// This can be parsed via the `members`
     /// method defined in `dada_parser::prelude`.
     #[return_ref]
-    pub contents: DeferredParse<'db>,
+    pub contents: Option<DeferredParse<'db>>,
 }
 
 impl<'db> AstClassItem<'db> {}

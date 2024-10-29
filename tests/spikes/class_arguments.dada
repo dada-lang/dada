@@ -1,0 +1,6 @@
+class Point(x: u32, y: u32)
+
+fn main() {
+let p = Point(22, 44)
+let q = p.x + p.y
+}

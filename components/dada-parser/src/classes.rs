@@ -43,7 +43,14 @@ impl<'db> Parse<'db> for AstClassItem<'db> {
             AstGenericDecl::eat_comma,
         )?;
 
-        let body = parser.defer_delimited(Delimiter::CurlyBraces)?;
+        let inputs = VariableDecl::opt_parse_delimited(
+            db,
+            parser,
+            Delimiter::Parentheses,
+            VariableDecl::eat_comma,
+        )?;
+
+        let body = parser.defer_delimited(Delimiter::CurlyBraces).ok();
 
         Ok(Some(AstClassItem::new(
             db,
@@ -52,6 +59,7 @@ impl<'db> Parse<'db> for AstClassItem<'db> {
             id.id,
             id.span,
             generics,
+            inputs,
             body,
         )))
     }
@@ -95,10 +103,16 @@ impl<'db> Parse<'db> for AstClassItemPrefix<'db> {
 impl<'db> crate::prelude::ClassItemMembers<'db> for AstClassItem<'db> {
     #[salsa::tracked]
     fn members(self, db: &'db dyn crate::Db) -> SpanVec<'db, AstMember<'db>> {
-        let contents = self.contents(db);
-        Parser::deferred(db, self, contents, |parser| {
-            parser.parse_many_and_report_diagnostics::<AstMember<'db>>(db)
-        })
+        if let Some(contents) = self.contents(db) {
+            Parser::deferred(db, self, contents, |parser| {
+                parser.parse_many_and_report_diagnostics::<AstMember<'db>>(db)
+            })
+        } else {
+            SpanVec {
+                span: self.span(db).at_end(),
+                values: vec![],
+            }
+        }
     }
 }
 
