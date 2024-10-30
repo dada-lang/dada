@@ -84,12 +84,13 @@ impl<'db> Env<'db> {
     pub fn existential_substitution(
         &self,
         check: &Check<'db>,
+        span: Span<'db>,
         variables: &[SymVariable<'db>],
     ) -> Vec<SymGenericTerm<'db>> {
         let db = check.db;
         variables
             .iter()
-            .map(|&var| self.fresh_inference_var(check, var.kind(db)))
+            .map(|&var| self.fresh_inference_var(check, var.kind(db), span))
             .collect()
     }
 
@@ -122,21 +123,27 @@ impl<'db> Env<'db> {
         &self,
         check: &Check<'db>,
         kind: SymGenericKind,
+        span: Span<'db>,
     ) -> SymGenericTerm<'db> {
-        check.fresh_inference_var(kind, self.universe)
+        check.fresh_inference_var(kind, self.universe, span)
     }
 
-    pub fn fresh_ty_inference_var(&self, check: &Check<'db>) -> SymTy<'db> {
-        self.fresh_inference_var(check, SymGenericKind::Type)
+    pub fn fresh_ty_inference_var(&self, check: &Check<'db>, span: Span<'db>) -> SymTy<'db> {
+        self.fresh_inference_var(check, SymGenericKind::Type, span)
             .assert_type(check.db)
     }
 
-    pub fn fresh_object_ty_inference_var(&self, check: &Check<'db>) -> ObjectTy<'db> {
-        self.fresh_ty_inference_var(check).into_object_ir(check.db)
+    pub fn fresh_object_ty_inference_var(
+        &self,
+        check: &Check<'db>,
+        span: Span<'db>,
+    ) -> ObjectTy<'db> {
+        self.fresh_ty_inference_var(check, span)
+            .into_object_ir(check.db)
     }
 
-    pub fn fresh_perm_inference_var(&self, check: &Check<'db>) -> SymPerm<'db> {
-        self.fresh_inference_var(check, SymGenericKind::Type)
+    pub fn fresh_perm_inference_var(&self, check: &Check<'db>, span: Span<'db>) -> SymPerm<'db> {
+        self.fresh_inference_var(check, SymGenericKind::Type, span)
             .assert_perm(check.db)
     }
 

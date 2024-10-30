@@ -132,10 +132,11 @@ impl<'db> Check<'db> {
         &self,
         kind: SymGenericKind,
         universe: Universe,
+        span: Span<'db>,
     ) -> SymGenericTerm<'db> {
         let mut inference_vars = self.inference_vars.write().unwrap();
         let var_index = SymInferVarIndex::from(inference_vars.len());
-        inference_vars.push(InferenceVarData::new(kind, universe));
+        inference_vars.push(InferenceVarData::new(kind, universe, span));
         SymGenericTerm::infer(self.db, kind, var_index)
     }
 

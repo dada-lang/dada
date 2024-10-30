@@ -118,7 +118,7 @@ async fn check_expr<'db>(
     match &*expr.kind {
         AstExprKind::Literal(literal) => match literal.kind(db) {
             LiteralKind::Integer => {
-                let ty = env.fresh_object_ty_inference_var(check);
+                let ty = env.fresh_object_ty_inference_var(check, expr_span);
                 env.require_numeric_type(check, expr_span, ty);
                 ExprResult {
                     temporaries: vec![],
@@ -479,7 +479,7 @@ async fn check_expr<'db>(
                     .into_expr(check, env, &mut temporaries);
             let future_ty = future_expr.ty(db);
 
-            let awaited_ty = env.fresh_object_ty_inference_var(check);
+            let awaited_ty = env.fresh_object_ty_inference_var(check, await_span);
 
             check.defer(env, await_span, async move |check, env| {
                 let db = check.db;
@@ -683,7 +683,7 @@ async fn check_function_call<'db>(
     substitution.extend(
         expected_generics[generics.len()..]
             .iter()
-            .map(|&var| env.fresh_inference_var(check, var.kind(db))),
+            .map(|&var| env.fresh_inference_var(check, var.kind(db), function_span)),
     );
 
     check_call_common(
@@ -725,7 +725,7 @@ async fn check_method_call<'db>(
     let substitution = match generics {
         None => {
             // Easy case: nothing provided by user, just create inference variables for everything.
-            env.existential_substitution(check, &input_output.variables)
+            env.existential_substitution(check, id_span, &input_output.variables)
         }
 
         Some(generics) => {
@@ -741,7 +741,7 @@ async fn check_method_call<'db>(
             let outer_variables =
                 &input_output.variables[0..input_output.variables.len() - function_generics.len()];
             let mut substitution: Vec<SymGenericTerm<'_>> =
-                env.existential_substitution(check, outer_variables);
+                env.existential_substitution(check, id_span, outer_variables);
 
             // Check the user gave the expected number of arguments.
             if function_generics.len() != generics.len() {

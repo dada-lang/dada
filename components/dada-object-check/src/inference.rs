@@ -1,3 +1,4 @@
+use dada_ir_ast::span::Span;
 use dada_ir_sym::symbol::{HasKind, SymGenericKind};
 
 use crate::{bound::Bound, object_ir::ObjectGenericTerm, universe::Universe};
@@ -5,16 +6,18 @@ use crate::{bound::Bound, object_ir::ObjectGenericTerm, universe::Universe};
 pub(crate) struct InferenceVarData<'db> {
     kind: SymGenericKind,
     universe: Universe,
+    span: Span<'db>,
 
     lower_bounds: Vec<ObjectGenericTerm<'db>>,
     upper_bounds: Vec<ObjectGenericTerm<'db>>,
 }
 
 impl<'db> InferenceVarData<'db> {
-    pub fn new(kind: SymGenericKind, universe: Universe) -> Self {
+    pub fn new(kind: SymGenericKind, universe: Universe, span: Span<'db>) -> Self {
         Self {
             kind,
             universe,
+            span,
             lower_bounds: vec![],
             upper_bounds: vec![],
         }
