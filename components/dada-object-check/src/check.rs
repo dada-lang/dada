@@ -67,7 +67,7 @@ impl<'db> Check<'db> {
     {
         let check = Check::new(db);
         let (channel_tx, channel_rx) = std::sync::mpsc::channel();
-        check.spawn({
+        check.spawn(span, {
             let check = check.clone();
             async move {
                 let result = op(&check).await;
@@ -100,8 +100,8 @@ impl<'db> Check<'db> {
     }
 
     /// Spawn a new check-task.
-    fn spawn(&self, future: impl Future<Output = ()> + 'db) {
-        let task = CheckTask::new(self, future);
+    fn spawn(&self, span: Span<'db>, future: impl Future<Output = ()> + 'db) {
+        let task = CheckTask::new(self, span, future);
         self.ready_to_execute.lock().unwrap().push(task);
     }
 
@@ -170,8 +170,13 @@ impl<'db> Check<'db> {
 
     /// Execute the given future asynchronously from the main execution.
     /// It must execute to completion eventually or an error will be reported.
-    pub fn defer(&self, env: &Env<'db>, check: impl 'db + async FnOnce(Check<'db>, Env<'db>)) {
-        self.spawn(check(self.clone(), env.clone()));
+    pub fn defer(
+        &self,
+        env: &Env<'db>,
+        span: Span<'db>,
+        check: impl 'db + async FnOnce(Check<'db>, Env<'db>),
+    ) {
+        self.spawn(span, check(self.clone(), env.clone()));
     }
 
     /// Block the current task on new bounds being added to the given inference variable.
@@ -191,6 +196,7 @@ impl<'db> Check<'db> {
 }
 
 mod check_task {
+    use dada_ir_ast::span::Span;
     use futures::{future::LocalBoxFuture, FutureExt};
     use std::{
         future::Future,
@@ -218,6 +224,9 @@ mod check_task {
         /// Erased type: `Check<'db>`
         check: Check<'static>,
 
+        /// Erased type: `Span<'db>`
+        span: Span<'static>,
+
         /// Erased type: `CheckTaskState<'chk>`
         state: Mutex<CheckTaskState<'static>>,
     }
@@ -231,6 +240,7 @@ mod check_task {
     impl CheckTask {
         pub(super) fn new<'db>(
             check: &Check<'db>,
+            span: Span<'db>,
             future: impl Future<Output = ()> + 'db,
         ) -> Arc<Self> {
             let this = {
@@ -239,9 +249,11 @@ mod check_task {
                 // UNSAFE: Erase lifetimes as described on [`CheckTask`][] above.
                 let my_check =
                     unsafe { std::mem::transmute::<Check<'db>, Check<'static>>(my_check) };
+                let span = unsafe { std::mem::transmute::<Span<'db>, Span<'static>>(span) };
 
                 Arc::new(Self {
                     check: my_check,
+                    span,
                     state: Mutex::new(CheckTaskState::Executing),
                 })
             };

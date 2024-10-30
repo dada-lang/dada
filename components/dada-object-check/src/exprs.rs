@@ -199,10 +199,15 @@ async fn check_expr<'db>(
 
             env.require_numeric_type(check, expr_span, lhs.ty(db));
             env.require_numeric_type(check, expr_span, rhs.ty(db));
-            env.if_not_never(check, &[lhs.ty(db), rhs.ty(db)], async move |check, env| {
-                env.require_sub_object_type(&check, expr_span, lhs.ty(db), rhs.ty(db));
-                env.require_sub_object_type(&check, expr_span, rhs.ty(db), lhs.ty(db));
-            });
+            env.if_not_never(
+                check,
+                span_op.span,
+                &[lhs.ty(db), rhs.ty(db)],
+                async move |check, env| {
+                    env.require_sub_object_type(&check, expr_span, lhs.ty(db), rhs.ty(db));
+                    env.require_sub_object_type(&check, expr_span, rhs.ty(db), lhs.ty(db));
+                },
+            );
 
             // What type do we want these operators to have?
             // For now I'll just take the LHS, but that seems
@@ -476,7 +481,7 @@ async fn check_expr<'db>(
 
             let awaited_ty = env.fresh_object_ty_inference_var(check);
 
-            check.defer(env, async move |check, env| {
+            check.defer(env, await_span, async move |check, env| {
                 let db = check.db;
                 require_future(&check, &env, future_span, await_span, future_ty, awaited_ty).await
             });

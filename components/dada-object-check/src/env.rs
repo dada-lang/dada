@@ -150,7 +150,7 @@ impl<'db> Env<'db> {
         let db = check.db;
         let value_ty = value_ty.into_object_ir(db);
         let place_ty = value_ty.into_object_ir(db);
-        check.defer(self, move |check, env| async move {
+        check.defer(self, value_span, move |check, env| async move {
             match require_assignable_object_type(&check, &env, value_span, value_ty, place_ty).await
             {
                 Ok(()) => (),
@@ -169,7 +169,7 @@ impl<'db> Env<'db> {
         let db = check.db;
         let value_ty = sub_ty.into_object_ir(db);
         let place_ty = value_ty.into_object_ir(db);
-        check.defer(self, move |check, env| async move {
+        check.defer(self, span, move |check, env| async move {
             match require_sub_object_type(&check, &env, span, value_ty, place_ty).await {
                 Ok(()) => (),
                 Err(Reported(_)) => (),
@@ -185,7 +185,7 @@ impl<'db> Env<'db> {
     ) {
         let db = check.db;
         let ty = ty.into_object_ir(db);
-        check.defer(self, move |check, env| async move {
+        check.defer(self, span, move |check, env| async move {
             match require_numeric_type(&check, &env, span, ty).await {
                 Ok(()) => (),
                 Err(Reported(_)) => (),
@@ -199,11 +199,12 @@ impl<'db> Env<'db> {
     pub fn if_not_never(
         &self,
         check: &Check<'db>,
+        span: Span<'db>,
         tys: &[ObjectTy<'db>],
         op: impl async FnOnce(Check<'db>, Env<'db>) + 'db,
     ) {
         let tys = tys.to_vec();
-        check.defer(self, move |check, env: Env<'db>| async move {
+        check.defer(self, span, move |check, env: Env<'db>| async move {
             'next_ty: for ty in tys {
                 'next_bound: while let Some(bound) = env.bounds(&check, ty).next().await {
                     let bound_ty = bound.into_term();

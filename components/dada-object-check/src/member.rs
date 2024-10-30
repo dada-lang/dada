@@ -87,7 +87,7 @@ impl<'member, 'db> MemberLookup<'member, 'db> {
         // Iterate through any remaining bounds to make sure that this member is valid
         // for all of them and that no ambiguity arises.
         if !matches!(member, SearchResult::Error(Reported(_))) {
-            self.check.defer(self.env, {
+            self.check.defer(self.env, id.span, {
                 let owner = owner.clone();
                 let member = member.clone();
                 async move |check, env| {
