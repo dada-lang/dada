@@ -74,8 +74,8 @@ fn check_function_body_ast_block<'db>(
     Some(Runtime::execute(
         db,
         function.name_span(db),
-        async move |check| -> ObjectExpr<'db> {
-            let mut env = Env::new(scope);
+        async move |runtime| -> ObjectExpr<'db> {
+            let mut env = Env::new(runtime, scope);
 
             let signature = function.signature(db);
             let input_output_binder = signature.input_output(db);
@@ -85,7 +85,7 @@ fn check_function_body_ast_block<'db>(
             let SymInputOutput {
                 input_tys,
                 output_ty,
-            } = env.open_universally(check, method_input_variables, input_output_binder);
+            } = env.open_universally(runtime, method_input_variables, input_output_binder);
 
             // Bring parameters into scope.
             assert_eq!(input_tys.len(), method_input_variables.len());
@@ -96,7 +96,7 @@ fn check_function_body_ast_block<'db>(
             // Set return type.
             env.set_return_ty(output_ty);
 
-            let expr = body.check(&check, &env).await;
+            let expr = body.check(&env).await;
 
             expr
         },
@@ -106,10 +106,10 @@ fn check_function_body_ast_block<'db>(
 impl<'db> Checking<'db> for AstBlock<'db> {
     type Checking = ObjectExpr<'db>;
 
-    async fn check(&self, runtime: &Runtime<'db>, env: &Env<'db>) -> Self::Checking {
-        let db = runtime.db;
+    async fn check(&self, env: &Env<'db>) -> Self::Checking {
+        let db = env.db();
 
         let statements = self.statements(db);
-        check_block_statements(runtime, env, statements.span, statements).await
+        check_block_statements(env, statements.span, statements).await
     }
 }

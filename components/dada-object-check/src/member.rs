@@ -15,7 +15,6 @@ use futures::{Stream, StreamExt};
 
 use crate::{
     bound::Bound,
-    check::Runtime,
     env::Env,
     exprs::{ExprResult, ExprResultKind},
     object_ir::{
@@ -26,13 +25,12 @@ use crate::{
 
 #[derive(Copy, Clone)]
 pub(crate) struct MemberLookup<'member, 'db> {
-    check: &'member Runtime<'db>,
     env: &'member Env<'db>,
 }
 
 impl<'member, 'db> MemberLookup<'member, 'db> {
-    pub fn new(check: &'member Runtime<'db>, env: &'member Env<'db>) -> Self {
-        Self { check, env }
+    pub fn new(env: &'member Env<'db>) -> Self {
+        Self { env }
     }
 
     pub async fn lookup_member(
@@ -40,8 +38,8 @@ impl<'member, 'db> MemberLookup<'member, 'db> {
         owner: ExprResult<'db>,
         id: SpannedIdentifier<'db>,
     ) -> ExprResult<'db> {
-        let db = self.check.db;
-        let owner_ty = owner.ty(self.check, self.env);
+        let db = self.env.db();
+        let owner_ty = owner.ty(self.env);
 
         // Iterate over the bounds, looking for a valid method resolution.
         //
@@ -49,7 +47,7 @@ impl<'member, 'db> MemberLookup<'member, 'db> {
         // * If we find a lower bound:
         //
         // Once we
-        let mut lower_bounds = self.env.bounds(self.check, owner_ty).filter_map(|b| {
+        let mut lower_bounds = self.env.bounds(owner_ty).filter_map(|b| {
             futures::future::ready(match b {
                 Bound::LowerBound(ty) => Some(ty),
                 Bound::UpperBound(_) => None,
@@ -82,19 +80,16 @@ impl<'member, 'db> MemberLookup<'member, 'db> {
         id: SpannedIdentifier<'db>,
         lower_bounds: impl Stream<Item = ObjectTy<'db>> + 'db,
     ) -> ExprResult<'db> {
-        let db = self.check.db;
+        let db = self.env.db();
 
         // Iterate through any remaining bounds to make sure that this member is valid
         // for all of them and that no ambiguity arises.
         if !matches!(member, SearchResult::Error(Reported(_))) {
-            self.check.defer(self.env, id.span, {
+            self.env.defer(id.span, {
                 let owner = owner.clone();
                 let member = member.clone();
-                async move |check, env| {
-                    let this = MemberLookup {
-                        check: &check,
-                        env: &env,
-                    };
+                async move |env| {
+                    let this = MemberLookup { env: &env };
                     let mut lower_bounds = pin!(lower_bounds);
                     while let Some(ty) = lower_bounds.next().await {
                         if let Err(Reported(_)) =
@@ -115,8 +110,7 @@ impl<'member, 'db> MemberLookup<'member, 'db> {
                 field_ty,
             } => {
                 let mut temporaries = vec![];
-                let owner_place_expr =
-                    owner.into_place_expr(self.check, self.env, &mut temporaries);
+                let owner_place_expr = owner.into_place_expr(self.env, &mut temporaries);
                 let field_ty = field_ty.substitute(db, &[owner_place_expr.to_object_place()]);
                 let place_expr = ObjectPlaceExpr::new(
                     db,
@@ -124,11 +118,11 @@ impl<'member, 'db> MemberLookup<'member, 'db> {
                     field_ty,
                     ObjectPlaceExprKind::Field(owner_place_expr, field),
                 );
-                ExprResult::from_place_expr(self.check, self.env, place_expr, temporaries)
+                ExprResult::from_place_expr(self.env, place_expr, temporaries)
             }
             SearchResult::Method { owner: _, method } => {
                 let mut temporaries = vec![];
-                let owner = owner.into_expr(self.check, self.env, &mut temporaries);
+                let owner = owner.into_expr(self.env, &mut temporaries);
                 ExprResult {
                     temporaries,
                     span: owner.span(db).to(id.span),
@@ -188,7 +182,7 @@ impl<'member, 'db> MemberLookup<'member, 'db> {
         prev_member: &SearchResult<'db>,
         new_member: &SearchResult<'db>,
     ) -> Reported {
-        let db = self.check.db;
+        let db = self.env.db();
         let SpannedIdentifier { span: id_span, id } = id;
 
         let mut diag = Diagnostic::error(db, id_span, format!("ambiguous member `{}`", id));
@@ -249,7 +243,7 @@ impl<'member, 'db> MemberLookup<'member, 'db> {
         owner_span: Span<'db>,
         owner_ty: ObjectTy<'db>,
     ) -> ExprResult<'db> {
-        ExprResult::err(self.check.db, self.no_such_member(id, owner_span, owner_ty))
+        ExprResult::err(self.env.db(), self.no_such_member(id, owner_span, owner_ty))
     }
 
     fn no_such_member(
@@ -258,7 +252,7 @@ impl<'member, 'db> MemberLookup<'member, 'db> {
         owner_span: Span<'db>,
         owner_ty: ObjectTy<'db>,
     ) -> Reported {
-        let db = self.check.db;
+        let db = self.env.db();
         let SpannedIdentifier { span: id_span, id } = id;
         Diagnostic::error(
             db,
@@ -277,7 +271,7 @@ impl<'member, 'db> MemberLookup<'member, 'db> {
             owner_span,
             format!(
                 "this has type `{ty}`, which doesn't appear to have a field or method `{id}`",
-                ty = self.env.describe_ty(self.check, owner_ty)
+                ty = self.env.describe_ty(owner_ty)
             ),
         )
         .report(db)
@@ -288,7 +282,7 @@ impl<'member, 'db> MemberLookup<'member, 'db> {
         ty: ObjectTy<'db>,
         id: Identifier<'db>,
     ) -> Option<SearchResult<'db>> {
-        let db = self.check.db;
+        let db = self.env.db();
         match ty.kind(db) {
             ObjectTyKind::Named(name, generics) => match *name {
                 // Primitive types don't have members.
@@ -327,7 +321,7 @@ impl<'member, 'db> MemberLookup<'member, 'db> {
         generics: &[ObjectGenericTerm<'db>],
         id: Identifier<'db>,
     ) -> Option<SearchResult<'db>> {
-        let db = self.check.db;
+        let db = self.env.db();
 
         for &member in owner.members(db) {
             match member {

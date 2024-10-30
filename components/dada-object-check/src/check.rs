@@ -168,13 +168,8 @@ impl<'db> Runtime<'db> {
 
     /// Execute the given future asynchronously from the main execution.
     /// It must execute to completion eventually or an error will be reported.
-    pub fn defer(
-        &self,
-        env: &Env<'db>,
-        span: Span<'db>,
-        check: impl 'db + async FnOnce(Runtime<'db>, Env<'db>),
-    ) {
-        self.spawn(span, check(self.clone(), env.clone()));
+    pub fn defer(&self, env: &Env<'db>, span: Span<'db>, check: impl 'db + async FnOnce(Env<'db>)) {
+        self.spawn(span, check(env.clone()));
     }
 
     /// Block the current task on new bounds being added to the given inference variable.

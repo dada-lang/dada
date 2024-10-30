@@ -25,7 +25,6 @@ use futures::StreamExt;
 
 use crate::{
     bound::Bound,
-    check::Runtime,
     env::Env,
     member::MemberLookup,
     object_ir::{
@@ -101,25 +100,21 @@ pub(crate) enum ExprResultKind<'db> {
 impl<'db> Checking<'db> for AstExpr<'db> {
     type Checking = ExprResult<'db>;
 
-    fn check(&self, check: &Runtime<'db>, env: &Env<'db>) -> impl Future<Output = Self::Checking> {
-        Box::pin(check_expr(self, check, env))
+    fn check(&self, env: &Env<'db>) -> impl Future<Output = Self::Checking> {
+        Box::pin(check_expr(self, env))
     }
 }
 
-async fn check_expr<'db>(
-    expr: &AstExpr<'db>,
-    check: &Runtime<'db>,
-    env: &Env<'db>,
-) -> ExprResult<'db> {
-    let db = check.db;
+async fn check_expr<'db>(expr: &AstExpr<'db>, env: &Env<'db>) -> ExprResult<'db> {
+    let db = env.db();
     let scope = &env.scope;
     let expr_span = expr.span;
 
     match &*expr.kind {
         AstExprKind::Literal(literal) => match literal.kind(db) {
             LiteralKind::Integer => {
-                let ty = env.fresh_object_ty_inference_var(check, expr_span);
-                env.require_numeric_type(check, expr_span, ty);
+                let ty = env.fresh_object_ty_inference_var(expr_span);
+                env.require_numeric_type(expr_span, ty);
                 ExprResult {
                     temporaries: vec![],
                     span: expr_span,
@@ -153,12 +148,7 @@ async fn check_expr<'db>(
             let mut temporaries = vec![];
             let mut exprs = vec![];
             for element in &span_vec.values {
-                exprs.push(
-                    element
-                        .check(check, env)
-                        .await
-                        .into_expr(check, env, &mut temporaries),
-                );
+                exprs.push(element.check(env).await.into_expr(env, &mut temporaries));
             }
 
             let ty = ObjectTy::new(
@@ -185,29 +175,18 @@ async fn check_expr<'db>(
             let span_op: SpannedBinaryOp<'db> = *span_op;
 
             let mut temporaries: Vec<Temporary<'db>> = vec![];
-            let lhs: ObjectExpr<'db> =
-                lhs.check(check, env)
-                    .await
-                    .into_expr(check, env, &mut temporaries);
-            let rhs: ObjectExpr<'db> =
-                rhs.check(check, env)
-                    .await
-                    .into_expr(check, env, &mut temporaries);
+            let lhs: ObjectExpr<'db> = lhs.check(env).await.into_expr(env, &mut temporaries);
+            let rhs: ObjectExpr<'db> = rhs.check(env).await.into_expr(env, &mut temporaries);
 
             // For now, let's do a dumb rule that operands must be
             // of the same primitive (and scalar) type.
 
-            env.require_numeric_type(check, expr_span, lhs.ty(db));
-            env.require_numeric_type(check, expr_span, rhs.ty(db));
-            env.if_not_never(
-                check,
-                span_op.span,
-                &[lhs.ty(db), rhs.ty(db)],
-                async move |check, env| {
-                    env.require_sub_object_type(&check, expr_span, lhs.ty(db), rhs.ty(db));
-                    env.require_sub_object_type(&check, expr_span, rhs.ty(db), lhs.ty(db));
-                },
-            );
+            env.require_numeric_type(expr_span, lhs.ty(db));
+            env.require_numeric_type(expr_span, rhs.ty(db));
+            env.if_not_never(span_op.span, &[lhs.ty(db), rhs.ty(db)], async move |env| {
+                env.require_sub_object_type(expr_span, lhs.ty(db), rhs.ty(db));
+                env.require_sub_object_type(expr_span, rhs.ty(db), lhs.ty(db));
+            });
 
             // What type do we want these operators to have?
             // For now I'll just take the LHS, but that seems
@@ -215,7 +194,6 @@ async fn check_expr<'db>(
             // want `!`, right?
 
             ExprResult::from_expr(
-                check,
                 env,
                 ObjectExpr::new(
                     db,
@@ -230,15 +208,15 @@ async fn check_expr<'db>(
         AstExprKind::Id(SpannedIdentifier { span: id_span, id }) => {
             match env.scope.resolve_name(db, *id, *id_span) {
                 Err(reported) => ExprResult::err(db, reported),
-                Ok(res) => ExprResult::from_name_resolution(check, env, res, expr_span),
+                Ok(res) => ExprResult::from_name_resolution(env, res, expr_span),
             }
         }
 
         AstExprKind::DotId(owner, id) => {
-            let mut owner_result = owner.check(check, env).await;
+            let mut owner_result = owner.check(env).await;
             match owner_result.kind {
                 ExprResultKind::PlaceExpr(_) | ExprResultKind::Expr(_) => {
-                    MemberLookup::new(check, &env)
+                    MemberLookup::new(&env)
                         .lookup_member(owner_result, *id)
                         .await
                 }
@@ -249,12 +227,12 @@ async fn check_expr<'db>(
                         Err(reported) => ExprResult::err(db, reported),
 
                         // Found something with lexical resolution? Continue.
-                        Ok(Ok(r)) => ExprResult::from_name_resolution(check, env, r, expr_span),
+                        Ok(Ok(r)) => ExprResult::from_name_resolution(env, r, expr_span),
 
                         // Otherwise, try type-dependent lookup.
                         Ok(Err(name_resolution)) => {
                             owner_result.kind = name_resolution.into();
-                            MemberLookup::new(check, &env)
+                            MemberLookup::new(&env)
                                 .lookup_member(owner_result, *id)
                                 .await
                         }
@@ -273,7 +251,7 @@ async fn check_expr<'db>(
         }
 
         AstExprKind::SquareBracketOp(owner, square_bracket_args) => {
-            let owner_result = owner.check(check, env).await;
+            let owner_result = owner.check(env).await;
             match owner_result.kind {
                 ExprResultKind::Method {
                     self_expr: owner,
@@ -325,7 +303,7 @@ async fn check_expr<'db>(
         }
 
         AstExprKind::ParenthesisOp(owner, ast_args) => {
-            let owner_result = owner.check(check, env).await;
+            let owner_result = owner.check(env).await;
             match owner_result {
                 ExprResult {
                     temporaries,
@@ -339,7 +317,6 @@ async fn check_expr<'db>(
                         },
                 } => {
                     check_method_call(
-                        check,
                         env,
                         id_span,
                         expr_span,
@@ -363,7 +340,6 @@ async fn check_expr<'db>(
                         }),
                 } => {
                     check_function_call(
-                        check,
                         env,
                         function_span,
                         expr_span,
@@ -389,7 +365,6 @@ async fn check_expr<'db>(
                         ),
                 } => {
                     check_class_call(
-                        check,
                         env,
                         class_span,
                         expr_span,
@@ -415,10 +390,7 @@ async fn check_expr<'db>(
             let mut temporaries = vec![];
 
             let return_expr = if let Some(ast_expr) = ast_expr {
-                ast_expr
-                    .check(check, env)
-                    .await
-                    .into_expr(check, env, &mut temporaries)
+                ast_expr.check(env).await.into_expr(env, &mut temporaries)
             } else {
                 // the default is `return ()`
                 ObjectExpr::new(
@@ -444,7 +416,6 @@ async fn check_expr<'db>(
             };
 
             env.require_assignable_object_type(
-                check,
                 return_expr.span(db),
                 return_expr.ty(db),
                 expected_return_ty,
@@ -472,18 +443,14 @@ async fn check_expr<'db>(
 
             let mut temporaries = vec![];
 
-            let future_expr =
-                future
-                    .check(check, env)
-                    .await
-                    .into_expr(check, env, &mut temporaries);
+            let future_expr = future.check(env).await.into_expr(env, &mut temporaries);
             let future_ty = future_expr.ty(db);
 
-            let awaited_ty = env.fresh_object_ty_inference_var(check, await_span);
+            let awaited_ty = env.fresh_object_ty_inference_var(await_span);
 
-            check.defer(env, await_span, async move |check, env| {
-                let db = check.db;
-                require_future(&check, &env, future_span, await_span, future_ty, awaited_ty).await
+            env.defer(await_span, async move |env| {
+                let db = env.db();
+                require_future(&env, future_span, await_span, future_ty, awaited_ty).await
             });
 
             ExprResult {
@@ -505,7 +472,6 @@ async fn check_expr<'db>(
 }
 
 async fn check_class_call<'db>(
-    check: &Runtime<'db>,
     env: &Env<'db>,
     class_span: Span<'db>,
     expr_span: Span<'db>,
@@ -514,7 +480,7 @@ async fn check_class_call<'db>(
     ast_args: &SpanVec<'db, AstExpr<'db>>,
     temporaries: Vec<Temporary<'db>>,
 ) -> ExprResult<'db> {
-    let db = check.db;
+    let db = env.db();
 
     let new_ident = SpannedIdentifier {
         span: class_span,
@@ -531,7 +497,6 @@ async fn check_class_call<'db>(
     };
 
     check_function_call(
-        check,
         env,
         class_span,
         expr_span,
@@ -607,21 +572,20 @@ fn report_no_new_method<'db>(
 }
 
 async fn require_future<'db>(
-    check: &Runtime<'db>,
     env: &Env<'db>,
     future_span: Span<'db>,
     await_span: Span<'db>,
     future_ty: ObjectTy<'db>,
     awaited_ty: ObjectTy<'db>,
 ) {
-    let db = check.db;
+    let db = env.db();
 
     let infer_var = match awaited_ty.kind(db) {
         ObjectTyKind::Infer(v) => *v,
         _ => unreachable!(),
     };
 
-    let mut bounds = env.bounds(check, future_ty);
+    let mut bounds = env.bounds(future_ty);
 
     while let Some(bound) = bounds.next().await {
         match bound {
@@ -629,19 +593,16 @@ async fn require_future<'db>(
             Bound::LowerBound(ty) => match ty.kind(db) {
                 ObjectTyKind::Infer(_) => (),
                 ObjectTyKind::Never => {
-                    check.push_inference_var_bound(infer_var, Bound::LowerBound(ty.into()));
+                    let _ = env.bound_inference_var(infer_var, Bound::LowerBound(ty));
                 }
                 ObjectTyKind::Error(_) => {
-                    check.push_inference_var_bound(infer_var, Bound::LowerBound(ty.into()));
+                    let _ = env.bound_inference_var(infer_var, Bound::LowerBound(ty));
                     return;
                 }
 
                 ObjectTyKind::Named(SymTyName::Future, vec) => {
                     let awaited_bound = vec[0].assert_type(db);
-                    check.push_inference_var_bound(
-                        infer_var,
-                        Bound::LowerBound(awaited_bound.into()),
-                    );
+                    let _ = env.bound_inference_var(infer_var, Bound::LowerBound(awaited_bound));
                 }
 
                 ObjectTyKind::Named(..) | ObjectTyKind::Var(..) => {
@@ -662,7 +623,6 @@ async fn require_future<'db>(
 }
 
 async fn check_function_call<'db>(
-    check: &Runtime<'db>,
     env: &Env<'db>,
     function_span: Span<'db>,
     expr_span: Span<'db>,
@@ -671,7 +631,7 @@ async fn check_function_call<'db>(
     generics: Vec<SymGenericTerm<'db>>,
     temporaries: Vec<Temporary<'db>>,
 ) -> ExprResult<'db> {
-    let db = check.db;
+    let db = env.db();
 
     // Get the signature.
     let signature = function.signature(db);
@@ -683,11 +643,10 @@ async fn check_function_call<'db>(
     substitution.extend(
         expected_generics[generics.len()..]
             .iter()
-            .map(|&var| env.fresh_inference_var(check, var.kind(db), function_span)),
+            .map(|&var| env.fresh_inference_var(var.kind(db), function_span)),
     );
 
     check_call_common(
-        check,
         env,
         function,
         expr_span,
@@ -705,7 +664,6 @@ async fn check_function_call<'db>(
 /// These are somewhat different than calls like `b(a)` because of how
 /// type arguments are handled.
 async fn check_method_call<'db>(
-    check: &Runtime<'db>,
     env: &Env<'db>,
     id_span: Span<'db>,
     expr_span: Span<'db>,
@@ -715,7 +673,7 @@ async fn check_method_call<'db>(
     generics: Option<SpanVec<'db, AstGenericTerm<'db>>>,
     temporaries: Vec<Temporary<'db>>,
 ) -> ExprResult<'db> {
-    let db = check.db;
+    let db = env.db();
 
     // Get the signature.
     let signature = function.signature(db);
@@ -725,7 +683,7 @@ async fn check_method_call<'db>(
     let substitution = match generics {
         None => {
             // Easy case: nothing provided by user, just create inference variables for everything.
-            env.existential_substitution(check, id_span, &input_output.variables)
+            env.existential_substitution(id_span, &input_output.variables)
         }
 
         Some(generics) => {
@@ -741,7 +699,7 @@ async fn check_method_call<'db>(
             let outer_variables =
                 &input_output.variables[0..input_output.variables.len() - function_generics.len()];
             let mut substitution: Vec<SymGenericTerm<'_>> =
-                env.existential_substitution(check, id_span, outer_variables);
+                env.existential_substitution(id_span, outer_variables);
 
             // Check the user gave the expected number of arguments.
             if function_generics.len() != generics.len() {
@@ -824,7 +782,6 @@ async fn check_method_call<'db>(
     };
 
     check_call_common(
-        check,
         env,
         function,
         expr_span,
@@ -839,7 +796,6 @@ async fn check_method_call<'db>(
 }
 
 async fn check_call_common<'db>(
-    check: &Runtime<'db>,
     env: &Env<'db>,
     function: SymFunction<'db>,
     expr_span: Span<'db>,
@@ -850,7 +806,7 @@ async fn check_call_common<'db>(
     self_expr: Option<ObjectExpr<'db>>,
     mut temporaries: Vec<Temporary<'db>>,
 ) -> ExprResult<'db> {
-    let db = check.db;
+    let db = env.db();
 
     // Instantiate the input-output with the substitution.
     let input_output = input_output.substitute(db, &substitution);
@@ -901,23 +857,18 @@ async fn check_call_common<'db>(
         let mut arg_temporaries = vec![];
         let ast_arg = &ast_args[i];
         let expr = ast_arg
-            .check(check, env)
+            .check(env)
             .await
-            .into_expr(check, env, &mut arg_temporaries);
-        env.require_assignable_object_type(
-            check,
-            expr.span(db),
-            expr.ty(db),
-            input_output.input_tys[i],
-        );
-        ExprResult::from_expr(check, env, expr, arg_temporaries)
+            .into_expr(env, &mut arg_temporaries);
+        env.require_assignable_object_type(expr.span(db), expr.ty(db), input_output.input_tys[i]);
+        ExprResult::from_expr(env, expr, arg_temporaries)
     };
 
     // Type check the arguments; these can proceed concurrently.
     let mut arg_exprs = vec![];
     arg_exprs.extend(self_expr);
     for arg_result in futures::future::join_all((0..ast_args.len()).map(check_arg)).await {
-        arg_exprs.push(arg_result.into_expr(check, env, &mut temporaries));
+        arg_exprs.push(arg_result.into_expr(env, &mut temporaries));
     }
 
     // Create the resulting call, which always looks like
@@ -956,7 +907,7 @@ async fn check_call_common<'db>(
     }
 
     // Create the final result.
-    ExprResult::from_expr(check, env, call_expr, temporaries)
+    ExprResult::from_expr(env, call_expr, temporaries)
 }
 
 impl<'db> Err<'db> for ExprResult<'db> {
@@ -971,13 +922,8 @@ impl<'db> Err<'db> for ExprResult<'db> {
 
 impl<'db> ExprResult<'db> {
     /// Create a result based on lexical name resolution.
-    pub fn from_name_resolution(
-        check: &Runtime<'db>,
-        env: &Env<'db>,
-        res: NameResolution<'db>,
-        span: Span<'db>,
-    ) -> Self {
-        let db = check.db;
+    pub fn from_name_resolution(env: &Env<'db>, res: NameResolution<'db>, span: Span<'db>) -> Self {
+        let db = env.db();
         match res.sym {
             NameResolutionSym::SymVariable(var) if var.kind(db) == SymGenericKind::Place => {
                 let ty = env.variable_ty(var).into_object_ir(db);
@@ -1003,12 +949,11 @@ impl<'db> ExprResult<'db> {
     }
 
     pub fn from_place_expr(
-        check: &Runtime<'db>,
         env: &Env<'db>,
         expr: ObjectPlaceExpr<'db>,
         temporaries: Vec<Temporary<'db>>,
     ) -> Self {
-        let db = check.db;
+        let db = env.db();
         Self {
             temporaries,
             span: expr.span(db),
@@ -1017,12 +962,11 @@ impl<'db> ExprResult<'db> {
     }
 
     pub fn from_expr(
-        check: &Runtime<'db>,
         env: &Env<'db>,
         expr: ObjectExpr<'db>,
         temporaries: Vec<Temporary<'db>>,
     ) -> Self {
-        let db = check.db;
+        let db = env.db();
         Self {
             temporaries,
             span: expr.span(db),
@@ -1031,14 +975,10 @@ impl<'db> ExprResult<'db> {
     }
 
     /// Convert this result into an expression, with `let ... in` statements inserted for temporaries.
-    pub fn into_expr_with_enclosed_temporaries(
-        self,
-        check: &Runtime<'db>,
-        env: &Env<'db>,
-    ) -> ObjectExpr<'db> {
-        let db = check.db;
+    pub fn into_expr_with_enclosed_temporaries(self, env: &Env<'db>) -> ObjectExpr<'db> {
+        let db = env.db();
         let mut temporaries = vec![];
-        let mut expr = self.into_expr(check, env, &mut temporaries);
+        let mut expr = self.into_expr(env, &mut temporaries);
         for temporary in temporaries.into_iter().rev() {
             expr = ObjectExpr::new(
                 db,
@@ -1059,8 +999,8 @@ impl<'db> ExprResult<'db> {
 
     /// Computes the type of this, treating it as an expression.
     /// Reports an error if this names something that cannot be made into an expression.
-    pub fn ty(&self, check: &Runtime<'db>, env: &Env<'db>) -> ObjectTy<'db> {
-        let db = check.db;
+    pub fn ty(&self, env: &Env<'db>) -> ObjectTy<'db> {
+        let db = env.db();
         match &self.kind {
             &ExprResultKind::PlaceExpr(place_expr) => place_expr.ty(db),
             &ExprResultKind::Expr(expr) => expr.ty(db),
@@ -1080,11 +1020,10 @@ impl<'db> ExprResult<'db> {
 
     pub fn into_place_expr(
         self,
-        check: &Runtime<'db>,
         env: &Env<'db>,
         temporaries: &mut Vec<Temporary<'db>>,
     ) -> ObjectPlaceExpr<'db> {
-        let db = check.db;
+        let db = env.db();
         temporaries.extend(self.temporaries);
         match self.kind {
             ExprResultKind::PlaceExpr(place_expr) => place_expr,
@@ -1120,11 +1059,10 @@ impl<'db> ExprResult<'db> {
 
     pub fn into_expr(
         self,
-        check: &Runtime<'db>,
         env: &Env<'db>,
         temporaries: &mut Vec<Temporary<'db>>,
     ) -> ObjectExpr<'db> {
-        let db = check.db;
+        let db = env.db();
         temporaries.extend(self.temporaries);
         match self.kind {
             ExprResultKind::Expr(expr) => expr,

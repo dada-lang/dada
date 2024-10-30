@@ -8,7 +8,6 @@
 #![expect(dead_code)]
 #![expect(unused_variables)]
 
-use check::Runtime;
 use dada_ir_sym::function::SymFunction;
 pub use dada_ir_sym::Db;
 use env::Env;
@@ -37,7 +36,7 @@ mod universe;
 trait Checking<'db> {
     type Checking;
 
-    async fn check(&self, check: &Runtime<'db>, env: &Env<'db>) -> Self::Checking;
+    async fn check(&self, env: &Env<'db>) -> Self::Checking;
 }
 
 #[salsa::tracked]

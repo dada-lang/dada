@@ -5,21 +5,19 @@ use dada_ir_sym::{prelude::IntoSymInScope, symbol::SymVariable};
 use futures::join;
 
 use crate::{
-    check::Runtime,
     env::Env,
     object_ir::{IntoObjectIr, ObjectExpr, ObjectExprKind, ObjectTy},
     Checking,
 };
 
 pub fn check_block_statements<'a, 'db>(
-    check: &'a Runtime<'db>,
     env: &'a Env<'db>,
     block_span: Span<'db>,
     statements: &'a [AstStatement<'db>],
-) -> impl Future<Output = ObjectExpr<'db>> + 'a {
+) -> impl Future<Output = ObjectExpr<'db>> + use<'a, 'db> {
     // (the box here permits recursion)
     Box::pin(async move {
-        let db = check.db;
+        let db = env.db();
 
         let Some((first, rest)) = statements.split_first() else {
             return ObjectExpr::new(
@@ -37,7 +35,7 @@ pub fn check_block_statements<'a, 'db>(
                 // For explicit local variables, we compute their type as a full symbol type first.
                 let ty = match s.ty(db) {
                     Some(ty) => ty.into_sym_in_scope(db, &env.scope),
-                    None => env.fresh_ty_inference_var(check, s.name(db).span),
+                    None => env.fresh_ty_inference_var(s.name(db).span),
                 };
 
                 let (initializer, body) = join!(
@@ -45,11 +43,10 @@ pub fn check_block_statements<'a, 'db>(
                         match s.initializer(db) {
                             Some(initializer) => {
                                 let initializer = initializer
-                                    .check(check, env)
+                                    .check(env)
                                     .await
-                                    .into_expr_with_enclosed_temporaries(check, &env);
+                                    .into_expr_with_enclosed_temporaries(&env);
                                 env.require_assignable_object_type(
-                                    check,
                                     initializer.span(db),
                                     initializer.ty(db),
                                     ty,
@@ -63,7 +60,7 @@ pub fn check_block_statements<'a, 'db>(
                     async {
                         let mut env = env.clone();
                         env.insert_program_variable(lv, ty);
-                        check_block_statements(check, &env, block_span, rest).await
+                        check_block_statements(&env, block_span, rest).await
                     },
                 );
 
@@ -83,20 +80,15 @@ pub fn check_block_statements<'a, 'db>(
             }
 
             AstStatement::Expr(e) => {
-                let check_e = async {
-                    e.check(check, env)
-                        .await
-                        .into_expr_with_enclosed_temporaries(check, &env)
-                };
+                let check_e =
+                    async { e.check(env).await.into_expr_with_enclosed_temporaries(&env) };
                 if rest.is_empty() {
                     // Subtle-ish: if this is the last statement in the block,
                     // it becomes the result of the block.
                     check_e.await
                 } else {
-                    let (ce, re) = futures::join!(
-                        check_e,
-                        check_block_statements(check, env, block_span, rest)
-                    );
+                    let (ce, re) =
+                        futures::join!(check_e, check_block_statements(env, block_span, rest));
                     ObjectExpr::new(
                         db,
                         ce.span(db).to(re.span(db)),
