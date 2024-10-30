@@ -9,13 +9,13 @@ use futures::StreamExt;
 
 use crate::{
     bound::Bound,
-    check::Check,
+    check::Runtime,
     env::Env,
     object_ir::{ObjectGenericTerm, ObjectTy, ObjectTyKind},
 };
 
 pub async fn require_assignable_object_type<'db>(
-    check: &Check<'db>,
+    check: &Runtime<'db>,
     env: &Env<'db>,
     span: Span<'db>,
     value_ty: ObjectTy<'db>,
@@ -30,7 +30,7 @@ pub async fn require_assignable_object_type<'db>(
 }
 
 pub fn require_sub_object_type<'a, 'db>(
-    check: &'a Check<'db>,
+    check: &'a Runtime<'db>,
     env: &'a Env<'db>,
     span: Span<'db>,
     sub: ObjectTy<'db>,
@@ -85,7 +85,7 @@ pub fn require_sub_object_type<'a, 'db>(
 }
 
 async fn require_sub_object_term<'db>(
-    check: &Check<'db>,
+    check: &Runtime<'db>,
     env: &Env<'db>,
     span: Span<'db>,
     arg_sub: ObjectGenericTerm<'db>,
@@ -103,7 +103,7 @@ async fn require_sub_object_term<'db>(
 }
 
 pub async fn require_numeric_type<'db>(
-    check: &Check<'db>,
+    check: &Runtime<'db>,
     env: &Env<'db>,
     span: Span<'db>,
     start_ty: ObjectTy<'db>,
@@ -140,7 +140,7 @@ pub async fn require_numeric_type<'db>(
 }
 
 fn report_class_name_mismatch<'db>(
-    check: &Check<'db>,
+    check: &Runtime<'db>,
     env: &Env<'db>,
     span: Span<'db>,
     name_sub: SymTyName<'db>,
@@ -158,7 +158,7 @@ fn report_class_name_mismatch<'db>(
 }
 
 fn report_universal_mismatch<'db>(
-    check: &Check<'db>,
+    check: &Runtime<'db>,
     env: &Env<'db>,
     span: Span<'db>,
     univ_sub: SymVariable<'db>,
@@ -218,7 +218,7 @@ fn report_universal_mismatch<'db>(
 }
 
 fn report_numeric_type_expected<'db>(
-    check: &Check<'db>,
+    check: &Runtime<'db>,
     env: &Env<'db>,
     span: Span<'db>,
     ty: ObjectTy<'db>,

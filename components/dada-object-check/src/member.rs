@@ -15,7 +15,7 @@ use futures::{Stream, StreamExt};
 
 use crate::{
     bound::Bound,
-    check::Check,
+    check::Runtime,
     env::Env,
     exprs::{ExprResult, ExprResultKind},
     object_ir::{
@@ -26,12 +26,12 @@ use crate::{
 
 #[derive(Copy, Clone)]
 pub(crate) struct MemberLookup<'member, 'db> {
-    check: &'member Check<'db>,
+    check: &'member Runtime<'db>,
     env: &'member Env<'db>,
 }
 
 impl<'member, 'db> MemberLookup<'member, 'db> {
-    pub fn new(check: &'member Check<'db>, env: &'member Env<'db>) -> Self {
+    pub fn new(check: &'member Runtime<'db>, env: &'member Env<'db>) -> Self {
         Self { check, env }
     }
 

@@ -17,7 +17,7 @@ use futures::{Stream, StreamExt};
 
 use crate::{
     bound::{Bound, InferenceVarBounds},
-    check::Check,
+    check::Runtime,
     object_ir::{IntoObjectIr, ObjectGenericTerm, ObjectTy, ObjectTyKind},
     subobject::{require_assignable_object_type, require_numeric_type, require_sub_object_type},
     universe::Universe,
@@ -60,14 +60,14 @@ impl<'db> Env<'db> {
     /// Creates a new universe.
     pub fn open_universally<T>(
         &mut self,
-        check: &Check<'db>,
+        runtime: &Runtime<'db>,
         variables: &[SymVariable<'db>],
         value: &T,
     ) -> T::LeafTerm
     where
         T: BoundTerm<'db>,
     {
-        let db = check.db;
+        let db = runtime.db;
 
         match value.as_binder() {
             Err(leaf) => {
@@ -79,7 +79,7 @@ impl<'db> Env<'db> {
                 Arc::make_mut(&mut self.variable_universes)
                     .extend(binder.variables.iter().map(|&v| (v, self.universe)));
 
-                self.open_universally(check, variables, &binder.bound_value)
+                self.open_universally(runtime, variables, &binder.bound_value)
             }
         }
     }
@@ -87,7 +87,7 @@ impl<'db> Env<'db> {
     /// Create a substitution for `binder` consisting of inference variables
     pub fn existential_substitution(
         &self,
-        check: &Check<'db>,
+        check: &Runtime<'db>,
         span: Span<'db>,
         variables: &[SymVariable<'db>],
     ) -> Vec<SymGenericTerm<'db>> {
@@ -125,35 +125,35 @@ impl<'db> Env<'db> {
 
     pub fn fresh_inference_var(
         &self,
-        check: &Check<'db>,
+        check: &Runtime<'db>,
         kind: SymGenericKind,
         span: Span<'db>,
     ) -> SymGenericTerm<'db> {
         check.fresh_inference_var(kind, self.universe, span)
     }
 
-    pub fn fresh_ty_inference_var(&self, check: &Check<'db>, span: Span<'db>) -> SymTy<'db> {
+    pub fn fresh_ty_inference_var(&self, check: &Runtime<'db>, span: Span<'db>) -> SymTy<'db> {
         self.fresh_inference_var(check, SymGenericKind::Type, span)
             .assert_type(check.db)
     }
 
     pub fn fresh_object_ty_inference_var(
         &self,
-        check: &Check<'db>,
+        check: &Runtime<'db>,
         span: Span<'db>,
     ) -> ObjectTy<'db> {
         self.fresh_ty_inference_var(check, span)
             .into_object_ir(check.db)
     }
 
-    pub fn fresh_perm_inference_var(&self, check: &Check<'db>, span: Span<'db>) -> SymPerm<'db> {
+    pub fn fresh_perm_inference_var(&self, check: &Runtime<'db>, span: Span<'db>) -> SymPerm<'db> {
         self.fresh_inference_var(check, SymGenericKind::Type, span)
             .assert_perm(check.db)
     }
 
     pub fn require_assignable_object_type(
         &self,
-        check: &Check<'db>,
+        check: &Runtime<'db>,
         value_span: Span<'db>,
         value_ty: impl IntoObjectIr<'db, Object = ObjectTy<'db>>,
         place_ty: impl IntoObjectIr<'db, Object = ObjectTy<'db>>,
@@ -172,7 +172,7 @@ impl<'db> Env<'db> {
 
     pub fn require_sub_object_type(
         &self,
-        check: &Check<'db>,
+        check: &Runtime<'db>,
         span: Span<'db>,
         sub_ty: impl IntoObjectIr<'db, Object = ObjectTy<'db>>,
         sup_ty: impl IntoObjectIr<'db, Object = ObjectTy<'db>>,
@@ -190,7 +190,7 @@ impl<'db> Env<'db> {
 
     pub fn require_numeric_type(
         &self,
-        check: &Check<'db>,
+        check: &Runtime<'db>,
         span: Span<'db>,
         ty: impl IntoObjectIr<'db, Object = ObjectTy<'db>>,
     ) {
@@ -209,10 +209,10 @@ impl<'db> Env<'db> {
     /// Otherwise, if no type in `tys` is known to be never, invoke `op` (asynchronously).
     pub fn if_not_never(
         &self,
-        check: &Check<'db>,
+        check: &Runtime<'db>,
         span: Span<'db>,
         tys: &[ObjectTy<'db>],
-        op: impl async FnOnce(Check<'db>, Env<'db>) + 'db,
+        op: impl async FnOnce(Runtime<'db>, Env<'db>) + 'db,
     ) {
         let tys = tys.to_vec();
         check.defer(self, span, move |check, env: Env<'db>| async move {
@@ -234,7 +234,7 @@ impl<'db> Env<'db> {
 
     pub fn bound_inference_var(
         &self,
-        check: &Check<'db>,
+        check: &Runtime<'db>,
         var: SymInferVarIndex,
         bound: Bound<impl Into<ObjectGenericTerm<'db>>>,
     ) -> Errors<()> {
@@ -244,7 +244,7 @@ impl<'db> Env<'db> {
 
     pub fn bounds(
         &self,
-        check: &Check<'db>,
+        check: &Runtime<'db>,
         ty: ObjectTy<'db>,
     ) -> impl Stream<Item = Bound<ObjectTy<'db>>> + 'db {
         let db = check.db;
@@ -259,7 +259,7 @@ impl<'db> Env<'db> {
 
     pub fn describe_ty<'a, 'chk>(
         &'a self,
-        check: &'a Check<'db>,
+        check: &'a Runtime<'db>,
         ty: ObjectTy<'db>,
     ) -> impl std::fmt::Display + 'a {
         format!("{ty:?}") // FIXME

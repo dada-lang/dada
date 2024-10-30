@@ -7,7 +7,7 @@ use dada_ir_sym::{
 use dada_parser::prelude::FunctionBlock;
 
 use crate::{
-    check::Check,
+    check::Runtime,
     env::Env,
     object_ir::{IntoObjectIr, ObjectExpr, ObjectExprKind, ObjectPlaceExpr, ObjectPlaceExprKind},
     statements::check_block_statements,
@@ -71,7 +71,7 @@ fn check_function_body_ast_block<'db>(
     body: AstBlock<'db>,
 ) -> Option<ObjectExpr<'db>> {
     let scope = function.scope(db);
-    Some(Check::execute(
+    Some(Runtime::execute(
         db,
         function.name_span(db),
         async move |check| -> ObjectExpr<'db> {
@@ -106,10 +106,10 @@ fn check_function_body_ast_block<'db>(
 impl<'db> Checking<'db> for AstBlock<'db> {
     type Checking = ObjectExpr<'db>;
 
-    async fn check(&self, check: &Check<'db>, env: &Env<'db>) -> Self::Checking {
-        let db = check.db;
+    async fn check(&self, runtime: &Runtime<'db>, env: &Env<'db>) -> Self::Checking {
+        let db = runtime.db;
 
         let statements = self.statements(db);
-        check_block_statements(check, env, statements.span, statements).await
+        check_block_statements(runtime, env, statements.span, statements).await
     }
 }

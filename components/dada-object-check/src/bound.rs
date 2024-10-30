@@ -11,7 +11,7 @@ use dada_ir_sym::{
 };
 
 use crate::{
-    check::Check,
+    check::Runtime,
     inference::InferenceVarData,
     object_ir::{ObjectGenericTerm, ObjectTy},
 };
@@ -118,7 +118,7 @@ impl<'db> From<Bound<SymPerm<'db>>> for Bound<SymGenericTerm<'db>> {
 
 /// A stream over the bounds on an inference variable.
 pub(crate) struct InferenceVarBounds<'db, Term: OutputTerm<'db>> {
-    check: Check<'db>,
+    runtime: Runtime<'db>,
     inference_var: SymInferVarIndex,
     upper_bounds: usize,
     lower_bounds: usize,
@@ -126,9 +126,9 @@ pub(crate) struct InferenceVarBounds<'db, Term: OutputTerm<'db>> {
 }
 
 impl<'db, Term: OutputTerm<'db>> InferenceVarBounds<'db, Term> {
-    pub fn new(check: &Check<'db>, inference_var: SymInferVarIndex) -> Self {
+    pub fn new(check: &Runtime<'db>, inference_var: SymInferVarIndex) -> Self {
         Self {
-            check: check.clone(),
+            runtime: check.clone(),
             inference_var,
             upper_bounds: 0,
             lower_bounds: 0,
@@ -141,7 +141,7 @@ impl<'db, Term: OutputTerm<'db>> futures::Stream for InferenceVarBounds<'db, Ter
     type Item = Bound<Term>;
 
     fn poll_next(mut self: Pin<&mut Self>, cx: &mut Context<'_>) -> Poll<Option<Self::Item>> {
-        let check = self.check.clone();
+        let check = self.runtime.clone();
         let next_bound = check.with_inference_var_data(self.inference_var, |data| {
             let &Self {
                 lower_bounds,
@@ -165,7 +165,7 @@ impl<'db, Term: OutputTerm<'db>> futures::Stream for InferenceVarBounds<'db, Ter
         match next_bound {
             Some(bound) => Poll::Ready(Some(bound)),
             None => {
-                let () = ready!(self.check.block_on_inference_var(self.inference_var, cx));
+                let () = ready!(self.runtime.block_on_inference_var(self.inference_var, cx));
                 Poll::Ready(None)
             }
         }

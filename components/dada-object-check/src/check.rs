@@ -31,11 +31,11 @@ use crate::{
 type Deferred<'chk> = LocalBoxFuture<'chk, ()>;
 
 #[derive(Clone)]
-pub(crate) struct Check<'db> {
-    data: Arc<CheckData<'db>>,
+pub(crate) struct Runtime<'db> {
+    data: Arc<RuntimeData<'db>>,
 }
 
-pub(crate) struct CheckData<'db> {
+pub(crate) struct RuntimeData<'db> {
     pub db: &'db dyn crate::Db,
     inference_vars: RwLock<Vec<InferenceVarData<'db>>>,
     ready_to_execute: Mutex<Vec<Arc<CheckTask>>>,
@@ -43,8 +43,8 @@ pub(crate) struct CheckData<'db> {
     complete: AtomicBool,
 }
 
-impl<'db> std::ops::Deref for Check<'db> {
-    type Target = CheckData<'db>;
+impl<'db> std::ops::Deref for Runtime<'db> {
+    type Target = RuntimeData<'db>;
 
     fn deref(&self) -> &Self::Target {
         &self.data
@@ -53,19 +53,19 @@ impl<'db> std::ops::Deref for Check<'db> {
 
 struct DeferredCheck<'db> {
     env: Env<'db>,
-    thunk: Box<dyn FnOnce(&Check<'db>, Env<'db>) + 'db>,
+    thunk: Box<dyn FnOnce(&Runtime<'db>, Env<'db>) + 'db>,
 }
 
-impl<'db> Check<'db> {
+impl<'db> Runtime<'db> {
     pub(crate) fn execute<T: 'db>(
         db: &'db dyn crate::Db,
         span: Span<'db>,
-        op: impl async FnOnce(&Check<'db>) -> T + 'db,
+        op: impl async FnOnce(&Runtime<'db>) -> T + 'db,
     ) -> T
     where
         T: Err<'db>,
     {
-        let check = Check::new(db);
+        let check = Runtime::new(db);
         let (channel_tx, channel_rx) = std::sync::mpsc::channel();
         check.spawn(span, {
             let check = check.clone();
@@ -86,7 +86,7 @@ impl<'db> Check<'db> {
 
     fn new(db: &'db dyn crate::Db) -> Self {
         Self {
-            data: Arc::new(CheckData {
+            data: Arc::new(RuntimeData {
                 db,
                 complete: Default::default(),
                 inference_vars: Default::default(),
@@ -172,7 +172,7 @@ impl<'db> Check<'db> {
         &self,
         env: &Env<'db>,
         span: Span<'db>,
-        check: impl 'db + async FnOnce(Check<'db>, Env<'db>),
+        check: impl 'db + async FnOnce(Runtime<'db>, Env<'db>),
     ) {
         self.spawn(span, check(self.clone(), env.clone()));
     }
@@ -225,7 +225,7 @@ mod check_task {
         task::{Context, Poll, RawWaker, RawWakerVTable, Waker},
     };
 
-    use super::Check;
+    use super::Runtime;
 
     /// # Safety notes
     ///
@@ -243,7 +243,7 @@ mod check_task {
     /// lifetimes in `self.state` are valid.
     pub(super) struct CheckTask {
         /// Erased type: `Check<'db>`
-        check: Check<'static>,
+        runtime: Runtime<'static>,
 
         /// Erased type: `Span<'db>`
         span: Span<'static>,
@@ -260,26 +260,26 @@ mod check_task {
 
     impl CheckTask {
         pub(super) fn new<'db>(
-            check: &Check<'db>,
+            runtime: &Runtime<'db>,
             span: Span<'db>,
             future: impl Future<Output = ()> + 'db,
         ) -> Arc<Self> {
             let this = {
-                let my_check = check.clone();
+                let my_check = runtime.clone();
 
                 // UNSAFE: Erase lifetimes as described on [`CheckTask`][] above.
                 let my_check =
-                    unsafe { std::mem::transmute::<Check<'db>, Check<'static>>(my_check) };
+                    unsafe { std::mem::transmute::<Runtime<'db>, Runtime<'static>>(my_check) };
                 let span = unsafe { std::mem::transmute::<Span<'db>, Span<'static>>(span) };
 
                 Arc::new(Self {
-                    check: my_check,
+                    runtime: my_check,
                     span,
                     state: Mutex::new(CheckTaskState::Executing),
                 })
             };
 
-            this.set_to_wait_state(&check, future.boxed_local());
+            this.set_to_wait_state(&runtime, future.boxed_local());
 
             this
         }
@@ -288,9 +288,9 @@ mod check_task {
             std::mem::replace(&mut *self.state.lock().unwrap(), new_state)
         }
 
-        fn take_state<'db>(&self, from_check: &Check<'db>) -> CheckTaskState<'db> {
+        fn take_state<'db>(&self, from_check: &Runtime<'db>) -> CheckTaskState<'db> {
             assert!(std::ptr::addr_eq(
-                Arc::as_ptr(&self.check.data),
+                Arc::as_ptr(&self.runtime.data),
                 Arc::as_ptr(&from_check.data),
             ));
 
@@ -300,9 +300,13 @@ mod check_task {
             unsafe { std::mem::transmute::<CheckTaskState<'static>, CheckTaskState<'db>>(state) }
         }
 
-        fn set_to_wait_state<'db>(&self, from_check: &Check<'db>, future: LocalBoxFuture<'db, ()>) {
+        fn set_to_wait_state<'db>(
+            &self,
+            from_check: &Runtime<'db>,
+            future: LocalBoxFuture<'db, ()>,
+        ) {
             assert!(std::ptr::addr_eq(
-                Arc::as_ptr(&self.check.data),
+                Arc::as_ptr(&self.runtime.data),
                 Arc::as_ptr(&from_check.data),
             ));
 
@@ -346,12 +350,12 @@ mod check_task {
             // The reader of this list will invoke `execute`, which will verify
             // that the lifetimes are still valid.
 
-            let check = self.check.clone();
+            let check = self.runtime.clone();
             let mut ready_to_execute = check.ready_to_execute.lock().unwrap();
             ready_to_execute.push(self);
         }
 
-        pub(super) fn execute<'db>(self: Arc<Self>, from_check: &Check<'db>) {
+        pub(super) fn execute<'db>(self: Arc<Self>, from_check: &Runtime<'db>) {
             let state = self.take_state(from_check);
             match state {
                 CheckTaskState::Complete => {
@@ -408,13 +412,13 @@ mod check_task {
 mod current_check {
     use std::ptr::NonNull;
 
-    use super::Check;
+    use super::Runtime;
 
     thread_local! {
         static CURRENT_CHECK: std::cell::Cell<Option<NonNull<()>>> = std::cell::Cell::new(None);
     }
 
-    pub(super) fn with_check_set<T>(check: &Check<'_>, op: impl FnOnce() -> T) {
+    pub(super) fn with_check_set<T>(check: &Runtime<'_>, op: impl FnOnce() -> T) {
         let ptr = NonNull::from(check);
         let ptr: NonNull<()> = ptr.cast();
         CURRENT_CHECK.with(|cell| {
@@ -423,10 +427,10 @@ mod current_check {
         });
     }
 
-    pub(super) fn read_check<T>(op: impl for<'db> FnOnce(&Check<'db>) -> T) {
+    pub(super) fn read_check<T>(op: impl for<'db> FnOnce(&Runtime<'db>) -> T) {
         CURRENT_CHECK.with(|cell| {
             if let Some(ptr) = cell.get() {
-                let ptr: NonNull<Check<'_>> = ptr.cast();
+                let ptr: NonNull<Runtime<'_>> = ptr.cast();
 
                 // SAFETY: `with_check_set` ensures `CURRENT_CHECK` is a valid reference when set to `Some`
                 op(unsafe { ptr.as_ref() })

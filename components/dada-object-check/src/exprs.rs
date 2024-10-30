@@ -25,7 +25,7 @@ use futures::StreamExt;
 
 use crate::{
     bound::Bound,
-    check::Check,
+    check::Runtime,
     env::Env,
     member::MemberLookup,
     object_ir::{
@@ -101,14 +101,14 @@ pub(crate) enum ExprResultKind<'db> {
 impl<'db> Checking<'db> for AstExpr<'db> {
     type Checking = ExprResult<'db>;
 
-    fn check(&self, check: &Check<'db>, env: &Env<'db>) -> impl Future<Output = Self::Checking> {
+    fn check(&self, check: &Runtime<'db>, env: &Env<'db>) -> impl Future<Output = Self::Checking> {
         Box::pin(check_expr(self, check, env))
     }
 }
 
 async fn check_expr<'db>(
     expr: &AstExpr<'db>,
-    check: &Check<'db>,
+    check: &Runtime<'db>,
     env: &Env<'db>,
 ) -> ExprResult<'db> {
     let db = check.db;
@@ -505,7 +505,7 @@ async fn check_expr<'db>(
 }
 
 async fn check_class_call<'db>(
-    check: &Check<'db>,
+    check: &Runtime<'db>,
     env: &Env<'db>,
     class_span: Span<'db>,
     expr_span: Span<'db>,
@@ -607,7 +607,7 @@ fn report_no_new_method<'db>(
 }
 
 async fn require_future<'db>(
-    check: &Check<'db>,
+    check: &Runtime<'db>,
     env: &Env<'db>,
     future_span: Span<'db>,
     await_span: Span<'db>,
@@ -662,7 +662,7 @@ async fn require_future<'db>(
 }
 
 async fn check_function_call<'db>(
-    check: &Check<'db>,
+    check: &Runtime<'db>,
     env: &Env<'db>,
     function_span: Span<'db>,
     expr_span: Span<'db>,
@@ -705,7 +705,7 @@ async fn check_function_call<'db>(
 /// These are somewhat different than calls like `b(a)` because of how
 /// type arguments are handled.
 async fn check_method_call<'db>(
-    check: &Check<'db>,
+    check: &Runtime<'db>,
     env: &Env<'db>,
     id_span: Span<'db>,
     expr_span: Span<'db>,
@@ -839,7 +839,7 @@ async fn check_method_call<'db>(
 }
 
 async fn check_call_common<'db>(
-    check: &Check<'db>,
+    check: &Runtime<'db>,
     env: &Env<'db>,
     function: SymFunction<'db>,
     expr_span: Span<'db>,
@@ -972,7 +972,7 @@ impl<'db> Err<'db> for ExprResult<'db> {
 impl<'db> ExprResult<'db> {
     /// Create a result based on lexical name resolution.
     pub fn from_name_resolution(
-        check: &Check<'db>,
+        check: &Runtime<'db>,
         env: &Env<'db>,
         res: NameResolution<'db>,
         span: Span<'db>,
@@ -1003,7 +1003,7 @@ impl<'db> ExprResult<'db> {
     }
 
     pub fn from_place_expr(
-        check: &Check<'db>,
+        check: &Runtime<'db>,
         env: &Env<'db>,
         expr: ObjectPlaceExpr<'db>,
         temporaries: Vec<Temporary<'db>>,
@@ -1017,7 +1017,7 @@ impl<'db> ExprResult<'db> {
     }
 
     pub fn from_expr(
-        check: &Check<'db>,
+        check: &Runtime<'db>,
         env: &Env<'db>,
         expr: ObjectExpr<'db>,
         temporaries: Vec<Temporary<'db>>,
@@ -1033,7 +1033,7 @@ impl<'db> ExprResult<'db> {
     /// Convert this result into an expression, with `let ... in` statements inserted for temporaries.
     pub fn into_expr_with_enclosed_temporaries(
         self,
-        check: &Check<'db>,
+        check: &Runtime<'db>,
         env: &Env<'db>,
     ) -> ObjectExpr<'db> {
         let db = check.db;
@@ -1059,7 +1059,7 @@ impl<'db> ExprResult<'db> {
 
     /// Computes the type of this, treating it as an expression.
     /// Reports an error if this names something that cannot be made into an expression.
-    pub fn ty(&self, check: &Check<'db>, env: &Env<'db>) -> ObjectTy<'db> {
+    pub fn ty(&self, check: &Runtime<'db>, env: &Env<'db>) -> ObjectTy<'db> {
         let db = check.db;
         match &self.kind {
             &ExprResultKind::PlaceExpr(place_expr) => place_expr.ty(db),
@@ -1080,7 +1080,7 @@ impl<'db> ExprResult<'db> {
 
     pub fn into_place_expr(
         self,
-        check: &Check<'db>,
+        check: &Runtime<'db>,
         env: &Env<'db>,
         temporaries: &mut Vec<Temporary<'db>>,
     ) -> ObjectPlaceExpr<'db> {
@@ -1120,7 +1120,7 @@ impl<'db> ExprResult<'db> {
 
     pub fn into_expr(
         self,
-        check: &Check<'db>,
+        check: &Runtime<'db>,
         env: &Env<'db>,
         temporaries: &mut Vec<Temporary<'db>>,
     ) -> ObjectExpr<'db> {

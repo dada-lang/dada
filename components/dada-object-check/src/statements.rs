@@ -5,14 +5,14 @@ use dada_ir_sym::{prelude::IntoSymInScope, symbol::SymVariable};
 use futures::join;
 
 use crate::{
-    check::Check,
+    check::Runtime,
     env::Env,
     object_ir::{IntoObjectIr, ObjectExpr, ObjectExprKind, ObjectTy},
     Checking,
 };
 
 pub fn check_block_statements<'a, 'db>(
-    check: &'a Check<'db>,
+    check: &'a Runtime<'db>,
     env: &'a Env<'db>,
     block_span: Span<'db>,
     statements: &'a [AstStatement<'db>],
