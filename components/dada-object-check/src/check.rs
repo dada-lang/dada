@@ -9,7 +9,7 @@ use std::{
 
 use check_task::CheckTask;
 use dada_ir_ast::{
-    diagnostic::{Diagnostic, Err},
+    diagnostic::{Diagnostic, Err, Level},
     span::Span,
 };
 use dada_ir_sym::{
@@ -80,10 +80,7 @@ impl<'db> Check<'db> {
             Ok(v) => v,
 
             // FIXME: Obviously we need a better error message than this!
-            Err(_) => T::err(
-                db,
-                Diagnostic::error(db, span, "type annotations needed").report(db),
-            ),
+            Err(_) => T::err(db, check.report_type_annotations_needed(span)),
         }
     }
 
@@ -193,6 +190,29 @@ impl<'db> Check<'db> {
                 .push(cx.waker().clone());
             Poll::Pending
         }
+    }
+
+    fn report_type_annotations_needed(&self, span: Span<'db>) -> dada_ir_ast::diagnostic::Reported {
+        let db = self.db;
+        let mut diag = Diagnostic::error(db, span, "type annotations needed").label(
+            db,
+            Level::Error,
+            span,
+            "I need to know some of the types in this function",
+        );
+        let waiting_on_inference_var = self.waiting_on_inference_var.lock().unwrap();
+        let inference_vars = self.inference_vars.read().unwrap();
+        for (var, wakers) in waiting_on_inference_var.iter() {
+            let var_data = &inference_vars[var.as_usize()];
+            let var_span = var_data.span();
+            diag = diag.label(
+                db,
+                Level::Note,
+                var_span,
+                format!("need to know the type here"),
+            );
+        }
+        diag.report(db)
     }
 }
 

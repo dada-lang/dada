@@ -1,3 +1,5 @@
+use std::future::Future;
+
 use dada_ir_ast::{
     diagnostic::{Diagnostic, Errors, Level, Reported},
     span::Span,
@@ -6,9 +8,10 @@ use dada_ir_sym::{primitive::SymPrimitiveKind, symbol::SymVariable, ty::SymTyNam
 use futures::StreamExt;
 
 use crate::{
+    bound::Bound,
     check::Check,
     env::Env,
-    object_ir::{ObjectTy, ObjectTyKind},
+    object_ir::{ObjectGenericTerm, ObjectTy, ObjectTyKind},
 };
 
 pub async fn require_assignable_object_type<'db>(
@@ -26,41 +29,76 @@ pub async fn require_assignable_object_type<'db>(
     }
 }
 
-pub async fn require_sub_object_type<'db>(
-    check: &Check<'db>,
-    env: &Env<'db>,
+pub fn require_sub_object_type<'a, 'db>(
+    check: &'a Check<'db>,
+    env: &'a Env<'db>,
     span: Span<'db>,
     sub: ObjectTy<'db>,
     sup: ObjectTy<'db>,
-) -> Errors<()> {
-    let db = check.db;
+) -> impl Future<Output = Errors<()>> + use<'a, 'db> {
+    Box::pin(async move {
+        let db = check.db;
 
-    match (sub.kind(db), sup.kind(db)) {
-        (ObjectTyKind::Error(_), _) | (_, ObjectTyKind::Error(_)) => Ok(()),
-        (ObjectTyKind::Var(univ_sub), ObjectTyKind::Var(univ_sup)) => {
-            if univ_sub == univ_sup {
+        match (sub.kind(db), sup.kind(db)) {
+            (ObjectTyKind::Error(_), _) | (_, ObjectTyKind::Error(_)) => Ok(()),
+
+            (ObjectTyKind::Var(univ_sub), ObjectTyKind::Var(univ_sup)) => {
+                if univ_sub == univ_sup {
+                    Ok(())
+                } else {
+                    Err(report_universal_mismatch(
+                        check, env, span, *univ_sub, *univ_sup,
+                    ))
+                }
+            }
+
+            (&ObjectTyKind::Infer(var), _) => {
+                env.bound_inference_var(check, var, Bound::UpperBound(sup))
+            }
+
+            (_, &ObjectTyKind::Infer(var)) => {
+                env.bound_inference_var(check, var, Bound::LowerBound(sup))
+            }
+
+            (ObjectTyKind::Named(name_sub, args_sub), ObjectTyKind::Named(name_sup, args_sup)) => {
+                if name_sub != name_sup {
+                    return Err(report_class_name_mismatch(
+                        check, env, span, *name_sub, *name_sup,
+                    ));
+                }
+
+                assert_eq!(args_sub.len(), args_sup.len());
+
+                for (&arg_sub, &arg_sup) in args_sub.iter().zip(args_sup) {
+                    require_sub_object_term(check, env, span, arg_sub, arg_sup).await?;
+                }
+
                 Ok(())
-            } else {
-                Err(report_universal_mismatch(
-                    check, env, span, *univ_sub, *univ_sup,
-                ))
-            }
-        }
-
-        (ObjectTyKind::Named(name_sub, args_sub), ObjectTyKind::Named(name_sup, args_sup)) => {
-            if name_sub != name_sup {
-                return Err(report_class_name_mismatch(
-                    check, env, span, *name_sub, *name_sup,
-                ));
             }
 
-            Ok(())
+            _ => {
+                // FIXME
+                Ok(())
+            }
         }
+    })
+}
 
-        _ => {
-            // FIXME
-            Ok(())
+async fn require_sub_object_term<'db>(
+    check: &Check<'db>,
+    env: &Env<'db>,
+    span: Span<'db>,
+    arg_sub: ObjectGenericTerm<'db>,
+    arg_sup: ObjectGenericTerm<'db>,
+) -> Errors<()> {
+    match (arg_sub, arg_sup) {
+        (ObjectGenericTerm::Type(sub), ObjectGenericTerm::Type(sup)) => {
+            require_sub_object_type(check, env, span, sub, sup).await
         }
+        (ObjectGenericTerm::Perm, ObjectGenericTerm::Perm)
+        | (ObjectGenericTerm::Place, ObjectGenericTerm::Place)
+        | (ObjectGenericTerm::Error(_), ObjectGenericTerm::Error(_)) => Ok(()),
+        _ => unreachable!("kind mismatch"),
     }
 }
 

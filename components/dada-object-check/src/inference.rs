@@ -27,6 +27,10 @@ impl<'db> InferenceVarData<'db> {
         self.kind
     }
 
+    pub fn span(&self) -> Span<'db> {
+        self.span
+    }
+
     pub fn push_bound(&mut self, db: &'db dyn crate::Db, bound: Bound<ObjectGenericTerm<'db>>) {
         assert!(bound.has_kind(db, self.kind));
         match bound {

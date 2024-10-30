@@ -1,8 +1,12 @@
 use std::sync::Arc;
 
-use dada_ir_ast::{diagnostic::Reported, span::Span};
+use dada_ir_ast::{
+    diagnostic::{Errors, Reported},
+    span::Span,
+};
 use dada_ir_sym::{
     binder::BoundTerm,
+    indices::SymInferVarIndex,
     scope::Scope,
     subst::SubstWith,
     symbol::{SymGenericKind, SymVariable},
@@ -226,6 +230,16 @@ impl<'db> Env<'db> {
 
             op(check, env).await
         })
+    }
+
+    pub fn bound_inference_var(
+        &self,
+        check: &Check<'db>,
+        var: SymInferVarIndex,
+        bound: Bound<impl Into<ObjectGenericTerm<'db>>>,
+    ) -> Errors<()> {
+        // FIXME
+        Ok(())
     }
 
     pub fn bounds(
