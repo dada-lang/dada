@@ -109,7 +109,7 @@ fn fn_asts(db: &dyn salsa::Database, source_file: SourceFile) -> String {
             AstItem::Use(_use_item) => (),
             AstItem::Class(class_item) => {
                 writeln!(output, "## class `{}`", class_item.name(db)).unwrap();
-                for member in &class_item.members(db) {
+                for member in class_item.members(db) {
                     match member {
                         AstMember::Field(_field_decl) => (),
                         AstMember::Function(function) => {

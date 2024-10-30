@@ -177,7 +177,7 @@ impl<'scope, 'db> Scope<'scope, 'db> {
 
         // If the target type has more binder levels than we do, that is a bug in the caller.
         assert!(
-            B::BINDER_LEVELS >= binders.len(),
+            B::BINDER_LEVELS <= binders.len(),
             "target type has {} binder levels but the scope only has {}",
             B::BINDER_LEVELS,
             binders.len()

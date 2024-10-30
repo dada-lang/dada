@@ -111,6 +111,12 @@ pub enum ObjectExprKind<'db> {
     /// `a + b` etc
     BinaryOp(SpannedBinaryOp<'db>, ObjectExpr<'db>, ObjectExpr<'db>),
 
+    /// Something like `Point { x: ..., y: ... }`
+    Aggregate {
+        ty: ObjectTy<'db>,
+        fields: Vec<ObjectExpr<'db>>,
+    },
+
     /// Error occurred somewhere.
     Error(Reported),
 }
@@ -138,6 +144,10 @@ impl<'db> Err<'db> for ObjectPlaceExpr<'db> {
 impl<'db> ObjectPlaceExpr<'db> {
     pub fn to_object_place(&self) -> ObjectGenericTerm<'db> {
         ObjectGenericTerm::Place
+    }
+
+    pub fn give(self, db: &'db dyn crate::Db) -> ObjectExpr<'db> {
+        ObjectExpr::new(db, self.span(db), self.ty(db), ObjectExprKind::Give(self))
     }
 }
 

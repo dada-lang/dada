@@ -1,18 +1,75 @@
-use dada_ir_ast::ast::AstBlock;
-use dada_ir_sym::function::{SymFunction, SymInputOutput};
+use dada_ir_ast::ast::{AstBlock, AstClassItem};
+use dada_ir_sym::{
+    class::SymClass,
+    function::{SymFunction, SymFunctionSource, SymInputOutput},
+    scope_tree::ScopeTreeNode,
+};
+use dada_parser::prelude::FunctionBlock;
 
 use crate::{
-    check::Check, env::Env, object_ir::ObjectExpr, statements::check_block_statements, Checking,
+    check::Check,
+    env::Env,
+    object_ir::{IntoObjectIr, ObjectExpr, ObjectExprKind, ObjectPlaceExpr, ObjectPlaceExprKind},
+    statements::check_block_statements,
+    Checking,
 };
 
 pub fn check_function_body<'db>(
     db: &'db dyn crate::Db,
     function: SymFunction<'db>,
 ) -> Option<ObjectExpr<'db>> {
-    let Some(body) = function.ast_body(db) else {
-        return None;
-    };
+    match function.source(db) {
+        SymFunctionSource::Function(ast_function) => {
+            let Some(block) = ast_function.body_block(db) else {
+                return None;
+            };
+            check_function_body_ast_block(db, function, block)
+        }
+        SymFunctionSource::ClassConstructor(sym_class, ast_class_item) => {
+            check_function_body_class_constructor(db, function, sym_class, ast_class_item)
+        }
+    }
+}
 
+fn check_function_body_class_constructor<'db>(
+    db: &'db dyn crate::Db,
+    function: SymFunction<'db>,
+    sym_class: SymClass<'db>,
+    ast_class_item: AstClassItem<'db>,
+) -> Option<ObjectExpr<'db>> {
+    let scope = sym_class.into_scope(db);
+    let self_ty = sym_class.self_ty(db, &scope).into_object_ir(db);
+    let span = ast_class_item.inputs(db).as_ref().unwrap().span;
+    let signature = function.signature(db);
+    let input_vars = &signature.input_output(db).bound_value.variables;
+    let input_tys = &signature.input_output(db).bound_value.bound_value.input_tys;
+    let fields = sym_class.fields(db).collect::<Vec<_>>();
+    assert_eq!(input_vars.len(), fields.len());
+    assert_eq!(input_vars.len(), input_tys.len());
+
+    Some(ObjectExpr::new(
+        db,
+        span,
+        self_ty,
+        ObjectExprKind::Aggregate {
+            ty: self_ty,
+            fields: input_vars
+                .iter()
+                .zip(input_tys)
+                .map(|(&v, &ty)| {
+                    let ty = ty.into_object_ir(db);
+                    ObjectPlaceExpr::new(db, v.span(db), ty, ObjectPlaceExprKind::Var(v)).give(db)
+                })
+                .collect(),
+        },
+    ))
+}
+
+fn check_function_body_ast_block<'db>(
+    db: &'db dyn crate::Db,
+    function: SymFunction<'db>,
+    body: AstBlock<'db>,
+) -> Option<ObjectExpr<'db>> {
     let scope = function.scope(db);
     Some(Check::execute(
         db,

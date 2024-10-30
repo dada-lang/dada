@@ -9,7 +9,7 @@ pub trait SourceFileParse {
 
 /// Given a [`ClassItem`], parse its members
 pub trait ClassItemMembers<'db> {
-    fn members(self, db: &'db dyn crate::Db) -> SpanVec<'db, AstMember<'db>>;
+    fn members(self, db: &'db dyn crate::Db) -> &'db SpanVec<'db, AstMember<'db>>;
 }
 
 /// Given a [`Function`], parse its associated body into a block

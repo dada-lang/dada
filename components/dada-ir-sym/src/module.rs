@@ -140,7 +140,7 @@ impl<'db> IntoSymbol<'db> for AstModule<'db> {
                         db,
                         &mut function_map,
                         ast_function.name(db).id,
-                        SymFunction::new(db, self.into(), ast_function),
+                        SymFunction::new(db, self.into(), ast_function.into()),
                     );
                 }
             }

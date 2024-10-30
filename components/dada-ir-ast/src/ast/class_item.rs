@@ -1,5 +1,5 @@
 use crate::{
-    ast::{AstVisibility, DeferredParse, VariableDecl},
+    ast::{AstFieldDecl, AstVisibility, DeferredParse},
     span::{Span, Spanned},
 };
 
@@ -23,7 +23,7 @@ pub struct AstClassItem<'db> {
 
     /// If a `()` section is present...
     #[return_ref]
-    pub inputs: Option<SpanVec<'db, VariableDecl<'db>>>,
+    pub inputs: Option<SpanVec<'db, AstFieldDecl<'db>>>,
 
     /// The unparsed contents of the class.
     /// This can be parsed via the `members`

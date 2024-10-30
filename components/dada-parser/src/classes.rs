@@ -43,11 +43,11 @@ impl<'db> Parse<'db> for AstClassItem<'db> {
             AstGenericDecl::eat_comma,
         )?;
 
-        let inputs = VariableDecl::opt_parse_delimited(
+        let inputs = AstFieldDecl::opt_parse_delimited(
             db,
             parser,
             Delimiter::Parentheses,
-            VariableDecl::eat_comma,
+            AstFieldDecl::eat_comma,
         )?;
 
         let body = parser.defer_delimited(Delimiter::CurlyBraces).ok();
@@ -101,7 +101,7 @@ impl<'db> Parse<'db> for AstClassItemPrefix<'db> {
 
 #[salsa::tracked]
 impl<'db> crate::prelude::ClassItemMembers<'db> for AstClassItem<'db> {
-    #[salsa::tracked]
+    #[salsa::tracked(return_ref)]
     fn members(self, db: &'db dyn crate::Db) -> SpanVec<'db, AstMember<'db>> {
         if let Some(contents) = self.contents(db) {
             Parser::deferred(db, self, contents, |parser| {

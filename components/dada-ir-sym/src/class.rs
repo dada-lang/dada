@@ -9,7 +9,7 @@ use dada_util::FromImpls;
 
 use crate::{
     binder::Binder,
-    function::{SignatureSymbols, SymFunction},
+    function::{SignatureSymbols, SymFunction, SymFunctionSource},
     populate::PopulateSignatureSymbols,
     prelude::{IntoSymInScope, IntoSymbol},
     scope::Scope,
@@ -105,7 +105,7 @@ impl<'db> SymClass<'db> {
     }
 
     /// Returns the type of this class, referencing the generics that appear in `scope`.
-    pub(crate) fn self_ty(self, db: &'db dyn crate::Db, scope: &Scope<'_, 'db>) -> SymTy<'db> {
+    pub fn self_ty(self, db: &'db dyn crate::Db, scope: &Scope<'_, 'db>) -> SymTy<'db> {
         SymTy::new(
             db,
             SymTyKind::Named(
@@ -123,19 +123,42 @@ impl<'db> SymClass<'db> {
 
     #[salsa::tracked(return_ref)]
     pub fn members(self, db: &'db dyn crate::Db) -> Vec<SymClassMember<'db>> {
-        self.source(db)
-            .members(db)
-            .iter()
-            .map(|m| match *m {
-                AstMember::Field(ast_field_decl) => {
-                    let SpannedIdentifier { span, id } = ast_field_decl.variable(db).name(db);
-                    SymField::new(db, self.into(), id, span, ast_field_decl).into()
-                }
-                AstMember::Function(ast_function) => {
-                    SymFunction::new(db, self.into(), ast_function).into()
-                }
-            })
-            .collect()
+        // If the class is declared like `class Foo(x: u32, y: u32)` then we make a constructor `new`
+        // and a field for each of those members
+        let ctor_members = self.source(db).inputs(db).iter().flat_map(|inputs| {
+            let ctor = SymFunction::new(
+                db,
+                self.into(),
+                SymFunctionSource::ClassConstructor(self, self.source(db)),
+            )
+            .into();
+
+            let fields = inputs.iter().map(|field_decl| {
+                SymField::new(
+                    db,
+                    self.into(),
+                    field_decl.variable(db).name(db).id,
+                    field_decl.variable(db).name(db).span,
+                    *field_decl,
+                )
+                .into()
+            });
+
+            std::iter::once(ctor).chain(fields)
+        });
+
+        // Also include anything the user explicitly wrote
+        let explicit_members = self.source(db).members(db).iter().map(|m| match *m {
+            AstMember::Field(ast_field_decl) => {
+                let SpannedIdentifier { span, id } = ast_field_decl.variable(db).name(db);
+                SymField::new(db, self.into(), id, span, ast_field_decl).into()
+            }
+            AstMember::Function(ast_function) => {
+                SymFunction::new(db, self.into(), ast_function.into()).into()
+            }
+        });
+
+        ctor_members.chain(explicit_members).collect()
     }
 
     #[salsa::tracked]
