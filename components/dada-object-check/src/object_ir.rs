@@ -22,7 +22,7 @@ use dada_ir_sym::{
     binder::LeafBoundTerm,
     class::SymField,
     function::SymFunction,
-    indices::SymInferVarIndex,
+    indices::InferVarIndex,
     symbol::{FromVar, HasKind, SymGenericKind, SymVariable},
     ty::{SymGenericTerm, SymTy, SymTyName},
 };
@@ -241,7 +241,7 @@ pub enum ObjectTyKind<'db> {
     Var(SymVariable<'db>),
 
     /// Inference variable, e.g., `?X`.
-    Infer(SymInferVarIndex),
+    Infer(InferVarIndex),
 
     /// Indicates a value that can never be created, denoted `!`.
     Never,

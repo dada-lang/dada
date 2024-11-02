@@ -13,7 +13,7 @@ use dada_ir_ast::{
     span::Span,
 };
 use dada_ir_sym::{
-    indices::{FromInferVar, SymInferVarIndex},
+    indices::{FromInferVar, InferVarIndex},
     symbol::SymGenericKind,
     ty::SymGenericTerm,
 };
@@ -39,7 +39,7 @@ pub(crate) struct RuntimeData<'db> {
     pub db: &'db dyn crate::Db,
     inference_vars: RwLock<Vec<InferenceVarData<'db>>>,
     ready_to_execute: Mutex<Vec<Arc<CheckTask>>>,
-    waiting_on_inference_var: Mutex<Map<SymInferVarIndex, VecSet<EqWaker>>>,
+    waiting_on_inference_var: Mutex<Map<InferVarIndex, VecSet<EqWaker>>>,
     complete: AtomicBool,
 }
 
@@ -157,7 +157,7 @@ impl<'db> Runtime<'db> {
         span: Span<'db>,
     ) -> SymGenericTerm<'db> {
         let mut inference_vars = self.inference_vars.write().unwrap();
-        let var_index = SymInferVarIndex::from(inference_vars.len());
+        let var_index = InferVarIndex::from(inference_vars.len());
         inference_vars.push(InferenceVarData::new(kind, universe, span));
         SymGenericTerm::infer(self.db, kind, var_index)
     }
@@ -168,7 +168,7 @@ impl<'db> Runtime<'db> {
     /// attempt to mutate the data during the read.
     pub fn with_inference_var_data<T>(
         &self,
-        infer: SymInferVarIndex,
+        infer: InferVarIndex,
         op: impl FnOnce(&InferenceVarData<'db>) -> T,
     ) -> T {
         let inference_vars = self.inference_vars.read().unwrap();
@@ -179,7 +179,7 @@ impl<'db> Runtime<'db> {
     /// This is a low-level function that should only be used as part of subtyping.
     pub fn push_inference_var_bound(
         &self,
-        var: SymInferVarIndex,
+        var: InferVarIndex,
         bound: Bound<ObjectGenericTerm<'db>>,
     ) {
         let mut inference_vars = self.inference_vars.write().unwrap();
@@ -203,7 +203,7 @@ impl<'db> Runtime<'db> {
     /// # Panics
     ///
     /// If called when [`Self::check_complete`][] returns true.
-    pub fn block_on_inference_var(&self, var: SymInferVarIndex, cx: &mut Context<'_>) {
+    pub fn block_on_inference_var(&self, var: InferVarIndex, cx: &mut Context<'_>) {
         assert!(!self.check_complete());
         let mut waiting_on_inference_var = self.waiting_on_inference_var.lock().unwrap();
         waiting_on_inference_var

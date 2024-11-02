@@ -5,7 +5,7 @@ use std::{
 };
 
 use dada_ir_sym::{
-    indices::SymInferVarIndex,
+    indices::InferVarIndex,
     symbol::{HasKind, SymGenericKind},
     ty::{SymGenericTerm, SymPerm, SymTy},
 };
@@ -138,12 +138,12 @@ impl Direction {
 pub(crate) struct TransitiveBounds<'db, Term: OutputTerm<'db>> {
     runtime: Runtime<'db>,
     direction: Direction,
-    inference_vars: Vec<(SymInferVarIndex, usize)>,
+    inference_vars: Vec<(InferVarIndex, usize)>,
     phantom: PhantomData<fn() -> Term>,
 }
 
 impl<'db, Term: OutputTerm<'db>> TransitiveBounds<'db, Term> {
-    pub fn new(check: &Runtime<'db>, direction: Direction, var: SymInferVarIndex) -> Self {
+    pub fn new(check: &Runtime<'db>, direction: Direction, var: InferVarIndex) -> Self {
         Self {
             runtime: check.clone(),
             direction,
@@ -152,7 +152,7 @@ impl<'db, Term: OutputTerm<'db>> TransitiveBounds<'db, Term> {
         }
     }
 
-    fn push_inference_var(&mut self, var: SymInferVarIndex) {
+    fn push_inference_var(&mut self, var: InferVarIndex) {
         if self.inference_vars.iter().any(|(infer, _)| *infer == var) {
             return;
         }
@@ -215,7 +215,7 @@ impl<'db, Term: OutputTerm<'db>> futures::Stream for TransitiveBounds<'db, Term>
 pub(crate) trait OutputTerm<'db>: Copy {
     fn bound_slices<'i>(data: &'i InferenceVarData<'db>) -> (&'i [Self], &'i [Self]);
 
-    fn as_var(self, db: &'db dyn crate::Db) -> Option<SymInferVarIndex>;
+    fn as_var(self, db: &'db dyn crate::Db) -> Option<InferVarIndex>;
 }
 
 impl<'db> OutputTerm<'db> for ObjectGenericTerm<'db> {
@@ -223,7 +223,7 @@ impl<'db> OutputTerm<'db> for ObjectGenericTerm<'db> {
         (data.lower_bounds(), data.upper_bounds())
     }
 
-    fn as_var(self, db: &'db dyn crate::Db) -> Option<SymInferVarIndex> {
+    fn as_var(self, db: &'db dyn crate::Db) -> Option<InferVarIndex> {
         match self {
             ObjectGenericTerm::Type(object_ty) => match object_ty.kind(db) {
                 ObjectTyKind::Infer(infer) => Some(*infer),

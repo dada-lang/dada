@@ -1,5 +1,5 @@
 use crate::{
-    binder::LeafBoundTerm, class::SymClass, indices::{FromInferVar, SymInferVarIndex}, prelude::{IntoSymInScope, IntoSymbol}, primitive::SymPrimitive, scope::{NameResolution, NameResolutionSym, Resolve, Scope}, symbol::{AssertKind, FromVar, HasKind, SymGenericKind, SymVariable}, Db
+    binder::LeafBoundTerm, class::SymClass, indices::{FromInferVar, InferVarIndex}, prelude::{IntoSymInScope, IntoSymbol}, primitive::SymPrimitive, scope::{NameResolution, NameResolutionSym, Resolve, Scope}, symbol::{AssertKind, FromVar, HasKind, SymGenericKind, SymVariable}, Db
 };
 use dada_ir_ast::{
     ast::{
@@ -77,7 +77,7 @@ impl<'db> FromVar<'db> for SymGenericTerm<'db> {
 }
 
 impl<'db> FromInferVar<'db> for SymGenericTerm<'db> {
-    fn infer(db: &'db dyn crate::Db, kind: SymGenericKind, index: SymInferVarIndex) -> Self {
+    fn infer(db: &'db dyn crate::Db, kind: SymGenericKind, index: InferVarIndex) -> Self {
         match kind {
             SymGenericKind::Type => SymTy::new(db, SymTyKind::Infer(index)).into(),
             SymGenericKind::Perm => SymPerm::new(db, SymPermKind::Infer(index)).into(),
@@ -220,7 +220,7 @@ pub enum SymTyKind<'db> {
     Named(SymTyName<'db>, Vec<SymGenericTerm<'db>>),
 
     /// An inference variable (e.g., `?X`).
-    Infer(SymInferVarIndex),
+    Infer(InferVarIndex),
 
     /// Reference to a generic variable, e.g., `T`.
     Var(SymVariable<'db>),
@@ -298,7 +298,7 @@ pub enum SymPermKind<'db> {
     Given(Vec<SymPlace<'db>>),
     
     /// An inference variable (e.g., `?X`).
-    Infer(SymInferVarIndex),
+    Infer(InferVarIndex),
 
     Var(SymVariable<'db>),
     Error(Reported),
@@ -331,7 +331,7 @@ pub enum SymPlaceKind<'db> {
     Var(SymVariable<'db>),
 
     /// `?x`
-    Infer(SymInferVarIndex),
+    Infer(InferVarIndex),
 
     /// `x.f`
     Field(SymPlace<'db>, Identifier<'db>),

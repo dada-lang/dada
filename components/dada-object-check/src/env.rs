@@ -6,7 +6,7 @@ use dada_ir_ast::{
 };
 use dada_ir_sym::{
     binder::BoundTerm,
-    indices::SymInferVarIndex,
+    indices::InferVarIndex,
     scope::Scope,
     subst::SubstWith,
     symbol::{SymGenericKind, SymVariable},
@@ -233,8 +233,7 @@ impl<'db> Env<'db> {
 
     pub fn bound_inference_var(
         &self,
-
-        var: SymInferVarIndex,
+        infer_var: InferVarIndex,
         bound: Bound<impl Into<ObjectGenericTerm<'db>>>,
     ) -> Errors<()> {
         // FIXME
