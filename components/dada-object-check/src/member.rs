@@ -14,7 +14,6 @@ use dada_ir_sym::{
 use futures::{Stream, StreamExt};
 
 use crate::{
-    bound::Bound,
     env::Env,
     exprs::{ExprResult, ExprResultKind},
     object_ir::{
@@ -47,12 +46,7 @@ impl<'member, 'db> MemberLookup<'member, 'db> {
         // * If we find a lower bound:
         //
         // Once we
-        let mut lower_bounds = self.env.bounds(owner_ty).filter_map(|b| {
-            futures::future::ready(match b {
-                Bound::LowerBound(ty) => Some(ty),
-                Bound::UpperBound(_) => None,
-            })
-        });
+        let mut lower_bounds = self.env.transitive_lower_bounds(owner_ty);
 
         while let Some(ty) = lower_bounds.next().await {
             // The owner will be some supertype of `ty`.

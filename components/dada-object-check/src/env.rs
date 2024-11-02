@@ -16,7 +16,7 @@ use dada_util::Map;
 use futures::{Stream, StreamExt};
 
 use crate::{
-    bound::{Bound, InferenceVarBounds},
+    bound::{Bound, Direction, TransitiveBounds},
     check::Runtime,
     object_ir::{IntoObjectIr, ObjectGenericTerm, ObjectTy, ObjectTyKind},
     subobject::{require_assignable_object_type, require_numeric_type, require_sub_object_type},
@@ -216,8 +216,8 @@ impl<'db> Env<'db> {
         self.runtime
             .defer(self, span, move |env: Env<'db>| async move {
                 'next_ty: for ty in tys {
-                    'next_bound: while let Some(bound) = env.bounds(ty).next().await {
-                        let bound_ty = bound.into_term();
+                    let mut bounds = env.transitive_lower_bounds(ty);
+                    'next_bound: while let Some(bound_ty) = bounds.next().await {
                         match bound_ty.kind(env.db()) {
                             ObjectTyKind::Never => return,
                             ObjectTyKind::Error(reported) => return,
@@ -241,14 +241,32 @@ impl<'db> Env<'db> {
         Ok(())
     }
 
-    pub fn bounds(&self, ty: ObjectTy<'db>) -> impl Stream<Item = Bound<ObjectTy<'db>>> + 'db {
+    pub fn transitive_lower_bounds(
+        &self,
+        ty: ObjectTy<'db>,
+    ) -> impl Stream<Item = ObjectTy<'db>> + 'db {
+        self.transitive_bounds(ty, Direction::LowerBounds)
+    }
+
+    pub fn transitive_upper_bounds(
+        &self,
+        ty: ObjectTy<'db>,
+    ) -> impl Stream<Item = ObjectTy<'db>> + 'db {
+        self.transitive_bounds(ty, Direction::UpperBounds)
+    }
+
+    pub fn transitive_bounds(
+        &self,
+        ty: ObjectTy<'db>,
+        direction: Direction,
+    ) -> impl Stream<Item = ObjectTy<'db>> + 'db {
         let db = self.db();
         if let &ObjectTyKind::Infer(inference_var) = ty.kind(db) {
-            <InferenceVarBounds<'db, ObjectGenericTerm<'db>>>::new(&self.runtime, inference_var)
-                .map(|b| b.assert_type(db))
+            TransitiveBounds::new(&self.runtime, direction, inference_var)
+                .map(|b: ObjectGenericTerm<'db>| b.assert_type(db))
                 .boxed_local()
         } else {
-            futures::stream::once(futures::future::ready(Bound::LowerBound(ty))).boxed_local()
+            futures::stream::once(futures::future::ready(ty)).boxed_local()
         }
     }
 

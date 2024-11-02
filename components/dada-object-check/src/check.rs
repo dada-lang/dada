@@ -4,7 +4,7 @@ use std::{
         atomic::{AtomicBool, Ordering},
         Arc, Mutex, RwLock,
     },
-    task::{Context, Poll, Waker},
+    task::{Context, Waker},
 };
 
 use check_task::CheckTask;
@@ -17,7 +17,7 @@ use dada_ir_sym::{
     symbol::SymGenericKind,
     ty::SymGenericTerm,
 };
-use dada_util::Map;
+use dada_util::{vecset::VecSet, Map};
 use futures::future::LocalBoxFuture;
 
 use crate::{
@@ -39,9 +39,33 @@ pub(crate) struct RuntimeData<'db> {
     pub db: &'db dyn crate::Db,
     inference_vars: RwLock<Vec<InferenceVarData<'db>>>,
     ready_to_execute: Mutex<Vec<Arc<CheckTask>>>,
-    waiting_on_inference_var: Mutex<Map<SymInferVarIndex, Vec<Waker>>>,
+    waiting_on_inference_var: Mutex<Map<SymInferVarIndex, VecSet<EqWaker>>>,
     complete: AtomicBool,
 }
+
+/// Wrapper around waker to compare its data/vtable fields by pointer equality.
+/// This suffices to identify the waker for one of our tasks,
+/// as we always use the same data/vtable pointer for a given task.
+struct EqWaker {
+    waker: Waker,
+}
+
+impl EqWaker {
+    fn new(waker: &Waker) -> Self {
+        Self {
+            waker: waker.clone(),
+        }
+    }
+}
+
+impl std::cmp::PartialEq for EqWaker {
+    fn eq(&self, other: &Self) -> bool {
+        std::ptr::addr_eq(self.waker.data(), other.waker.data())
+            && std::ptr::addr_eq(self.waker.vtable(), other.waker.vtable())
+    }
+}
+
+impl std::cmp::Eq for EqWaker {}
 
 impl<'db> std::ops::Deref for Runtime<'db> {
     type Target = RuntimeData<'db>;
@@ -119,8 +143,9 @@ impl<'db> Runtime<'db> {
         ObjectTy::unit(self.db)
     }
 
-    /// Returns `true` if this check has completed.
-    pub fn is_complete(&self) -> bool {
+    /// Returns `true` if we have fully constructed the object IR for a given function.
+    /// Once this returns true, no more bounds will be added to inference variables.
+    pub fn check_complete(&self) -> bool {
         self.complete.load(Ordering::Relaxed)
     }
 
@@ -143,11 +168,11 @@ impl<'db> Runtime<'db> {
     /// attempt to mutate the data during the read.
     pub fn with_inference_var_data<T>(
         &self,
-        var: SymInferVarIndex,
+        infer: SymInferVarIndex,
         op: impl FnOnce(&InferenceVarData<'db>) -> T,
     ) -> T {
         let inference_vars = self.inference_vars.read().unwrap();
-        op(&inference_vars[var.as_usize()])
+        op(&inference_vars[infer.as_usize()])
     }
 
     /// Modify the list of bounds for `var`, awakening any tasks that are monitoring this variable.
@@ -161,7 +186,7 @@ impl<'db> Runtime<'db> {
         let mut waiting_on_inference_var = self.waiting_on_inference_var.lock().unwrap();
         inference_vars[var.as_usize()].push_bound(self.db, bound);
         let wakers = waiting_on_inference_var.remove(&var);
-        for waker in wakers.into_iter().flatten() {
+        for EqWaker { waker } in wakers.into_iter().flatten() {
             waker.wake();
         }
     }
@@ -174,17 +199,17 @@ impl<'db> Runtime<'db> {
 
     /// Block the current task on new bounds being added to the given inference variable.
     /// Used as part of implementing the [`InferenceVarBounds`](`crate::bound::InferenceVarBounds`) stream.
-    pub fn block_on_inference_var(&self, var: SymInferVarIndex, cx: &mut Context<'_>) -> Poll<()> {
-        if self.is_complete() {
-            Poll::Ready(())
-        } else {
-            let mut waiting_on_inference_var = self.waiting_on_inference_var.lock().unwrap();
-            waiting_on_inference_var
-                .entry(var)
-                .or_default()
-                .push(cx.waker().clone());
-            Poll::Pending
-        }
+    ///
+    /// # Panics
+    ///
+    /// If called when [`Self::check_complete`][] returns true.
+    pub fn block_on_inference_var(&self, var: SymInferVarIndex, cx: &mut Context<'_>) {
+        assert!(!self.check_complete());
+        let mut waiting_on_inference_var = self.waiting_on_inference_var.lock().unwrap();
+        waiting_on_inference_var
+            .entry(var)
+            .or_default()
+            .insert(EqWaker::new(cx.waker()));
     }
 
     fn report_type_annotations_needed(&self, span: Span<'db>) -> dada_ir_ast::diagnostic::Reported {

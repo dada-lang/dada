@@ -1,4 +1,4 @@
-use std::ops::Deref;
+use std::{ops::Deref, vec};
 
 pub struct VecSet<T: Eq> {
     data: Vec<T>,
@@ -38,5 +38,15 @@ impl<T: Eq> Extend<T> for VecSet<T> {
         for item in iter {
             self.insert(item);
         }
+    }
+}
+
+impl<T: Eq> IntoIterator for VecSet<T> {
+    type Item = T;
+
+    type IntoIter = vec::IntoIter<Self::Item>;
+
+    fn into_iter(self) -> Self::IntoIter {
+        self.data.into_iter()
     }
 }

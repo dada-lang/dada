@@ -585,39 +585,36 @@ async fn require_future<'db>(
         _ => unreachable!(),
     };
 
-    let mut bounds = env.bounds(future_ty);
+    let mut bounds = env.transitive_lower_bounds(future_ty);
 
-    while let Some(bound) = bounds.next().await {
-        match bound {
-            Bound::UpperBound(_) => continue,
-            Bound::LowerBound(ty) => match ty.kind(db) {
-                ObjectTyKind::Infer(_) => (),
-                ObjectTyKind::Never => {
-                    let _ = env.bound_inference_var(infer_var, Bound::LowerBound(ty));
-                }
-                ObjectTyKind::Error(_) => {
-                    let _ = env.bound_inference_var(infer_var, Bound::LowerBound(ty));
-                    return;
-                }
+    while let Some(ty) = bounds.next().await {
+        match ty.kind(db) {
+            ObjectTyKind::Infer(_) => (),
+            ObjectTyKind::Never => {
+                let _ = env.bound_inference_var(infer_var, Bound::LowerBound(ty));
+            }
+            ObjectTyKind::Error(_) => {
+                let _ = env.bound_inference_var(infer_var, Bound::LowerBound(ty));
+                return;
+            }
 
-                ObjectTyKind::Named(SymTyName::Future, vec) => {
-                    let awaited_bound = vec[0].assert_type(db);
-                    let _ = env.bound_inference_var(infer_var, Bound::LowerBound(awaited_bound));
-                }
+            ObjectTyKind::Named(SymTyName::Future, vec) => {
+                let awaited_bound = vec[0].assert_type(db);
+                let _ = env.bound_inference_var(infer_var, Bound::LowerBound(awaited_bound));
+            }
 
-                ObjectTyKind::Named(..) | ObjectTyKind::Var(..) => {
-                    Diagnostic::error(db, await_span, format!("await requires a future"))
-                        .label(
-                            db,
-                            Level::Error,
-                            await_span,
-                            format!("`await` requires a future"),
-                        )
-                        .label(db, Level::Info, future_span, format!("I found a {ty}"))
-                        .report(db);
-                    return;
-                }
-            },
+            ObjectTyKind::Named(..) | ObjectTyKind::Var(..) => {
+                Diagnostic::error(db, await_span, format!("await requires a future"))
+                    .label(
+                        db,
+                        Level::Error,
+                        await_span,
+                        format!("`await` requires a future"),
+                    )
+                    .label(db, Level::Info, future_span, format!("I found a {ty}"))
+                    .report(db);
+                return;
+            }
         }
     }
 }

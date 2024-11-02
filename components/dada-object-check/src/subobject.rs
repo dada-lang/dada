@@ -97,9 +97,8 @@ pub async fn require_numeric_type<'db>(
 ) -> Errors<()> {
     let db = env.db();
 
-    let mut bounds = env.bounds(start_ty);
-    while let Some(bound) = bounds.next().await {
-        let ty = bound.into_term();
+    let mut bounds = env.transitive_upper_bounds(start_ty);
+    while let Some(ty) = bounds.next().await {
         match ty.kind(db) {
             ObjectTyKind::Error(_) => {}
             ObjectTyKind::Never => {}
