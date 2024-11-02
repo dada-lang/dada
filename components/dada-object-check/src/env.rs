@@ -6,7 +6,7 @@ use dada_ir_sym::{
     scope::Scope,
     subst::SubstWith,
     symbol::{SymGenericKind, SymVariable},
-    ty::{SymGenericTerm, SymPerm, SymTy},
+    ty::{SymGenericTerm, SymTy},
 };
 use dada_util::Map;
 use futures::{Stream, StreamExt};
@@ -52,6 +52,7 @@ impl<'db> Env<'db> {
         }
     }
 
+    #[expect(dead_code)]
     pub fn universe(&self) -> Universe {
         self.universe
     }
@@ -77,8 +78,6 @@ impl<'db> Env<'db> {
     where
         T: BoundTerm<'db>,
     {
-        let db = runtime.db;
-
         match value.as_binder() {
             Err(leaf) => {
                 return leaf.identity();
@@ -149,11 +148,6 @@ impl<'db> Env<'db> {
         self.fresh_ty_inference_var(span).into_object_ir(self.db())
     }
 
-    pub fn fresh_perm_inference_var(&self, span: Span<'db>) -> SymPerm<'db> {
-        self.fresh_inference_var(SymGenericKind::Type, span)
-            .assert_perm(self.db())
-    }
-
     pub fn require_assignable_object_type(
         &self,
         value_span: Span<'db>,
@@ -162,7 +156,7 @@ impl<'db> Env<'db> {
     ) {
         let db = self.db();
         let value_ty = value_ty.into_object_ir(db);
-        let place_ty = value_ty.into_object_ir(db);
+        let place_ty = place_ty.into_object_ir(db);
         self.runtime.defer(self, value_span, move |env| async move {
             match require_assignable_object_type(&env, value_span, value_ty, place_ty).await {
                 Ok(()) => (),
@@ -178,10 +172,10 @@ impl<'db> Env<'db> {
         sup_ty: impl IntoObjectIr<'db, Object = ObjectTy<'db>>,
     ) {
         let db = self.db();
-        let value_ty = sub_ty.into_object_ir(db);
-        let place_ty = value_ty.into_object_ir(db);
+        let sub_ty = sub_ty.into_object_ir(db);
+        let sup_ty = sup_ty.into_object_ir(db);
         self.runtime.defer(self, span, move |env| async move {
-            match require_sub_object_type(&env, span, value_ty, place_ty).await {
+            match require_sub_object_type(&env, span, sub_ty, sup_ty).await {
                 Ok(()) => (),
                 Err(Reported(_)) => (),
             }
@@ -221,8 +215,8 @@ impl<'db> Env<'db> {
                     'next_bound: while let Some(bound_ty) = bounds.next().await {
                         match bound_ty.kind(env.db()) {
                             ObjectTyKind::Never => return,
-                            ObjectTyKind::Error(reported) => return,
-                            ObjectTyKind::Infer(sym_infer_var_index) => continue 'next_bound,
+                            ObjectTyKind::Error(_) => return,
+                            ObjectTyKind::Infer(_) => continue 'next_bound,
                             ObjectTyKind::Named(..) | ObjectTyKind::Var(_) => continue 'next_ty,
                         }
                     }

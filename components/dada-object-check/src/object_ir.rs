@@ -169,7 +169,7 @@ impl<'db> ObjectTy<'db> {
         SymTy::unit(db).into_object_ir(db)
     }
 
-    pub fn shared(self, db: &'db dyn crate::Db) -> ObjectTy<'db> {
+    pub fn shared(self, _db: &'db dyn crate::Db) -> ObjectTy<'db> {
         self
     }
 
@@ -224,7 +224,7 @@ impl std::fmt::Display for ObjectTy<'_> {
             },
             ObjectTyKind::Infer(var) => write!(f, "/* ?{} */", var.as_usize()),
             ObjectTyKind::Never => write!(f, "!"),
-            ObjectTyKind::Error(reported) => write!(f, "/* error */"),
+            ObjectTyKind::Error(_) => write!(f, "/* error */"),
         })
         .unwrap_or_else(|| std::fmt::Debug::fmt(self, f))
     }
@@ -262,7 +262,7 @@ pub enum ObjectGenericTerm<'db> {
 }
 
 impl std::fmt::Display for ObjectGenericTerm<'_> {
-    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+    fn fmt(&self, _fmt: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
         todo!()
     }
 }
@@ -306,7 +306,7 @@ impl<'db> ObjectGenericTerm<'db> {
         match self {
             ObjectGenericTerm::Type(object_ty) => match object_ty.kind(db) {
                 ObjectTyKind::Named(name, vec) => match name {
-                    SymTyName::Class(sym_class) => {
+                    SymTyName::Class(_class) => {
                         // FIXME: This will be true for some classes but not others
                         false
                     }

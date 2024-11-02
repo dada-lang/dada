@@ -286,7 +286,10 @@ async fn check_expr<'db>(expr: &AstExpr<'db>, env: &Env<'db>) -> ExprResult<'db>
                     function: method,
                     generics: Some(_),
                     ..
-                } => ExprResult::err(db, report_missing_call_to_method(db, expr_span, method)),
+                } => ExprResult::err(
+                    db,
+                    report_missing_call_to_method(db, owner.span(db), method),
+                ),
 
                 ExprResultKind::Other(name_resolution) => {
                     let generics = square_bracket_args.parse_as_generics(db);
@@ -385,7 +388,7 @@ async fn check_expr<'db>(expr: &AstExpr<'db>, env: &Env<'db>) -> ExprResult<'db>
             }
         }
 
-        AstExprKind::Constructor(ast_path, span_vec) => todo!(),
+        AstExprKind::Constructor(_ast_path, _span_vec) => todo!(),
         AstExprKind::Return(ast_expr) => {
             let mut temporaries = vec![];
 
@@ -449,7 +452,6 @@ async fn check_expr<'db>(expr: &AstExpr<'db>, env: &Env<'db>) -> ExprResult<'db>
             let awaited_ty = env.fresh_object_ty_inference_var(await_span);
 
             env.defer(await_span, async move |env| {
-                let db = env.db();
                 require_future(&env, future_span, await_span, future_ty, awaited_ty).await
             });
 
@@ -1070,7 +1072,10 @@ impl<'db> ExprResult<'db> {
                 self_expr: owner,
                 function: method,
                 ..
-            } => ObjectExpr::err(db, report_missing_call_to_method(db, self.span, method)),
+            } => ObjectExpr::err(
+                db,
+                report_missing_call_to_method(db, owner.span(db), method),
+            ),
         }
     }
 }

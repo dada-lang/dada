@@ -99,8 +99,8 @@ impl<'db, Term: OutputTerm<'db>> TransitiveBounds<'db, Term> {
 
         // Otherwise block on all the variables we've seen so far.
         // A new bound for any of them will wake us up.
-        for (var, current_index) in &mut self.inference_vars {
-            self.runtime.block_on_inference_var(*var, cx);
+        for &mut (var, _) in &mut self.inference_vars {
+            self.runtime.block_on_inference_var(var, cx);
         }
 
         Poll::Pending

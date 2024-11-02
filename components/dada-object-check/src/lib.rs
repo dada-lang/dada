@@ -4,9 +4,6 @@
 
 #![feature(trait_upcasting)]
 #![feature(async_closure)]
-// FIXME
-#![expect(dead_code)]
-#![expect(unused_variables)]
 
 use dada_ir_sym::function::SymFunction;
 pub use dada_ir_sym::Db;

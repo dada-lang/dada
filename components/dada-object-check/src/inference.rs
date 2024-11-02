@@ -6,7 +6,10 @@ use crate::{bound::Direction, object_ir::ObjectGenericTerm, universe::Universe};
 
 pub(crate) struct InferenceVarData<'db> {
     kind: SymGenericKind,
+
+    #[expect(dead_code)]
     universe: Universe,
+
     span: Span<'db>,
 
     lower_bounds: VecSet<ObjectGenericTerm<'db>>,
@@ -22,10 +25,6 @@ impl<'db> InferenceVarData<'db> {
             lower_bounds: Default::default(),
             upper_bounds: Default::default(),
         }
-    }
-
-    pub fn kind(&self) -> SymGenericKind {
-        self.kind
     }
 
     pub fn span(&self) -> Span<'db> {

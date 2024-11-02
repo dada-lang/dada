@@ -37,7 +37,6 @@ impl<'member, 'db> MemberLookup<'member, 'db> {
         owner: ExprResult<'db>,
         id: SpannedIdentifier<'db>,
     ) -> ExprResult<'db> {
-        let db = self.env.db();
         let owner_ty = owner.ty(self.env);
 
         // Iterate over the bounds, looking for a valid method resolution.
@@ -99,7 +98,7 @@ impl<'member, 'db> MemberLookup<'member, 'db> {
         // Construct the result
         match member {
             SearchResult::Field {
-                owner: owner_class,
+                owner: _,
                 field,
                 field_ty,
             } => {
@@ -170,9 +169,9 @@ impl<'member, 'db> MemberLookup<'member, 'db> {
     fn ambiguous_member(
         self,
         id: SpannedIdentifier<'db>,
-        owner_span: Span<'db>,
-        prev_ty: ObjectTy<'db>,
-        new_ty: ObjectTy<'db>,
+        #[expect(unused_variables)] owner_span: Span<'db>,
+        #[expect(unused_variables)] prev_ty: ObjectTy<'db>,
+        #[expect(unused_variables)] new_ty: ObjectTy<'db>,
         prev_member: &SearchResult<'db>,
         new_member: &SearchResult<'db>,
     ) -> Reported {
@@ -192,18 +191,24 @@ impl<'member, 'db> MemberLookup<'member, 'db> {
             SearchResult::Field {
                 owner,
                 field,
-                field_ty,
+                field_ty: _,
             } => diag.label(
                 db,
                 Level::Info,
                 field.name_span(db),
-                format!("one option is the field `{f}`", f = field.name(db)),
+                format!(
+                    "one option is the field `{f}` defined in `{owner}`",
+                    f = field.name(db)
+                ),
             ),
             SearchResult::Method { owner, method } => diag.label(
                 db,
                 Level::Info,
                 method.name_span(db),
-                format!("one option is the method `{f}`", f = method.name(db)),
+                format!(
+                    "one option is the method `{f}` defined in `{owner}`",
+                    f = method.name(db)
+                ),
             ),
             SearchResult::Error(_) => unreachable!(),
         };
@@ -212,18 +217,24 @@ impl<'member, 'db> MemberLookup<'member, 'db> {
             SearchResult::Field {
                 owner,
                 field,
-                field_ty,
+                field_ty: _,
             } => diag.label(
                 db,
                 Level::Info,
                 field.name_span(db),
-                format!("another option is the field `{f}`", f = field.name(db)),
+                format!(
+                    "another option is the field `{f}` defined in `{owner}`",
+                    f = field.name(db)
+                ),
             ),
             SearchResult::Method { owner, method } => diag.label(
                 db,
                 Level::Info,
                 method.name_span(db),
-                format!("another option is the method `{f}`", f = method.name(db)),
+                format!(
+                    "another option is the method `{m}` defined in `{owner}`",
+                    m = method.name(db)
+                ),
             ),
             SearchResult::Error(_) => unreachable!(),
         };
@@ -283,7 +294,7 @@ impl<'member, 'db> MemberLookup<'member, 'db> {
                 SymTyName::Primitive(_) => None,
 
                 // Tuples have indexed members, not named ones.
-                SymTyName::Tuple { arity } => None,
+                SymTyName::Tuple { arity: _ } => None,
 
                 // Classes have members.
                 SymTyName::Class(owner) => self.search_class_for_member(owner, generics, id),
@@ -298,7 +309,7 @@ impl<'member, 'db> MemberLookup<'member, 'db> {
                 None
             }
 
-            ObjectTyKind::Var(generic_index) => {
+            ObjectTyKind::Var(_) => {
                 // FIXME: where-clauses
                 None
             }

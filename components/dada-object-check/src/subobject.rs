@@ -148,7 +148,7 @@ pub async fn require_numeric_type<'db>(
         match ty.kind(db) {
             ObjectTyKind::Error(_) => {}
             ObjectTyKind::Never => {}
-            ObjectTyKind::Named(name, vec) => match name {
+            ObjectTyKind::Named(name, _) => match name {
                 SymTyName::Primitive(prim) => match prim.kind(db) {
                     SymPrimitiveKind::Int { .. }
                     | SymPrimitiveKind::Isize
@@ -164,7 +164,7 @@ pub async fn require_numeric_type<'db>(
                 }
             },
             ObjectTyKind::Var(_) => return Err(report_numeric_type_expected(env, span, ty)),
-            ObjectTyKind::Infer(var) => {}
+            ObjectTyKind::Infer(_) => {}
         }
     }
 

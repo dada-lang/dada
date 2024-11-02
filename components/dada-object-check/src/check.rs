@@ -18,17 +18,11 @@ use dada_ir_sym::{
     ty::SymGenericTerm,
 };
 use dada_util::{vecset::VecSet, Map};
-use futures::future::LocalBoxFuture;
 
 use crate::{
-    bound::Direction,
-    env::Env,
-    inference::InferenceVarData,
-    object_ir::{ObjectGenericTerm, ObjectTy},
+    bound::Direction, env::Env, inference::InferenceVarData, object_ir::ObjectGenericTerm,
     universe::Universe,
 };
-
-type Deferred<'chk> = LocalBoxFuture<'chk, ()>;
 
 #[derive(Clone)]
 pub(crate) struct Runtime<'db> {
@@ -73,11 +67,6 @@ impl<'db> std::ops::Deref for Runtime<'db> {
     fn deref(&self) -> &Self::Target {
         &self.data
     }
-}
-
-struct DeferredCheck<'db> {
-    env: Env<'db>,
-    thunk: Box<dyn FnOnce(&Runtime<'db>, Env<'db>) + 'db>,
 }
 
 impl<'db> Runtime<'db> {
@@ -136,11 +125,6 @@ impl<'db> Runtime<'db> {
         while let Some(ready) = self.pop_task() {
             ready.execute(self);
         }
-    }
-
-    /// Creates the interned `()` type.
-    pub fn unit(&self) -> ObjectTy<'db> {
-        ObjectTy::unit(self.db)
     }
 
     /// Returns `true` if we have fully constructed the object IR for a given function.
@@ -227,7 +211,7 @@ impl<'db> Runtime<'db> {
         );
         let waiting_on_inference_var = self.waiting_on_inference_var.lock().unwrap();
         let inference_vars = self.inference_vars.read().unwrap();
-        for (var, wakers) in waiting_on_inference_var.iter() {
+        for (var, _) in waiting_on_inference_var.iter() {
             let var_data = &inference_vars[var.as_usize()];
             let var_span = var_data.span();
             diag = diag.label(
@@ -271,6 +255,7 @@ mod check_task {
         runtime: Runtime<'static>,
 
         /// Erased type: `Span<'db>`
+        #[expect(dead_code)]
         span: Span<'static>,
 
         /// Erased type: `CheckTaskState<'chk>`
@@ -432,54 +417,4 @@ mod check_task {
             std::mem::drop(p);
         },
     );
-}
-
-mod current_check {
-    use std::ptr::NonNull;
-
-    use super::Runtime;
-
-    thread_local! {
-        static CURRENT_CHECK: std::cell::Cell<Option<NonNull<()>>> = std::cell::Cell::new(None);
-    }
-
-    pub(super) fn with_check_set<T>(check: &Runtime<'_>, op: impl FnOnce() -> T) {
-        let ptr = NonNull::from(check);
-        let ptr: NonNull<()> = ptr.cast();
-        CURRENT_CHECK.with(|cell| {
-            let _guard = RestoreCurrentCheck::new(cell.replace(Some(ptr)));
-            op()
-        });
-    }
-
-    pub(super) fn read_check<T>(op: impl for<'db> FnOnce(&Runtime<'db>) -> T) {
-        CURRENT_CHECK.with(|cell| {
-            if let Some(ptr) = cell.get() {
-                let ptr: NonNull<Runtime<'_>> = ptr.cast();
-
-                // SAFETY: `with_check_set` ensures `CURRENT_CHECK` is a valid reference when set to `Some`
-                op(unsafe { ptr.as_ref() })
-            } else {
-                panic!("no check in scope")
-            }
-        });
-    }
-
-    struct RestoreCurrentCheck {
-        old_ptr: Option<NonNull<()>>,
-    }
-
-    impl RestoreCurrentCheck {
-        fn new(old_ptr: Option<NonNull<()>>) -> Self {
-            Self { old_ptr }
-        }
-    }
-
-    impl Drop for RestoreCurrentCheck {
-        fn drop(&mut self) {
-            CURRENT_CHECK.with(|cell| {
-                cell.set(self.old_ptr);
-            });
-        }
-    }
 }
