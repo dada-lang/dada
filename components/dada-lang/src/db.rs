@@ -3,8 +3,11 @@ use std::{
     sync::Mutex,
 };
 
-use dada_ir_ast::inputs::{CompilationRoot, CrateKind, CrateSource, SourceFile};
-use dada_util::{bail, Fallible, Map};
+use dada_ir_ast::{
+    ast::Identifier,
+    inputs::{CompilationRoot, Krate, SourceFile},
+};
+use dada_util::{bail, Fallible, FromImpls, Map};
 use salsa::{Durability, Event, Setter};
 
 #[derive(Default)]
@@ -18,6 +21,12 @@ pub(crate) struct Database {
 struct Inputs {
     root: Option<CompilationRoot>,
     source_files: Map<PathBuf, SourceFile>,
+    directories: Map<Krate, KrateSource>,
+}
+
+#[derive(FromImpls, Clone, Debug)]
+pub enum KrateSource {
+    Path(PathBuf),
 }
 
 impl Database {
@@ -29,16 +38,21 @@ impl Database {
         }
 
         // For now, just load libdada from the directory in the source tree
+        let libdada = Krate::new(self, "dada".to_string());
         let libdada_path = Path::new(env!("CARGO_MANIFEST_DIR")).join("../../libdada");
-        let libdada =
-            CrateSource::new(self, "dada".to_string(), CrateKind::Directory(libdada_path));
+        inputs.directories.insert(libdada, libdada_path.into());
 
         let root = CompilationRoot::new(self, vec![libdada]);
         inputs.root = Some(root);
         root
     }
 
-    pub fn add_crate(&mut self, crate_name: String, kind: CrateKind) -> Fallible<()> {
+    /// Add a crate into our list.
+    pub fn add_crate(
+        &mut self,
+        crate_name: String,
+        source: impl Into<KrateSource>,
+    ) -> Fallible<()> {
         let root = self.root();
         let mut crates = root.crates(self).clone();
 
@@ -46,8 +60,14 @@ impl Database {
             bail!("crate `{}` already exists", crate_name);
         }
 
-        let crate_source = CrateSource::new(self, crate_name, kind);
-        crates.push(crate_source);
+        let krate = Krate::new(self, crate_name);
+
+        Mutex::get_mut(&mut self.inputs)
+            .unwrap()
+            .directories
+            .insert(krate, source.into());
+
+        crates.push(krate);
         root.set_crates(self)
             .with_durability(Durability::HIGH)
             .to(crates);
@@ -95,8 +115,17 @@ impl dada_check::Db for Database {
         Database::root(self)
     }
 
-    fn source_file(&self, path: &Path) -> SourceFile {
-        Database::source_file(self, path)
+    fn source_file<'db>(&'db self, krate: Krate, modules: &[Identifier<'db>]) -> SourceFile {
+        let mut source = self.inputs.lock().unwrap().directories[&krate].clone();
+        match &mut source {
+            KrateSource::Path(path) => {
+                for module in modules {
+                    path.push(module.text(self));
+                }
+                path.set_extension("dada");
+                Database::source_file(self, &*path)
+            }
+        }
     }
 }
 

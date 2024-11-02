@@ -1,9 +1,10 @@
 //! "Symbolic IR": High-level, checked representaton. Derived from the AST.
 #![feature(trait_upcasting)]
 
-use std::path::Path;
-
-use dada_ir_ast::inputs::{CompilationRoot, SourceFile};
+use dada_ir_ast::{
+    ast::Identifier,
+    inputs::{CompilationRoot, Krate, SourceFile},
+};
 
 /// Core functionality needed to symbolize.
 #[salsa::db]
@@ -11,8 +12,9 @@ pub trait Db: salsa::Database {
     /// Access the [`CompilationRoot`], from which all crates and sources can be reached.
     fn root(&self) -> CompilationRoot;
 
-    /// Load a source-file at a given path
-    fn source_file(&self, path: &Path) -> SourceFile;
+    /// Load a source-file from the given directory.
+    /// The modules is a list of parent modules that translates to a file path.
+    fn source_file<'db>(&'db self, krate: Krate, modules: &[Identifier<'db>]) -> SourceFile;
 }
 
 pub mod binder;

@@ -5,7 +5,7 @@ use dada_ir_ast::{
         AstGenericTerm, AstPath, AstPathKind, AstUseItem, Identifier, SpanVec, SpannedIdentifier,
     },
     diagnostic::{Diagnostic, Errors, Level, Reported},
-    inputs::{CrateKind, CrateSource},
+    inputs::Krate,
     span::{Span, Spanned},
 };
 use dada_util::FromImpls;
@@ -57,12 +57,7 @@ impl<'scope, 'db> Scope<'scope, 'db> {
 
     /// Extend this scope wit the prelude from a crate.
     /// Crates can define a module named `prelude`.
-    fn with_prelude(
-        self,
-        db: &'db dyn crate::Db,
-        span: Span<'db>,
-        crate_source: CrateSource,
-    ) -> Self {
+    fn with_prelude(self, db: &'db dyn crate::Db, span: Span<'db>, crate_source: Krate) -> Self {
         let prelude_id = Identifier::prelude(db);
         match resolve_name_against_crate(
             db,
@@ -688,24 +683,17 @@ fn resolve_ast_use<'db>(
 
 fn resolve_name_against_crate<'db>(
     db: &'db dyn crate::Db,
-    crate_source: CrateSource,
+    krate: Krate,
     id: SpannedIdentifier<'db>,
 ) -> Errors<NameResolutionSym<'db>> {
-    match crate_source.kind(db) {
-        CrateKind::Directory(dir_path) => {
-            let module_path = dir_path.join(id.id.text(db)).with_extension("dada");
-            let source_file = db.source_file(&module_path);
-            match source_file.contents(db) {
-                Ok(_) => {
-                    let sym_module = source_file.into_symbol(db);
-                    Ok(sym_module.into())
-                }
-
-                Err(message) => {
-                    Err(Diagnostic::new(db, Level::Error, id.span(db), message).report(db))
-                }
-            }
+    let source_file = db.source_file(krate, &[id.id]);
+    match source_file.contents(db) {
+        Ok(_) => {
+            let sym_module = source_file.into_symbol(db);
+            Ok(sym_module.into())
         }
+
+        Err(message) => Err(Diagnostic::new(db, Level::Error, id.span(db), message).report(db)),
     }
 }
 

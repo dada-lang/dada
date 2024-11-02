@@ -1,5 +1,3 @@
-use std::path::PathBuf;
-
 use crate::{
     ast::Identifier,
     span::{AbsoluteOffset, AbsoluteSpan, Anchor, Offset, Span, Spanned},
@@ -8,7 +6,7 @@ use crate::{
 #[salsa::input]
 pub struct CompilationRoot {
     #[return_ref]
-    pub crates: Vec<CrateSource>,
+    pub crates: Vec<Krate>,
 }
 
 impl CompilationRoot {
@@ -16,13 +14,13 @@ impl CompilationRoot {
         self,
         db: &'db dyn crate::Db,
         crate_name: Identifier<'db>,
-    ) -> Option<CrateSource> {
+    ) -> Option<Krate> {
         #[salsa::tracked]
         fn inner<'db>(
             db: &'db dyn crate::Db,
             root: CompilationRoot,
             crate_name: Identifier<'db>,
-        ) -> Option<CrateSource> {
+        ) -> Option<Krate> {
             let crate_name = crate_name.text(db);
             root.crates(db)
                 .iter()
@@ -33,9 +31,9 @@ impl CompilationRoot {
         inner(db, self, crate_name)
     }
 
-    pub fn libdada_crate<'db>(self, db: &'db dyn crate::Db) -> Option<CrateSource> {
+    pub fn libdada_crate<'db>(self, db: &'db dyn crate::Db) -> Option<Krate> {
         #[salsa::tracked]
-        fn inner<'db>(db: &'db dyn crate::Db, root: CompilationRoot) -> Option<CrateSource> {
+        fn inner<'db>(db: &'db dyn crate::Db, root: CompilationRoot) -> Option<Krate> {
             root.crate_source(db, Identifier::dada(db))
         }
 
@@ -44,17 +42,9 @@ impl CompilationRoot {
 }
 
 #[salsa::input]
-pub struct CrateSource {
+pub struct Krate {
     #[return_ref]
     pub name: String,
-
-    #[return_ref]
-    pub kind: CrateKind,
-}
-
-#[derive(Debug)]
-pub enum CrateKind {
-    Directory(PathBuf),
 }
 
 #[salsa::input]

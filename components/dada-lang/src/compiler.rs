@@ -43,19 +43,19 @@ impl Compiler {
             );
         };
 
-        let root_dir = root_path.with_extension("");
-        if root_dir.exists() && !root_dir.is_dir() {
+        // For a given crate, the root module would be called
+        // `foo.dada` and then any submodules will be in
+        // `foo/...`.
+        let root_dir_path = root_path.with_extension("");
+        if root_dir_path.exists() && !root_dir_path.is_dir() {
             bail!(
                 "crate root `{}` requires `{}` to be a directory, not a file",
                 root_path.display(),
-                root_dir.display(),
+                root_dir_path.display(),
             );
         }
 
-        self.db.add_crate(
-            crate_name.to_string(),
-            dada_ir_ast::inputs::CrateKind::Directory(root_dir),
-        )?;
+        self.db.add_crate(crate_name.to_string(), root_dir_path)?;
 
         Ok(())
     }
