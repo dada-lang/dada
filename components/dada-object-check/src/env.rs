@@ -15,7 +15,9 @@ use crate::{
     bound::{Direction, TransitiveBounds},
     check::Runtime,
     object_ir::{IntoObjectIr, ObjectGenericTerm, ObjectTy, ObjectTyKind},
-    subobject::{require_assignable_object_type, require_numeric_type, require_sub_object_type},
+    subobject::{
+        require_assignable_object_type, require_numeric_type, require_sub_object_type, Expected,
+    },
     universe::Universe,
 };
 
@@ -175,27 +177,13 @@ impl<'db> Env<'db> {
         let expected_ty = expected_ty.into_object_ir(db);
         let found_ty = found_ty.into_object_ir(db);
         self.runtime.defer(self, span, move |env| async move {
-            match require_sub_object_type(
-                &env,
-                Direction::LowerBoundedBy,
-                span,
-                expected_ty,
-                found_ty,
-            )
-            .await
+            match require_sub_object_type(&env, Expected::Lower, span, expected_ty, found_ty).await
             {
                 Ok(()) => (),
                 Err(Reported(_)) => return,
             }
 
-            match require_sub_object_type(
-                &env,
-                Direction::UpperBoundedBy,
-                span,
-                found_ty,
-                expected_ty,
-            )
-            .await
+            match require_sub_object_type(&env, Expected::Upper, span, found_ty, expected_ty).await
             {
                 Ok(()) => (),
                 Err(Reported(_)) => return,

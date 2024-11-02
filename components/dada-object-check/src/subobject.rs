@@ -17,6 +17,23 @@ use crate::{
     object_ir::{ObjectGenericTerm, ObjectTy, ObjectTyKind},
 };
 
+#[derive(Copy, Clone, PartialEq, Eq, PartialOrd, Ord, Hash, Debug)]
+pub enum Expected {
+    // The lower type is the expected one.
+    Lower,
+
+    // The upper type is the expected one.
+    Upper,
+}
+impl Expected {
+    fn expected_found<T>(self, lower: T, upper: T) -> (T, T) {
+        match self {
+            Expected::Lower => (lower, upper),
+            Expected::Upper => (upper, lower),
+        }
+    }
+}
+
 pub async fn require_assignable_object_type<'db>(
     env: &Env<'db>,
     span: Span<'db>,
@@ -27,9 +44,7 @@ pub async fn require_assignable_object_type<'db>(
 
     match (value_ty.kind(db), place_ty.kind(db)) {
         (ObjectTyKind::Never, _) => Ok(()),
-        _ => {
-            require_sub_object_type(env, Direction::UpperBoundedBy, span, value_ty, place_ty).await
-        }
+        _ => require_sub_object_type(env, Expected::Upper, span, value_ty, place_ty).await,
     }
 }
 
@@ -39,7 +54,7 @@ pub fn require_sub_object_type<'a, 'db>(
     // Tracks which of the types is the "expected" type from a user's point-of-view.
     // This typically starts out as `UpperBoundedBy`, meaning that the `sup` type is
     // the one that is "expected", but it can flip due to variance.
-    expected: Direction,
+    expected: Expected,
 
     // Span that is forcing the sub-object comparison. We should probably track a more
     // complex cause.
@@ -57,11 +72,17 @@ pub fn require_sub_object_type<'a, 'db>(
         match (lower.kind(db), upper.kind(db)) {
             (ObjectTyKind::Error(_), _) | (_, ObjectTyKind::Error(_)) => Ok(()),
 
-            (ObjectTyKind::Var(univ_sub), ObjectTyKind::Var(univ_sup)) => {
-                if univ_sub == univ_sup {
+            (ObjectTyKind::Var(univ_lower), ObjectTyKind::Var(univ_upper)) => {
+                if univ_lower == univ_upper {
                     Ok(())
                 } else {
-                    Err(report_universal_mismatch(env, span, *univ_sub, *univ_sup))
+                    Err(report_universal_mismatch(
+                        env,
+                        expected,
+                        span,
+                        *univ_lower,
+                        *univ_upper,
+                    ))
                 }
             }
 
@@ -70,7 +91,7 @@ pub fn require_sub_object_type<'a, 'db>(
                     env,
                     span,
                     infer_var,
-                    expected == Direction::LowerBoundedBy,
+                    expected == Expected::Lower,
                     Direction::UpperBoundedBy,
                     upper.into(),
                 )
@@ -82,7 +103,7 @@ pub fn require_sub_object_type<'a, 'db>(
                     env,
                     span,
                     infer_var,
-                    expected == Direction::LowerBoundedBy,
+                    expected == Expected::Upper,
                     Direction::LowerBoundedBy,
                     lower.into(),
                 )
@@ -96,6 +117,7 @@ pub fn require_sub_object_type<'a, 'db>(
                 if name_lower != name_upper {
                     return Err(report_class_name_mismatch(
                         env,
+                        expected,
                         span,
                         *name_lower,
                         *name_upper,
@@ -120,8 +142,8 @@ pub fn require_sub_object_type<'a, 'db>(
     })
 }
 
-async fn bound_inference_var<'db>(
-    env: &Env<'db>,
+fn bound_inference_var<'a, 'db>(
+    env: &'a Env<'db>,
 
     span: Span<'db>,
     infer_var: InferVarIndex,
@@ -132,66 +154,87 @@ async fn bound_inference_var<'db>(
     // The relation of `term` to `infer_var`.
     direction: Direction,
     term: ObjectGenericTerm<'db>,
-) -> Errors<()> {
-    env.runtime()
-        .insert_inference_var_bound(infer_var, direction, term);
+) -> impl Future<Output = Errors<()>> + use<'a, 'db> {
+    Box::pin(async move {
+        let db = env.db();
 
-    let opposite_bounds: Vec<ObjectGenericTerm<'db>> =
-        env.runtime().with_inference_var_data(infer_var, |data| {
-            direction.reverse().infer_var_bounds(data).to_vec()
-        });
+        // If this variable already has the given bound, stop.
+        if !env
+            .runtime()
+            .insert_inference_var_bound(infer_var, direction, term)
+        {
+            return Ok(());
+        }
 
-    for opposite_bound in opposite_bounds {
-        let (arg_sub, arg_sup, expected) = match direction {
-            Direction::LowerBoundedBy => {
-                // If direction == LowerBounds, we are adding a new `T <: ?X`
-                // and we already knew that `?X <: opposite_bound`.
-                // Therefore we now require that `T <: opposite_bound`.
-                (
-                    term,
-                    opposite_bound,
-                    if infer_var_expected {
-                        // The inference variable is being replaced by opposite-bound
-                        // in the position of upper-bound.
-                        Direction::UpperBoundedBy
-                    } else {
-                        Direction::LowerBoundedBy
-                    },
-                )
-            }
+        let opposite_bounds: Vec<ObjectGenericTerm<'db>> =
+            env.runtime().with_inference_var_data(infer_var, |data| {
+                direction.reverse().infer_var_bounds(data).to_vec()
+            });
 
-            Direction::UpperBoundedBy => {
-                // Like the other match arm, but in reverse:
-                // We already knew that `opposite_bound <: ?X` and we are adding `?X <: T`.
-                // Therefore we now require that `opposite_bound <: T`.
-                (
-                    opposite_bound,
-                    term,
-                    if infer_var_expected {
-                        Direction::LowerBoundedBy
-                    } else {
-                        Direction::UpperBoundedBy
-                    },
-                )
-            }
-        };
+        for opposite_bound in opposite_bounds {
+            let (arg_sub, arg_sup, expected) = match direction {
+                Direction::LowerBoundedBy => {
+                    // If direction == LowerBounds, we are adding a new `T <: ?X`
+                    // and we already knew that `?X <: opposite_bound`.
+                    // Therefore we now require that `T <: opposite_bound`.
+                    (
+                        term,
+                        opposite_bound,
+                        if infer_var_expected {
+                            // The inference variable is being replaced by opposite-bound
+                            // in the position of upper-bound.
+                            Expected::Upper
+                        } else {
+                            Expected::Lower
+                        },
+                    )
+                }
 
-        require_sub_object_term(env, expected, span, arg_sub, arg_sup).await?;
-    }
+                Direction::UpperBoundedBy => {
+                    // Like the other match arm, but in reverse:
+                    // We already knew that `opposite_bound <: ?X` and we are adding `?X <: T`.
+                    // Therefore we now require that `opposite_bound <: T`.
+                    (
+                        opposite_bound,
+                        term,
+                        if infer_var_expected {
+                            Expected::Lower
+                        } else {
+                            Expected::Upper
+                        },
+                    )
+                }
+            };
 
-    Ok(())
+            require_sub_object_term(env, expected, span, arg_sub, arg_sup).await?;
+        }
+
+        if term.is_isolated(db) {
+            bound_inference_var(
+                env,
+                span,
+                infer_var,
+                !infer_var_expected,
+                direction.reverse(),
+                term,
+            )
+            .await
+        } else {
+            Ok(())
+        }
+    })
 }
 
 async fn require_sub_object_term<'db>(
     env: &Env<'db>,
-    expected: Direction,
+    expected: Expected,
     span: Span<'db>,
-    arg_sub: ObjectGenericTerm<'db>,
-    arg_sup: ObjectGenericTerm<'db>,
+    arg_lower: ObjectGenericTerm<'db>,
+    arg_upper: ObjectGenericTerm<'db>,
 ) -> Errors<()> {
-    match (arg_sub, arg_sup) {
-        (ObjectGenericTerm::Type(sub), ObjectGenericTerm::Type(sup)) => {
-            require_sub_object_type(env, expected, span, sub, sup).await
+    match (arg_lower, arg_upper) {
+        (ObjectGenericTerm::Type(lower), ObjectGenericTerm::Type(upper)) => {
+            require_sub_object_type(env, expected, span, lower, upper).await
         }
         (ObjectGenericTerm::Perm, ObjectGenericTerm::Perm)
         | (ObjectGenericTerm::Place, ObjectGenericTerm::Place)
@@ -237,75 +280,85 @@ pub async fn require_numeric_type<'db>(
 
 fn report_class_name_mismatch<'db>(
     env: &Env<'db>,
+    expected: Expected,
     span: Span<'db>,
-    name_sub: SymTyName<'db>,
-    name_sup: SymTyName<'db>,
+    name_lower: SymTyName<'db>,
+    name_upper: SymTyName<'db>,
 ) -> Reported {
+    let (name_expected, name_found) = expected.expected_found(name_lower, name_upper);
     let db = env.db();
-    Diagnostic::error(db, span, format!("expected {name_sub}, found {name_sup}"))
-        .label(
-            db,
-            Level::Error,
-            span,
-            format!("I expected a {name_sup}, but I found a {name_sub}"),
-        )
-        .report(db)
+    Diagnostic::error(
+        db,
+        span,
+        format!("expected {name_expected}, found {name_found}"),
+    )
+    .label(
+        db,
+        Level::Error,
+        span,
+        format!("I expected a {name_expected}, but I found a {name_found}"),
+    )
+    .report(db)
 }
 
 fn report_universal_mismatch<'db>(
     env: &Env<'db>,
+    expected: Expected,
     span: Span<'db>,
-    univ_sub: SymVariable<'db>,
-    univ_sup: SymVariable<'db>,
+    univ_lower: SymVariable<'db>,
+    univ_upper: SymVariable<'db>,
 ) -> Reported {
     let db = env.db();
+    let (univ_expected, univ_found) = expected.expected_found(univ_lower, univ_upper);
 
-    match (univ_sub.name(db), univ_sup.name(db)) {
-        (Some(_), _) | (_, Some(_)) => {
-            Diagnostic::error(db, span, format!("expected {univ_sub}, found {univ_sup}"))
-                .label(
-                    db,
-                    Level::Error,
-                    span,
-                    format!("I expected a {univ_sub}, but I found a {univ_sup}"),
-                )
-                .label(
-                    db,
-                    Level::Info,
-                    univ_sub.span(db),
-                    format!("{univ_sub} declared here"),
-                )
-                .label(
-                    db,
-                    Level::Info,
-                    univ_sub.span(db),
-                    format!("{univ_sup} declared here"),
-                )
-                .report(db)
-        }
-
-        (None, None) => Diagnostic::error(
+    match (univ_expected.name(db), univ_found.name(db)) {
+        (Some(_), _) | (_, Some(_)) => Diagnostic::error(
             db,
             span,
-            format!("expected {univ_sub}, found different {univ_sup}"),
+            format!("expected {univ_expected}, found {univ_found}"),
         )
         .label(
             db,
             Level::Error,
             span,
-            format!("I expected a {univ_sub}, but I found a different {univ_sup}"),
+            format!("I expected a {univ_expected}, but I found a {univ_found}"),
         )
         .label(
             db,
             Level::Info,
-            univ_sub.span(db),
-            format!("first {univ_sub} declared here"),
+            univ_expected.span(db),
+            format!("{univ_expected} declared here"),
         )
         .label(
             db,
             Level::Info,
-            univ_sub.span(db),
-            format!("second {univ_sup} declared here"),
+            univ_found.span(db),
+            format!("{univ_found} declared here"),
+        )
+        .report(db),
+
+        (None, None) => Diagnostic::error(
+            db,
+            span,
+            format!("expected {univ_expected}, found different {univ_found}"),
+        )
+        .label(
+            db,
+            Level::Error,
+            span,
+            format!("I expected a {univ_expected}, but I found a different {univ_found}"),
+        )
+        .label(
+            db,
+            Level::Info,
+            univ_expected.span(db),
+            format!("first {univ_expected} declared here"),
+        )
+        .label(
+            db,
+            Level::Info,
+            univ_found.span(db),
+            format!("second {univ_found} declared here"),
         )
         .report(db),
     }

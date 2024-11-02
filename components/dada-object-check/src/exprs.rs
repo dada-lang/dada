@@ -24,14 +24,13 @@ use dada_util::FromImpls;
 use futures::StreamExt;
 
 use crate::{
-    bound::Direction,
     env::Env,
     member::MemberLookup,
     object_ir::{
         IntoObjectIr, ObjectExpr, ObjectExprKind, ObjectPlaceExpr, ObjectPlaceExprKind, ObjectTy,
         ObjectTyKind,
     },
-    subobject::require_sub_object_type,
+    subobject::{require_sub_object_type, Expected},
     Checking,
 };
 
@@ -587,32 +586,20 @@ async fn require_future<'db>(
         match ty.kind(db) {
             ObjectTyKind::Infer(_) => (),
             ObjectTyKind::Never => {
-                let _ = require_sub_object_type(
-                    env,
-                    Direction::LowerBoundedBy,
-                    await_span,
-                    ty,
-                    awaited_ty,
-                )
-                .await;
+                let _ =
+                    require_sub_object_type(env, Expected::Lower, await_span, ty, awaited_ty).await;
                 return;
             }
             ObjectTyKind::Error(_) => {
-                let _ = require_sub_object_type(
-                    env,
-                    Direction::LowerBoundedBy,
-                    await_span,
-                    ty,
-                    awaited_ty,
-                )
-                .await;
+                let _ =
+                    require_sub_object_type(env, Expected::Lower, await_span, ty, awaited_ty).await;
                 return;
             }
             ObjectTyKind::Named(SymTyName::Future, vec) => {
                 let future_ty_arg = vec[0].assert_type(db);
                 let _ = require_sub_object_type(
                     env,
-                    Direction::LowerBoundedBy,
+                    Expected::Lower,
                     await_span,
                     future_ty_arg,
                     awaited_ty,
