@@ -31,15 +31,25 @@ pub struct Identifier<'db> {
 
 impl<'db> Identifier<'db> {
     pub fn prelude(db: &'db dyn crate::Db) -> Identifier<'db> {
-        Identifier::new(db, "prelude".to_string())
+        Identifier::new(db, "prelude")
     }
 
     pub fn dada(db: &'db dyn crate::Db) -> Identifier<'db> {
-        Identifier::new(db, "dada".to_string())
+        Identifier::new(db, "dada")
     }
 
     pub fn new_ident(db: &'db dyn crate::Db) -> Identifier<'db> {
-        Identifier::new(db, "new".to_string())
+        Identifier::new(db, "new")
+    }
+
+    /// Create interned "self" identifier
+    pub fn self_ident(db: &'db dyn crate::Db) -> Identifier<'db> {
+        Identifier::new(db, "self")
+    }
+
+    /// Create interned "Self" identifier
+    pub fn self_ty_ident(db: &'db dyn crate::Db) -> Identifier<'db> {
+        Identifier::new(db, "Self")
     }
 }
 

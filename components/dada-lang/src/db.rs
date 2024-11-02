@@ -3,10 +3,7 @@ use std::{
     sync::Mutex,
 };
 
-use dada_ir_ast::{
-    ast::Identifier,
-    inputs::{CompilationRoot, CrateKind, CrateSource, SourceFile},
-};
+use dada_ir_ast::inputs::{CompilationRoot, CrateKind, CrateSource, SourceFile};
 use dada_util::{bail, Fallible, Map};
 use salsa::{Durability, Event, Setter};
 
@@ -100,16 +97,6 @@ impl dada_check::Db for Database {
 
     fn source_file(&self, path: &Path) -> SourceFile {
         Database::source_file(self, path)
-    }
-
-    /// Create interned "self" identifier
-    fn self_id(&self) -> Identifier<'_> {
-        Identifier::new(self, format!("self"))
-    }
-
-    /// Create interned "Self" identifier
-    fn self_ty_id(&self) -> Identifier<'_> {
-        Identifier::new(self, format!("Self"))
     }
 }
 

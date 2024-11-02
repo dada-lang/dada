@@ -126,7 +126,7 @@ impl<'db> IntoSymbol<'db> for AstSelfArg<'db> {
         SymVariable::new(
             db,
             SymGenericKind::Place,
-            Some(db.self_id()),
+            Some(Identifier::self_ident(db)),
             self.self_span(db),
         )
     }

@@ -3,10 +3,7 @@
 
 use std::path::Path;
 
-use dada_ir_ast::{
-    ast::Identifier,
-    inputs::{CompilationRoot, SourceFile},
-};
+use dada_ir_ast::inputs::{CompilationRoot, SourceFile};
 
 /// Core functionality needed to symbolize.
 #[salsa::db]
@@ -16,12 +13,6 @@ pub trait Db: salsa::Database {
 
     /// Load a source-file at a given path
     fn source_file(&self, path: &Path) -> SourceFile;
-
-    /// Create interned `self` identifier
-    fn self_id(&self) -> Identifier<'_>;
-
-    /// Create interned `Self` identifier
-    fn self_ty_id(&self) -> Identifier<'_>;
 }
 
 pub mod binder;
