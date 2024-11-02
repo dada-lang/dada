@@ -24,6 +24,7 @@ use dada_util::FromImpls;
 use futures::StreamExt;
 
 use crate::{
+    bound::Direction,
     env::Env,
     member::MemberLookup,
     object_ir::{
@@ -184,8 +185,7 @@ async fn check_expr<'db>(expr: &AstExpr<'db>, env: &Env<'db>) -> ExprResult<'db>
             env.require_numeric_type(expr_span, lhs.ty(db));
             env.require_numeric_type(expr_span, rhs.ty(db));
             env.if_not_never(span_op.span, &[lhs.ty(db), rhs.ty(db)], async move |env| {
-                env.require_sub_object_type(expr_span, lhs.ty(db), rhs.ty(db));
-                env.require_sub_object_type(expr_span, rhs.ty(db), lhs.ty(db));
+                env.require_equal_object_types(expr_span, lhs.ty(db), rhs.ty(db));
             });
 
             // What type do we want these operators to have?
@@ -587,16 +587,37 @@ async fn require_future<'db>(
         match ty.kind(db) {
             ObjectTyKind::Infer(_) => (),
             ObjectTyKind::Never => {
-                let _ = require_sub_object_type(env, await_span, ty, awaited_ty).await;
+                let _ = require_sub_object_type(
+                    env,
+                    Direction::LowerBoundedBy,
+                    await_span,
+                    ty,
+                    awaited_ty,
+                )
+                .await;
                 return;
             }
             ObjectTyKind::Error(_) => {
-                let _ = require_sub_object_type(env, await_span, ty, awaited_ty).await;
+                let _ = require_sub_object_type(
+                    env,
+                    Direction::LowerBoundedBy,
+                    await_span,
+                    ty,
+                    awaited_ty,
+                )
+                .await;
                 return;
             }
             ObjectTyKind::Named(SymTyName::Future, vec) => {
                 let future_ty_arg = vec[0].assert_type(db);
-                let _ = require_sub_object_type(env, await_span, future_ty_arg, awaited_ty).await;
+                let _ = require_sub_object_type(
+                    env,
+                    Direction::LowerBoundedBy,
+                    await_span,
+                    future_ty_arg,
+                    awaited_ty,
+                )
+                .await;
                 return;
             }
             ObjectTyKind::Named(..) | ObjectTyKind::Var(..) => {

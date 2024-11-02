@@ -39,8 +39,8 @@ impl<'db> InferenceVarData<'db> {
     ) -> bool {
         assert!(term.has_kind(db, self.kind));
         match direction {
-            Direction::LowerBounds => self.lower_bounds.insert(term),
-            Direction::UpperBounds => self.upper_bounds.insert(term),
+            Direction::LowerBoundedBy => self.lower_bounds.insert(term),
+            Direction::UpperBoundedBy => self.upper_bounds.insert(term),
         }
     }
 

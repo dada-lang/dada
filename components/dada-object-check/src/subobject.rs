@@ -27,20 +27,34 @@ pub async fn require_assignable_object_type<'db>(
 
     match (value_ty.kind(db), place_ty.kind(db)) {
         (ObjectTyKind::Never, _) => Ok(()),
-        _ => require_sub_object_type(env, span, value_ty, place_ty).await,
+        _ => {
+            require_sub_object_type(env, Direction::UpperBoundedBy, span, value_ty, place_ty).await
+        }
     }
 }
 
 pub fn require_sub_object_type<'a, 'db>(
     env: &'a Env<'db>,
+
+    // Tracks which of the types is the "expected" type from a user's point-of-view.
+    // This typically starts out as `UpperBoundedBy`, meaning that the `sup` type is
+    // the one that is "expected", but it can flip due to variance.
+    expected: Direction,
+
+    // Span that is forcing the sub-object comparison. We should probably track a more
+    // complex cause.
     span: Span<'db>,
-    sub: ObjectTy<'db>,
-    sup: ObjectTy<'db>,
+
+    // Prospective subtype
+    lower: ObjectTy<'db>,
+
+    // Prospective supertype
+    upper: ObjectTy<'db>,
 ) -> impl Future<Output = Errors<()>> + use<'a, 'db> {
     Box::pin(async move {
         let db = env.db();
 
-        match (sub.kind(db), sup.kind(db)) {
+        match (lower.kind(db), upper.kind(db)) {
             (ObjectTyKind::Error(_), _) | (_, ObjectTyKind::Error(_)) => Ok(()),
 
             (ObjectTyKind::Var(univ_sub), ObjectTyKind::Var(univ_sup)) => {
@@ -52,22 +66,47 @@ pub fn require_sub_object_type<'a, 'db>(
             }
 
             (&ObjectTyKind::Infer(infer_var), _) => {
-                bound_inference_var(env, span, infer_var, Direction::UpperBounds, sup.into()).await
+                bound_inference_var(
+                    env,
+                    span,
+                    infer_var,
+                    expected == Direction::LowerBoundedBy,
+                    Direction::UpperBoundedBy,
+                    upper.into(),
+                )
+                .await
             }
 
             (_, &ObjectTyKind::Infer(infer_var)) => {
-                bound_inference_var(env, span, infer_var, Direction::LowerBounds, sub.into()).await
+                bound_inference_var(
+                    env,
+                    span,
+                    infer_var,
+                    expected == Direction::LowerBoundedBy,
+                    Direction::LowerBoundedBy,
+                    lower.into(),
+                )
+                .await
             }
 
-            (ObjectTyKind::Named(name_sub, args_sub), ObjectTyKind::Named(name_sup, args_sup)) => {
-                if name_sub != name_sup {
-                    return Err(report_class_name_mismatch(env, span, *name_sub, *name_sup));
+            (
+                ObjectTyKind::Named(name_lower, args_lower),
+                ObjectTyKind::Named(name_upper, args_upper),
+            ) => {
+                if name_lower != name_upper {
+                    return Err(report_class_name_mismatch(
+                        env,
+                        span,
+                        *name_lower,
+                        *name_upper,
+                    ));
                 }
 
-                assert_eq!(args_sub.len(), args_sup.len());
+                assert_eq!(args_lower.len(), args_upper.len());
 
-                for (&arg_sub, &arg_sup) in args_sub.iter().zip(args_sup) {
-                    require_sub_object_term(env, span, arg_sub, arg_sup).await?;
+                // FIXME: variance
+                for (&arg_lower, &arg_upper) in args_lower.iter().zip(args_upper) {
+                    require_sub_object_term(env, expected, span, arg_lower, arg_upper).await?;
                 }
 
                 Ok(())
@@ -83,8 +122,14 @@ pub fn require_sub_object_type<'a, 'db>(
 
 async fn bound_inference_var<'db>(
     env: &Env<'db>,
+
     span: Span<'db>,
     infer_var: InferVarIndex,
+
+    // True if the inference variable is the expected type
+    infer_var_expected: bool,
+
+    // The relation of `term` to `infer_var`.
     direction: Direction,
     term: ObjectGenericTerm<'db>,
 ) -> Errors<()> {
@@ -97,23 +142,41 @@ async fn bound_inference_var<'db>(
         });
 
     for opposite_bound in opposite_bounds {
-        let (arg_sub, arg_sup) = match direction {
-            Direction::LowerBounds => {
-                // If direction == LowerBounds, we are added a new `T <: ?X`
+        let (arg_sub, arg_sup, expected) = match direction {
+            Direction::LowerBoundedBy => {
+                // If direction == LowerBounds, we are adding a new `T <: ?X`
                 // and we already knew that `?X <: opposite_bound`.
                 // Therefore we now require that `T <: opposite_bound`.
-                (term, opposite_bound)
+                (
+                    term,
+                    opposite_bound,
+                    if infer_var_expected {
+                        // The inference variable is being replaced by opposite-bound
+                        // in the position of upper-bound.
+                        Direction::UpperBoundedBy
+                    } else {
+                        Direction::LowerBoundedBy
+                    },
+                )
             }
 
-            Direction::UpperBounds => {
+            Direction::UpperBoundedBy => {
                 // Like the other match arm, but in reverse:
                 // We already knew that `opposite_bound <: ?X` and we are adding `?X <: T`.
                 // Therefore we now require that `opposite_bound <: T`.
-                (opposite_bound, term)
+                (
+                    opposite_bound,
+                    term,
+                    if infer_var_expected {
+                        Direction::LowerBoundedBy
+                    } else {
+                        Direction::UpperBoundedBy
+                    },
+                )
             }
         };
 
-        require_sub_object_term(env, span, arg_sub, arg_sup).await?;
+        require_sub_object_term(env, expected, span, arg_sub, arg_sup).await?;
     }
 
     Ok(())
@@ -121,13 +184,14 @@ async fn bound_inference_var<'db>(
 
 async fn require_sub_object_term<'db>(
     env: &Env<'db>,
+    expected: Direction,
     span: Span<'db>,
     arg_sub: ObjectGenericTerm<'db>,
     arg_sup: ObjectGenericTerm<'db>,
 ) -> Errors<()> {
     match (arg_sub, arg_sup) {
         (ObjectGenericTerm::Type(sub), ObjectGenericTerm::Type(sup)) => {
-            require_sub_object_type(env, span, sub, sup).await
+            require_sub_object_type(env, expected, span, sub, sup).await
         }
         (ObjectGenericTerm::Perm, ObjectGenericTerm::Perm)
         | (ObjectGenericTerm::Place, ObjectGenericTerm::Place)

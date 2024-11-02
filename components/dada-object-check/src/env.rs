@@ -165,19 +165,40 @@ impl<'db> Env<'db> {
         })
     }
 
-    pub fn require_sub_object_type(
+    pub fn require_equal_object_types(
         &self,
         span: Span<'db>,
-        sub_ty: impl IntoObjectIr<'db, Object = ObjectTy<'db>>,
-        sup_ty: impl IntoObjectIr<'db, Object = ObjectTy<'db>>,
+        expected_ty: impl IntoObjectIr<'db, Object = ObjectTy<'db>>,
+        found_ty: impl IntoObjectIr<'db, Object = ObjectTy<'db>>,
     ) {
         let db = self.db();
-        let sub_ty = sub_ty.into_object_ir(db);
-        let sup_ty = sup_ty.into_object_ir(db);
+        let expected_ty = expected_ty.into_object_ir(db);
+        let found_ty = found_ty.into_object_ir(db);
         self.runtime.defer(self, span, move |env| async move {
-            match require_sub_object_type(&env, span, sub_ty, sup_ty).await {
+            match require_sub_object_type(
+                &env,
+                Direction::LowerBoundedBy,
+                span,
+                expected_ty,
+                found_ty,
+            )
+            .await
+            {
                 Ok(()) => (),
-                Err(Reported(_)) => (),
+                Err(Reported(_)) => return,
+            }
+
+            match require_sub_object_type(
+                &env,
+                Direction::UpperBoundedBy,
+                span,
+                found_ty,
+                expected_ty,
+            )
+            .await
+            {
+                Ok(()) => (),
+                Err(Reported(_)) => return,
             }
         })
     }
@@ -230,14 +251,14 @@ impl<'db> Env<'db> {
         &self,
         ty: ObjectTy<'db>,
     ) -> impl Stream<Item = ObjectTy<'db>> + 'db {
-        self.transitive_bounds(ty, Direction::LowerBounds)
+        self.transitive_bounds(ty, Direction::LowerBoundedBy)
     }
 
     pub fn transitive_upper_bounds(
         &self,
         ty: ObjectTy<'db>,
     ) -> impl Stream<Item = ObjectTy<'db>> + 'db {
-        self.transitive_bounds(ty, Direction::UpperBounds)
+        self.transitive_bounds(ty, Direction::UpperBoundedBy)
     }
 
     pub fn transitive_bounds(

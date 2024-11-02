@@ -14,15 +14,15 @@ use crate::{
 
 #[derive(Copy, Clone, PartialEq, Eq, PartialOrd, Ord, Hash, Debug)]
 pub(crate) enum Direction {
-    LowerBounds,
-    UpperBounds,
+    LowerBoundedBy,
+    UpperBoundedBy,
 }
 
 impl Direction {
     pub fn reverse(self) -> Self {
         match self {
-            Direction::LowerBounds => Direction::UpperBounds,
-            Direction::UpperBounds => Direction::LowerBounds,
+            Direction::LowerBoundedBy => Direction::UpperBoundedBy,
+            Direction::UpperBoundedBy => Direction::LowerBoundedBy,
         }
     }
 
@@ -32,8 +32,8 @@ impl Direction {
     {
         let (lower, upper) = Term::bound_slices(data);
         match self {
-            Direction::LowerBounds => lower,
-            Direction::UpperBounds => upper,
+            Direction::LowerBoundedBy => lower,
+            Direction::UpperBoundedBy => upper,
         }
     }
 }
