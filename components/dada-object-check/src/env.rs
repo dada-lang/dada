@@ -1,12 +1,8 @@
 use std::sync::Arc;
 
-use dada_ir_ast::{
-    diagnostic::{Errors, Reported},
-    span::Span,
-};
+use dada_ir_ast::{diagnostic::Reported, span::Span};
 use dada_ir_sym::{
     binder::BoundTerm,
-    indices::InferVarIndex,
     scope::Scope,
     subst::SubstWith,
     symbol::{SymGenericKind, SymVariable},
@@ -16,7 +12,7 @@ use dada_util::Map;
 use futures::{Stream, StreamExt};
 
 use crate::{
-    bound::{Bound, Direction, TransitiveBounds},
+    bound::{Direction, TransitiveBounds},
     check::Runtime,
     object_ir::{IntoObjectIr, ObjectGenericTerm, ObjectTy, ObjectTyKind},
     subobject::{require_assignable_object_type, require_numeric_type, require_sub_object_type},
@@ -63,6 +59,11 @@ impl<'db> Env<'db> {
     /// Get the database
     pub fn db(&self) -> &'db dyn crate::Db {
         self.runtime.db
+    }
+
+    /// Access the lower-level type checking runtime
+    pub fn runtime(&self) -> &Runtime<'db> {
+        &self.runtime
     }
 
     /// Open the given symbols as universally quantified.
@@ -229,15 +230,6 @@ impl<'db> Env<'db> {
 
                 op(env).await
             })
-    }
-
-    pub fn bound_inference_var(
-        &self,
-        infer_var: InferVarIndex,
-        bound: Bound<impl Into<ObjectGenericTerm<'db>>>,
-    ) -> Errors<()> {
-        // FIXME
-        Ok(())
     }
 
     pub fn transitive_lower_bounds(

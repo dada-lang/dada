@@ -21,7 +21,7 @@ use dada_util::{vecset::VecSet, Map};
 use futures::future::LocalBoxFuture;
 
 use crate::{
-    bound::Bound,
+    bound::Direction,
     env::Env,
     inference::InferenceVarData,
     object_ir::{ObjectGenericTerm, ObjectTy},
@@ -177,17 +177,22 @@ impl<'db> Runtime<'db> {
 
     /// Modify the list of bounds for `var`, awakening any tasks that are monitoring this variable.
     /// This is a low-level function that should only be used as part of subtyping.
-    pub fn push_inference_var_bound(
+    pub fn insert_inference_var_bound(
         &self,
         var: InferVarIndex,
-        bound: Bound<ObjectGenericTerm<'db>>,
-    ) {
+        direction: Direction,
+        term: ObjectGenericTerm<'db>,
+    ) -> bool {
         let mut inference_vars = self.inference_vars.write().unwrap();
-        let mut waiting_on_inference_var = self.waiting_on_inference_var.lock().unwrap();
-        inference_vars[var.as_usize()].push_bound(self.db, bound);
-        let wakers = waiting_on_inference_var.remove(&var);
-        for EqWaker { waker } in wakers.into_iter().flatten() {
-            waker.wake();
+        if inference_vars[var.as_usize()].insert_bound(self.db, direction, term) {
+            let mut waiting_on_inference_var = self.waiting_on_inference_var.lock().unwrap();
+            let wakers = waiting_on_inference_var.remove(&var);
+            for EqWaker { waker } in wakers.into_iter().flatten() {
+                waker.wake();
+            }
+            true
+        } else {
+            false
         }
     }
 

@@ -292,6 +292,53 @@ impl<'db> ObjectGenericTerm<'db> {
             _ => panic!("`{self:?}` is not a type"),
         }
     }
+
+    /// A term is an "isolated" bound if it has no super- or sub-terms.
+    /// For example, `u32` is an isolated type because it is not a super- or sub-type of anything else.
+    ///
+    /// This is used to improve type inference: an isolated bound propagates from lower- to upper.
+    ///
+    /// The term "isolated" comes from lattice theory: *An "isolated element lattice" refers to a lattice
+    /// structure where a specific element within the lattice is positioned in a way that it has no direct
+    /// neighbors or connections to other elements within the same lattice, essentially being "isolated"
+    /// from the surrounding structure.*
+    pub fn is_isolated(self, db: &'db dyn crate::Db) -> bool {
+        match self {
+            ObjectGenericTerm::Type(object_ty) => match object_ty.kind(db) {
+                ObjectTyKind::Named(name, vec) => match name {
+                    SymTyName::Class(sym_class) => {
+                        // FIXME: This will be true for some classes but not others
+                        false
+                    }
+
+                    SymTyName::Primitive(_) | SymTyName::Tuple { arity: _ } | SymTyName::Future => {
+                        vec.iter().all(|arg| arg.is_isolated(db))
+                    }
+                },
+
+                // We treat universal variables as *if* they are isolated,
+                // but we don't actually know what type they represent, so they
+                // are not truly isolated.
+                // Returning false here preserves our ability to add subtyping bounds
+                // in the future, for example.
+                ObjectTyKind::Var(_) => false,
+
+                // Inference variables have growing and unknown set of bounds, not isolated.
+                ObjectTyKind::Infer(_) => false,
+                ObjectTyKind::Never => true,
+                ObjectTyKind::Error(_) => true,
+            },
+
+            // Just one element.
+            ObjectGenericTerm::Perm => true,
+
+            // Just one element.
+            ObjectGenericTerm::Place => true,
+
+            // We call errors "isolated" because they can (harmlessly) propagate around.
+            ObjectGenericTerm::Error(_) => true,
+        }
+    }
 }
 
 pub(crate) trait IntoObjectIr<'db>: Update {

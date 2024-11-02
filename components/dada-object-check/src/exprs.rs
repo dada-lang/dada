@@ -24,13 +24,13 @@ use dada_util::FromImpls;
 use futures::StreamExt;
 
 use crate::{
-    bound::Bound,
     env::Env,
     member::MemberLookup,
     object_ir::{
         IntoObjectIr, ObjectExpr, ObjectExprKind, ObjectPlaceExpr, ObjectPlaceExprKind, ObjectTy,
         ObjectTyKind,
     },
+    subobject::require_sub_object_type,
     Checking,
 };
 
@@ -580,29 +580,23 @@ async fn require_future<'db>(
 ) {
     let db = env.db();
 
-    let infer_var = match awaited_ty.kind(db) {
-        ObjectTyKind::Infer(v) => *v,
-        _ => unreachable!(),
-    };
-
     let mut bounds = env.transitive_lower_bounds(future_ty);
-
     while let Some(ty) = bounds.next().await {
         match ty.kind(db) {
             ObjectTyKind::Infer(_) => (),
             ObjectTyKind::Never => {
-                let _ = env.bound_inference_var(infer_var, Bound::LowerBound(ty));
-            }
-            ObjectTyKind::Error(_) => {
-                let _ = env.bound_inference_var(infer_var, Bound::LowerBound(ty));
+                let _ = require_sub_object_type(env, await_span, ty, awaited_ty).await;
                 return;
             }
-
-            ObjectTyKind::Named(SymTyName::Future, vec) => {
-                let awaited_bound = vec[0].assert_type(db);
-                let _ = env.bound_inference_var(infer_var, Bound::LowerBound(awaited_bound));
+            ObjectTyKind::Error(_) => {
+                let _ = require_sub_object_type(env, await_span, ty, awaited_ty).await;
+                return;
             }
-
+            ObjectTyKind::Named(SymTyName::Future, vec) => {
+                let future_ty_arg = vec[0].assert_type(db);
+                let _ = require_sub_object_type(env, await_span, future_ty_arg, awaited_ty).await;
+                return;
+            }
             ObjectTyKind::Named(..) | ObjectTyKind::Var(..) => {
                 Diagnostic::error(db, await_span, format!("await requires a future"))
                     .label(

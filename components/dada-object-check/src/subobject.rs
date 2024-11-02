@@ -1,14 +1,18 @@
+//! Implement object-level subtyping.
+
 use std::future::Future;
 
 use dada_ir_ast::{
     diagnostic::{Diagnostic, Errors, Level, Reported},
     span::Span,
 };
-use dada_ir_sym::{primitive::SymPrimitiveKind, symbol::SymVariable, ty::SymTyName};
+use dada_ir_sym::{
+    indices::InferVarIndex, primitive::SymPrimitiveKind, symbol::SymVariable, ty::SymTyName,
+};
 use futures::StreamExt;
 
 use crate::{
-    bound::Bound,
+    bound::Direction,
     env::Env,
     object_ir::{ObjectGenericTerm, ObjectTy, ObjectTyKind},
 };
@@ -47,9 +51,13 @@ pub fn require_sub_object_type<'a, 'db>(
                 }
             }
 
-            (&ObjectTyKind::Infer(var), _) => env.bound_inference_var(var, Bound::UpperBound(sup)),
+            (&ObjectTyKind::Infer(infer_var), _) => {
+                bound_inference_var(env, span, infer_var, Direction::UpperBounds, sup.into()).await
+            }
 
-            (_, &ObjectTyKind::Infer(var)) => env.bound_inference_var(var, Bound::LowerBound(sup)),
+            (_, &ObjectTyKind::Infer(infer_var)) => {
+                bound_inference_var(env, span, infer_var, Direction::LowerBounds, sub.into()).await
+            }
 
             (ObjectTyKind::Named(name_sub, args_sub), ObjectTyKind::Named(name_sup, args_sup)) => {
                 if name_sub != name_sup {
@@ -71,6 +79,44 @@ pub fn require_sub_object_type<'a, 'db>(
             }
         }
     })
+}
+
+async fn bound_inference_var<'db>(
+    env: &Env<'db>,
+    span: Span<'db>,
+    infer_var: InferVarIndex,
+    direction: Direction,
+    term: ObjectGenericTerm<'db>,
+) -> Errors<()> {
+    env.runtime()
+        .insert_inference_var_bound(infer_var, direction, term);
+
+    let opposite_bounds: Vec<ObjectGenericTerm<'db>> =
+        env.runtime().with_inference_var_data(infer_var, |data| {
+            direction.reverse().infer_var_bounds(data).to_vec()
+        });
+
+    for opposite_bound in opposite_bounds {
+        let (arg_sub, arg_sup) = match direction {
+            Direction::LowerBounds => {
+                // If direction == LowerBounds, we are added a new `T <: ?X`
+                // and we already knew that `?X <: opposite_bound`.
+                // Therefore we now require that `T <: opposite_bound`.
+                (term, opposite_bound)
+            }
+
+            Direction::UpperBounds => {
+                // Like the other match arm, but in reverse:
+                // We already knew that `opposite_bound <: ?X` and we are adding `?X <: T`.
+                // Therefore we now require that `opposite_bound <: T`.
+                (opposite_bound, term)
+            }
+        };
+
+        require_sub_object_term(env, span, arg_sub, arg_sup).await?;
+    }
+
+    Ok(())
 }
 
 async fn require_sub_object_term<'db>(
