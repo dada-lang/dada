@@ -21,12 +21,16 @@ pub(crate) struct Database {
 struct Inputs {
     root: Option<CompilationRoot>,
     source_files: Map<PathBuf, SourceFile>,
+    libdada_source_files: Map<String, SourceFile>,
     directories: Map<Krate, KrateSource>,
 }
 
 #[derive(FromImpls, Clone, Debug)]
 pub enum KrateSource {
     Path(PathBuf),
+
+    #[no_from_impl]
+    Libdada,
 }
 
 impl Database {
@@ -39,8 +43,7 @@ impl Database {
 
         // For now, just load libdada from the directory in the source tree
         let libdada = Krate::new(self, "dada".to_string());
-        let libdada_path = Path::new(env!("CARGO_MANIFEST_DIR")).join("../../libdada");
-        inputs.directories.insert(libdada, libdada_path.into());
+        inputs.directories.insert(libdada, KrateSource::Libdada);
 
         let root = CompilationRoot::new(self, vec![libdada]);
         inputs.root = Some(root);
@@ -125,9 +128,45 @@ impl dada_check::Db for Database {
                 path.set_extension("dada");
                 Database::source_file(self, &*path)
             }
+
+            KrateSource::Libdada => {
+                let mut path = String::new();
+                for module in modules {
+                    path.push('/');
+                    path.push_str(module.text(self));
+                }
+                path.push_str(".dada");
+
+                if let Some(libdada_source) =
+                    self.inputs.lock().unwrap().libdada_source_files.get(&path)
+                {
+                    return *libdada_source;
+                }
+
+                let contents = match LibDadaAsset::get(&path[1..]) {
+                    Some(embedded) => match String::from_utf8(embedded.data.into_owned()) {
+                        Ok(data) => Ok(data),
+                        Err(e) => Err(format!("libdada file `{path}` is not utf-8: {e}")),
+                    },
+                    None => Err(format!("no libdada module at `{path}`")),
+                };
+
+                let result = SourceFile::new(self, path.clone(), contents);
+                self.inputs
+                    .lock()
+                    .unwrap()
+                    .libdada_source_files
+                    .insert(path, result);
+
+                result
+            }
         }
     }
 }
 
 #[salsa::db]
 impl Db for Database {}
+
+#[derive(rust_embed::Embed)]
+#[folder = "../../libdada"]
+struct LibDadaAsset;
