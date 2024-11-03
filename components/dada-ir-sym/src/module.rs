@@ -102,9 +102,11 @@ impl<'db> IntoSymbol<'db> for SourceFile {
     }
 }
 
+#[salsa::tracked]
 impl<'db> IntoSymbol<'db> for AstModule<'db> {
     type Symbolic = SymModule<'db>;
 
+    #[salsa::tracked]
     fn into_symbol(self, db: &'db dyn crate::Db) -> SymModule<'db> {
         let mut class_map = Map::default();
         let mut function_map = Map::default();
