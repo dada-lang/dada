@@ -176,6 +176,14 @@ impl<'db> ObjectTy<'db> {
     pub fn never(db: &'db dyn crate::Db) -> ObjectTy<'db> {
         SymTy::never(db).into_object_ir(db)
     }
+
+    pub fn named(
+        db: &'db dyn crate::Db,
+        name: impl Into<SymTyName<'db>>,
+        args: Vec<ObjectGenericTerm<'db>>,
+    ) -> ObjectTy<'db> {
+        ObjectTy::new(db, ObjectTyKind::Named(name.into(), args))
+    }
 }
 
 impl<'db> LeafBoundTerm<'db> for ObjectTy<'db> {}

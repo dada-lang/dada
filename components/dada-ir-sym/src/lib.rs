@@ -29,6 +29,7 @@ pub mod scope_tree;
 pub mod subst;
 pub mod symbol;
 pub mod ty;
+pub mod well_known;
 
 pub mod prelude {
     use crate::scope::Scope;

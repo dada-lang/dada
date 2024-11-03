@@ -49,7 +49,6 @@ pub enum SymPrimitiveKind {
     Uint { bits: u32 },
     Usize,
     Float { bits: u32 },
-    Str,
 }
 
 impl<'db> SymPrimitive<'db> {
@@ -64,7 +63,6 @@ impl<'db> SymPrimitive<'db> {
             SymPrimitiveKind::Uint { bits } => Identifier::new(db, format!("u{bits}")),
             SymPrimitiveKind::Usize => Identifier::new(db, "usize".to_string()),
             SymPrimitiveKind::Float { bits } => Identifier::new(db, format!("f{bits}")),
-            SymPrimitiveKind::Str => Identifier::new(db, format!("str")),
         }
     }
 }

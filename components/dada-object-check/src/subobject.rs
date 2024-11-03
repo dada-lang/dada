@@ -262,7 +262,7 @@ pub async fn require_numeric_type<'db>(
                     | SymPrimitiveKind::Uint { .. }
                     | SymPrimitiveKind::Usize
                     | SymPrimitiveKind::Float { .. } => {}
-                    SymPrimitiveKind::Bool | SymPrimitiveKind::Char | SymPrimitiveKind::Str => {
+                    SymPrimitiveKind::Bool | SymPrimitiveKind::Char => {
                         return Err(report_numeric_type_expected(env, span, ty))
                     }
                 },

@@ -13,11 +13,11 @@ use dada_ir_sym::{
     class::SymClass,
     function::{SymFunction, SymInputOutput},
     prelude::IntoSymInScope,
-    primitive::{SymPrimitive, SymPrimitiveKind},
     scope::{NameResolution, NameResolutionSym},
     scope_tree::ScopeTreeNode,
     symbol::{FromVar, HasKind, SymGenericKind, SymVariable},
     ty::{SymGenericTerm, SymTyName},
+    well_known,
 };
 use dada_parser::prelude::*;
 use dada_util::FromImpls;
@@ -128,8 +128,12 @@ async fn check_expr<'db>(expr: &AstExpr<'db>, env: &Env<'db>) -> ExprResult<'db>
                 }
             }
             LiteralKind::String => {
-                // FIXME: strings should be in the stdlib I think
-                let ty = SymPrimitive::new(db, SymPrimitiveKind::Str).into_object_ir(db);
+                let string_class = match well_known::string_class(db) {
+                    Ok(v) => v,
+                    Err(reported) => return ExprResult::err(db, reported),
+                };
+
+                let ty = ObjectTy::named(db, string_class, vec![]);
                 ExprResult {
                     temporaries: vec![],
                     span: expr_span,

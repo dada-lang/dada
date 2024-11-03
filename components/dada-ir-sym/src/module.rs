@@ -42,13 +42,6 @@ pub struct SymPrelude<'db> {
     pub items: Vec<SymItem<'db>>,
 }
 
-#[derive(Copy, Clone, Debug, PartialEq, Eq, PartialOrd, Ord, Hash, FromImpls)]
-pub enum SymItem<'db> {
-    SymClass(SymClass<'db>),
-    SymFunction(SymFunction<'db>),
-    SymPrimitive(SymPrimitive<'db>),
-}
-
 #[salsa::tracked]
 impl<'db> SymModule<'db> {
     pub fn name(self, db: &'db dyn crate::Db) -> Identifier<'db> {
@@ -225,4 +218,21 @@ fn report_duplicate<'db>(
         format!("we will map `{id:?}` to this other definition"),
     )
     .report(db);
+}
+
+#[derive(Copy, Clone, Debug, PartialEq, Eq, PartialOrd, Ord, Hash, FromImpls)]
+pub enum SymItem<'db> {
+    SymClass(SymClass<'db>),
+    SymFunction(SymFunction<'db>),
+    SymPrimitive(SymPrimitive<'db>),
+}
+
+impl<'db> SymItem<'db> {
+    pub fn name(self, db: &'db dyn crate::Db) -> Identifier<'db> {
+        match self {
+            SymItem::SymClass(sym_class) => sym_class.name(db),
+            SymItem::SymFunction(sym_function) => sym_function.name(db),
+            SymItem::SymPrimitive(sym_primitive) => sym_primitive.name(db),
+        }
+    }
 }
