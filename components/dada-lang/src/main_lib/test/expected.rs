@@ -1,5 +1,6 @@
 use std::path::{Path, PathBuf};
 
+use dada_compiler::Compiler;
 use dada_ir_ast::{
     diagnostic::Diagnostic,
     inputs::SourceFile,
@@ -9,7 +10,7 @@ use dada_util::{bail, Context, Fallible};
 use prettydiff::text::ContextConfig;
 use regex::Regex;
 
-use crate::{compiler::Compiler, db, GlobalOptions};
+use crate::GlobalOptions;
 
 use super::{FailedTest, Failure};
 
@@ -51,7 +52,7 @@ lazy_static::lazy_static! {
 }
 
 impl TestExpectations {
-    pub fn new(db: &db::Database, source_file: SourceFile) -> Fallible<Self> {
+    pub fn new(db: &dyn crate::Db, source_file: SourceFile) -> Fallible<Self> {
         let bless = match std::env::var("UPDATE_EXPECT") {
             Ok(s) => {
                 if s == "1" {
@@ -73,7 +74,7 @@ impl TestExpectations {
         Ok(expectations)
     }
 
-    fn initialize(&mut self, db: &db::Database) -> Fallible<()> {
+    fn initialize(&mut self, db: &dyn crate::Db) -> Fallible<()> {
         let source = self.source_file.contents_if_ok(db);
         let line_starts = std::iter::once(0)
             .chain(
@@ -164,7 +165,7 @@ impl TestExpectations {
         Ok(())
     }
 
-    fn configuration(&mut self, db: &db::Database, line_index: usize, line: &str) -> Fallible<()> {
+    fn configuration(&mut self, db: &dyn crate::Db, line_index: usize, line: &str) -> Fallible<()> {
         if line == "fn_asts" {
             self.fn_asts = true;
             return Ok(());
@@ -327,16 +328,16 @@ impl TestExpectations {
             .map(|(_, index)| index)
     }
 
-    pub fn source_path<'db>(&self, db: &'db db::Database) -> &'db Path {
+    pub fn source_path<'db>(&self, db: &'db dyn crate::Db) -> &'db Path {
         Path::new(self.source_file.path(db))
     }
 
-    fn ref_path(&self, db: &db::Database, ext: &str) -> PathBuf {
+    fn ref_path(&self, db: &dyn crate::Db, ext: &str) -> PathBuf {
         let path_buf = self.source_path(db);
         path_buf.with_extension(format!("{ext}.ref"))
     }
 
-    fn txt_path(&self, db: &db::Database, ext: &str) -> PathBuf {
+    fn txt_path(&self, db: &dyn crate::Db, ext: &str) -> PathBuf {
         let path_buf = self.source_path(db);
         path_buf.with_extension(format!("{ext}.txt"))
     }

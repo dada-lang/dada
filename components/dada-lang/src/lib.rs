@@ -5,9 +5,9 @@ use dada_ir_ast::diagnostic::RenderOptions;
 use dada_util::Fallible;
 use structopt::StructOpt;
 
-mod compiler;
-mod db;
 mod main_lib;
+
+use dada_compiler::Db;
 
 #[derive(Debug, StructOpt)]
 pub struct Options {

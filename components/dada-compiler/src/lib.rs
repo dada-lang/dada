@@ -1,3 +1,5 @@
+#![feature(trait_upcasting)]
+
 use std::path::Path;
 
 use dada_ir_ast::{
@@ -8,8 +10,11 @@ use dada_ir_ast::{
 use dada_util::{bail, Fallible};
 use salsa::Database as _;
 
-use crate::db::{Database, Db};
+use crate::db::Database;
 use dada_parser::prelude::*;
+
+mod db;
+pub use crate::db::Db;
 
 pub struct Compiler {
     db: Database,
@@ -22,7 +27,7 @@ impl Compiler {
         }
     }
 
-    pub fn db(&self) -> &Database {
+    pub fn db(&self) -> &dyn Db {
         &self.db
     }
 

@@ -3,6 +3,7 @@ use std::{
     path::{Path, PathBuf},
 };
 
+use dada_compiler::Compiler;
 use dada_ir_ast::diagnostic::Diagnostic;
 use dada_util::{bail, Fallible};
 use expected::ExpectedDiagnostic;
@@ -11,7 +12,7 @@ use panic_hook::CapturedPanic;
 use rayon::prelude::*;
 use walkdir::WalkDir;
 
-use crate::{compiler::Compiler, db, GlobalOptions, TestOptions};
+use crate::{GlobalOptions, TestOptions};
 
 use super::Main;
 
@@ -197,7 +198,7 @@ impl FailedTest {
         )
     }
 
-    fn report(&self, db: &db::Database) -> Fallible<String> {
+    fn report(&self, db: &dyn crate::Db) -> Fallible<String> {
         use std::fmt::Write;
         let opts = GlobalOptions::test_options();
 
@@ -299,7 +300,7 @@ impl FailedTest {
         }
     }
 
-    fn generate_test_report(&self, db: &db::Database) -> Fallible<()> {
+    fn generate_test_report(&self, db: &dyn crate::Db) -> Fallible<()> {
         std::fs::write(test_report_path(&self.path), self.report(db)?)?;
         Ok(())
     }

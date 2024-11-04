@@ -1,9 +1,10 @@
 use std::path::Path;
 
+use dada_compiler::Compiler;
 use dada_ir_ast::diagnostic::Level;
 use dada_util::{bail, Fallible};
 
-use crate::{compiler::Compiler, CompileOptions};
+use crate::CompileOptions;
 
 use super::Main;
 

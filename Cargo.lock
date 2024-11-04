@@ -300,6 +300,18 @@ dependencies = [
 ]
 
 [[package]]
+name = "dada-compiler"
+version = "0.1.0"
+dependencies = [
+ "dada-check",
+ "dada-ir-ast",
+ "dada-parser",
+ "dada-util",
+ "rust-embed",
+ "salsa",
+]
+
+[[package]]
 name = "dada-ir-ast"
 version = "0.1.0"
 dependencies = [
@@ -324,6 +336,7 @@ version = "0.1.0"
 dependencies = [
  "annotate-snippets",
  "dada-check",
+ "dada-compiler",
  "dada-ir-ast",
  "dada-parser",
  "dada-util",
@@ -333,7 +346,6 @@ dependencies = [
  "rayon",
  "regex",
  "run",
- "rust-embed",
  "salsa",
  "structopt",
  "thiserror",
