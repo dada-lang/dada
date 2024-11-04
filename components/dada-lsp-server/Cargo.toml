@@ -1,9 +1,9 @@
 [package]
-name = "dada-ir-ast"
+name = "dada-lsp-server"
 version = "0.1.0"
 edition = "2021"
 
 [dependencies]
-annotate-snippets = "0.11.4"
+dada-lang = { version = "0.1.0", path = "../dada-lang" }
 dada-util = { version = "0.1.0", path = "../dada-util" }
-salsa = { git = "https://github.com/salsa-rs/salsa.git" }
+lsp-server = "0.7.7"

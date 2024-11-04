@@ -20,9 +20,8 @@ name = "harness"
 harness = false
 
 [dependencies]
-backtrace-on-stack-overflow = "0.3.0"
 dada-lang = { path = "components/dada-lang" }
 dada-util = { version = "0.1.0", path = "components/dada-util" }
 structopt = "0.3.26"
 thiserror = "1.0.63"
-tokio = { version = "1.38.0", features = ["full"] }
+tokio = { version = "1.38.0", features = ["macros","rt"] }

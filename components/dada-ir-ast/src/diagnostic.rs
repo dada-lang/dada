@@ -3,6 +3,8 @@ use std::fmt::Display;
 use crate::span::{AbsoluteSpan, Span};
 use salsa::{Accumulator, Update};
 
+mod render;
+
 /// Signals that a diagnostic was reported at the given span.
 #[derive(Copy, Clone, PartialEq, Eq, PartialOrd, Ord, Hash, Update, Debug)]
 pub struct Reported(pub AbsoluteSpan);
@@ -62,6 +64,11 @@ pub struct DiagnosticLabel {
     pub message: String,
 }
 
+#[derive(Copy, Clone, Default, Debug, PartialEq, Eq, Hash)]
+pub struct RenderOptions {
+    pub no_color: bool,
+}
+
 impl Diagnostic {
     pub fn error<'db>(db: &'db dyn crate::Db, span: Span<'db>, message: impl Display) -> Self {
         Self::new(db, Level::Error, span, message)
@@ -109,6 +116,10 @@ impl Diagnostic {
     pub fn child(mut self, child: Diagnostic) -> Self {
         self.children.push(child);
         self
+    }
+
+    pub fn render(&self, db: &dyn crate::Db, opts: &RenderOptions) -> String {
+        render::render(db, opts, self)
     }
 }
 

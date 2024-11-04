@@ -3,7 +3,7 @@ use std::path::Path;
 use dada_ir_ast::diagnostic::Level;
 use dada_util::{bail, Fallible};
 
-use crate::{compiler::Compiler, error_reporting::RenderDiagnostic, CompileOptions};
+use crate::{compiler::Compiler, CompileOptions};
 
 use super::Main;
 
@@ -14,7 +14,10 @@ impl Main {
         let diagnostics = compiler.check_all(source_file);
 
         for diagnostic in &diagnostics {
-            eprintln!("{}", diagnostic.render(&self.global_options, compiler.db()));
+            eprintln!(
+                "{}",
+                diagnostic.render(compiler.db(), &self.global_options.render_opts())
+            );
         }
 
         if diagnostics.iter().any(|d| d.level >= Level::Error) {

@@ -11,9 +11,7 @@ use panic_hook::CapturedPanic;
 use rayon::prelude::*;
 use walkdir::WalkDir;
 
-use crate::{
-    compiler::Compiler, db, error_reporting::RenderDiagnostic, GlobalOptions, TestOptions,
-};
+use crate::{compiler::Compiler, db, GlobalOptions, TestOptions};
 
 use super::Main;
 
@@ -227,7 +225,7 @@ impl FailedTest {
                     writeln!(result, "# Unexpected diagnostic")?;
                     writeln!(result)?;
 
-                    let render = diagnostic.render(&opts, db);
+                    let render = diagnostic.render(db, &opts.render_opts());
                     writeln!(result, "```\n{}\n```", render)?;
                     writeln!(result)?;
                     writeln!(result, "```\n{diagnostic:#?}\n```\n")?;
@@ -238,7 +236,7 @@ impl FailedTest {
                     writeln!(result)?;
 
                     writeln!(result, "Diagnostic:")?;
-                    let render = actual.render(&opts, db);
+                    let render = actual.render(db, &opts.render_opts());
                     writeln!(result, "```\n{}\n```", render)?;
                     writeln!(result)?;
                     writeln!(result, "```\n{actual:#?}\n```\n")?;

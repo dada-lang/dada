@@ -1,12 +1,12 @@
 #![feature(trait_upcasting)]
 #![feature(panic_payload_as_str)]
 
+use dada_ir_ast::diagnostic::RenderOptions;
 use dada_util::Fallible;
 use structopt::StructOpt;
 
 mod compiler;
 mod db;
-mod error_reporting;
 mod main_lib;
 
 #[derive(Debug, StructOpt)]
@@ -27,6 +27,12 @@ pub struct GlobalOptions {
 impl GlobalOptions {
     pub(crate) fn test_options() -> Self {
         Self { no_color: false }
+    }
+
+    pub(crate) fn render_opts(&self) -> RenderOptions {
+        RenderOptions {
+            no_color: self.no_color,
+        }
     }
 }
 

@@ -9,7 +9,7 @@ use dada_util::{bail, Context, Fallible};
 use prettydiff::text::ContextConfig;
 use regex::Regex;
 
-use crate::{compiler::Compiler, db, error_reporting::RenderDiagnostic, GlobalOptions};
+use crate::{compiler::Compiler, db, GlobalOptions};
 
 use super::{FailedTest, Failure};
 
@@ -199,7 +199,7 @@ impl TestExpectations {
             writeln!(
                 test.full_compiler_output,
                 "{}",
-                diagnostic.render(&GlobalOptions::test_options(), compiler.db())
+                diagnostic.render(compiler.db(), &GlobalOptions::test_options().render_opts())
             )?;
         }
 

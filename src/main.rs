@@ -1,10 +1,7 @@
 use dada_util::Fallible;
 use structopt::StructOpt;
 
-#[tokio::main]
+#[tokio::main(flavor = "current_thread")]
 async fn main() -> Fallible<()> {
-    unsafe {
-        backtrace_on_stack_overflow::enable();
-    }
     dada_lang::Options::from_args().main()
 }
