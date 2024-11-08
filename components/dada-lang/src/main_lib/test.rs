@@ -3,7 +3,7 @@ use std::{
     path::{Path, PathBuf},
 };
 
-use dada_compiler::Compiler;
+use dada_compiler::{Compiler, RealFs};
 use dada_ir_ast::diagnostic::Diagnostic;
 use dada_util::{bail, Fallible};
 use expected::ExpectedDiagnostic;
@@ -144,12 +144,13 @@ impl Main {
     /// * `Ok(None)` if the test passed.
     fn run_test(&self, input: &Path) -> Fallible<Option<FailedTest>> {
         assert!(is_dada_file(input));
-        let mut compiler = Compiler::new();
+        let mut compiler = Compiler::new(RealFs);
+        let input_url = RealFs::url(input)?;
 
         // Run the test and capture panics
         let result = std::panic::catch_unwind(AssertUnwindSafe(|| {
-            let source_file = compiler.load_input(input)?;
-            let expectations = expected::TestExpectations::new(compiler.db(), source_file)?;
+            let source_file = compiler.load_source_file(&input_url)?;
+            let expectations = expected::TestExpectations::new(&compiler, source_file)?;
             expectations.compare(&mut compiler)
         }));
 
@@ -170,7 +171,7 @@ impl Main {
                 Ok(None)
             }
             Some(failed_test) => {
-                failed_test.generate_test_report(compiler.db())?;
+                failed_test.generate_test_report(&compiler)?;
                 Ok(Some(failed_test))
             }
         }

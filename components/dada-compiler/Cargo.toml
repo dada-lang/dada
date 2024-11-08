@@ -10,3 +10,5 @@ dada-parser = { version = "0.1.0", path = "../dada-parser" }
 dada-util = { version = "0.1.0", path = "../dada-util" }
 salsa = { git = "https://github.com/salsa-rs/salsa.git" }
 rust-embed = "8.5.0"
+url = "2.5.3"
+extension-trait = "1.0.2"

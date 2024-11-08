@@ -182,7 +182,7 @@ impl TestExpectations {
         use std::fmt::Write;
 
         let mut test = FailedTest {
-            path: PathBuf::from(self.source_file.path(compiler.db())),
+            path: PathBuf::from(self.source_file.path(compiler)),
             full_compiler_output: Default::default(),
             failures: vec![],
         };
@@ -200,7 +200,7 @@ impl TestExpectations {
             writeln!(
                 test.full_compiler_output,
                 "{}",
-                diagnostic.render(compiler.db(), &GlobalOptions::test_options().render_opts())
+                diagnostic.render(compiler, &GlobalOptions::test_options().render_opts())
             )?;
         }
 
@@ -225,8 +225,8 @@ impl TestExpectations {
         enabled: bool,
         generate_fn: impl Fn(&Self, &mut Compiler) -> String,
     ) -> Fallible<Vec<Failure>> {
-        let ref_path = self.ref_path(compiler.db(), ext);
-        let txt_path = self.txt_path(compiler.db(), ext);
+        let ref_path = self.ref_path(compiler, ext);
+        let txt_path = self.txt_path(compiler, ext);
 
         if !enabled {
             self.remove_stale_file(&ref_path)?;

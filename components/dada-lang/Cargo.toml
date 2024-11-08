@@ -19,4 +19,5 @@ run = "0.1.0"
 salsa = { git = "https://github.com/salsa-rs/salsa.git" }
 structopt = "0.3.26" # derive doesn't work without this
 thiserror = "1.0.63"
+url = "2.5.3"
 walkdir = "2.5.0"
