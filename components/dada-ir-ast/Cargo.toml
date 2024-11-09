@@ -7,3 +7,4 @@ edition = "2021"
 annotate-snippets = "0.11.4"
 dada-util = { version = "0.1.0", path = "../dada-util" }
 salsa = { git = "https://github.com/salsa-rs/salsa.git" }
+url = "2.5.3"

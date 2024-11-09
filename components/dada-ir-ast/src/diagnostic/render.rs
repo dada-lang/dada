@@ -1,11 +1,14 @@
 use crate::{diagnostic::Diagnostic, span::AbsoluteSpan};
 use annotate_snippets::{Message, Renderer, Snippet};
+use dada_util::arena::Arena;
 
 use super::RenderOptions;
 
 pub(super) fn render(db: &dyn crate::Db, opts: &RenderOptions, diagnostic: &Diagnostic) -> String {
-    let message = to_message(db, diagnostic);
-    renderer(opts).render(message).to_string()
+    let arena = Arena::new();
+    let message = to_message(db, diagnostic, &arena);
+    let result = renderer(opts).render(message).to_string();
+    result
 }
 
 fn renderer(opts: &RenderOptions) -> Renderer {
@@ -26,14 +29,22 @@ fn to_level(level: crate::diagnostic::Level) -> annotate_snippets::Level {
     }
 }
 
-fn to_message<'a>(db: &'a dyn crate::Db, diagnostic: &'a Diagnostic) -> Message<'a> {
+fn to_message<'a>(
+    db: &'a dyn crate::Db,
+    diagnostic: &'a Diagnostic,
+    arena: &'a Arena,
+) -> Message<'a> {
     to_level(diagnostic.level)
         .title(&diagnostic.message)
-        .snippet(to_snippet(db, diagnostic))
-        .footers(diagnostic.children.iter().map(|d| to_message(db, d)))
+        .snippet(to_snippet(db, diagnostic, arena))
+        .footers(diagnostic.children.iter().map(|d| to_message(db, d, arena)))
 }
 
-fn to_snippet<'a>(db: &'a dyn crate::Db, diagnostic: &'a Diagnostic) -> Snippet<'a> {
+fn to_snippet<'a>(
+    db: &'a dyn crate::Db,
+    diagnostic: &'a Diagnostic,
+    arena: &'a Arena,
+) -> Snippet<'a> {
     let source_file = diagnostic.span.source_file;
 
     let default_label = if !diagnostic.labels.is_empty() {
@@ -46,9 +57,12 @@ fn to_snippet<'a>(db: &'a dyn crate::Db, diagnostic: &'a Diagnostic) -> Snippet<
         )
     };
 
+    let url = source_file.url(db);
+    let origin = arena.insert(db.url_display(&url));
+
     Snippet::source(source_file.contents_if_ok(db))
         .line_start(1)
-        .origin(source_file.path(db))
+        .origin(origin)
         .fold(true)
         .annotations(
             diagnostic

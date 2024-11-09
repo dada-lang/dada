@@ -380,7 +380,7 @@ impl<'db> NameResolution<'db> {
 
     /// Returns the span where the item that is being referenced was declared.
     /// Returns `None` for primitives or things that have no declaration.
-    pub fn span(&self, db: &'db dyn salsa::Database) -> Option<Span<'db>> {
+    pub fn span(&self, db: &'db dyn crate::Db) -> Option<Span<'db>> {
         self.sym.span(db)
     }
 }
@@ -445,7 +445,7 @@ impl<'db> NameResolutionSym<'db> {
 }
 
 impl<'db> NameResolutionSym<'db> {
-    fn span(&self, db: &'db dyn salsa::Database) -> Option<Span<'db>> {
+    fn span(&self, db: &'db dyn crate::Db) -> Option<Span<'db>> {
         match self {
             NameResolutionSym::SymModule(sym) => Some(sym.span(db)),
             NameResolutionSym::SymClass(sym) => Some(sym.span(db)),

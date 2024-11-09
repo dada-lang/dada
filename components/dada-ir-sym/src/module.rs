@@ -31,7 +31,7 @@ pub struct SymModule<'db> {
 }
 
 impl<'db> Spanned<'db> for SymModule<'db> {
-    fn span(&self, db: &'db dyn salsa::Database) -> Span<'db> {
+    fn span(&self, db: &'db dyn dada_ir_ast::Db) -> Span<'db> {
         self.source(db).span(db)
     }
 }
@@ -173,12 +173,7 @@ fn insert<'db, V: Spanned<'db>>(
     value: V,
 ) {
     if let Some(other_value) = map.get(&id) {
-        report_duplicate(
-            db,
-            id,
-            value.span(db.as_dyn_database()),
-            other_value.span(db.as_dyn_database()),
-        );
+        report_duplicate(db, id, value.span(db), other_value.span(db));
     } else {
         map.insert(id, value);
     }
@@ -191,7 +186,7 @@ fn insert_into_canonical_map<'db>(
 ) {
     for (id, value) in map.iter() {
         let id = *id;
-        let value_span = value.span(db.as_dyn_database());
+        let value_span = value.span(db);
         if let Some(canonical_span) = canonical_map.get(&id) {
             report_duplicate(db, id, value_span, *canonical_span);
         } else {
@@ -206,7 +201,6 @@ fn report_duplicate<'db>(
     value_span: Span<'db>,
     canonical_span: Span<'db>,
 ) {
-    let db: &dyn salsa::Database = db.as_dyn_database();
     Diagnostic::error(
         db,
         value_span,

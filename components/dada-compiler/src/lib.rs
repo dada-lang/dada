@@ -1,6 +1,9 @@
 #![feature(trait_upcasting)]
 
-use std::sync::{Arc, Mutex};
+use std::{
+    str::FromStr,
+    sync::{Arc, Mutex},
+};
 
 use dada_ir_ast::{
     ast::{AstFunction, AstItem, AstMember, Identifier},
@@ -13,6 +16,9 @@ use url::Url;
 
 mod realfs;
 pub use realfs::RealFs;
+mod vfs;
+pub use vfs::VirtualFileSystem;
+use vfs::{ToUrl, UrlPath};
 
 use dada_parser::prelude::*;
 
@@ -33,7 +39,8 @@ impl Compiler {
     }
 
     /// Load the contents of `source_url` and then open it with those contents.
-    pub fn load_source_file(&mut self, source_url: &Url) -> Fallible<SourceFile> {
+    pub fn load_source_file(&mut self, source_url: &(impl ToUrl + ?Sized)) -> Fallible<SourceFile> {
+        let source_url = &source_url.to_url(&*self.vfs)?;
         let contents = match self.vfs.contents(source_url) {
             Ok(s) => Ok(s),
             Err(e) => Err(e.to_string()),
@@ -47,9 +54,10 @@ impl Compiler {
     /// If none exists, a new `SourceFile` will be created and the containing crate will be added.
     pub fn open_source_file(
         &mut self,
-        source_url: &Url,
+        source_url: &(impl ToUrl + ?Sized),
         contents: Result<String, String>,
     ) -> Fallible<SourceFile> {
+        let source_url = &source_url.to_url(&*self.vfs)?;
         let source_file = match self.get_source_file(source_url) {
             Some(v) => v,
             None => {
@@ -126,7 +134,8 @@ impl Compiler {
         let mut output = String::new();
 
         self.attach(|_db| {
-            writeln!(output, "# fn parse tree from {}", source_file.path(self),).unwrap();
+            let source = source_file.url_display(self);
+            writeln!(output, "# fn parse tree from {source}").unwrap();
             writeln!(output).unwrap();
 
             writeln!(output, "{}", fn_asts(self, source_file)).unwrap();
@@ -211,12 +220,7 @@ impl Compiler {
             Err(e) => Err(format!("error reading `{url}`: {e}")),
         };
 
-        let path_string = match url.to_file_path() {
-            Ok(s) => s.display().to_string(),
-            Err(()) => url.to_string(),
-        };
-
-        let result = SourceFile::new(self, path_string, contents);
+        let result = SourceFile::new(self, url.clone(), contents);
 
         inputs.source_files.insert(url.clone(), result);
 
@@ -230,6 +234,13 @@ pub trait Db: dada_check::Db {}
 #[salsa::db]
 impl salsa::Database for Compiler {
     fn salsa_event(&self, _event: &dyn Fn() -> Event) {}
+}
+
+#[salsa::db]
+impl dada_ir_ast::Db for Compiler {
+    fn url_display(&self, url: &Url) -> String {
+        self.vfs.url_display(url)
+    }
 }
 
 #[salsa::db]
@@ -272,7 +283,8 @@ impl dada_check::Db for Compiler {
                     None => Err(format!("no libdada module at `{path}`")),
                 };
 
-                let result = SourceFile::new(self, path.clone(), contents);
+                let libdada_url = Url::from_str(format!("libdada:///{path}").as_str()).unwrap();
+                let result = SourceFile::new(self, libdada_url, contents);
                 self.inputs
                     .lock()
                     .unwrap()
@@ -323,7 +335,7 @@ fn check_all(db: &dyn Db, source_file: SourceFile) {
     source_file.check(db);
 }
 
-fn fn_asts(db: &dyn salsa::Database, source_file: SourceFile) -> String {
+fn fn_asts(db: &dyn Db, source_file: SourceFile) -> String {
     use std::fmt::Write;
 
     let mut output = String::new();
@@ -357,134 +369,11 @@ fn fn_asts(db: &dyn salsa::Database, source_file: SourceFile) -> String {
 
     return output;
 
-    fn fn_asts_fn<'db>(db: &'db dyn salsa::Database, function: AstFunction<'db>) -> String {
+    fn fn_asts_fn<'db>(db: &'db dyn Db, function: AstFunction<'db>) -> String {
         if let Some(block) = function.body_block(db) {
             format!("{block:#?}")
         } else {
             format!("None")
         }
-    }
-}
-
-pub trait VirtualFileSystem: Send + Sync + 'static {
-    fn contents(&self, url: &Url) -> Fallible<String>;
-    fn exists(&self, url: &Url) -> bool;
-}
-
-#[derive(Clone, Debug)]
-pub struct UrlPath {
-    source_url: Url,
-    paths: Vec<String>,
-}
-
-impl From<Url> for UrlPath {
-    fn from(url: Url) -> Self {
-        let paths = url
-            .path()
-            .split("/")
-            .filter(|s| !s.is_empty())
-            .map(|s| s.to_string())
-            .collect();
-
-        Self {
-            source_url: url,
-            paths,
-        }
-    }
-}
-
-impl UrlPath {
-    pub fn is_empty(&self) -> bool {
-        self.paths.is_empty()
-    }
-
-    /// Removes the final component (if any).
-    /// Result will never be a dada file.
-    pub fn pop(mut self) -> Self {
-        self.paths.pop();
-        self
-    }
-
-    /// Append a component.
-    pub fn push(&mut self, s: &str) {
-        assert!(!self.is_dada_file());
-        self.paths.push(s.to_string());
-    }
-
-    /// True if final component ends in `.dada`
-    pub fn is_dada_file(&self) -> bool {
-        let Some(last) = self.paths.last() else {
-            return false;
-        };
-
-        last.ends_with(".dada")
-    }
-
-    /// True if final component ends in `.dada`
-    pub fn final_module_name(&self) -> &str {
-        assert!(self.is_dada_file());
-
-        let Some(last) = self.paths.last() else {
-            unreachable!()
-        };
-
-        &last[0..last.len() - ".dada".len()]
-    }
-    /// Remove `.dada` suffix from final component.
-    ///
-    /// # Panics
-    ///
-    /// Panics if final component does not end in `.dada`
-    pub fn make_directory(mut self) -> Self {
-        assert!(self.is_dada_file());
-
-        let Some(last) = self.paths.last_mut() else {
-            unreachable!()
-        };
-
-        assert!(last.ends_with(".dada"));
-        last.truncate(last.len() - ".dada".len());
-        self
-    }
-
-    /// Add `.dada` suffix to final component.
-    ///
-    /// # Panics
-    ///
-    /// Panics if final component already has `.dada`
-    pub fn make_dada_file(mut self) -> Self {
-        assert!(!self.is_dada_file());
-
-        let Some(last) = self.paths.last_mut() else {
-            self.paths.push(".dada".to_string());
-            return self;
-        };
-
-        last.push_str(".dada");
-        self
-    }
-
-    /// Create a URL for this path with a `.dada` extension
-    ///
-    /// # Panics
-    ///
-    /// Panics if this path already has a `.dada` extension
-    pub fn dada_url(&self) -> Url {
-        assert!(!self.is_dada_file());
-        let mut path = self.paths.join("/");
-        path.push_str(".dada");
-
-        let mut url = self.source_url.clone();
-        url.set_path(&path);
-
-        url
-    }
-
-    /// Convert this path back into a URL
-    pub fn url(&self) -> Url {
-        let path = self.paths.join("/");
-        let mut url = self.source_url.clone();
-        url.set_path(&path);
-        url
     }
 }

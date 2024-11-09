@@ -346,6 +346,7 @@ dependencies = [
  "annotate-snippets",
  "dada-util",
  "salsa",
+ "url",
 ]
 
 [[package]]

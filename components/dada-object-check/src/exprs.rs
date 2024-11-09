@@ -916,7 +916,7 @@ async fn check_call_common<'db>(
 }
 
 impl<'db> Err<'db> for ExprResult<'db> {
-    fn err(db: &'db dyn salsa::Database, r: Reported) -> Self {
+    fn err(db: &'db dyn dada_ir_ast::Db, r: Reported) -> Self {
         Self {
             temporaries: vec![],
             span: r.span(db),

@@ -28,3 +28,5 @@ unsafe impl salsa::Update for Never {
         unreachable!()
     }
 }
+
+pub mod arena;

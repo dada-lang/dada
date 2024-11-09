@@ -8,7 +8,7 @@ use dada_ir_ast::{
     span::{Anchor, Offset, Span, Spanned},
 };
 
-use salsa::Database as Db;
+use dada_ir_ast::Db;
 
 mod classes;
 mod expr;

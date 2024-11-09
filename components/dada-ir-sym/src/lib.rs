@@ -8,7 +8,7 @@ use dada_ir_ast::{
 
 /// Core functionality needed to symbolize.
 #[salsa::db]
-pub trait Db: salsa::Database {
+pub trait Db: dada_ir_ast::Db {
     /// Access the [`CompilationRoot`], from which all crates and sources can be reached.
     fn root(&self) -> CompilationRoot;
 

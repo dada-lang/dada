@@ -140,5 +140,5 @@ pub fn ordinal(n: usize) -> impl std::fmt::Display {
 
 /// Many of our types have some value that represents an error in the input.
 pub trait Err<'db> {
-    fn err(db: &'db dyn salsa::Database, reported: Reported) -> Self;
+    fn err(db: &'db dyn crate::Db, reported: Reported) -> Self;
 }

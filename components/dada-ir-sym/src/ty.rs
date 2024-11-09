@@ -191,7 +191,7 @@ impl<'db> SymTy<'db> {
 impl<'db> LeafBoundTerm<'db> for SymTy<'db> {}
 
 impl<'db> Err<'db> for SymTy<'db> {
-    fn err(db: &'db dyn salsa::Database, reported: Reported) -> Self {
+    fn err(db: &'db dyn dada_ir_ast::Db, reported: Reported) -> Self {
         SymTy::new(db, SymTyKind::Error(reported))
     }
 }
@@ -284,7 +284,7 @@ impl<'db> FromVar<'db> for SymPerm<'db> {
 }
 
 impl<'db> Err<'db> for SymPerm<'db> {
-    fn err(db: &'db dyn salsa::Database, reported: Reported) -> Self {
+    fn err(db: &'db dyn dada_ir_ast::Db, reported: Reported) -> Self {
         SymPerm::new(db, SymPermKind::Error(reported))
     }
 }
@@ -313,7 +313,7 @@ pub struct SymPlace<'db> {
 impl<'db> LeafBoundTerm<'db> for SymPlace<'db> {}
 
 impl<'db> Err<'db> for SymPlace<'db> {
-    fn err(db: &'db dyn salsa::Database, reported: Reported) -> Self {
+    fn err(db: &'db dyn dada_ir_ast::Db, reported: Reported) -> Self {
         SymPlace::new(db, SymPlaceKind::Error(reported))
     }
 }

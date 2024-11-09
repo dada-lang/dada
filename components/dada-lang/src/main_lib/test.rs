@@ -144,12 +144,11 @@ impl Main {
     /// * `Ok(None)` if the test passed.
     fn run_test(&self, input: &Path) -> Fallible<Option<FailedTest>> {
         assert!(is_dada_file(input));
-        let mut compiler = Compiler::new(RealFs);
-        let input_url = RealFs::url(input)?;
+        let mut compiler = Compiler::new(RealFs::default());
 
         // Run the test and capture panics
         let result = std::panic::catch_unwind(AssertUnwindSafe(|| {
-            let source_file = compiler.load_source_file(&input_url)?;
+            let source_file = compiler.load_source_file(input)?;
             let expectations = expected::TestExpectations::new(&compiler, source_file)?;
             expectations.compare(&mut compiler)
         }));

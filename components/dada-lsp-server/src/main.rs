@@ -172,7 +172,7 @@ struct TickEvent;
 
 impl ServerState {
     fn new_router(client: ClientSocket) -> Router<Self> {
-        let compiler = Compiler::new(RealFs);
+        let compiler = Compiler::new(RealFs::default());
         let mut router = Router::from_language_server(Self {
             compiler,
             client,

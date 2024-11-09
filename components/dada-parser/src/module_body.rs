@@ -1,9 +1,5 @@
-use std::path::PathBuf;
-
 use dada_ir_ast::{
-    ast::{
-        AstClassItem, AstFunction, AstItem, AstModule, AstPath, AstUseItem, Identifier, SpanVec,
-    },
+    ast::{AstClassItem, AstFunction, AstItem, AstModule, AstPath, AstUseItem, SpanVec},
     diagnostic::Diagnostic,
 };
 
@@ -19,12 +15,7 @@ impl<'db> Parse<'db> for AstModule<'db> {
         let mut items: Vec<AstItem<'db>> = vec![];
 
         // Derive the name of the module from the source file in the span.
-        // Is this...ok?
-        let path = PathBuf::from(parser.last_span().source_file(db).path(db));
-        let name = match path.file_stem() {
-            None => Identifier::new(db, "<input>".to_string()),
-            Some(s) => Identifier::new(db, s.to_string_lossy().to_string()),
-        };
+        let name = parser.last_span().source_file(db).module_name(db);
 
         // Parse items, skipping unrecognized tokens.
         let start_span = parser.peek_span();

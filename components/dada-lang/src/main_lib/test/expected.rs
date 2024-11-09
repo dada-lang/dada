@@ -103,7 +103,7 @@ impl TestExpectations {
             if line.contains("#:") {
                 bail!(
                     "{}:{}: configuration comment outside of file header",
-                    self.source_file.path(db),
+                    self.source_file.url_display(db),
                     line_index + 1,
                 );
             }
@@ -173,7 +173,7 @@ impl TestExpectations {
 
         bail!(
             "{}:{}: unrecognized configuration comment",
-            self.source_file.path(db),
+            self.source_file.url_display(db),
             line_index + 1,
         );
     }
@@ -182,7 +182,7 @@ impl TestExpectations {
         use std::fmt::Write;
 
         let mut test = FailedTest {
-            path: PathBuf::from(self.source_file.path(compiler)),
+            path: self.source_file.url(compiler).to_file_path().unwrap(),
             full_compiler_output: Default::default(),
             failures: vec![],
         };
@@ -328,8 +328,8 @@ impl TestExpectations {
             .map(|(_, index)| index)
     }
 
-    pub fn source_path<'db>(&self, db: &'db dyn crate::Db) -> &'db Path {
-        Path::new(self.source_file.path(db))
+    pub fn source_path(&self, db: &dyn crate::Db) -> PathBuf {
+        self.source_file.url(db).to_file_path().unwrap()
     }
 
     fn ref_path(&self, db: &dyn crate::Db, ext: &str) -> PathBuf {

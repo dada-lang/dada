@@ -39,7 +39,7 @@ pub struct ObjectExpr<'db> {
 }
 
 impl<'db> Err<'db> for ObjectExpr<'db> {
-    fn err(db: &'db dyn salsa::Database, r: Reported) -> Self {
+    fn err(db: &'db dyn dada_ir_ast::Db, r: Reported) -> Self {
         ObjectExpr::new(
             db,
             r.span(db),
@@ -131,7 +131,7 @@ pub struct ObjectPlaceExpr<'db> {
 }
 
 impl<'db> Err<'db> for ObjectPlaceExpr<'db> {
-    fn err(db: &'db dyn salsa::Database, r: Reported) -> Self {
+    fn err(db: &'db dyn dada_ir_ast::Db, r: Reported) -> Self {
         ObjectPlaceExpr::new(
             db,
             r.span(db),
@@ -189,7 +189,7 @@ impl<'db> ObjectTy<'db> {
 impl<'db> LeafBoundTerm<'db> for ObjectTy<'db> {}
 
 impl<'db> Err<'db> for ObjectTy<'db> {
-    fn err(db: &'db dyn salsa::Database, r: Reported) -> Self {
+    fn err(db: &'db dyn dada_ir_ast::Db, r: Reported) -> Self {
         ObjectTy::new(db, ObjectTyKind::Error(r))
     }
 }

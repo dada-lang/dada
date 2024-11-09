@@ -1,3 +1,5 @@
+use url::Url;
+
 use crate::{
     ast::Identifier,
     span::{AbsoluteOffset, AbsoluteSpan, Anchor, Offset, Span, Spanned},
@@ -50,7 +52,7 @@ pub struct Krate {
 #[salsa::input]
 pub struct SourceFile {
     #[return_ref]
-    pub path: String,
+    pub url: Url,
 
     /// Contents of the source file or an error message if it was not possible to read it.
     #[return_ref]
@@ -83,5 +85,18 @@ impl SourceFile {
             start: AbsoluteOffset::ZERO,
             end: AbsoluteOffset::from(self.contents_if_ok(db).len()),
         }
+    }
+
+    pub fn module_name<'db>(self, db: &'db dyn crate::Db) -> Identifier<'db> {
+        let url = self.url(db);
+        let module_name = url
+            .path_segments()
+            .and_then(|segments| segments.last())
+            .unwrap_or("<input>");
+        Identifier::new(db, module_name)
+    }
+
+    pub fn url_display(self, db: &dyn crate::Db) -> String {
+        db.url_display(self.url(db))
     }
 }
