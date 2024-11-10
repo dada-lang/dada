@@ -12,6 +12,7 @@ out/
 
 # VS Code directories
 .vscode/
+.vscode-test/
 
 # Optional npm cache directory
 .npm/
