@@ -2,13 +2,16 @@
 // README at: https://github.com/devcontainers/templates/tree/main/src/debian
 {
 	"name": "Debian",
-	// Or use a Dockerfile or Docker Compose file. More info: https://containers.dev/guide/dockerfile
-	"image": "mcr.microsoft.com/devcontainers/base:bookworm",
-	"features": {
-		"ghcr.io/devcontainers/features/node:1": {},
-		"ghcr.io/devcontainers/features/rust:1": {},
-		"devwasm.azurecr.io/dev-wasm/dev-wasm-feature/rust-wasi:0": {}
+	"build": {
+		"dockerfile": "Dockerfile"
 	}
+	// Or use a Dockerfile or Docker Compose file. More info: https://containers.dev/guide/dockerfile
+	//"image": "mcr.microsoft.com/devcontainers/base:bookworm",
+	//"features": {
+	//	"ghcr.io/devcontainers/features/node:1": {},
+	//	"ghcr.io/devcontainers/features/rust:1": {},
+	//	"devwasm.azurecr.io/dev-wasm/dev-wasm-feature/rust-wasi:0": {}
+	//}
 	// Features to add to the dev container. More info: https://containers.dev/features.
 	// "features": {},
 	// Use 'forwardPorts' to make a list of ports inside the container available locally.
