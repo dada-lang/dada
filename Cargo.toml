@@ -1,5 +1,5 @@
 [workspace]
-members = [".", "components/*"]
+members = [".", "components/dada-*", "components/xtask"]
 
 # Exclude xtask so it isn't installed with `cargo install`
 default-members = [

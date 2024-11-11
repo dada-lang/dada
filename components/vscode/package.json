@@ -47,6 +47,12 @@
     "lint": "eslint src",
     "test": "vscode-test"
   },
+  "dependencies": {
+    "@vscode/wasm-wasi-lsp": "0.1.0-pre.6"
+  },
+  "extensionDependencies": [
+    "ms-vscode.wasm-wasi-core"
+  ],
   "devDependencies": {
     "@types/vscode": "^1.95.0",
     "@types/mocha": "^10.0.9",
