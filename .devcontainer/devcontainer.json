@@ -10,7 +10,14 @@
 			"extensions": [
 				"ms-vscode.wasm-wasi-core",
 				"dbaeumer.vscode-eslint",
-				"ms-vscode.extension-test-runner"
+				"ms-vscode.extension-test-runner",
+				"rust-lang.rust-analyzer",
+				// for editing Dockerfile
+				"ms-azuretools.vscode-docker",
+				// for browsing tet reports
+				"iliazeus.vscode-ansi",
+				// this is Niko's personal preference, is there a way to factor it out?
+				"kahole.magit"
 			]
 		}
 	}
