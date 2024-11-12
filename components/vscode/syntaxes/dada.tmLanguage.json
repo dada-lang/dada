@@ -16,7 +16,7 @@
         "comments": {
             "patterns": [
                 {
-                    "name": "comment.line.double-slash.dada",
+                    "name": "comment.line.number-sign.dada",
                     "match": "#.*$"
                 }
             ]
@@ -38,6 +38,10 @@
         },
         "keywords": {
             "patterns": [
+                {
+                    "name": "keyword.definition.dada",
+                    "match": "\\b(fn|class|struct|enum)\\b"
+                },
                 {
                     "name": "keyword.control.dada",
                     "match": "\\b(if|else|while|for|return)\\b"
