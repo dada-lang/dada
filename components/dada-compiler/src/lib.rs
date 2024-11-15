@@ -14,6 +14,8 @@ use dada_util::{bail, Fallible, FromImpls, Map};
 use salsa::{Database as _, Durability, Event, Setter};
 use url::Url;
 
+mod fork;
+pub use fork::Fork;
 mod realfs;
 pub use realfs::RealFs;
 mod vfs;
@@ -25,7 +27,15 @@ use dada_parser::prelude::*;
 #[salsa::db]
 pub struct Compiler {
     storage: salsa::Storage<Self>,
-    inputs: Mutex<Inputs>,
+
+    /// Extra information about our inputs that the rest of Dada compiler doesn't have to know
+    /// (e.g., they're URL etc).
+    ///
+    /// This is behind a mutex but we have an invariant that we only modify things in the mutex
+    /// if we have `&mut` access to the compiler.
+    inputs: Arc<Mutex<Inputs>>,
+
+    /// Mediates all access to the file system.
     vfs: Arc<dyn VirtualFileSystem>,
 }
 
@@ -36,6 +46,16 @@ impl Compiler {
             inputs: Default::default(),
             vfs: Arc::new(vfs),
         }
+    }
+
+    /// Create a "fork" of the compiler that has only `&self` access.
+    /// This is meant to be used from another thread.
+    pub fn fork(&self) -> Fork<Self> {
+        Fork::from(Self {
+            storage: self.storage.clone(),
+            inputs: self.inputs.clone(),
+            vfs: self.vfs.clone(),
+        })
     }
 
     /// Load the contents of `source_url` and then open it with those contents.
@@ -72,8 +92,12 @@ impl Compiler {
 
     /// Get the `SourceFile` for the given path.
     /// Errors if no source file was opened yet.
-    pub fn get_previously_opened_source_file(&mut self, source_url: &Url) -> Fallible<SourceFile> {
-        match self.get_source_file(source_url) {
+    pub fn get_previously_opened_source_file(
+        &mut self,
+        source_url: &(impl ToUrl + ?Sized),
+    ) -> Fallible<SourceFile> {
+        let source_url = source_url.to_url(&*self.vfs)?;
+        match self.get_source_file(&source_url) {
             Some(v) => Ok(v),
             None => {
                 bail!("no source file `{source_url}`")
@@ -175,11 +199,8 @@ impl Compiler {
         let mut crates = root.crates(self).clone();
 
         if let Some(&krate) = crates.iter().find(|c| *c.name(self) == crate_name) {
-            let krate_source = Mutex::get_mut(&mut self.inputs)
-                .unwrap()
-                .directories
-                .get(&krate)
-                .unwrap();
+            let inputs = self.inputs.lock().unwrap();
+            let krate_source = inputs.directories.get(&krate).unwrap();
             if *krate_source == new_source {
                 return Ok(krate);
             }
@@ -188,7 +209,8 @@ impl Compiler {
 
         let krate = Krate::new(self, crate_name);
 
-        Mutex::get_mut(&mut self.inputs)
+        self.inputs
+            .lock()
             .unwrap()
             .directories
             .insert(krate, new_source.into());

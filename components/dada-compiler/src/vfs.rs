@@ -139,6 +139,12 @@ pub trait ToUrl {
     fn to_url(&self, vfs: &dyn VirtualFileSystem) -> Fallible<Url>;
 }
 
+impl ToUrl for str {
+    fn to_url(&self, _vfs: &dyn VirtualFileSystem) -> Fallible<Url> {
+        Ok(Url::parse(self)?)
+    }
+}
+
 impl ToUrl for Url {
     fn to_url(&self, _vfs: &dyn VirtualFileSystem) -> Fallible<Url> {
         Ok(self.clone())

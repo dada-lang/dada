@@ -4,15 +4,14 @@ version = "0.1.0"
 edition = "2021"
 
 [dependencies]
-async-lsp = "0.2.0"
+crossbeam-channel = "0.5.13"
 dada-compiler = { version = "0.1.0", path = "../dada-compiler" }
 dada-lang = { version = "0.1.0", path = "../dada-lang" }
 dada-util = { version = "0.1.0", path = "../dada-util" }
 futures = "0.3.31"
 lsp-server = "0.7.7"
+lsp-types = "0.97.0"
 salsa = { git = "https://github.com/salsa-rs/salsa.git" }
-tokio = { version = "1.38.0", features = ["macros", "rt", "io-std", "time"] }
-tokio-util = { version = "0.7.12", features = ["compat"] }
-tower = "0.5.1"
-tracing = "0.1.40"
-tracing-subscriber = "0.3.18"
+serde = { version = "1.0.215", features = ["derive"] }
+serde_json = "1.0.132"
+url = "2.5.3"
