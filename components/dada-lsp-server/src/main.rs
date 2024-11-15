@@ -1,5 +1,3 @@
-use std::sync::Arc;
-
 use dada_compiler::{Compiler, Fork, RealFs};
 use dada_util::{bail, Fallible};
 use lsp::{Editor, Lsp, LspFork};
@@ -20,16 +18,14 @@ fn main() -> Fallible<()> {
 
 struct Server {
     compiler: Compiler,
-    editor: Arc<dyn Editor>,
 }
 
 impl lsp::Lsp for Server {
     type Fork = ServerFork;
 
-    fn new(editor: Arc<dyn Editor>, _params: InitializeParams) -> Fallible<Self> {
+    fn new(_params: InitializeParams) -> Fallible<Self> {
         Ok(Server {
             compiler: Compiler::new(RealFs::new()),
-            editor,
         })
     }
 
@@ -57,11 +53,10 @@ impl lsp::Lsp for Server {
     fn fork(&mut self) -> Self::Fork {
         ServerFork {
             compiler: self.compiler.fork(),
-            editor: self.editor.clone(),
         }
     }
 
-    fn did_open(&mut self, params: DidOpenTextDocumentParams) -> Fallible<()> {
+    fn did_open(&mut self, editor: &dyn Editor, params: DidOpenTextDocumentParams) -> Fallible<()> {
         let DidOpenTextDocumentParams { text_document } = params;
         let TextDocumentItem {
             uri,
@@ -72,13 +67,16 @@ impl lsp::Lsp for Server {
 
         self.compiler.open_source_file(uri.as_str(), Ok(text))?;
 
-        self.editor
-            .show_message(MessageType::INFO, format!("did open {}", uri.as_str()))?;
+        editor.show_message(MessageType::INFO, format!("did open {}", uri.as_str()))?;
 
         Ok(())
     }
 
-    fn did_change(&mut self, params: DidChangeTextDocumentParams) -> Fallible<()> {
+    fn did_change(
+        &mut self,
+        editor: &dyn Editor,
+        params: DidChangeTextDocumentParams,
+    ) -> Fallible<()> {
         let DidChangeTextDocumentParams {
             text_document: VersionedTextDocumentIdentifier { uri, version: _ },
             content_changes,
@@ -105,8 +103,7 @@ impl lsp::Lsp for Server {
             }
         }
 
-        self.editor
-            .show_message(MessageType::INFO, format!("did change {uri_str}"))?;
+        editor.show_message(MessageType::INFO, format!("did change {uri_str}"))?;
 
         Ok(())
     }
@@ -115,9 +112,6 @@ impl lsp::Lsp for Server {
 struct ServerFork {
     #[expect(dead_code)]
     compiler: Fork<Compiler>,
-
-    #[expect(dead_code)]
-    editor: Arc<dyn Editor>,
 }
 
 impl LspFork for ServerFork {}

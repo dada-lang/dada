@@ -148,11 +148,12 @@ impl Compiler {
         Ok(self.add_crate(crate_name.to_string(), root_dir_path.url())?)
     }
 
-    pub fn check_all(&mut self, source_file: SourceFile) -> Vec<Diagnostic> {
+    /// Compute all diagnostics for a source file
+    pub fn check_all(&self, source_file: SourceFile) -> Vec<Diagnostic> {
         check_all::accumulated::<Diagnostic>(self, source_file)
     }
 
-    pub fn fn_asts(&mut self, source_file: SourceFile) -> String {
+    pub fn fn_asts(&self, source_file: SourceFile) -> String {
         use std::fmt::Write;
 
         let mut output = String::new();
