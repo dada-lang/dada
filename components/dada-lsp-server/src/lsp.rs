@@ -1,12 +1,12 @@
-use std::sync::{
-    atomic::{AtomicBool, Ordering},
-    Arc,
-};
+use std::sync::atomic::{AtomicBool, Ordering};
 
 use dada_util::Fallible;
 use dispatch::LspDispatch;
-use lsp_server::{Connection, Message};
-use lsp_types::{notification, InitializeParams, InitializeResult, ServerCapabilities, ServerInfo};
+use lsp_server::Connection;
+use lsp_types::{
+    notification, InitializeParams, InitializeResult, PublishDiagnosticsParams, ServerCapabilities,
+    ServerInfo,
+};
 
 mod dispatch;
 
@@ -22,29 +22,52 @@ pub trait Lsp: Sized {
 
     fn new(params: InitializeParams) -> Fallible<Self>;
 
+    /// Capabilities to report to the editor.
     fn server_capabilities(&mut self) -> Fallible<ServerCapabilities>;
+
+    /// Server info to report to the editor.
     fn server_info(&mut self) -> Fallible<Option<ServerInfo>>;
 
-    #[expect(dead_code)]
+    /// Create a "fork" of the LSP server that can be used from another thread.
     fn fork(&mut self) -> Self::Fork;
 
+    /// Open reported for the given URI.
     fn did_open(
         &mut self,
-        editor: &dyn Editor,
+        editor: &mut dyn Editor<Self>,
         item: lsp_types::DidOpenTextDocumentParams,
     ) -> Fallible<()>;
+
+    /// Modification reported to the given URI.
     fn did_change(
         &mut self,
-        editor: &dyn Editor,
+        editor: &mut dyn Editor<Self>,
         item: lsp_types::DidChangeTextDocumentParams,
     ) -> Fallible<()>;
 }
 
-#[expect(dead_code)]
-pub trait LspFork: Sized {}
+pub trait LspFork: Sized + Send {
+    #[expect(dead_code)]
+    fn fork(&self) -> Self;
+}
 
-pub trait Editor {
-    fn show_message(&self, message_type: lsp_types::MessageType, message: String) -> Fallible<()>;
+/// Allows your LSP server to make requests of the "editor".
+///
+/// The "editor" here includes the actual editor but also our dispatch loop,
+/// which to you are not distinguishable.
+pub trait Editor<L: Lsp> {
+    /// Display a message to the user.
+    fn show_message(
+        &mut self,
+        message_type: lsp_types::MessageType,
+        message: String,
+    ) -> Fallible<()>;
+
+    fn publish_diagnostics(&mut self, params: PublishDiagnosticsParams) -> Fallible<()>;
+
+    /// Enqueue a task to execute in parallel. The task may not start executing immediately.
+    /// The task will be given a fork of the lsp along with an editor of its own.
+    fn spawn(&mut self, task: Box<dyn FnOnce(&L::Fork, &mut dyn Editor<L>) -> Fallible<()> + Send>);
 }
 
 pub fn run_server<L: Lsp>() -> Fallible<()> {

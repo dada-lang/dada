@@ -7,6 +7,7 @@ pub type Fallible<T> = anyhow::Result<T>;
 pub use anyhow::anyhow;
 pub use anyhow::bail;
 pub use anyhow::Context;
+pub use anyhow::Error;
 
 pub use dada_util_procmacro::*;
 

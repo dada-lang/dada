@@ -292,6 +292,14 @@ impl std::ops::Sub<Offset> for AbsoluteOffset {
     }
 }
 
+impl std::ops::Sub<AbsoluteOffset> for AbsoluteOffset {
+    type Output = u32;
+
+    fn sub(self, rhs: AbsoluteOffset) -> Self::Output {
+        self.0.checked_sub(rhs.0).unwrap()
+    }
+}
+
 impl PartialOrd for AbsoluteSpan {
     fn partial_cmp(&self, other: &Self) -> Option<std::cmp::Ordering> {
         Some(Self::cmp(self, other))
@@ -369,3 +377,83 @@ impl Ord for AbsoluteSpan {
         (source_file, end, other_start).cmp(&(other_source_file, other_end, start))
     }
 }
+
+/// A zero-based line number
+#[derive(Copy, Clone, PartialEq, Eq, Hash, PartialOrd, Ord, Debug)]
+pub struct ZeroLine(u32);
+
+/// A one-based line number
+#[derive(Copy, Clone, PartialEq, Eq, Hash, PartialOrd, Ord, Debug)]
+pub struct OneLine(u32);
+
+/// A zero-based column number
+#[derive(Copy, Clone, PartialEq, Eq, Hash, PartialOrd, Ord, Debug)]
+pub struct ZeroColumn(u32);
+
+/// A one-based column number
+#[derive(Copy, Clone, PartialEq, Eq, Hash, PartialOrd, Ord, Debug)]
+pub struct OneColumn(u32);
+
+macro_rules! methods {
+    ($t:ident) => {
+        impl $t {
+            pub fn as_u32(self) -> u32 {
+                self.0
+            }
+
+            pub fn as_usize(self) -> usize {
+                self.0 as usize
+            }
+        }
+
+        impl From<usize> for $t {
+            fn from(offset: usize) -> Self {
+                assert!(offset < u32::MAX as usize);
+                $t(offset as u32)
+            }
+        }
+
+        impl From<u32> for $t {
+            fn from(offset: u32) -> Self {
+                $t(offset)
+            }
+        }
+
+        impl std::ops::Add<$t> for $t {
+            type Output = $t;
+
+            fn add(self, rhs: $t) -> Self::Output {
+                $t(self.0.checked_add(rhs.0).unwrap())
+            }
+        }
+
+        impl std::ops::Sub<$t> for $t {
+            type Output = $t;
+
+            fn sub(self, rhs: $t) -> Self::Output {
+                $t(self.0.checked_sub(rhs.0).unwrap())
+            }
+        }
+
+        impl std::ops::Add<u32> for $t {
+            type Output = $t;
+
+            fn add(self, rhs: u32) -> Self::Output {
+                $t(self.0.checked_add(rhs).unwrap())
+            }
+        }
+
+        impl std::ops::Sub<u32> for $t {
+            type Output = $t;
+
+            fn sub(self, rhs: u32) -> Self::Output {
+                $t(self.0.checked_sub(rhs).unwrap())
+            }
+        }
+    };
+}
+
+methods!(ZeroColumn);
+methods!(ZeroLine);
+methods!(OneColumn);
+methods!(OneLine);

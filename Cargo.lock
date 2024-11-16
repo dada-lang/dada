@@ -362,6 +362,7 @@ version = "0.1.0"
 dependencies = [
  "crossbeam-channel",
  "dada-compiler",
+ "dada-ir-ast",
  "dada-lang",
  "dada-util",
  "futures",

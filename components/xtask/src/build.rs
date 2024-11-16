@@ -21,6 +21,14 @@ impl Build {
             .arg(WASM_TRIPLE)
             .run()?;
 
+        // Start with a default build
+        xshell::Cmd::new("cargo")
+            .arg("build")
+            .arg("-p")
+            .arg(DADA_LSP_SERVER_CRATE)
+            .run()?;
+
+        // Then do a wasm build
         xshell::Cmd::new("cargo")
             .arg("build")
             .arg("-p")
@@ -29,6 +37,7 @@ impl Build {
             .arg(WASM_TRIPLE)
             .run()?;
 
+        // Copy the output into the wasm directory
         let wasm_dir = manifest_dir.join("components/vscode/wasm");
         xshell::mkdir_p(&wasm_dir)?;
 

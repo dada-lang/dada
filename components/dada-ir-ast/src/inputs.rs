@@ -1,8 +1,10 @@
+use std::ops::Range;
+
 use url::Url;
 
 use crate::{
     ast::Identifier,
-    span::{AbsoluteOffset, AbsoluteSpan, Anchor, Offset, Span, Spanned},
+    span::{AbsoluteOffset, AbsoluteSpan, Anchor, Offset, Span, Spanned, ZeroColumn, ZeroLine},
 };
 
 #[salsa::input]
@@ -69,6 +71,7 @@ impl<'db> Spanned<'db> for SourceFile {
     }
 }
 
+#[salsa::tracked]
 impl SourceFile {
     /// Returns the contents of this file or an empty string if it couldn't be read.
     pub fn contents_if_ok(self, db: &dyn crate::Db) -> &str {
@@ -98,5 +101,51 @@ impl SourceFile {
 
     pub fn url_display(self, db: &dyn crate::Db) -> String {
         db.url_display(self.url(db))
+    }
+
+    /// A vector containing the start indices of each (0-based) line
+    /// plus one final entry with the total document length
+    /// (effectively an imaginary N+1 line that starts, and ends, at the end).
+    #[salsa::tracked(return_ref)]
+    pub fn line_starts(self, db: &dyn crate::Db) -> Vec<AbsoluteOffset> {
+        std::iter::once(0)
+            .chain(
+                self.contents_if_ok(db)
+                    .char_indices()
+                    .filter(|&(_, ch)| ch == '\n')
+                    .map(|(index, _)| index + 1),
+            )
+            .chain(std::iter::once(self.contents_if_ok(db).len()))
+            .map(|i| AbsoluteOffset::from(i))
+            .collect()
+    }
+
+    pub fn line_range(self, db: &dyn crate::Db, line: ZeroLine) -> Range<AbsoluteOffset> {
+        let line_starts = self.line_starts(db);
+        line_starts[line.as_usize()]..line_starts[line.as_usize() + 1]
+    }
+
+    pub fn line_col(self, db: &dyn crate::Db, offset: AbsoluteOffset) -> (ZeroLine, ZeroColumn) {
+        let line_starts = self.line_starts(db);
+        match line_starts.iter().position(|&s| s > offset) {
+            Some(next_line) => {
+                assert!(next_line > 0);
+                let line_index = next_line - 1;
+                let line_start = line_starts[line_index];
+                (
+                    ZeroLine::from(line_index),
+                    ZeroColumn::from(offset - line_start),
+                )
+            }
+            None => {
+                // This must be the end of the document. We will return the last column on the last line.
+                let last_line = self.line_starts(db).len() - 1;
+                let last_line_start = line_starts[last_line];
+                (
+                    ZeroLine::from(last_line),
+                    ZeroColumn::from(offset - last_line_start),
+                )
+            }
+        }
     }
 }

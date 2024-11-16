@@ -1,27 +1,32 @@
-use std::{marker::PhantomData, ops::ControlFlow, sync::Arc, thread::Scope};
+use std::{
+    marker::PhantomData,
+    ops::ControlFlow,
+    sync::{mpsc::Sender, Arc},
+    thread::Scope,
+};
 
 use dada_util::Fallible;
 use lsp_server::{Connection, Message, Notification};
-use lsp_types::notification;
+use lsp_types::{notification, PublishDiagnosticsParams};
 
-use super::Editor;
+use super::{Editor, Lsp};
 
-pub(super) struct LspDispatch<'l, L: 'l> {
+pub(super) struct LspDispatch<'l, L: Lsp + 'l> {
     connection: Arc<Connection>,
     lsp: L,
     notification_arms: Vec<Box<dyn NotificationArm<L> + 'l>>,
 }
 
-trait NotificationArm<C> {
+trait NotificationArm<L> {
     fn execute(
         &self,
-        context: &mut C,
-        editor: &dyn Editor,
+        context: &mut L,
+        editor: &mut dyn Editor<L>,
         notification: Notification,
     ) -> Fallible<ControlFlow<(), Notification>>;
 }
 
-impl<'l, L: 'l> LspDispatch<'l, L> {
+impl<'l, L: Lsp + 'l> LspDispatch<'l, L> {
     pub fn new(connection: Connection, lsp: L) -> Self {
         Self {
             lsp,
@@ -32,7 +37,7 @@ impl<'l, L: 'l> LspDispatch<'l, L> {
 
     pub fn on_notification<N>(
         mut self,
-        execute: impl Fn(&mut L, &dyn Editor, N::Params) -> Fallible<()> + 'l,
+        execute: impl Fn(&mut L, &mut dyn Editor<L>, N::Params) -> Fallible<()> + 'l,
     ) -> Self
     where
         N: notification::Notification + 'l,
@@ -45,12 +50,12 @@ impl<'l, L: 'l> LspDispatch<'l, L> {
         impl<L, N, F> NotificationArm<L> for NotificationArmImpl<N, F, L>
         where
             N: notification::Notification,
-            F: Fn(&mut L, &dyn Editor, N::Params) -> Fallible<()>,
+            F: Fn(&mut L, &mut dyn Editor<L>, N::Params) -> Fallible<()>,
         {
             fn execute(
                 &self,
                 lsp: &mut L,
-                editor: &dyn Editor,
+                editor: &mut dyn Editor<L>,
                 notification: Notification,
             ) -> Fallible<ControlFlow<(), Notification>> {
                 if notification.method != N::METHOD {
@@ -74,8 +79,10 @@ impl<'l, L: 'l> LspDispatch<'l, L> {
 
     /// Start receiving and dispatch messages. Blocks until a shutdown request is received.
     pub fn execute(mut self) -> Fallible<()> {
+        let (spawned_tasks_tx, spawned_tasks_rx) = std::sync::mpsc::channel::<SpawnedTask<L>>();
+        let (errors_tx, errors_rx) = std::sync::mpsc::channel::<dada_util::Error>();
+        let connection = self.connection.clone();
         std::thread::scope(|scope| {
-            let connection = self.connection.clone();
             for message in &connection.receiver {
                 // Check for shutdown requests:
                 if let Message::Request(req) = &message {
@@ -85,23 +92,53 @@ impl<'l, L: 'l> LspDispatch<'l, L> {
                 }
 
                 // Otherwise:
-                self.receive(scope, message)?;
+                self.receive(scope, spawned_tasks_tx.clone(), message)?;
+
+                while let Ok(task) = spawned_tasks_rx.try_recv() {
+                    scope.spawn({
+                        let fork: <L as Lsp>::Fork = self.lsp.fork();
+                        let spawned_tasks_tx = spawned_tasks_tx.clone();
+                        let errors_tx = errors_tx.clone();
+                        let connection = &connection;
+                        move || {
+                            let mut editor = LspDispatchEditor {
+                                connection,
+                                spawned_tasks_tx,
+                            };
+                            match (task.task)(&fork, &mut editor) {
+                                Ok(()) => (),
+                                Err(err) => errors_tx.send(err).unwrap(),
+                            }
+                        }
+                    });
+                }
+
+                while let Ok(err) = errors_rx.try_recv() {
+                    return Err(err);
+                }
             }
 
             Ok(())
         })
     }
 
-    fn receive(&mut self, _scope: &Scope<'_, '_>, message: Message) -> Fallible<()> {
+    /// Given a message, find the handler (if any) and invoke it.
+    fn receive(
+        &mut self,
+        _scope: &Scope<'_, '_>,
+        spawned_tasks_tx: Sender<SpawnedTask<L>>,
+        message: Message,
+    ) -> Fallible<()> {
         match message {
             Message::Request(_request) => Ok(()),
             Message::Response(_response) => Ok(()),
             Message::Notification(mut notification) => {
-                let editor = LspDispatchEditor {
+                let mut editor = LspDispatchEditor {
                     connection: &self.connection,
+                    spawned_tasks_tx,
                 };
                 for arm in &self.notification_arms {
-                    match arm.execute(&mut self.lsp, &editor, notification)? {
+                    match arm.execute(&mut self.lsp, &mut editor, notification)? {
                         ControlFlow::Break(()) => break,
                         ControlFlow::Continue(n) => notification = n,
                     }
@@ -112,11 +149,12 @@ impl<'l, L: 'l> LspDispatch<'l, L> {
     }
 }
 
-struct LspDispatchEditor<'scope> {
+struct LspDispatchEditor<'scope, L: Lsp> {
     connection: &'scope Connection,
+    spawned_tasks_tx: Sender<SpawnedTask<L>>,
 }
 
-impl LspDispatchEditor<'_> {
+impl<L: Lsp> LspDispatchEditor<'_, L> {
     fn send_notification<N>(&self, params: N::Params) -> Fallible<()>
     where
         N: notification::Notification,
@@ -131,8 +169,12 @@ impl LspDispatchEditor<'_> {
     }
 }
 
-impl Editor for LspDispatchEditor<'_> {
-    fn show_message(&self, message_type: lsp_types::MessageType, message: String) -> Fallible<()> {
+impl<L: Lsp> Editor<L> for LspDispatchEditor<'_, L> {
+    fn show_message(
+        &mut self,
+        message_type: lsp_types::MessageType,
+        message: String,
+    ) -> Fallible<()> {
         let params = lsp_types::ShowMessageParams {
             typ: message_type,
             message,
@@ -142,4 +184,21 @@ impl Editor for LspDispatchEditor<'_> {
 
         Ok(())
     }
+
+    fn publish_diagnostics(&mut self, params: PublishDiagnosticsParams) -> Fallible<()> {
+        Ok(self.send_notification::<notification::PublishDiagnostics>(params)?)
+    }
+
+    fn spawn(
+        &mut self,
+        task: Box<dyn FnOnce(&<L as Lsp>::Fork, &mut dyn Editor<L>) -> Fallible<()> + Send>,
+    ) {
+        self.spawned_tasks_tx.send(SpawnedTask { task }).unwrap();
+    }
 }
+
+struct SpawnedTask<L: Lsp> {
+    task: Box<dyn FnOnce(&<L as Lsp>::Fork, &mut dyn Editor<L>) -> Fallible<()> + Send>,
+}
+
+impl<L: Lsp> SpawnedTask<L> {}
