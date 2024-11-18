@@ -48,7 +48,7 @@
     "test": "vscode-test"
   },
   "dependencies": {
-    "@vscode/wasm-wasi-lsp": "0.1.0-pre.6"
+    "@vscode/wasm-wasi-lsp": "0.1.0-pre.8"
   },
   "extensionDependencies": [
     "ms-vscode.wasm-wasi-core"

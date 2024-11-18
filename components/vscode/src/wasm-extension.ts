@@ -9,7 +9,7 @@ import * as vscode from 'vscode';
 
 import { ExtensionContext, Uri, window, workspace, commands } from 'vscode';
 import { LanguageClient, LanguageClientOptions, ServerOptions, RequestType } from 'vscode-languageclient/node';
-import { Wasm, ProcessOptions } from '@vscode/wasm-wasi';
+import { Wasm, ProcessOptions } from '@vscode/wasm-wasi/v1';
 import { createStdioOptions, createUriConverters, startServer } from '@vscode/wasm-wasi-lsp';
 
 let client: LanguageClient;
