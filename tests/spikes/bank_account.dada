@@ -1,0 +1,84 @@
+pub struct Amount(
+    sign: bool,
+    cents: u32,
+) {
+    pub fn is_positive(self) -> bool {
+        self.sign
+    }
+
+    pub fn is_negative(self) -> bool {
+        !self.sign
+    }
+
+    pub fn negate(self) -> Amount {
+        Amount(!self.sign, self.cents)
+    }
+
+    fn greater_than(self, amount: Amount) -> bool {
+        if self.is_positive() && amount.is_negative() {
+            true
+        } else if amount.is_positive() && self.is_negative() {
+            false
+        } else if self.is_positive() {
+            self.cents > amount.cents
+        } else {
+            self.cents < amount.cents
+        }
+    }
+
+    pub fn plus(self, amount: Amount) -> Amount {
+        if self.is_positive() {
+            if amount.is_positive() {
+                Amount(true, self.cents + amount.cents)
+            } else if self.cents >= amount.cents {
+                Amount(true, self.cents - amount.cents)
+            } else {
+                Amount(false, amount.cents - self.cents)
+            }
+        } else {
+            amount.plus(self.negate())
+        }
+    }
+
+    pub fn minus(self, amount: Amount) -> Amount {
+        self.plus(amount.negate())
+    }
+}
+
+pub class Account(name: String, mut amount: Amount) {
+    name: String
+    mut amount: Amount
+
+    pub fn is_overdrawn(self) -> bool {
+        self.amount.is_negative()
+    }
+
+    pub fn deposit(leased self, amount: Amount) {
+        self.amount = self.amount.plus(amount)
+    }
+
+    pub fn withdraw(leased self, amount: Amount) {
+        self.amount = self.amount.minus(amount)
+    }
+
+    pub fn transfer_to(leased self, account: leased Account, amount: Amount) {
+        self.withdraw(amount)
+        account.deposit(amount)
+    }
+}
+
+async fn main() {
+    let mut jackson = Account("Jackson", Amount(true, 22))
+    let mut jill = Account("Jill", Amount(true, 44))
+    let mut jack = Account("Jack", Amount(true, 222))
+
+    print("Accounts: Jackson {jackson} Jill {jill} Jack {jack}").await
+
+    # First Jackson transfers $22 to Jill -- oh, shoot, he's broke!
+    jackson.lease.transfer_to(jill.lease, Amount(true, 22))
+    print("Accounts: Jackson {jackson} Jill {jill} Jack {jack}").await
+
+    # Then his parent Jack transfers $22 to Jack. Much better!
+    jack.lease.transfer_to(jackson.lease, Amount(true, 22))
+    print("Accounts: Jackson {jackson} Jill {jill} Jack {jack}").await
+}

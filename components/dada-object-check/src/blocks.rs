@@ -1,4 +1,7 @@
-use dada_ir_ast::ast::{AstBlock, AstClassItem};
+use dada_ir_ast::{
+    ast::{AstBlock, AstClassItem},
+    diagnostic::{Diagnostic, Err, Level},
+};
 use dada_ir_sym::{
     class::SymClass,
     function::{SymFunction, SymFunctionSource, SymInputOutput},
@@ -31,6 +34,7 @@ pub fn check_function_body<'db>(
     }
 }
 
+/// Check the automatic construct that results when user writes parentheses, like `class Foo(...)`.
 fn check_function_body_class_constructor<'db>(
     db: &'db dyn crate::Db,
     function: SymFunction<'db>,
@@ -44,8 +48,40 @@ fn check_function_body_class_constructor<'db>(
     let input_vars = &signature.input_output(db).bound_value.variables;
     let input_tys = &signature.input_output(db).bound_value.bound_value.input_tys;
     let fields = sym_class.fields(db).collect::<Vec<_>>();
-    assert_eq!(input_vars.len(), fields.len());
     assert_eq!(input_vars.len(), input_tys.len());
+
+    // Careful: Not allowed to declare other fields.
+    let parameter_exprs = input_vars.iter().zip(input_tys).map(|(&v, &ty)| {
+        let ty = ty.into_object_ir(db);
+        ObjectPlaceExpr::new(db, v.span(db), ty, ObjectPlaceExprKind::Var(v)).give(db)
+    });
+
+    // The first N fields will be the inputs declared in parentheses.
+    // But if user declared additional fields, that's an error for now.
+    // Eventually perhaps we can support default values.
+    let other_exprs = fields[input_vars.len()..].iter().map(|sym_field| {
+        ObjectExpr::err(
+            db,
+            Diagnostic::error(
+                db,
+                sym_field.name_span(db),
+                format!("cannot have both explicit fields and an automatic constructor"),
+            )
+            .label(
+                db,
+                Level::Error,
+                sym_field.name_span(db),
+                format!("I found an explicit field declaration here"),
+            )
+            .label(
+                db,
+                Level::Info,
+                span,
+                "I also found an automatic class constructor here",
+            )
+            .report(db),
+        )
+    });
 
     Some(ObjectExpr::new(
         db,
@@ -53,14 +89,7 @@ fn check_function_body_class_constructor<'db>(
         self_ty,
         ObjectExprKind::Aggregate {
             ty: self_ty,
-            fields: input_vars
-                .iter()
-                .zip(input_tys)
-                .map(|(&v, &ty)| {
-                    let ty = ty.into_object_ir(db);
-                    ObjectPlaceExpr::new(db, v.span(db), ty, ObjectPlaceExprKind::Var(v)).give(db)
-                })
-                .collect(),
+            fields: parameter_exprs.chain(other_exprs).collect(),
         },
     ))
 }
