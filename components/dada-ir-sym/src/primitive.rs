@@ -66,3 +66,10 @@ impl<'db> SymPrimitive<'db> {
         }
     }
 }
+
+impl SymPrimitiveKind {
+    /// Intern `SymPrimitive<'db>`
+    pub fn intern<'db>(self, db: &'db dyn crate::Db) -> SymPrimitive<'db> {
+        SymPrimitive::new(db, self)
+    }
+}

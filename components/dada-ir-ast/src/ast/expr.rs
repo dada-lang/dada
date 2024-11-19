@@ -85,6 +85,8 @@ pub enum AstExprKind<'db> {
     },
 
     BinaryOp(SpannedBinaryOp<'db>, AstExpr<'db>, AstExpr<'db>),
+
+    UnaryOp(SpannedUnaryOp<'db>, AstExpr<'db>),
 }
 
 #[derive(Copy, Clone, PartialEq, Eq, PartialOrd, Ord, Hash, Update, Debug)]
@@ -99,6 +101,18 @@ pub enum BinaryOp {
     Sub,
     Mul,
     Div,
+}
+
+#[derive(Copy, Clone, PartialEq, Eq, PartialOrd, Ord, Hash, Update, Debug)]
+pub struct SpannedUnaryOp<'db> {
+    pub span: Span<'db>,
+    pub op: UnaryOp,
+}
+
+#[derive(Copy, Clone, PartialEq, Eq, PartialOrd, Ord, Hash, Update, Debug)]
+pub enum UnaryOp {
+    Not,
+    Negate,
 }
 
 /// Created when we parse `x[..]` expressions or paths to store the `..` contents.

@@ -23,6 +23,7 @@ use dada_ir_sym::{
     class::SymField,
     function::SymFunction,
     indices::InferVarIndex,
+    primitive::{SymPrimitive, SymPrimitiveKind},
     symbol::{FromVar, HasKind, SymGenericKind, SymVariable},
     ty::{SymGenericTerm, SymTy, SymTyName},
 };
@@ -108,6 +109,12 @@ pub enum ObjectExprKind<'db> {
     /// Return a value from this function
     Return(ObjectExpr<'db>),
 
+    /// Boolean not
+    Not {
+        operand: ObjectExpr<'db>,
+        op_span: Span<'db>,
+    },
+
     /// `a + b` etc
     BinaryOp(SpannedBinaryOp<'db>, ObjectExpr<'db>, ObjectExpr<'db>),
 
@@ -183,6 +190,11 @@ impl<'db> ObjectTy<'db> {
         args: Vec<ObjectGenericTerm<'db>>,
     ) -> ObjectTy<'db> {
         ObjectTy::new(db, ObjectTyKind::Named(name.into(), args))
+    }
+
+    pub fn boolean(db: &'db dyn crate::Db) -> ObjectTy<'db> {
+        let prim: SymPrimitive<'db> = SymPrimitiveKind::Bool.intern(db);
+        ObjectTy::named(db, prim, vec![])
     }
 }
 

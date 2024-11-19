@@ -3,7 +3,7 @@ use std::future::Future;
 use dada_ir_ast::{
     ast::{
         AstExpr, AstExprKind, AstGenericTerm, Identifier, LiteralKind, SpanVec, SpannedBinaryOp,
-        SpannedIdentifier,
+        SpannedIdentifier, UnaryOp,
     },
     diagnostic::{Diagnostic, Err, Level, Reported},
     span::{Span, Spanned},
@@ -473,6 +473,32 @@ async fn check_expr<'db>(expr: &AstExpr<'db>, env: &Env<'db>) -> ExprResult<'db>
                 .into(),
             }
         }
+        AstExprKind::UnaryOp(spanned_unary_op, ast_expr) => match spanned_unary_op.op {
+            UnaryOp::Not => {
+                let mut temporaries = vec![];
+                let operand = ast_expr.check(env).await.into_expr(env, &mut temporaries);
+
+                let boolean_ty = ObjectTy::boolean(db);
+
+                env.require_assignable_object_type(operand.span(db), operand.ty(db), boolean_ty);
+
+                ExprResult {
+                    temporaries,
+                    span: expr_span,
+                    kind: ObjectExpr::new(
+                        db,
+                        expr_span,
+                        boolean_ty,
+                        ObjectExprKind::Not {
+                            operand,
+                            op_span: spanned_unary_op.span,
+                        },
+                    )
+                    .into(),
+                }
+            }
+            UnaryOp::Negate => todo!(),
+        },
     }
 }
 

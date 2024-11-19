@@ -1,6 +1,7 @@
 use dada_ir_ast::ast::{
     AstConstructorField, AstExpr, AstExprKind, AstPath, AstPathKind, BinaryOp, DeferredParse,
-    Identifier, Literal, SpannedBinaryOp, SpannedIdentifier, SquareBracketArgs,
+    Identifier, Literal, SpannedBinaryOp, SpannedIdentifier, SpannedUnaryOp, SquareBracketArgs,
+    UnaryOp,
 };
 
 use crate::{
@@ -211,6 +212,28 @@ fn base_expr_precedence<'db>(
             }
         }
         return Ok(Some(AstExprKind::Return(None)));
+    }
+
+    if let Ok(span) = parser.eat_op("!") {
+        let expr = eat_expr_with_precedence(db, parser, postfix_expr_precedence)?;
+        return Ok(Some(AstExprKind::UnaryOp(
+            SpannedUnaryOp {
+                span,
+                op: UnaryOp::Not,
+            },
+            expr,
+        )));
+    }
+
+    if let Ok(span) = parser.eat_op("-") {
+        let expr = eat_expr_with_precedence(db, parser, postfix_expr_precedence)?;
+        return Ok(Some(AstExprKind::UnaryOp(
+            SpannedUnaryOp {
+                span,
+                op: UnaryOp::Negate,
+            },
+            expr,
+        )));
     }
 
     Ok(None)
