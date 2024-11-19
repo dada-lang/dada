@@ -1,16 +1,16 @@
-pub struct Amount(
+struct Amount(
     sign: bool,
     cents: u32,
 ) {
-    pub fn is_positive(self) -> bool {
+    fn is_positive(self) -> bool {
         self.sign
     }
 
-    pub fn is_negative(self) -> bool {
+    fn is_negative(self) -> bool {
         !self.sign
     }
 
-    pub fn negate(self) -> Amount {
+    fn negate(self) -> Amount {
         Amount(!self.sign, self.cents)
     }
 
@@ -26,7 +26,7 @@ pub struct Amount(
         }
     }
 
-    pub fn plus(self, amount: Amount) -> Amount {
+    fn plus(self, amount: Amount) -> Amount {
         if self.is_positive() {
             if amount.is_positive() {
                 Amount(true, self.cents + amount.cents)
@@ -40,30 +40,30 @@ pub struct Amount(
         }
     }
 
-    pub fn minus(self, amount: Amount) -> Amount {
+    fn minus(self, amount: Amount) -> Amount {
         self.plus(amount.negate())
     }
 }
 
-pub class Account(name: String, mut amount: Amount) {
+class Account(name: String, mut amount: Amount) {
     name: String
     mut amount: Amount
 
-    pub fn is_overdrawn(self) -> bool {
+    fn is_overdrawn(self) -> bool {
         self.amount.is_negative()
     }
 
-    pub fn deposit(leased self, amount: Amount) {
+    fn deposit(leased self, amount: Amount) {
         self.amount = self.amount.plus(amount)
     }
 
-    pub fn withdraw(leased self, amount: Amount) {
+    fn withdraw(leased self, amount: Amount) {
         self.amount = self.amount.minus(amount)
     }
 
-    pub fn transfer_to(leased self, account: leased Account, amount: Amount) {
-        self.withdraw(amount)
-        account.deposit(amount)
+    fn transfer_to(leased self, account: leased Account, amount: Amount) {
+        self.lease.withdraw(amount)
+        account.lease.deposit(amount)
     }
 }
 
