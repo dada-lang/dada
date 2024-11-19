@@ -42,6 +42,9 @@ impl<'db> AstExpr<'db> {
 
 #[derive(Clone, PartialEq, Eq, PartialOrd, Ord, Hash, Update, Debug)]
 pub enum AstExprKind<'db> {
+    /// `{ ... }`
+    Block(AstBlock<'db>),
+
     /// `22`
     Literal(Literal<'db>),
 
@@ -84,9 +87,23 @@ pub enum AstExprKind<'db> {
         await_keyword: Span<'db>,
     },
 
+    /// `a + b` etc
     BinaryOp(SpannedBinaryOp<'db>, AstExpr<'db>, AstExpr<'db>),
 
+    /// `!foo` etc
     UnaryOp(SpannedUnaryOp<'db>, AstExpr<'db>),
+
+    /// If/else-if chain
+    If(Vec<IfArm<'db>>),
+}
+
+#[derive(Clone, PartialEq, Eq, PartialOrd, Ord, Hash, Update, Debug)]
+pub struct IfArm<'db> {
+    /// if None, this is an `else` (and should come last)
+    pub condition: Option<AstExpr<'db>>,
+
+    /// the value
+    pub result: AstBlock<'db>,
 }
 
 #[derive(Copy, Clone, PartialEq, Eq, PartialOrd, Ord, Hash, Update, Debug)]

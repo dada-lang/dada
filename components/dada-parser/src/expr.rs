@@ -1,7 +1,7 @@
 use dada_ir_ast::ast::{
-    AstConstructorField, AstExpr, AstExprKind, AstPath, AstPathKind, BinaryOp, DeferredParse,
-    Identifier, Literal, SpannedBinaryOp, SpannedIdentifier, SpannedUnaryOp, SquareBracketArgs,
-    UnaryOp,
+    AstBlock, AstConstructorField, AstExpr, AstExprKind, AstPath, AstPathKind, BinaryOp,
+    DeferredParse, Identifier, IfArm, Literal, SpannedBinaryOp, SpannedIdentifier, SpannedUnaryOp,
+    SquareBracketArgs, UnaryOp,
 };
 
 use crate::{
@@ -16,13 +16,16 @@ impl<'db> Parse<'db> for AstExpr<'db> {
         db: &'db dyn crate::Db,
         parser: &mut Parser<'_, 'db>,
     ) -> Result<Option<Self::Output>, crate::ParseFail<'db>> {
-        opt_parse_expr_with_precedence(db, parser, binary_expr_precedence)
+        opt_parse_expr_with_precedence(db, parser, binary_expr_precedence::<SELECT_ALL>)
     }
 
     fn expected() -> crate::Expected {
         crate::Expected::Nonterminal("expression")
     }
 }
+
+const SELECT_ALL: u32 = std::u32::MAX;
+const SELECT_STRUCT: u32 = 1;
 
 fn eat_expr_with_precedence<'db>(
     db: &'db dyn crate::Db,
@@ -58,14 +61,14 @@ const BINARY_OP_PRECEDENCE: &[&[(&str, BinaryOp)]] = &[
     &[("*", BinaryOp::Mul), ("*", BinaryOp::Div)],
 ];
 
-fn binary_expr_precedence<'db>(
+fn binary_expr_precedence<'db, const SELECT: u32>(
     db: &'db dyn crate::Db,
     parser: &mut Parser<'_, 'db>,
 ) -> Result<Option<AstExprKind<'db>>, crate::ParseFail<'db>> {
-    binary_expr_with_precedence_level(db, parser, 0)
+    binary_expr_with_precedence_level::<SELECT>(db, parser, 0)
 }
 
-fn binary_expr_with_precedence_level<'db>(
+fn binary_expr_with_precedence_level<'db, const SELECT: u32>(
     db: &'db dyn crate::Db,
     parser: &mut Parser<'_, 'db>,
     precedence: usize,
@@ -73,12 +76,14 @@ fn binary_expr_with_precedence_level<'db>(
     let start_span = parser.peek_span();
 
     if precedence >= BINARY_OP_PRECEDENCE.len() {
-        return Ok(postfix_expr_precedence(db, parser)?);
+        return Ok(postfix_expr_precedence::<SELECT>(db, parser)?);
     }
 
     // Parse the LHS at one higher level of precedence than
     // the current one.
-    let Some(mut lhs_kind) = binary_expr_with_precedence_level(db, parser, precedence + 1)? else {
+    let Some(mut lhs_kind) =
+        binary_expr_with_precedence_level::<SELECT>(db, parser, precedence + 1)?
+    else {
         return Ok(None);
     };
 
@@ -95,7 +100,7 @@ fn binary_expr_with_precedence_level<'db>(
                     let lhs = AstExpr::new(start_span.to(mid_span), lhs_kind);
                     let rhs = eat_expr_with_precedence(db, parser, |db, parser| {
                         // Parse RHS at the current level of precedence:
-                        binary_expr_with_precedence_level(db, parser, precedence)
+                        binary_expr_with_precedence_level::<SELECT>(db, parser, precedence)
                     })?;
                     lhs_kind =
                         AstExprKind::BinaryOp(SpannedBinaryOp { span: op_span, op }, lhs, rhs);
@@ -108,13 +113,13 @@ fn binary_expr_with_precedence_level<'db>(
     }
 }
 
-fn postfix_expr_precedence<'db>(
+fn postfix_expr_precedence<'db, const SELECT: u32>(
     db: &'db dyn crate::Db,
     parser: &mut Parser<'_, 'db>,
 ) -> Result<Option<AstExprKind<'db>>, crate::ParseFail<'db>> {
     let start_span = parser.peek_span();
 
-    let Some(mut kind) = base_expr_precedence(db, parser)? else {
+    let Some(mut kind) = base_expr_precedence::<SELECT>(db, parser)? else {
         return Ok(None);
     };
 
@@ -171,7 +176,7 @@ fn postfix_expr_precedence<'db>(
     }
 }
 
-fn base_expr_precedence<'db>(
+fn base_expr_precedence<'db, const SELECT: u32>(
     db: &'db dyn crate::Db,
     parser: &mut Parser<'_, 'db>,
 ) -> Result<Option<AstExprKind<'db>>, crate::ParseFail<'db>> {
@@ -179,9 +184,13 @@ fn base_expr_precedence<'db>(
         return Ok(Some(AstExprKind::Literal(literal)));
     }
 
+    if let Ok(if_span) = parser.eat_keyword(Keyword::If) {
+        return Ok(Some(if_chain(db, parser, if_span)?));
+    }
+
     if let Ok(id) = parser.eat_id() {
         // Could be `X { field1: value1, .. }`
-        if parser.next_token_on_same_line() {
+        if (SELECT & SELECT_STRUCT != 0) && parser.next_token_on_same_line() {
             if let Some(fields) = AstConstructorField::opt_parse_delimited(
                 db,
                 parser,
@@ -215,7 +224,7 @@ fn base_expr_precedence<'db>(
     }
 
     if let Ok(span) = parser.eat_op("!") {
-        let expr = eat_expr_with_precedence(db, parser, postfix_expr_precedence)?;
+        let expr = eat_expr_with_precedence(db, parser, postfix_expr_precedence::<SELECT>)?;
         return Ok(Some(AstExprKind::UnaryOp(
             SpannedUnaryOp {
                 span,
@@ -226,7 +235,7 @@ fn base_expr_precedence<'db>(
     }
 
     if let Ok(span) = parser.eat_op("-") {
-        let expr = eat_expr_with_precedence(db, parser, postfix_expr_precedence)?;
+        let expr = eat_expr_with_precedence(db, parser, postfix_expr_precedence::<SELECT>)?;
         return Ok(Some(AstExprKind::UnaryOp(
             SpannedUnaryOp {
                 span,
@@ -237,6 +246,53 @@ fn base_expr_precedence<'db>(
     }
 
     Ok(None)
+}
+
+fn if_chain<'db>(
+    db: &'db dyn crate::Db,
+    parser: &mut Parser<'_, 'db>,
+    _if_span: dada_ir_ast::span::Span<'db>,
+) -> Result<AstExprKind<'db>, crate::ParseFail<'db>> {
+    let condition0 = eat_expr_with_precedence(
+        db,
+        parser,
+        binary_expr_precedence::<{ SELECT_ALL - SELECT_STRUCT }>,
+    )?;
+
+    let block0 = AstBlock::eat(db, parser)?;
+
+    let mut arms = vec![IfArm {
+        condition: Some(condition0),
+        result: block0,
+    }];
+
+    loop {
+        let Ok(_else_span) = parser.eat_keyword(Keyword::Else) else {
+            break;
+        };
+
+        if let Ok(_if_span) = parser.eat_keyword(Keyword::If) {
+            let else_if_condition = eat_expr_with_precedence(
+                db,
+                parser,
+                binary_expr_precedence::<{ SELECT_ALL - SELECT_STRUCT }>,
+            )?;
+            let else_if_block = AstBlock::eat(db, parser)?;
+            arms.push(IfArm {
+                condition: Some(else_if_condition),
+                result: else_if_block,
+            });
+        } else {
+            let else_block = AstBlock::eat(db, parser)?;
+            arms.push(IfArm {
+                condition: None,
+                result: else_block,
+            });
+            break;
+        }
+    }
+
+    Ok(AstExprKind::If(arms))
 }
 
 impl<'db> Parse<'db> for Literal<'db> {

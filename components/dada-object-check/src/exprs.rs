@@ -27,8 +27,8 @@ use crate::{
     env::Env,
     member::MemberLookup,
     object_ir::{
-        IntoObjectIr, ObjectExpr, ObjectExprKind, ObjectPlaceExpr, ObjectPlaceExprKind, ObjectTy,
-        ObjectTyKind,
+        IntoObjectIr, MatchArm, ObjectExpr, ObjectExprKind, ObjectPlaceExpr, ObjectPlaceExprKind,
+        ObjectTy, ObjectTyKind,
     },
     subobject::{require_sub_object_type, Expected},
     Checking,
@@ -477,10 +477,7 @@ async fn check_expr<'db>(expr: &AstExpr<'db>, env: &Env<'db>) -> ExprResult<'db>
             UnaryOp::Not => {
                 let mut temporaries = vec![];
                 let operand = ast_expr.check(env).await.into_expr(env, &mut temporaries);
-
-                let boolean_ty = ObjectTy::boolean(db);
-
-                env.require_assignable_object_type(operand.span(db), operand.ty(db), boolean_ty);
+                env.require_expr_has_bool_ty(operand);
 
                 ExprResult {
                     temporaries,
@@ -488,7 +485,7 @@ async fn check_expr<'db>(expr: &AstExpr<'db>, env: &Env<'db>) -> ExprResult<'db>
                     kind: ObjectExpr::new(
                         db,
                         expr_span,
-                        boolean_ty,
+                        ObjectTy::boolean(db),
                         ObjectExprKind::Not {
                             operand,
                             op_span: spanned_unary_op.span,
@@ -499,6 +496,46 @@ async fn check_expr<'db>(expr: &AstExpr<'db>, env: &Env<'db>) -> ExprResult<'db>
             }
             UnaryOp::Negate => todo!(),
         },
+        AstExprKind::Block(ast_block) => ExprResult {
+            temporaries: vec![],
+            span: expr_span,
+            kind: ast_block.check(env).await.into(),
+        },
+
+        AstExprKind::If(ast_arms) => {
+            let mut arms = vec![];
+            let mut has_else = false;
+            for arm in ast_arms {
+                let condition = if let Some(c) = &arm.condition {
+                    let expr = c.check(env).await.into_expr_with_enclosed_temporaries(env);
+                    env.require_expr_has_bool_ty(expr);
+                    Some(expr)
+                } else {
+                    has_else = true;
+                    None
+                };
+
+                let body = arm.result.check(env).await;
+
+                arms.push(MatchArm { condition, body });
+            }
+
+            let if_ty = if has_else {
+                ObjectTy::unit(db)
+            } else {
+                env.fresh_object_ty_inference_var(expr_span)
+            };
+
+            for arm in &arms {
+                env.require_assignable_object_type(arm.body.span(db), arm.body.ty(db), if_ty);
+            }
+
+            ExprResult {
+                temporaries: vec![],
+                span: expr_span,
+                kind: ObjectExpr::new(db, expr_span, if_ty, ObjectExprKind::Match { arms }).into(),
+            }
+        }
     }
 }
 

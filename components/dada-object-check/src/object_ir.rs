@@ -124,8 +124,22 @@ pub enum ObjectExprKind<'db> {
         fields: Vec<ObjectExpr<'db>>,
     },
 
+    /// Match, if/else-if chain, etc
+    Match { arms: Vec<MatchArm<'db>> },
+
     /// Error occurred somewhere.
     Error(Reported),
+}
+
+/// A match arm is one part of a match statement.
+#[derive(Clone, PartialEq, Eq, PartialOrd, Ord, Hash, Debug, Update)]
+pub struct MatchArm<'db> {
+    // FIXME: patterns
+    /// Condition to evaluate; if `None` then it always applies
+    pub condition: Option<ObjectExpr<'db>>,
+
+    /// Body to evaluate.
+    pub body: ObjectExpr<'db>,
 }
 
 #[salsa::tracked]
