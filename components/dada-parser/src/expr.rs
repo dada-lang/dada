@@ -59,6 +59,8 @@ fn opt_parse_expr_with_precedence<'db>(
 const BINARY_OP_PRECEDENCE: &[&[(&str, BinaryOp)]] = &[
     &[("+", BinaryOp::Add), ("-", BinaryOp::Sub)],
     &[("*", BinaryOp::Mul), ("*", BinaryOp::Div)],
+    &[("&&", BinaryOp::AndAnd)],
+    &[("||", BinaryOp::OrOr)],
 ];
 
 fn binary_expr_precedence<'db, const SELECT: u32>(
