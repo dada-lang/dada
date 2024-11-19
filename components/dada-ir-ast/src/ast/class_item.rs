@@ -5,13 +5,17 @@ use crate::{
 
 use super::{AstGenericDecl, Identifier, SpanVec};
 
+/// Some kind of aggregate, like a class, struct, etc.
+///
 /// `class $name[$generics] { ... }` or `class $name[$generics](...) { ... }`
 #[salsa::tracked]
-pub struct AstClassItem<'db> {
+pub struct AstAggregate<'db> {
     pub span: Span<'db>,
 
     /// Visibility of the class
     pub visibility: Option<AstVisibility<'db>>,
+
+    pub kind: AstAggregateKind,
 
     #[id]
     pub name: Identifier<'db>,
@@ -32,10 +36,16 @@ pub struct AstClassItem<'db> {
     pub contents: Option<DeferredParse<'db>>,
 }
 
-impl<'db> AstClassItem<'db> {}
+impl<'db> AstAggregate<'db> {}
 
-impl<'db> Spanned<'db> for AstClassItem<'db> {
+impl<'db> Spanned<'db> for AstAggregate<'db> {
     fn span(&self, db: &'db dyn crate::Db) -> Span<'db> {
-        AstClassItem::span(*self, db)
+        AstAggregate::span(*self, db)
     }
+}
+
+#[derive(Copy, Clone, PartialEq, Eq, PartialOrd, Ord, Hash, Debug)]
+pub enum AstAggregateKind {
+    Class,
+    Struct,
 }

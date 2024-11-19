@@ -1,9 +1,7 @@
 use std::{borrow::Cow, fmt::Display};
 
 use dada_ir_ast::{
-    ast::{
-        AstGenericTerm, AstPath, AstPathKind, AstUseItem, Identifier, SpanVec, SpannedIdentifier,
-    },
+    ast::{AstGenericTerm, AstPath, AstPathKind, AstUse, Identifier, SpanVec, SpannedIdentifier},
     diagnostic::{Diagnostic, Errors, Level, Reported},
     inputs::Krate,
     span::{Span, Spanned},
@@ -654,7 +652,7 @@ impl<'db> SymModule<'db> {
 #[salsa::tracked]
 fn resolve_ast_use<'db>(
     db: &'db dyn crate::Db,
-    ast_use: AstUseItem<'db>,
+    ast_use: AstUse<'db>,
 ) -> Option<NameResolution<'db>> {
     let crate_name = ast_use.crate_name(db);
     let Some(crate_source) = db.root().crate_source(db, crate_name.id) else {

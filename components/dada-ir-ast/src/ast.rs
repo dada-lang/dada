@@ -77,8 +77,8 @@ impl<'db> Spanned<'db> for AstModule<'db> {
 #[derive(Copy, Clone, PartialEq, Eq, Hash, PartialOrd, Ord, Debug, Update, FromImpls)]
 pub enum AstItem<'db> {
     SourceFile(SourceFile),
-    Use(AstUseItem<'db>),
-    Class(AstClassItem<'db>),
+    Use(AstUse<'db>),
+    Aggregate(AstAggregate<'db>),
     Function(AstFunction<'db>),
 }
 

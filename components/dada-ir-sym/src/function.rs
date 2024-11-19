@@ -2,7 +2,7 @@ use std::borrow::Cow;
 
 use dada_ir_ast::{
     ast::{
-        AstClassItem, AstFunction, AstFunctionEffects, AstFunctionInput, Identifier,
+        AstAggregate, AstFunction, AstFunctionEffects, AstFunctionInput, Identifier,
         SpannedIdentifier,
     },
     diagnostic::Diagnostic,
@@ -123,23 +123,23 @@ impl<'db> SymFunction<'db> {
 pub enum SymFunctionSource<'db> {
     Function(AstFunction<'db>),
 
-    /// A class with declared input.
+    /// Generated constructor from an aggregate like `struct Foo(x: u32)`
     #[no_from_impl] // I'd prefer to be explicit
-    ClassConstructor(SymClass<'db>, AstClassItem<'db>),
+    Constructor(SymClass<'db>, AstAggregate<'db>),
 }
 
 impl<'db> SymFunctionSource<'db> {
     fn effects(self, db: &'db dyn crate::Db) -> AstFunctionEffects<'db> {
         match self {
             Self::Function(ast_function) => ast_function.effects(db),
-            Self::ClassConstructor(..) => AstFunctionEffects::default(),
+            Self::Constructor(..) => AstFunctionEffects::default(),
         }
     }
 
     fn name(self, db: &'db dyn dada_ir_ast::Db) -> SpannedIdentifier<'db> {
         match self {
             Self::Function(ast_function) => ast_function.name(db),
-            Self::ClassConstructor(class, _) => SpannedIdentifier {
+            Self::Constructor(class, _) => SpannedIdentifier {
                 span: class.name_span(db),
                 id: Identifier::new_ident(db),
             },
@@ -149,7 +149,7 @@ impl<'db> SymFunctionSource<'db> {
     fn inputs(self, db: &'db dyn crate::Db) -> Cow<'db, [AstFunctionInput<'db>]> {
         match self {
             Self::Function(ast_function) => Cow::Borrowed(&ast_function.inputs(db).values),
-            Self::ClassConstructor(_, class) => Cow::Owned(
+            Self::Constructor(_, class) => Cow::Owned(
                 class
                     .inputs(db)
                     .as_ref()
@@ -168,7 +168,7 @@ impl<'db> SymFunctionSource<'db> {
     ) {
         match self {
             Self::Function(ast_function) => ast_function.populate_signature_symbols(db, symbols),
-            Self::ClassConstructor(..) => {
+            Self::Constructor(..) => {
                 self.inputs(db)
                     .iter()
                     .for_each(|i| i.populate_signature_symbols(db, symbols));
@@ -186,7 +186,7 @@ impl<'db> SymFunctionSource<'db> {
                 let ast_ty = ast_function.output_ty(db)?;
                 Some(ast_ty.into_sym_in_scope(db, &scope))
             }
-            Self::ClassConstructor(sym_class, _) => Some(sym_class.self_ty(db, scope)),
+            Self::Constructor(sym_class, _) => Some(sym_class.self_ty(db, scope)),
         }
     }
 }

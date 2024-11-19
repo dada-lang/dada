@@ -1,7 +1,7 @@
 use dada_ir_ast::{
     ast::{
-        AstClassItem, AstFieldDecl, AstFunction, AstGenericDecl, AstMember, AstTy, AstVisibility,
-        SpanVec, VariableDecl, VisibilityKind,
+        AstAggregate, AstAggregateKind, AstFieldDecl, AstFunction, AstGenericDecl, AstMember,
+        AstTy, AstVisibility, SpanVec, VariableDecl, VisibilityKind,
     },
     span::{Span, Spanned},
 };
@@ -16,23 +16,24 @@ use super::{
 };
 
 /// class Name { ... }
-impl<'db> Parse<'db> for AstClassItem<'db> {
+impl<'db> Parse<'db> for AstAggregate<'db> {
     type Output = Self;
 
     fn opt_parse(
         db: &'db dyn crate::Db,
         parser: &mut Parser<'_, 'db>,
     ) -> Result<Option<Self>, ParseFail<'db>> {
-        if !AstClassItemPrefix::can_eat(db, parser) {
+        if !AstAggregatePrefix::can_eat(db, parser) {
             return Ok(None);
         }
 
         let start = parser.peek_span();
 
-        let AstClassItemPrefix {
+        let AstAggregatePrefix {
             visibility,
-            class_keyword: _,
-        } = AstClassItemPrefix::eat(db, parser)?;
+            aggregate_kind,
+            aggregate_keyword: _,
+        } = AstAggregatePrefix::eat(db, parser)?;
 
         let id = parser.eat_id()?;
 
@@ -52,10 +53,11 @@ impl<'db> Parse<'db> for AstClassItem<'db> {
 
         let body = parser.defer_delimited(Delimiter::CurlyBraces).ok();
 
-        Ok(Some(AstClassItem::new(
+        Ok(Some(AstAggregate::new(
             db,
             start.to(parser.last_span()),
             visibility,
+            aggregate_kind,
             id.id,
             id.span,
             generics,
@@ -75,23 +77,37 @@ impl<'db> Parse<'db> for AstClassItem<'db> {
 /// Parsing always succeeds with `Ok(Some)` or errors;
 /// the intent is that you probe with `can_eat`.
 #[derive(Update)]
-struct AstClassItemPrefix<'db> {
+struct AstAggregatePrefix<'db> {
     /// Visibility of the class
     visibility: Option<AstVisibility<'db>>,
-    class_keyword: Span<'db>,
+    aggregate_kind: AstAggregateKind,
+    aggregate_keyword: Span<'db>,
 }
 
-impl<'db> Parse<'db> for AstClassItemPrefix<'db> {
+impl<'db> Parse<'db> for AstAggregatePrefix<'db> {
     type Output = Self;
 
     fn opt_parse(
         db: &'db dyn crate::Db,
         parser: &mut Parser<'_, 'db>,
     ) -> Result<Option<Self>, ParseFail<'db>> {
-        Ok(Some(AstClassItemPrefix {
-            visibility: AstVisibility::opt_parse(db, parser)?,
-            class_keyword: parser.eat_keyword(Keyword::Class)?,
-        }))
+        let visibility = AstVisibility::opt_parse(db, parser)?;
+
+        if let Ok(span) = parser.eat_keyword(Keyword::Class) {
+            Ok(Some(AstAggregatePrefix {
+                visibility,
+                aggregate_kind: AstAggregateKind::Class,
+                aggregate_keyword: span,
+            }))
+        } else if let Ok(span) = parser.eat_keyword(Keyword::Struct) {
+            Ok(Some(AstAggregatePrefix {
+                visibility,
+                aggregate_kind: AstAggregateKind::Struct,
+                aggregate_keyword: span,
+            }))
+        } else {
+            Ok(None)
+        }
     }
 
     fn expected() -> Expected {
@@ -100,7 +116,7 @@ impl<'db> Parse<'db> for AstClassItemPrefix<'db> {
 }
 
 #[salsa::tracked]
-impl<'db> crate::prelude::ClassItemMembers<'db> for AstClassItem<'db> {
+impl<'db> crate::prelude::ClassItemMembers<'db> for AstAggregate<'db> {
     #[salsa::tracked(return_ref)]
     fn members(self, db: &'db dyn crate::Db) -> SpanVec<'db, AstMember<'db>> {
         if let Some(contents) = self.contents(db) {

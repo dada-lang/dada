@@ -1,5 +1,5 @@
 use dada_ir_ast::{
-    ast::{AstBlock, AstClassItem},
+    ast::{AstAggregate, AstBlock},
     diagnostic::{Diagnostic, Err, Level},
 };
 use dada_ir_sym::{
@@ -28,7 +28,7 @@ pub fn check_function_body<'db>(
             };
             check_function_body_ast_block(db, function, block)
         }
-        SymFunctionSource::ClassConstructor(sym_class, ast_class_item) => {
+        SymFunctionSource::Constructor(sym_class, ast_class_item) => {
             check_function_body_class_constructor(db, function, sym_class, ast_class_item)
         }
     }
@@ -39,7 +39,7 @@ fn check_function_body_class_constructor<'db>(
     db: &'db dyn crate::Db,
     function: SymFunction<'db>,
     sym_class: SymClass<'db>,
-    ast_class_item: AstClassItem<'db>,
+    ast_class_item: AstAggregate<'db>,
 ) -> Option<ObjectExpr<'db>> {
     let scope = sym_class.into_scope(db);
     let self_ty = sym_class.self_ty(db, &scope).into_object_ir(db);

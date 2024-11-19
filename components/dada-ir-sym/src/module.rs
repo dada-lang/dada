@@ -1,5 +1,5 @@
 use dada_ir_ast::{
-    ast::{AstItem, AstModule, AstUseItem, Identifier},
+    ast::{AstItem, AstModule, AstUse, Identifier},
     diagnostic::{Diagnostic, Level},
     inputs::SourceFile,
     span::{Span, Spanned},
@@ -27,7 +27,7 @@ pub struct SymModule<'db> {
     #[return_ref]
     pub(crate) function_map: Map<Identifier<'db>, SymFunction<'db>>,
     #[return_ref]
-    pub(crate) ast_use_map: Map<Identifier<'db>, AstUseItem<'db>>,
+    pub(crate) ast_use_map: Map<Identifier<'db>, AstUse<'db>>,
 }
 
 impl<'db> Spanned<'db> for SymModule<'db> {
@@ -122,7 +122,7 @@ impl<'db> IntoSymbol<'db> for AstModule<'db> {
 
                     insert(db, &mut ast_use_map, id, ast_use.into());
                 }
-                AstItem::Class(ast_class_item) => {
+                AstItem::Aggregate(ast_class_item) => {
                     insert(
                         db,
                         &mut class_map,

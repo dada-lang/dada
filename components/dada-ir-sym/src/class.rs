@@ -1,7 +1,7 @@
 use std::borrow::Cow;
 
 use dada_ir_ast::{
-    ast::{AstClassItem, AstFieldDecl, AstMember, Identifier, SpannedIdentifier},
+    ast::{AstAggregate, AstFieldDecl, AstMember, Identifier, SpannedIdentifier},
     span::{Span, Spanned},
 };
 use dada_parser::prelude::*;
@@ -24,7 +24,7 @@ pub struct SymClass<'db> {
     super_scope: ScopeItem<'db>,
 
     /// The AST for this class.
-    source: AstClassItem<'db>,
+    source: AstAggregate<'db>,
 }
 
 #[salsa::tracked]
@@ -129,7 +129,7 @@ impl<'db> SymClass<'db> {
             let ctor = SymFunction::new(
                 db,
                 self.into(),
-                SymFunctionSource::ClassConstructor(self, self.source(db)),
+                SymFunctionSource::Constructor(self, self.source(db)),
             )
             .into();
 

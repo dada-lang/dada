@@ -1,5 +1,5 @@
 use dada_ir_ast::ast::{
-    AstClassItem, AstFunction, AstFunctionInput, AstGenericDecl, AstGenericTerm, AstPerm,
+    AstAggregate, AstFunction, AstFunctionInput, AstGenericDecl, AstGenericTerm, AstPerm,
     AstPermKind, AstTy, AstTyKind,
 };
 
@@ -129,7 +129,7 @@ impl<'db> PopulateSignatureSymbols<'db> for AstFunctionInput<'db> {
     }
 }
 
-impl<'db> PopulateSignatureSymbols<'db> for AstClassItem<'db> {
+impl<'db> PopulateSignatureSymbols<'db> for AstAggregate<'db> {
     fn populate_signature_symbols(
         &self,
         db: &'db dyn crate::Db,

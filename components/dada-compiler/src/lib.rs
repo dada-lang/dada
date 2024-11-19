@@ -369,7 +369,7 @@ fn fn_asts(db: &dyn Db, source_file: SourceFile) -> String {
         match *item {
             AstItem::SourceFile(_source_file) => (),
             AstItem::Use(_use_item) => (),
-            AstItem::Class(class_item) => {
+            AstItem::Aggregate(class_item) => {
                 writeln!(output, "## class `{}`", class_item.name(db)).unwrap();
                 for member in class_item.members(db) {
                     match member {

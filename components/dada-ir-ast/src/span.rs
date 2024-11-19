@@ -2,14 +2,14 @@ use dada_util::FromImpls;
 use salsa::Update;
 
 use crate::{
-    ast::{AstClassItem, AstFunction},
+    ast::{AstAggregate, AstFunction},
     inputs::SourceFile,
 };
 
 #[derive(Copy, Clone, PartialEq, Eq, Hash, PartialOrd, Ord, Debug, Update, FromImpls)]
 pub enum Anchor<'db> {
     SourceFile(SourceFile),
-    Class(AstClassItem<'db>),
+    Class(AstAggregate<'db>),
     Function(AstFunction<'db>),
 }
 

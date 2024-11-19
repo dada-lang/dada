@@ -4,7 +4,7 @@ use super::{AstPath, SpannedIdentifier};
 
 /// `use $crate.$path [as $id]`
 #[salsa::tracked]
-pub struct AstUseItem<'db> {
+pub struct AstUse<'db> {
     pub span: Span<'db>,
     pub crate_name: SpannedIdentifier<'db>,
     #[return_ref]
@@ -12,8 +12,8 @@ pub struct AstUseItem<'db> {
     pub as_id: Option<SpannedIdentifier<'db>>,
 }
 
-impl<'db> Spanned<'db> for AstUseItem<'db> {
+impl<'db> Spanned<'db> for AstUse<'db> {
     fn span(&self, db: &'db dyn crate::Db) -> Span<'db> {
-        AstUseItem::span(*self, db)
+        AstUse::span(*self, db)
     }
 }

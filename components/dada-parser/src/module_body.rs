@@ -1,5 +1,5 @@
 use dada_ir_ast::{
-    ast::{AstClassItem, AstFunction, AstItem, AstModule, AstPath, AstUseItem, SpanVec},
+    ast::{AstAggregate, AstFunction, AstItem, AstModule, AstPath, AstUse, SpanVec},
     diagnostic::Diagnostic,
 };
 
@@ -57,8 +57,8 @@ impl<'db> Parse<'db> for AstItem<'db> {
         db: &'db dyn crate::Db,
         parser: &mut Parser<'_, 'db>,
     ) -> Result<Option<Self>, ParseFail<'db>> {
-        AstClassItem::opt_parse(db, parser)
-            .or_opt_parse::<Self, AstUseItem<'db>>(db, parser)
+        AstAggregate::opt_parse(db, parser)
+            .or_opt_parse::<Self, AstUse<'db>>(db, parser)
             .or_opt_parse::<Self, AstFunction<'db>>(db, parser)
     }
 
@@ -68,7 +68,7 @@ impl<'db> Parse<'db> for AstItem<'db> {
 }
 
 /// use path [as name];
-impl<'db> Parse<'db> for AstUseItem<'db> {
+impl<'db> Parse<'db> for AstUse<'db> {
     type Output = Self;
 
     fn opt_parse(
@@ -91,7 +91,7 @@ impl<'db> Parse<'db> for AstUseItem<'db> {
 
         parser.eat_op(";")?;
 
-        Ok(Some(AstUseItem::new(
+        Ok(Some(AstUse::new(
             db,
             start.to(parser.last_span()),
             crate_name,
