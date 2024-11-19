@@ -29,7 +29,10 @@ impl<'db> SymVariable<'db> {
         db: &'db dyn crate::Db,
         scope: &Scope<'_, 'db>,
     ) -> SymGenericTerm<'db> {
-        assert!(scope.generic_sym_in_scope(db, self));
+        assert!(
+            scope.generic_sym_in_scope(db, self),
+            "generic symbol for `{self:?}` not in scope"
+        );
         SymGenericTerm::var(db, self)
     }
 }

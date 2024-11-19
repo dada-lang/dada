@@ -119,6 +119,9 @@ impl<'db> PopulateSignatureSymbols<'db> for AstFunctionInput<'db> {
     ) {
         match self {
             AstFunctionInput::SelfArg(ast_self_arg) => {
+                if let Some(perm) = ast_self_arg.perm(db) {
+                    perm.populate_signature_symbols(db, symbols);
+                }
                 symbols.input_variables.push(ast_self_arg.into_symbol(db));
             }
             AstFunctionInput::Variable(variable_decl) => {
