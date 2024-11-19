@@ -10,7 +10,7 @@ use salsa::Update;
 
 use crate::{
     miscellaneous::OrOptParse,
-    tokenizer::{Delimiter, Keyword, Token, TokenKind},
+    tokenizer::{Delimiter, Keyword},
     Expected, Parse, ParseFail, Parser,
 };
 
@@ -166,25 +166,11 @@ impl<'db> Parse<'db> for AstSelfArg<'db> {
     ) -> Result<Option<Self>, super::ParseFail<'db>> {
         // If we see a perm, this *must* be self...
         if let Some(perm) = AstPerm::opt_parse(db, parser)? {
-            let self_var = parser.eat_id()?;
-            if self_var.id.text(db) == "self" {
-                Ok(Some(AstSelfArg::new(db, Some(perm), self_var.span)))
-            } else {
-                Err(parser.illformed(Self::expected()))
-            }
-        } else if let Some(&Token {
-            kind: TokenKind::Identifier(id),
-            span,
-            ..
-        }) = parser.peek()
-        {
+            let self_span = parser.eat_keyword(Keyword::Self_)?;
+            Ok(Some(AstSelfArg::new(db, Some(perm), self_span)))
+        } else if let Ok(span) = parser.eat_keyword(Keyword::Self_) {
             // ...otherwise, it could be self...
-            if id.text(db) == "self" {
-                parser.eat_next_token()?;
-                Ok(Some(AstSelfArg::new(db, None, span)))
-            } else {
-                Ok(None)
-            }
+            Ok(Some(AstSelfArg::new(db, None, span)))
         } else {
             // ...otherwise it ain't.
             Ok(None)

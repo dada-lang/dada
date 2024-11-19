@@ -1,6 +1,6 @@
 use dada_ir_ast::ast::{
     AstConstructorField, AstExpr, AstExprKind, AstPath, AstPathKind, BinaryOp, DeferredParse,
-    Literal, SpannedBinaryOp, SquareBracketArgs,
+    Identifier, Literal, SpannedBinaryOp, SpannedIdentifier, SquareBracketArgs,
 };
 
 use crate::{
@@ -192,6 +192,14 @@ fn base_expr_precedence<'db>(
             }
         }
 
+        return Ok(Some(AstExprKind::Id(id)));
+    }
+
+    if let Ok(span) = parser.eat_keyword(Keyword::Self_) {
+        let id = SpannedIdentifier {
+            span,
+            id: Identifier::self_ident(db),
+        };
         return Ok(Some(AstExprKind::Id(id)));
     }
 

@@ -62,7 +62,7 @@ pub enum TokenKind<'input, 'db> {
 
 macro_rules! keywords {
     (pub enum $Keyword:ident {
-        $($kw:ident,)*
+        $($kw:ident = $kwstr:expr,)*
     }) => {
         #[derive(Copy, Clone, PartialEq, Eq, Hash, PartialOrd, Ord, Debug)]
         pub enum $Keyword {
@@ -72,15 +72,15 @@ macro_rules! keywords {
         impl std::fmt::Display for $Keyword {
             fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
                 let s = match self {
-                    $(Self::$kw => stringify!($kw),)*
+                    $(Self::$kw => $kwstr,)*
                 };
-                write!(f, "`{}`", s.to_lowercase())
+                write!(f, "`{}`", s)
             }
         }
 
         impl $Keyword {
-            const UPPER_STRINGS: &'static [(&'static str, $Keyword)] = &[
-                $((stringify!($kw), $Keyword::$kw),)*
+            const STRINGS: &'static [(&'static str, $Keyword)] = &[
+                $(($kwstr, $Keyword::$kw),)*
             ];
         }
     }
@@ -88,35 +88,36 @@ macro_rules! keywords {
 
 keywords! {
     pub enum Keyword {
-        As,
-        Async,
-        Await,
-        Box,
-        Boxed,
-        Class,
-        Crate,
-        Dyn,
-        Enum,
-        Export,
-        Fn,
-        Lease,
-        Leased,
-        Let,
-        Give,
-        Given,
-        Mod,
-        My,
-        Our,
-        Perm,
-        Place,
-        Pub,
-        Return,
-        Share,
-        Shared,
-        Struct,
-        Type,
-        Use,
-        Where,
+        As = "as",
+        Async = "async",
+        Await = "await",
+        Box = "box",
+        Boxed = "boxed",
+        Class = "class",
+        Crate = "crate",
+        Dyn = "dyn",
+        Enum = "enum",
+        Export = "export",
+        Fn = "fn",
+        Lease = "lease",
+        Leased = "leased",
+        Let = "let",
+        Give = "give",
+        Given = "given",
+        Mod = "mod",
+        My = "my",
+        Our = "our",
+        Perm = "perm",
+        Place = "place",
+        Pub = "pub",
+        Return = "return",
+        Self_ = "self",
+        Share = "share",
+        Shared = "shared",
+        Struct = "struct",
+        Type = "type",
+        Use = "use",
+        Where = "where",
     }
 }
 
@@ -125,8 +126,8 @@ impl Keyword {
         static MAP: std::sync::OnceLock<Map<String, Keyword>> = std::sync::OnceLock::new();
         MAP.get_or_init(|| {
             let mut map = Map::default();
-            for (upper_str, kw) in Keyword::UPPER_STRINGS {
-                map.insert(upper_str.to_lowercase(), *kw);
+            for (upper_str, kw) in Keyword::STRINGS {
+                map.insert(upper_str.to_string(), *kw);
             }
             map
         })
@@ -424,20 +425,31 @@ impl<'input, 'db> Tokenizer<'input, 'db> {
 
     fn delimited(&mut self, start: usize, delim: Delimiter, close: char) {
         let skipped = self.clear_accumulated(start);
+        let mut close_stack = vec![close];
 
         while let Some((end, ch)) = self.chars.next() {
             match ch {
-                _ if ch == close => {
-                    assert!(ch.len_utf8() == 1);
-                    self.tokens.push(Token {
-                        span: self.span(start, end + 1),
-                        skipped,
-                        kind: TokenKind::Delimited {
-                            delimiter: delim,
-                            text: &self.input[start + 1..end],
-                        },
-                    });
-                    return;
+                '{' => close_stack.push('}'),
+                '[' => close_stack.push(']'),
+                '(' => close_stack.push(')'),
+                '}' | ']' | ')' => {
+                    if ch == *close_stack.last().unwrap() {
+                        close_stack.pop();
+                        if close_stack.is_empty() {
+                            assert!(ch.len_utf8() == 1);
+                            self.tokens.push(Token {
+                                span: self.span(start, end + 1),
+                                skipped,
+                                kind: TokenKind::Delimited {
+                                    delimiter: delim,
+                                    text: &self.input[start + 1..end],
+                                },
+                            });
+                            return;
+                        }
+                    } else {
+                        break;
+                    }
                 }
                 _ => {}
             }
@@ -446,7 +458,7 @@ impl<'input, 'db> Tokenizer<'input, 'db> {
         // Hmm, ideally we'd push a Delimited token here
         // with what we've seen so far, but the `narrow`
         // function on `AbsoluteSpan` assumes there is an
-        // end-delimiter in the span, and I don't want to mess that up.s
+        // end-delimiter in the span, and I don't want to mess that up.
 
         let end = self.input.len();
         let span = self.span(start, end);
