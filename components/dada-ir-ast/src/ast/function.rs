@@ -80,10 +80,16 @@ impl<'db> Spanned<'db> for AstSelfArg<'db> {
     }
 }
 
-/// `x: T`
+/// `[mut] x: T`
 #[salsa::tracked]
 pub struct VariableDecl<'db> {
+    /// Span of the `mut` keyword, if present.
+    pub mutable: Option<Span<'db>>,
+
+    /// Variable name.
     pub name: SpannedIdentifier<'db>,
+
+    /// Variable type.
     pub ty: AstTy<'db>,
 }
 

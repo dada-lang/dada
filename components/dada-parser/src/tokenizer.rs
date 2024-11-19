@@ -105,6 +105,7 @@ keywords! {
         Give = "give",
         Given = "given",
         Mod = "mod",
+        Mut = "mut",
         My = "my",
         Our = "our",
         Perm = "perm",

@@ -221,7 +221,14 @@ impl<'db> Parse<'db> for VariableDecl<'db> {
         db: &'db dyn crate::Db,
         tokens: &mut Parser<'_, 'db>,
     ) -> Result<Option<Self>, super::ParseFail<'db>> {
-        let Ok(name) = tokens.eat_id() else {
+        let (mutable, name);
+        if let Ok(span) = tokens.eat_keyword(Keyword::Mut) {
+            mutable = Some(span);
+            name = tokens.eat_id()?;
+        } else if let Ok(id) = tokens.eat_id() {
+            mutable = None;
+            name = id;
+        } else {
             return Ok(None);
         };
 
@@ -229,7 +236,7 @@ impl<'db> Parse<'db> for VariableDecl<'db> {
 
         let ty = AstTy::eat(db, tokens)?;
 
-        Ok(Some(VariableDecl::new(db, name, ty)))
+        Ok(Some(VariableDecl::new(db, mutable, name, ty)))
     }
 
     fn expected() -> Expected {
