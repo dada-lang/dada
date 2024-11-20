@@ -20,6 +20,7 @@ pub enum AstStatement<'db> {
 /// `let x = v`, `let x: t = v`, etc
 #[salsa::tracked]
 pub struct AstLetStatement<'db> {
+    pub mutable: Option<Span<'db>>,
     pub name: SpannedIdentifier<'db>,
     pub ty: Option<AstTy<'db>>,
     pub initializer: Option<AstExpr<'db>>,

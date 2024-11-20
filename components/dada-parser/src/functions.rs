@@ -244,10 +244,17 @@ impl<'db> Parse<'db> for AstLetStatement<'db> {
         let Ok(_) = parser.eat_keyword(Keyword::Let) else {
             return Ok(None);
         };
+        let mutable = parser.eat_keyword(Keyword::Mut).ok();
         let name = parser.eat_id()?;
         let ty = AstTy::opt_parse_guarded(":", db, parser)?;
         let initializer = AstExpr::opt_parse_guarded("=", db, parser)?;
-        Ok(Some(AstLetStatement::new(db, name, ty, initializer)))
+        Ok(Some(AstLetStatement::new(
+            db,
+            mutable,
+            name,
+            ty,
+            initializer,
+        )))
     }
 
     fn expected() -> crate::Expected {
