@@ -977,9 +977,10 @@ async fn check_call_common<'db>(
     let input_output = input_output.substitute(db, &substitution);
 
     // Check the arity of the actual arguments.
+    let self_args: usize = self_expr.is_some() as usize;
     let expected_inputs = input_output.bound_value.input_tys.len();
-    let found_inputs = ast_args.len();
-    if ast_args.len() != expected_inputs {
+    let found_inputs = self_args + ast_args.len();
+    if found_inputs != expected_inputs {
         let function_name = function.name(db);
         return ExprResult::err(
             db,
@@ -1005,7 +1006,16 @@ async fn check_call_common<'db>(
     }
 
     // Create the temporaries that will hold the values for each argument.
-    let arg_temp_span = |i: usize| ast_args.get(i).map(|a| a.span).unwrap_or(callee_span);
+    let arg_temp_span = |i: usize| {
+        if i < self_args {
+            self_expr.unwrap().span(db)
+        } else {
+            ast_args
+                .get(i - self_args)
+                .map(|a| a.span)
+                .unwrap_or(callee_span)
+        }
+    };
     let arg_temp_symbols = (0..expected_inputs)
         .map(|i| SymVariable::new(db, SymGenericKind::Place, None, arg_temp_span(i)))
         .collect::<Vec<_>>();
@@ -1020,11 +1030,15 @@ async fn check_call_common<'db>(
     // Function to type check a single argument and check it has the correct type.
     let check_arg = async |i: usize| -> ExprResult<'db> {
         let mut arg_temporaries = vec![];
-        let ast_arg = &ast_args[i];
-        let expr = ast_arg
-            .check(env)
-            .await
-            .into_expr(env, &mut arg_temporaries);
+        let expr = if i < self_args {
+            self_expr.unwrap()
+        } else {
+            let ast_arg = &ast_args[i - self_args];
+            ast_arg
+                .check(env)
+                .await
+                .into_expr(env, &mut arg_temporaries)
+        };
         env.require_assignable_object_type(expr.span(db), expr.ty(db), input_output.input_tys[i]);
         ExprResult::from_expr(env, expr, arg_temporaries)
     };
@@ -1032,7 +1046,7 @@ async fn check_call_common<'db>(
     // Type check the arguments; these can proceed concurrently.
     let mut arg_exprs = vec![];
     arg_exprs.extend(self_expr);
-    for arg_result in futures::future::join_all((0..ast_args.len()).map(check_arg)).await {
+    for arg_result in futures::future::join_all((0..found_inputs).map(check_arg)).await {
         arg_exprs.push(arg_result.into_expr(env, &mut temporaries));
     }
 
