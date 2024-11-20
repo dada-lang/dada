@@ -88,6 +88,12 @@ pub enum AstExprKind<'db> {
         await_keyword: Span<'db>,
     },
 
+    /// `x.lease`, `x.share`, or `x.give`
+    PermissionOp {
+        value: AstExpr<'db>,
+        op: PermissionOp,
+    },
+
     /// `a + b` etc
     BinaryOp(SpannedBinaryOp<'db>, AstExpr<'db>, AstExpr<'db>),
 
@@ -96,6 +102,13 @@ pub enum AstExprKind<'db> {
 
     /// If/else-if chain
     If(Vec<IfArm<'db>>),
+}
+
+#[derive(Copy, Clone, PartialEq, Eq, PartialOrd, Ord, Hash, Update, Debug)]
+pub enum PermissionOp {
+    Lease,
+    Share,
+    Give,
 }
 
 #[derive(Clone, PartialEq, Eq, PartialOrd, Ord, Hash, Update, Debug)]

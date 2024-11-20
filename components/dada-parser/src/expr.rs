@@ -1,7 +1,7 @@
 use dada_ir_ast::ast::{
     AstBlock, AstConstructorField, AstExpr, AstExprKind, AstPath, AstPathKind, BinaryOp,
-    DeferredParse, Identifier, IfArm, Literal, LiteralKind, SpannedBinaryOp, SpannedIdentifier,
-    SpannedUnaryOp, SquareBracketArgs, UnaryOp,
+    DeferredParse, Identifier, IfArm, Literal, LiteralKind, PermissionOp, SpannedBinaryOp,
+    SpannedIdentifier, SpannedUnaryOp, SquareBracketArgs, UnaryOp,
 };
 
 use crate::{
@@ -148,6 +148,12 @@ fn postfix_expr_precedence<'db, const SELECT: u32>(
                     future,
                     await_keyword,
                 };
+                continue;
+            }
+
+            if let Some(op) = PermissionOp::opt_parse(db, parser)? {
+                let value = AstExpr::new(start_span.to(mid_span), kind);
+                kind = AstExprKind::PermissionOp { value, op };
                 continue;
             }
         }
@@ -301,6 +307,29 @@ fn if_chain<'db>(
     }
 
     Ok(AstExprKind::If(arms))
+}
+
+impl<'db> Parse<'db> for PermissionOp {
+    type Output = Self;
+
+    fn opt_parse(
+        _db: &'db dyn crate::Db,
+        parser: &mut Parser<'_, 'db>,
+    ) -> Result<Option<Self::Output>, crate::ParseFail<'db>> {
+        if let Ok(_) = parser.eat_keyword(Keyword::Give) {
+            Ok(Some(PermissionOp::Give))
+        } else if let Ok(_) = parser.eat_keyword(Keyword::Lease) {
+            Ok(Some(PermissionOp::Lease))
+        } else if let Ok(_) = parser.eat_keyword(Keyword::Share) {
+            Ok(Some(PermissionOp::Share))
+        } else {
+            Ok(None)
+        }
+    }
+
+    fn expected() -> crate::Expected {
+        crate::Expected::Nonterminal("permission operator")
+    }
 }
 
 impl<'db> Parse<'db> for Literal<'db> {

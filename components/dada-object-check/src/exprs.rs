@@ -2,8 +2,8 @@ use std::future::Future;
 
 use dada_ir_ast::{
     ast::{
-        AstExpr, AstExprKind, AstGenericTerm, BinaryOp, Identifier, LiteralKind, SpanVec,
-        SpannedBinaryOp, SpannedIdentifier, UnaryOp,
+        AstExpr, AstExprKind, AstGenericTerm, BinaryOp, Identifier, LiteralKind, PermissionOp,
+        SpanVec, SpannedBinaryOp, SpannedIdentifier, UnaryOp,
     },
     diagnostic::{Diagnostic, Err, Level, Reported},
     span::{Span, Spanned},
@@ -612,6 +612,27 @@ async fn check_expr<'db>(expr: &AstExpr<'db>, env: &Env<'db>) -> ExprResult<'db>
                 kind: ObjectExpr::new(db, expr_span, if_ty, ObjectExprKind::Match { arms }).into(),
             }
         }
+
+        AstExprKind::PermissionOp { value, op } => {
+            let mut temporaries = vec![];
+            let value_result = value.check(env).await;
+            let place_expr = value_result.into_place_expr(env, &mut temporaries);
+            ExprResult {
+                temporaries,
+                span: expr_span,
+                kind: ObjectExpr::new(
+                    db,
+                    expr_span,
+                    match op {
+                        PermissionOp::Lease => place_expr.ty(db).leased(db),
+                        PermissionOp::Share => place_expr.ty(db).shared(db),
+                        PermissionOp::Give => place_expr.ty(db),
+                    },
+                    ObjectExprKind::PermissionOp(*op, place_expr),
+                )
+                .into(),
+            }
+        }
     }
 }
 
@@ -1173,17 +1194,7 @@ impl<'db> ExprResult<'db> {
             ExprResultKind::PlaceExpr(place_expr) => place_expr,
 
             // This is a value that needs to be stored in a temporary.
-            ExprResultKind::Expr(expr) => {
-                let ty = expr.ty(db);
-
-                // Create a temporary to store the result of this expression.
-                let temporary = Temporary::new(db, expr.span(db), expr.ty(db), Some(expr));
-                let lv = temporary.lv;
-                temporaries.push(temporary);
-
-                // The result will be a reference to that temporary.
-                ObjectPlaceExpr::new(db, self.span, ty, ObjectPlaceExprKind::Var(lv))
-            }
+            ExprResultKind::Expr(expr) => expr.into_temporary(db, temporaries),
 
             ExprResultKind::Other(name_resolution) => {
                 let reported = report_non_expr(db, self.span, &name_resolution);
@@ -1214,7 +1225,7 @@ impl<'db> ExprResult<'db> {
                 db,
                 place_expr.span(db),
                 place_expr.ty(db).shared(db),
-                ObjectExprKind::Share(place_expr),
+                ObjectExprKind::PermissionOp(PermissionOp::Share, place_expr),
             ),
             ExprResultKind::Other(name_resolution) => {
                 ObjectExpr::err(db, report_non_expr(db, self.span, &name_resolution))

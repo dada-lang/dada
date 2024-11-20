@@ -14,7 +14,7 @@
 //! The object IR gives us enough information to make those determinations.
 
 use dada_ir_ast::{
-    ast::{Literal, SpannedBinaryOp},
+    ast::{Literal, PermissionOp, SpannedBinaryOp},
     diagnostic::{Err, Reported},
     span::Span,
 };
@@ -29,6 +29,8 @@ use dada_ir_sym::{
 };
 use dada_util::FromImpls;
 use salsa::Update;
+
+use crate::exprs::Temporary;
 
 #[salsa::tracked]
 pub struct ObjectExpr<'db> {
@@ -47,6 +49,24 @@ impl<'db> Err<'db> for ObjectExpr<'db> {
             ObjectTy::err(db, r),
             ObjectExprKind::Error(r),
         )
+    }
+}
+
+impl<'db> ObjectExpr<'db> {
+    pub(crate) fn into_temporary(
+        self,
+        db: &'db dyn crate::Db,
+        temporaries: &mut Vec<Temporary<'db>>,
+    ) -> ObjectPlaceExpr<'db> {
+        let ty = self.ty(db);
+
+        // Create a temporary to store the result of this expression.
+        let temporary = Temporary::new(db, self.span(db), self.ty(db), Some(self));
+        let lv = temporary.lv;
+        temporaries.push(temporary);
+
+        // The result will be a reference to that temporary.
+        ObjectPlaceExpr::new(db, self.span(db), ty, ObjectPlaceExprKind::Var(lv))
     }
 }
 
@@ -87,14 +107,8 @@ pub enum ObjectExprKind<'db> {
         expr: ObjectExpr<'db>,
     },
 
-    /// `$0.give`
-    Give(ObjectPlaceExpr<'db>),
-
-    /// `$0.lease`
-    Lease(ObjectPlaceExpr<'db>),
-
-    /// `$0.share` or just `$place`
-    Share(ObjectPlaceExpr<'db>),
+    /// `$0.lease` etc
+    PermissionOp(PermissionOp, ObjectPlaceExpr<'db>),
 
     /// `$0[$1..]($2..)`
     ///
@@ -168,7 +182,12 @@ impl<'db> ObjectPlaceExpr<'db> {
     }
 
     pub fn give(self, db: &'db dyn crate::Db) -> ObjectExpr<'db> {
-        ObjectExpr::new(db, self.span(db), self.ty(db), ObjectExprKind::Give(self))
+        ObjectExpr::new(
+            db,
+            self.span(db),
+            self.ty(db),
+            ObjectExprKind::PermissionOp(PermissionOp::Give, self),
+        )
     }
 }
 
@@ -191,6 +210,10 @@ impl<'db> ObjectTy<'db> {
     }
 
     pub fn shared(self, _db: &'db dyn crate::Db) -> ObjectTy<'db> {
+        self
+    }
+
+    pub fn leased(self, _db: &'db dyn crate::Db) -> ObjectTy<'db> {
         self
     }
 
