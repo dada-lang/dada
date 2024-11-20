@@ -46,7 +46,7 @@ impl<'db> AssertKind<'db, SymTy<'db>> for SymGenericTerm<'db> {
 
 impl<'db> AssertKind<'db, SymPerm<'db>> for SymGenericTerm<'db> {
     fn assert_kind(self, db: &'db dyn crate::Db) -> SymPerm<'db> {
-        assert!(self.has_kind(db, SymGenericKind::Type));
+        assert!(self.has_kind(db, SymGenericKind::Perm));
         match self {
             SymGenericTerm::Perm(v) => v,
             SymGenericTerm::Error(r) => SymPerm::err(db, r),
@@ -57,7 +57,7 @@ impl<'db> AssertKind<'db, SymPerm<'db>> for SymGenericTerm<'db> {
 
 impl<'db> AssertKind<'db, SymPlace<'db>> for SymGenericTerm<'db> {
     fn assert_kind(self, db: &'db dyn crate::Db) -> SymPlace<'db> {
-        assert!(self.has_kind(db, SymGenericKind::Type));
+        assert!(self.has_kind(db, SymGenericKind::Place));
         match self {
             SymGenericTerm::Place(v) => v,
             SymGenericTerm::Error(r) => SymPlace::err(db, r),

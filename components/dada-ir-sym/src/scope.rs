@@ -347,7 +347,7 @@ impl<'db> NameResolution<'db> {
                 .first()
                 .unwrap()
                 .span(db)
-                .to(extra_arguments.last().unwrap().span(db));
+                .to(db, extra_arguments.last().unwrap().span(db));
             return Err(Diagnostic::error(
                 db,
                 extra_span,

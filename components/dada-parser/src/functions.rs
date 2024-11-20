@@ -66,7 +66,7 @@ impl<'db> Parse<'db> for AstFunction<'db> {
 
         Ok(Some(AstFunction::new(
             db,
-            start_span.to(parser.last_span()),
+            start_span.to(db, parser.last_span()),
             effects,
             fn_span,
             visibility,

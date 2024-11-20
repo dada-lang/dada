@@ -118,7 +118,7 @@ impl<'member, 'db> MemberLookup<'member, 'db> {
                 let owner = owner.into_expr(self.env, &mut temporaries);
                 ExprResult {
                     temporaries,
-                    span: owner.span(db).to(id.span),
+                    span: owner.span(db).to(db, id.span),
                     kind: ExprResultKind::Method {
                         self_expr: owner,
                         function: method,

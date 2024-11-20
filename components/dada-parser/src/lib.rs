@@ -41,6 +41,8 @@ impl prelude::SourceFileParse for SourceFile {
 }
 
 struct Parser<'token, 'db> {
+    db: &'db dyn crate::Db,
+
     /// Input tokens
     tokens: &'token [Token<'token, 'db>],
 
@@ -59,11 +61,12 @@ struct Parser<'token, 'db> {
 
 impl<'token, 'db> Parser<'token, 'db> {
     pub fn new(
-        _db: &'db dyn crate::Db,
+        db: &'db dyn crate::Db,
         anchor: Anchor<'db>,
         tokens: &'token [Token<'token, 'db>],
     ) -> Self {
         let mut this = Self {
+            db,
             tokens,
             next_token: 0,
             last_span: Span {
@@ -131,7 +134,7 @@ impl<'token, 'db> Parser<'token, 'db> {
             Err(err) => {
                 self.push_diagnostic(err.into_diagnostic(db));
                 SpanVec {
-                    span: start_span.to(self.last_span()),
+                    span: start_span.to(db, self.last_span()),
                     values: vec![],
                 }
             }
@@ -175,6 +178,7 @@ impl<'token, 'db> Parser<'token, 'db> {
     /// with a fresh set of diagnostics. Used for speculation.
     fn fork(&self) -> Self {
         Self {
+            db: self.db,
             tokens: self.tokens,
             next_token: self.next_token,
             last_span: self.last_span,
@@ -346,7 +350,7 @@ impl<'token, 'db> Parser<'token, 'db> {
             self.eat_next_token().unwrap();
         }
 
-        Ok(start_span.to(self.last_span()))
+        Ok(start_span.to(self.db, self.last_span()))
     }
 
     /// Returns a deferred parse of the next delimited token.
@@ -486,7 +490,7 @@ trait Parse<'db>: Sized {
         }
 
         Ok(SpanVec {
-            span: start_span.to(parser.last_span()),
+            span: start_span.to(db, parser.last_span()),
             values,
         })
     }

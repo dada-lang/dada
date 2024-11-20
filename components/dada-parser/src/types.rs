@@ -69,11 +69,11 @@ impl<'db> Spanned<'db> for TyOrPerm<'db> {
         match self {
             TyOrPerm::Path(path, args) => {
                 let args_span = args.as_ref().map(|a| a.span);
-                path.span(db).to(args_span)
+                path.span(db).to(db, args_span)
             }
             TyOrPerm::Generic(decl) => decl.span(db),
             TyOrPerm::PermKeyword(p) => p.span(db),
-            TyOrPerm::Apply(p, ty) => p.span(db).to(ty.span(db)),
+            TyOrPerm::Apply(p, ty) => p.span(db).to(db, ty.span(db)),
         }
     }
 }
@@ -248,7 +248,7 @@ fn parse_path_perm<'db>(
     let paths =
         AstPath::opt_parse_delimited(db, parser, Delimiter::SquareBrackets, AstPath::eat_comma)?;
     let kind = op(paths);
-    Ok(AstPerm::new(db, span.to(parser.last_span()), kind))
+    Ok(AstPerm::new(db, span.to(db, parser.last_span()), kind))
 }
 
 impl<'db> Parse<'db> for AstGenericTerm<'db> {

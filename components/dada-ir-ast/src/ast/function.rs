@@ -95,6 +95,6 @@ pub struct VariableDecl<'db> {
 
 impl<'db> Spanned<'db> for VariableDecl<'db> {
     fn span(&self, db: &'db dyn crate::Db) -> Span<'db> {
-        self.name(db).span.to(self.ty(db).span(db))
+        self.name(db).span.to(db, self.ty(db).span(db))
     }
 }

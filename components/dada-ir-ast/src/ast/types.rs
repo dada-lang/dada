@@ -104,7 +104,7 @@ pub struct AstGenericDecl<'db> {
 impl<'db> Spanned<'db> for AstGenericDecl<'db> {
     fn span(&self, db: &'db dyn crate::Db) -> Span<'db> {
         if let Some(name) = self.name(db) {
-            self.kind(db).span(db).to(name.span(db))
+            self.kind(db).span(db).to(db, name.span(db))
         } else {
             self.kind(db).span(db)
         }

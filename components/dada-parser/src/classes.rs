@@ -55,7 +55,7 @@ impl<'db> Parse<'db> for AstAggregate<'db> {
 
         Ok(Some(AstAggregate::new(
             db,
-            start.to(parser.last_span()),
+            start.to(db, parser.last_span()),
             visibility,
             aggregate_kind,
             id.id,
@@ -174,7 +174,7 @@ impl<'db> Parse<'db> for AstFieldDecl<'db> {
                 .as_ref()
                 .map(|v| v.span)
                 .unwrap_or_else(|| variable.span(db))
-                .to(variable.span(db)),
+                .to(db, variable.span(db)),
             visibility,
             variable,
         )))

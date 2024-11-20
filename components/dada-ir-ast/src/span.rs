@@ -99,14 +99,22 @@ impl AbsoluteSpan {
 }
 
 impl<'db> Span<'db> {
-    pub fn to(self, end: impl IntoOptionSpan<'db>) -> Span<'db> {
+    pub fn to(self, db: &'db dyn crate::Db, end: impl IntoOptionSpan<'db>) -> Span<'db> {
         match end.into_opt_span() {
             Some(end) => {
-                assert!(self.anchor == end.anchor);
-                Span {
-                    anchor: self.anchor,
-                    start: self.start,
-                    end: end.end,
+                if self.anchor == end.anchor {
+                    Span {
+                        anchor: self.anchor,
+                        start: self.start,
+                        end: end.end,
+                    }
+                } else {
+                    // this invariant can fail when errors occur etc.
+                    // for now just convert to absolute spans, though we
+                    // could probably be more precise.
+                    self.absolute_span(db)
+                        .into_span(db)
+                        .to(db, end.absolute_span(db).into_span(db))
                 }
             }
             None => self,

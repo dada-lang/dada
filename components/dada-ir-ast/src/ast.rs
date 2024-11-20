@@ -137,8 +137,8 @@ impl<'db> Spanned<'db> for AstPath<'db> {
     fn span(&self, db: &'db dyn crate::Db) -> Span<'db> {
         match self.kind(db) {
             AstPathKind::Identifier(id) => id.span,
-            AstPathKind::GenericArgs { path, args } => path.first_id(db).span.to(args.span),
-            AstPathKind::Member { path, id: ident } => path.first_id(db).span.to(ident.span),
+            AstPathKind::GenericArgs { path, args } => path.first_id(db).span.to(db, args.span),
+            AstPathKind::Member { path, id: ident } => path.first_id(db).span.to(db, ident.span),
         }
     }
 }

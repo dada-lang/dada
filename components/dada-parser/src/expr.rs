@@ -53,7 +53,10 @@ fn opt_parse_expr_with_precedence<'db>(
     let Some(kind) = precedence(db, parser)? else {
         return Ok(None);
     };
-    Ok(Some(AstExpr::new(start_span.to(parser.last_span()), kind)))
+    Ok(Some(AstExpr::new(
+        start_span.to(db, parser.last_span()),
+        kind,
+    )))
 }
 
 const BINARY_OP_PRECEDENCE: &[&[(&str, BinaryOp)]] = &[
@@ -105,7 +108,7 @@ fn binary_expr_with_precedence_level<'db, const SELECT: u32>(
         if parser.next_token_on_same_line() {
             for &(op_text, op) in BINARY_OP_PRECEDENCE[precedence] {
                 if let Ok(op_span) = parser.eat_op(op_text) {
-                    let lhs = AstExpr::new(start_span.to(mid_span), lhs_kind);
+                    let lhs = AstExpr::new(start_span.to(db, mid_span), lhs_kind);
                     let rhs = eat_expr_with_precedence(db, parser, |db, parser| {
                         // Parse RHS at the current level of precedence:
                         binary_expr_with_precedence_level::<SELECT>(db, parser, precedence)
@@ -137,13 +140,13 @@ fn postfix_expr_precedence<'db, const SELECT: u32>(
         // `.` can skip newlines
         if let Ok(_) = parser.eat_op(".") {
             if let Ok(id) = parser.eat_id() {
-                let owner = AstExpr::new(start_span.to(mid_span), kind);
+                let owner = AstExpr::new(start_span.to(db, mid_span), kind);
                 kind = AstExprKind::DotId(owner, id);
                 continue;
             }
 
             if let Ok(await_keyword) = parser.eat_keyword(Keyword::Await) {
-                let future = AstExpr::new(start_span.to(mid_span), kind);
+                let future = AstExpr::new(start_span.to(db, mid_span), kind);
                 kind = AstExprKind::Await {
                     future,
                     await_keyword,
@@ -152,7 +155,7 @@ fn postfix_expr_precedence<'db, const SELECT: u32>(
             }
 
             if let Some(op) = PermissionOp::opt_parse(db, parser)? {
-                let value = AstExpr::new(start_span.to(mid_span), kind);
+                let value = AstExpr::new(start_span.to(db, mid_span), kind);
                 kind = AstExprKind::PermissionOp { value, op };
                 continue;
             }
@@ -161,7 +164,7 @@ fn postfix_expr_precedence<'db, const SELECT: u32>(
         // Postfix `[]` is only valid on the same line, since `[..]` is also valid as the start of an expression
         if parser.next_token_on_same_line() {
             if let Ok(text) = parser.eat_delimited(crate::tokenizer::Delimiter::SquareBrackets) {
-                let owner = AstExpr::new(start_span.to(mid_span), kind);
+                let owner = AstExpr::new(start_span.to(db, mid_span), kind);
                 let deferred = DeferredParse {
                     span: parser.last_span(),
                     contents: text.to_string(),
@@ -180,7 +183,7 @@ fn postfix_expr_precedence<'db, const SELECT: u32>(
                 crate::tokenizer::Delimiter::Parentheses,
                 AstExpr::eat_comma,
             )? {
-                let owner = AstExpr::new(start_span.to(mid_span), kind);
+                let owner = AstExpr::new(start_span.to(db, mid_span), kind);
                 kind = AstExprKind::ParenthesisOp(owner, args);
                 continue;
             }

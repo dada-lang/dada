@@ -91,7 +91,7 @@ pub fn check_block_statements<'a, 'db>(
                         futures::join!(check_e, check_block_statements(env, block_span, rest));
                     ObjectExpr::new(
                         db,
-                        ce.span(db).to(re.span(db)),
+                        ce.span(db).to(db, re.span(db)),
                         re.ty(db),
                         ObjectExprKind::Semi(ce, re),
                     )

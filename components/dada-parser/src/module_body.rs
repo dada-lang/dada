@@ -39,7 +39,7 @@ impl<'db> Parse<'db> for AstModule<'db> {
             db,
             name,
             SpanVec {
-                span: start_span.to(parser.last_span()),
+                span: start_span.to(db, parser.last_span()),
                 values: items,
             },
         )))
@@ -93,7 +93,7 @@ impl<'db> Parse<'db> for AstUse<'db> {
 
         Ok(Some(AstUse::new(
             db,
-            start.to(parser.last_span()),
+            start.to(db, parser.last_span()),
             crate_name,
             path,
             as_id,
