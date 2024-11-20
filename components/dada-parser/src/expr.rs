@@ -1,7 +1,7 @@
 use dada_ir_ast::ast::{
     AstBlock, AstConstructorField, AstExpr, AstExprKind, AstPath, AstPathKind, BinaryOp,
-    DeferredParse, Identifier, IfArm, Literal, SpannedBinaryOp, SpannedIdentifier, SpannedUnaryOp,
-    SquareBracketArgs, UnaryOp,
+    DeferredParse, Identifier, IfArm, Literal, LiteralKind, SpannedBinaryOp, SpannedIdentifier,
+    SpannedUnaryOp, SquareBracketArgs, UnaryOp,
 };
 
 use crate::{
@@ -59,6 +59,12 @@ fn opt_parse_expr_with_precedence<'db>(
 const BINARY_OP_PRECEDENCE: &[&[(&str, BinaryOp)]] = &[
     &[("+", BinaryOp::Add), ("-", BinaryOp::Sub)],
     &[("*", BinaryOp::Mul), ("*", BinaryOp::Div)],
+    &[
+        (">=", BinaryOp::GreaterEqual),
+        ("<=", BinaryOp::LessEqual),
+        (">", BinaryOp::GreaterThan),
+        ("<", BinaryOp::LessThan),
+    ],
     &[("&&", BinaryOp::AndAnd)],
     &[("||", BinaryOp::OrOr)],
 ];
@@ -304,19 +310,38 @@ impl<'db> Parse<'db> for Literal<'db> {
         db: &'db dyn crate::Db,
         parser: &mut Parser<'_, 'db>,
     ) -> Result<Option<Self::Output>, crate::ParseFail<'db>> {
-        let Some(Token {
-            kind: TokenKind::Literal(kind, text),
-            ..
-        }) = parser.peek()
-        else {
-            return Ok(None);
-        };
+        match parser.peek() {
+            Some(Token {
+                kind: TokenKind::Literal(kind, text),
+                ..
+            }) => {
+                let literal = Literal::new(db, *kind, text.to_string());
 
-        let literal = Literal::new(db, *kind, text.to_string());
+                parser.eat_next_token().unwrap();
 
-        parser.eat_next_token().unwrap();
+                Ok(Some(literal))
+            }
 
-        Ok(Some(literal))
+            Some(Token {
+                kind: TokenKind::Keyword(Keyword::True),
+                ..
+            }) => {
+                parser.eat_next_token().unwrap();
+                Ok(Some(Literal::new(db, LiteralKind::Boolean, "true")))
+            }
+
+            Some(Token {
+                kind: TokenKind::Keyword(Keyword::False),
+                ..
+            }) => {
+                parser.eat_next_token().unwrap();
+                Ok(Some(Literal::new(db, LiteralKind::Boolean, "false")))
+            }
+
+            _ => {
+                return Ok(None);
+            }
+        }
     }
 
     fn expected() -> crate::Expected {

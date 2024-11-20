@@ -2,8 +2,8 @@ use std::future::Future;
 
 use dada_ir_ast::{
     ast::{
-        AstExpr, AstExprKind, AstGenericTerm, Identifier, LiteralKind, SpanVec, SpannedBinaryOp,
-        SpannedIdentifier, UnaryOp,
+        AstExpr, AstExprKind, AstGenericTerm, BinaryOp, Identifier, LiteralKind, SpanVec,
+        SpannedBinaryOp, SpannedIdentifier, UnaryOp,
     },
     diagnostic::{Diagnostic, Err, Level, Reported},
     span::{Span, Spanned},
@@ -146,6 +146,18 @@ async fn check_expr<'db>(expr: &AstExpr<'db>, env: &Env<'db>) -> ExprResult<'db>
                     .into(),
                 }
             }
+
+            LiteralKind::Boolean => ExprResult {
+                temporaries: vec![],
+                span: expr_span,
+                kind: ObjectExpr::new(
+                    db,
+                    expr_span,
+                    ObjectTy::boolean(db),
+                    ObjectExprKind::Literal(literal.clone()),
+                )
+                .into(),
+            },
         },
 
         AstExprKind::Tuple(span_vec) => {
@@ -177,35 +189,99 @@ async fn check_expr<'db>(expr: &AstExpr<'db>, env: &Env<'db>) -> ExprResult<'db>
 
         AstExprKind::BinaryOp(span_op, lhs, rhs) => {
             let span_op: SpannedBinaryOp<'db> = *span_op;
+            match span_op.op {
+                BinaryOp::Add | BinaryOp::Sub | BinaryOp::Mul | BinaryOp::Div => {
+                    let mut temporaries: Vec<Temporary<'db>> = vec![];
+                    let lhs: ObjectExpr<'db> =
+                        lhs.check(env).await.into_expr(env, &mut temporaries);
+                    let rhs: ObjectExpr<'db> =
+                        rhs.check(env).await.into_expr(env, &mut temporaries);
 
-            let mut temporaries: Vec<Temporary<'db>> = vec![];
-            let lhs: ObjectExpr<'db> = lhs.check(env).await.into_expr(env, &mut temporaries);
-            let rhs: ObjectExpr<'db> = rhs.check(env).await.into_expr(env, &mut temporaries);
+                    // For now, let's do a dumb rule that operands must be
+                    // of the same primitive (and scalar) type.
 
-            // For now, let's do a dumb rule that operands must be
-            // of the same primitive (and scalar) type.
+                    env.require_numeric_type(expr_span, lhs.ty(db));
+                    env.require_numeric_type(expr_span, rhs.ty(db));
+                    env.if_not_never(span_op.span, &[lhs.ty(db), rhs.ty(db)], async move |env| {
+                        env.require_equal_object_types(expr_span, lhs.ty(db), rhs.ty(db));
+                    });
 
-            env.require_numeric_type(expr_span, lhs.ty(db));
-            env.require_numeric_type(expr_span, rhs.ty(db));
-            env.if_not_never(span_op.span, &[lhs.ty(db), rhs.ty(db)], async move |env| {
-                env.require_equal_object_types(expr_span, lhs.ty(db), rhs.ty(db));
-            });
+                    // What type do we want these operators to have?
+                    // For now I'll just take the LHS, but that seems
+                    // wrong if e.g. one side is `!`, then we probably
+                    // want `!`, right?
 
-            // What type do we want these operators to have?
-            // For now I'll just take the LHS, but that seems
-            // wrong if e.g. one side is `!`, then we probably
-            // want `!`, right?
+                    ExprResult::from_expr(
+                        env,
+                        ObjectExpr::new(
+                            db,
+                            expr_span,
+                            lhs.ty(db),
+                            ObjectExprKind::BinaryOp(span_op, lhs, rhs),
+                        ),
+                        temporaries,
+                    )
+                }
 
-            ExprResult::from_expr(
-                env,
-                ObjectExpr::new(
-                    db,
-                    expr_span,
-                    lhs.ty(db),
-                    ObjectExprKind::BinaryOp(span_op, lhs, rhs),
-                ),
-                temporaries,
-            )
+                BinaryOp::AndAnd | BinaryOp::OrOr => {
+                    let mut temporaries: Vec<Temporary<'db>> = vec![];
+                    let lhs: ObjectExpr<'db> =
+                        lhs.check(env).await.into_expr(env, &mut temporaries);
+                    let rhs: ObjectExpr<'db> =
+                        rhs.check(env).await.into_expr(env, &mut temporaries);
+
+                    env.require_expr_has_bool_ty(lhs);
+                    env.require_expr_has_bool_ty(rhs);
+
+                    ExprResult::from_expr(
+                        env,
+                        ObjectExpr::new(
+                            db,
+                            expr_span,
+                            ObjectTy::boolean(db),
+                            ObjectExprKind::BinaryOp(span_op, lhs, rhs),
+                        ),
+                        temporaries,
+                    )
+                }
+
+                BinaryOp::GreaterThan
+                | BinaryOp::LessThan
+                | BinaryOp::GreaterEqual
+                | BinaryOp::LessEqual
+                | BinaryOp::EqualEqual => {
+                    let mut temporaries: Vec<Temporary<'db>> = vec![];
+                    let lhs: ObjectExpr<'db> =
+                        lhs.check(env).await.into_expr(env, &mut temporaries);
+                    let rhs: ObjectExpr<'db> =
+                        rhs.check(env).await.into_expr(env, &mut temporaries);
+
+                    // For now, let's do a dumb rule that operands must be
+                    // of the same primitive (and scalar) type.
+
+                    env.require_numeric_type(expr_span, lhs.ty(db));
+                    env.require_numeric_type(expr_span, rhs.ty(db));
+                    env.if_not_never(span_op.span, &[lhs.ty(db), rhs.ty(db)], async move |env| {
+                        env.require_equal_object_types(expr_span, lhs.ty(db), rhs.ty(db));
+                    });
+
+                    // What type do we want these operators to have?
+                    // For now I'll just take the LHS, but that seems
+                    // wrong if e.g. one side is `!`, then we probably
+                    // want `!`, right?
+
+                    ExprResult::from_expr(
+                        env,
+                        ObjectExpr::new(
+                            db,
+                            expr_span,
+                            ObjectTy::boolean(db),
+                            ObjectExprKind::BinaryOp(span_op, lhs, rhs),
+                        ),
+                        temporaries,
+                    )
+                }
+            }
         }
 
         AstExprKind::Id(SpannedIdentifier { span: id_span, id }) => {
@@ -520,7 +596,7 @@ async fn check_expr<'db>(expr: &AstExpr<'db>, env: &Env<'db>) -> ExprResult<'db>
                 arms.push(MatchArm { condition, body });
             }
 
-            let if_ty = if has_else {
+            let if_ty = if !has_else {
                 ObjectTy::unit(db)
             } else {
                 env.fresh_object_ty_inference_var(expr_span)

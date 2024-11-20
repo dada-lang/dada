@@ -46,9 +46,6 @@ struct Amount(
 }
 
 class Account(name: String, mut amount: Amount) {
-    name: String
-    mut amount: Amount
-
     fn is_overdrawn(self) -> bool {
         self.amount.is_negative()
     }

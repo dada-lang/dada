@@ -120,6 +120,11 @@ pub enum BinaryOp {
     Div,
     AndAnd,
     OrOr,
+    GreaterThan,
+    LessThan,
+    GreaterEqual,
+    LessEqual,
+    EqualEqual,
 }
 
 #[derive(Copy, Clone, PartialEq, Eq, PartialOrd, Ord, Hash, Update, Debug)]
@@ -157,6 +162,7 @@ pub struct Literal<'db> {
 
 #[derive(Clone, Copy, PartialEq, Eq, PartialOrd, Ord, Hash, Update, Debug)]
 pub enum LiteralKind {
+    Boolean,
     Integer,
     String,
 }
