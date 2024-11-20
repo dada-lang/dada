@@ -141,6 +141,51 @@ impl Keyword {
     }
 }
 
+pub mod operator {
+    /// A recognized operator, can be derefd to the characters
+    #[derive(Copy, Clone, Debug, PartialEq, Eq, PartialOrd, Ord)]
+    pub struct Op(&'static [char]);
+
+    impl std::ops::Deref for Op {
+        type Target = [char];
+
+        fn deref(&self) -> &Self::Target {
+            self.0
+        }
+    }
+
+    impl std::fmt::Display for Op {
+        fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+            for char in self.0 {
+                write!(f, "{char}")?;
+            }
+            Ok(())
+        }
+    }
+
+    pub const PLUS: Op = Op(&['+']);
+    pub const MINUS: Op = Op(&['-']);
+    pub const STAR: Op = Op(&['*']);
+    pub const SLASH: Op = Op(&['/']);
+    #[expect(dead_code)]
+    pub const AND: Op = Op(&['&']);
+    pub const ANDAND: Op = Op(&['&', '&']);
+    #[expect(dead_code)]
+    pub const PIPE: Op = Op(&['|']);
+    pub const PIPEPIPE: Op = Op(&['|', '|']);
+    pub const LESSTHAN: Op = Op(&['<']);
+    pub const LESSTHANEQ: Op = Op(&['<', '=']);
+    pub const GREATERTHAN: Op = Op(&['>']);
+    pub const GREATERTHANEQ: Op = Op(&['>', '=']);
+    pub const EQ: Op = Op(&['=']);
+    pub const EQEQ: Op = Op(&['=', '=']);
+    pub const ARROW: Op = Op(&['-', '>']);
+    pub const DOT: Op = Op(&['.']);
+    pub const COLON: Op = Op(&[':']);
+    pub const BANG: Op = Op(&['!']);
+    pub const COMMA: Op = Op(&[',']);
+}
+
 #[derive(Clone, Copy, PartialEq, Eq, PartialOrd, Ord, Debug)]
 pub enum Delimiter {
     Parentheses,

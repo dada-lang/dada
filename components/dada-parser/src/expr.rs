@@ -5,7 +5,10 @@ use dada_ir_ast::ast::{
 };
 
 use crate::{
-    tokenizer::{Keyword, Token, TokenKind},
+    tokenizer::{
+        operator::{self, Op},
+        Keyword, Token, TokenKind,
+    },
     Parse, Parser,
 };
 
@@ -59,19 +62,25 @@ fn opt_parse_expr_with_precedence<'db>(
     )))
 }
 
-const BINARY_OP_PRECEDENCE: &[&[(&str, BinaryOp)]] = &[
-    &[("+", BinaryOp::Add), ("-", BinaryOp::Sub)],
-    &[("*", BinaryOp::Mul), ("*", BinaryOp::Div)],
+const BINARY_OP_PRECEDENCE: &[&[(Op, BinaryOp)]] = &[
     &[
-        (">=", BinaryOp::GreaterEqual),
-        ("<=", BinaryOp::LessEqual),
-        (">", BinaryOp::GreaterThan),
-        ("<", BinaryOp::LessThan),
-        ("==", BinaryOp::EqualEqual),
+        (operator::PLUS, BinaryOp::Add),
+        (operator::MINUS, BinaryOp::Sub),
     ],
-    &[("&&", BinaryOp::AndAnd)],
-    &[("||", BinaryOp::OrOr)],
-    &[("=", BinaryOp::Assign)],
+    &[
+        (operator::STAR, BinaryOp::Mul),
+        (operator::SLASH, BinaryOp::Div),
+    ],
+    &[
+        (operator::GREATERTHANEQ, BinaryOp::GreaterEqual),
+        (operator::LESSTHANEQ, BinaryOp::LessEqual),
+        (operator::GREATERTHAN, BinaryOp::GreaterThan),
+        (operator::LESSTHAN, BinaryOp::LessThan),
+        (operator::EQEQ, BinaryOp::EqualEqual),
+    ],
+    &[(operator::ANDAND, BinaryOp::AndAnd)],
+    &[(operator::PIPEPIPE, BinaryOp::OrOr)],
+    &[(operator::EQ, BinaryOp::Assign)],
 ];
 
 fn binary_expr_precedence<'db, const SELECT: u32>(
@@ -140,7 +149,7 @@ fn postfix_expr_precedence<'db, const SELECT: u32>(
         let mid_span = parser.last_span();
 
         // `.` can skip newlines
-        if let Ok(_) = parser.eat_op(".") {
+        if let Ok(_) = parser.eat_op(operator::DOT) {
             if let Ok(id) = parser.eat_id() {
                 let owner = AstExpr::new(start_span.to(db, mid_span), kind);
                 kind = AstExprKind::DotId(owner, id);
@@ -242,7 +251,7 @@ fn base_expr_precedence<'db, const SELECT: u32>(
         return Ok(Some(AstExprKind::Return(None)));
     }
 
-    if let Ok(span) = parser.eat_op("!") {
+    if let Ok(span) = parser.eat_op(operator::BANG) {
         let expr = eat_expr_with_precedence(db, parser, postfix_expr_precedence::<SELECT>)?;
         return Ok(Some(AstExprKind::UnaryOp(
             SpannedUnaryOp {
@@ -253,7 +262,7 @@ fn base_expr_precedence<'db, const SELECT: u32>(
         )));
     }
 
-    if let Ok(span) = parser.eat_op("-") {
+    if let Ok(span) = parser.eat_op(operator::MINUS) {
         let expr = eat_expr_with_precedence(db, parser, postfix_expr_precedence::<SELECT>)?;
         return Ok(Some(AstExprKind::UnaryOp(
             SpannedUnaryOp {
@@ -394,7 +403,7 @@ impl<'db> Parse<'db> for AstConstructorField<'db> {
             return Ok(None);
         };
 
-        let _colon = parser.eat_op(":")?;
+        let _colon = parser.eat_op(operator::COLON)?;
 
         let value = AstExpr::eat(db, parser)?;
 

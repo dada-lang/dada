@@ -1,5 +1,9 @@
 use salsa::Update;
-use tokenizer::{is_op_char, tokenize, Delimiter, Keyword, Skipped, Token, TokenKind};
+use tokenizer::{
+    is_op_char,
+    operator::{self, Op},
+    tokenize, Delimiter, Keyword, Skipped, Token, TokenKind,
+};
 
 use dada_ir_ast::{
     ast::{AstModule, DeferredParse, SpanVec, SpannedIdentifier},
@@ -33,7 +37,7 @@ impl prelude::SourceFileParse for SourceFile {
         let tokens = tokenizer::tokenize(db, anchor, Offset::ZERO, text);
         let mut parser = Parser::new(db, anchor, &tokens);
         let module = AstModule::eat(db, &mut parser).expect("parsing a module is infallible");
-        parser.into_diagnostics(db).into_iter().for_each(|d| {
+        parser.into_diagnostics().into_iter().for_each(|d| {
             let Reported(_) = d.report(db);
         });
         module
@@ -140,7 +144,7 @@ impl<'token, 'db> Parser<'token, 'db> {
             }
         };
 
-        for diagnostic in self.into_diagnostics(db) {
+        for diagnostic in self.into_diagnostics() {
             diagnostic.report(db);
         }
 
@@ -153,16 +157,16 @@ impl<'token, 'db> Parser<'token, 'db> {
     }
 
     /// Take all diagnostics from another parser (e.g., one parsing a delimited set of tokens).
-    pub fn take_diagnostics(&mut self, db: &'db dyn crate::Db, parser: Parser<'_, 'db>) {
-        self.diagnostics.extend(parser.into_diagnostics(db));
+    pub fn take_diagnostics(&mut self, parser: Parser<'_, 'db>) {
+        self.diagnostics.extend(parser.into_diagnostics());
     }
 
     /// Complete parsing and convert the parser into the resulting diagnostics (errors).
     ///
     /// Reports an error if there are any unconsumed tokens.
-    pub fn into_diagnostics(mut self, db: &'db dyn crate::Db) -> Vec<Diagnostic> {
+    pub fn into_diagnostics(mut self) -> Vec<Diagnostic> {
         if self.peek().is_some() {
-            let diagnostic = self.illformed(Expected::EOF).into_diagnostic(db);
+            let diagnostic = self.illformed(Expected::EOF).into_diagnostic(self.db);
             self.push_diagnostic(diagnostic);
 
             // consume all remaining tokens lest there is a tokenizer error in there
@@ -303,53 +307,57 @@ impl<'token, 'db> Parser<'token, 'db> {
         Err(self.illformed(Expected::Identifier))
     }
 
-    pub fn eat_op(&mut self, chars: &'static str) -> Result<Span<'db>, ParseFail<'db>> {
+    pub fn eat_op(&mut self, op: Op) -> Result<Span<'db>, ParseFail<'db>> {
+        const MAX_LEN: usize = 5;
+        assert!(op.len() < MAX_LEN, "unexpectedly long operator");
+
         if cfg!(debug_assertions) {
-            if let Some(invalid_ch) = chars.chars().find(|ch| !is_op_char(*ch)) {
+            if let Some(invalid_ch) = op.iter().find(|&&ch| !is_op_char(ch)) {
                 debug_assert!(
                     false,
-                    "eat_op({chars:?}): `{invalid_ch:?}` is not a valid operator"
+                    "eat_op({op:?}): `{invalid_ch:?}` is not a valid operator"
                 );
             }
         }
 
-        let mut iter = chars.chars();
-
-        let ch = iter.next().unwrap();
-
-        // First character can have any skipped
+        // Check that next character is an operator character.
         let Some(&Token {
-            kind: TokenKind::OpChar(ch1),
+            kind: TokenKind::OpChar(ch0),
             span: start_span,
             skipped: _,
         }) = self.peek()
         else {
-            return Err(self.illformed(Expected::Operator(chars)));
+            return Err(self.illformed(Expected::Operator(op)));
         };
 
-        if ch != ch1 {
-            return Err(self.illformed(Expected::Operator(chars)));
+        // Now look for subsequent operator tokens.
+        // Accumulate them into the buffer so long as we are not skipping any whitespace or encountering errors.
+        let mut buffer: [char; MAX_LEN] = [' '; MAX_LEN];
+        buffer[0] = ch0;
+        let mut buffer_len = 1;
+        while let Some(&Token {
+            kind: TokenKind::OpChar(ch1),
+            skipped: None,
+            ..
+        }) = self.tokens.get(self.next_token + buffer_len)
+        {
+            buffer[buffer_len] = ch1;
+            buffer_len += 1;
         }
 
-        self.eat_next_token().unwrap();
+        if op.len() != buffer_len {
+            return Err(self.illformed(Expected::Operator(op)));
+        }
 
-        for ch in iter {
-            let Some(&Token {
-                kind: TokenKind::OpChar(ch1),
-                skipped,
-                span: _,
-            }) = self.peek()
-            else {
-                return Err(self.illformed(Expected::Operator(chars)));
-            };
-
-            if ch != ch1 || skipped >= Some(Skipped::Newline) {
-                return Err(self.illformed(Expected::Operator(chars)));
+        for i in 0..buffer_len {
+            if op[i] != buffer[i] {
+                return Err(self.illformed(Expected::Operator(op)));
             }
+        }
 
+        for _ in 0..buffer_len {
             self.eat_next_token().unwrap();
         }
-
         Ok(start_span.to(self.db, self.last_span()))
     }
 
@@ -540,7 +548,7 @@ trait Parse<'db>: Sized {
         let tokenized = tokenize(db, text_span.anchor, input_offset, text);
         let mut parser1 = Parser::new(db, text_span.anchor, &tokenized);
         let opt_list_err = eat_method(db, &mut parser1);
-        parser.take_diagnostics(db, parser1);
+        parser.take_diagnostics(parser1);
         Ok(Some(opt_list_err?))
     }
 
@@ -553,7 +561,7 @@ trait Parse<'db>: Sized {
             Ok(Some(item)) => {
                 let mut values = vec![item];
 
-                while parser.eat_op(",").is_ok() {
+                while parser.eat_op(operator::COMMA).is_ok() {
                     match Self::opt_parse(db, parser) {
                         Ok(Some(item)) => values.push(item),
                         Ok(None) => break,
@@ -596,7 +604,7 @@ trait ParseGuard {
     fn eat<'db>(self, db: &'db dyn crate::Db, parser: &mut Parser<'_, 'db>) -> bool;
 }
 
-impl ParseGuard for &'static str {
+impl ParseGuard for Op {
     fn eat<'db>(self, _db: &'db dyn crate::Db, parser: &mut Parser<'_, 'db>) -> bool {
         parser.eat_op(self).is_ok()
     }
@@ -623,7 +631,7 @@ pub enum Expected {
     EOF,
     MoreTokens,
     Identifier,
-    Operator(&'static str),
+    Operator(Op),
     Keyword(Keyword),
     Delimited(Delimiter),
     Nonterminal(&'static str),

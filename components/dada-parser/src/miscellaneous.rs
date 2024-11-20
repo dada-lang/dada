@@ -1,5 +1,7 @@
 use dada_ir_ast::ast::{AstGenericTerm, AstPath, AstPathKind};
 
+use crate::tokenizer::operator;
+
 use super::{Expected, Parse, ParseFail, Parser};
 
 impl<'db> Parse<'db> for AstPath<'db> {
@@ -15,7 +17,7 @@ impl<'db> Parse<'db> for AstPath<'db> {
         let mut path = AstPath::new(db, AstPathKind::Identifier(id));
 
         loop {
-            if let Ok(_) = parser.eat_op(".") {
+            if let Ok(_) = parser.eat_op(operator::DOT) {
                 let id = parser.eat_id()?;
                 path = AstPath::new(db, AstPathKind::Member { path, id });
                 continue;

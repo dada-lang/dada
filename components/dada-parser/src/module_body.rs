@@ -3,6 +3,8 @@ use dada_ir_ast::{
     diagnostic::Diagnostic,
 };
 
+use crate::tokenizer::operator;
+
 use super::{miscellaneous::OrOptParse, tokenizer::Keyword, Expected, Parse, ParseFail, Parser};
 
 impl<'db> Parse<'db> for AstModule<'db> {
@@ -80,7 +82,7 @@ impl<'db> Parse<'db> for AstUse<'db> {
         };
 
         let crate_name = parser.eat_id()?;
-        let _dot = parser.eat_op(".")?;
+        let _dot = parser.eat_op(operator::DOT)?;
         let path = AstPath::eat(db, parser)?;
 
         let as_id = if parser.eat_keyword(Keyword::As).is_ok() {
@@ -88,8 +90,6 @@ impl<'db> Parse<'db> for AstUse<'db> {
         } else {
             None
         };
-
-        parser.eat_op(";")?;
 
         Ok(Some(AstUse::new(
             db,

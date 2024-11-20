@@ -10,7 +10,7 @@ use salsa::Update;
 
 use crate::{
     miscellaneous::OrOptParse,
-    tokenizer::{Delimiter, Keyword},
+    tokenizer::{operator, Delimiter, Keyword},
     Expected, Parse, ParseFail, Parser,
 };
 
@@ -57,7 +57,7 @@ impl<'db> Parse<'db> for AstFunction<'db> {
             },
         };
 
-        let return_ty = AstTy::opt_parse_guarded("->", db, parser)?;
+        let return_ty = AstTy::opt_parse_guarded(operator::ARROW, db, parser)?;
 
         let body = match parser.defer_delimited(Delimiter::CurlyBraces) {
             Ok(b) => Some(b),
@@ -246,8 +246,8 @@ impl<'db> Parse<'db> for AstLetStatement<'db> {
         };
         let mutable = parser.eat_keyword(Keyword::Mut).ok();
         let name = parser.eat_id()?;
-        let ty = AstTy::opt_parse_guarded(":", db, parser)?;
-        let initializer = AstExpr::opt_parse_guarded("=", db, parser)?;
+        let ty = AstTy::opt_parse_guarded(operator::COLON, db, parser)?;
+        let initializer = AstExpr::opt_parse_guarded(operator::EQ, db, parser)?;
         Ok(Some(AstLetStatement::new(
             db,
             mutable,

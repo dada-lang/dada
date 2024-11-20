@@ -157,10 +157,6 @@ impl ServerFork {
     }
 
     fn check_all(&self, editor: &mut dyn Editor<Server>, source_file: SourceFile) -> Fallible<()> {
-        eprintln!(
-            "SeverFor::check_all(source_file={})",
-            source_file.url(&*self.db)
-        );
         let new_diagnostics = self.db.check_all(source_file);
         self.diagnostics.lock().unwrap().reconcile_diagnostics(
             &self.db,

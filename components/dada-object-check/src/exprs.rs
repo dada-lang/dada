@@ -127,6 +127,7 @@ async fn check_expr<'db>(expr: &AstExpr<'db>, env: &Env<'db>) -> ExprResult<'db>
                     .into(),
                 }
             }
+
             LiteralKind::String => {
                 let string_class = match well_known::string_class(db) {
                     Ok(v) => v,

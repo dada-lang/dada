@@ -7,7 +7,7 @@ use dada_ir_ast::{
 };
 use salsa::Update;
 
-use crate::ParseFail;
+use crate::{tokenizer::operator, ParseFail};
 
 use super::{
     miscellaneous::OrOptParse,
@@ -232,7 +232,7 @@ impl<'db> Parse<'db> for VariableDecl<'db> {
             return Ok(None);
         };
 
-        let _ = tokens.eat_op(":")?;
+        let _ = tokens.eat_op(operator::COLON)?;
 
         let ty = AstTy::eat(db, tokens)?;
 
