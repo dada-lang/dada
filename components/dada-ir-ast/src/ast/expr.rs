@@ -139,6 +139,7 @@ pub enum BinaryOp {
     GreaterEqual,
     LessEqual,
     EqualEqual,
+    Assign,
 }
 
 #[derive(Copy, Clone, PartialEq, Eq, PartialOrd, Ord, Hash, Update, Debug)]

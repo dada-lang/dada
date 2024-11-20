@@ -104,7 +104,7 @@ pub enum ObjectExprKind<'db> {
     /// `$place = $expr`
     Assign {
         place: ObjectPlaceExpr<'db>,
-        expr: ObjectExpr<'db>,
+        value: ObjectExpr<'db>,
     },
 
     /// `$0.lease` etc

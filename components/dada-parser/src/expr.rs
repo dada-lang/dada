@@ -67,9 +67,11 @@ const BINARY_OP_PRECEDENCE: &[&[(&str, BinaryOp)]] = &[
         ("<=", BinaryOp::LessEqual),
         (">", BinaryOp::GreaterThan),
         ("<", BinaryOp::LessThan),
+        ("==", BinaryOp::EqualEqual),
     ],
     &[("&&", BinaryOp::AndAnd)],
     &[("||", BinaryOp::OrOr)],
+    &[("=", BinaryOp::Assign)],
 ];
 
 fn binary_expr_precedence<'db, const SELECT: u32>(

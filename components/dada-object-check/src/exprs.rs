@@ -281,6 +281,30 @@ async fn check_expr<'db>(expr: &AstExpr<'db>, env: &Env<'db>) -> ExprResult<'db>
                         temporaries,
                     )
                 }
+
+                BinaryOp::Assign => {
+                    let mut temporaries: Vec<Temporary<'db>> = vec![];
+                    let place: ObjectPlaceExpr<'db> =
+                        lhs.check(env).await.into_place_expr(env, &mut temporaries);
+                    let value: ObjectExpr<'db> =
+                        rhs.check(env).await.into_expr(env, &mut temporaries);
+
+                    // For now, let's do a dumb rule that operands must be
+                    // of the same primitive (and scalar) type.
+
+                    env.require_assignable_object_type(value.span(db), value.ty(db), place.ty(db));
+
+                    ExprResult::from_expr(
+                        env,
+                        ObjectExpr::new(
+                            db,
+                            expr_span,
+                            ObjectTy::unit(db),
+                            ObjectExprKind::Assign { place, value },
+                        ),
+                        temporaries,
+                    )
+                }
             }
         }
 
