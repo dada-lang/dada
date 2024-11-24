@@ -5,7 +5,7 @@ use dada_ir_ast::{
 };
 
 use crate::{
-    class::SymClass,
+    class::SymAggregate,
     module::{SymItem, SymModule},
     prelude::IntoSymbol,
 };
@@ -34,7 +34,7 @@ fn prelude_member<'db>(db: &'db dyn crate::Db, name: &str) -> Errors<SymItem<'db
 }
 
 #[salsa::tracked]
-pub fn string_class<'db>(db: &'db dyn crate::Db) -> Errors<SymClass<'db>> {
+pub fn string_class<'db>(db: &'db dyn crate::Db) -> Errors<SymAggregate<'db>> {
     match prelude_member(db, "String")? {
         SymItem::SymClass(class) => {
             if !class.symbols(db).generic_variables.is_empty() {

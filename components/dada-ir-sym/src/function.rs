@@ -13,7 +13,7 @@ use salsa::Update;
 
 use crate::{
     binder::{Binder, LeafBoundTerm},
-    class::SymClass,
+    class::SymAggregate,
     populate::PopulateSignatureSymbols,
     prelude::IntoSymInScope,
     scope::Scope,
@@ -125,7 +125,7 @@ pub enum SymFunctionSource<'db> {
 
     /// Generated constructor from an aggregate like `struct Foo(x: u32)`
     #[no_from_impl] // I'd prefer to be explicit
-    Constructor(SymClass<'db>, AstAggregate<'db>),
+    Constructor(SymAggregate<'db>, AstAggregate<'db>),
 }
 
 impl<'db> SymFunctionSource<'db> {
@@ -233,7 +233,7 @@ pub struct SignatureSymbols<'db> {
 
 #[derive(Copy, Clone, Debug, PartialEq, Eq, Hash, Update, FromImpls)]
 pub enum SignatureSource<'db> {
-    Class(SymClass<'db>),
+    Class(SymAggregate<'db>),
     Function(SymFunction<'db>),
 
     #[no_from_impl]

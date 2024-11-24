@@ -7,7 +7,7 @@ use dada_ir_ast::{
 };
 use dada_ir_sym::{
     binder::Binder,
-    class::{SymClass, SymClassMember, SymField},
+    class::{SymAggregate, SymClassMember, SymField},
     function::SymFunction,
     ty::SymTyName,
 };
@@ -16,10 +16,8 @@ use futures::{Stream, StreamExt};
 use crate::{
     env::Env,
     exprs::{ExprResult, ExprResultKind},
-    object_ir::{
-        IntoObjectIr, ObjectGenericTerm, ObjectPlaceExpr, ObjectPlaceExprKind, ObjectTy,
-        ObjectTyKind,
-    },
+    object_ir::{ObjectGenericTerm, ObjectPlaceExpr, ObjectPlaceExprKind, ObjectTy, ObjectTyKind},
+    prelude::ToObjectIr,
 };
 
 #[derive(Copy, Clone)]
@@ -297,7 +295,7 @@ impl<'member, 'db> MemberLookup<'member, 'db> {
                 SymTyName::Tuple { arity: _ } => None,
 
                 // Classes have members.
-                SymTyName::Class(owner) => self.search_class_for_member(owner, generics, id),
+                SymTyName::Aggregate(owner) => self.search_class_for_member(owner, generics, id),
 
                 // Future types have no members.
                 SymTyName::Future => None,
@@ -322,7 +320,7 @@ impl<'member, 'db> MemberLookup<'member, 'db> {
 
     fn search_class_for_member(
         self,
-        owner: SymClass<'db>,
+        owner: SymAggregate<'db>,
         generics: &[ObjectGenericTerm<'db>],
         id: Identifier<'db>,
     ) -> Option<SearchResult<'db>> {
@@ -335,7 +333,7 @@ impl<'member, 'db> MemberLookup<'member, 'db> {
                         return Some(SearchResult::Field {
                             owner,
                             field,
-                            field_ty: field.ty(db).into_object_ir(db).substitute(db, &generics),
+                            field_ty: field.ty(db).to_object_ir(db).substitute(db, &generics),
                         });
                     }
                 }
@@ -355,12 +353,12 @@ impl<'member, 'db> MemberLookup<'member, 'db> {
 #[derive(Clone, PartialEq, Eq)]
 enum SearchResult<'db> {
     Field {
-        owner: SymClass<'db>,
+        owner: SymAggregate<'db>,
         field: SymField<'db>,
         field_ty: Binder<'db, ObjectTy<'db>>,
     },
     Method {
-        owner: SymClass<'db>,
+        owner: SymAggregate<'db>,
         method: SymFunction<'db>,
     },
     Error(Reported),

@@ -1,7 +1,7 @@
 use std::borrow::Cow;
 
 use dada_ir_ast::{
-    ast::{AstAggregate, AstFieldDecl, AstMember, Identifier, SpannedIdentifier},
+    ast::{AstAggregate, AstAggregateKind, AstFieldDecl, AstMember, Identifier, SpannedIdentifier},
     span::{Span, Spanned},
 };
 use dada_parser::prelude::*;
@@ -19,7 +19,7 @@ use crate::{
 };
 
 #[salsa::tracked]
-pub struct SymClass<'db> {
+pub struct SymAggregate<'db> {
     /// The scope in which this class is declared.
     super_scope: ScopeItem<'db>,
 
@@ -28,10 +28,18 @@ pub struct SymClass<'db> {
 }
 
 #[salsa::tracked]
-impl<'db> SymClass<'db> {
+impl<'db> SymAggregate<'db> {
     /// Name of the class.
     pub fn name(&self, db: &'db dyn salsa::Database) -> Identifier<'db> {
         self.source(db).name(db)
+    }
+
+    /// Aggregate style (struct, etc)
+    pub fn style(self, db: &'db dyn crate::Db) -> SymAggregateStyle {
+        match self.source(db).kind(db) {
+            AstAggregateKind::Class => SymAggregateStyle::Class,
+            AstAggregateKind::Struct => SymAggregateStyle::Struct,
+        }
     }
 
     /// Number of generic parameters
@@ -188,14 +196,14 @@ impl<'db> SymClass<'db> {
     }
 }
 
-impl std::fmt::Display for SymClass<'_> {
+impl std::fmt::Display for SymAggregate<'_> {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
         salsa::with_attached_database(|db| write!(f, "{}", self.name(db)))
             .unwrap_or_else(|| std::fmt::Debug::fmt(self, f))
     }
 }
 
-impl<'db> ScopeTreeNode<'db> for SymClass<'db> {
+impl<'db> ScopeTreeNode<'db> for SymAggregate<'db> {
     fn direct_super_scope(self, db: &'db dyn crate::Db) -> Option<ScopeItem<'db>> {
         Some(self.super_scope(db))
     }
@@ -207,6 +215,12 @@ impl<'db> ScopeTreeNode<'db> for SymClass<'db> {
     fn into_scope(self, db: &'db dyn crate::Db) -> Scope<'db, 'db> {
         self.class_scope(db)
     }
+}
+
+#[derive(Copy, Clone, PartialEq, Eq, PartialOrd, Ord, Debug)]
+pub enum SymAggregateStyle {
+    Struct,
+    Class,
 }
 
 /// Symbol for a class member
@@ -270,7 +284,7 @@ impl<'db> SymField<'db> {
     }
 }
 
-impl<'db> Spanned<'db> for SymClass<'db> {
+impl<'db> Spanned<'db> for SymAggregate<'db> {
     fn span(&self, db: &'db dyn dada_ir_ast::Db) -> Span<'db> {
         self.name_span(db)
     }

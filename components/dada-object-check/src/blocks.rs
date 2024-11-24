@@ -3,7 +3,7 @@ use dada_ir_ast::{
     diagnostic::{Diagnostic, Err, Level},
 };
 use dada_ir_sym::{
-    class::SymClass,
+    class::SymAggregate,
     function::{SymFunction, SymFunctionSource, SymInputOutput},
     scope_tree::ScopeTreeNode,
 };
@@ -12,7 +12,8 @@ use dada_parser::prelude::FunctionBlock;
 use crate::{
     check::Runtime,
     env::Env,
-    object_ir::{IntoObjectIr, ObjectExpr, ObjectExprKind, ObjectPlaceExpr, ObjectPlaceExprKind},
+    object_ir::{ObjectExpr, ObjectExprKind, ObjectPlaceExpr, ObjectPlaceExprKind},
+    prelude::ToObjectIr,
     statements::check_block_statements,
     Checking,
 };
@@ -38,11 +39,11 @@ pub fn check_function_body<'db>(
 fn check_function_body_class_constructor<'db>(
     db: &'db dyn crate::Db,
     function: SymFunction<'db>,
-    sym_class: SymClass<'db>,
+    sym_class: SymAggregate<'db>,
     ast_class_item: AstAggregate<'db>,
 ) -> Option<ObjectExpr<'db>> {
     let scope = sym_class.into_scope(db);
-    let self_ty = sym_class.self_ty(db, &scope).into_object_ir(db);
+    let self_ty = sym_class.self_ty(db, &scope).to_object_ir(db);
     let span = ast_class_item.inputs(db).as_ref().unwrap().span;
     let signature = function.signature(db);
     let input_vars = &signature.input_output(db).bound_value.variables;
@@ -52,7 +53,7 @@ fn check_function_body_class_constructor<'db>(
 
     // Careful: Not allowed to declare other fields.
     let parameter_exprs = input_vars.iter().zip(input_tys).map(|(&v, &ty)| {
-        let ty = ty.into_object_ir(db);
+        let ty = ty.to_object_ir(db);
         ObjectPlaceExpr::new(db, v.span(db), ty, ObjectPlaceExprKind::Var(v)).give(db)
     });
 

@@ -123,11 +123,11 @@ pub struct IfArm<'db> {
 #[derive(Copy, Clone, PartialEq, Eq, PartialOrd, Ord, Hash, Update, Debug)]
 pub struct SpannedBinaryOp<'db> {
     pub span: Span<'db>,
-    pub op: BinaryOp,
+    pub op: AstBinaryOp,
 }
 
 #[derive(Copy, Clone, PartialEq, Eq, PartialOrd, Ord, Hash, Update, Debug)]
-pub enum BinaryOp {
+pub enum AstBinaryOp {
     Add,
     Sub,
     Mul,
@@ -172,6 +172,7 @@ pub struct AstConstructorField<'db> {
 #[salsa::interned]
 pub struct Literal<'db> {
     pub kind: LiteralKind,
+    #[return_ref]
     pub text: String,
 }
 

@@ -10,7 +10,7 @@ use dada_util::FromImpls;
 
 use crate::{
     binder::BoundTerm,
-    class::{SymClass, SymClassMember},
+    class::{SymAggregate, SymClassMember},
     function::SymFunction,
     module::SymModule,
     prelude::{IntoSymInScope, IntoSymbol},
@@ -96,7 +96,7 @@ impl<'scope, 'db> Scope<'scope, 'db> {
     }
 
     /// Return the innermost class in scope (if any).
-    pub fn class(&self) -> Option<SymClass<'db>> {
+    pub fn class(&self) -> Option<SymAggregate<'db>> {
         for link in self.chain.iter() {
             if let ScopeChainKind::SymClass(class) = &link.kind {
                 return Some(*class);
@@ -238,7 +238,7 @@ pub enum ScopeChainKind<'scope, 'db> {
     SymModule(SymModule<'db>),
 
     /// Records that we are in the scope of a class
-    SymClass(SymClass<'db>),
+    SymClass(SymAggregate<'db>),
 
     /// Introduces the given symbols into scope.
     ForAll(Cow<'scope, [SymVariable<'db>]>),
@@ -387,7 +387,7 @@ impl<'db> NameResolution<'db> {
 #[derive(Copy, Clone, Debug, PartialEq, Eq, FromImpls)]
 pub enum NameResolutionSym<'db> {
     SymModule(SymModule<'db>),
-    SymClass(SymClass<'db>),
+    SymClass(SymAggregate<'db>),
     SymFunction(SymFunction<'db>),
     SymPrimitive(SymPrimitive<'db>),
     SymVariable(SymVariable<'db>),

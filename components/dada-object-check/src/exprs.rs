@@ -2,7 +2,7 @@ use std::future::Future;
 
 use dada_ir_ast::{
     ast::{
-        AstExpr, AstExprKind, AstGenericTerm, BinaryOp, Identifier, LiteralKind, PermissionOp,
+        AstBinaryOp, AstExpr, AstExprKind, AstGenericTerm, Identifier, LiteralKind, PermissionOp,
         SpanVec, SpannedBinaryOp, SpannedIdentifier, UnaryOp,
     },
     diagnostic::{Diagnostic, Err, Level, Reported},
@@ -10,7 +10,7 @@ use dada_ir_ast::{
 };
 use dada_ir_sym::{
     binder::Binder,
-    class::SymClass,
+    class::SymAggregate,
     function::{SymFunction, SymInputOutput},
     prelude::IntoSymInScope,
     scope::{NameResolution, NameResolutionSym},
@@ -27,9 +27,10 @@ use crate::{
     env::Env,
     member::MemberLookup,
     object_ir::{
-        IntoObjectIr, MatchArm, ObjectExpr, ObjectExprKind, ObjectPlaceExpr, ObjectPlaceExprKind,
-        ObjectTy, ObjectTyKind,
+        MatchArm, ObjectBinaryOp, ObjectExpr, ObjectExprKind, ObjectPlaceExpr, ObjectPlaceExprKind,
+        ObjectTy, ObjectTyKind, PrimitiveLiteral,
     },
+    prelude::ToObjectIr,
     subobject::{require_sub_object_type, Expected},
     Checking,
 };
@@ -114,6 +115,10 @@ async fn check_expr<'db>(expr: &AstExpr<'db>, env: &Env<'db>) -> ExprResult<'db>
         AstExprKind::Literal(literal) => match literal.kind(db) {
             LiteralKind::Integer => {
                 let ty = env.fresh_object_ty_inference_var(expr_span);
+                let bits = match u64::from_str_radix(literal.text(db), 10) {
+                    Ok(v) => v,
+                    Err(e) => panic!("error: {e:?}"),
+                };
                 env.require_numeric_type(expr_span, ty);
                 ExprResult {
                     temporaries: vec![],
@@ -122,43 +127,38 @@ async fn check_expr<'db>(expr: &AstExpr<'db>, env: &Env<'db>) -> ExprResult<'db>
                         db,
                         expr_span,
                         ty,
-                        ObjectExprKind::Literal(literal.clone()),
+                        ObjectExprKind::Primitive(PrimitiveLiteral::Integral { bits }),
                     )
                     .into(),
                 }
             }
 
             LiteralKind::String => {
-                let string_class = match well_known::string_class(db) {
+                let _string_class = match well_known::string_class(db) {
                     Ok(v) => v,
                     Err(reported) => return ExprResult::err(db, reported),
                 };
+                todo!()
+            }
 
-                let ty = ObjectTy::named(db, string_class, vec![]);
+            LiteralKind::Boolean => {
+                let bits = match &literal.text(db)[..] {
+                    "true" => 1,
+                    "false" => 0,
+                    t => panic!("unrecognized boolean literal {t:?}"),
+                };
                 ExprResult {
                     temporaries: vec![],
                     span: expr_span,
                     kind: ObjectExpr::new(
                         db,
                         expr_span,
-                        ty,
-                        ObjectExprKind::Literal(literal.clone()),
+                        ObjectTy::boolean(db),
+                        ObjectExprKind::Primitive(PrimitiveLiteral::Integral { bits }),
                     )
                     .into(),
                 }
             }
-
-            LiteralKind::Boolean => ExprResult {
-                temporaries: vec![],
-                span: expr_span,
-                kind: ObjectExpr::new(
-                    db,
-                    expr_span,
-                    ObjectTy::boolean(db),
-                    ObjectExprKind::Literal(literal.clone()),
-                )
-                .into(),
-            },
         },
 
         AstExprKind::Tuple(span_vec) => {
@@ -191,7 +191,7 @@ async fn check_expr<'db>(expr: &AstExpr<'db>, env: &Env<'db>) -> ExprResult<'db>
         AstExprKind::BinaryOp(span_op, lhs, rhs) => {
             let span_op: SpannedBinaryOp<'db> = *span_op;
             match span_op.op {
-                BinaryOp::Add | BinaryOp::Sub | BinaryOp::Mul | BinaryOp::Div => {
+                AstBinaryOp::Add | AstBinaryOp::Sub | AstBinaryOp::Mul | AstBinaryOp::Div => {
                     let mut temporaries: Vec<Temporary<'db>> = vec![];
                     let lhs: ObjectExpr<'db> =
                         lhs.check(env).await.into_expr(env, &mut temporaries);
@@ -218,13 +218,17 @@ async fn check_expr<'db>(expr: &AstExpr<'db>, env: &Env<'db>) -> ExprResult<'db>
                             db,
                             expr_span,
                             lhs.ty(db),
-                            ObjectExprKind::BinaryOp(span_op, lhs, rhs),
+                            ObjectExprKind::BinaryOp(
+                                ObjectBinaryOp::try_from(span_op.op).expect("invalid binary op"),
+                                lhs,
+                                rhs,
+                            ),
                         ),
                         temporaries,
                     )
                 }
 
-                BinaryOp::AndAnd | BinaryOp::OrOr => {
+                AstBinaryOp::AndAnd | AstBinaryOp::OrOr => {
                     let mut temporaries: Vec<Temporary<'db>> = vec![];
                     let lhs: ObjectExpr<'db> =
                         lhs.check(env).await.into_expr(env, &mut temporaries);
@@ -240,17 +244,22 @@ async fn check_expr<'db>(expr: &AstExpr<'db>, env: &Env<'db>) -> ExprResult<'db>
                             db,
                             expr_span,
                             ObjectTy::boolean(db),
-                            ObjectExprKind::BinaryOp(span_op, lhs, rhs),
+                            ObjectExprKind::BinaryOp(
+                                ObjectBinaryOp::try_from(span_op.op)
+                                    .expect("invalid object binary op"),
+                                lhs,
+                                rhs,
+                            ),
                         ),
                         temporaries,
                     )
                 }
 
-                BinaryOp::GreaterThan
-                | BinaryOp::LessThan
-                | BinaryOp::GreaterEqual
-                | BinaryOp::LessEqual
-                | BinaryOp::EqualEqual => {
+                AstBinaryOp::GreaterThan
+                | AstBinaryOp::LessThan
+                | AstBinaryOp::GreaterEqual
+                | AstBinaryOp::LessEqual
+                | AstBinaryOp::EqualEqual => {
                     let mut temporaries: Vec<Temporary<'db>> = vec![];
                     let lhs: ObjectExpr<'db> =
                         lhs.check(env).await.into_expr(env, &mut temporaries);
@@ -277,13 +286,17 @@ async fn check_expr<'db>(expr: &AstExpr<'db>, env: &Env<'db>) -> ExprResult<'db>
                             db,
                             expr_span,
                             ObjectTy::boolean(db),
-                            ObjectExprKind::BinaryOp(span_op, lhs, rhs),
+                            ObjectExprKind::BinaryOp(
+                                ObjectBinaryOp::try_from(span_op.op).expect("invalid binary op"),
+                                lhs,
+                                rhs,
+                            ),
                         ),
                         temporaries,
                     )
                 }
 
-                BinaryOp::Assign => {
+                AstBinaryOp::Assign => {
                     let mut temporaries: Vec<Temporary<'db>> = vec![];
                     let place: ObjectPlaceExpr<'db> =
                         lhs.check(env).await.into_place_expr(env, &mut temporaries);
@@ -666,7 +679,7 @@ async fn check_class_call<'db>(
     class_span: Span<'db>,
     expr_span: Span<'db>,
     name_resolution: NameResolution<'db>,
-    class_sym: SymClass<'db>,
+    class_sym: SymAggregate<'db>,
     ast_args: &SpanVec<'db, AstExpr<'db>>,
     temporaries: Vec<Temporary<'db>>,
 ) -> ExprResult<'db> {
@@ -701,7 +714,7 @@ async fn check_class_call<'db>(
 fn report_no_new_method<'db>(
     db: &'db dyn crate::Db,
     class_span: Span<'db>,
-    class_sym: SymClass<'db>,
+    class_sym: SymAggregate<'db>,
     resolution: Result<NameResolution<'db>, NameResolution<'db>>,
 ) -> Reported {
     let mut diag = Diagnostic::error(
@@ -991,7 +1004,7 @@ async fn check_call_common<'db>(
     expr_span: Span<'db>,
     callee_span: Span<'db>,
     input_output: &Binder<'db, Binder<'db, SymInputOutput<'db>>>,
-    substitution: Vec<SymGenericTerm<'db>>,
+    sym_substitution: Vec<SymGenericTerm<'db>>,
     ast_args: &[AstExpr<'db>],
     self_expr: Option<ObjectExpr<'db>>,
     mut temporaries: Vec<Temporary<'db>>,
@@ -999,7 +1012,7 @@ async fn check_call_common<'db>(
     let db = env.db();
 
     // Instantiate the input-output with the substitution.
-    let input_output = input_output.substitute(db, &substitution);
+    let input_output = input_output.substitute(db, &sym_substitution);
 
     // Check the arity of the actual arguments.
     let self_args: usize = self_expr.is_some() as usize;
@@ -1084,10 +1097,14 @@ async fn check_call_common<'db>(
     let mut call_expr = ObjectExpr::new(
         db,
         expr_span,
-        input_output.output_ty.into_object_ir(db),
+        input_output.output_ty.to_object_ir(db),
         ObjectExprKind::Call {
             function,
-            substitution,
+            substitution: sym_substitution
+                .iter()
+                .map(|t| t.to_object_ir(db))
+                .collect(),
+            sym_substitution,
             arg_temps: arg_temp_symbols.clone(),
         },
     );
@@ -1130,7 +1147,7 @@ impl<'db> ExprResult<'db> {
         let db = env.db();
         match res.sym {
             NameResolutionSym::SymVariable(var) if var.kind(db) == SymGenericKind::Place => {
-                let ty = env.variable_ty(var).into_object_ir(db);
+                let ty = env.variable_ty(var).to_object_ir(db);
                 let place_expr = ObjectPlaceExpr::new(db, span, ty, ObjectPlaceExprKind::Var(var));
                 Self {
                     temporaries: vec![],
@@ -1191,7 +1208,7 @@ impl<'db> ExprResult<'db> {
                 ObjectExprKind::LetIn {
                     lv: temporary.lv,
                     sym_ty: None,
-                    ty: temporary.ty.into_object_ir(db),
+                    ty: temporary.ty.to_object_ir(db),
                     initializer: temporary.initializer,
                     body: expr,
                 },

@@ -266,7 +266,7 @@ pub async fn require_numeric_type<'db>(
                         return Err(report_numeric_type_expected(env, span, ty))
                     }
                 },
-                SymTyName::Future | SymTyName::Class(_) | SymTyName::Tuple { .. } => {
+                SymTyName::Future | SymTyName::Aggregate(_) | SymTyName::Tuple { .. } => {
                     return Err(report_numeric_type_expected(env, span, ty))
                 }
             },

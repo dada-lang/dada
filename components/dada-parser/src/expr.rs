@@ -1,5 +1,5 @@
 use dada_ir_ast::ast::{
-    AstBlock, AstConstructorField, AstExpr, AstExprKind, AstPath, AstPathKind, BinaryOp,
+    AstBinaryOp, AstBlock, AstConstructorField, AstExpr, AstExprKind, AstPath, AstPathKind,
     DeferredParse, Identifier, IfArm, Literal, LiteralKind, PermissionOp, SpannedBinaryOp,
     SpannedIdentifier, SpannedUnaryOp, SquareBracketArgs, UnaryOp,
 };
@@ -62,25 +62,25 @@ fn opt_parse_expr_with_precedence<'db>(
     )))
 }
 
-const BINARY_OP_PRECEDENCE: &[&[(Op, BinaryOp)]] = &[
+const BINARY_OP_PRECEDENCE: &[&[(Op, AstBinaryOp)]] = &[
     &[
-        (operator::PLUS, BinaryOp::Add),
-        (operator::MINUS, BinaryOp::Sub),
+        (operator::PLUS, AstBinaryOp::Add),
+        (operator::MINUS, AstBinaryOp::Sub),
     ],
     &[
-        (operator::STAR, BinaryOp::Mul),
-        (operator::SLASH, BinaryOp::Div),
+        (operator::STAR, AstBinaryOp::Mul),
+        (operator::SLASH, AstBinaryOp::Div),
     ],
     &[
-        (operator::GREATERTHANEQ, BinaryOp::GreaterEqual),
-        (operator::LESSTHANEQ, BinaryOp::LessEqual),
-        (operator::GREATERTHAN, BinaryOp::GreaterThan),
-        (operator::LESSTHAN, BinaryOp::LessThan),
-        (operator::EQEQ, BinaryOp::EqualEqual),
+        (operator::GREATERTHANEQ, AstBinaryOp::GreaterEqual),
+        (operator::LESSTHANEQ, AstBinaryOp::LessEqual),
+        (operator::GREATERTHAN, AstBinaryOp::GreaterThan),
+        (operator::LESSTHAN, AstBinaryOp::LessThan),
+        (operator::EQEQ, AstBinaryOp::EqualEqual),
     ],
-    &[(operator::ANDAND, BinaryOp::AndAnd)],
-    &[(operator::PIPEPIPE, BinaryOp::OrOr)],
-    &[(operator::EQ, BinaryOp::Assign)],
+    &[(operator::ANDAND, AstBinaryOp::AndAnd)],
+    &[(operator::PIPEPIPE, AstBinaryOp::OrOr)],
+    &[(operator::EQ, AstBinaryOp::Assign)],
 ];
 
 fn binary_expr_precedence<'db, const SELECT: u32>(

@@ -94,6 +94,26 @@ impl<'db, T: BoundTerm<'db>> Binder<'db, T> {
             bound_value: op(self.bound_value),
         }
     }
+
+    /// Maps the bound contents to something else
+    /// using the contents of argument term `arg`.
+    ///
+    /// `arg` will automatically have any bound variables
+    /// shifted by 1 to account for having been inserted
+    /// into a new binder.
+    ///
+    /// If no arg is needed just supply `()`.
+    ///
+    /// NB. The argument is a `fn` to prevent accidentally leaking context.
+    pub fn map_ref<U>(&self, _db: &'db dyn crate::Db, op: impl FnOnce(&T) -> U) -> Binder<'db, U>
+    where
+        U: BoundTerm<'db>,
+    {
+        Binder {
+            variables: self.variables.clone(),
+            bound_value: op(&self.bound_value),
+        }
+    }
 }
 
 impl<'db, T> std::ops::Index<usize> for Binder<'db, T>

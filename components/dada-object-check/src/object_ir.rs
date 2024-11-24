@@ -14,7 +14,7 @@
 //! The object IR gives us enough information to make those determinations.
 
 use dada_ir_ast::{
-    ast::{Literal, PermissionOp, SpannedBinaryOp},
+    ast::{AstBinaryOp, PermissionOp},
     diagnostic::{Err, Reported},
     span::Span,
 };
@@ -28,9 +28,10 @@ use dada_ir_sym::{
     ty::{SymGenericTerm, SymTy, SymTyName},
 };
 use dada_util::FromImpls;
+use ordered_float::OrderedFloat;
 use salsa::Update;
 
-use crate::exprs::Temporary;
+use crate::{exprs::Temporary, prelude::ToObjectIr};
 
 #[salsa::tracked]
 pub struct ObjectExpr<'db> {
@@ -78,8 +79,8 @@ pub enum ObjectExprKind<'db> {
     /// `(...)`
     Tuple(Vec<ObjectExpr<'db>>),
 
-    /// `22`
-    Literal(Literal<'db>),
+    /// `22` etc
+    Primitive(PrimitiveLiteral),
 
     /// `let $lv: $ty [= $initializer] in $body`
     LetIn {
@@ -116,7 +117,8 @@ pub enum ObjectExprKind<'db> {
     /// (or generate errors).
     Call {
         function: SymFunction<'db>,
-        substitution: Vec<SymGenericTerm<'db>>,
+        sym_substitution: Vec<SymGenericTerm<'db>>,
+        substitution: Vec<ObjectGenericTerm<'db>>,
         arg_temps: Vec<SymVariable<'db>>,
     },
 
@@ -130,7 +132,7 @@ pub enum ObjectExprKind<'db> {
     },
 
     /// `a + b` etc
-    BinaryOp(SpannedBinaryOp<'db>, ObjectExpr<'db>, ObjectExpr<'db>),
+    BinaryOp(ObjectBinaryOp, ObjectExpr<'db>, ObjectExpr<'db>),
 
     /// Something like `Point { x: ..., y: ... }`
     Aggregate {
@@ -143,6 +145,49 @@ pub enum ObjectExprKind<'db> {
 
     /// Error occurred somewhere.
     Error(Reported),
+}
+
+#[derive(Copy, Clone, PartialEq, Eq, PartialOrd, Ord, Hash, Debug, Update)]
+pub enum PrimitiveLiteral {
+    /// Have to check the type of the expression to determine how to interpret these bits
+    Integral { bits: u64 },
+
+    /// Have to check the type of the expression to determine how to interpret these bits
+    Float { bits: OrderedFloat<f64> },
+}
+
+#[derive(Copy, Clone, PartialEq, Eq, PartialOrd, Ord, Hash, Update, Debug)]
+pub enum ObjectBinaryOp {
+    Add,
+    Sub,
+    Mul,
+    Div,
+    GreaterThan,
+    LessThan,
+    GreaterEqual,
+    LessEqual,
+    EqualEqual,
+}
+
+impl TryFrom<AstBinaryOp> for ObjectBinaryOp {
+    type Error = dada_util::Error;
+
+    fn try_from(value: AstBinaryOp) -> Result<Self, Self::Error> {
+        match value {
+            AstBinaryOp::Add => Ok(ObjectBinaryOp::Add),
+            AstBinaryOp::Sub => Ok(ObjectBinaryOp::Sub),
+            AstBinaryOp::Mul => Ok(ObjectBinaryOp::Mul),
+            AstBinaryOp::Div => Ok(ObjectBinaryOp::Div),
+            AstBinaryOp::GreaterThan => Ok(ObjectBinaryOp::GreaterThan),
+            AstBinaryOp::LessThan => Ok(ObjectBinaryOp::LessThan),
+            AstBinaryOp::GreaterEqual => Ok(ObjectBinaryOp::GreaterEqual),
+            AstBinaryOp::LessEqual => Ok(ObjectBinaryOp::LessEqual),
+            AstBinaryOp::EqualEqual => Ok(ObjectBinaryOp::EqualEqual),
+            AstBinaryOp::AndAnd | AstBinaryOp::OrOr | AstBinaryOp::Assign => {
+                dada_util::bail!("no equivalent object binary op")
+            }
+        }
+    }
 }
 
 /// A match arm is one part of a match statement.
@@ -206,7 +251,7 @@ pub struct ObjectTy<'db> {
 
 impl<'db> ObjectTy<'db> {
     pub fn unit(db: &'db dyn crate::Db) -> ObjectTy<'db> {
-        SymTy::unit(db).into_object_ir(db)
+        SymTy::unit(db).to_object_ir(db)
     }
 
     pub fn shared(self, _db: &'db dyn crate::Db) -> ObjectTy<'db> {
@@ -218,7 +263,7 @@ impl<'db> ObjectTy<'db> {
     }
 
     pub fn never(db: &'db dyn crate::Db) -> ObjectTy<'db> {
-        SymTy::never(db).into_object_ir(db)
+        SymTy::never(db).to_object_ir(db)
     }
 
     pub fn named(
@@ -337,7 +382,7 @@ impl<'db> HasKind<'db> for ObjectGenericTerm<'db> {
 
 impl<'db> FromVar<'db> for ObjectGenericTerm<'db> {
     fn var(db: &'db dyn crate::Db, var: SymVariable<'db>) -> Self {
-        SymGenericTerm::var(db, var).into_object_ir(db)
+        SymGenericTerm::var(db, var).to_object_ir(db)
     }
 }
 
@@ -363,7 +408,7 @@ impl<'db> ObjectGenericTerm<'db> {
         match self {
             ObjectGenericTerm::Type(object_ty) => match object_ty.kind(db) {
                 ObjectTyKind::Named(name, vec) => match name {
-                    SymTyName::Class(_class) => {
+                    SymTyName::Aggregate(_class) => {
                         // FIXME: This will be true for some classes but not others
                         false
                     }
@@ -398,11 +443,14 @@ impl<'db> ObjectGenericTerm<'db> {
     }
 }
 
-pub(crate) trait IntoObjectIr<'db>: Update {
-    type Object: Update;
+#[derive(Clone, PartialEq, Eq, PartialOrd, Ord, Hash, Update, Debug)]
+pub struct ObjectInputOutput<'db> {
+    pub input_tys: Vec<ObjectTy<'db>>,
 
-    fn into_object_ir(self, db: &'db dyn crate::Db) -> Self::Object;
+    pub output_ty: ObjectTy<'db>,
 }
+
+impl<'db> LeafBoundTerm<'db> for ObjectInputOutput<'db> {}
 
 mod into_object_ir_impls;
 mod subst_impls;

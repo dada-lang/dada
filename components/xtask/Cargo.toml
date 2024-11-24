@@ -11,4 +11,4 @@ tracing = "0.1.36"
 tracing-tree = "0.2.1"
 tracing-subscriber = { version = "0.3.15", default-features = false, features = ["fmt", "env-filter", "smallvec", "parking_lot", "ansi"] }
 xshell = "0.1"
-anyhow = "1.0.93"
+anyhow = { workspace = true }

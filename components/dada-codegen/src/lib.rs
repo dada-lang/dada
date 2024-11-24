@@ -1,0 +1,16 @@
+use dada_ir_sym::function::SymFunction;
+use dada_object_check::{object_ir::ObjectGenericTerm, Db};
+
+mod cx;
+
+/// Generate a self-contained wasm module from a starting function.
+#[salsa::tracked(return_ref)]
+pub fn codegen<'db>(
+    db: &'db dyn crate::Db,
+    function: SymFunction<'db>,
+    generics: Vec<ObjectGenericTerm<'db>>,
+) -> Vec<u8> {
+    cx::Cx::new(db)
+        .generate_from_fn(function, generics)
+        .finish()
+}

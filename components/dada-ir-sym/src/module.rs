@@ -8,7 +8,7 @@ use dada_parser::prelude::SourceFileParse;
 use dada_util::{FromImpls, Map};
 
 use crate::{
-    class::SymClass,
+    class::SymAggregate,
     function::SymFunction,
     prelude::IntoSymbol,
     primitive::SymPrimitive,
@@ -23,7 +23,7 @@ pub struct SymModule<'db> {
 
     // Order of fields reflects the precedence we give during name resolution.
     #[return_ref]
-    pub(crate) class_map: Map<Identifier<'db>, SymClass<'db>>,
+    pub(crate) class_map: Map<Identifier<'db>, SymAggregate<'db>>,
     #[return_ref]
     pub(crate) function_map: Map<Identifier<'db>, SymFunction<'db>>,
     #[return_ref]
@@ -127,7 +127,7 @@ impl<'db> IntoSymbol<'db> for AstModule<'db> {
                         db,
                         &mut class_map,
                         ast_class_item.name(db),
-                        SymClass::new(db, self.into(), ast_class_item),
+                        SymAggregate::new(db, self.into(), ast_class_item),
                     );
                 }
                 AstItem::Function(ast_function) => {
@@ -218,7 +218,7 @@ fn report_duplicate<'db>(
 
 #[derive(Copy, Clone, Debug, PartialEq, Eq, PartialOrd, Ord, Hash, FromImpls)]
 pub enum SymItem<'db> {
-    SymClass(SymClass<'db>),
+    SymClass(SymAggregate<'db>),
     SymFunction(SymFunction<'db>),
     SymPrimitive(SymPrimitive<'db>),
 }

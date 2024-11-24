@@ -1,11 +1,16 @@
 [workspace]
 members = [".", "components/dada-*", "components/xtask"]
-
-# Exclude xtask so it isn't installed with `cargo install`
-default-members = [
+default-members = [ # Exclude xtask so it isn't installed with `cargo install`
   ".",
   "components/dada-*",
 ]
+
+[workspace.dependencies]
+salsa = { git = "https://github.com/salsa-rs/salsa.git" }
+anyhow = "1.0.93"
+url = "2.5.3"
+annotate-snippets = "0.11.4"
+wasm-encoder = "0.220.0"
 
 [package]
 name = "dada"

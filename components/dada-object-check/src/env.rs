@@ -14,7 +14,8 @@ use futures::{Stream, StreamExt};
 use crate::{
     bound::{Direction, TransitiveBounds},
     check::Runtime,
-    object_ir::{IntoObjectIr, ObjectExpr, ObjectGenericTerm, ObjectTy, ObjectTyKind},
+    object_ir::{ObjectExpr, ObjectGenericTerm, ObjectTy, ObjectTyKind},
+    prelude::ToObjectIr,
     subobject::{
         require_assignable_object_type, require_numeric_type, require_sub_object_type, Expected,
     },
@@ -147,18 +148,18 @@ impl<'db> Env<'db> {
     }
 
     pub fn fresh_object_ty_inference_var(&self, span: Span<'db>) -> ObjectTy<'db> {
-        self.fresh_ty_inference_var(span).into_object_ir(self.db())
+        self.fresh_ty_inference_var(span).to_object_ir(self.db())
     }
 
     pub fn require_assignable_object_type(
         &self,
         value_span: Span<'db>,
-        value_ty: impl IntoObjectIr<'db, Object = ObjectTy<'db>>,
-        place_ty: impl IntoObjectIr<'db, Object = ObjectTy<'db>>,
+        value_ty: impl ToObjectIr<'db, Object = ObjectTy<'db>>,
+        place_ty: impl ToObjectIr<'db, Object = ObjectTy<'db>>,
     ) {
         let db = self.db();
-        let value_ty = value_ty.into_object_ir(db);
-        let place_ty = place_ty.into_object_ir(db);
+        let value_ty = value_ty.to_object_ir(db);
+        let place_ty = place_ty.to_object_ir(db);
         self.runtime.defer(self, value_span, move |env| async move {
             match require_assignable_object_type(&env, value_span, value_ty, place_ty).await {
                 Ok(()) => (),
@@ -170,12 +171,12 @@ impl<'db> Env<'db> {
     pub fn require_equal_object_types(
         &self,
         span: Span<'db>,
-        expected_ty: impl IntoObjectIr<'db, Object = ObjectTy<'db>>,
-        found_ty: impl IntoObjectIr<'db, Object = ObjectTy<'db>>,
+        expected_ty: impl ToObjectIr<'db, Object = ObjectTy<'db>>,
+        found_ty: impl ToObjectIr<'db, Object = ObjectTy<'db>>,
     ) {
         let db = self.db();
-        let expected_ty = expected_ty.into_object_ir(db);
-        let found_ty = found_ty.into_object_ir(db);
+        let expected_ty = expected_ty.to_object_ir(db);
+        let found_ty = found_ty.to_object_ir(db);
         self.runtime.defer(self, span, move |env| async move {
             match require_sub_object_type(&env, Expected::Lower, span, expected_ty, found_ty).await
             {
@@ -194,10 +195,10 @@ impl<'db> Env<'db> {
     pub fn require_numeric_type(
         &self,
         span: Span<'db>,
-        ty: impl IntoObjectIr<'db, Object = ObjectTy<'db>>,
+        ty: impl ToObjectIr<'db, Object = ObjectTy<'db>>,
     ) {
         let db = self.db();
-        let ty = ty.into_object_ir(db);
+        let ty = ty.to_object_ir(db);
         self.runtime.defer(self, span, move |env| async move {
             match require_numeric_type(&env, span, ty).await {
                 Ok(()) => (),

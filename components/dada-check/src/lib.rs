@@ -8,7 +8,7 @@ use dada_ir_ast::{
 };
 use dada_ir_sym::{
     binder::{Binder, BoundTerm},
-    class::{SymClass, SymClassMember, SymField},
+    class::{SymAggregate, SymClassMember, SymField},
     function::{SignatureSymbols, SymFunction, SymFunctionSignature, SymInputOutput},
     module::{SymItem, SymModule},
     prelude::*,
@@ -60,7 +60,7 @@ impl<'db> Check<'db> for SymItem<'db> {
     }
 }
 
-impl<'db> Check<'db> for SymClass<'db> {
+impl<'db> Check<'db> for SymAggregate<'db> {
     fn check(&self, db: &'db dyn crate::Db) {
         self.members(db).iter().for_each(|member| member.check(db));
     }

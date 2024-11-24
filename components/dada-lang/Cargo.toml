@@ -4,7 +4,7 @@ version = "0.1.0"
 edition = "2021"
 
 [dependencies]
-annotate-snippets = "0.11.4"
+annotate-snippets = { workspace = true }
 dada-check = { version = "0.1.0", path = "../dada-check" }
 dada-compiler = { version = "0.1.0", path = "../dada-compiler" }
 dada-ir-ast = { version = "0.1.0", path = "../dada-ir-ast" }
@@ -16,7 +16,7 @@ prettydiff = "0.7.0"
 rayon = "1.10.0"
 regex = "1.10.6"
 run = "0.1.0"
-salsa = { git = "https://github.com/salsa-rs/salsa.git" }
+salsa = { workspace = true }
 structopt = "0.3.26" # derive doesn't work without this
 thiserror = "1.0.63"
 url = "2.5.3"

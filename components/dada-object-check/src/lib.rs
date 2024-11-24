@@ -11,10 +11,18 @@ use env::Env;
 use object_ir::ObjectExpr;
 
 pub mod prelude {
+    use salsa::Update;
+
     use crate::object_ir::ObjectExpr;
 
     pub trait ObjectCheckFunctionBody<'db> {
         fn object_check_body(self, db: &'db dyn crate::Db) -> Option<ObjectExpr<'db>>;
+    }
+
+    pub trait ToObjectIr<'db>: Update {
+        type Object: Update;
+
+        fn to_object_ir(&self, db: &'db dyn crate::Db) -> Self::Object;
     }
 }
 

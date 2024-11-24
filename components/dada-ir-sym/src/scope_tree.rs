@@ -3,7 +3,8 @@ use dada_util::FromImpls;
 use salsa::Update;
 
 use crate::{
-    class::SymClass, function::SymFunction, module::SymModule, scope::Scope, symbol::SymVariable,
+    class::SymAggregate, function::SymFunction, module::SymModule, scope::Scope,
+    symbol::SymVariable,
 };
 
 /// A `ScopeItem` defines a name resolution scope.
@@ -14,7 +15,7 @@ pub enum ScopeItem<'db> {
 
     /// A module
     SymModule(SymModule<'db>),
-    Class(SymClass<'db>),
+    Class(SymAggregate<'db>),
 
     /// A function or method
     SymFunction(SymFunction<'db>),

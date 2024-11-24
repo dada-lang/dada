@@ -1,5 +1,5 @@
 use crate::{
-    binder::LeafBoundTerm, class::SymClass, indices::{FromInferVar, InferVarIndex}, prelude::{IntoSymInScope, IntoSymbol}, primitive::SymPrimitive, scope::{NameResolution, NameResolutionSym, Resolve, Scope}, symbol::{AssertKind, FromVar, HasKind, SymGenericKind, SymVariable}, Db
+    binder::LeafBoundTerm, class::SymAggregate, indices::{FromInferVar, InferVarIndex}, prelude::{IntoSymInScope, IntoSymbol}, primitive::SymPrimitive, scope::{NameResolution, NameResolutionSym, Resolve, Scope}, symbol::{AssertKind, FromVar, HasKind, SymGenericKind, SymVariable}, Db
 };
 use dada_ir_ast::{
     ast::{
@@ -236,7 +236,7 @@ pub enum SymTyKind<'db> {
 pub enum SymTyName<'db> {
     Primitive(SymPrimitive<'db>),
 
-    Class(SymClass<'db>),
+    Aggregate(SymAggregate<'db>),
 
     /// For now, just make future a builtin type
     #[no_from_impl]
@@ -254,7 +254,7 @@ impl std::fmt::Display for SymTyName<'_> {
             let db: &dyn crate::Db = db.as_view();
             match self {
                 SymTyName::Primitive(primitive) => write!(f, "`{}`", primitive),
-                SymTyName::Class(class) => write!(f, "`{}`", class.name(db)),
+                SymTyName::Aggregate(class) => write!(f, "`{}`", class.name(db)),
                 SymTyName::Tuple { arity } => write!(f, "{arity}-tuple"),
                 SymTyName::Future => write!(f, "Future"),
             }    

@@ -4,7 +4,7 @@ use dada_ir_sym::{
     symbol::{AssertKind, HasKind, SymGenericKind, SymVariable},
 };
 
-use super::{ObjectGenericTerm, ObjectTy, ObjectTyKind};
+use super::{ObjectGenericTerm, ObjectInputOutput, ObjectTy, ObjectTyKind};
 
 impl<'db> Subst<'db> for ObjectTy<'db> {
     type GenericTerm = ObjectGenericTerm<'db>;
@@ -74,6 +74,34 @@ impl<'db> SubstWith<'db, ObjectGenericTerm<'db>> for ObjectGenericTerm<'db> {
             ObjectGenericTerm::Perm | ObjectGenericTerm::Place | ObjectGenericTerm::Error(_) => {
                 self.identity()
             }
+        }
+    }
+}
+
+impl<'db> Subst<'db> for ObjectInputOutput<'db> {
+    type GenericTerm = ObjectGenericTerm<'db>;
+}
+
+impl<'db> SubstWith<'db, ObjectGenericTerm<'db>> for ObjectInputOutput<'db> {
+    type Output = ObjectInputOutput<'db>;
+
+    fn identity(&self) -> Self::Output {
+        self.clone()
+    }
+
+    fn subst_with<'subst>(
+        &'subst self,
+        db: &'db dyn dada_ir_sym::Db,
+        bound_vars: &mut Vec<&'subst [SymVariable<'db>]>,
+        subst_fns: &mut SubstitutionFns<'_, 'db, ObjectGenericTerm<'db>>,
+    ) -> Self::Output {
+        let Self {
+            input_tys,
+            output_ty,
+        } = self;
+        Self {
+            input_tys: input_tys.subst_with(db, bound_vars, subst_fns),
+            output_ty: output_ty.subst_with(db, bound_vars, subst_fns),
         }
     }
 }

@@ -300,6 +300,18 @@ dependencies = [
 ]
 
 [[package]]
+name = "dada-codegen"
+version = "0.1.0"
+dependencies = [
+ "dada-ir-ast",
+ "dada-ir-sym",
+ "dada-object-check",
+ "dada-util",
+ "salsa",
+ "wasm-encoder",
+]
+
+[[package]]
 name = "dada-compiler"
 version = "0.1.0"
 dependencies = [
@@ -383,6 +395,7 @@ dependencies = [
  "dada-parser",
  "dada-util",
  "futures",
+ "ordered-float",
  "salsa",
  "typed-arena",
 ]
@@ -404,6 +417,7 @@ dependencies = [
  "dada-util-procmacro",
  "fxhash",
  "imstr",
+ "indexmap",
  "salsa",
 ]
 
@@ -425,7 +439,7 @@ checksum = "804c8821570c3f8b70230c2ba75ffa5c0f9a4189b9a432b6656c536712acae28"
 dependencies = [
  "cfg-if",
  "crossbeam-utils",
- "hashbrown",
+ "hashbrown 0.14.5",
  "lock_api",
  "once_cell",
  "parking_lot_core",
@@ -661,12 +675,18 @@ dependencies = [
 ]
 
 [[package]]
+name = "hashbrown"
+version = "0.15.1"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "3a9bfc1af68b1726ea47d3d5109de126281def866b33970e10fbab11b5dafab3"
+
+[[package]]
 name = "hashlink"
 version = "0.9.1"
 source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "6ba4ff7128dee98c7dc9794b6a411377e1404dba1c97deb8d1a55297bd25d8af"
 dependencies = [
- "hashbrown",
+ "hashbrown 0.14.5",
 ]
 
 [[package]]
@@ -846,12 +866,12 @@ checksum = "7d3441deb04ea9c6b472f313be54d585428cd6a68cdb8dcf40cf43744bec78fe"
 
 [[package]]
 name = "indexmap"
-version = "2.2.6"
+version = "2.6.0"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "168fb715dda47215e360912c096649d23d58bf392ac62f73919e831745e40f26"
+checksum = "707907fe3c25f5424cce2cb7e1cbcafee6bdbe735ca90ef77c29e84591e5b9da"
 dependencies = [
  "equivalent",
- "hashbrown",
+ "hashbrown 0.15.1",
 ]
 
 [[package]]
@@ -908,6 +928,12 @@ name = "lazy_static"
 version = "1.5.0"
 source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "bbd2bcb4c963f2ddae06a2efc7e9f3591312473c50c6685e1f298068316e66fe"
+
+[[package]]
+name = "leb128"
+version = "0.2.5"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "884e2677b40cc8c339eaefcb701c32ef1fd2493d71118dc0ca4b6a736c93bd67"
 
 [[package]]
 name = "libc"
@@ -1007,6 +1033,15 @@ dependencies = [
 ]
 
 [[package]]
+name = "num-traits"
+version = "0.2.19"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "071dfc062690e90b734c0b2273ce72ad0ffa95f0c74596bc250dcfd960262841"
+dependencies = [
+ "autocfg",
+]
+
+[[package]]
 name = "number_prefix"
 version = "0.4.0"
 source = "registry+https://github.com/rust-lang/crates.io-index"
@@ -1026,6 +1061,15 @@ name = "once_cell"
 version = "1.19.0"
 source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "3fdb12b2476b595f9358c5161aa467c2438859caa136dec86c26fdd2efe17b92"
+
+[[package]]
+name = "ordered-float"
+version = "4.5.0"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "c65ee1f9701bf938026630b455d5315f490640234259037edb259798b3bcf85e"
+dependencies = [
+ "num-traits",
+]
 
 [[package]]
 name = "overload"
@@ -1784,6 +1828,26 @@ name = "wasi"
 version = "0.11.0+wasi-snapshot-preview1"
 source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "9c8d87e72b64a3b4db28d11ce29237c246188f4f51057d65a7eab63b7987e423"
+
+[[package]]
+name = "wasm-encoder"
+version = "0.220.0"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "ebf48234b389415b226a4daef6562933d38c7b28a8b8f64c5c4130dad1561ab7"
+dependencies = [
+ "leb128",
+ "wasmparser",
+]
+
+[[package]]
+name = "wasmparser"
+version = "0.220.0"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "e246c2772ce3ebc83f89a2d4487ac5794cad6c309b2071818a88c7db7c36d87b"
+dependencies = [
+ "bitflags 2.5.0",
+ "indexmap",
+]
 
 [[package]]
 name = "winapi"

@@ -4,8 +4,9 @@ version = "0.1.0"
 edition = "2021"
 
 [dependencies]
-anyhow = "1.0.86"
+anyhow = { workspace = true }
 dada-util-procmacro = { version = "0.1.0", path = "../dada-util-procmacro" }
 fxhash = "0.2.1"
 imstr = "0.2.0"
-salsa = { git = "https://github.com/salsa-rs/salsa.git", version = "0.18.0" }
+indexmap = "2.6.0"
+salsa = { workspace = true }

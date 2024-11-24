@@ -6,7 +6,8 @@ use futures::join;
 
 use crate::{
     env::Env,
-    object_ir::{IntoObjectIr, ObjectExpr, ObjectExprKind, ObjectTy},
+    object_ir::{ObjectExpr, ObjectExprKind, ObjectTy},
+    prelude::ToObjectIr,
     Checking,
 };
 
@@ -72,7 +73,7 @@ pub fn check_block_statements<'a, 'db>(
                     ObjectExprKind::LetIn {
                         lv,
                         sym_ty: Some(ty),
-                        ty: ty.into_object_ir(db),
+                        ty: ty.to_object_ir(db),
                         initializer,
                         body,
                     },
