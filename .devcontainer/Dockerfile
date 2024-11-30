@@ -8,6 +8,9 @@ RUN curl -fsSL https://deb.nodesource.com/setup_16.x | bash - \
 # Install additional tools or dependencies if needed
 RUN npm install -g yo generator-code
 
+# Install OpenSSH client
+RUN apt-get update && apt-get install -y openssh-client
+
 USER vscode
 
 # Install Rust and the wasm32-wasip1-threads target
