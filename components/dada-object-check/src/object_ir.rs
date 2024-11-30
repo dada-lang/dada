@@ -352,6 +352,35 @@ pub enum ObjectTyKind<'db> {
     Error(Reported),
 }
 
+#[salsa::interned]
+pub struct ObjectPerm<'db> {
+    pub kind: ObjectPermKind<'db>,
+}
+
+#[derive(Clone, PartialEq, Eq, PartialOrd, Ord, Hash, Update, Debug)]
+pub enum ObjectPermKind<'db> {
+    /// Shared from somewhere; includes `our`
+    Shared,
+
+    /// Leased is a unique reference to data owned by someone else
+    Leased,
+
+    /// Given from somewhere
+    Given,
+
+    /// Permissions applied consecutively and not yet simplified
+    Apply(ObjectPerm<'db>, ObjectPerm<'db>),
+
+    /// Reference to a generic, e.g., `T`.
+    Var(SymVariable<'db>),
+
+    /// Inference variable, e.g., `?X`.
+    Infer(InferVarIndex),
+
+    /// Indicates some kind of error occurred and has been reported to the user.
+    Error(Reported),
+}
+
 /// Value of a generic parameter
 #[derive(Copy, Clone, PartialEq, Eq, PartialOrd, Ord, Hash, Update, Debug, FromImpls)]
 pub enum ObjectGenericTerm<'db> {
