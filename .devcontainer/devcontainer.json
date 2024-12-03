@@ -22,11 +22,8 @@
 		}
 	},
 	"mounts": [
-		"source=${localEnv:SSH_AUTH_SOCK},target=/ssh-agent,type=bind"
-	],
-	"remoteEnv": {
-		"SSH_AUTH_SOCK": "/ssh-agent"
-	}
+		"source=${localEnv:HOME}/.ssh,target=/home/vscode/.ssh,type=bind"
+	]
 	// Or use a Dockerfile or Docker Compose file. More info: https://containers.dev/guide/dockerfile
 	//"image": "mcr.microsoft.com/devcontainers/base:bookworm",
 	//"features": {
