@@ -14,8 +14,7 @@ use futures::{Stream, StreamExt};
 use crate::{
     bound::{Direction, TransitiveBounds},
     check::Runtime,
-    object_ir::{ObjectExpr, ObjectGenericTerm, ObjectTy, ObjectTyKind},
-    prelude::ToObjectIr,
+    object_ir::{ObjectExpr, ObjectGenericTerm, ObjectTy, ObjectTyKind, ToObjectIr},
     subobject::{
         require_assignable_object_type, require_numeric_type, require_sub_object_type, Expected,
     },
@@ -23,7 +22,7 @@ use crate::{
 };
 
 #[derive(Clone)]
-pub struct Env<'db> {
+pub(crate) struct Env<'db> {
     universe: Universe,
 
     /// Reference to the runtime
@@ -44,7 +43,7 @@ pub struct Env<'db> {
 
 impl<'db> Env<'db> {
     /// Create an empty environment
-    pub fn new(runtime: &Runtime<'db>, scope: Scope<'db, 'db>) -> Self {
+    pub(crate) fn new(runtime: &Runtime<'db>, scope: Scope<'db, 'db>) -> Self {
         Self {
             universe: Universe::ROOT,
             runtime: runtime.clone(),
@@ -55,8 +54,18 @@ impl<'db> Env<'db> {
         }
     }
 
+    /// Extract the scope from the environment.
+    ///
+    /// # Panics
+    ///
+    /// If the scope has an outstanding reference.
+    #[track_caller]
+    pub fn into_scope(self) -> Scope<'db, 'db> {
+        Arc::into_inner(self.scope).unwrap()
+    }
+
     #[expect(dead_code)]
-    pub fn universe(&self) -> Universe {
+    pub(crate) fn universe(&self) -> Universe {
         self.universe
     }
 
@@ -72,12 +81,7 @@ impl<'db> Env<'db> {
 
     /// Open the given symbols as universally quantified.
     /// Creates a new universe.
-    pub fn open_universally<T>(
-        &mut self,
-        runtime: &Runtime<'db>,
-        variables: &[SymVariable<'db>],
-        value: &T,
-    ) -> T::LeafTerm
+    pub fn open_universally<T>(&mut self, runtime: &Runtime<'db>, value: &T) -> T::LeafTerm
     where
         T: BoundTerm<'db>,
     {
@@ -91,7 +95,7 @@ impl<'db> Env<'db> {
                 Arc::make_mut(&mut self.variable_universes)
                     .extend(binder.variables.iter().map(|&v| (v, self.universe)));
 
-                self.open_universally(runtime, variables, &binder.bound_value)
+                self.open_universally(runtime, &binder.bound_value)
             }
         }
     }
@@ -114,10 +118,24 @@ impl<'db> Env<'db> {
         self.universe = self.universe.next();
     }
 
-    /// Inserts a new program variable into the environment for later lookup.
-    pub fn insert_program_variable(&mut self, lv: SymVariable<'db>, ty: SymTy<'db>) {
-        Arc::make_mut(&mut self.scope).push_link(lv);
+    /// Sets the type for a program variable that is in scope already.
+    pub fn set_program_variable_ty(&mut self, lv: SymVariable<'db>, ty: SymTy<'db>) {
+        assert!(
+            self.scope.generic_sym_in_scope(self.db(), lv),
+            "variable `{lv:?}` not in scope"
+        );
+        assert!(
+            !self.variable_tys.contains_key(&lv),
+            "variable `{lv:?}` already has a type"
+        );
         Arc::make_mut(&mut self.variable_tys).insert(lv, ty);
+    }
+
+    /// Extends the scope with a new program variable.
+    /// You still need to call [`Self::set_program_variable_ty`][] after calling this function to set the type.
+    pub fn push_program_variable_with_ty(&mut self, lv: SymVariable<'db>, ty: SymTy<'db>) {
+        Arc::make_mut(&mut self.scope).push_link(lv);
+        self.set_program_variable_ty(lv, ty);
     }
 
     /// Set the return type of the current function.
@@ -148,7 +166,7 @@ impl<'db> Env<'db> {
     }
 
     pub fn fresh_object_ty_inference_var(&self, span: Span<'db>) -> ObjectTy<'db> {
-        self.fresh_ty_inference_var(span).to_object_ir(self.db())
+        self.fresh_ty_inference_var(span).to_object_ir(self)
     }
 
     pub fn require_assignable_object_type(
@@ -157,9 +175,8 @@ impl<'db> Env<'db> {
         value_ty: impl ToObjectIr<'db, Object = ObjectTy<'db>>,
         place_ty: impl ToObjectIr<'db, Object = ObjectTy<'db>>,
     ) {
-        let db = self.db();
-        let value_ty = value_ty.to_object_ir(db);
-        let place_ty = place_ty.to_object_ir(db);
+        let value_ty = value_ty.to_object_ir(self);
+        let place_ty = place_ty.to_object_ir(self);
         self.runtime.defer(self, value_span, move |env| async move {
             match require_assignable_object_type(&env, value_span, value_ty, place_ty).await {
                 Ok(()) => (),
@@ -174,9 +191,8 @@ impl<'db> Env<'db> {
         expected_ty: impl ToObjectIr<'db, Object = ObjectTy<'db>>,
         found_ty: impl ToObjectIr<'db, Object = ObjectTy<'db>>,
     ) {
-        let db = self.db();
-        let expected_ty = expected_ty.to_object_ir(db);
-        let found_ty = found_ty.to_object_ir(db);
+        let expected_ty = expected_ty.to_object_ir(self);
+        let found_ty = found_ty.to_object_ir(self);
         self.runtime.defer(self, span, move |env| async move {
             match require_sub_object_type(&env, Expected::Lower, span, expected_ty, found_ty).await
             {
@@ -197,8 +213,7 @@ impl<'db> Env<'db> {
         span: Span<'db>,
         ty: impl ToObjectIr<'db, Object = ObjectTy<'db>>,
     ) {
-        let db = self.db();
-        let ty = ty.to_object_ir(db);
+        let ty = ty.to_object_ir(self);
         self.runtime.defer(self, span, move |env| async move {
             match require_numeric_type(&env, span, ty).await {
                 Ok(()) => (),

@@ -28,9 +28,8 @@ use crate::{
     member::MemberLookup,
     object_ir::{
         MatchArm, ObjectBinaryOp, ObjectExpr, ObjectExprKind, ObjectPlaceExpr, ObjectPlaceExprKind,
-        ObjectTy, ObjectTyKind, PrimitiveLiteral,
+        ObjectTy, ObjectTyKind, PrimitiveLiteral, ToObjectIr,
     },
-    prelude::ToObjectIr,
     subobject::{require_sub_object_type, Expected},
     Checking,
 };
@@ -1097,12 +1096,12 @@ async fn check_call_common<'db>(
     let mut call_expr = ObjectExpr::new(
         db,
         expr_span,
-        input_output.output_ty.to_object_ir(db),
+        input_output.output_ty.to_object_ir(env),
         ObjectExprKind::Call {
             function,
             substitution: sym_substitution
                 .iter()
-                .map(|t| t.to_object_ir(db))
+                .map(|t| t.to_object_ir(env))
                 .collect(),
             sym_substitution,
             arg_temps: arg_temp_symbols.clone(),
@@ -1147,7 +1146,7 @@ impl<'db> ExprResult<'db> {
         let db = env.db();
         match res.sym {
             NameResolutionSym::SymVariable(var) if var.kind(db) == SymGenericKind::Place => {
-                let ty = env.variable_ty(var).to_object_ir(db);
+                let ty = env.variable_ty(var).to_object_ir(env);
                 let place_expr = ObjectPlaceExpr::new(db, span, ty, ObjectPlaceExprKind::Var(var));
                 Self {
                     temporaries: vec![],
@@ -1208,7 +1207,7 @@ impl<'db> ExprResult<'db> {
                 ObjectExprKind::LetIn {
                     lv: temporary.lv,
                     sym_ty: None,
-                    ty: temporary.ty.to_object_ir(db),
+                    ty: temporary.ty.to_object_ir(env),
                     initializer: temporary.initializer,
                     body: expr,
                 },

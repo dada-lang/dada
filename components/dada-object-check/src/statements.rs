@@ -6,8 +6,7 @@ use futures::join;
 
 use crate::{
     env::Env,
-    object_ir::{ObjectExpr, ObjectExprKind, ObjectTy},
-    prelude::ToObjectIr,
+    object_ir::{ObjectExpr, ObjectExprKind, ObjectTy, ToObjectIr},
     Checking,
 };
 
@@ -60,7 +59,7 @@ pub fn check_block_statements<'a, 'db>(
                     },
                     async {
                         let mut env = env.clone();
-                        env.insert_program_variable(lv, ty);
+                        env.push_program_variable_with_ty(lv, ty);
                         check_block_statements(&env, block_span, rest).await
                     },
                 );
@@ -73,7 +72,7 @@ pub fn check_block_statements<'a, 'db>(
                     ObjectExprKind::LetIn {
                         lv,
                         sym_ty: Some(ty),
-                        ty: ty.to_object_ir(db),
+                        ty: ty.to_object_ir(env),
                         initializer,
                         body,
                     },

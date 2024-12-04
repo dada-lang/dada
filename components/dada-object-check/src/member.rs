@@ -16,8 +16,9 @@ use futures::{Stream, StreamExt};
 use crate::{
     env::Env,
     exprs::{ExprResult, ExprResultKind},
-    object_ir::{ObjectGenericTerm, ObjectPlaceExpr, ObjectPlaceExprKind, ObjectTy, ObjectTyKind},
-    prelude::ToObjectIr,
+    object_ir::{
+        ObjectGenericTerm, ObjectPlaceExpr, ObjectPlaceExprKind, ObjectTy, ObjectTyKind, ToObjectIr,
+    },
 };
 
 #[derive(Copy, Clone)]
@@ -333,7 +334,10 @@ impl<'member, 'db> MemberLookup<'member, 'db> {
                         return Some(SearchResult::Field {
                             owner,
                             field,
-                            field_ty: field.ty(db).to_object_ir(db).substitute(db, &generics),
+                            field_ty: field
+                                .ty(db)
+                                .to_object_ir(self.env)
+                                .substitute(db, &generics),
                         });
                     }
                 }

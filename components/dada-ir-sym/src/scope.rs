@@ -129,11 +129,7 @@ impl<'scope, 'db> Scope<'scope, 'db> {
         )
     }
 
-    /// Find a generic symbol in the scope and returns its name resolution.
-    ///
-    /// # Panics
-    ///
-    /// If the symbol is not in the scope.
+    /// True if `sym` is in scope.
     pub fn generic_sym_in_scope(&self, db: &'db dyn crate::Db, sym: SymVariable<'db>) -> bool {
         self.chain.iter().any(|link| link.binds_symbol(db, sym))
     }
@@ -161,7 +157,7 @@ impl<'scope, 'db> Scope<'scope, 'db> {
     /// # Panics
     ///
     /// If the target type `B` requires more binding levels than are present in scope.
-    pub(crate) fn into_bound_value<B>(self, db: &'db dyn crate::Db, value: B::LeafTerm) -> B
+    pub fn into_bound_value<B>(self, db: &'db dyn crate::Db, value: B::LeafTerm) -> B
     where
         B: BoundTerm<'db>,
     {

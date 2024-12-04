@@ -6,7 +6,7 @@ use dada_ir_sym::{
 };
 use dada_object_check::{
     object_ir::{ObjectGenericTerm, ObjectTy, ObjectTyKind},
-    prelude::ToObjectIr,
+    prelude::ObjectCheckFieldTy,
 };
 use dada_util::Map;
 use wasm_encoder::ValType;
@@ -179,10 +179,11 @@ impl<'db> Cx<'db> {
         ty_args: &'a Vec<ObjectGenericTerm<'db>>,
     ) -> impl Iterator<Item = ObjectTy<'db>> + use<'a, 'db> {
         let db = self.db;
-        aggr.fields(db).map(|f| f.ty(db)).map(|ty| {
-            let ty = ty.to_object_ir(db);
-            let ty = ty.substitute(db, ty_args);
-            ty.substitute(db, &[ObjectGenericTerm::Place])
-        })
+        aggr.fields(db)
+            .map(|f| f.object_check_field_ty(db))
+            .map(|ty| {
+                let ty = ty.substitute(db, ty_args);
+                ty.substitute(db, &[ObjectGenericTerm::Place])
+            })
     }
 }

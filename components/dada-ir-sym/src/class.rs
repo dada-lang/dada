@@ -276,11 +276,16 @@ impl<'db> SymField<'db> {
     /// The type of this field, bound by the generics from the class and the `self` variable.
     #[salsa::tracked]
     pub fn ty(self, db: &'db dyn crate::Db) -> Binder<'db, Binder<'db, SymTy<'db>>> {
-        let self_sym = self.self_sym(db);
-        let scope = self.scope_item(db).into_scope(db).with_link(self_sym);
+        let scope = self.into_scope(db);
         let ast_ty = self.source(db).variable(db).ty(db);
         let sym_ty = ast_ty.into_sym_in_scope(db, &scope);
         scope.into_bound_value(db, sym_ty)
+    }
+
+    /// The scope for resolving the type of this field.
+    pub fn into_scope(self, db: &'db dyn crate::Db) -> Scope<'db, 'db> {
+        let self_sym = self.self_sym(db);
+        self.scope_item(db).into_scope(db).with_link(self_sym)
     }
 }
 

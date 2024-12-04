@@ -5,24 +5,34 @@
 #![feature(trait_upcasting)]
 #![feature(async_closure)]
 
-use dada_ir_sym::function::SymFunction;
+use dada_ir_ast::diagnostic::{Err, Errors};
 pub use dada_ir_sym::Db;
+use dada_ir_sym::{binder::Binder, class::SymField, function::SymFunction};
 use env::Env;
-use object_ir::ObjectExpr;
+use object_ir::{ObjectExpr, ObjectFunctionSignature, ObjectTy};
 
 pub mod prelude {
-    use salsa::Update;
+    use dada_ir_ast::diagnostic::Errors;
+    use dada_ir_sym::binder::Binder;
 
-    use crate::object_ir::ObjectExpr;
+    use crate::object_ir::{ObjectExpr, ObjectFunctionSignature, ObjectTy};
 
     pub trait ObjectCheckFunctionBody<'db> {
         fn object_check_body(self, db: &'db dyn crate::Db) -> Option<ObjectExpr<'db>>;
     }
 
-    pub trait ToObjectIr<'db>: Update {
-        type Object: Update;
+    pub trait ObjectCheckFieldTy<'db> {
+        fn object_check_field_ty(
+            self,
+            db: &'db dyn crate::Db,
+        ) -> Binder<'db, Binder<'db, ObjectTy<'db>>>;
+    }
 
-        fn to_object_ir(&self, db: &'db dyn crate::Db) -> Self::Object;
+    pub trait ObjectCheckFunctionSignature<'db> {
+        fn object_check_signature(
+            self,
+            db: &'db dyn crate::Db,
+        ) -> Errors<ObjectFunctionSignature<'db>>;
     }
 }
 
@@ -33,6 +43,7 @@ mod env;
 mod exprs;
 mod inference;
 mod member;
+mod misc_tys;
 pub mod object_ir;
 mod statements;
 mod subobject;
@@ -49,5 +60,32 @@ impl<'db> prelude::ObjectCheckFunctionBody<'db> for SymFunction<'db> {
     #[salsa::tracked]
     fn object_check_body(self, db: &'db dyn crate::Db) -> Option<ObjectExpr<'db>> {
         blocks::check_function_body(db, self)
+    }
+}
+
+#[salsa::tracked]
+impl<'db> prelude::ObjectCheckFieldTy<'db> for SymField<'db> {
+    #[salsa::tracked]
+    fn object_check_field_ty(
+        self,
+        db: &'db dyn crate::Db,
+    ) -> Binder<'db, Binder<'db, ObjectTy<'db>>> {
+        match misc_tys::check_field(db, self) {
+            Ok(v) => v,
+            Err(reported) => self
+                .ty(db)
+                .map(db, |b| b.map(db, |_ty| ObjectTy::err(db, reported))),
+        }
+    }
+}
+
+#[salsa::tracked]
+impl<'db> prelude::ObjectCheckFunctionSignature<'db> for SymFunction<'db> {
+    #[salsa::tracked]
+    fn object_check_signature(
+        self,
+        db: &'db dyn crate::Db,
+    ) -> Errors<ObjectFunctionSignature<'db>> {
+        blocks::check_function_signature(db, self)
     }
 }

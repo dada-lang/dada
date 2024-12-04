@@ -142,3 +142,9 @@ pub fn ordinal(n: usize) -> impl std::fmt::Display {
 pub trait Err<'db> {
     fn err(db: &'db dyn crate::Db, reported: Reported) -> Self;
 }
+
+impl<'db, T> Err<'db> for Errors<T> {
+    fn err(_db: &'db dyn crate::Db, reported: Reported) -> Self {
+        Err(reported)
+    }
+}

@@ -19,9 +19,9 @@ use dada_ir_ast::{
     span::Span,
 };
 use dada_ir_sym::{
-    binder::LeafBoundTerm,
+    binder::{Binder, LeafBoundTerm},
     class::SymField,
-    function::SymFunction,
+    function::{SignatureSymbols, SymFunction},
     indices::InferVarIndex,
     primitive::{SymPrimitive, SymPrimitiveKind},
     symbol::{FromVar, HasKind, SymGenericKind, SymVariable},
@@ -31,7 +31,13 @@ use dada_util::FromImpls;
 use ordered_float::OrderedFloat;
 use salsa::Update;
 
-use crate::{exprs::Temporary, prelude::ToObjectIr};
+use crate::{env::Env, exprs::Temporary};
+
+pub(crate) trait ToObjectIr<'db>: Update {
+    type Object: Update;
+
+    fn to_object_ir(&self, env: &Env<'db>) -> Self::Object;
+}
 
 #[salsa::tracked]
 pub struct ObjectExpr<'db> {
@@ -251,7 +257,10 @@ pub struct ObjectTy<'db> {
 
 impl<'db> ObjectTy<'db> {
     pub fn unit(db: &'db dyn crate::Db) -> ObjectTy<'db> {
-        SymTy::unit(db).to_object_ir(db)
+        ObjectTy::new(
+            db,
+            ObjectTyKind::Named(SymTyName::Tuple { arity: 0 }, vec![]),
+        )
     }
 
     pub fn shared(self, _db: &'db dyn crate::Db) -> ObjectTy<'db> {
@@ -263,7 +272,7 @@ impl<'db> ObjectTy<'db> {
     }
 
     pub fn never(db: &'db dyn crate::Db) -> ObjectTy<'db> {
-        SymTy::never(db).to_object_ir(db)
+        ObjectTy::new(db, ObjectTyKind::Never)
     }
 
     pub fn named(
@@ -411,7 +420,13 @@ impl<'db> HasKind<'db> for ObjectGenericTerm<'db> {
 
 impl<'db> FromVar<'db> for ObjectGenericTerm<'db> {
     fn var(db: &'db dyn crate::Db, var: SymVariable<'db>) -> Self {
-        SymGenericTerm::var(db, var).to_object_ir(db)
+        match var.kind(db) {
+            SymGenericKind::Type => {
+                ObjectGenericTerm::Type(ObjectTy::new(db, ObjectTyKind::Var(var)))
+            }
+            SymGenericKind::Perm => ObjectGenericTerm::Perm,
+            SymGenericKind::Place => ObjectGenericTerm::Place,
+        }
     }
 }
 
@@ -470,6 +485,20 @@ impl<'db> ObjectGenericTerm<'db> {
             ObjectGenericTerm::Error(_) => true,
         }
     }
+}
+
+/// Object version of [`SymFunctionSignature`][]
+#[salsa::tracked]
+pub struct ObjectFunctionSignature<'db> {
+    #[return_ref]
+    pub symbols: SignatureSymbols<'db>,
+
+    /// Input/output types:
+    ///
+    /// * Outer binder is for generic symbols from the function and its surrounding scopes
+    /// * Inner binder is the function local variables.
+    #[return_ref]
+    pub input_output: Binder<'db, Binder<'db, ObjectInputOutput<'db>>>,
 }
 
 #[derive(Clone, PartialEq, Eq, PartialOrd, Ord, Hash, Update, Debug)]

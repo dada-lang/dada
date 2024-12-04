@@ -1,7 +1,8 @@
+use dada_ir_ast::diagnostic::Err;
 use dada_ir_sym::{function::SymFunction, symbol::SymVariable};
 use dada_object_check::{
-    object_ir::{ObjectGenericTerm, ObjectInputOutput},
-    prelude::{ObjectCheckFunctionBody, ToObjectIr},
+    object_ir::{ObjectGenericTerm, ObjectInputOutput, ObjectTy},
+    prelude::{ObjectCheckFunctionBody, ObjectCheckFunctionSignature},
 };
 use dada_util::Map;
 use wasm_encoder::ValType;
@@ -26,20 +27,15 @@ impl<'db> Cx<'db> {
         }
 
         // Extract function signature
-        let ObjectInputOutput {
-            input_tys,
-            output_ty,
-        } = {
-            let signature = function.signature(self.db);
-            let input_output = signature.input_output(self.db).to_object_ir(self.db);
-            let input_output = input_output.substitute(self.db, generics);
-            let dummy_places = input_output
-                .variables
-                .iter()
-                .map(|_| ObjectGenericTerm::Place)
-                .collect::<Vec<_>>();
-            input_output.substitute(self.db, &dummy_places)
-        };
+        let CodegenSignature {
+            inputs: _,
+            generics: _,
+            input_output:
+                ObjectInputOutput {
+                    input_tys,
+                    output_ty,
+                },
+        } = self.codegen_signature(function, &generics);
 
         // Create the type for this function
         let ty_index = {
@@ -103,28 +99,40 @@ impl<'db> Cx<'db> {
         function: SymFunction<'db>,
         generics: &[ObjectGenericTerm<'db>],
     ) -> CodegenSignature<'db> {
-        let sym_signature = function.signature(self.db);
-        let symbols = sym_signature.symbols(self.db);
+        match function.object_check_signature(self.db) {
+            Ok(signature) => {
+                let symbols = signature.symbols(self.db);
 
-        let input_output = sym_signature.input_output(self.db).to_object_ir(self.db);
-        let input_output = input_output.substitute(self.db, generics);
-        let dummy_places = sym_signature
-            .symbols(self.db)
-            .input_variables
-            .iter()
-            .map(|_| ObjectGenericTerm::Place)
-            .collect::<Vec<_>>();
-        let input_output = input_output.substitute(self.db, &dummy_places);
+                let input_output = signature
+                    .input_output(self.db)
+                    .substitute(self.db, generics);
+                let dummy_places = symbols
+                    .input_variables
+                    .iter()
+                    .map(|_| ObjectGenericTerm::Place)
+                    .collect::<Vec<_>>();
+                let input_output = input_output.substitute(self.db, &dummy_places);
 
-        CodegenSignature {
-            inputs: &symbols.input_variables,
-            generics: symbols
-                .generic_variables
-                .iter()
-                .copied()
-                .zip(generics.iter().copied())
-                .collect(),
-            input_output,
+                CodegenSignature {
+                    inputs: &symbols.input_variables,
+                    generics: symbols
+                        .generic_variables
+                        .iter()
+                        .copied()
+                        .zip(generics.iter().copied())
+                        .collect(),
+                    input_output,
+                }
+            }
+
+            Err(reported) => CodegenSignature {
+                inputs: &[],
+                generics: Default::default(),
+                input_output: ObjectInputOutput {
+                    input_tys: vec![],
+                    output_ty: ObjectTy::err(self.db, reported),
+                },
+            },
         }
     }
 }
