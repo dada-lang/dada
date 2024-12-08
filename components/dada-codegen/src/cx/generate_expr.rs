@@ -3,8 +3,8 @@ use std::sync::Arc;
 use dada_ir_ast::{ast::PermissionOp, diagnostic::Reported};
 use dada_ir_sym::{primitive::SymPrimitiveKind, subst::Subst, symbol::SymVariable, ty::SymTyName};
 use dada_object_check::object_ir::{
-    MatchArm, ObjectBinaryOp, ObjectExpr, ObjectExprKind, ObjectGenericTerm, ObjectTy,
-    ObjectTyKind, PrimitiveLiteral,
+    MatchArm, ObjectBinaryOp, ObjectExpr, ObjectExprKind, SymGenericTerm, SymTy,
+    SymTyKind, PrimitiveLiteral,
 };
 use dada_util::Map;
 use wasm_encoder::{Instruction, ValType};
@@ -17,7 +17,7 @@ pub(crate) mod wasm_place_repr;
 pub(crate) struct ExprCodegen<'cx, 'db> {
     cx: &'cx mut Cx<'db>,
 
-    generics: Map<SymVariable<'db>, ObjectGenericTerm<'db>>,
+    generics: Map<SymVariable<'db>, SymGenericTerm<'db>>,
 
     /// Accumulates wasm locals. We make no effort to reduce the number of local variables created.
     wasm_locals: Vec<wasm_encoder::ValType>,
@@ -38,7 +38,7 @@ pub(crate) struct ExprCodegen<'cx, 'db> {
 impl<'cx, 'db> ExprCodegen<'cx, 'db> {
     pub fn new(
         cx: &'cx mut Cx<'db>,
-        generics: Map<SymVariable<'db>, ObjectGenericTerm<'db>>,
+        generics: Map<SymVariable<'db>, SymGenericTerm<'db>>,
     ) -> Self {
         // Initially there is one local variable, the stack pointer.
         Self {
@@ -60,7 +60,7 @@ impl<'cx, 'db> ExprCodegen<'cx, 'db> {
         f
     }
 
-    pub fn pop_arguments(&mut self, inputs: &[SymVariable<'db>], input_tys: &[ObjectTy<'db>]) {
+    pub fn pop_arguments(&mut self, inputs: &[SymVariable<'db>], input_tys: &[SymTy<'db>]) {
         assert_eq!(inputs.len(), input_tys.len());
         for (&input, &input_ty) in inputs.iter().zip(input_tys).rev() {
             self.insert_variable(input, input_ty);
@@ -203,11 +203,11 @@ impl<'cx, 'db> ExprCodegen<'cx, 'db> {
         }
     }
 
-    fn pop_and_drop(&mut self, _of_type: ObjectTy<'db>) {
+    fn pop_and_drop(&mut self, _of_type: SymTy<'db>) {
         // currently everything is stack allocated, no dropping required
     }
 
-    pub(super) fn pop_and_return(&mut self, _of_type: ObjectTy<'db>) {
+    pub(super) fn pop_and_return(&mut self, _of_type: SymTy<'db>) {
         self.instructions.push(Instruction::Return);
     }
 
@@ -215,8 +215,8 @@ impl<'cx, 'db> ExprCodegen<'cx, 'db> {
     fn execute_binary_op(
         &mut self,
         binary_op: ObjectBinaryOp,
-        lhs_ty: ObjectTy<'db>,
-        rhs_ty: ObjectTy<'db>,
+        lhs_ty: SymTy<'db>,
+        rhs_ty: SymTy<'db>,
     ) {
         match self.primitive_kind(lhs_ty) {
             Ok(prim_kind) => {
@@ -464,24 +464,24 @@ impl<'cx, 'db> ExprCodegen<'cx, 'db> {
     }
 
     /// Return the primitive kind that represents `ty` or `Err` if `ty` is not a primitive.
-    fn primitive_kind(&self, ty: ObjectTy<'db>) -> Result<SymPrimitiveKind, NotPrimitive> {
+    fn primitive_kind(&self, ty: SymTy<'db>) -> Result<SymPrimitiveKind, NotPrimitive> {
         let db = self.cx.db;
         match ty.kind(db) {
-            ObjectTyKind::Named(ty_name, _ty_args) => match ty_name {
+            SymTyKind::Named(ty_name, _ty_args) => match ty_name {
                 SymTyName::Primitive(sym_primitive) => Ok(sym_primitive.kind(db)),
                 SymTyName::Aggregate(_) | SymTyName::Future | SymTyName::Tuple { arity: _ } => {
                     Err(NotPrimitive::OtherType)
                 }
             },
-            ObjectTyKind::Var(sym_variable) => {
+            SymTyKind::Var(sym_variable) => {
                 self.primitive_kind(self.generics[sym_variable].assert_type(db))
             }
-            ObjectTyKind::Never | ObjectTyKind::Error(_) => Err(NotPrimitive::DeadCode),
-            ObjectTyKind::Infer(_) => panic!("unexpected inference variable"),
+            SymTyKind::Never | SymTyKind::Error(_) => Err(NotPrimitive::DeadCode),
+            SymTyKind::Infer(_) => panic!("unexpected inference variable"),
         }
     }
 
-    fn push_match_expr(&mut self, match_ty: ObjectTy<'db>, arms: &[MatchArm<'db>]) {
+    fn push_match_expr(&mut self, match_ty: SymTy<'db>, arms: &[MatchArm<'db>]) {
         let Some((if_arm, else_arms)) = arms.split_first() else {
             return;
         };
@@ -521,7 +521,7 @@ impl<'cx, 'db> ExprCodegen<'cx, 'db> {
     /// an object-type into this form.
     ///
     /// [cfi]: https://webassembly.github.io/spec/core/syntax/instructions.html#control-instructions
-    fn block_type(&mut self, match_ty: ObjectTy<'db>) -> wasm_encoder::BlockType {
+    fn block_type(&mut self, match_ty: SymTy<'db>) -> wasm_encoder::BlockType {
         let val_types = self
             .cx
             .wasm_repr_of_type(match_ty, &self.generics)
@@ -535,22 +535,22 @@ impl<'cx, 'db> ExprCodegen<'cx, 'db> {
         }
     }
 
-    fn push_literal(&mut self, ty: ObjectTy<'db>, literal: PrimitiveLiteral) {
+    fn push_literal(&mut self, ty: SymTy<'db>, literal: PrimitiveLiteral) {
         let db = self.cx.db;
         let kind = match ty.kind(db) {
-            ObjectTyKind::Named(sym_ty_name, _) => match sym_ty_name {
+            SymTyKind::Named(sym_ty_name, _) => match sym_ty_name {
                 SymTyName::Primitive(sym_primitive) => sym_primitive.kind(db),
                 SymTyName::Aggregate(_) | SymTyName::Future | SymTyName::Tuple { arity: _ } => {
                     panic!("unexpected type for literal {literal:?}: {ty:?}")
                 }
             },
-            ObjectTyKind::Var(sym_variable) => {
+            SymTyKind::Var(sym_variable) => {
                 return self.push_literal(self.generics[sym_variable].assert_type(db), literal);
             }
-            ObjectTyKind::Infer(_) | ObjectTyKind::Never => {
+            SymTyKind::Infer(_) | SymTyKind::Never => {
                 panic!("unexpected type for literal {literal:?}: {ty:?}")
             }
-            ObjectTyKind::Error(reported) => {
+            SymTyKind::Error(reported) => {
                 return self.push_error(*reported);
             }
         };

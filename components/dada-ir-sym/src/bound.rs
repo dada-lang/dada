@@ -4,13 +4,12 @@ use std::{
     task::{Context, Poll},
 };
 
-use dada_ir_sym::indices::InferVarIndex;
-
 use crate::{
-    check::Runtime,
-    inference::InferenceVarData,
-    object_ir::{ObjectGenericTerm, ObjectTyKind},
+    indices::InferVarIndex,
+    ty::{SymGenericTerm, SymPermKind, SymPlaceKind, SymTyKind},
 };
+
+use crate::{check::Runtime, inference::InferenceVarData};
 
 #[derive(Copy, Clone, PartialEq, Eq, PartialOrd, Ord, Hash, Debug)]
 pub(crate) enum Direction {
@@ -121,23 +120,39 @@ pub(crate) trait OutputTerm<'db>: Copy {
     fn as_var(self, db: &'db dyn crate::Db) -> Option<InferVarIndex>;
 }
 
-impl<'db> OutputTerm<'db> for ObjectGenericTerm<'db> {
+impl<'db> OutputTerm<'db> for SymGenericTerm<'db> {
     fn bound_slices<'i>(data: &'i InferenceVarData<'db>) -> (&'i [Self], &'i [Self]) {
         (data.lower_bounds(), data.upper_bounds())
     }
 
     fn as_var(self, db: &'db dyn crate::Db) -> Option<InferVarIndex> {
         match self {
-            ObjectGenericTerm::Type(object_ty) => match object_ty.kind(db) {
-                ObjectTyKind::Infer(infer) => Some(*infer),
-                ObjectTyKind::Var(..)
-                | ObjectTyKind::Named(..)
-                | ObjectTyKind::Never
-                | ObjectTyKind::Error(_) => None,
+            SymGenericTerm::Type(ty) => match ty.kind(db) {
+                SymTyKind::Infer(infer) => Some(*infer),
+                SymTyKind::Var(..)
+                | SymTyKind::Named(..)
+                | SymTyKind::Never
+                | SymTyKind::Error(_)
+                | SymTyKind::Perm(..) => None,
             },
-            ObjectGenericTerm::Perm => None,
-            ObjectGenericTerm::Place => None,
-            ObjectGenericTerm::Error(_) => None,
+            SymGenericTerm::Perm(perm) => match perm.kind(db) {
+                SymPermKind::Infer(infer) => Some(*infer),
+                SymPermKind::My
+                | SymPermKind::Our
+                | SymPermKind::Shared(_)
+                | SymPermKind::Leased(_)
+                | SymPermKind::Given(_)
+                | SymPermKind::Var(_)
+                | SymPermKind::Error(_) => None,
+            },
+            SymGenericTerm::Place(place) => match place.kind(db) {
+                SymPlaceKind::Infer(infer) => Some(*infer),
+                SymPlaceKind::Var(_)
+                | SymPlaceKind::Field(..)
+                | SymPlaceKind::Index(..)
+                | SymPlaceKind::Error(..) => None,
+            },
+            SymGenericTerm::Error(_) => None,
         }
     }
 }

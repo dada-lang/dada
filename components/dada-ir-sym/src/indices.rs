@@ -6,6 +6,11 @@ use crate::symbol::SymGenericKind;
 #[derive(Copy, Clone, PartialEq, Eq, PartialOrd, Ord, Hash, Update, Debug)]
 pub struct InferVarIndex(usize);
 
+/// Create an instance of `Self` from an inference variable
+pub trait FromInfer<'db> {
+    fn infer(db: &'db dyn crate::Db, var: InferVarIndex) -> Self;
+}
+
 impl InferVarIndex {
     pub fn as_usize(self) -> usize {
         self.0

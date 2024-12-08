@@ -7,4 +7,6 @@ edition = "2021"
 dada-ir-ast = { version = "0.1.0", path = "../dada-ir-ast" }
 dada-parser = { version = "0.1.0", path = "../dada-parser" }
 dada-util = { version = "0.1.0", path = "../dada-util" }
+futures = "0.3.31"
+ordered-float = "4.5.0"
 salsa = { workspace = true }

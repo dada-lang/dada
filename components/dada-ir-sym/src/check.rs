@@ -7,22 +7,15 @@ use std::{
     task::{Context, Waker},
 };
 
+use crate::{indices::InferVarIndex, symbol::SymGenericKind, ty::SymGenericTerm};
 use check_task::CheckTask;
 use dada_ir_ast::{
     diagnostic::{Diagnostic, Err, Level},
     span::Span,
 };
-use dada_ir_sym::{
-    indices::{FromInferVar, InferVarIndex},
-    symbol::SymGenericKind,
-    ty::SymGenericTerm,
-};
 use dada_util::{vecset::VecSet, Map};
 
-use crate::{
-    bound::Direction, env::Env, inference::InferenceVarData, object_ir::ObjectGenericTerm,
-    universe::Universe,
-};
+use crate::{bound::Direction, env::Env, inference::InferenceVarData, universe::Universe};
 
 #[derive(Clone)]
 pub(crate) struct Runtime<'db> {
@@ -139,11 +132,11 @@ impl<'db> Runtime<'db> {
         kind: SymGenericKind,
         universe: Universe,
         span: Span<'db>,
-    ) -> SymGenericTerm<'db> {
+    ) -> InferVarIndex {
         let mut inference_vars = self.inference_vars.write().unwrap();
         let var_index = InferVarIndex::from(inference_vars.len());
         inference_vars.push(InferenceVarData::new(kind, universe, span));
-        SymGenericTerm::infer(self.db, kind, var_index)
+        var_index
     }
 
     /// Read the current data for the given inference variable.
@@ -165,7 +158,7 @@ impl<'db> Runtime<'db> {
         &self,
         var: InferVarIndex,
         direction: Direction,
-        term: ObjectGenericTerm<'db>,
+        term: SymGenericTerm<'db>,
     ) -> bool {
         let mut inference_vars = self.inference_vars.write().unwrap();
         if inference_vars[var.as_usize()].insert_bound(self.db, direction, term) {

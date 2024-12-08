@@ -1,5 +1,23 @@
 use std::future::Future;
 
+use crate::{
+    binder::Binder,
+    class::SymAggregate,
+    env::Env,
+    function::{SymFunction, SymInputOutput},
+    member::MemberLookup,
+    object_ir::{
+        MatchArm, ObjectBinaryOp, ObjectExpr, ObjectExprKind, ObjectPlaceExpr, ObjectPlaceExprKind,
+        PrimitiveLiteral,
+    },
+    prelude::ObjectCheckFunctionSignature,
+    scope::{NameResolution, NameResolutionSym},
+    scope_tree::ScopeTreeNode,
+    subobject::{require_sub_object_type, Expected},
+    symbol::{FromVar, HasKind, SymGenericKind, SymVariable},
+    ty::{SymGenericTerm, SymPerm, SymTy, SymTyKind, SymTyName},
+    well_known, Checking,
+};
 use dada_ir_ast::{
     ast::{
         AstBinaryOp, AstExpr, AstExprKind, AstGenericTerm, Identifier, LiteralKind, PermissionOp,
@@ -8,31 +26,9 @@ use dada_ir_ast::{
     diagnostic::{Diagnostic, Err, Level, Reported},
     span::{Span, Spanned},
 };
-use dada_ir_sym::{
-    binder::Binder,
-    class::SymAggregate,
-    function::{SymFunction, SymInputOutput},
-    prelude::IntoSymInScope,
-    scope::{NameResolution, NameResolutionSym},
-    scope_tree::ScopeTreeNode,
-    symbol::{FromVar, HasKind, SymGenericKind, SymVariable},
-    ty::{SymGenericTerm, SymTyName},
-    well_known,
-};
 use dada_parser::prelude::*;
 use dada_util::FromImpls;
 use futures::StreamExt;
-
-use crate::{
-    env::Env,
-    member::MemberLookup,
-    object_ir::{
-        MatchArm, ObjectBinaryOp, ObjectExpr, ObjectExprKind, ObjectPlaceExpr, ObjectPlaceExprKind,
-        ObjectTy, ObjectTyKind, PrimitiveLiteral, ToObjectIr,
-    },
-    subobject::{require_sub_object_type, Expected},
-    Checking,
-};
 
 #[derive(Clone)]
 pub(crate) struct ExprResult<'db> {
@@ -56,7 +52,7 @@ pub(crate) struct ExprResult<'db> {
 #[derive(Clone)]
 pub(crate) struct Temporary<'db> {
     pub lv: SymVariable<'db>,
-    pub ty: ObjectTy<'db>,
+    pub ty: SymTy<'db>,
     pub initializer: Option<ObjectExpr<'db>>,
 }
 
@@ -64,7 +60,7 @@ impl<'db> Temporary<'db> {
     pub fn new(
         db: &'db dyn crate::Db,
         span: Span<'db>,
-        ty: ObjectTy<'db>,
+        ty: SymTy<'db>,
         initializer: Option<ObjectExpr<'db>>,
     ) -> Self {
         let lv = SymVariable::new(db, SymGenericKind::Place, None, span);
@@ -152,7 +148,7 @@ async fn check_expr<'db>(expr: &AstExpr<'db>, env: &Env<'db>) -> ExprResult<'db>
                     kind: ObjectExpr::new(
                         db,
                         expr_span,
-                        ObjectTy::boolean(db),
+                        SymTy::boolean(db),
                         ObjectExprKind::Primitive(PrimitiveLiteral::Integral { bits }),
                     )
                     .into(),
@@ -167,9 +163,9 @@ async fn check_expr<'db>(expr: &AstExpr<'db>, env: &Env<'db>) -> ExprResult<'db>
                 exprs.push(element.check(env).await.into_expr(env, &mut temporaries));
             }
 
-            let ty = ObjectTy::new(
+            let ty = SymTy::new(
                 db,
-                ObjectTyKind::Named(
+                SymTyKind::Named(
                     SymTyName::Tuple { arity: exprs.len() },
                     exprs.iter().map(|e| e.ty(db).into()).collect(),
                 ),
@@ -242,7 +238,7 @@ async fn check_expr<'db>(expr: &AstExpr<'db>, env: &Env<'db>) -> ExprResult<'db>
                         ObjectExpr::new(
                             db,
                             expr_span,
-                            ObjectTy::boolean(db),
+                            SymTy::boolean(db),
                             ObjectExprKind::BinaryOp(
                                 ObjectBinaryOp::try_from(span_op.op)
                                     .expect("invalid object binary op"),
@@ -284,7 +280,7 @@ async fn check_expr<'db>(expr: &AstExpr<'db>, env: &Env<'db>) -> ExprResult<'db>
                         ObjectExpr::new(
                             db,
                             expr_span,
-                            ObjectTy::boolean(db),
+                            SymTy::boolean(db),
                             ObjectExprKind::BinaryOp(
                                 ObjectBinaryOp::try_from(span_op.op).expect("invalid binary op"),
                                 lhs,
@@ -312,7 +308,7 @@ async fn check_expr<'db>(expr: &AstExpr<'db>, env: &Env<'db>) -> ExprResult<'db>
                         ObjectExpr::new(
                             db,
                             expr_span,
-                            ObjectTy::unit(db),
+                            SymTy::unit(db),
                             ObjectExprKind::Assign { place, value },
                         ),
                         temporaries,
@@ -515,7 +511,7 @@ async fn check_expr<'db>(expr: &AstExpr<'db>, env: &Env<'db>) -> ExprResult<'db>
                 ObjectExpr::new(
                     db,
                     expr_span,
-                    ObjectTy::unit(db),
+                    SymTy::unit(db),
                     ObjectExprKind::Tuple(vec![]),
                 )
             };
@@ -546,7 +542,7 @@ async fn check_expr<'db>(expr: &AstExpr<'db>, env: &Env<'db>) -> ExprResult<'db>
                 kind: ObjectExpr::new(
                     db,
                     expr_span,
-                    ObjectTy::never(db),
+                    SymTy::never(db),
                     ObjectExprKind::Return(return_expr),
                 )
                 .into(),
@@ -598,7 +594,7 @@ async fn check_expr<'db>(expr: &AstExpr<'db>, env: &Env<'db>) -> ExprResult<'db>
                     kind: ObjectExpr::new(
                         db,
                         expr_span,
-                        ObjectTy::boolean(db),
+                        SymTy::boolean(db),
                         ObjectExprKind::Not {
                             operand,
                             op_span: spanned_unary_op.span,
@@ -634,7 +630,7 @@ async fn check_expr<'db>(expr: &AstExpr<'db>, env: &Env<'db>) -> ExprResult<'db>
             }
 
             let if_ty = if !has_else {
-                ObjectTy::unit(db)
+                SymTy::unit(db)
             } else {
                 env.fresh_object_ty_inference_var(expr_span)
             };
@@ -654,6 +650,7 @@ async fn check_expr<'db>(expr: &AstExpr<'db>, env: &Env<'db>) -> ExprResult<'db>
             let mut temporaries = vec![];
             let value_result = value.check(env).await;
             let place_expr = value_result.into_place_expr(env, &mut temporaries);
+            let sym_place = place_expr.into_sym_place(db);
             ExprResult {
                 temporaries,
                 span: expr_span,
@@ -661,8 +658,8 @@ async fn check_expr<'db>(expr: &AstExpr<'db>, env: &Env<'db>) -> ExprResult<'db>
                     db,
                     expr_span,
                     match op {
-                        PermissionOp::Lease => place_expr.ty(db).leased(db),
-                        PermissionOp::Share => place_expr.ty(db).shared(db),
+                        PermissionOp::Lease => place_expr.ty(db).leased(db, sym_place),
+                        PermissionOp::Share => place_expr.ty(db).shared(db, sym_place),
                         PermissionOp::Give => place_expr.ty(db),
                     },
                     ObjectExprKind::PermissionOp(*op, place_expr),
@@ -777,27 +774,27 @@ async fn require_future<'db>(
     env: &Env<'db>,
     future_span: Span<'db>,
     await_span: Span<'db>,
-    future_ty: ObjectTy<'db>,
-    awaited_ty: ObjectTy<'db>,
+    future_ty: SymTy<'db>,
+    awaited_ty: SymTy<'db>,
 ) {
     let db = env.db();
 
     let mut bounds = env.transitive_lower_bounds(future_ty);
     while let Some(ty) = bounds.next().await {
-        match ty.kind(db) {
-            ObjectTyKind::Infer(_) => (),
-            ObjectTyKind::Never => {
+        match *ty.kind(db) {
+            SymTyKind::Infer(_) => (),
+            SymTyKind::Never => {
                 let _ =
                     require_sub_object_type(env, Expected::Lower, await_span, ty, awaited_ty).await;
                 return;
             }
-            ObjectTyKind::Error(_) => {
+            SymTyKind::Error(_) => {
                 let _ =
                     require_sub_object_type(env, Expected::Lower, await_span, ty, awaited_ty).await;
                 return;
             }
-            ObjectTyKind::Named(SymTyName::Future, vec) => {
-                let future_ty_arg = vec[0].assert_type(db);
+            SymTyKind::Named(SymTyName::Future, ref generic_args) => {
+                let future_ty_arg = generic_args[0].assert_type(db);
                 let _ = require_sub_object_type(
                     env,
                     Expected::Lower,
@@ -808,7 +805,7 @@ async fn require_future<'db>(
                 .await;
                 return;
             }
-            ObjectTyKind::Named(..) | ObjectTyKind::Var(..) => {
+            SymTyKind::Named(..) | SymTyKind::Var(..) => {
                 Diagnostic::error(db, await_span, format!("await requires a future"))
                     .label(
                         db,
@@ -820,8 +817,18 @@ async fn require_future<'db>(
                     .report(db);
                 return;
             }
+            SymTyKind::Perm(perm, ty) => {
+                require_owned(env, await_span, perm);
+                env.defer(await_span, async move |ref env| {
+                    require_future(env, future_span, await_span, ty, awaited_ty).await;
+                });
+            }
         }
     }
+}
+
+fn require_owned<'db>(env: &Env<'db>, await_span: Span<'db>, perm: SymPerm<'db>) {
+    todo!()
 }
 
 async fn check_function_call<'db>(
@@ -836,7 +843,15 @@ async fn check_function_call<'db>(
     let db = env.db();
 
     // Get the signature.
-    let signature = function.signature(db);
+    let signature = match function.object_check_signature(db) {
+        Ok(signature) => signature,
+        Err(reported) => {
+            for ast_arg in ast_args {
+                let _ = ast_arg.check(env).await;
+            }
+            return ExprResult::err(db, reported);
+        }
+    };
     let input_output = signature.input_output(db);
 
     // Create inference vairables for any generic arguments not provided.
@@ -845,7 +860,7 @@ async fn check_function_call<'db>(
     substitution.extend(
         expected_generics[generics.len()..]
             .iter()
-            .map(|&var| env.fresh_inference_var(var.kind(db), function_span)),
+            .map(|&var| env.fresh_inference_var_term(var.kind(db), function_span)),
     );
 
     check_call_common(
@@ -878,7 +893,18 @@ async fn check_method_call<'db>(
     let db = env.db();
 
     // Get the signature.
-    let signature = function.signature(db);
+    let signature = match function.object_check_signature(db) {
+        Ok(signature) => signature,
+        Err(reported) => {
+            for &generic in generics.iter().flatten() {
+                let _ = env.symbolize(generic);
+            }
+            for ast_arg in ast_args {
+                let _ = ast_arg.check(env).await;
+            }
+            return ExprResult::err(db, reported);
+        }
+    };
     let input_output = signature.input_output(db);
 
     // Prepare the substitution for the function.
@@ -942,8 +968,8 @@ async fn check_method_call<'db>(
             // Convert each generic to a `SymGenericTerm` and check it has the correct kind.
             // If everything looks good, add it to the substitution.
             for (ast_generic_term, var) in generics.iter().zip(function_generics.iter()) {
-                let sym_generic_term = ast_generic_term.into_sym_in_scope(db, &env.scope);
-                if !sym_generic_term.has_kind(db, var.kind(db)) {
+                let generic_term = env.symbolize(ast_generic_term);
+                if !generic_term.has_kind(db, var.kind(db)) {
                     return ExprResult::err(
                         db,
                         Diagnostic::error(
@@ -952,7 +978,7 @@ async fn check_method_call<'db>(
                             format!(
                                 "expected `{expected_kind}`, found `{found_kind}`",
                                 expected_kind = var.kind(db),
-                                found_kind = sym_generic_term.kind().unwrap(),
+                                found_kind = generic_term.kind().unwrap(),
                             ),
                         )
                         .label(
@@ -961,7 +987,7 @@ async fn check_method_call<'db>(
                             id_span,
                             format!(
                                 "this is a `{found_kind}`",
-                                found_kind = sym_generic_term.kind().unwrap(),
+                                found_kind = generic_term.kind().unwrap(),
                             ),
                         )
                         .label(
@@ -976,7 +1002,7 @@ async fn check_method_call<'db>(
                         .report(db),
                     );
                 }
-                substitution.push(sym_generic_term);
+                substitution.push(generic_term);
             }
 
             substitution
@@ -1003,7 +1029,7 @@ async fn check_call_common<'db>(
     expr_span: Span<'db>,
     callee_span: Span<'db>,
     input_output: &Binder<'db, Binder<'db, SymInputOutput<'db>>>,
-    sym_substitution: Vec<SymGenericTerm<'db>>,
+    substitution: Vec<SymGenericTerm<'db>>,
     ast_args: &[AstExpr<'db>],
     self_expr: Option<ObjectExpr<'db>>,
     mut temporaries: Vec<Temporary<'db>>,
@@ -1011,7 +1037,7 @@ async fn check_call_common<'db>(
     let db = env.db();
 
     // Instantiate the input-output with the substitution.
-    let input_output = input_output.substitute(db, &sym_substitution);
+    let input_output = input_output.substitute(db, &substitution);
 
     // Check the arity of the actual arguments.
     let self_args: usize = self_expr.is_some() as usize;
@@ -1096,14 +1122,10 @@ async fn check_call_common<'db>(
     let mut call_expr = ObjectExpr::new(
         db,
         expr_span,
-        input_output.output_ty.to_object_ir(env),
+        input_output.output_ty,
         ObjectExprKind::Call {
             function,
-            substitution: sym_substitution
-                .iter()
-                .map(|t| t.to_object_ir(env))
-                .collect(),
-            sym_substitution,
+            substitution,
             arg_temps: arg_temp_symbols.clone(),
         },
     );
@@ -1118,7 +1140,6 @@ async fn check_call_common<'db>(
             call_expr.ty(db),
             ObjectExprKind::LetIn {
                 lv: arg_temp_symbol,
-                sym_ty: None,
                 ty: arg_expr.ty(db),
                 initializer: Some(arg_expr),
                 body: call_expr,
@@ -1146,7 +1167,7 @@ impl<'db> ExprResult<'db> {
         let db = env.db();
         match res.sym {
             NameResolutionSym::SymVariable(var) if var.kind(db) == SymGenericKind::Place => {
-                let ty = env.variable_ty(var).to_object_ir(env);
+                let ty = env.variable_ty(var);
                 let place_expr = ObjectPlaceExpr::new(db, span, ty, ObjectPlaceExprKind::Var(var));
                 Self {
                     temporaries: vec![],
@@ -1206,8 +1227,7 @@ impl<'db> ExprResult<'db> {
                 expr.ty(db),
                 ObjectExprKind::LetIn {
                     lv: temporary.lv,
-                    sym_ty: None,
-                    ty: temporary.ty.to_object_ir(env),
+                    ty: temporary.ty,
                     initializer: temporary.initializer,
                     body: expr,
                 },
@@ -1219,19 +1239,19 @@ impl<'db> ExprResult<'db> {
 
     /// Computes the type of this, treating it as an expression.
     /// Reports an error if this names something that cannot be made into an expression.
-    pub fn ty(&self, env: &Env<'db>) -> ObjectTy<'db> {
+    pub fn ty(&self, env: &Env<'db>) -> SymTy<'db> {
         let db = env.db();
         match &self.kind {
             &ExprResultKind::PlaceExpr(place_expr) => place_expr.ty(db),
             &ExprResultKind::Expr(expr) => expr.ty(db),
             ExprResultKind::Other(name_resolution) => {
-                ObjectTy::err(db, report_non_expr(db, self.span, name_resolution))
+                SymTy::err(db, report_non_expr(db, self.span, name_resolution))
             }
             &ExprResultKind::Method {
                 self_expr: owner,
                 function: method,
                 ..
-            } => ObjectTy::err(
+            } => SymTy::err(
                 db,
                 report_missing_call_to_method(db, owner.span(db), method),
             ),
@@ -1276,12 +1296,16 @@ impl<'db> ExprResult<'db> {
         temporaries.extend(self.temporaries);
         match self.kind {
             ExprResultKind::Expr(expr) => expr,
-            ExprResultKind::PlaceExpr(place_expr) => ObjectExpr::new(
-                db,
-                place_expr.span(db),
-                place_expr.ty(db).shared(db),
-                ObjectExprKind::PermissionOp(PermissionOp::Share, place_expr),
-            ),
+            ExprResultKind::PlaceExpr(place_expr) => {
+                let sym_place = place_expr.into_sym_place(db);
+                ObjectExpr::new(
+                    db,
+                    place_expr.span(db),
+                    place_expr.ty(db).shared(db, sym_place),
+                    ObjectExprKind::PermissionOp(PermissionOp::Share, place_expr),
+                )
+            }
+
             ExprResultKind::Other(name_resolution) => {
                 ObjectExpr::err(db, report_non_expr(db, self.span, &name_resolution))
             }

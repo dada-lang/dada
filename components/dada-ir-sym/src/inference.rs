@@ -1,8 +1,7 @@
 use dada_ir_ast::span::Span;
-use dada_ir_sym::symbol::{HasKind, SymGenericKind};
 use dada_util::vecset::VecSet;
 
-use crate::{bound::Direction, object_ir::ObjectGenericTerm, universe::Universe};
+use crate::{bound::Direction, symbol::SymGenericKind, ty::SymGenericTerm, universe::Universe};
 
 pub(crate) struct InferenceVarData<'db> {
     kind: SymGenericKind,
@@ -12,8 +11,8 @@ pub(crate) struct InferenceVarData<'db> {
 
     span: Span<'db>,
 
-    lower_bounds: VecSet<ObjectGenericTerm<'db>>,
-    upper_bounds: VecSet<ObjectGenericTerm<'db>>,
+    lower_bounds: VecSet<SymGenericTerm<'db>>,
+    upper_bounds: VecSet<SymGenericTerm<'db>>,
 }
 
 impl<'db> InferenceVarData<'db> {
@@ -35,7 +34,7 @@ impl<'db> InferenceVarData<'db> {
         &mut self,
         db: &'db dyn crate::Db,
         direction: Direction,
-        term: ObjectGenericTerm<'db>,
+        term: SymGenericTerm<'db>,
     ) -> bool {
         assert!(term.has_kind(db, self.kind));
         match direction {
@@ -44,11 +43,11 @@ impl<'db> InferenceVarData<'db> {
         }
     }
 
-    pub fn lower_bounds(&self) -> &[ObjectGenericTerm<'db>] {
+    pub fn lower_bounds(&self) -> &[SymGenericTerm<'db>] {
         &self.lower_bounds
     }
 
-    pub fn upper_bounds(&self) -> &[ObjectGenericTerm<'db>] {
+    pub fn upper_bounds(&self) -> &[SymGenericTerm<'db>] {
         &self.upper_bounds
     }
 }

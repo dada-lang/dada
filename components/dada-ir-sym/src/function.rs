@@ -5,7 +5,6 @@ use dada_ir_ast::{
         AstAggregate, AstFunction, AstFunctionEffects, AstFunctionInput, Identifier,
         SpannedIdentifier,
     },
-    diagnostic::Diagnostic,
     span::{Span, Spanned},
 };
 use dada_util::FromImpls;
@@ -15,11 +14,10 @@ use crate::{
     binder::{Binder, LeafBoundTerm},
     class::SymAggregate,
     populate::PopulateSignatureSymbols,
-    prelude::IntoSymInScope,
     scope::Scope,
     scope_tree::{ScopeItem, ScopeTreeNode},
     symbol::SymVariable,
-    ty::{SymTy, SymTyKind, SymTyName},
+    ty::SymTy,
 };
 
 #[salsa::tracked]
@@ -79,35 +77,6 @@ impl<'db> SymFunction<'db> {
         symbols
     }
 
-    /// Function signature
-    #[salsa::tracked(return_ref)]
-    pub fn signature(self, db: &'db dyn crate::Db) -> SymFunctionSignature<'db> {
-        let scope = self.scope(db);
-
-        let mut input_output = SymInputOutput {
-            input_tys: self
-                .source(db)
-                .inputs(db)
-                .iter()
-                .map(|i| input_ty(db, &scope, i))
-                .collect(),
-
-            output_ty: self
-                .source(db)
-                .output_ty_in_scope(db, &scope)
-                .unwrap_or_else(|| SymTy::unit(db)),
-        };
-
-        if self.source(db).effects(db).async_effect.is_some() {
-            input_output.output_ty =
-                SymTy::named(db, SymTyName::Future, vec![input_output.output_ty.into()]);
-        }
-
-        let bound_input_output = scope.into_bound_value(db, input_output);
-
-        SymFunctionSignature::new(db, self.symbols(db).clone(), bound_input_output)
-    }
-
     /// Returns the scope for this function; this has the function generics
     /// and parameters in scope.
     pub fn scope(self, db: &'db dyn crate::Db) -> Scope<'db, 'db> {
@@ -146,7 +115,7 @@ impl<'db> SymFunctionSource<'db> {
         }
     }
 
-    fn inputs(self, db: &'db dyn crate::Db) -> Cow<'db, [AstFunctionInput<'db>]> {
+    pub fn inputs(self, db: &'db dyn crate::Db) -> Cow<'db, [AstFunctionInput<'db>]> {
         match self {
             Self::Function(ast_function) => Cow::Borrowed(&ast_function.inputs(db).values),
             Self::Constructor(_, class) => Cow::Owned(
@@ -173,20 +142,6 @@ impl<'db> SymFunctionSource<'db> {
                     .iter()
                     .for_each(|i| i.populate_signature_symbols(db, symbols));
             }
-        }
-    }
-
-    fn output_ty_in_scope(
-        self,
-        db: &'db dyn crate::Db,
-        scope: &Scope<'_, 'db>,
-    ) -> Option<SymTy<'db>> {
-        match self {
-            Self::Function(ast_function) => {
-                let ast_ty = ast_function.output_ty(db)?;
-                Some(ast_ty.into_sym_in_scope(db, &scope))
-            }
-            Self::Constructor(sym_class, _) => Some(sym_class.self_ty(db, scope)),
         }
     }
 }
@@ -249,46 +204,6 @@ impl<'db> SignatureSymbols<'db> {
             source: source.into(),
             generic_variables: Vec::new(),
             input_variables: Vec::new(),
-        }
-    }
-}
-
-fn input_ty<'db>(
-    db: &'db dyn crate::Db,
-    scope: &Scope<'_, 'db>,
-    input: &AstFunctionInput<'db>,
-) -> SymTy<'db> {
-    match input {
-        AstFunctionInput::SelfArg(ast_self_arg) => match scope.class() {
-            Some(class) => {
-                let class_ty = class.self_ty(db, scope);
-                if let Some(ast_perm) = ast_self_arg.perm(db) {
-                    let perm = ast_perm.into_sym_in_scope(db, scope);
-                    SymTy::new(db, SymTyKind::Perm(perm, class_ty))
-                } else {
-                    class_ty
-                }
-            }
-            None => SymTy::new(
-                db,
-                SymTyKind::Error(
-                    Diagnostic::error(
-                        db,
-                        ast_self_arg.self_span(db),
-                        "cannot use `self` outside of a class",
-                    )
-                    .label(
-                        db,
-                        dada_ir_ast::diagnostic::Level::Error,
-                        ast_self_arg.self_span(db),
-                        "I did not expect a `self` parameter outside of a class definition",
-                    )
-                    .report(db),
-                ),
-            ),
-        },
-        AstFunctionInput::Variable(variable_decl) => {
-            variable_decl.ty(db).into_sym_in_scope(db, scope)
         }
     }
 }

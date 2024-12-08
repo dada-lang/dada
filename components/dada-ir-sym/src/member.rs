@@ -1,24 +1,23 @@
 use std::pin::pin;
 
+use crate::{
+    binder::Binder,
+    class::{SymAggregate, SymClassMember, SymField},
+    function::SymFunction,
+    ty::{SymGenericTerm, SymTy, SymTyKind, SymTyName},
+};
 use dada_ir_ast::{
     ast::{Identifier, SpannedIdentifier},
     diagnostic::{Diagnostic, Err, Errors, Level, Reported},
     span::Span,
-};
-use dada_ir_sym::{
-    binder::Binder,
-    class::{SymAggregate, SymClassMember, SymField},
-    function::SymFunction,
-    ty::SymTyName,
 };
 use futures::{Stream, StreamExt};
 
 use crate::{
     env::Env,
     exprs::{ExprResult, ExprResultKind},
-    object_ir::{
-        ObjectGenericTerm, ObjectPlaceExpr, ObjectPlaceExprKind, ObjectTy, ObjectTyKind, ToObjectIr,
-    },
+    object_ir::{ObjectPlaceExpr, ObjectPlaceExprKind},
+    prelude::ObjectCheckFieldTy,
 };
 
 #[derive(Copy, Clone)]
@@ -67,10 +66,10 @@ impl<'member, 'db> MemberLookup<'member, 'db> {
     fn confirm_member(
         self,
         owner: ExprResult<'db>,
-        owner_ty: ObjectTy<'db>,
+        owner_ty: SymTy<'db>,
         member: SearchResult<'db>,
         id: SpannedIdentifier<'db>,
-        lower_bounds: impl Stream<Item = ObjectTy<'db>> + 'db,
+        lower_bounds: impl Stream<Item = SymTy<'db>> + 'db,
     ) -> ExprResult<'db> {
         let db = self.env.db();
 
@@ -103,7 +102,7 @@ impl<'member, 'db> MemberLookup<'member, 'db> {
             } => {
                 let mut temporaries = vec![];
                 let owner_place_expr = owner.into_place_expr(self.env, &mut temporaries);
-                let field_ty = field_ty.substitute(db, &[owner_place_expr.to_object_place()]);
+                let field_ty = field_ty.substitute(db, &[owner_place_expr.into_sym_place(db)]);
                 let place_expr = ObjectPlaceExpr::new(
                     db,
                     id.span,
@@ -139,9 +138,9 @@ impl<'member, 'db> MemberLookup<'member, 'db> {
         self,
         owner: &ExprResult<'db>,
         id: SpannedIdentifier<'db>,
-        prev_ty: ObjectTy<'db>,
+        prev_ty: SymTy<'db>,
         prev_member: &SearchResult<'db>,
-        new_ty: ObjectTy<'db>,
+        new_ty: SymTy<'db>,
     ) -> Errors<()> {
         match self.search_lower_bound_for_member(new_ty, id.id) {
             Some(new_member) => {
@@ -169,8 +168,8 @@ impl<'member, 'db> MemberLookup<'member, 'db> {
         self,
         id: SpannedIdentifier<'db>,
         #[expect(unused_variables)] owner_span: Span<'db>,
-        #[expect(unused_variables)] prev_ty: ObjectTy<'db>,
-        #[expect(unused_variables)] new_ty: ObjectTy<'db>,
+        #[expect(unused_variables)] prev_ty: SymTy<'db>,
+        #[expect(unused_variables)] new_ty: SymTy<'db>,
         prev_member: &SearchResult<'db>,
         new_member: &SearchResult<'db>,
     ) -> Reported {
@@ -245,7 +244,7 @@ impl<'member, 'db> MemberLookup<'member, 'db> {
         self,
         id: SpannedIdentifier<'db>,
         owner_span: Span<'db>,
-        owner_ty: ObjectTy<'db>,
+        owner_ty: SymTy<'db>,
     ) -> ExprResult<'db> {
         ExprResult::err(self.env.db(), self.no_such_member(id, owner_span, owner_ty))
     }
@@ -254,7 +253,7 @@ impl<'member, 'db> MemberLookup<'member, 'db> {
         self,
         id: SpannedIdentifier<'db>,
         owner_span: Span<'db>,
-        owner_ty: ObjectTy<'db>,
+        owner_ty: SymTy<'db>,
     ) -> Reported {
         let db = self.env.db();
         let SpannedIdentifier { span: id_span, id } = id;
@@ -283,12 +282,12 @@ impl<'member, 'db> MemberLookup<'member, 'db> {
 
     fn search_lower_bound_for_member(
         self,
-        ty: ObjectTy<'db>,
+        ty: SymTy<'db>,
         id: Identifier<'db>,
     ) -> Option<SearchResult<'db>> {
         let db = self.env.db();
         match ty.kind(db) {
-            ObjectTyKind::Named(name, generics) => match *name {
+            SymTyKind::Named(name, generics) => match *name {
                 // Primitive types don't have members.
                 SymTyName::Primitive(_) => None,
 
@@ -302,27 +301,29 @@ impl<'member, 'db> MemberLookup<'member, 'db> {
                 SymTyName::Future => None,
             },
 
-            ObjectTyKind::Infer(_) => {
+            SymTyKind::Perm(_, sym_ty) => self.search_lower_bound_for_member(ty, id),
+
+            SymTyKind::Infer(_) => {
                 // We can ignore inference variables because we are already iterating over lower bounds.
                 // Any bounds they acquire will therefore show up as actual types.
                 None
             }
 
-            ObjectTyKind::Var(_) => {
+            SymTyKind::Var(_) => {
                 // FIXME: where-clauses
                 None
             }
 
-            ObjectTyKind::Never => None,
+            SymTyKind::Never => None,
 
-            ObjectTyKind::Error(reported) => Some(SearchResult::Error(*reported)),
+            SymTyKind::Error(reported) => Some(SearchResult::Error(*reported)),
         }
     }
 
     fn search_class_for_member(
         self,
         owner: SymAggregate<'db>,
-        generics: &[ObjectGenericTerm<'db>],
+        generics: &[SymGenericTerm<'db>],
         id: Identifier<'db>,
     ) -> Option<SearchResult<'db>> {
         let db = self.env.db();
@@ -334,10 +335,7 @@ impl<'member, 'db> MemberLookup<'member, 'db> {
                         return Some(SearchResult::Field {
                             owner,
                             field,
-                            field_ty: field
-                                .ty(db)
-                                .to_object_ir(self.env)
-                                .substitute(db, &generics),
+                            field_ty: field.object_check_field_ty(db).substitute(db, &generics),
                         });
                     }
                 }
@@ -359,7 +357,7 @@ enum SearchResult<'db> {
     Field {
         owner: SymAggregate<'db>,
         field: SymField<'db>,
-        field_ty: Binder<'db, ObjectTy<'db>>,
+        field_ty: Binder<'db, SymTy<'db>>,
     },
     Method {
         owner: SymAggregate<'db>,

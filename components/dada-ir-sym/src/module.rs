@@ -10,11 +10,11 @@ use dada_util::{FromImpls, Map};
 use crate::{
     class::SymAggregate,
     function::SymFunction,
-    prelude::IntoSymbol,
     primitive::SymPrimitive,
     scope::{Resolve, Scope},
     scope_tree::{ScopeItem, ScopeTreeNode},
     symbol::SymVariable,
+    IntoSymbol,
 };
 
 #[salsa::tracked]

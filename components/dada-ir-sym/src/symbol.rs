@@ -4,11 +4,7 @@ use dada_ir_ast::{
 };
 use salsa::Update;
 
-use crate::{
-    prelude::{IntoSymbol, ToSymbol},
-    scope::Scope,
-    ty::SymGenericTerm,
-};
+use crate::{prelude::Symbol, scope::Scope, ty::SymGenericTerm, IntoSymbol};
 
 /// Symbol for a generic parameter or local variable.
 #[salsa::tracked]
@@ -84,10 +80,10 @@ pub trait AssertKind<'db, R> {
     fn assert_kind(self, db: &'db dyn crate::Db) -> R;
 }
 
-impl<'db> ToSymbol<'db> for AstFunctionInput<'db> {
+impl<'db> Symbol<'db> for AstFunctionInput<'db> {
     type Symbolic = SymVariable<'db>;
 
-    fn to_symbol(&self, db: &'db dyn crate::Db) -> SymVariable<'db> {
+    fn symbol(&self, db: &'db dyn crate::Db) -> SymVariable<'db> {
         match self {
             AstFunctionInput::SelfArg(ast_self_arg) => ast_self_arg.into_symbol(db),
             AstFunctionInput::Variable(variable_decl) => variable_decl.into_symbol(db),

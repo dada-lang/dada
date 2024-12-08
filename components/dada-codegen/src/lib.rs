@@ -1,7 +1,7 @@
 #![feature(trait_upcasting)]
 
 use dada_ir_sym::function::SymFunction;
-use dada_object_check::{object_ir::ObjectGenericTerm, Db};
+use dada_object_check::{object_ir::SymGenericTerm, Db};
 
 mod cx;
 
@@ -10,7 +10,7 @@ mod cx;
 pub fn codegen<'db>(
     db: &'db dyn crate::Db,
     function: SymFunction<'db>,
-    generics: Vec<ObjectGenericTerm<'db>>,
+    generics: Vec<SymGenericTerm<'db>>,
 ) -> Vec<u8> {
     cx::Cx::new(db)
         .generate_from_fn(function, generics)

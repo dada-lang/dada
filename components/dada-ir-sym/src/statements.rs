@@ -1,12 +1,13 @@
 use std::future::Future;
 
 use dada_ir_ast::{ast::AstStatement, span::Span};
-use dada_ir_sym::{prelude::IntoSymInScope, symbol::SymVariable};
 use futures::join;
 
 use crate::{
     env::Env,
-    object_ir::{ObjectExpr, ObjectExprKind, ObjectTy, ToObjectIr},
+    object_ir::{ObjectExpr, ObjectExprKind},
+    symbol::SymVariable,
+    ty::SymTy,
     Checking,
 };
 
@@ -23,7 +24,7 @@ pub fn check_block_statements<'a, 'db>(
             return ObjectExpr::new(
                 db,
                 block_span,
-                ObjectTy::unit(db),
+                SymTy::unit(db),
                 ObjectExprKind::Tuple(vec![]),
             );
         };
@@ -34,7 +35,7 @@ pub fn check_block_statements<'a, 'db>(
 
                 // For explicit local variables, we compute their type as a full symbol type first.
                 let ty = match s.ty(db) {
-                    Some(ty) => ty.into_sym_in_scope(db, &env.scope),
+                    Some(ty) => env.symbolize(ty),
                     None => env.fresh_ty_inference_var(s.name(db).span),
                 };
 
@@ -71,8 +72,7 @@ pub fn check_block_statements<'a, 'db>(
                     body.ty(db),
                     ObjectExprKind::LetIn {
                         lv,
-                        sym_ty: Some(ty),
-                        ty: ty.to_object_ir(env),
+                        ty,
                         initializer,
                         body,
                     },

@@ -6,15 +6,15 @@ use dada_ir_ast::{
     diagnostic::{Diagnostic, Errors, Level, Reported},
     span::Span,
 };
-use dada_ir_sym::{
-    indices::InferVarIndex, primitive::SymPrimitiveKind, symbol::SymVariable, ty::SymTyName,
-};
 use futures::StreamExt;
 
 use crate::{
     bound::Direction,
     env::Env,
-    object_ir::{ObjectGenericTerm, ObjectTy, ObjectTyKind},
+    indices::InferVarIndex,
+    primitive::SymPrimitiveKind,
+    symbol::SymVariable,
+    ty::{SymGenericTerm, SymTy, SymTyKind, SymTyName},
 };
 
 #[derive(Copy, Clone, PartialEq, Eq, PartialOrd, Ord, Hash, Debug)]
@@ -37,13 +37,13 @@ impl Expected {
 pub async fn require_assignable_object_type<'db>(
     env: &Env<'db>,
     span: Span<'db>,
-    value_ty: ObjectTy<'db>,
-    place_ty: ObjectTy<'db>,
+    value_ty: SymTy<'db>,
+    place_ty: SymTy<'db>,
 ) -> Errors<()> {
     let db = env.db();
 
     match (value_ty.kind(db), place_ty.kind(db)) {
-        (ObjectTyKind::Never, _) => Ok(()),
+        (SymTyKind::Never, _) => Ok(()),
         _ => require_sub_object_type(env, Expected::Upper, span, value_ty, place_ty).await,
     }
 }
@@ -61,18 +61,18 @@ pub fn require_sub_object_type<'a, 'db>(
     span: Span<'db>,
 
     // Prospective subtype
-    lower: ObjectTy<'db>,
+    lower: SymTy<'db>,
 
     // Prospective supertype
-    upper: ObjectTy<'db>,
+    upper: SymTy<'db>,
 ) -> impl Future<Output = Errors<()>> + use<'a, 'db> {
     Box::pin(async move {
         let db = env.db();
 
         match (lower.kind(db), upper.kind(db)) {
-            (ObjectTyKind::Error(_), _) | (_, ObjectTyKind::Error(_)) => Ok(()),
+            (SymTyKind::Error(_), _) | (_, SymTyKind::Error(_)) => Ok(()),
 
-            (ObjectTyKind::Var(univ_lower), ObjectTyKind::Var(univ_upper)) => {
+            (SymTyKind::Var(univ_lower), SymTyKind::Var(univ_upper)) => {
                 if univ_lower == univ_upper {
                     Ok(())
                 } else {
@@ -86,7 +86,7 @@ pub fn require_sub_object_type<'a, 'db>(
                 }
             }
 
-            (&ObjectTyKind::Infer(infer_var), _) => {
+            (&SymTyKind::Infer(infer_var), _) => {
                 bound_inference_var(
                     env,
                     span,
@@ -98,7 +98,7 @@ pub fn require_sub_object_type<'a, 'db>(
                 .await
             }
 
-            (_, &ObjectTyKind::Infer(infer_var)) => {
+            (_, &SymTyKind::Infer(infer_var)) => {
                 bound_inference_var(
                     env,
                     span,
@@ -111,8 +111,8 @@ pub fn require_sub_object_type<'a, 'db>(
             }
 
             (
-                ObjectTyKind::Named(name_lower, args_lower),
-                ObjectTyKind::Named(name_upper, args_upper),
+                SymTyKind::Named(name_lower, args_lower),
+                SymTyKind::Named(name_upper, args_upper),
             ) => {
                 if name_lower != name_upper {
                     return Err(report_class_name_mismatch(
@@ -153,7 +153,7 @@ fn bound_inference_var<'a, 'db>(
 
     // The relation of `term` to `infer_var`.
     direction: Direction,
-    term: ObjectGenericTerm<'db>,
+    term: SymGenericTerm<'db>,
 ) -> impl Future<Output = Errors<()>> + use<'a, 'db> {
     Box::pin(async move {
         let db = env.db();
@@ -166,7 +166,7 @@ fn bound_inference_var<'a, 'db>(
             return Ok(());
         }
 
-        let opposite_bounds: Vec<ObjectGenericTerm<'db>> =
+        let opposite_bounds: Vec<SymGenericTerm<'db>> =
             env.runtime().with_inference_var_data(infer_var, |data| {
                 direction.reverse().infer_var_bounds(data).to_vec()
             });
@@ -209,19 +209,7 @@ fn bound_inference_var<'a, 'db>(
             require_sub_object_term(env, expected, span, arg_sub, arg_sup).await?;
         }
 
-        if term.is_isolated(db) {
-            bound_inference_var(
-                env,
-                span,
-                infer_var,
-                !infer_var_expected,
-                direction.reverse(),
-                term,
-            )
-            .await
-        } else {
-            Ok(())
-        }
+        Ok(())
     })
 }
 
@@ -229,16 +217,16 @@ async fn require_sub_object_term<'db>(
     env: &Env<'db>,
     expected: Expected,
     span: Span<'db>,
-    arg_lower: ObjectGenericTerm<'db>,
-    arg_upper: ObjectGenericTerm<'db>,
+    arg_lower: SymGenericTerm<'db>,
+    arg_upper: SymGenericTerm<'db>,
 ) -> Errors<()> {
     match (arg_lower, arg_upper) {
-        (ObjectGenericTerm::Type(lower), ObjectGenericTerm::Type(upper)) => {
+        (SymGenericTerm::Type(lower), SymGenericTerm::Type(upper)) => {
             require_sub_object_type(env, expected, span, lower, upper).await
         }
-        (ObjectGenericTerm::Perm, ObjectGenericTerm::Perm)
-        | (ObjectGenericTerm::Place, ObjectGenericTerm::Place)
-        | (ObjectGenericTerm::Error(_), ObjectGenericTerm::Error(_)) => Ok(()),
+        (SymGenericTerm::Perm, SymGenericTerm::Perm)
+        | (SymGenericTerm::Place, SymGenericTerm::Place)
+        | (SymGenericTerm::Error(_), SymGenericTerm::Error(_)) => Ok(()),
         _ => unreachable!("kind mismatch"),
     }
 }
@@ -246,16 +234,16 @@ async fn require_sub_object_term<'db>(
 pub async fn require_numeric_type<'db>(
     env: &Env<'db>,
     span: Span<'db>,
-    start_ty: ObjectTy<'db>,
+    start_ty: SymTy<'db>,
 ) -> Errors<()> {
     let db = env.db();
 
     let mut bounds = env.transitive_upper_bounds(start_ty);
     while let Some(ty) = bounds.next().await {
         match ty.kind(db) {
-            ObjectTyKind::Error(_) => {}
-            ObjectTyKind::Never => {}
-            ObjectTyKind::Named(name, _) => match name {
+            SymTyKind::Error(_) => {}
+            SymTyKind::Never => {}
+            SymTyKind::Named(name, _) => match name {
                 SymTyName::Primitive(prim) => match prim.kind(db) {
                     SymPrimitiveKind::Int { .. }
                     | SymPrimitiveKind::Isize
@@ -270,8 +258,8 @@ pub async fn require_numeric_type<'db>(
                     return Err(report_numeric_type_expected(env, span, ty))
                 }
             },
-            ObjectTyKind::Var(_) => return Err(report_numeric_type_expected(env, span, ty)),
-            ObjectTyKind::Infer(_) => {}
+            SymTyKind::Var(_) => return Err(report_numeric_type_expected(env, span, ty)),
+            SymTyKind::Infer(_) => {}
         }
     }
 
@@ -364,11 +352,7 @@ fn report_universal_mismatch<'db>(
     }
 }
 
-fn report_numeric_type_expected<'db>(
-    env: &Env<'db>,
-    span: Span<'db>,
-    ty: ObjectTy<'db>,
-) -> Reported {
+fn report_numeric_type_expected<'db>(env: &Env<'db>, span: Span<'db>, ty: SymTy<'db>) -> Reported {
     let db = env.db();
     Diagnostic::error(db, span, format!("expected a numeric type, found `{ty}`"))
         .label(

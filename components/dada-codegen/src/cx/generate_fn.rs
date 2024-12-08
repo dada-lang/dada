@@ -1,7 +1,7 @@
 use dada_ir_ast::diagnostic::Err;
 use dada_ir_sym::{function::SymFunction, symbol::SymVariable};
 use dada_object_check::{
-    object_ir::{ObjectGenericTerm, ObjectInputOutput, ObjectTy},
+    object_ir::{SymGenericTerm, ObjectInputOutput, SymTy},
     prelude::{ObjectCheckFunctionBody, ObjectCheckFunctionSignature},
 };
 use dada_util::Map;
@@ -16,10 +16,10 @@ impl<'db> Cx<'db> {
     pub(crate) fn declare_fn(
         &mut self,
         function: SymFunction<'db>,
-        generics: Vec<ObjectGenericTerm<'db>>,
+        generics: Vec<SymGenericTerm<'db>>,
     ) -> FnIndex {
         let key = FnKey(function, generics);
-        let generics: &Vec<ObjectGenericTerm<'_>> = &key.1;
+        let generics: &Vec<SymGenericTerm<'_>> = &key.1;
 
         // Check if we already declared this function and return the result if so
         if let Some(index) = self.functions.get(&key).copied() {
@@ -97,7 +97,7 @@ impl<'db> Cx<'db> {
     fn codegen_signature(
         &self,
         function: SymFunction<'db>,
-        generics: &[ObjectGenericTerm<'db>],
+        generics: &[SymGenericTerm<'db>],
     ) -> CodegenSignature<'db> {
         match function.object_check_signature(self.db) {
             Ok(signature) => {
@@ -109,7 +109,7 @@ impl<'db> Cx<'db> {
                 let dummy_places = symbols
                     .input_variables
                     .iter()
-                    .map(|_| ObjectGenericTerm::Place)
+                    .map(|_| SymGenericTerm::Place)
                     .collect::<Vec<_>>();
                 let input_output = input_output.substitute(self.db, &dummy_places);
 
@@ -130,7 +130,7 @@ impl<'db> Cx<'db> {
                 generics: Default::default(),
                 input_output: ObjectInputOutput {
                     input_tys: vec![],
-                    output_ty: ObjectTy::err(self.db, reported),
+                    output_ty: SymTy::err(self.db, reported),
                 },
             },
         }
@@ -139,6 +139,6 @@ impl<'db> Cx<'db> {
 
 struct CodegenSignature<'db> {
     inputs: &'db [SymVariable<'db>],
-    generics: Map<SymVariable<'db>, ObjectGenericTerm<'db>>,
+    generics: Map<SymVariable<'db>, SymGenericTerm<'db>>,
     input_output: ObjectInputOutput<'db>,
 }

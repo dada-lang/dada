@@ -7,7 +7,7 @@ use dada_ir_ast::{
 use crate::{
     class::SymAggregate,
     module::{SymItem, SymModule},
-    prelude::IntoSymbol,
+    IntoSymbol,
 };
 
 fn dada_lang_krate(db: &dyn crate::Db) -> Errors<Krate> {

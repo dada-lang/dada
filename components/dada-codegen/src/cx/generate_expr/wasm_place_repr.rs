@@ -1,7 +1,7 @@
 use std::sync::Arc;
 
 use dada_ir_sym::{class::SymField, symbol::SymVariable, ty::SymTyName};
-use dada_object_check::object_ir::{ObjectPlaceExpr, ObjectPlaceExprKind, ObjectTy, ObjectTyKind};
+use dada_object_check::object_ir::{ObjectPlaceExpr, ObjectPlaceExprKind, SymTy, SymTyKind};
 use wasm_encoder::{Instruction, ValType};
 
 use crate::cx::wasm_repr::WasmRepr;
@@ -35,7 +35,7 @@ impl<'cx, 'db> ExprCodegen<'cx, 'db> {
     /// Introduce the variable `lv` into scope and create a place for it.
     /// This can allocate more stack space in WASM memory.
     /// You can find this place by invoking [`Self::local`][] later on.
-    pub(super) fn insert_variable(&mut self, lv: SymVariable<'db>, ty: ObjectTy<'db>) {
+    pub(super) fn insert_variable(&mut self, lv: SymVariable<'db>, ty: SymTy<'db>) {
         let ty_repr = self.cx.wasm_repr_of_type(ty, &self.generics);
         let emplaced_repr = self.emplace_local(&ty_repr);
         self.variables.insert(lv, emplaced_repr);
@@ -131,22 +131,22 @@ impl<'cx, 'db> ExprCodegen<'cx, 'db> {
     fn field_place(
         &self,
         owner_place_repr: Arc<WasmPlaceRepr>,
-        owner_ty: ObjectTy<'db>,
+        owner_ty: SymTy<'db>,
         field: SymField<'db>,
     ) -> Arc<WasmPlaceRepr> {
         let db = self.cx.db;
         match owner_ty.kind(db) {
-            ObjectTyKind::Var(sym_variable) => self.field_place(
+            SymTyKind::Var(sym_variable) => self.field_place(
                 owner_place_repr,
                 self.generics[&sym_variable].assert_type(db),
                 field,
             ),
-            ObjectTyKind::Infer(_) => panic!("unresolved inference variable"),
-            ObjectTyKind::Never | ObjectTyKind::Error(_) => match &*owner_place_repr {
+            SymTyKind::Infer(_) => panic!("unresolved inference variable"),
+            SymTyKind::Never | SymTyKind::Error(_) => match &*owner_place_repr {
                 WasmPlaceRepr::Nowhere => owner_place_repr,
                 _ => panic!("unexpeced place for {owner_ty:?}: {owner_place_repr:?}"),
             },
-            ObjectTyKind::Named(ty_name, _) => match *ty_name {
+            SymTyKind::Named(ty_name, _) => match *ty_name {
                 SymTyName::Future => match &*owner_place_repr {
                     WasmPlaceRepr::Class(_, vec) => vec[0].clone(),
                     WasmPlaceRepr::Nowhere => owner_place_repr,

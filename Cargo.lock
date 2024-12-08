@@ -342,6 +342,8 @@ dependencies = [
  "dada-ir-ast",
  "dada-parser",
  "dada-util",
+ "futures",
+ "ordered-float",
  "salsa",
 ]
 

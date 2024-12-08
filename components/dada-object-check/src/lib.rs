@@ -9,13 +9,13 @@ use dada_ir_ast::diagnostic::{Err, Errors};
 pub use dada_ir_sym::Db;
 use dada_ir_sym::{binder::Binder, class::SymField, function::SymFunction};
 use env::Env;
-use object_ir::{ObjectExpr, ObjectFunctionSignature, ObjectTy};
+use object_ir::{ObjectExpr, ObjectFunctionSignature, SymTy};
 
 pub mod prelude {
     use dada_ir_ast::diagnostic::Errors;
     use dada_ir_sym::binder::Binder;
 
-    use crate::object_ir::{ObjectExpr, ObjectFunctionSignature, ObjectTy};
+    use crate::object_ir::{ObjectExpr, ObjectFunctionSignature, SymTy};
 
     pub trait ObjectCheckFunctionBody<'db> {
         fn object_check_body(self, db: &'db dyn crate::Db) -> Option<ObjectExpr<'db>>;
@@ -25,7 +25,7 @@ pub mod prelude {
         fn object_check_field_ty(
             self,
             db: &'db dyn crate::Db,
-        ) -> Binder<'db, Binder<'db, ObjectTy<'db>>>;
+        ) -> Binder<'db, Binder<'db, SymTy<'db>>>;
     }
 
     pub trait ObjectCheckFunctionSignature<'db> {
@@ -45,8 +45,10 @@ mod inference;
 mod member;
 mod misc_tys;
 pub mod object_ir;
+mod signature;
 mod statements;
 mod subobject;
+mod types;
 mod universe;
 
 trait Checking<'db> {
@@ -66,15 +68,12 @@ impl<'db> prelude::ObjectCheckFunctionBody<'db> for SymFunction<'db> {
 #[salsa::tracked]
 impl<'db> prelude::ObjectCheckFieldTy<'db> for SymField<'db> {
     #[salsa::tracked]
-    fn object_check_field_ty(
-        self,
-        db: &'db dyn crate::Db,
-    ) -> Binder<'db, Binder<'db, ObjectTy<'db>>> {
+    fn object_check_field_ty(self, db: &'db dyn crate::Db) -> Binder<'db, Binder<'db, SymTy<'db>>> {
         match misc_tys::check_field(db, self) {
             Ok(v) => v,
             Err(reported) => self
                 .ty(db)
-                .map(db, |b| b.map(db, |_ty| ObjectTy::err(db, reported))),
+                .map(db, |b| b.map(db, |_ty| SymTy::err(db, reported))),
         }
     }
 }

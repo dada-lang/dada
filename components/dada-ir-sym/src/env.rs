@@ -1,20 +1,22 @@
 use std::sync::Arc;
 
-use dada_ir_ast::{diagnostic::Reported, span::Span};
-use dada_ir_sym::{
+use crate::{
     binder::BoundTerm,
+    indices::{FromInfer, InferVarIndex},
     scope::Scope,
     subst::SubstWith,
     symbol::{SymGenericKind, SymVariable},
-    ty::{SymGenericTerm, SymTy},
+    ty::{SymGenericTerm, SymPerm, SymPlace, SymTy, SymTyKind},
+    SymbolizeInEnv,
 };
+use dada_ir_ast::{diagnostic::Reported, span::Span};
 use dada_util::Map;
 use futures::{Stream, StreamExt};
 
 use crate::{
     bound::{Direction, TransitiveBounds},
     check::Runtime,
-    object_ir::{ObjectExpr, ObjectGenericTerm, ObjectTy, ObjectTyKind, ToObjectIr},
+    object_ir::ObjectExpr,
     subobject::{
         require_assignable_object_type, require_numeric_type, require_sub_object_type, Expected,
     },
@@ -34,7 +36,7 @@ pub(crate) struct Env<'db> {
     /// Universe of each free variable that is in scope.
     variable_universes: Arc<Map<SymVariable<'db>, Universe>>,
 
-    /// For place variables, keep their type.
+    /// Object type for each in-scope variable.
     variable_tys: Arc<Map<SymVariable<'db>, SymTy<'db>>>,
 
     /// If `None`, not type checking a function or method.
@@ -52,6 +54,16 @@ impl<'db> Env<'db> {
             variable_universes: Default::default(),
             return_ty: Default::default(),
         }
+    }
+
+    /// Convenience function for invoking `to_object_ir`.
+    /// We have to do a bit of a "dance" because `to_object_ir` needs a mutable reference to a shared reference.
+    pub fn symbolize<I>(&self, i: I) -> I::Output
+    where
+        I: SymbolizeInEnv<'db>,
+    {
+        let mut env = self;
+        i.symbolize_in_env(&mut env)
     }
 
     /// Extract the scope from the environment.
@@ -109,7 +121,7 @@ impl<'db> Env<'db> {
         let db = self.db();
         variables
             .iter()
-            .map(|&var| self.fresh_inference_var(var.kind(db), span))
+            .map(|&var| self.fresh_inference_var_term(var.kind(db), span))
             .collect()
     }
 
@@ -143,6 +155,10 @@ impl<'db> Env<'db> {
         self.return_ty = Some(ty);
     }
 
+    pub fn return_ty(&self) -> Option<SymTy<'db>> {
+        self.return_ty
+    }
+
     /// Returns the type of the given variable.
     ///
     /// # Panics
@@ -152,31 +168,47 @@ impl<'db> Env<'db> {
         self.variable_tys.get(&lv).copied().unwrap()
     }
 
-    pub fn fresh_inference_var(
+    pub fn fresh_inference_var(&self, kind: SymGenericKind, span: Span<'db>) -> InferVarIndex {
+        self.runtime.fresh_inference_var(kind, self.universe, span)
+    }
+
+    /// A fresh term with an inference variable of the given kind.
+    pub fn fresh_inference_var_term(
         &self,
         kind: SymGenericKind,
         span: Span<'db>,
     ) -> SymGenericTerm<'db> {
-        self.runtime.fresh_inference_var(kind, self.universe, span)
+        match kind {
+            SymGenericKind::Type => SymGenericTerm::Type(SymTy::infer(
+                self.db(),
+                self.fresh_inference_var(kind, span),
+            )),
+            SymGenericKind::Perm => SymGenericTerm::Perm(SymPerm::infer(
+                self.db(),
+                self.fresh_inference_var(kind, span),
+            )),
+            SymGenericKind::Place => SymGenericTerm::Place(SymPlace::infer(
+                self.db(),
+                self.fresh_inference_var(kind, span),
+            )),
+        }
     }
 
     pub fn fresh_ty_inference_var(&self, span: Span<'db>) -> SymTy<'db> {
-        self.fresh_inference_var(SymGenericKind::Type, span)
-            .assert_type(self.db())
-    }
-
-    pub fn fresh_object_ty_inference_var(&self, span: Span<'db>) -> ObjectTy<'db> {
-        self.fresh_ty_inference_var(span).to_object_ir(self)
+        SymTy::infer(
+            self.db(),
+            self.fresh_inference_var(SymGenericKind::Type, span),
+        )
     }
 
     pub fn require_assignable_object_type(
         &self,
         value_span: Span<'db>,
-        value_ty: impl ToObjectIr<'db, Object = ObjectTy<'db>>,
-        place_ty: impl ToObjectIr<'db, Object = ObjectTy<'db>>,
+        value_ty: impl SymbolizeInEnv<'db, Output = SymTy<'db>>,
+        place_ty: impl SymbolizeInEnv<'db, Output = SymTy<'db>>,
     ) {
-        let value_ty = value_ty.to_object_ir(self);
-        let place_ty = place_ty.to_object_ir(self);
+        let value_ty = self.symbolize(value_ty);
+        let place_ty = self.symbolize(place_ty);
         self.runtime.defer(self, value_span, move |env| async move {
             match require_assignable_object_type(&env, value_span, value_ty, place_ty).await {
                 Ok(()) => (),
@@ -188,11 +220,11 @@ impl<'db> Env<'db> {
     pub fn require_equal_object_types(
         &self,
         span: Span<'db>,
-        expected_ty: impl ToObjectIr<'db, Object = ObjectTy<'db>>,
-        found_ty: impl ToObjectIr<'db, Object = ObjectTy<'db>>,
+        expected_ty: impl SymbolizeInEnv<'db, Output = SymTy<'db>>,
+        found_ty: impl SymbolizeInEnv<'db, Output = SymTy<'db>>,
     ) {
-        let expected_ty = expected_ty.to_object_ir(self);
-        let found_ty = found_ty.to_object_ir(self);
+        let expected_ty = self.symbolize(expected_ty);
+        let found_ty = self.symbolize(found_ty);
         self.runtime.defer(self, span, move |env| async move {
             match require_sub_object_type(&env, Expected::Lower, span, expected_ty, found_ty).await
             {
@@ -211,9 +243,9 @@ impl<'db> Env<'db> {
     pub fn require_numeric_type(
         &self,
         span: Span<'db>,
-        ty: impl ToObjectIr<'db, Object = ObjectTy<'db>>,
+        ty: impl SymbolizeInEnv<'db, Output = SymTy<'db>>,
     ) {
-        let ty = ty.to_object_ir(self);
+        let ty = self.symbolize(ty);
         self.runtime.defer(self, span, move |env| async move {
             match require_numeric_type(&env, span, ty).await {
                 Ok(()) => (),
@@ -229,58 +261,41 @@ impl<'db> Env<'db> {
         &self,
 
         span: Span<'db>,
-        tys: &[ObjectTy<'db>],
+        tys: &[SymTy<'db>],
         op: impl async FnOnce(Env<'db>) + 'db,
     ) {
-        let tys = tys.to_vec();
+        let _tys = tys.to_vec();
         self.runtime
             .defer(self, span, move |env: Env<'db>| async move {
-                'next_ty: for ty in tys {
-                    let mut bounds = env.transitive_lower_bounds(ty);
-                    'next_bound: while let Some(bound_ty) = bounds.next().await {
-                        match bound_ty.kind(env.db()) {
-                            ObjectTyKind::Never => return,
-                            ObjectTyKind::Error(_) => return,
-                            ObjectTyKind::Infer(_) => continue 'next_bound,
-                            ObjectTyKind::Named(..) | ObjectTyKind::Var(_) => continue 'next_ty,
-                        }
-                    }
-                }
-
+                // FIXME: check for never
                 op(env).await
             })
     }
 
-    pub fn transitive_lower_bounds(
-        &self,
-        ty: ObjectTy<'db>,
-    ) -> impl Stream<Item = ObjectTy<'db>> + 'db {
+    pub fn transitive_lower_bounds(&self, ty: SymTy<'db>) -> impl Stream<Item = SymTy<'db>> + 'db {
         self.transitive_bounds(ty, Direction::LowerBoundedBy)
     }
 
-    pub fn transitive_upper_bounds(
-        &self,
-        ty: ObjectTy<'db>,
-    ) -> impl Stream<Item = ObjectTy<'db>> + 'db {
+    pub fn transitive_upper_bounds(&self, ty: SymTy<'db>) -> impl Stream<Item = SymTy<'db>> + 'db {
         self.transitive_bounds(ty, Direction::UpperBoundedBy)
     }
 
     pub fn transitive_bounds(
         &self,
-        ty: ObjectTy<'db>,
+        ty: SymTy<'db>,
         direction: Direction,
-    ) -> impl Stream<Item = ObjectTy<'db>> + 'db {
+    ) -> impl Stream<Item = SymTy<'db>> + 'db {
         let db = self.db();
-        if let &ObjectTyKind::Infer(inference_var) = ty.kind(db) {
+        if let &SymTyKind::Infer(inference_var) = ty.kind(db) {
             TransitiveBounds::new(&self.runtime, direction, inference_var)
-                .map(|b: ObjectGenericTerm<'db>| b.assert_type(db))
+                .map(|b: SymGenericTerm<'db>| b.assert_type(db))
                 .boxed_local()
         } else {
             futures::stream::once(futures::future::ready(ty)).boxed_local()
         }
     }
 
-    pub fn describe_ty<'a, 'chk>(&'a self, ty: ObjectTy<'db>) -> impl std::fmt::Display + 'a {
+    pub fn describe_ty<'a, 'chk>(&'a self, ty: SymTy<'db>) -> impl std::fmt::Display + 'a {
         format!("{ty:?}") // FIXME
     }
 
@@ -290,7 +305,27 @@ impl<'db> Env<'db> {
 
     pub(crate) fn require_expr_has_bool_ty(&self, expr: ObjectExpr<'db>) {
         let db = self.db();
-        let boolean_ty = ObjectTy::boolean(db);
+        let boolean_ty = SymTy::boolean(db);
         self.require_assignable_object_type(expr.span(db), expr.ty(db), boolean_ty);
+    }
+}
+
+pub(crate) trait EnvLike<'db> {
+    fn db(&self) -> &'db dyn crate::Db;
+    fn scope(&self) -> &Scope<'db, 'db>;
+    fn variable_ty(&mut self, var: SymVariable<'db>) -> SymTy<'db>;
+}
+
+impl<'db> EnvLike<'db> for &Env<'db> {
+    fn db(&self) -> &'db dyn crate::Db {
+        Env::db(self)
+    }
+
+    fn scope(&self) -> &Scope<'db, 'db> {
+        &self.scope
+    }
+
+    fn variable_ty(&mut self, var: SymVariable<'db>) -> SymTy<'db> {
+        Env::variable_ty(self, var)
     }
 }

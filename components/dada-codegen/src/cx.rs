@@ -1,5 +1,5 @@
-use dada_ir_sym::function::SymFunction;
-use dada_object_check::object_ir::ObjectGenericTerm;
+use dada_ir_sym::{function::SymFunction, ty::SymGenericTerm};
+use dada_object_check::object_ir::SymGenericTerm;
 use dada_util::{FromImpls, Map};
 use salsa::Update;
 use wasm_encoder::{CodeSection, FunctionSection, TypeSection};
@@ -34,7 +34,7 @@ impl<'db> Cx<'db> {
     pub fn generate_from_fn(
         mut self,
         function: SymFunction<'db>,
-        generics: Vec<ObjectGenericTerm<'db>>,
+        generics: Vec<SymGenericTerm<'db>>,
     ) -> wasm_encoder::Module {
         self.declare_fn(function, generics);
         while let Some(item) = self.codegen_queue.pop() {
@@ -53,7 +53,7 @@ impl<'db> Cx<'db> {
 }
 
 #[derive(Clone, Debug, PartialEq, Eq, PartialOrd, Ord, Hash, Update)]
-pub(crate) struct FnKey<'db>(SymFunction<'db>, Vec<ObjectGenericTerm<'db>>);
+pub(crate) struct FnKey<'db>(SymFunction<'db>, Vec<SymGenericTerm<'db>>);
 
 #[derive(Copy, Clone, Debug, PartialEq, Eq, PartialOrd, Ord, Hash, Update)]
 pub(crate) struct FnIndex(u32);

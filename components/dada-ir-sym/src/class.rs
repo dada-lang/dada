@@ -8,14 +8,14 @@ use dada_parser::prelude::*;
 use dada_util::FromImpls;
 
 use crate::{
-    binder::Binder,
     function::{SignatureSymbols, SymFunction, SymFunctionSource},
     populate::PopulateSignatureSymbols,
-    prelude::{IntoSymInScope, IntoSymbol},
+    prelude::Symbol,
     scope::Scope,
     scope_tree::{ScopeItem, ScopeTreeNode},
     symbol::{SymGenericKind, SymVariable},
     ty::{SymTy, SymTyKind},
+    IntoSymbol,
 };
 
 #[salsa::tracked]
@@ -60,7 +60,7 @@ impl<'db> SymAggregate<'db> {
             .generics(db)
             .iter()
             .flatten()
-            .map(move |decl| decl.kind(db).into_symbol(db))
+            .map(move |decl| decl.kind(db).symbol(db))
     }
 
     /// Span of the class name, typically used in diagnostics.
@@ -271,15 +271,6 @@ impl<'db> SymField<'db> {
             Some(Identifier::self_ident(db)),
             self.name_span(db),
         )
-    }
-
-    /// The type of this field, bound by the generics from the class and the `self` variable.
-    #[salsa::tracked]
-    pub fn ty(self, db: &'db dyn crate::Db) -> Binder<'db, Binder<'db, SymTy<'db>>> {
-        let scope = self.into_scope(db);
-        let ast_ty = self.source(db).variable(db).ty(db);
-        let sym_ty = ast_ty.into_sym_in_scope(db, &scope);
-        scope.into_bound_value(db, sym_ty)
     }
 
     /// The scope for resolving the type of this field.

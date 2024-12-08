@@ -13,11 +13,11 @@ use crate::{
     class::{SymAggregate, SymClassMember},
     function::SymFunction,
     module::SymModule,
-    prelude::{IntoSymInScope, IntoSymbol},
     primitive::{primitives, SymPrimitive},
     scope_tree::ScopeTreeNode,
     symbol::{FromVar, SymGenericKind, SymVariable},
     ty::SymGenericTerm,
+    IntoSymbol,
 };
 
 /// Name resolution scope, used when converting types/function-bodies etc into symbols.

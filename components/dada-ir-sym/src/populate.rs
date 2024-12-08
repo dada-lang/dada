@@ -3,7 +3,7 @@ use dada_ir_ast::ast::{
     AstPermKind, AstTy, AstTyKind,
 };
 
-use crate::{function::SignatureSymbols, prelude::IntoSymbol, ty::AnonymousPermSymbol};
+use crate::{function::SignatureSymbols, ty::AnonymousPermSymbol, IntoSymbol};
 
 /// Iterate over the items in a signature (function, class, impl, etc)
 /// and create the symbols for generic types and/or parameters declared within.

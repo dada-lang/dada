@@ -5,7 +5,7 @@ use dada_ir_sym::{
     ty::SymTyName,
 };
 use dada_object_check::{
-    object_ir::{ObjectGenericTerm, ObjectTy, ObjectTyKind},
+    object_ir::{SymGenericTerm, SymTy, SymTyKind},
     prelude::ObjectCheckFieldTy,
 };
 use dada_util::Map;
@@ -50,7 +50,7 @@ pub(crate) enum WasmRepr {
     Nothing,
 }
 
-type Generics<'db> = Map<SymVariable<'db>, ObjectGenericTerm<'db>>;
+type Generics<'db> = Map<SymVariable<'db>, SymGenericTerm<'db>>;
 
 pub(crate) struct FnTypeIndex(u32);
 
@@ -77,25 +77,25 @@ impl<'db> Cx<'db> {
     /// Returns the [`WasmRepr`][] that describes how `of_type` will be represented in WASM.
     pub(super) fn wasm_repr_of_type(
         &self,
-        of_type: ObjectTy<'db>,
+        of_type: SymTy<'db>,
         generics: &Generics<'db>,
     ) -> WasmRepr {
         let db = self.db;
         match of_type.kind(db) {
-            ObjectTyKind::Named(ty_name, ty_args) => {
+            SymTyKind::Named(ty_name, ty_args) => {
                 self.wasm_repr_of_named_type(*ty_name, ty_args, generics)
             }
-            ObjectTyKind::Var(sym_variable) => {
+            SymTyKind::Var(sym_variable) => {
                 let result = generics
                     .get(sym_variable)
                     .expect("expected value for each generic type")
                     .assert_type(db);
                 self.wasm_repr_of_type(result, generics)
             }
-            ObjectTyKind::Infer(_) => {
+            SymTyKind::Infer(_) => {
                 panic!("encountered unresolved inference variable")
             }
-            ObjectTyKind::Never | ObjectTyKind::Error(_) => WasmRepr::Nothing,
+            SymTyKind::Never | SymTyKind::Error(_) => WasmRepr::Nothing,
         }
     }
 
@@ -103,7 +103,7 @@ impl<'db> Cx<'db> {
     fn wasm_repr_of_named_type(
         &self,
         ty_name: SymTyName<'db>,
-        ty_args: &Vec<ObjectGenericTerm<'db>>,
+        ty_args: &Vec<SymGenericTerm<'db>>,
         generics: &Generics<'db>,
     ) -> WasmRepr {
         let db = self.db;
@@ -165,7 +165,7 @@ impl<'db> Cx<'db> {
     fn wasm_repr_of_aggr_fields<'a>(
         &'a self,
         aggr: SymAggregate<'db>,
-        ty_args: &'a Vec<ObjectGenericTerm<'db>>,
+        ty_args: &'a Vec<SymGenericTerm<'db>>,
         generics: &'a Generics<'db>,
     ) -> impl Iterator<Item = WasmRepr> + use<'a, 'db> {
         self.aggr_field_tys(aggr, ty_args)
@@ -176,14 +176,14 @@ impl<'db> Cx<'db> {
     fn aggr_field_tys<'a>(
         &self,
         aggr: SymAggregate<'db>,
-        ty_args: &'a Vec<ObjectGenericTerm<'db>>,
-    ) -> impl Iterator<Item = ObjectTy<'db>> + use<'a, 'db> {
+        ty_args: &'a Vec<SymGenericTerm<'db>>,
+    ) -> impl Iterator<Item = SymTy<'db>> + use<'a, 'db> {
         let db = self.db;
         aggr.fields(db)
             .map(|f| f.object_check_field_ty(db))
             .map(|ty| {
                 let ty = ty.substitute(db, ty_args);
-                ty.substitute(db, &[ObjectGenericTerm::Place])
+                ty.substitute(db, &[SymGenericTerm::Place])
             })
     }
 }
