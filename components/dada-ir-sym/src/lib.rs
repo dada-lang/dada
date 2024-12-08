@@ -56,72 +56,67 @@ pub mod prelude {
     use crate::ty::SymTy;
     use dada_ir_ast::diagnostic::Errors;
 
-    pub trait ObjectCheckFunctionBody<'db> {
-        fn object_check_body(self, db: &'db dyn crate::Db) -> Option<ObjectExpr<'db>>;
+    /// Return the symbol corresponding to the AST node.
+    /// Implementations are memoized so that this can be called many times and will always yield the same symbol.
+    pub trait Symbol<'db>: Copy {
+        type Output;
+
+        fn symbol(self, db: &'db dyn crate::Db) -> Self::Output;
+    }
+
+    pub trait CheckedBody<'db> {
+        fn checked_body(self, db: &'db dyn crate::Db) -> Option<ObjectExpr<'db>>;
     }
 
     #[salsa::tracked]
-    impl<'db> ObjectCheckFunctionBody<'db> for SymFunction<'db> {
+    impl<'db> CheckedBody<'db> for SymFunction<'db> {
         #[salsa::tracked]
-        fn object_check_body(self, db: &'db dyn crate::Db) -> Option<ObjectExpr<'db>> {
+        fn checked_body(self, db: &'db dyn crate::Db) -> Option<ObjectExpr<'db>> {
             crate::blocks::check_function_body(db, self)
         }
     }
 
-    pub trait ObjectCheckFieldTy<'db> {
-        fn object_check_field_ty(
-            self,
-            db: &'db dyn crate::Db,
-        ) -> Binder<'db, Binder<'db, SymTy<'db>>>;
-    }
-
-    pub trait ObjectCheckFunctionSignature<'db> {
-        fn object_check_signature(
-            self,
-            db: &'db dyn crate::Db,
-        ) -> Errors<SymFunctionSignature<'db>>;
+    pub trait CheckedFieldTy<'db> {
+        fn checked_field_ty(self, db: &'db dyn crate::Db) -> Binder<'db, Binder<'db, SymTy<'db>>>;
     }
 
     #[salsa::tracked]
-    impl<'db> ObjectCheckFunctionSignature<'db> for SymFunction<'db> {
+    impl<'db> CheckedFieldTy<'db> for SymField<'db> {
         #[salsa::tracked]
-        fn object_check_signature(
-            self,
-            db: &'db dyn crate::Db,
-        ) -> Errors<SymFunctionSignature<'db>> {
-            crate::signature::check_function_signature(db, self)
-        }
-    }
-
-    #[salsa::tracked]
-    impl<'db> ObjectCheckFieldTy<'db> for SymField<'db> {
-        #[salsa::tracked]
-        fn object_check_field_ty(
-            self,
-            db: &'db dyn crate::Db,
-        ) -> Binder<'db, Binder<'db, SymTy<'db>>> {
+        fn checked_field_ty(self, db: &'db dyn crate::Db) -> Binder<'db, Binder<'db, SymTy<'db>>> {
             match crate::misc_tys::check_field(db, self) {
                 Ok(v) => v,
                 Err(reported) => crate::misc_tys::field_err_ty(db, self, reported),
             }
         }
     }
+    pub trait CheckedSignature<'db> {
+        fn checked_signature(self, db: &'db dyn crate::Db) -> Errors<SymFunctionSignature<'db>>;
+    }
+
+    #[salsa::tracked]
+    impl<'db> CheckedSignature<'db> for SymFunction<'db> {
+        #[salsa::tracked]
+        fn checked_signature(self, db: &'db dyn crate::Db) -> Errors<SymFunctionSignature<'db>> {
+            crate::signature::check_function_signature(db, self)
+        }
+    }
 }
 
-trait Checking<'db> {
-    type Checking;
-
-    async fn check(&self, env: &Env<'db>) -> Self::Checking;
-}
-
-trait SymbolizeInEnv<'db>: Copy {
+/// Convert to a type checked representation in the given environment.
+/// This is implemented by types that can be converted synchronously
+/// (although they may yield an inference variable if parts of the computation
+/// had to be deferred).
+trait CheckInEnv<'db>: Copy {
     type Output;
 
-    fn symbolize_in_env(self, env: &mut dyn EnvLike<'db>) -> Self::Output;
+    fn check_in_env(self, env: &mut dyn EnvLike<'db>) -> Self::Output;
 }
 
-trait IntoSymbol<'db>: Copy {
-    type Symbolic;
+/// Type check an expression (including a block) in the given environment.
+/// This is an async operation -- it may block if insufficient inference data is available.
+trait CheckExprInEnv<'db> {
+    type Output;
 
-    fn into_symbol(self, db: &'db dyn crate::Db) -> Self::Symbolic;
+    async fn check_expr_in_env(&self, env: &Env<'db>) -> Self::Output;
 }

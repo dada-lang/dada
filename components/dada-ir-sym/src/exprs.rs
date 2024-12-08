@@ -10,13 +10,13 @@ use crate::{
         MatchArm, ObjectBinaryOp, ObjectExpr, ObjectExprKind, ObjectPlaceExpr, ObjectPlaceExprKind,
         PrimitiveLiteral,
     },
-    prelude::ObjectCheckFunctionSignature,
+    prelude::CheckedSignature,
     scope::{NameResolution, NameResolutionSym},
     scope_tree::ScopeTreeNode,
     subobject::{require_subtype, Expected},
     symbol::{FromVar, HasKind, SymGenericKind, SymVariable},
     ty::{SymGenericTerm, SymPerm, SymTy, SymTyKind, SymTyName},
-    well_known, Checking,
+    well_known, CheckExprInEnv,
 };
 use dada_ir_ast::{
     ast::{
@@ -93,10 +93,10 @@ pub(crate) enum ExprResultKind<'db> {
     Other(NameResolution<'db>),
 }
 
-impl<'db> Checking<'db> for AstExpr<'db> {
-    type Checking = ExprResult<'db>;
+impl<'db> CheckExprInEnv<'db> for AstExpr<'db> {
+    type Output = ExprResult<'db>;
 
-    fn check(&self, env: &Env<'db>) -> impl Future<Output = Self::Checking> {
+    fn check_expr_in_env(&self, env: &Env<'db>) -> impl Future<Output = Self::Output> {
         Box::pin(check_expr(self, env))
     }
 }
@@ -160,7 +160,12 @@ async fn check_expr<'db>(expr: &AstExpr<'db>, mut env: &Env<'db>) -> ExprResult<
             let mut temporaries = vec![];
             let mut exprs = vec![];
             for element in &span_vec.values {
-                exprs.push(element.check(env).await.into_expr(env, &mut temporaries));
+                exprs.push(
+                    element
+                        .check_expr_in_env(env)
+                        .await
+                        .into_expr(env, &mut temporaries),
+                );
             }
 
             let ty = SymTy::new(
@@ -188,10 +193,14 @@ async fn check_expr<'db>(expr: &AstExpr<'db>, mut env: &Env<'db>) -> ExprResult<
             match span_op.op {
                 AstBinaryOp::Add | AstBinaryOp::Sub | AstBinaryOp::Mul | AstBinaryOp::Div => {
                     let mut temporaries: Vec<Temporary<'db>> = vec![];
-                    let lhs: ObjectExpr<'db> =
-                        lhs.check(env).await.into_expr(env, &mut temporaries);
-                    let rhs: ObjectExpr<'db> =
-                        rhs.check(env).await.into_expr(env, &mut temporaries);
+                    let lhs: ObjectExpr<'db> = lhs
+                        .check_expr_in_env(env)
+                        .await
+                        .into_expr(env, &mut temporaries);
+                    let rhs: ObjectExpr<'db> = rhs
+                        .check_expr_in_env(env)
+                        .await
+                        .into_expr(env, &mut temporaries);
 
                     // For now, let's do a dumb rule that operands must be
                     // of the same primitive (and scalar) type.
@@ -225,10 +234,14 @@ async fn check_expr<'db>(expr: &AstExpr<'db>, mut env: &Env<'db>) -> ExprResult<
 
                 AstBinaryOp::AndAnd | AstBinaryOp::OrOr => {
                     let mut temporaries: Vec<Temporary<'db>> = vec![];
-                    let lhs: ObjectExpr<'db> =
-                        lhs.check(env).await.into_expr(env, &mut temporaries);
-                    let rhs: ObjectExpr<'db> =
-                        rhs.check(env).await.into_expr(env, &mut temporaries);
+                    let lhs: ObjectExpr<'db> = lhs
+                        .check_expr_in_env(env)
+                        .await
+                        .into_expr(env, &mut temporaries);
+                    let rhs: ObjectExpr<'db> = rhs
+                        .check_expr_in_env(env)
+                        .await
+                        .into_expr(env, &mut temporaries);
 
                     env.require_expr_has_bool_ty(lhs);
                     env.require_expr_has_bool_ty(rhs);
@@ -256,10 +269,14 @@ async fn check_expr<'db>(expr: &AstExpr<'db>, mut env: &Env<'db>) -> ExprResult<
                 | AstBinaryOp::LessEqual
                 | AstBinaryOp::EqualEqual => {
                     let mut temporaries: Vec<Temporary<'db>> = vec![];
-                    let lhs: ObjectExpr<'db> =
-                        lhs.check(env).await.into_expr(env, &mut temporaries);
-                    let rhs: ObjectExpr<'db> =
-                        rhs.check(env).await.into_expr(env, &mut temporaries);
+                    let lhs: ObjectExpr<'db> = lhs
+                        .check_expr_in_env(env)
+                        .await
+                        .into_expr(env, &mut temporaries);
+                    let rhs: ObjectExpr<'db> = rhs
+                        .check_expr_in_env(env)
+                        .await
+                        .into_expr(env, &mut temporaries);
 
                     // For now, let's do a dumb rule that operands must be
                     // of the same primitive (and scalar) type.
@@ -293,10 +310,14 @@ async fn check_expr<'db>(expr: &AstExpr<'db>, mut env: &Env<'db>) -> ExprResult<
 
                 AstBinaryOp::Assign => {
                     let mut temporaries: Vec<Temporary<'db>> = vec![];
-                    let place: ObjectPlaceExpr<'db> =
-                        lhs.check(env).await.into_place_expr(env, &mut temporaries);
-                    let value: ObjectExpr<'db> =
-                        rhs.check(env).await.into_expr(env, &mut temporaries);
+                    let place: ObjectPlaceExpr<'db> = lhs
+                        .check_expr_in_env(env)
+                        .await
+                        .into_place_expr(env, &mut temporaries);
+                    let value: ObjectExpr<'db> = rhs
+                        .check_expr_in_env(env)
+                        .await
+                        .into_expr(env, &mut temporaries);
 
                     // For now, let's do a dumb rule that operands must be
                     // of the same primitive (and scalar) type.
@@ -325,7 +346,7 @@ async fn check_expr<'db>(expr: &AstExpr<'db>, mut env: &Env<'db>) -> ExprResult<
         }
 
         AstExprKind::DotId(owner, id) => {
-            let mut owner_result = owner.check(env).await;
+            let mut owner_result = owner.check_expr_in_env(env).await;
             match owner_result.kind {
                 ExprResultKind::PlaceExpr(_) | ExprResultKind::Expr(_) => {
                     MemberLookup::new(&env)
@@ -363,7 +384,7 @@ async fn check_expr<'db>(expr: &AstExpr<'db>, mut env: &Env<'db>) -> ExprResult<
         }
 
         AstExprKind::SquareBracketOp(owner, square_bracket_args) => {
-            let owner_result = owner.check(env).await;
+            let owner_result = owner.check_expr_in_env(env).await;
             match owner_result.kind {
                 ExprResultKind::Method {
                     self_expr: owner,
@@ -418,7 +439,7 @@ async fn check_expr<'db>(expr: &AstExpr<'db>, mut env: &Env<'db>) -> ExprResult<
         }
 
         AstExprKind::ParenthesisOp(owner, ast_args) => {
-            let owner_result = owner.check(env).await;
+            let owner_result = owner.check_expr_in_env(env).await;
             match owner_result {
                 ExprResult {
                     temporaries,
@@ -505,7 +526,10 @@ async fn check_expr<'db>(expr: &AstExpr<'db>, mut env: &Env<'db>) -> ExprResult<
             let mut temporaries = vec![];
 
             let return_expr = if let Some(ast_expr) = ast_expr {
-                ast_expr.check(env).await.into_expr(env, &mut temporaries)
+                ast_expr
+                    .check_expr_in_env(env)
+                    .await
+                    .into_expr(env, &mut temporaries)
             } else {
                 // the default is `return ()`
                 ObjectExpr::new(
@@ -558,7 +582,10 @@ async fn check_expr<'db>(expr: &AstExpr<'db>, mut env: &Env<'db>) -> ExprResult<
 
             let mut temporaries = vec![];
 
-            let future_expr = future.check(env).await.into_expr(env, &mut temporaries);
+            let future_expr = future
+                .check_expr_in_env(env)
+                .await
+                .into_expr(env, &mut temporaries);
             let future_ty = future_expr.ty(db);
 
             let awaited_ty = env.fresh_ty_inference_var(await_span);
@@ -585,7 +612,10 @@ async fn check_expr<'db>(expr: &AstExpr<'db>, mut env: &Env<'db>) -> ExprResult<
         AstExprKind::UnaryOp(spanned_unary_op, ast_expr) => match spanned_unary_op.op {
             UnaryOp::Not => {
                 let mut temporaries = vec![];
-                let operand = ast_expr.check(env).await.into_expr(env, &mut temporaries);
+                let operand = ast_expr
+                    .check_expr_in_env(env)
+                    .await
+                    .into_expr(env, &mut temporaries);
                 env.require_expr_has_bool_ty(operand);
 
                 ExprResult {
@@ -608,7 +638,7 @@ async fn check_expr<'db>(expr: &AstExpr<'db>, mut env: &Env<'db>) -> ExprResult<
         AstExprKind::Block(ast_block) => ExprResult {
             temporaries: vec![],
             span: expr_span,
-            kind: ast_block.check(env).await.into(),
+            kind: ast_block.check_expr_in_env(env).await.into(),
         },
 
         AstExprKind::If(ast_arms) => {
@@ -616,7 +646,10 @@ async fn check_expr<'db>(expr: &AstExpr<'db>, mut env: &Env<'db>) -> ExprResult<
             let mut has_else = false;
             for arm in ast_arms {
                 let condition = if let Some(c) = &arm.condition {
-                    let expr = c.check(env).await.into_expr_with_enclosed_temporaries(env);
+                    let expr = c
+                        .check_expr_in_env(env)
+                        .await
+                        .into_expr_with_enclosed_temporaries(env);
                     env.require_expr_has_bool_ty(expr);
                     Some(expr)
                 } else {
@@ -624,7 +657,7 @@ async fn check_expr<'db>(expr: &AstExpr<'db>, mut env: &Env<'db>) -> ExprResult<
                     None
                 };
 
-                let body = arm.result.check(env).await;
+                let body = arm.result.check_expr_in_env(env).await;
 
                 arms.push(MatchArm { condition, body });
             }
@@ -648,7 +681,7 @@ async fn check_expr<'db>(expr: &AstExpr<'db>, mut env: &Env<'db>) -> ExprResult<
 
         AstExprKind::PermissionOp { value, op } => {
             let mut temporaries = vec![];
-            let value_result = value.check(env).await;
+            let value_result = value.check_expr_in_env(env).await;
             let place_expr = value_result.into_place_expr(env, &mut temporaries);
             let sym_place = place_expr.into_sym_place(db);
             ExprResult {
@@ -820,7 +853,7 @@ async fn require_future<'db>(
     }
 }
 
-fn require_owned<'db>(env: &Env<'db>, await_span: Span<'db>, perm: SymPerm<'db>) {
+fn require_owned<'db>(_env: &Env<'db>, _await_span: Span<'db>, _perm: SymPerm<'db>) {
     todo!()
 }
 
@@ -836,11 +869,11 @@ async fn check_function_call<'db>(
     let db = env.db();
 
     // Get the signature.
-    let signature = match function.object_check_signature(db) {
+    let signature = match function.checked_signature(db) {
         Ok(signature) => signature,
         Err(reported) => {
             for ast_arg in ast_args {
-                let _ = ast_arg.check(env).await;
+                let _ = ast_arg.check_expr_in_env(env).await;
             }
             return ExprResult::err(db, reported);
         }
@@ -886,14 +919,14 @@ async fn check_method_call<'db>(
     let db = env.db();
 
     // Get the signature.
-    let signature = match function.object_check_signature(db) {
+    let signature = match function.checked_signature(db) {
         Ok(signature) => signature,
         Err(reported) => {
             for &generic in generics.iter().flatten() {
                 let _ = env.symbolize(generic);
             }
             for ast_arg in ast_args {
-                let _ = ast_arg.check(env).await;
+                let _ = ast_arg.check_expr_in_env(env).await;
             }
             return ExprResult::err(db, reported);
         }
@@ -1091,7 +1124,7 @@ async fn check_call_common<'db>(
         } else {
             let ast_arg = &ast_args[i - self_args];
             ast_arg
-                .check(env)
+                .check_expr_in_env(env)
                 .await
                 .into_expr(env, &mut arg_temporaries)
         };

@@ -38,7 +38,7 @@ impl<'db, T: Check<'db>> Check<'db> for Option<T> {
 
 impl<'db> Check<'db> for SourceFile {
     fn check(&self, db: &'db dyn crate::Db) {
-        self.into_symbol(db).check(db);
+        self.symbol(db).check(db);
     }
 }
 
@@ -76,14 +76,14 @@ impl<'db> Check<'db> for SymClassMember<'db> {
 
 impl<'db> Check<'db> for SymField<'db> {
     fn check(&self, db: &'db dyn crate::Db) {
-        self.ty(db).check(db);
+        self.checked_field_ty(db);
     }
 }
 
 impl<'db> Check<'db> for SymFunction<'db> {
     fn check(&self, db: &'db dyn crate::Db) {
-        self.signature(db).check(db);
-        self.object_check_body(db).check(db);
+        let _ = self.checked_signature(db);
+        self.checked_body(db);
     }
 }
 
@@ -183,11 +183,5 @@ impl<'db> Check<'db> for SymVariable<'db> {
         // There *are* validity checks that need to be done on types,
         // but they are done as part of the checking the item in which
         // the type appears.
-    }
-}
-
-impl<'db> Check<'db> for ObjectExpr<'db> {
-    fn check(&self, _db: &'db dyn crate::Db) {
-        // FIXME: true check-check
     }
 }

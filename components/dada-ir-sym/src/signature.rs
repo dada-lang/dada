@@ -9,10 +9,11 @@ use crate::{
     check::Runtime,
     env::{Env, EnvLike},
     function::{SymFunction, SymFunctionSignature, SymFunctionSource, SymInputOutput},
+    prelude::Symbol,
     scope::Scope,
     symbol::SymVariable,
     ty::{SymTy, SymTyName},
-    IntoSymbol, SymbolizeInEnv,
+    CheckInEnv,
 };
 
 pub fn check_function_signature<'db>(
@@ -44,7 +45,7 @@ pub fn prepare_env<'db>(
     let inputs = source.inputs(db);
     let input_symbols = inputs
         .iter()
-        .map(|input| input.into_symbol(db))
+        .map(|input| input.symbol(db))
         .collect::<Vec<_>>();
     let mut proto_env = ProtoEnv {
         db,
@@ -57,8 +58,8 @@ pub fn prepare_env<'db>(
     let mut env: Env<'db> = Env::new(runtime, function.scope(db));
     let mut input_tys: Vec<SymTy<'db>> = vec![];
     for i in source.inputs(db).iter() {
-        let ty = proto_env.variable_ty(i.into_symbol(db));
-        env.set_program_variable_ty(i.into_symbol(db), ty);
+        let ty = proto_env.variable_ty(i.symbol(db));
+        env.set_program_variable_ty(i.symbol(db), ty);
         input_tys.push(ty);
     }
 
@@ -122,7 +123,7 @@ impl<'a, 'db> ProtoEnv<'a, 'db> {
     fn variable_ty_from_input(&mut self, input: &AstFunctionInput<'db>) -> SymTy<'db> {
         match input {
             AstFunctionInput::SelfArg(arg) => todo!(),
-            AstFunctionInput::Variable(var) => var.ty(self.db()).symbolize_in_env(self),
+            AstFunctionInput::Variable(var) => var.ty(self.db()).check_in_env(self),
         }
     }
 
@@ -135,7 +136,7 @@ fn output_ty<'a, 'db>(env: &mut ProtoEnv<'a, 'db>, function: &SymFunction<'db>) 
     let db = env.db();
     match function.source(db) {
         SymFunctionSource::Function(ast_function) => match ast_function.output_ty(db) {
-            Some(ast_ty) => ast_ty.symbolize_in_env(env),
+            Some(ast_ty) => ast_ty.check_in_env(env),
             None => SymTy::unit(db),
         },
         SymFunctionSource::Constructor(sym_aggregate, ast_aggregate) => {

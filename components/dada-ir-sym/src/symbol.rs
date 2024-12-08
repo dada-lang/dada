@@ -4,7 +4,7 @@ use dada_ir_ast::{
 };
 use salsa::Update;
 
-use crate::{scope::Scope, ty::SymGenericTerm, IntoSymbol};
+use crate::{prelude::Symbol, scope::Scope, ty::SymGenericTerm};
 
 /// Symbol for a generic parameter or local variable.
 #[salsa::tracked]
@@ -80,13 +80,13 @@ pub trait AssertKind<'db, R> {
     fn assert_kind(self, db: &'db dyn crate::Db) -> R;
 }
 
-impl<'db> IntoSymbol<'db> for AstFunctionInput<'db> {
-    type Symbolic = SymVariable<'db>;
+impl<'db> Symbol<'db> for AstFunctionInput<'db> {
+    type Output = SymVariable<'db>;
 
-    fn into_symbol(self, db: &'db dyn crate::Db) -> SymVariable<'db> {
+    fn symbol(self, db: &'db dyn crate::Db) -> SymVariable<'db> {
         match self {
-            AstFunctionInput::SelfArg(ast_self_arg) => ast_self_arg.into_symbol(db),
-            AstFunctionInput::Variable(variable_decl) => variable_decl.into_symbol(db),
+            AstFunctionInput::SelfArg(ast_self_arg) => ast_self_arg.symbol(db),
+            AstFunctionInput::Variable(variable_decl) => variable_decl.symbol(db),
         }
     }
 }
@@ -102,11 +102,11 @@ impl std::fmt::Display for SymGenericKind {
 }
 
 #[salsa::tracked]
-impl<'db> IntoSymbol<'db> for VariableDecl<'db> {
-    type Symbolic = SymVariable<'db>;
+impl<'db> Symbol<'db> for VariableDecl<'db> {
+    type Output = SymVariable<'db>;
 
     #[salsa::tracked]
-    fn into_symbol(self, db: &'db dyn crate::Db) -> SymVariable<'db> {
+    fn symbol(self, db: &'db dyn crate::Db) -> SymVariable<'db> {
         SymVariable::new(
             db,
             SymGenericKind::Place,
@@ -117,11 +117,11 @@ impl<'db> IntoSymbol<'db> for VariableDecl<'db> {
 }
 
 #[salsa::tracked]
-impl<'db> IntoSymbol<'db> for AstSelfArg<'db> {
-    type Symbolic = SymVariable<'db>;
+impl<'db> Symbol<'db> for AstSelfArg<'db> {
+    type Output = SymVariable<'db>;
 
     #[salsa::tracked]
-    fn into_symbol(self, db: &'db dyn crate::Db) -> SymVariable<'db> {
+    fn symbol(self, db: &'db dyn crate::Db) -> SymVariable<'db> {
         SymVariable::new(
             db,
             SymGenericKind::Place,

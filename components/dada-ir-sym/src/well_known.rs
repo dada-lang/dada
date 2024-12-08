@@ -7,7 +7,7 @@ use dada_ir_ast::{
 use crate::{
     class::SymAggregate,
     module::{SymItem, SymModule},
-    IntoSymbol,
+    prelude::Symbol,
 };
 
 fn dada_lang_krate(db: &dyn crate::Db) -> Errors<Krate> {
@@ -21,7 +21,7 @@ fn dada_lang_krate(db: &dyn crate::Db) -> Errors<Krate> {
 fn prelude_module<'db>(db: &'db dyn crate::Db) -> Errors<SymModule<'db>> {
     let krate = dada_lang_krate(db)?;
     let identifier = Identifier::new(db, "prelude");
-    Ok(db.source_file(krate, &[identifier]).into_symbol(db))
+    Ok(db.source_file(krate, &[identifier]).symbol(db))
 }
 
 fn prelude_member<'db>(db: &'db dyn crate::Db, name: &str) -> Errors<SymItem<'db>> {

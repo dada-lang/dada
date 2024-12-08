@@ -17,7 +17,7 @@ use crate::{
     env::Env,
     exprs::{ExprResult, ExprResultKind},
     object_ir::{ObjectPlaceExpr, ObjectPlaceExprKind},
-    prelude::ObjectCheckFieldTy,
+    prelude::CheckedFieldTy,
 };
 
 #[derive(Copy, Clone)]
@@ -335,7 +335,7 @@ impl<'member, 'db> MemberLookup<'member, 'db> {
                         return Some(SearchResult::Field {
                             owner,
                             field,
-                            field_ty: field.object_check_field_ty(db).substitute(db, &generics),
+                            field_ty: field.checked_field_ty(db).substitute(db, &generics),
                         });
                     }
                 }

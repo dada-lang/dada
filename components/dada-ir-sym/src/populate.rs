@@ -3,7 +3,7 @@ use dada_ir_ast::ast::{
     AstPermKind, AstTy, AstTyKind,
 };
 
-use crate::{function::SignatureSymbols, ty::AnonymousPermSymbol, IntoSymbol};
+use crate::{function::SignatureSymbols, prelude::Symbol, ty::AnonymousPermSymbol};
 
 /// Iterate over the items in a signature (function, class, impl, etc)
 /// and create the symbols for generic types and/or parameters declared within.
@@ -90,7 +90,7 @@ impl<'db> PopulateSignatureSymbols<'db> for AstGenericDecl<'db> {
         db: &'db dyn crate::Db,
         symbols: &mut SignatureSymbols<'db>,
     ) {
-        symbols.generic_variables.push(self.into_symbol(db));
+        symbols.generic_variables.push(self.symbol(db));
     }
 }
 
@@ -122,10 +122,10 @@ impl<'db> PopulateSignatureSymbols<'db> for AstFunctionInput<'db> {
                 if let Some(perm) = ast_self_arg.perm(db) {
                     perm.populate_signature_symbols(db, symbols);
                 }
-                symbols.input_variables.push(ast_self_arg.into_symbol(db));
+                symbols.input_variables.push(ast_self_arg.symbol(db));
             }
             AstFunctionInput::Variable(variable_decl) => {
-                symbols.input_variables.push(variable_decl.into_symbol(db));
+                symbols.input_variables.push(variable_decl.symbol(db));
                 variable_decl.ty(db).populate_signature_symbols(db, symbols);
             }
         }

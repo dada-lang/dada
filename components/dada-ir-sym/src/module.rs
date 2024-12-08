@@ -10,11 +10,11 @@ use dada_util::{FromImpls, Map};
 use crate::{
     class::SymAggregate,
     function::SymFunction,
+    prelude::Symbol,
     primitive::SymPrimitive,
     scope::{Resolve, Scope},
     scope_tree::{ScopeItem, ScopeTreeNode},
     symbol::SymVariable,
-    IntoSymbol,
 };
 
 #[salsa::tracked]
@@ -94,20 +94,20 @@ impl<'db> ScopeTreeNode<'db> for SymModule<'db> {
     }
 }
 
-impl<'db> IntoSymbol<'db> for SourceFile {
-    type Symbolic = SymModule<'db>;
+impl<'db> Symbol<'db> for SourceFile {
+    type Output = SymModule<'db>;
 
-    fn into_symbol(self, db: &'db dyn crate::Db) -> Self::Symbolic {
-        self.parse(db).into_symbol(db)
+    fn symbol(self, db: &'db dyn crate::Db) -> Self::Output {
+        self.parse(db).symbol(db)
     }
 }
 
 #[salsa::tracked]
-impl<'db> IntoSymbol<'db> for AstModule<'db> {
-    type Symbolic = SymModule<'db>;
+impl<'db> Symbol<'db> for AstModule<'db> {
+    type Output = SymModule<'db>;
 
     #[salsa::tracked]
-    fn into_symbol(self, db: &'db dyn crate::Db) -> SymModule<'db> {
+    fn symbol(self, db: &'db dyn crate::Db) -> SymModule<'db> {
         let mut class_map = Map::default();
         let mut function_map = Map::default();
         let mut ast_use_map = Map::default();
@@ -154,15 +154,15 @@ impl<'db> IntoSymbol<'db> for AstModule<'db> {
 
 impl<'db> ScopeTreeNode<'db> for AstModule<'db> {
     fn direct_super_scope(self, db: &'db dyn crate::Db) -> Option<ScopeItem<'db>> {
-        self.into_symbol(db).direct_super_scope(db)
+        self.symbol(db).direct_super_scope(db)
     }
 
     fn direct_generic_parameters(self, db: &'db dyn crate::Db) -> &'db Vec<SymVariable<'db>> {
-        self.into_symbol(db).direct_generic_parameters(db)
+        self.symbol(db).direct_generic_parameters(db)
     }
 
     fn into_scope(self, db: &'db dyn crate::Db) -> Scope<'db, 'db> {
-        self.into_symbol(db).into_scope(db)
+        self.symbol(db).into_scope(db)
     }
 }
 

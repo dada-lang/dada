@@ -7,7 +7,7 @@ use crate::{
     subst::SubstWith,
     symbol::{SymGenericKind, SymVariable},
     ty::{SymGenericTerm, SymPerm, SymPlace, SymTy, SymTyKind},
-    SymbolizeInEnv,
+    CheckInEnv,
 };
 use dada_ir_ast::{diagnostic::Reported, span::Span};
 use dada_util::Map;
@@ -58,10 +58,10 @@ impl<'db> Env<'db> {
     /// We have to do a bit of a "dance" because `to_object_ir` needs a mutable reference to a shared reference.
     pub fn symbolize<I>(&self, i: I) -> I::Output
     where
-        I: SymbolizeInEnv<'db>,
+        I: CheckInEnv<'db>,
     {
         let mut env = self;
-        i.symbolize_in_env(&mut env)
+        i.check_in_env(&mut env)
     }
 
     /// Extract the scope from the environment.
@@ -202,8 +202,8 @@ impl<'db> Env<'db> {
     pub fn require_assignable_object_type(
         &self,
         value_span: Span<'db>,
-        value_ty: impl SymbolizeInEnv<'db, Output = SymTy<'db>>,
-        place_ty: impl SymbolizeInEnv<'db, Output = SymTy<'db>>,
+        value_ty: impl CheckInEnv<'db, Output = SymTy<'db>>,
+        place_ty: impl CheckInEnv<'db, Output = SymTy<'db>>,
     ) {
         let value_ty = self.symbolize(value_ty);
         let place_ty = self.symbolize(place_ty);
@@ -218,8 +218,8 @@ impl<'db> Env<'db> {
     pub fn require_equal_object_types(
         &self,
         span: Span<'db>,
-        expected_ty: impl SymbolizeInEnv<'db, Output = SymTy<'db>>,
-        found_ty: impl SymbolizeInEnv<'db, Output = SymTy<'db>>,
+        expected_ty: impl CheckInEnv<'db, Output = SymTy<'db>>,
+        found_ty: impl CheckInEnv<'db, Output = SymTy<'db>>,
     ) {
         let expected_ty = self.symbolize(expected_ty);
         let found_ty = self.symbolize(found_ty);
@@ -239,7 +239,7 @@ impl<'db> Env<'db> {
     pub fn require_numeric_type(
         &self,
         span: Span<'db>,
-        ty: impl SymbolizeInEnv<'db, Output = SymTy<'db>>,
+        ty: impl CheckInEnv<'db, Output = SymTy<'db>>,
     ) {
         let ty = self.symbolize(ty);
         self.runtime.defer(self, span, move |env| async move {

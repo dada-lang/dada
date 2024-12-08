@@ -14,11 +14,12 @@ use crate::{
     env::EnvLike,
     function::SymFunction,
     module::SymModule,
+    prelude::Symbol,
     primitive::{primitives, SymPrimitive},
     scope_tree::ScopeTreeNode,
     symbol::{FromVar, SymGenericKind, SymVariable},
     ty::{SymGenericTerm, SymTy},
-    IntoSymbol, SymbolizeInEnv,
+    CheckInEnv,
 };
 
 /// Name resolution scope, used when converting types/function-bodies etc into symbols.
@@ -279,7 +280,7 @@ impl<'db> From<SymVariable<'db>> for ScopeChainKind<'_, 'db> {
 }
 
 #[derive(Clone, Debug, PartialEq, Eq)]
-pub struct NameResolution<'db> {
+pub(crate) struct NameResolution<'db> {
     pub generics: Vec<SymGenericTerm<'db>>,
     pub sym: NameResolutionSym<'db>,
 }
@@ -307,7 +308,7 @@ impl<'db> NameResolution<'db> {
     ///
     /// FIXME: Remove all error reporting from here and push it further up the chain,
     /// since the context of the lookup may matter to how we report the error.
-    pub fn resolve_relative_id(
+    pub(crate) fn resolve_relative_id(
         self,
         db: &'db dyn crate::Db,
         id: SpannedIdentifier<'db>,
@@ -358,7 +359,7 @@ impl<'db> NameResolution<'db> {
     }
 
     /// Attempts to resolve generic argments like `foo[u32]`.    
-    pub fn resolve_relative_generic_args(
+    pub(crate) fn resolve_relative_generic_args(
         mut self,
         env: &mut dyn EnvLike<'db>,
         generics: &SpanVec<'db, AstGenericTerm<'db>>,
@@ -396,7 +397,7 @@ impl<'db> NameResolution<'db> {
         }
 
         self.generics
-            .extend(generics.values.iter().map(|v| v.symbolize_in_env(env)));
+            .extend(generics.values.iter().map(|v| v.check_in_env(env)));
 
         Ok(self)
     }
@@ -702,7 +703,7 @@ fn resolve_name_against_crate<'db>(
     let source_file = db.source_file(krate, &[id.id]);
     match source_file.contents(db) {
         Ok(_) => {
-            let sym_module = source_file.into_symbol(db);
+            let sym_module = source_file.symbol(db);
             Ok(sym_module.into())
         }
 

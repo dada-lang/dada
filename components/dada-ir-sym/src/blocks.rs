@@ -14,7 +14,7 @@ use crate::{
     object_ir::{ObjectExpr, ObjectExprKind, ObjectPlaceExpr, ObjectPlaceExprKind},
     signature::prepare_env,
     statements::check_block_statements,
-    Checking,
+    CheckExprInEnv,
 };
 
 pub fn check_function_body<'db>(
@@ -116,17 +116,17 @@ fn check_function_body_ast_block<'db>(
         async move |runtime| -> ObjectExpr<'db> {
             let (env, _, _) = prepare_env(db, runtime, function);
 
-            let expr = body.check(&env).await;
+            let expr = body.check_expr_in_env(&env).await;
 
             expr
         },
     ))
 }
 
-impl<'db> Checking<'db> for AstBlock<'db> {
-    type Checking = ObjectExpr<'db>;
+impl<'db> CheckExprInEnv<'db> for AstBlock<'db> {
+    type Output = ObjectExpr<'db>;
 
-    async fn check(&self, env: &Env<'db>) -> Self::Checking {
+    async fn check_expr_in_env(&self, env: &Env<'db>) -> Self::Output {
         let db = env.db();
 
         let statements = self.statements(db);

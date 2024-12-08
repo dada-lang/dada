@@ -1,11 +1,11 @@
 use std::sync::Arc;
 
 use dada_ir_ast::{ast::PermissionOp, diagnostic::Reported};
-use dada_ir_sym::{primitive::SymPrimitiveKind, subst::Subst, symbol::SymVariable, ty::SymTyName};
-use dada_object_check::object_ir::{
-    MatchArm, ObjectBinaryOp, ObjectExpr, ObjectExprKind, SymGenericTerm, SymTy,
-    SymTyKind, PrimitiveLiteral,
+use dada_ir_sym::object_ir::{
+    MatchArm, ObjectBinaryOp, ObjectExpr, ObjectExprKind, PrimitiveLiteral,
 };
+use dada_ir_sym::ty::{SymGenericTerm, SymTy, SymTyKind};
+use dada_ir_sym::{primitive::SymPrimitiveKind, subst::Subst, symbol::SymVariable, ty::SymTyName};
 use dada_util::Map;
 use wasm_encoder::{Instruction, ValType};
 use wasm_place_repr::{WasmLocal, WasmPlaceRepr};
@@ -36,10 +36,7 @@ pub(crate) struct ExprCodegen<'cx, 'db> {
 }
 
 impl<'cx, 'db> ExprCodegen<'cx, 'db> {
-    pub fn new(
-        cx: &'cx mut Cx<'db>,
-        generics: Map<SymVariable<'db>, SymGenericTerm<'db>>,
-    ) -> Self {
+    pub fn new(cx: &'cx mut Cx<'db>, generics: Map<SymVariable<'db>, SymGenericTerm<'db>>) -> Self {
         // Initially there is one local variable, the stack pointer.
         Self {
             cx,
@@ -88,7 +85,6 @@ impl<'cx, 'db> ExprCodegen<'cx, 'db> {
             ObjectExprKind::Primitive(literal) => self.push_literal(expr.ty(db), literal),
             ObjectExprKind::LetIn {
                 lv,
-                sym_ty: _,
                 ty,
                 initializer,
                 body,
@@ -138,7 +134,6 @@ impl<'cx, 'db> ExprCodegen<'cx, 'db> {
             ObjectExprKind::Call {
                 function,
                 ref substitution,
-                sym_substitution: _,
                 ref arg_temps,
             } => {
                 let fn_args = substitution.subst_vars(db, &self.generics);
@@ -553,6 +548,7 @@ impl<'cx, 'db> ExprCodegen<'cx, 'db> {
             SymTyKind::Error(reported) => {
                 return self.push_error(*reported);
             }
+            SymTyKind::Perm(sym_perm, sym_ty) => todo!(),
         };
         match kind {
             SymPrimitiveKind::Bool

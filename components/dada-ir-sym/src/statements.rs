@@ -8,7 +8,7 @@ use crate::{
     object_ir::{ObjectExpr, ObjectExprKind},
     symbol::SymVariable,
     ty::SymTy,
-    Checking,
+    CheckExprInEnv,
 };
 
 pub fn check_block_statements<'a, 'db>(
@@ -44,7 +44,7 @@ pub fn check_block_statements<'a, 'db>(
                         match s.initializer(db) {
                             Some(initializer) => {
                                 let initializer = initializer
-                                    .check(env)
+                                    .check_expr_in_env(env)
                                     .await
                                     .into_expr_with_enclosed_temporaries(&env);
                                 env.require_assignable_object_type(
@@ -80,8 +80,11 @@ pub fn check_block_statements<'a, 'db>(
             }
 
             AstStatement::Expr(e) => {
-                let check_e =
-                    async { e.check(env).await.into_expr_with_enclosed_temporaries(&env) };
+                let check_e = async {
+                    e.check_expr_in_env(env)
+                        .await
+                        .into_expr_with_enclosed_temporaries(&env)
+                };
                 if rest.is_empty() {
                     // Subtle-ish: if this is the last statement in the block,
                     // it becomes the result of the block.

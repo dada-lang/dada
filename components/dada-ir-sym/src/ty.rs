@@ -3,9 +3,10 @@ use crate::{
     class::{SymAggregate, SymField},
     env::EnvLike,
     indices::{FromInfer, FromInferVar, InferVarIndex},
+    prelude::Symbol,
     primitive::{SymPrimitive, SymPrimitiveKind},
     symbol::{AssertKind, FromVar, HasKind, SymGenericKind, SymVariable},
-    Db, IntoSymbol, SymbolizeInEnv,
+    CheckInEnv, Db,
 };
 use dada_ir_ast::{
     ast::{AstGenericDecl, AstGenericKind, AstPerm, AstPermKind},
@@ -249,10 +250,10 @@ impl std::fmt::Display for SymTy<'_> {
     }
 }
 
-impl<'db> SymbolizeInEnv<'db> for SymTy<'db> {
+impl<'db> CheckInEnv<'db> for SymTy<'db> {
     type Output = SymTy<'db>;
 
-    fn symbolize_in_env(self, _env: &mut dyn EnvLike<'db>) -> Self::Output {
+    fn check_in_env(self, _env: &mut dyn EnvLike<'db>) -> Self::Output {
         self
     }
 }
@@ -458,14 +459,14 @@ pub enum SymPlaceKind<'db> {
 /// Create the symbol for an explicictly declared generic parameter.
 /// This is tracked so that we do it at most once.
 #[salsa::tracked]
-impl<'db> IntoSymbol<'db> for AstGenericDecl<'db> {
-    type Symbolic = SymVariable<'db>;
+impl<'db> Symbol<'db> for AstGenericDecl<'db> {
+    type Output = SymVariable<'db>;
 
     #[salsa::tracked]
-    fn into_symbol(self, db: &'db dyn crate::Db) -> SymVariable<'db> {
+    fn symbol(self, db: &'db dyn crate::Db) -> SymVariable<'db> {
         SymVariable::new(
             db,
-            self.kind(db).into_symbol(db),
+            self.kind(db).symbol(db),
             self.name(db).map(|n| n.id),
             self.span(db),
         )
@@ -473,10 +474,10 @@ impl<'db> IntoSymbol<'db> for AstGenericDecl<'db> {
 }
 
 /// Convert to `SymGenericKind`
-impl<'db> IntoSymbol<'db> for AstGenericKind<'db> {
-    type Symbolic = SymGenericKind;
+impl<'db> Symbol<'db> for AstGenericKind<'db> {
+    type Output = SymGenericKind;
 
-    fn into_symbol(self, _db: &'db dyn crate::Db) -> Self::Symbolic {
+    fn symbol(self, _db: &'db dyn crate::Db) -> Self::Output {
         match self {
             AstGenericKind::Type(_) => SymGenericKind::Type,
             AstGenericKind::Perm(_) => SymGenericKind::Perm,

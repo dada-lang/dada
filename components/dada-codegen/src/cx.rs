@@ -1,5 +1,4 @@
 use dada_ir_sym::{function::SymFunction, ty::SymGenericTerm};
-use dada_object_check::object_ir::SymGenericTerm;
 use dada_util::{FromImpls, Map};
 use salsa::Update;
 use wasm_encoder::{CodeSection, FunctionSection, TypeSection};
