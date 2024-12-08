@@ -71,9 +71,9 @@ impl<'db> SymModule<'db> {
     /// This is executed by `dada-ir-check` crate
     /// simply to force errors to be reported.
     pub fn resolve_use_items(self, db: &'db dyn crate::Db) {
-        let scope = &self.mod_scope(db);
+        let env = &mut self.mod_scope(db).into_global_env(db);
         for item in self.ast_use_map(db).values() {
-            let _ = item.path(db).resolve_in(db, scope);
+            let _ = item.path(db).resolve_in(env);
         }
     }
 }

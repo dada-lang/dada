@@ -9,11 +9,10 @@ use crate::{
     check::Runtime,
     env::{Env, EnvLike},
     function::{SymFunction, SymFunctionSignature, SymFunctionSource, SymInputOutput},
-    prelude::Symbol,
     scope::Scope,
     symbol::SymVariable,
     ty::{SymTy, SymTyName},
-    SymbolizeInEnv,
+    IntoSymbol, SymbolizeInEnv,
 };
 
 pub fn check_function_signature<'db>(
@@ -45,7 +44,7 @@ pub fn prepare_env<'db>(
     let inputs = source.inputs(db);
     let input_symbols = inputs
         .iter()
-        .map(|input| input.symbol(db))
+        .map(|input| input.into_symbol(db))
         .collect::<Vec<_>>();
     let mut proto_env = ProtoEnv {
         db,
@@ -58,8 +57,8 @@ pub fn prepare_env<'db>(
     let mut env: Env<'db> = Env::new(runtime, function.scope(db));
     let mut input_tys: Vec<SymTy<'db>> = vec![];
     for i in source.inputs(db).iter() {
-        let ty = proto_env.variable_ty(i.symbol(db));
-        env.set_program_variable_ty(i.symbol(db), ty);
+        let ty = proto_env.variable_ty(i.into_symbol(db));
+        env.set_program_variable_ty(i.into_symbol(db), ty);
         input_tys.push(ty);
     }
 

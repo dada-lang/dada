@@ -6,7 +6,6 @@ edition = "2021"
 [dependencies]
 dada-ir-ast = { version = "0.1.0", path = "../dada-ir-ast" }
 dada-ir-sym = { version = "0.1.0", path = "../dada-ir-sym" }
-dada-object-check = { version = "0.1.0", path = "../dada-object-check" }
 dada-parser = { version = "0.1.0", path = "../dada-parser" }
 dada-util = { version = "0.1.0", path = "../dada-util" }
 salsa = { workspace = true }

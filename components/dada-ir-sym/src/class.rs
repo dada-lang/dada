@@ -10,7 +10,6 @@ use dada_util::FromImpls;
 use crate::{
     function::{SignatureSymbols, SymFunction, SymFunctionSource},
     populate::PopulateSignatureSymbols,
-    prelude::Symbol,
     scope::Scope,
     scope_tree::{ScopeItem, ScopeTreeNode},
     symbol::{SymGenericKind, SymVariable},
@@ -60,7 +59,7 @@ impl<'db> SymAggregate<'db> {
             .generics(db)
             .iter()
             .flatten()
-            .map(move |decl| decl.kind(db).symbol(db))
+            .map(move |decl| decl.kind(db).into_symbol(db))
     }
 
     /// Span of the class name, typically used in diagnostics.

@@ -11,13 +11,14 @@ use dada_util::FromImpls;
 use crate::{
     binder::BoundTerm,
     class::{SymAggregate, SymClassMember},
+    env::EnvLike,
     function::SymFunction,
     module::SymModule,
     primitive::{primitives, SymPrimitive},
     scope_tree::ScopeTreeNode,
     symbol::{FromVar, SymGenericKind, SymVariable},
-    ty::SymGenericTerm,
-    IntoSymbol,
+    ty::{SymGenericTerm, SymTy},
+    IntoSymbol, SymbolizeInEnv,
 };
 
 /// Name resolution scope, used when converting types/function-bodies etc into symbols.
@@ -209,6 +210,37 @@ impl<'scope, 'db> Scope<'scope, 'db> {
         vec.reverse();
         vec
     }
+
+    /// Create a global environment (meaning: one with no local variables, parameters, etc)
+    /// from this scope. Used when resolving `use` statements, for example.
+    pub fn into_global_env(self, db: &'db dyn crate::Db) -> GlobalEnv<'db>
+    where
+        'scope: 'db,
+    {
+        GlobalEnv { db, scope: self }
+    }
+}
+
+/// A global environment that implements [`EnvLike`][].
+/// Suitable when there are no local variables or parameters in scope.
+/// Created by [`Scope::into_global_env`][].
+pub struct GlobalEnv<'db> {
+    db: &'db dyn crate::Db,
+    scope: Scope<'db, 'db>,
+}
+
+impl<'db> EnvLike<'db> for GlobalEnv<'db> {
+    fn db(&self) -> &'db dyn crate::Db {
+        self.db
+    }
+
+    fn scope(&self) -> &Scope<'db, 'db> {
+        &self.scope
+    }
+
+    fn variable_ty(&mut self, var: SymVariable<'db>) -> SymTy<'db> {
+        unreachable!("global scope has no variables, `{var}` is not in scope")
+    }
 }
 
 /// A link in the scope resolution chain. We first attempt to resolve an identifier
@@ -328,10 +360,11 @@ impl<'db> NameResolution<'db> {
     /// Attempts to resolve generic argments like `foo[u32]`.    
     pub fn resolve_relative_generic_args(
         mut self,
-        db: &'db dyn crate::Db,
-        scope: &Scope<'_, 'db>,
+        env: &mut dyn EnvLike<'db>,
         generics: &SpanVec<'db, AstGenericTerm<'db>>,
     ) -> Errors<NameResolution<'db>> {
+        let db = env.db();
+
         let expected_arguments = self.sym.expected_generic_parameters(db);
         let found_arguments = self.generics.len();
         assert!(found_arguments <= expected_arguments);
@@ -362,12 +395,8 @@ impl<'db> NameResolution<'db> {
         .report(db));
         }
 
-        self.generics.extend(
-            generics
-                .values
-                .iter()
-                .map(|v| v.into_sym_in_scope(db, scope)),
-        );
+        self.generics
+            .extend(generics.values.iter().map(|v| v.symbolize_in_env(env)));
 
         Ok(self)
     }
@@ -451,29 +480,23 @@ impl<'db> NameResolutionSym<'db> {
 }
 
 pub trait Resolve<'db> {
-    fn resolve_in(
-        self,
-        db: &'db dyn crate::Db,
-        scope: &Scope<'_, 'db>,
-    ) -> Errors<NameResolution<'db>>;
+    fn resolve_in(self, env: &mut dyn EnvLike<'db>) -> Errors<NameResolution<'db>>;
 }
 
 impl<'db> Resolve<'db> for AstPath<'db> {
     /// Given a path that must resolve to some kind of name resolution,
     /// resolve it if we can (reporting errors if it is invalid).
-    fn resolve_in(
-        self,
-        db: &'db dyn crate::Db,
-        scope: &Scope<'_, 'db>,
-    ) -> Errors<NameResolution<'db>> {
+    fn resolve_in(self, env: &mut dyn EnvLike<'db>) -> Errors<NameResolution<'db>> {
+        let db = env.db();
+
         match self.kind(db) {
-            AstPathKind::Identifier(first_id) => first_id.resolve_in(db, scope),
+            AstPathKind::Identifier(first_id) => first_id.resolve_in(env),
             AstPathKind::GenericArgs { path, args } => {
-                let base = path.resolve_in(db, scope)?;
-                base.resolve_relative_generic_args(db, scope, args)
+                let base = path.resolve_in(env)?;
+                base.resolve_relative_generic_args(env, args)
             }
             AstPathKind::Member { path, id } => {
-                let base = path.resolve_in(db, scope)?;
+                let base = path.resolve_in(env)?;
                 match base.resolve_relative_id(db, *id)? {
                     Ok(r) => Ok(r),
                     Err(base) => Err(Diagnostic::error(db, id.span, "unexpected `.` in path")
@@ -494,12 +517,8 @@ impl<'db> Resolve<'db> for AstPath<'db> {
 }
 
 impl<'db> Resolve<'db> for SpannedIdentifier<'db> {
-    fn resolve_in(
-        self,
-        db: &'db dyn crate::Db,
-        scope: &Scope<'_, 'db>,
-    ) -> Errors<NameResolution<'db>> {
-        scope.resolve_name(db, self.id, self.span)
+    fn resolve_in(self, env: &mut dyn EnvLike<'db>) -> Errors<NameResolution<'db>> {
+        env.scope().resolve_name(env.db(), self.id, self.span)
     }
 }
 

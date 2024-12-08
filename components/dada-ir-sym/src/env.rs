@@ -17,9 +17,7 @@ use crate::{
     bound::{Direction, TransitiveBounds},
     check::Runtime,
     object_ir::ObjectExpr,
-    subobject::{
-        require_assignable_object_type, require_numeric_type, require_sub_object_type, Expected,
-    },
+    subobject::{require_assignable_type, require_numeric_type, require_subtype, Expected},
     universe::Universe,
 };
 
@@ -210,7 +208,7 @@ impl<'db> Env<'db> {
         let value_ty = self.symbolize(value_ty);
         let place_ty = self.symbolize(place_ty);
         self.runtime.defer(self, value_span, move |env| async move {
-            match require_assignable_object_type(&env, value_span, value_ty, place_ty).await {
+            match require_assignable_type(&env, value_span, value_ty, place_ty).await {
                 Ok(()) => (),
                 Err(Reported(_)) => (),
             }
@@ -226,14 +224,12 @@ impl<'db> Env<'db> {
         let expected_ty = self.symbolize(expected_ty);
         let found_ty = self.symbolize(found_ty);
         self.runtime.defer(self, span, move |env| async move {
-            match require_sub_object_type(&env, Expected::Lower, span, expected_ty, found_ty).await
-            {
+            match require_subtype(&env, Expected::Lower, span, expected_ty, found_ty).await {
                 Ok(()) => (),
                 Err(Reported(_)) => return,
             }
 
-            match require_sub_object_type(&env, Expected::Upper, span, found_ty, expected_ty).await
-            {
+            match require_subtype(&env, Expected::Upper, span, found_ty, expected_ty).await {
                 Ok(()) => (),
                 Err(Reported(_)) => return,
             }

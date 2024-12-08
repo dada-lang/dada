@@ -293,7 +293,6 @@ version = "0.1.0"
 dependencies = [
  "dada-ir-ast",
  "dada-ir-sym",
- "dada-object-check",
  "dada-parser",
  "dada-util",
  "salsa",
@@ -305,7 +304,6 @@ version = "0.1.0"
 dependencies = [
  "dada-ir-ast",
  "dada-ir-sym",
- "dada-object-check",
  "dada-util",
  "salsa",
  "wasm-encoder",
@@ -386,20 +384,6 @@ dependencies = [
  "serde",
  "serde_json",
  "url",
-]
-
-[[package]]
-name = "dada-object-check"
-version = "0.1.0"
-dependencies = [
- "dada-ir-ast",
- "dada-ir-sym",
- "dada-parser",
- "dada-util",
- "futures",
- "ordered-float",
- "salsa",
- "typed-arena",
 ]
 
 [[package]]
@@ -1743,12 +1727,6 @@ dependencies = [
  "tracing-log",
  "tracing-subscriber",
 ]
-
-[[package]]
-name = "typed-arena"
-version = "2.0.2"
-source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "6af6ae20167a9ece4bcb41af5b80f8a1f1df981f6391189ce00fd257af04126a"
 
 [[package]]
 name = "typenum"

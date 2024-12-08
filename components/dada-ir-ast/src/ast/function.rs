@@ -52,7 +52,7 @@ impl<'db> Spanned<'db> for AstFunction<'db> {
     }
 }
 
-#[derive(Clone, PartialEq, Eq, PartialOrd, Ord, Hash, Update, Debug, FromImpls)]
+#[derive(Copy, Clone, PartialEq, Eq, PartialOrd, Ord, Hash, Update, Debug, FromImpls)]
 pub enum AstFunctionInput<'db> {
     SelfArg(AstSelfArg<'db>),
     Variable(VariableDecl<'db>),

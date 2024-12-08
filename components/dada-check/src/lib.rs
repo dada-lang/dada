@@ -15,7 +15,6 @@ use dada_ir_sym::{
     symbol::{SymGenericKind, SymVariable},
     ty::SymTy,
 };
-use dada_object_check::{object_ir::ObjectExpr, prelude::*};
 
 pub use dada_ir_sym::Db;
 use dada_util::Map;

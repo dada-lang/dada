@@ -13,7 +13,7 @@ use crate::{
     prelude::ObjectCheckFunctionSignature,
     scope::{NameResolution, NameResolutionSym},
     scope_tree::ScopeTreeNode,
-    subobject::{require_sub_object_type, Expected},
+    subobject::{require_subtype, Expected},
     symbol::{FromVar, HasKind, SymGenericKind, SymVariable},
     ty::{SymGenericTerm, SymPerm, SymTy, SymTyKind, SymTyName},
     well_known, Checking,
@@ -101,7 +101,7 @@ impl<'db> Checking<'db> for AstExpr<'db> {
     }
 }
 
-async fn check_expr<'db>(expr: &AstExpr<'db>, env: &Env<'db>) -> ExprResult<'db> {
+async fn check_expr<'db>(expr: &AstExpr<'db>, mut env: &Env<'db>) -> ExprResult<'db> {
     let db = env.db();
     let scope = &env.scope;
     let expr_span = expr.span;
@@ -109,7 +109,7 @@ async fn check_expr<'db>(expr: &AstExpr<'db>, env: &Env<'db>) -> ExprResult<'db>
     match &*expr.kind {
         AstExprKind::Literal(literal) => match literal.kind(db) {
             LiteralKind::Integer => {
-                let ty = env.fresh_object_ty_inference_var(expr_span);
+                let ty = env.fresh_ty_inference_var(expr_span);
                 let bits = match u64::from_str_radix(literal.text(db), 10) {
                     Ok(v) => v,
                     Err(e) => panic!("error: {e:?}"),
@@ -405,7 +405,7 @@ async fn check_expr<'db>(expr: &AstExpr<'db>, env: &Env<'db>) -> ExprResult<'db>
 
                 ExprResultKind::Other(name_resolution) => {
                     let generics = square_bracket_args.parse_as_generics(db);
-                    match name_resolution.resolve_relative_generic_args(db, scope, &generics) {
+                    match name_resolution.resolve_relative_generic_args(&mut env, &generics) {
                         Ok(name_resolution) => ExprResult {
                             temporaries: owner_result.temporaries,
                             span: expr_span,
@@ -561,7 +561,7 @@ async fn check_expr<'db>(expr: &AstExpr<'db>, env: &Env<'db>) -> ExprResult<'db>
             let future_expr = future.check(env).await.into_expr(env, &mut temporaries);
             let future_ty = future_expr.ty(db);
 
-            let awaited_ty = env.fresh_object_ty_inference_var(await_span);
+            let awaited_ty = env.fresh_ty_inference_var(await_span);
 
             env.defer(await_span, async move |env| {
                 require_future(&env, future_span, await_span, future_ty, awaited_ty).await
@@ -632,7 +632,7 @@ async fn check_expr<'db>(expr: &AstExpr<'db>, env: &Env<'db>) -> ExprResult<'db>
             let if_ty = if !has_else {
                 SymTy::unit(db)
             } else {
-                env.fresh_object_ty_inference_var(expr_span)
+                env.fresh_ty_inference_var(expr_span)
             };
 
             for arm in &arms {
@@ -784,25 +784,18 @@ async fn require_future<'db>(
         match *ty.kind(db) {
             SymTyKind::Infer(_) => (),
             SymTyKind::Never => {
-                let _ =
-                    require_sub_object_type(env, Expected::Lower, await_span, ty, awaited_ty).await;
+                let _ = require_subtype(env, Expected::Lower, await_span, ty, awaited_ty).await;
                 return;
             }
             SymTyKind::Error(_) => {
-                let _ =
-                    require_sub_object_type(env, Expected::Lower, await_span, ty, awaited_ty).await;
+                let _ = require_subtype(env, Expected::Lower, await_span, ty, awaited_ty).await;
                 return;
             }
             SymTyKind::Named(SymTyName::Future, ref generic_args) => {
                 let future_ty_arg = generic_args[0].assert_type(db);
-                let _ = require_sub_object_type(
-                    env,
-                    Expected::Lower,
-                    await_span,
-                    future_ty_arg,
-                    awaited_ty,
-                )
-                .await;
+                let _ =
+                    require_subtype(env, Expected::Lower, await_span, future_ty_arg, awaited_ty)
+                        .await;
                 return;
             }
             SymTyKind::Named(..) | SymTyKind::Var(..) => {
@@ -967,7 +960,7 @@ async fn check_method_call<'db>(
 
             // Convert each generic to a `SymGenericTerm` and check it has the correct kind.
             // If everything looks good, add it to the substitution.
-            for (ast_generic_term, var) in generics.iter().zip(function_generics.iter()) {
+            for (&ast_generic_term, &var) in generics.iter().zip(function_generics.iter()) {
                 let generic_term = env.symbolize(ast_generic_term);
                 if !generic_term.has_kind(db, var.kind(db)) {
                     return ExprResult::err(

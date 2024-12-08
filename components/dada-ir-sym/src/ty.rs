@@ -252,8 +252,8 @@ impl std::fmt::Display for SymTy<'_> {
 impl<'db> SymbolizeInEnv<'db> for SymTy<'db> {
     type Output = SymTy<'db>;
 
-    fn symbolize_in_env(&self, _env: &mut dyn EnvLike<'db>) -> Self::Output {
-        *self
+    fn symbolize_in_env(self, _env: &mut dyn EnvLike<'db>) -> Self::Output {
+        self
     }
 }
 

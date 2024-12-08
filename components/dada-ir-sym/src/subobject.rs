@@ -14,7 +14,7 @@ use crate::{
     indices::InferVarIndex,
     primitive::SymPrimitiveKind,
     symbol::SymVariable,
-    ty::{SymGenericTerm, SymTy, SymTyKind, SymTyName},
+    ty::{SymGenericTerm, SymPerm, SymPlace, SymTy, SymTyKind, SymTyName},
 };
 
 #[derive(Copy, Clone, PartialEq, Eq, PartialOrd, Ord, Hash, Debug)]
@@ -34,7 +34,7 @@ impl Expected {
     }
 }
 
-pub async fn require_assignable_object_type<'db>(
+pub async fn require_assignable_type<'db>(
     env: &Env<'db>,
     span: Span<'db>,
     value_ty: SymTy<'db>,
@@ -44,11 +44,11 @@ pub async fn require_assignable_object_type<'db>(
 
     match (value_ty.kind(db), place_ty.kind(db)) {
         (SymTyKind::Never, _) => Ok(()),
-        _ => require_sub_object_type(env, Expected::Upper, span, value_ty, place_ty).await,
+        _ => require_subtype(env, Expected::Upper, span, value_ty, place_ty).await,
     }
 }
 
-pub fn require_sub_object_type<'a, 'db>(
+pub fn require_subtype<'a, 'db>(
     env: &'a Env<'db>,
 
     // Tracks which of the types is the "expected" type from a user's point-of-view.
@@ -128,7 +128,7 @@ pub fn require_sub_object_type<'a, 'db>(
 
                 // FIXME: variance
                 for (&arg_lower, &arg_upper) in args_lower.iter().zip(args_upper) {
-                    require_sub_object_term(env, expected, span, arg_lower, arg_upper).await?;
+                    require_sub_generic_term(env, expected, span, arg_lower, arg_upper).await?;
                 }
 
                 Ok(())
@@ -142,10 +142,16 @@ pub fn require_sub_object_type<'a, 'db>(
     })
 }
 
+/// Introduce `term` as a lower or upper bound on `infer_var` (depending on `direction`).
+/// This will also relate `term` to any previously added bounds, per the MLsub algorithm.
+/// For example adding `term` as a lower bound will relate `term` to any previous upper bounds.
 fn bound_inference_var<'a, 'db>(
     env: &'a Env<'db>,
 
+    // Span that is forcing the sub-object comparison
     span: Span<'db>,
+
+    // The inference variable to bound
     infer_var: InferVarIndex,
 
     // True if the inference variable is the expected type
@@ -153,11 +159,11 @@ fn bound_inference_var<'a, 'db>(
 
     // The relation of `term` to `infer_var`.
     direction: Direction,
+
+    // The term to bound the inference variable by
     term: SymGenericTerm<'db>,
 ) -> impl Future<Output = Errors<()>> + use<'a, 'db> {
     Box::pin(async move {
-        let db = env.db();
-
         // If this variable already has the given bound, stop.
         if !env
             .runtime()
@@ -166,11 +172,13 @@ fn bound_inference_var<'a, 'db>(
             return Ok(());
         }
 
+        // Relate `term` to existing bounds in the opposite direction.
+        // For example, if we are adding a lower bound (i.e., `term <: ?X`),
+        // then we get each existing bound `B` where `?X <: B` and require `term <: B`.
         let opposite_bounds: Vec<SymGenericTerm<'db>> =
             env.runtime().with_inference_var_data(infer_var, |data| {
                 direction.reverse().infer_var_bounds(data).to_vec()
             });
-
         for opposite_bound in opposite_bounds {
             let (arg_sub, arg_sup, expected) = match direction {
                 Direction::LowerBoundedBy => {
@@ -206,14 +214,14 @@ fn bound_inference_var<'a, 'db>(
                 }
             };
 
-            require_sub_object_term(env, expected, span, arg_sub, arg_sup).await?;
+            require_sub_generic_term(env, expected, span, arg_sub, arg_sup).await?;
         }
 
         Ok(())
     })
 }
 
-async fn require_sub_object_term<'db>(
+async fn require_sub_generic_term<'db>(
     env: &Env<'db>,
     expected: Expected,
     span: Span<'db>,
@@ -222,13 +230,36 @@ async fn require_sub_object_term<'db>(
 ) -> Errors<()> {
     match (arg_lower, arg_upper) {
         (SymGenericTerm::Type(lower), SymGenericTerm::Type(upper)) => {
-            require_sub_object_type(env, expected, span, lower, upper).await
+            require_subtype(env, expected, span, lower, upper).await
         }
-        (SymGenericTerm::Perm, SymGenericTerm::Perm)
-        | (SymGenericTerm::Place, SymGenericTerm::Place)
-        | (SymGenericTerm::Error(_), SymGenericTerm::Error(_)) => Ok(()),
+        (SymGenericTerm::Perm(lower), SymGenericTerm::Perm(upper)) => {
+            require_subperms(env, span, lower, upper).await
+        }
+        (SymGenericTerm::Place(lower), SymGenericTerm::Place(upper)) => {
+            require_subplaces(env, span, lower, upper).await
+        }
+        (SymGenericTerm::Error(_), _) => Ok(()),
+        (_, SymGenericTerm::Error(_)) => Ok(()),
         _ => unreachable!("kind mismatch"),
     }
+}
+
+async fn require_subperms<'db>(
+    _env: &Env<'db>,
+    _span: Span<'db>,
+    _lower: SymPerm<'db>,
+    _upper: SymPerm<'db>,
+) -> Errors<()> {
+    todo!()
+}
+
+async fn require_subplaces<'db>(
+    _env: &Env<'db>,
+    _span: Span<'db>,
+    _lower: SymPlace<'db>,
+    _upper: SymPlace<'db>,
+) -> Errors<()> {
+    todo!()
 }
 
 pub async fn require_numeric_type<'db>(
@@ -240,7 +271,7 @@ pub async fn require_numeric_type<'db>(
 
     let mut bounds = env.transitive_upper_bounds(start_ty);
     while let Some(ty) = bounds.next().await {
-        match ty.kind(db) {
+        match *ty.kind(db) {
             SymTyKind::Error(_) => {}
             SymTyKind::Never => {}
             SymTyKind::Named(name, _) => match name {
@@ -260,6 +291,11 @@ pub async fn require_numeric_type<'db>(
             },
             SymTyKind::Var(_) => return Err(report_numeric_type_expected(env, span, ty)),
             SymTyKind::Infer(_) => {}
+            SymTyKind::Perm(_, sym_ty) => {
+                env.defer(span, async move |env| {
+                    let _ = require_numeric_type(&env, span, sym_ty).await;
+                });
+            }
         }
     }
 

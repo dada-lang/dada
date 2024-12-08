@@ -8,7 +8,6 @@ use dada_ir_ast::{
     inputs::{CompilationRoot, Krate, SourceFile},
 };
 use env::{Env, EnvLike};
-use scope::Scope;
 
 /// Core functionality needed to symbolize.
 #[salsa::db]
@@ -55,24 +54,7 @@ pub mod prelude {
     use crate::function::{SymFunction, SymFunctionSignature};
     use crate::object_ir::ObjectExpr;
     use crate::ty::SymTy;
-    use crate::IntoSymbol;
     use dada_ir_ast::diagnostic::Errors;
-
-    /// Create the symbol corresponding to some piece of AST IR.
-    /// All implementations of this trait are tracked so if you call it multiple times you get the same symbol each time.
-    pub trait Symbol<'db> {
-        type Symbolic;
-
-        fn symbol(&self, db: &'db dyn crate::Db) -> Self::Symbolic;
-    }
-
-    impl<'db, T: IntoSymbol<'db>> Symbol<'db> for T {
-        type Symbolic = T::Symbolic;
-
-        fn symbol(&self, db: &'db dyn crate::Db) -> Self::Symbolic {
-            self.into_symbol(db)
-        }
-    }
 
     pub trait ObjectCheckFunctionBody<'db> {
         fn object_check_body(self, db: &'db dyn crate::Db) -> Option<ObjectExpr<'db>>;
@@ -132,17 +114,12 @@ trait Checking<'db> {
     async fn check(&self, env: &Env<'db>) -> Self::Checking;
 }
 
-trait IntoSymInScope<'db> {
-    type Symbolic;
-
-    fn into_sym_in_scope(self, db: &'db dyn crate::Db, scope: &Scope<'_, 'db>) -> Self::Symbolic;
-}
-
-trait SymbolizeInEnv<'db> {
+trait SymbolizeInEnv<'db>: Copy {
     type Output;
 
-    fn symbolize_in_env(&self, env: &mut dyn EnvLike<'db>) -> Self::Output;
+    fn symbolize_in_env(self, env: &mut dyn EnvLike<'db>) -> Self::Output;
 }
+
 trait IntoSymbol<'db>: Copy {
     type Symbolic;
 

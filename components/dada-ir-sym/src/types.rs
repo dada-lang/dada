@@ -7,7 +7,7 @@ use crate::{env::EnvLike, scope::{NameResolution, NameResolutionSym, Resolve}, s
 impl<'db> SymbolizeInEnv<'db> for AstTy<'db> {
     type Output = SymTy<'db>;
 
-    fn symbolize_in_env(&self, env: &mut dyn EnvLike<'db>) -> Self::Output {
+    fn symbolize_in_env(self, env: &mut dyn EnvLike<'db>) -> Self::Output {
         let db = env.db();
         match self.kind(db) {
             AstTyKind::Perm(ast_perm, ast_ty) => {
@@ -22,7 +22,7 @@ impl<'db> SymbolizeInEnv<'db> for AstTy<'db> {
                     .flatten()
                     .map(|g| (g.span(db), g.symbolize_in_env(env)))
                     .collect::<Vec<_>>();
-                match ast_path.resolve_in(db, env.scope()) {
+                match ast_path.resolve_in(env) {
                     Ok(r) => name_resolution_to_sym_ty(db, r, ast_path, generics),
                     Err(r) => SymTy::err(db, r),
                 }
@@ -209,12 +209,12 @@ fn name_resolution_to_sym_ty<'db>(
 impl<'db> SymbolizeInEnv<'db> for AstGenericTerm<'db> {
     type Output = SymGenericTerm<'db>;
 
-    fn symbolize_in_env(&self, env: &mut dyn EnvLike<'db>) -> Self::Output {
+    fn symbolize_in_env(self, env: &mut dyn EnvLike<'db>) -> Self::Output {
         match self {
             AstGenericTerm::Ty(ast_ty) => ast_ty.symbolize_in_env(env).into(),
             AstGenericTerm::Perm(ast_perm) => ast_perm.symbolize_in_env(env).into(),
-            AstGenericTerm::Id(id) => match id.resolve_in(env.db(), env.scope()) {
-                Ok(r) => name_resolution_to_generic_term(env.db(), r, *id),
+            AstGenericTerm::Id(id) => match id.resolve_in(env) {
+                Ok(r) => name_resolution_to_generic_term(env.db(), r, id),
                 Err(r) => r.into(),
             },
         }
@@ -237,16 +237,16 @@ fn name_resolution_to_generic_term<'db>(db: &'db dyn crate::Db, name_resolution:
 impl<'db> SymbolizeInEnv<'db> for AstPerm<'db> {
     type Output = SymPerm<'db>;
 
-    fn symbolize_in_env(&self, env: &mut dyn EnvLike<'db>) -> Self::Output {
+    fn symbolize_in_env(self, env: &mut dyn EnvLike<'db>) -> Self::Output {
         let db = env.db();
-        match self.kind(db) {
-            AstPermKind::Shared(span_vec) => todo!(),
-            AstPermKind::Leased(span_vec) => todo!(),
-            AstPermKind::Given(span_vec) => todo!(),
+        match *self.kind(db) {
+            AstPermKind::Shared(ref _span_vec) => todo!(),
+            AstPermKind::Leased(ref _span_vec) => todo!(),
+            AstPermKind::Given(ref _span_vec) => todo!(),
             AstPermKind::My => SymPerm::my(db),
             AstPermKind::Our => SymPerm::our(db),
-            AstPermKind::Variable(spanned_identifier) => todo!(),
-            AstPermKind::GenericDecl(ast_generic_decl) => todo!(),
+            AstPermKind::Variable(_spanned_identifier) => todo!(),
+            AstPermKind::GenericDecl(_ast_generic_decl) => todo!(),
         }
     }
 }
