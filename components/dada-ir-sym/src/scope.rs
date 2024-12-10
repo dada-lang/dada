@@ -12,7 +12,7 @@ use crate::{
     class::{SymAggregate, SymClassMember},
     env::EnvLike,
     ir::binder::BoundTerm,
-    ir::function::SymFunction,
+    ir::functions::SymFunction,
     ir::primitive::{primitives, SymPrimitive},
     ir::symbol::{FromVar, SymVariable},
     ir::types::{SymGenericKind, SymGenericTerm, SymTy},

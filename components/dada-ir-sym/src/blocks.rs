@@ -1,6 +1,6 @@
 use crate::{
     class::SymAggregate,
-    ir::function::{SymFunction, SymFunctionSource, SymInputOutput},
+    ir::functions::{SymFunction, SymFunctionSource, SymInputOutput},
 };
 use dada_ir_ast::{
     ast::{AstAggregate, AstBlock},

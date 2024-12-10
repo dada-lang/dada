@@ -1,6 +1,6 @@
 pub mod binder;
 pub mod exprs;
-pub mod function;
+pub mod functions;
 pub mod primitive;
 pub mod subst;
 pub mod symbol;

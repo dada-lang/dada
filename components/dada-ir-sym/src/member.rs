@@ -3,7 +3,7 @@ use std::pin::pin;
 use crate::{
     class::{SymAggregate, SymClassMember, SymField},
     ir::binder::Binder,
-    ir::function::SymFunction,
+    ir::functions::SymFunction,
     ir::types::{SymGenericTerm, SymTy, SymTyKind, SymTyName},
 };
 use dada_ir_ast::{

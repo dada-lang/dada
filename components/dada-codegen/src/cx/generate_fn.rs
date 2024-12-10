@@ -1,6 +1,6 @@
 use dada_ir_ast::diagnostic::Err;
 use dada_ir_sym::{
-    ir::function::{SymFunction, SymInputOutput},
+    ir::functions::{SymFunction, SymInputOutput},
     prelude::{CheckedBody, CheckedSignature},
     ir::symbol::SymVariable,
     ir::types::{SymGenericTerm, SymTy},

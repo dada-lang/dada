@@ -15,7 +15,7 @@
 
 use crate::{
     class::SymField,
-    ir::function::SymFunction,
+    ir::functions::SymFunction,
     ir::symbol::{FromVar, SymVariable},
     ir::types::{SymGenericTerm, SymPlace, SymTy},
 };

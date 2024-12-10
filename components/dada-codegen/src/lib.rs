@@ -1,6 +1,6 @@
 #![feature(trait_upcasting)]
 
-use dada_ir_sym::{ir::function::SymFunction, ir::types::SymGenericTerm, Db};
+use dada_ir_sym::{ir::functions::SymFunction, ir::types::SymGenericTerm, Db};
 
 mod cx;
 

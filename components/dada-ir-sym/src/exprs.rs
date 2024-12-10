@@ -7,7 +7,7 @@ use crate::{
     ir::exprs::{
         SymBinaryOp, SymExpr, SymExprKind, SymLiteral, SymMatchArm, SymPlaceExpr, SymPlaceExprKind,
     },
-    ir::function::{SymFunction, SymInputOutput},
+    ir::functions::{SymFunction, SymInputOutput},
     ir::symbol::{FromVar, SymVariable},
     ir::types::{SymGenericKind, SymGenericTerm, SymPerm, SymTy, SymTyKind, SymTyName},
     member::MemberLookup,
