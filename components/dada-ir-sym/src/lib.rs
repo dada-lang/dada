@@ -35,7 +35,6 @@ mod member;
 mod misc_tys;
 pub mod module;
 mod populate;
-pub mod primitive;
 pub mod scope;
 pub mod scope_tree;
 mod signature;

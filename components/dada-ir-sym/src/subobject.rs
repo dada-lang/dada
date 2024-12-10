@@ -12,7 +12,7 @@ use crate::{
     bound::Direction,
     env::Env,
     indices::InferVarIndex,
-    primitive::SymPrimitiveKind,
+    ir::primitive::SymPrimitiveKind,
     ir::symbol::SymVariable,
     ir::types::{SymGenericTerm, SymPerm, SymPlace, SymTy, SymTyKind, SymTyName},
 };

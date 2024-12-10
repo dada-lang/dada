@@ -5,7 +5,7 @@ use crate::{
     ir::binder::LeafBoundTerm,
     ir::symbol::{FromVar, SymVariable},
     prelude::Symbol,
-    primitive::{SymPrimitive, SymPrimitiveKind},
+    ir::primitive::{SymPrimitive, SymPrimitiveKind},
     CheckInEnv, Db,
 };
 use dada_ir_ast::{
