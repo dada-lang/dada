@@ -4,7 +4,7 @@ use salsa::Update;
 
 use crate::{
     class::SymAggregate, function::SymFunction, module::SymModule, scope::Scope,
-    symbol::SymVariable,
+    ir::symbol::SymVariable,
 };
 
 /// A `ScopeItem` defines a name resolution scope.

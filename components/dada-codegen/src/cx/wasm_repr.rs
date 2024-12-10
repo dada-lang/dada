@@ -2,7 +2,7 @@ use dada_ir_sym::{
     class::{SymAggregate, SymAggregateStyle},
     prelude::CheckedFieldTy,
     primitive::SymPrimitiveKind,
-    symbol::SymVariable,
+    ir::symbol::SymVariable,
     ir::types::{SymGenericTerm, SymPlace, SymTy, SymTyKind, SymTyName},
 };
 use dada_util::Map;

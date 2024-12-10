@@ -2,7 +2,7 @@ use dada_ir_ast::diagnostic::Err;
 use dada_ir_sym::{
     function::{SymFunction, SymInputOutput},
     prelude::{CheckedBody, CheckedSignature},
-    symbol::SymVariable,
+    ir::symbol::SymVariable,
     ir::types::{SymGenericTerm, SymTy},
 };
 use dada_util::Map;

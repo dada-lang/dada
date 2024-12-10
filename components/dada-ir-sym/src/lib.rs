@@ -42,7 +42,6 @@ mod signature;
 mod statements;
 mod subobject;
 pub mod subst;
-pub mod symbol;
 mod types;
 mod universe;
 pub mod well_known;

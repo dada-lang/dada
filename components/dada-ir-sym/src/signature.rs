@@ -11,7 +11,7 @@ use crate::{
     function::{SymFunction, SymFunctionSignature, SymFunctionSource, SymInputOutput},
     prelude::Symbol,
     scope::Scope,
-    symbol::SymVariable,
+    ir::symbol::SymVariable,
     ir::types::{SymTy, SymTyName},
     CheckInEnv,
 };

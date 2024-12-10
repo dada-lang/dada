@@ -12,7 +12,7 @@ use dada_ir_sym::{
     ir::binder::{Binder, BoundTerm},
     module::{SymItem, SymModule},
     prelude::*,
-    symbol::{SymGenericKind, SymVariable},
+    ir::symbol::{SymGenericKind, SymVariable},
     ir::types::SymTy,
 };
 

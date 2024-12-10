@@ -14,7 +14,7 @@ use crate::{
     prelude::Symbol,
     scope::Scope,
     scope_tree::{ScopeItem, ScopeTreeNode},
-    symbol::{SymGenericKind, SymVariable},
+    ir::symbol::{SymGenericKind, SymVariable},
 };
 
 #[salsa::tracked]

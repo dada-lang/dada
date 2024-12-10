@@ -9,7 +9,7 @@ use salsa::Update;
 use crate::{
     class::SymField,
     scope::{NameResolution, Resolve},
-    symbol::SymLocalVariable,
+    ir::symbol::SymLocalVariable,
     ir::ty::{SymGenericArg, SymPlace, SymPlaceKind, SymTy},
     IntoSymInScope,
 };

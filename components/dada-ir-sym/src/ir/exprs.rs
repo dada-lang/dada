@@ -16,7 +16,7 @@
 use crate::{
     class::SymField,
     function::SymFunction,
-    symbol::{FromVar, SymVariable},
+    ir::symbol::{FromVar, SymVariable},
     ir::types::{SymGenericTerm, SymPlace, SymTy},
 };
 use dada_ir_ast::{

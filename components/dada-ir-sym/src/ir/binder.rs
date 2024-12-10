@@ -5,7 +5,7 @@ use salsa::Update;
 
 use crate::{
     subst::{Subst, SubstitutionFns},
-    symbol::{HasKind, SymGenericKind, SymVariable},
+    ir::symbol::{HasKind, SymGenericKind, SymVariable},
 };
 
 /// Indicates a binder for generic variables

@@ -10,7 +10,7 @@ use crate::{
     ir::types::{
         SymGenericTerm, SymPerm, SymPermKind, SymPlace, SymPlaceKind, SymTy, SymTyKind, SymTyName,
     },
-    symbol::{AssertKind, FromVar, HasKind, SymGenericKind, SymVariable},
+    ir::symbol::{AssertKind, FromVar, HasKind, SymGenericKind, SymVariable},
 };
 
 pub struct SubstitutionFns<'s, 'db, Term> {

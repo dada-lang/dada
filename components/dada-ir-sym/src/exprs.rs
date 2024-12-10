@@ -13,7 +13,7 @@ use crate::{
     scope::{NameResolution, NameResolutionSym},
     scope_tree::ScopeTreeNode,
     subobject::{require_subtype, Expected},
-    symbol::{FromVar, SymGenericKind, SymVariable},
+    ir::symbol::{FromVar, SymGenericKind, SymVariable},
     ir::types::{SymGenericTerm, SymPerm, SymTy, SymTyKind, SymTyName},
     well_known, CheckExprInEnv,
 };

@@ -13,12 +13,12 @@ use crate::{
     env::EnvLike,
     function::SymFunction,
     ir::binder::BoundTerm,
+    ir::symbol::{FromVar, SymGenericKind, SymVariable},
     ir::types::{SymGenericTerm, SymTy},
     module::SymModule,
     prelude::Symbol,
     primitive::{primitives, SymPrimitive},
     scope_tree::ScopeTreeNode,
-    symbol::{FromVar, SymGenericKind, SymVariable},
     CheckInEnv,
 };
 
