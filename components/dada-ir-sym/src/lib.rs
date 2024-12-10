@@ -52,7 +52,7 @@ pub mod prelude {
     use crate::class::SymField;
     use crate::function::{SymFunction, SymFunctionSignature};
     use crate::ir::binder::Binder;
-    use crate::ir::object_ir::SymExpr;
+    use crate::ir::exprs::SymExpr;
     use crate::ty::SymTy;
     use dada_ir_ast::diagnostic::Errors;
 

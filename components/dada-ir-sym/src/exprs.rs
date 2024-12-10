@@ -5,7 +5,7 @@ use crate::{
     env::Env,
     function::{SymFunction, SymInputOutput},
     ir::binder::Binder,
-    ir::object_ir::{
+    ir::exprs::{
         SymBinaryOp, SymExpr, SymExprKind, SymLiteral, SymMatchArm, SymPlaceExpr, SymPlaceExprKind,
     },
     member::MemberLookup,
