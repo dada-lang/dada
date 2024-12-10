@@ -10,7 +10,7 @@ use dada_ir_sym::{
     class::{SymAggregate, SymClassMember, SymField},
     ir::binder::{Binder, BoundTerm},
     ir::functions::{SignatureSymbols, SymFunction, SymFunctionSignature, SymInputOutput},
-    ir::symbol::SymVariable,
+    ir::variables::SymVariable,
     ir::types::{SymGenericKind, SymTy},
     module::{SymItem, SymModule},
     prelude::*,

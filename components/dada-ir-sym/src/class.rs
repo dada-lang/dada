@@ -9,7 +9,7 @@ use dada_util::FromImpls;
 
 use crate::{
     ir::functions::{SignatureSymbols, SymFunction, SymFunctionSource},
-    ir::symbol::SymVariable,
+    ir::variables::SymVariable,
     ir::types::{SymGenericKind, SymTy, SymTyKind},
     populate::PopulateSignatureSymbols,
     prelude::Symbol,

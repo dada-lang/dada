@@ -11,7 +11,7 @@ use crate::{
     ir::functions::{SymFunction, SymFunctionSignature, SymFunctionSource, SymInputOutput},
     prelude::Symbol,
     scope::Scope,
-    ir::symbol::SymVariable,
+    ir::variables::SymVariable,
     ir::types::{SymTy, SymTyName},
     CheckInEnv,
 };

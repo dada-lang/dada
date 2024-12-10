@@ -14,7 +14,7 @@ use crate::{
     ir::binder::BoundTerm,
     ir::functions::SymFunction,
     ir::primitive::{primitives, SymPrimitive},
-    ir::symbol::{FromVar, SymVariable},
+    ir::variables::{FromVar, SymVariable},
     ir::types::{SymGenericKind, SymGenericTerm, SymTy},
     module::SymModule,
     prelude::Symbol,

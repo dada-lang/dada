@@ -14,7 +14,7 @@ use crate::{
     ir::primitive::SymPrimitive,
     scope::{Resolve, Scope},
     scope_tree::{ScopeItem, ScopeTreeNode},
-    ir::symbol::SymVariable,
+    ir::variables::SymVariable,
 };
 
 #[salsa::tracked]

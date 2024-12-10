@@ -3,7 +3,7 @@ use crate::{
     env::EnvLike,
     indices::{FromInfer, FromInferVar, InferVarIndex},
     ir::binder::LeafBoundTerm,
-    ir::symbol::{FromVar, SymVariable},
+    ir::variables::{FromVar, SymVariable},
     prelude::Symbol,
     ir::primitive::{SymPrimitive, SymPrimitiveKind},
     CheckInEnv, Db,

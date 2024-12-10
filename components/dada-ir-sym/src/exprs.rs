@@ -8,7 +8,7 @@ use crate::{
         SymBinaryOp, SymExpr, SymExprKind, SymLiteral, SymMatchArm, SymPlaceExpr, SymPlaceExprKind,
     },
     ir::functions::{SymFunction, SymInputOutput},
-    ir::symbol::{FromVar, SymVariable},
+    ir::variables::{FromVar, SymVariable},
     ir::types::{SymGenericKind, SymGenericTerm, SymPerm, SymTy, SymTyKind, SymTyName},
     member::MemberLookup,
     prelude::CheckedSignature,

@@ -5,7 +5,7 @@ use salsa::Update;
 
 use crate::{
     ir::subst::{Subst, SubstitutionFns},
-    ir::symbol::SymVariable,
+    ir::variables::SymVariable,
     ir::types::{HasKind, SymGenericKind},
 };
 

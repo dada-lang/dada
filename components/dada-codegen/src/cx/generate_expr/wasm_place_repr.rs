@@ -3,7 +3,7 @@ use std::sync::Arc;
 use dada_ir_sym::{
     class::SymField,
     ir::exprs::{SymPlaceExpr, SymPlaceExprKind},
-    ir::symbol::SymVariable,
+    ir::variables::SymVariable,
     ir::types::{SymTy, SymTyKind, SymTyName},
 };
 use wasm_encoder::{Instruction, ValType};
