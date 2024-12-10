@@ -30,26 +30,26 @@ use salsa::Update;
 use crate::exprs::Temporary;
 
 #[salsa::tracked]
-pub struct ObjectExpr<'db> {
+pub struct SymExpr<'db> {
     pub span: Span<'db>,
     pub ty: SymTy<'db>,
 
     #[return_ref]
-    pub kind: ObjectExprKind<'db>,
+    pub kind: SymExprKind<'db>,
 }
 
-impl<'db> Err<'db> for ObjectExpr<'db> {
+impl<'db> Err<'db> for SymExpr<'db> {
     fn err(db: &'db dyn dada_ir_ast::Db, r: Reported) -> Self {
-        ObjectExpr::new(db, r.span(db), SymTy::err(db, r), ObjectExprKind::Error(r))
+        SymExpr::new(db, r.span(db), SymTy::err(db, r), SymExprKind::Error(r))
     }
 }
 
-impl<'db> ObjectExpr<'db> {
+impl<'db> SymExpr<'db> {
     pub(crate) fn into_temporary(
         self,
         db: &'db dyn crate::Db,
         temporaries: &mut Vec<Temporary<'db>>,
-    ) -> ObjectPlaceExpr<'db> {
+    ) -> SymPlaceExpr<'db> {
         let ty = self.ty(db);
 
         // Create a temporary to store the result of this expression.
@@ -58,43 +58,43 @@ impl<'db> ObjectExpr<'db> {
         temporaries.push(temporary);
 
         // The result will be a reference to that temporary.
-        ObjectPlaceExpr::new(db, self.span(db), ty, ObjectPlaceExprKind::Var(lv))
+        SymPlaceExpr::new(db, self.span(db), ty, SymPlaceExprKind::Var(lv))
     }
 }
 
 #[derive(Clone, PartialEq, Eq, PartialOrd, Ord, Hash, Debug, Update)]
-pub enum ObjectExprKind<'db> {
+pub enum SymExprKind<'db> {
     /// `$expr1; $expr2`
-    Semi(ObjectExpr<'db>, ObjectExpr<'db>),
+    Semi(SymExpr<'db>, SymExpr<'db>),
 
     /// `(...)`
-    Tuple(Vec<ObjectExpr<'db>>),
+    Tuple(Vec<SymExpr<'db>>),
 
     /// `22` etc
-    Primitive(PrimitiveLiteral),
+    Primitive(SymLiteral),
 
     /// `let $lv: $ty [= $initializer] in $body`
     LetIn {
         lv: SymVariable<'db>,
         ty: SymTy<'db>,
-        initializer: Option<ObjectExpr<'db>>,
-        body: ObjectExpr<'db>,
+        initializer: Option<SymExpr<'db>>,
+        body: SymExpr<'db>,
     },
 
     /// `future.await`
     Await {
-        future: ObjectExpr<'db>,
+        future: SymExpr<'db>,
         await_keyword: Span<'db>,
     },
 
     /// `$place = $expr`
     Assign {
-        place: ObjectPlaceExpr<'db>,
-        value: ObjectExpr<'db>,
+        place: SymPlaceExpr<'db>,
+        value: SymExpr<'db>,
     },
 
     /// `$0.lease` etc
-    PermissionOp(PermissionOp, ObjectPlaceExpr<'db>),
+    PermissionOp(PermissionOp, SymPlaceExpr<'db>),
 
     /// `$0[$1..]($2..)`
     ///
@@ -107,32 +107,32 @@ pub enum ObjectExprKind<'db> {
     },
 
     /// Return a value from this function
-    Return(ObjectExpr<'db>),
+    Return(SymExpr<'db>),
 
     /// Boolean not
     Not {
-        operand: ObjectExpr<'db>,
+        operand: SymExpr<'db>,
         op_span: Span<'db>,
     },
 
     /// `a + b` etc
-    BinaryOp(ObjectBinaryOp, ObjectExpr<'db>, ObjectExpr<'db>),
+    BinaryOp(SymBinaryOp, SymExpr<'db>, SymExpr<'db>),
 
     /// Something like `Point { x: ..., y: ... }`
     Aggregate {
         ty: SymTy<'db>,
-        fields: Vec<ObjectExpr<'db>>,
+        fields: Vec<SymExpr<'db>>,
     },
 
     /// Match, if/else-if chain, etc
-    Match { arms: Vec<MatchArm<'db>> },
+    Match { arms: Vec<SymMatchArm<'db>> },
 
     /// Error occurred somewhere.
     Error(Reported),
 }
 
 #[derive(Copy, Clone, PartialEq, Eq, PartialOrd, Ord, Hash, Debug, Update)]
-pub enum PrimitiveLiteral {
+pub enum SymLiteral {
     /// Have to check the type of the expression to determine how to interpret these bits
     Integral { bits: u64 },
 
@@ -141,7 +141,7 @@ pub enum PrimitiveLiteral {
 }
 
 #[derive(Copy, Clone, PartialEq, Eq, PartialOrd, Ord, Hash, Update, Debug)]
-pub enum ObjectBinaryOp {
+pub enum SymBinaryOp {
     Add,
     Sub,
     Mul,
@@ -153,20 +153,20 @@ pub enum ObjectBinaryOp {
     EqualEqual,
 }
 
-impl TryFrom<AstBinaryOp> for ObjectBinaryOp {
+impl TryFrom<AstBinaryOp> for SymBinaryOp {
     type Error = dada_util::Error;
 
     fn try_from(value: AstBinaryOp) -> Result<Self, Self::Error> {
         match value {
-            AstBinaryOp::Add => Ok(ObjectBinaryOp::Add),
-            AstBinaryOp::Sub => Ok(ObjectBinaryOp::Sub),
-            AstBinaryOp::Mul => Ok(ObjectBinaryOp::Mul),
-            AstBinaryOp::Div => Ok(ObjectBinaryOp::Div),
-            AstBinaryOp::GreaterThan => Ok(ObjectBinaryOp::GreaterThan),
-            AstBinaryOp::LessThan => Ok(ObjectBinaryOp::LessThan),
-            AstBinaryOp::GreaterEqual => Ok(ObjectBinaryOp::GreaterEqual),
-            AstBinaryOp::LessEqual => Ok(ObjectBinaryOp::LessEqual),
-            AstBinaryOp::EqualEqual => Ok(ObjectBinaryOp::EqualEqual),
+            AstBinaryOp::Add => Ok(SymBinaryOp::Add),
+            AstBinaryOp::Sub => Ok(SymBinaryOp::Sub),
+            AstBinaryOp::Mul => Ok(SymBinaryOp::Mul),
+            AstBinaryOp::Div => Ok(SymBinaryOp::Div),
+            AstBinaryOp::GreaterThan => Ok(SymBinaryOp::GreaterThan),
+            AstBinaryOp::LessThan => Ok(SymBinaryOp::LessThan),
+            AstBinaryOp::GreaterEqual => Ok(SymBinaryOp::GreaterEqual),
+            AstBinaryOp::LessEqual => Ok(SymBinaryOp::LessEqual),
+            AstBinaryOp::EqualEqual => Ok(SymBinaryOp::EqualEqual),
             AstBinaryOp::AndAnd | AstBinaryOp::OrOr | AstBinaryOp::Assign => {
                 dada_util::bail!("no equivalent object binary op")
             }
@@ -176,57 +176,57 @@ impl TryFrom<AstBinaryOp> for ObjectBinaryOp {
 
 /// A match arm is one part of a match statement.
 #[derive(Clone, PartialEq, Eq, PartialOrd, Ord, Hash, Debug, Update)]
-pub struct MatchArm<'db> {
+pub struct SymMatchArm<'db> {
     // FIXME: patterns
     /// Condition to evaluate; if `None` then it always applies
-    pub condition: Option<ObjectExpr<'db>>,
+    pub condition: Option<SymExpr<'db>>,
 
     /// Body to evaluate.
-    pub body: ObjectExpr<'db>,
+    pub body: SymExpr<'db>,
 }
 
 #[salsa::tracked]
-pub struct ObjectPlaceExpr<'db> {
+pub struct SymPlaceExpr<'db> {
     pub span: Span<'db>,
     pub ty: SymTy<'db>,
 
     #[return_ref]
-    pub kind: ObjectPlaceExprKind<'db>,
+    pub kind: SymPlaceExprKind<'db>,
 }
 
-impl<'db> Err<'db> for ObjectPlaceExpr<'db> {
+impl<'db> Err<'db> for SymPlaceExpr<'db> {
     fn err(db: &'db dyn dada_ir_ast::Db, r: Reported) -> Self {
-        ObjectPlaceExpr::new(
+        SymPlaceExpr::new(
             db,
             r.span(db),
             SymTy::err(db, r),
-            ObjectPlaceExprKind::Error(r),
+            SymPlaceExprKind::Error(r),
         )
     }
 }
 
-impl<'db> ObjectPlaceExpr<'db> {
-    pub fn give(self, db: &'db dyn crate::Db) -> ObjectExpr<'db> {
-        ObjectExpr::new(
+impl<'db> SymPlaceExpr<'db> {
+    pub fn give(self, db: &'db dyn crate::Db) -> SymExpr<'db> {
+        SymExpr::new(
             db,
             self.span(db),
             self.ty(db),
-            ObjectExprKind::PermissionOp(PermissionOp::Give, self),
+            SymExprKind::PermissionOp(PermissionOp::Give, self),
         )
     }
 
     pub fn into_sym_place(self, db: &'db dyn crate::Db) -> SymPlace<'db> {
         match *self.kind(db) {
-            ObjectPlaceExprKind::Var(lv) => SymPlace::var(db, lv),
-            ObjectPlaceExprKind::Field(place, field) => place.into_sym_place(db).field(db, field),
-            ObjectPlaceExprKind::Error(r) => SymPlace::err(db, r),
+            SymPlaceExprKind::Var(lv) => SymPlace::var(db, lv),
+            SymPlaceExprKind::Field(place, field) => place.into_sym_place(db).field(db, field),
+            SymPlaceExprKind::Error(r) => SymPlace::err(db, r),
         }
     }
 }
 
 #[derive(Clone, PartialEq, Eq, PartialOrd, Ord, Hash, Debug, Update)]
-pub enum ObjectPlaceExprKind<'db> {
+pub enum SymPlaceExprKind<'db> {
     Var(SymVariable<'db>),
-    Field(ObjectPlaceExpr<'db>, SymField<'db>),
+    Field(SymPlaceExpr<'db>, SymField<'db>),
     Error(Reported),
 }

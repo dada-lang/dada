@@ -7,8 +7,7 @@ use crate::{
     ir::binder::Binder,
     member::MemberLookup,
     object_ir::{
-        MatchArm, ObjectBinaryOp, ObjectExpr, ObjectExprKind, ObjectPlaceExpr, ObjectPlaceExprKind,
-        PrimitiveLiteral,
+        SymBinaryOp, SymExpr, SymExprKind, SymLiteral, SymMatchArm, SymPlaceExpr, SymPlaceExprKind,
     },
     prelude::CheckedSignature,
     scope::{NameResolution, NameResolutionSym},
@@ -53,7 +52,7 @@ pub(crate) struct ExprResult<'db> {
 pub(crate) struct Temporary<'db> {
     pub lv: SymVariable<'db>,
     pub ty: SymTy<'db>,
-    pub initializer: Option<ObjectExpr<'db>>,
+    pub initializer: Option<SymExpr<'db>>,
 }
 
 impl<'db> Temporary<'db> {
@@ -61,7 +60,7 @@ impl<'db> Temporary<'db> {
         db: &'db dyn crate::Db,
         span: Span<'db>,
         ty: SymTy<'db>,
-        initializer: Option<ObjectExpr<'db>>,
+        initializer: Option<SymExpr<'db>>,
     ) -> Self {
         let lv = SymVariable::new(db, SymGenericKind::Place, None, span);
         Self {
@@ -75,15 +74,15 @@ impl<'db> Temporary<'db> {
 #[derive(Clone, Debug, FromImpls)]
 pub(crate) enum ExprResultKind<'db> {
     /// An expression identifying a place in memory (e.g., a local variable).
-    PlaceExpr(ObjectPlaceExpr<'db>),
+    PlaceExpr(SymPlaceExpr<'db>),
 
     /// An expression that produces a value.
-    Expr(ObjectExpr<'db>),
+    Expr(SymExpr<'db>),
 
     /// A partially completed method call.
     #[no_from_impl]
     Method {
-        self_expr: ObjectExpr<'db>,
+        self_expr: SymExpr<'db>,
         id_span: Span<'db>,
         function: SymFunction<'db>,
         generics: Option<SpanVec<'db, AstGenericTerm<'db>>>,
@@ -118,11 +117,11 @@ async fn check_expr<'db>(expr: &AstExpr<'db>, mut env: &Env<'db>) -> ExprResult<
                 ExprResult {
                     temporaries: vec![],
                     span: expr_span,
-                    kind: ObjectExpr::new(
+                    kind: SymExpr::new(
                         db,
                         expr_span,
                         ty,
-                        ObjectExprKind::Primitive(PrimitiveLiteral::Integral { bits }),
+                        SymExprKind::Primitive(SymLiteral::Integral { bits }),
                     )
                     .into(),
                 }
@@ -145,11 +144,11 @@ async fn check_expr<'db>(expr: &AstExpr<'db>, mut env: &Env<'db>) -> ExprResult<
                 ExprResult {
                     temporaries: vec![],
                     span: expr_span,
-                    kind: ObjectExpr::new(
+                    kind: SymExpr::new(
                         db,
                         expr_span,
                         SymTy::boolean(db),
-                        ObjectExprKind::Primitive(PrimitiveLiteral::Integral { bits }),
+                        SymExprKind::Primitive(SymLiteral::Integral { bits }),
                     )
                     .into(),
                 }
@@ -179,11 +178,11 @@ async fn check_expr<'db>(expr: &AstExpr<'db>, mut env: &Env<'db>) -> ExprResult<
             ExprResult {
                 temporaries,
                 span: expr_span,
-                kind: ExprResultKind::Expr(ObjectExpr::new(
+                kind: ExprResultKind::Expr(SymExpr::new(
                     db,
                     expr_span,
                     ty,
-                    ObjectExprKind::Tuple(exprs),
+                    SymExprKind::Tuple(exprs),
                 )),
             }
         }
@@ -193,11 +192,11 @@ async fn check_expr<'db>(expr: &AstExpr<'db>, mut env: &Env<'db>) -> ExprResult<
             match span_op.op {
                 AstBinaryOp::Add | AstBinaryOp::Sub | AstBinaryOp::Mul | AstBinaryOp::Div => {
                     let mut temporaries: Vec<Temporary<'db>> = vec![];
-                    let lhs: ObjectExpr<'db> = lhs
+                    let lhs: SymExpr<'db> = lhs
                         .check_expr_in_env(env)
                         .await
                         .into_expr(env, &mut temporaries);
-                    let rhs: ObjectExpr<'db> = rhs
+                    let rhs: SymExpr<'db> = rhs
                         .check_expr_in_env(env)
                         .await
                         .into_expr(env, &mut temporaries);
@@ -218,12 +217,12 @@ async fn check_expr<'db>(expr: &AstExpr<'db>, mut env: &Env<'db>) -> ExprResult<
 
                     ExprResult::from_expr(
                         env,
-                        ObjectExpr::new(
+                        SymExpr::new(
                             db,
                             expr_span,
                             lhs.ty(db),
-                            ObjectExprKind::BinaryOp(
-                                ObjectBinaryOp::try_from(span_op.op).expect("invalid binary op"),
+                            SymExprKind::BinaryOp(
+                                SymBinaryOp::try_from(span_op.op).expect("invalid binary op"),
                                 lhs,
                                 rhs,
                             ),
@@ -234,11 +233,11 @@ async fn check_expr<'db>(expr: &AstExpr<'db>, mut env: &Env<'db>) -> ExprResult<
 
                 AstBinaryOp::AndAnd | AstBinaryOp::OrOr => {
                     let mut temporaries: Vec<Temporary<'db>> = vec![];
-                    let lhs: ObjectExpr<'db> = lhs
+                    let lhs: SymExpr<'db> = lhs
                         .check_expr_in_env(env)
                         .await
                         .into_expr(env, &mut temporaries);
-                    let rhs: ObjectExpr<'db> = rhs
+                    let rhs: SymExpr<'db> = rhs
                         .check_expr_in_env(env)
                         .await
                         .into_expr(env, &mut temporaries);
@@ -248,12 +247,12 @@ async fn check_expr<'db>(expr: &AstExpr<'db>, mut env: &Env<'db>) -> ExprResult<
 
                     ExprResult::from_expr(
                         env,
-                        ObjectExpr::new(
+                        SymExpr::new(
                             db,
                             expr_span,
                             SymTy::boolean(db),
-                            ObjectExprKind::BinaryOp(
-                                ObjectBinaryOp::try_from(span_op.op)
+                            SymExprKind::BinaryOp(
+                                SymBinaryOp::try_from(span_op.op)
                                     .expect("invalid object binary op"),
                                 lhs,
                                 rhs,
@@ -269,11 +268,11 @@ async fn check_expr<'db>(expr: &AstExpr<'db>, mut env: &Env<'db>) -> ExprResult<
                 | AstBinaryOp::LessEqual
                 | AstBinaryOp::EqualEqual => {
                     let mut temporaries: Vec<Temporary<'db>> = vec![];
-                    let lhs: ObjectExpr<'db> = lhs
+                    let lhs: SymExpr<'db> = lhs
                         .check_expr_in_env(env)
                         .await
                         .into_expr(env, &mut temporaries);
-                    let rhs: ObjectExpr<'db> = rhs
+                    let rhs: SymExpr<'db> = rhs
                         .check_expr_in_env(env)
                         .await
                         .into_expr(env, &mut temporaries);
@@ -294,12 +293,12 @@ async fn check_expr<'db>(expr: &AstExpr<'db>, mut env: &Env<'db>) -> ExprResult<
 
                     ExprResult::from_expr(
                         env,
-                        ObjectExpr::new(
+                        SymExpr::new(
                             db,
                             expr_span,
                             SymTy::boolean(db),
-                            ObjectExprKind::BinaryOp(
-                                ObjectBinaryOp::try_from(span_op.op).expect("invalid binary op"),
+                            SymExprKind::BinaryOp(
+                                SymBinaryOp::try_from(span_op.op).expect("invalid binary op"),
                                 lhs,
                                 rhs,
                             ),
@@ -310,11 +309,11 @@ async fn check_expr<'db>(expr: &AstExpr<'db>, mut env: &Env<'db>) -> ExprResult<
 
                 AstBinaryOp::Assign => {
                     let mut temporaries: Vec<Temporary<'db>> = vec![];
-                    let place: ObjectPlaceExpr<'db> = lhs
+                    let place: SymPlaceExpr<'db> = lhs
                         .check_expr_in_env(env)
                         .await
                         .into_place_expr(env, &mut temporaries);
-                    let value: ObjectExpr<'db> = rhs
+                    let value: SymExpr<'db> = rhs
                         .check_expr_in_env(env)
                         .await
                         .into_expr(env, &mut temporaries);
@@ -326,11 +325,11 @@ async fn check_expr<'db>(expr: &AstExpr<'db>, mut env: &Env<'db>) -> ExprResult<
 
                     ExprResult::from_expr(
                         env,
-                        ObjectExpr::new(
+                        SymExpr::new(
                             db,
                             expr_span,
                             SymTy::unit(db),
-                            ObjectExprKind::Assign { place, value },
+                            SymExprKind::Assign { place, value },
                         ),
                         temporaries,
                     )
@@ -532,12 +531,7 @@ async fn check_expr<'db>(expr: &AstExpr<'db>, mut env: &Env<'db>) -> ExprResult<
                     .into_expr(env, &mut temporaries)
             } else {
                 // the default is `return ()`
-                ObjectExpr::new(
-                    db,
-                    expr_span,
-                    SymTy::unit(db),
-                    ObjectExprKind::Tuple(vec![]),
-                )
+                SymExpr::new(db, expr_span, SymTy::unit(db), SymExprKind::Tuple(vec![]))
             };
 
             let Some(expected_return_ty) = env.return_ty else {
@@ -563,11 +557,11 @@ async fn check_expr<'db>(expr: &AstExpr<'db>, mut env: &Env<'db>) -> ExprResult<
             ExprResult {
                 temporaries,
                 span: expr_span,
-                kind: ObjectExpr::new(
+                kind: SymExpr::new(
                     db,
                     expr_span,
                     SymTy::never(db),
-                    ObjectExprKind::Return(return_expr),
+                    SymExprKind::Return(return_expr),
                 )
                 .into(),
             }
@@ -597,11 +591,11 @@ async fn check_expr<'db>(expr: &AstExpr<'db>, mut env: &Env<'db>) -> ExprResult<
             ExprResult {
                 temporaries,
                 span: expr_span,
-                kind: ObjectExpr::new(
+                kind: SymExpr::new(
                     db,
                     expr_span,
                     awaited_ty,
-                    ObjectExprKind::Await {
+                    SymExprKind::Await {
                         future: future_expr,
                         await_keyword: await_span,
                     },
@@ -621,11 +615,11 @@ async fn check_expr<'db>(expr: &AstExpr<'db>, mut env: &Env<'db>) -> ExprResult<
                 ExprResult {
                     temporaries,
                     span: expr_span,
-                    kind: ObjectExpr::new(
+                    kind: SymExpr::new(
                         db,
                         expr_span,
                         SymTy::boolean(db),
-                        ObjectExprKind::Not {
+                        SymExprKind::Not {
                             operand,
                             op_span: spanned_unary_op.span,
                         },
@@ -659,7 +653,7 @@ async fn check_expr<'db>(expr: &AstExpr<'db>, mut env: &Env<'db>) -> ExprResult<
 
                 let body = arm.result.check_expr_in_env(env).await;
 
-                arms.push(MatchArm { condition, body });
+                arms.push(SymMatchArm { condition, body });
             }
 
             let if_ty = if !has_else {
@@ -675,7 +669,7 @@ async fn check_expr<'db>(expr: &AstExpr<'db>, mut env: &Env<'db>) -> ExprResult<
             ExprResult {
                 temporaries: vec![],
                 span: expr_span,
-                kind: ObjectExpr::new(db, expr_span, if_ty, ObjectExprKind::Match { arms }).into(),
+                kind: SymExpr::new(db, expr_span, if_ty, SymExprKind::Match { arms }).into(),
             }
         }
 
@@ -687,7 +681,7 @@ async fn check_expr<'db>(expr: &AstExpr<'db>, mut env: &Env<'db>) -> ExprResult<
             ExprResult {
                 temporaries,
                 span: expr_span,
-                kind: ObjectExpr::new(
+                kind: SymExpr::new(
                     db,
                     expr_span,
                     match op {
@@ -695,7 +689,7 @@ async fn check_expr<'db>(expr: &AstExpr<'db>, mut env: &Env<'db>) -> ExprResult<
                         PermissionOp::Share => place_expr.ty(db).shared(db, sym_place),
                         PermissionOp::Give => place_expr.ty(db),
                     },
-                    ObjectExprKind::PermissionOp(*op, place_expr),
+                    SymExprKind::PermissionOp(*op, place_expr),
                 )
                 .into(),
             }
@@ -911,7 +905,7 @@ async fn check_method_call<'db>(
     id_span: Span<'db>,
     expr_span: Span<'db>,
     function: SymFunction<'db>,
-    self_expr: Option<ObjectExpr<'db>>,
+    self_expr: Option<SymExpr<'db>>,
     ast_args: &[AstExpr<'db>],
     generics: Option<SpanVec<'db, AstGenericTerm<'db>>>,
     temporaries: Vec<Temporary<'db>>,
@@ -1057,7 +1051,7 @@ async fn check_call_common<'db>(
     input_output: &Binder<'db, Binder<'db, SymInputOutput<'db>>>,
     substitution: Vec<SymGenericTerm<'db>>,
     ast_args: &[AstExpr<'db>],
-    self_expr: Option<ObjectExpr<'db>>,
+    self_expr: Option<SymExpr<'db>>,
     mut temporaries: Vec<Temporary<'db>>,
 ) -> ExprResult<'db> {
     let db = env.db();
@@ -1145,11 +1139,11 @@ async fn check_call_common<'db>(
     //     let tmp2 = arg2 in
     //     ...
     //     call(tmp1, tmp2, ...)
-    let mut call_expr = ObjectExpr::new(
+    let mut call_expr = SymExpr::new(
         db,
         expr_span,
         input_output.output_ty,
-        ObjectExprKind::Call {
+        SymExprKind::Call {
             function,
             substitution,
             arg_temps: arg_temp_symbols.clone(),
@@ -1160,11 +1154,11 @@ async fn check_call_common<'db>(
         .rev()
         .zip(arg_exprs.into_iter().rev())
     {
-        call_expr = ObjectExpr::new(
+        call_expr = SymExpr::new(
             db,
             call_expr.span(db),
             call_expr.ty(db),
-            ObjectExprKind::LetIn {
+            SymExprKind::LetIn {
                 lv: arg_temp_symbol,
                 ty: arg_expr.ty(db),
                 initializer: Some(arg_expr),
@@ -1182,7 +1176,7 @@ impl<'db> Err<'db> for ExprResult<'db> {
         Self {
             temporaries: vec![],
             span: r.span(db),
-            kind: ExprResultKind::Expr(ObjectExpr::err(db, r)),
+            kind: ExprResultKind::Expr(SymExpr::err(db, r)),
         }
     }
 }
@@ -1194,7 +1188,7 @@ impl<'db> ExprResult<'db> {
         match res.sym {
             NameResolutionSym::SymVariable(var) if var.kind(db) == SymGenericKind::Place => {
                 let ty = env.variable_ty(var);
-                let place_expr = ObjectPlaceExpr::new(db, span, ty, ObjectPlaceExprKind::Var(var));
+                let place_expr = SymPlaceExpr::new(db, span, ty, SymPlaceExprKind::Var(var));
                 Self {
                     temporaries: vec![],
                     span,
@@ -1217,7 +1211,7 @@ impl<'db> ExprResult<'db> {
 
     pub fn from_place_expr(
         env: &Env<'db>,
-        expr: ObjectPlaceExpr<'db>,
+        expr: SymPlaceExpr<'db>,
         temporaries: Vec<Temporary<'db>>,
     ) -> Self {
         let db = env.db();
@@ -1228,11 +1222,7 @@ impl<'db> ExprResult<'db> {
         }
     }
 
-    pub fn from_expr(
-        env: &Env<'db>,
-        expr: ObjectExpr<'db>,
-        temporaries: Vec<Temporary<'db>>,
-    ) -> Self {
+    pub fn from_expr(env: &Env<'db>, expr: SymExpr<'db>, temporaries: Vec<Temporary<'db>>) -> Self {
         let db = env.db();
         Self {
             temporaries,
@@ -1242,16 +1232,16 @@ impl<'db> ExprResult<'db> {
     }
 
     /// Convert this result into an expression, with `let ... in` statements inserted for temporaries.
-    pub fn into_expr_with_enclosed_temporaries(self, env: &Env<'db>) -> ObjectExpr<'db> {
+    pub fn into_expr_with_enclosed_temporaries(self, env: &Env<'db>) -> SymExpr<'db> {
         let db = env.db();
         let mut temporaries = vec![];
         let mut expr = self.into_expr(env, &mut temporaries);
         for temporary in temporaries.into_iter().rev() {
-            expr = ObjectExpr::new(
+            expr = SymExpr::new(
                 db,
                 expr.span(db),
                 expr.ty(db),
-                ObjectExprKind::LetIn {
+                SymExprKind::LetIn {
                     lv: temporary.lv,
                     ty: temporary.ty,
                     initializer: temporary.initializer,
@@ -1288,7 +1278,7 @@ impl<'db> ExprResult<'db> {
         self,
         env: &Env<'db>,
         temporaries: &mut Vec<Temporary<'db>>,
-    ) -> ObjectPlaceExpr<'db> {
+    ) -> SymPlaceExpr<'db> {
         let db = env.db();
         temporaries.extend(self.temporaries);
         match self.kind {
@@ -1299,47 +1289,43 @@ impl<'db> ExprResult<'db> {
 
             ExprResultKind::Other(name_resolution) => {
                 let reported = report_non_expr(db, self.span, &name_resolution);
-                ObjectPlaceExpr::err(db, reported)
+                SymPlaceExpr::err(db, reported)
             }
 
             ExprResultKind::Method {
                 self_expr: owner,
                 function: method,
                 ..
-            } => ObjectPlaceExpr::err(
+            } => SymPlaceExpr::err(
                 db,
                 report_missing_call_to_method(db, owner.span(db), method),
             ),
         }
     }
 
-    pub fn into_expr(
-        self,
-        env: &Env<'db>,
-        temporaries: &mut Vec<Temporary<'db>>,
-    ) -> ObjectExpr<'db> {
+    pub fn into_expr(self, env: &Env<'db>, temporaries: &mut Vec<Temporary<'db>>) -> SymExpr<'db> {
         let db = env.db();
         temporaries.extend(self.temporaries);
         match self.kind {
             ExprResultKind::Expr(expr) => expr,
             ExprResultKind::PlaceExpr(place_expr) => {
                 let sym_place = place_expr.into_sym_place(db);
-                ObjectExpr::new(
+                SymExpr::new(
                     db,
                     place_expr.span(db),
                     place_expr.ty(db).shared(db, sym_place),
-                    ObjectExprKind::PermissionOp(PermissionOp::Share, place_expr),
+                    SymExprKind::PermissionOp(PermissionOp::Share, place_expr),
                 )
             }
 
             ExprResultKind::Other(name_resolution) => {
-                ObjectExpr::err(db, report_non_expr(db, self.span, &name_resolution))
+                SymExpr::err(db, report_non_expr(db, self.span, &name_resolution))
             }
             ExprResultKind::Method {
                 self_expr: owner,
                 function: method,
                 ..
-            } => ObjectExpr::err(
+            } => SymExpr::err(
                 db,
                 report_missing_call_to_method(db, owner.span(db), method),
             ),

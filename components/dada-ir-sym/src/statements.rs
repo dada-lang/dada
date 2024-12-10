@@ -5,7 +5,7 @@ use futures::join;
 
 use crate::{
     env::Env,
-    object_ir::{ObjectExpr, ObjectExprKind},
+    object_ir::{SymExpr, SymExprKind},
     symbol::SymVariable,
     ty::SymTy,
     CheckExprInEnv,
@@ -15,17 +15,17 @@ pub fn check_block_statements<'a, 'db>(
     env: &'a Env<'db>,
     block_span: Span<'db>,
     statements: &'a [AstStatement<'db>],
-) -> impl Future<Output = ObjectExpr<'db>> + use<'a, 'db> {
+) -> impl Future<Output = SymExpr<'db>> + use<'a, 'db> {
     // (the box here permits recursion)
     Box::pin(async move {
         let db = env.db();
 
         let Some((first, rest)) = statements.split_first() else {
-            return ObjectExpr::new(
+            return SymExpr::new(
                 db,
                 block_span,
                 SymTy::unit(db),
-                ObjectExprKind::Tuple(vec![]),
+                SymExprKind::Tuple(vec![]),
             );
         };
 
@@ -66,11 +66,11 @@ pub fn check_block_statements<'a, 'db>(
                 );
 
                 // Create `let lv: ty = lv = initializer; remainder`
-                ObjectExpr::new(
+                SymExpr::new(
                     db,
                     s.name(db).span,
                     body.ty(db),
-                    ObjectExprKind::LetIn {
+                    SymExprKind::LetIn {
                         lv,
                         ty,
                         initializer,
@@ -92,11 +92,11 @@ pub fn check_block_statements<'a, 'db>(
                 } else {
                     let (ce, re) =
                         futures::join!(check_e, check_block_statements(env, block_span, rest));
-                    ObjectExpr::new(
+                    SymExpr::new(
                         db,
                         ce.span(db).to(db, re.span(db)),
                         re.ty(db),
-                        ObjectExprKind::Semi(ce, re),
+                        SymExprKind::Semi(ce, re),
                     )
                 }
             }

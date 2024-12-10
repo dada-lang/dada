@@ -16,7 +16,7 @@ use futures::{Stream, StreamExt};
 use crate::{
     bound::{Direction, TransitiveBounds},
     check::Runtime,
-    object_ir::ObjectExpr,
+    object_ir::SymExpr,
     subobject::{require_assignable_type, require_numeric_type, require_subtype, Expected},
     universe::Universe,
 };
@@ -299,7 +299,7 @@ impl<'db> Env<'db> {
         self.runtime.defer(self, span, op)
     }
 
-    pub(crate) fn require_expr_has_bool_ty(&self, expr: ObjectExpr<'db>) {
+    pub(crate) fn require_expr_has_bool_ty(&self, expr: SymExpr<'db>) {
         let db = self.db();
         let boolean_ty = SymTy::boolean(db);
         self.require_assignable_object_type(expr.span(db), expr.ty(db), boolean_ty);

@@ -16,7 +16,7 @@ use futures::{Stream, StreamExt};
 use crate::{
     env::Env,
     exprs::{ExprResult, ExprResultKind},
-    object_ir::{ObjectPlaceExpr, ObjectPlaceExprKind},
+    object_ir::{SymPlaceExpr, SymPlaceExprKind},
     prelude::CheckedFieldTy,
 };
 
@@ -103,11 +103,11 @@ impl<'member, 'db> MemberLookup<'member, 'db> {
                 let mut temporaries = vec![];
                 let owner_place_expr = owner.into_place_expr(self.env, &mut temporaries);
                 let field_ty = field_ty.substitute(db, &[owner_place_expr.into_sym_place(db)]);
-                let place_expr = ObjectPlaceExpr::new(
+                let place_expr = SymPlaceExpr::new(
                     db,
                     id.span,
                     field_ty,
-                    ObjectPlaceExprKind::Field(owner_place_expr, field),
+                    SymPlaceExprKind::Field(owner_place_expr, field),
                 );
                 ExprResult::from_place_expr(self.env, place_expr, temporaries)
             }

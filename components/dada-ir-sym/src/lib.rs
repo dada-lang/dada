@@ -53,7 +53,7 @@ pub mod prelude {
     use crate::class::SymField;
     use crate::function::{SymFunction, SymFunctionSignature};
     use crate::ir::binder::Binder;
-    use crate::object_ir::ObjectExpr;
+    use crate::object_ir::SymExpr;
     use crate::ty::SymTy;
     use dada_ir_ast::diagnostic::Errors;
 
@@ -66,13 +66,13 @@ pub mod prelude {
     }
 
     pub trait CheckedBody<'db> {
-        fn checked_body(self, db: &'db dyn crate::Db) -> Option<ObjectExpr<'db>>;
+        fn checked_body(self, db: &'db dyn crate::Db) -> Option<SymExpr<'db>>;
     }
 
     #[salsa::tracked]
     impl<'db> CheckedBody<'db> for SymFunction<'db> {
         #[salsa::tracked]
-        fn checked_body(self, db: &'db dyn crate::Db) -> Option<ObjectExpr<'db>> {
+        fn checked_body(self, db: &'db dyn crate::Db) -> Option<SymExpr<'db>> {
             crate::blocks::check_function_body(db, self)
         }
     }

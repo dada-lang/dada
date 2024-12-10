@@ -11,7 +11,7 @@ use dada_parser::prelude::FunctionBlock;
 use crate::{
     check::Runtime,
     env::Env,
-    object_ir::{ObjectExpr, ObjectExprKind, ObjectPlaceExpr, ObjectPlaceExprKind},
+    object_ir::{SymExpr, SymExprKind, SymPlaceExpr, SymPlaceExprKind},
     signature::prepare_env,
     statements::check_block_statements,
     CheckExprInEnv,
@@ -20,7 +20,7 @@ use crate::{
 pub fn check_function_body<'db>(
     db: &'db dyn crate::Db,
     function: SymFunction<'db>,
-) -> Option<ObjectExpr<'db>> {
+) -> Option<SymExpr<'db>> {
     match function.source(db) {
         SymFunctionSource::Function(ast_function) => {
             let Some(block) = ast_function.body_block(db) else {
@@ -40,11 +40,11 @@ fn check_function_body_class_constructor<'db>(
     function: SymFunction<'db>,
     sym_class: SymAggregate<'db>,
     ast_class_item: AstAggregate<'db>,
-) -> ObjectExpr<'db> {
+) -> SymExpr<'db> {
     Runtime::execute(
         db,
         function.name_span(db),
-        async move |runtime| -> ObjectExpr<'db> {
+        async move |runtime| -> SymExpr<'db> {
             let (
                 env,
                 input_symbols,
@@ -62,14 +62,14 @@ fn check_function_body_class_constructor<'db>(
 
             // Careful: Not allowed to declare other fields.
             let parameter_exprs = input_symbols.iter().zip(&input_tys).map(|(&v, &ty)| {
-                ObjectPlaceExpr::new(db, v.span(db), ty, ObjectPlaceExprKind::Var(v)).give(db)
+                SymPlaceExpr::new(db, v.span(db), ty, SymPlaceExprKind::Var(v)).give(db)
             });
 
             // The first N fields will be the inputs declared in parentheses.
             // But if user declared additional fields, that's an error for now.
             // Eventually perhaps we can support default values.
             let other_exprs = fields[input_symbols.len()..].iter().map(|sym_field| {
-                ObjectExpr::err(
+                SymExpr::err(
                     db,
                     Diagnostic::error(
                         db,
@@ -92,11 +92,11 @@ fn check_function_body_class_constructor<'db>(
                 )
             });
 
-            ObjectExpr::new(
+            SymExpr::new(
                 db,
                 span,
                 self_ty,
-                ObjectExprKind::Aggregate {
+                SymExprKind::Aggregate {
                     ty: self_ty,
                     fields: parameter_exprs.chain(other_exprs).collect(),
                 },
@@ -109,11 +109,11 @@ fn check_function_body_ast_block<'db>(
     db: &'db dyn crate::Db,
     function: SymFunction<'db>,
     body: AstBlock<'db>,
-) -> Option<ObjectExpr<'db>> {
+) -> Option<SymExpr<'db>> {
     Some(Runtime::execute(
         db,
         function.name_span(db),
-        async move |runtime| -> ObjectExpr<'db> {
+        async move |runtime| -> SymExpr<'db> {
             let (env, _, _) = prepare_env(db, runtime, function);
 
             let expr = body.check_expr_in_env(&env).await;
@@ -124,7 +124,7 @@ fn check_function_body_ast_block<'db>(
 }
 
 impl<'db> CheckExprInEnv<'db> for AstBlock<'db> {
-    type Output = ObjectExpr<'db>;
+    type Output = SymExpr<'db>;
 
     async fn check_expr_in_env(&self, env: &Env<'db>) -> Self::Output {
         let db = env.db();
