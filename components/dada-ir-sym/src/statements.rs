@@ -5,7 +5,7 @@ use futures::join;
 
 use crate::{
     env::Env,
-    object_ir::{SymExpr, SymExprKind},
+    ir::object_ir::{SymExpr, SymExprKind},
     symbol::SymVariable,
     ty::SymTy,
     CheckExprInEnv,
@@ -21,12 +21,7 @@ pub fn check_block_statements<'a, 'db>(
         let db = env.db();
 
         let Some((first, rest)) = statements.split_first() else {
-            return SymExpr::new(
-                db,
-                block_span,
-                SymTy::unit(db),
-                SymExprKind::Tuple(vec![]),
-            );
+            return SymExpr::new(db, block_span, SymTy::unit(db), SymExprKind::Tuple(vec![]));
         };
 
         match first {

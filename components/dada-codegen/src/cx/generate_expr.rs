@@ -1,7 +1,7 @@
 use std::sync::Arc;
 
 use dada_ir_ast::{ast::PermissionOp, diagnostic::Reported};
-use dada_ir_sym::object_ir::{SymBinaryOp, SymExpr, SymExprKind, SymLiteral, SymMatchArm};
+use dada_ir_sym::ir::object_ir::{SymBinaryOp, SymExpr, SymExprKind, SymLiteral, SymMatchArm};
 use dada_ir_sym::ty::{SymGenericTerm, SymTy, SymTyKind};
 use dada_ir_sym::{primitive::SymPrimitiveKind, subst::Subst, symbol::SymVariable, ty::SymTyName};
 use dada_util::Map;

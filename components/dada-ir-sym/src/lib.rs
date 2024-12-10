@@ -34,7 +34,6 @@ mod inference;
 mod member;
 mod misc_tys;
 pub mod module;
-pub mod object_ir;
 mod populate;
 pub mod primitive;
 pub mod scope;
@@ -53,7 +52,7 @@ pub mod prelude {
     use crate::class::SymField;
     use crate::function::{SymFunction, SymFunctionSignature};
     use crate::ir::binder::Binder;
-    use crate::object_ir::SymExpr;
+    use crate::ir::object_ir::SymExpr;
     use crate::ty::SymTy;
     use dada_ir_ast::diagnostic::Errors;
 

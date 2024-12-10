@@ -2,7 +2,7 @@ use std::sync::Arc;
 
 use dada_ir_sym::{
     class::SymField,
-    object_ir::{SymPlaceExpr, SymPlaceExprKind},
+    ir::object_ir::{SymPlaceExpr, SymPlaceExprKind},
     symbol::SymVariable,
     ty::{SymTy, SymTyKind, SymTyName},
 };

@@ -5,15 +5,15 @@ use crate::{
     env::Env,
     function::{SymFunction, SymInputOutput},
     ir::binder::Binder,
-    member::MemberLookup,
-    object_ir::{
+    ir::object_ir::{
         SymBinaryOp, SymExpr, SymExprKind, SymLiteral, SymMatchArm, SymPlaceExpr, SymPlaceExprKind,
     },
+    member::MemberLookup,
     prelude::CheckedSignature,
     scope::{NameResolution, NameResolutionSym},
     scope_tree::ScopeTreeNode,
     subobject::{require_subtype, Expected},
-    symbol::{FromVar, HasKind, SymGenericKind, SymVariable},
+    symbol::{FromVar, SymGenericKind, SymVariable},
     ty::{SymGenericTerm, SymPerm, SymTy, SymTyKind, SymTyName},
     well_known, CheckExprInEnv,
 };
