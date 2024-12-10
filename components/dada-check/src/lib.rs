@@ -7,9 +7,9 @@ use dada_ir_ast::{
     span::Spanned,
 };
 use dada_ir_sym::{
-    binder::{Binder, BoundTerm},
     class::{SymAggregate, SymClassMember, SymField},
     function::{SignatureSymbols, SymFunction, SymFunctionSignature, SymInputOutput},
+    ir::binder::{Binder, BoundTerm},
     module::{SymItem, SymModule},
     prelude::*,
     symbol::{SymGenericKind, SymVariable},

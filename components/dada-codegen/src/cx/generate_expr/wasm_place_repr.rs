@@ -1,7 +1,11 @@
 use std::sync::Arc;
 
-use dada_ir_sym::{class::SymField, symbol::SymVariable, ty::SymTyName};
-use dada_object_check::object_ir::{ObjectPlaceExpr, ObjectPlaceExprKind, SymTy, SymTyKind};
+use dada_ir_sym::{
+    class::SymField,
+    object_ir::{SymPlaceExpr, SymPlaceExprKind},
+    symbol::SymVariable,
+    ty::{SymTy, SymTyKind, SymTyName},
+};
 use wasm_encoder::{Instruction, ValType};
 
 use crate::cx::wasm_repr::WasmRepr;
@@ -47,12 +51,12 @@ impl<'cx, 'db> ExprCodegen<'cx, 'db> {
     }
 
     /// The representation of the given Dada place.
-    pub(super) fn place(&self, place: ObjectPlaceExpr<'db>) -> Arc<WasmPlaceRepr> {
+    pub(super) fn place(&self, place: SymPlaceExpr<'db>) -> Arc<WasmPlaceRepr> {
         let db = self.cx.db;
         match *place.kind(db) {
-            ObjectPlaceExprKind::Var(v) => self.place_for_local(v).into(),
-            ObjectPlaceExprKind::Error(_) => Arc::new(WasmPlaceRepr::Nowhere),
-            ObjectPlaceExprKind::Field(owner, field) => {
+            SymPlaceExprKind::Var(v) => self.place_for_local(v).into(),
+            SymPlaceExprKind::Error(_) => Arc::new(WasmPlaceRepr::Nowhere),
+            SymPlaceExprKind::Field(owner, field) => {
                 let owner_place = self.place(owner);
                 self.field_place(owner_place, owner.ty(db), field)
             }
@@ -169,6 +173,7 @@ impl<'cx, 'db> ExprCodegen<'cx, 'db> {
                     }
                 }
             },
+            SymTyKind::Perm(sym_perm, sym_ty) => todo!(),
         }
     }
 

@@ -1,8 +1,9 @@
 use dada_ir_ast::diagnostic::Err;
-use dada_ir_sym::{function::SymFunction, symbol::SymVariable};
-use dada_object_check::{
-    object_ir::{SymGenericTerm, ObjectInputOutput, SymTy},
-    prelude::{ObjectCheckFunctionBody, ObjectCheckFunctionSignature},
+use dada_ir_sym::{
+    function::{SymFunction, SymInputOutput},
+    prelude::{CheckedBody, CheckedSignature},
+    symbol::SymVariable,
+    ty::{SymGenericTerm, SymTy},
 };
 use dada_util::Map;
 use wasm_encoder::ValType;
@@ -31,7 +32,7 @@ impl<'db> Cx<'db> {
             inputs: _,
             generics: _,
             input_output:
-                ObjectInputOutput {
+                SymInputOutput {
                     input_tys,
                     output_ty,
                 },
@@ -71,7 +72,7 @@ impl<'db> Cx<'db> {
     pub(crate) fn codegen_fn(&mut self, FnKey(function, generics): FnKey<'db>) {
         let db = self.db;
 
-        let object_check_body = match function.object_check_body(self.db) {
+        let object_check_body = match function.checked_body(self.db) {
             Some(body) => body,
             None => panic!("asked to codegen function with no body: {function:?}"),
         };
@@ -99,7 +100,7 @@ impl<'db> Cx<'db> {
         function: SymFunction<'db>,
         generics: &[SymGenericTerm<'db>],
     ) -> CodegenSignature<'db> {
-        match function.object_check_signature(self.db) {
+        match function.checked_signature(self.db) {
             Ok(signature) => {
                 let symbols = signature.symbols(self.db);
 
@@ -109,7 +110,7 @@ impl<'db> Cx<'db> {
                 let dummy_places = symbols
                     .input_variables
                     .iter()
-                    .map(|_| SymGenericTerm::Place)
+                    .map(|_| SymGenericTerm::Place(todo!()))
                     .collect::<Vec<_>>();
                 let input_output = input_output.substitute(self.db, &dummy_places);
 
@@ -128,7 +129,7 @@ impl<'db> Cx<'db> {
             Err(reported) => CodegenSignature {
                 inputs: &[],
                 generics: Default::default(),
-                input_output: ObjectInputOutput {
+                input_output: SymInputOutput {
                     input_tys: vec![],
                     output_ty: SymTy::err(self.db, reported),
                 },
@@ -140,5 +141,5 @@ impl<'db> Cx<'db> {
 struct CodegenSignature<'db> {
     inputs: &'db [SymVariable<'db>],
     generics: Map<SymVariable<'db>, SymGenericTerm<'db>>,
-    input_output: ObjectInputOutput<'db>,
+    input_output: SymInputOutput<'db>,
 }

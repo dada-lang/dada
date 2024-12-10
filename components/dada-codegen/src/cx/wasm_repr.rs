@@ -1,12 +1,9 @@
 use dada_ir_sym::{
     class::{SymAggregate, SymAggregateStyle},
+    prelude::CheckedFieldTy,
     primitive::SymPrimitiveKind,
     symbol::SymVariable,
-    ty::SymTyName,
-};
-use dada_object_check::{
-    object_ir::{SymGenericTerm, SymTy, SymTyKind},
-    prelude::ObjectCheckFieldTy,
+    ty::{SymGenericTerm, SymPlace, SymTy, SymTyKind, SymTyName},
 };
 use dada_util::Map;
 use wasm_encoder::ValType;
@@ -96,6 +93,7 @@ impl<'db> Cx<'db> {
                 panic!("encountered unresolved inference variable")
             }
             SymTyKind::Never | SymTyKind::Error(_) => WasmRepr::Nothing,
+            SymTyKind::Perm(sym_perm, sym_ty) => todo!(),
         }
     }
 
@@ -179,11 +177,9 @@ impl<'db> Cx<'db> {
         ty_args: &'a Vec<SymGenericTerm<'db>>,
     ) -> impl Iterator<Item = SymTy<'db>> + use<'a, 'db> {
         let db = self.db;
-        aggr.fields(db)
-            .map(|f| f.object_check_field_ty(db))
-            .map(|ty| {
-                let ty = ty.substitute(db, ty_args);
-                ty.substitute(db, &[SymGenericTerm::Place])
-            })
+        aggr.fields(db).map(|f| f.checked_field_ty(db)).map(|ty| {
+            let ty = ty.substitute(db, ty_args);
+            ty.substitute(db, &[SymGenericTerm::Place(todo!())])
+        })
     }
 }

@@ -1,9 +1,7 @@
 use std::sync::Arc;
 
 use dada_ir_ast::{ast::PermissionOp, diagnostic::Reported};
-use dada_ir_sym::object_ir::{
-    MatchArm, ObjectBinaryOp, ObjectExpr, ObjectExprKind, PrimitiveLiteral,
-};
+use dada_ir_sym::object_ir::{SymBinaryOp, SymExpr, SymExprKind, SymLiteral, SymMatchArm};
 use dada_ir_sym::ty::{SymGenericTerm, SymTy, SymTyKind};
 use dada_ir_sym::{primitive::SymPrimitiveKind, subst::Subst, symbol::SymVariable, ty::SymTyName};
 use dada_util::Map;
@@ -68,22 +66,22 @@ impl<'cx, 'db> ExprCodegen<'cx, 'db> {
     }
 
     /// Generate code to execute the expression, leaving the result on the top of the wasm stack.
-    pub fn push_expr(&mut self, expr: ObjectExpr<'db>) {
+    pub fn push_expr(&mut self, expr: SymExpr<'db>) {
         let db = self.cx.db;
         match *expr.kind(db) {
-            ObjectExprKind::Semi(object_expr, object_expr1) => {
+            SymExprKind::Semi(object_expr, object_expr1) => {
                 self.push_expr(object_expr);
                 self.pop_and_drop(object_expr.ty(db));
                 self.push_expr(object_expr1);
             }
-            ObjectExprKind::Tuple(ref elements) => {
+            SymExprKind::Tuple(ref elements) => {
                 // the representation of a tuple is inlined onto the stack (like any other struct type)
                 for &element in elements {
                     self.push_expr(element);
                 }
             }
-            ObjectExprKind::Primitive(literal) => self.push_literal(expr.ty(db), literal),
-            ObjectExprKind::LetIn {
+            SymExprKind::Primitive(literal) => self.push_literal(expr.ty(db), literal),
+            SymExprKind::LetIn {
                 lv,
                 ty,
                 initializer,
@@ -100,14 +98,14 @@ impl<'cx, 'db> ExprCodegen<'cx, 'db> {
 
                 self.push_expr(body);
             }
-            ObjectExprKind::Await {
+            SymExprKind::Await {
                 future,
                 await_keyword: _,
             } => {
                 self.push_expr(future);
                 // FIXME: for now we just ignore futures and execute everything synchronously
             }
-            ObjectExprKind::Assign { place, value } => {
+            SymExprKind::Assign { place, value } => {
                 let wasm_place = self.place(place);
                 self.push_expr(value);
 
@@ -115,7 +113,7 @@ impl<'cx, 'db> ExprCodegen<'cx, 'db> {
 
                 self.pop_and_store(&wasm_place);
             }
-            ObjectExprKind::PermissionOp(permission_op, object_place_expr) => {
+            SymExprKind::PermissionOp(permission_op, object_place_expr) => {
                 let wasm_place_repr = self.place(object_place_expr);
                 match permission_op {
                     PermissionOp::Lease => {
@@ -131,7 +129,7 @@ impl<'cx, 'db> ExprCodegen<'cx, 'db> {
                     }
                 }
             }
-            ObjectExprKind::Call {
+            SymExprKind::Call {
                 function,
                 ref substitution,
                 ref arg_temps,
@@ -150,11 +148,11 @@ impl<'cx, 'db> ExprCodegen<'cx, 'db> {
 
                 self.instructions.push(Instruction::Call(fn_index.0));
             }
-            ObjectExprKind::Return(object_expr) => {
+            SymExprKind::Return(object_expr) => {
                 self.push_expr(object_expr);
                 self.instructions.push(Instruction::Return);
             }
-            ObjectExprKind::Not {
+            SymExprKind::Not {
                 operand,
                 op_span: _,
             } => {
@@ -162,12 +160,12 @@ impl<'cx, 'db> ExprCodegen<'cx, 'db> {
                 self.instructions.push(Instruction::I32Const(1));
                 self.instructions.push(Instruction::I32Xor);
             }
-            ObjectExprKind::BinaryOp(binary_op, object_expr, object_expr1) => {
+            SymExprKind::BinaryOp(binary_op, object_expr, object_expr1) => {
                 self.push_expr(object_expr);
                 self.push_expr(object_expr1);
                 self.execute_binary_op(binary_op, object_expr.ty(db), object_expr.ty(db));
             }
-            ObjectExprKind::Aggregate { ty, ref fields } => {
+            SymExprKind::Aggregate { ty, ref fields } => {
                 let wasm_repr = self.cx.wasm_repr_of_type(ty, &self.generics);
                 match wasm_repr {
                     WasmRepr::Struct(field_reprs) => {
@@ -191,10 +189,10 @@ impl<'cx, 'db> ExprCodegen<'cx, 'db> {
                     }
                 }
             }
-            ObjectExprKind::Match { ref arms } => {
+            SymExprKind::Match { ref arms } => {
                 self.push_match_expr(expr.ty(db), arms);
             }
-            ObjectExprKind::Error(reported) => self.push_error(reported),
+            SymExprKind::Error(reported) => self.push_error(reported),
         }
     }
 
@@ -209,7 +207,7 @@ impl<'cx, 'db> ExprCodegen<'cx, 'db> {
     /// Push the correct instructions to execute `binary_op` on operands of type `lhs_ty` and `rhs_ty`
     fn execute_binary_op(
         &mut self,
-        binary_op: ObjectBinaryOp,
+        binary_op: SymBinaryOp,
         lhs_ty: SymTy<'db>,
         rhs_ty: SymTy<'db>,
     ) {
@@ -231,221 +229,209 @@ impl<'cx, 'db> ExprCodegen<'cx, 'db> {
     /// Push the correct instructions to execute `binary_op` on operands of type `prim_kind`
     fn execute_binary_op_on_primitives(
         &mut self,
-        binary_op: ObjectBinaryOp,
+        binary_op: SymBinaryOp,
         prim_kind: SymPrimitiveKind,
     ) {
         let instruction = match (prim_kind, binary_op) {
-            (SymPrimitiveKind::Char, ObjectBinaryOp::Add)
-            | (SymPrimitiveKind::Char, ObjectBinaryOp::Sub)
-            | (SymPrimitiveKind::Char, ObjectBinaryOp::Mul)
-            | (SymPrimitiveKind::Char, ObjectBinaryOp::Div)
-            | (SymPrimitiveKind::Bool, ObjectBinaryOp::Add)
-            | (SymPrimitiveKind::Bool, ObjectBinaryOp::Sub)
-            | (SymPrimitiveKind::Bool, ObjectBinaryOp::Mul)
-            | (SymPrimitiveKind::Bool, ObjectBinaryOp::Div) => {
+            (SymPrimitiveKind::Char, SymBinaryOp::Add)
+            | (SymPrimitiveKind::Char, SymBinaryOp::Sub)
+            | (SymPrimitiveKind::Char, SymBinaryOp::Mul)
+            | (SymPrimitiveKind::Char, SymBinaryOp::Div)
+            | (SymPrimitiveKind::Bool, SymBinaryOp::Add)
+            | (SymPrimitiveKind::Bool, SymBinaryOp::Sub)
+            | (SymPrimitiveKind::Bool, SymBinaryOp::Mul)
+            | (SymPrimitiveKind::Bool, SymBinaryOp::Div) => {
                 panic!("invalid primitive binary op: {binary_op:?}, {prim_kind:?}")
             }
 
-            (SymPrimitiveKind::Char, ObjectBinaryOp::GreaterThan)
-            | (SymPrimitiveKind::Bool, ObjectBinaryOp::GreaterThan) => Instruction::I32GtU,
+            (SymPrimitiveKind::Char, SymBinaryOp::GreaterThan)
+            | (SymPrimitiveKind::Bool, SymBinaryOp::GreaterThan) => Instruction::I32GtU,
 
-            (SymPrimitiveKind::Char, ObjectBinaryOp::LessThan)
-            | (SymPrimitiveKind::Bool, ObjectBinaryOp::LessThan) => Instruction::I32LtU,
+            (SymPrimitiveKind::Char, SymBinaryOp::LessThan)
+            | (SymPrimitiveKind::Bool, SymBinaryOp::LessThan) => Instruction::I32LtU,
 
-            (SymPrimitiveKind::Char, ObjectBinaryOp::GreaterEqual)
-            | (SymPrimitiveKind::Bool, ObjectBinaryOp::GreaterEqual) => Instruction::I32GeU,
+            (SymPrimitiveKind::Char, SymBinaryOp::GreaterEqual)
+            | (SymPrimitiveKind::Bool, SymBinaryOp::GreaterEqual) => Instruction::I32GeU,
 
-            (SymPrimitiveKind::Char, ObjectBinaryOp::LessEqual)
-            | (SymPrimitiveKind::Bool, ObjectBinaryOp::LessEqual) => Instruction::I32GeU,
+            (SymPrimitiveKind::Char, SymBinaryOp::LessEqual)
+            | (SymPrimitiveKind::Bool, SymBinaryOp::LessEqual) => Instruction::I32GeU,
 
-            (SymPrimitiveKind::Char, ObjectBinaryOp::EqualEqual)
-            | (SymPrimitiveKind::Bool, ObjectBinaryOp::EqualEqual) => Instruction::I32Eq,
+            (SymPrimitiveKind::Char, SymBinaryOp::EqualEqual)
+            | (SymPrimitiveKind::Bool, SymBinaryOp::EqualEqual) => Instruction::I32Eq,
 
-            (SymPrimitiveKind::Int { bits }, ObjectBinaryOp::Add) if bits <= 32 => {
-                Instruction::I32Add
-            }
-            (SymPrimitiveKind::Int { bits }, ObjectBinaryOp::Sub) if bits <= 32 => {
-                Instruction::I32Sub
-            }
-            (SymPrimitiveKind::Int { bits }, ObjectBinaryOp::Mul) if bits <= 32 => {
-                Instruction::I32Mul
-            }
-            (SymPrimitiveKind::Int { bits }, ObjectBinaryOp::Div) if bits <= 32 => {
+            (SymPrimitiveKind::Int { bits }, SymBinaryOp::Add) if bits <= 32 => Instruction::I32Add,
+            (SymPrimitiveKind::Int { bits }, SymBinaryOp::Sub) if bits <= 32 => Instruction::I32Sub,
+            (SymPrimitiveKind::Int { bits }, SymBinaryOp::Mul) if bits <= 32 => Instruction::I32Mul,
+            (SymPrimitiveKind::Int { bits }, SymBinaryOp::Div) if bits <= 32 => {
                 Instruction::I32DivS
             }
-            (SymPrimitiveKind::Int { bits }, ObjectBinaryOp::GreaterThan) if bits <= 32 => {
+            (SymPrimitiveKind::Int { bits }, SymBinaryOp::GreaterThan) if bits <= 32 => {
                 Instruction::I32GtS
             }
-            (SymPrimitiveKind::Int { bits }, ObjectBinaryOp::LessThan) if bits <= 32 => {
+            (SymPrimitiveKind::Int { bits }, SymBinaryOp::LessThan) if bits <= 32 => {
                 Instruction::I32LtS
             }
-            (SymPrimitiveKind::Int { bits }, ObjectBinaryOp::GreaterEqual) if bits <= 32 => {
+            (SymPrimitiveKind::Int { bits }, SymBinaryOp::GreaterEqual) if bits <= 32 => {
                 Instruction::I32GeS
             }
-            (SymPrimitiveKind::Int { bits }, ObjectBinaryOp::LessEqual) if bits <= 32 => {
+            (SymPrimitiveKind::Int { bits }, SymBinaryOp::LessEqual) if bits <= 32 => {
                 Instruction::I32LeS
             }
-            (SymPrimitiveKind::Int { bits }, ObjectBinaryOp::EqualEqual) if bits <= 32 => {
+            (SymPrimitiveKind::Int { bits }, SymBinaryOp::EqualEqual) if bits <= 32 => {
                 Instruction::I32Eq
             }
 
-            (SymPrimitiveKind::Int { bits }, ObjectBinaryOp::Add) if bits <= 64 => {
-                Instruction::I64Add
-            }
-            (SymPrimitiveKind::Int { bits }, ObjectBinaryOp::Sub) if bits <= 64 => {
-                Instruction::I64Sub
-            }
-            (SymPrimitiveKind::Int { bits }, ObjectBinaryOp::Mul) if bits <= 64 => {
-                Instruction::I64Mul
-            }
-            (SymPrimitiveKind::Int { bits }, ObjectBinaryOp::Div) if bits <= 64 => {
+            (SymPrimitiveKind::Int { bits }, SymBinaryOp::Add) if bits <= 64 => Instruction::I64Add,
+            (SymPrimitiveKind::Int { bits }, SymBinaryOp::Sub) if bits <= 64 => Instruction::I64Sub,
+            (SymPrimitiveKind::Int { bits }, SymBinaryOp::Mul) if bits <= 64 => Instruction::I64Mul,
+            (SymPrimitiveKind::Int { bits }, SymBinaryOp::Div) if bits <= 64 => {
                 Instruction::I64DivS
             }
-            (SymPrimitiveKind::Int { bits }, ObjectBinaryOp::GreaterThan) if bits <= 64 => {
+            (SymPrimitiveKind::Int { bits }, SymBinaryOp::GreaterThan) if bits <= 64 => {
                 Instruction::I64GtS
             }
-            (SymPrimitiveKind::Int { bits }, ObjectBinaryOp::LessThan) if bits <= 64 => {
+            (SymPrimitiveKind::Int { bits }, SymBinaryOp::LessThan) if bits <= 64 => {
                 Instruction::I64LtS
             }
-            (SymPrimitiveKind::Int { bits }, ObjectBinaryOp::GreaterEqual) if bits <= 64 => {
+            (SymPrimitiveKind::Int { bits }, SymBinaryOp::GreaterEqual) if bits <= 64 => {
                 Instruction::I64GeS
             }
-            (SymPrimitiveKind::Int { bits }, ObjectBinaryOp::LessEqual) if bits <= 64 => {
+            (SymPrimitiveKind::Int { bits }, SymBinaryOp::LessEqual) if bits <= 64 => {
                 Instruction::I64LeS
             }
-            (SymPrimitiveKind::Int { bits }, ObjectBinaryOp::EqualEqual) if bits <= 64 => {
+            (SymPrimitiveKind::Int { bits }, SymBinaryOp::EqualEqual) if bits <= 64 => {
                 Instruction::I64Eq
             }
 
-            (SymPrimitiveKind::Isize, ObjectBinaryOp::Add) => Instruction::I32Add,
-            (SymPrimitiveKind::Isize, ObjectBinaryOp::Sub) => Instruction::I32Sub,
-            (SymPrimitiveKind::Isize, ObjectBinaryOp::Mul) => Instruction::I32Mul,
-            (SymPrimitiveKind::Isize, ObjectBinaryOp::Div) => Instruction::I32DivS,
-            (SymPrimitiveKind::Isize, ObjectBinaryOp::GreaterThan) => Instruction::I32GtS,
-            (SymPrimitiveKind::Isize, ObjectBinaryOp::LessThan) => Instruction::I32LtS,
-            (SymPrimitiveKind::Isize, ObjectBinaryOp::GreaterEqual) => Instruction::I32GeS,
-            (SymPrimitiveKind::Isize, ObjectBinaryOp::LessEqual) => Instruction::I32LeS,
-            (SymPrimitiveKind::Isize, ObjectBinaryOp::EqualEqual) => Instruction::I32Eq,
+            (SymPrimitiveKind::Isize, SymBinaryOp::Add) => Instruction::I32Add,
+            (SymPrimitiveKind::Isize, SymBinaryOp::Sub) => Instruction::I32Sub,
+            (SymPrimitiveKind::Isize, SymBinaryOp::Mul) => Instruction::I32Mul,
+            (SymPrimitiveKind::Isize, SymBinaryOp::Div) => Instruction::I32DivS,
+            (SymPrimitiveKind::Isize, SymBinaryOp::GreaterThan) => Instruction::I32GtS,
+            (SymPrimitiveKind::Isize, SymBinaryOp::LessThan) => Instruction::I32LtS,
+            (SymPrimitiveKind::Isize, SymBinaryOp::GreaterEqual) => Instruction::I32GeS,
+            (SymPrimitiveKind::Isize, SymBinaryOp::LessEqual) => Instruction::I32LeS,
+            (SymPrimitiveKind::Isize, SymBinaryOp::EqualEqual) => Instruction::I32Eq,
 
-            (SymPrimitiveKind::Uint { bits }, ObjectBinaryOp::Add) if bits <= 32 => {
+            (SymPrimitiveKind::Uint { bits }, SymBinaryOp::Add) if bits <= 32 => {
                 Instruction::I32Add
             }
-            (SymPrimitiveKind::Uint { bits }, ObjectBinaryOp::Sub) if bits <= 32 => {
+            (SymPrimitiveKind::Uint { bits }, SymBinaryOp::Sub) if bits <= 32 => {
                 Instruction::I32Sub
             }
-            (SymPrimitiveKind::Uint { bits }, ObjectBinaryOp::Mul) if bits <= 32 => {
+            (SymPrimitiveKind::Uint { bits }, SymBinaryOp::Mul) if bits <= 32 => {
                 Instruction::I32Mul
             }
-            (SymPrimitiveKind::Uint { bits }, ObjectBinaryOp::Div) if bits <= 32 => {
+            (SymPrimitiveKind::Uint { bits }, SymBinaryOp::Div) if bits <= 32 => {
                 Instruction::I32DivU
             }
-            (SymPrimitiveKind::Uint { bits }, ObjectBinaryOp::GreaterThan) if bits <= 32 => {
+            (SymPrimitiveKind::Uint { bits }, SymBinaryOp::GreaterThan) if bits <= 32 => {
                 Instruction::I32GtU
             }
-            (SymPrimitiveKind::Uint { bits }, ObjectBinaryOp::LessThan) if bits <= 32 => {
+            (SymPrimitiveKind::Uint { bits }, SymBinaryOp::LessThan) if bits <= 32 => {
                 Instruction::I32LtU
             }
-            (SymPrimitiveKind::Uint { bits }, ObjectBinaryOp::GreaterEqual) if bits <= 32 => {
+            (SymPrimitiveKind::Uint { bits }, SymBinaryOp::GreaterEqual) if bits <= 32 => {
                 Instruction::I32GeU
             }
-            (SymPrimitiveKind::Uint { bits }, ObjectBinaryOp::LessEqual) if bits <= 32 => {
+            (SymPrimitiveKind::Uint { bits }, SymBinaryOp::LessEqual) if bits <= 32 => {
                 Instruction::I32LeU
             }
-            (SymPrimitiveKind::Uint { bits }, ObjectBinaryOp::EqualEqual) if bits <= 32 => {
+            (SymPrimitiveKind::Uint { bits }, SymBinaryOp::EqualEqual) if bits <= 32 => {
                 Instruction::I32Eq
             }
 
-            (SymPrimitiveKind::Uint { bits }, ObjectBinaryOp::Add) if bits <= 64 => {
+            (SymPrimitiveKind::Uint { bits }, SymBinaryOp::Add) if bits <= 64 => {
                 Instruction::I64Add
             }
-            (SymPrimitiveKind::Uint { bits }, ObjectBinaryOp::Sub) if bits <= 64 => {
+            (SymPrimitiveKind::Uint { bits }, SymBinaryOp::Sub) if bits <= 64 => {
                 Instruction::I64Sub
             }
-            (SymPrimitiveKind::Uint { bits }, ObjectBinaryOp::Mul) if bits <= 64 => {
+            (SymPrimitiveKind::Uint { bits }, SymBinaryOp::Mul) if bits <= 64 => {
                 Instruction::I64Mul
             }
-            (SymPrimitiveKind::Uint { bits }, ObjectBinaryOp::Div) if bits <= 64 => {
+            (SymPrimitiveKind::Uint { bits }, SymBinaryOp::Div) if bits <= 64 => {
                 Instruction::I64DivU
             }
-            (SymPrimitiveKind::Uint { bits }, ObjectBinaryOp::GreaterThan) if bits <= 64 => {
+            (SymPrimitiveKind::Uint { bits }, SymBinaryOp::GreaterThan) if bits <= 64 => {
                 Instruction::I64GtU
             }
-            (SymPrimitiveKind::Uint { bits }, ObjectBinaryOp::LessThan) if bits <= 64 => {
+            (SymPrimitiveKind::Uint { bits }, SymBinaryOp::LessThan) if bits <= 64 => {
                 Instruction::I64LtU
             }
-            (SymPrimitiveKind::Uint { bits }, ObjectBinaryOp::GreaterEqual) if bits <= 64 => {
+            (SymPrimitiveKind::Uint { bits }, SymBinaryOp::GreaterEqual) if bits <= 64 => {
                 Instruction::I64GeU
             }
-            (SymPrimitiveKind::Uint { bits }, ObjectBinaryOp::LessEqual) if bits <= 64 => {
+            (SymPrimitiveKind::Uint { bits }, SymBinaryOp::LessEqual) if bits <= 64 => {
                 Instruction::I64LeU
             }
-            (SymPrimitiveKind::Uint { bits }, ObjectBinaryOp::EqualEqual) if bits <= 64 => {
+            (SymPrimitiveKind::Uint { bits }, SymBinaryOp::EqualEqual) if bits <= 64 => {
                 Instruction::I64Eq
             }
 
-            (SymPrimitiveKind::Usize, ObjectBinaryOp::Add) => Instruction::I32Add,
-            (SymPrimitiveKind::Usize, ObjectBinaryOp::Sub) => Instruction::I32Sub,
-            (SymPrimitiveKind::Usize, ObjectBinaryOp::Mul) => Instruction::I32Mul,
-            (SymPrimitiveKind::Usize, ObjectBinaryOp::Div) => Instruction::I32DivU,
-            (SymPrimitiveKind::Usize, ObjectBinaryOp::GreaterThan) => Instruction::I32GtU,
-            (SymPrimitiveKind::Usize, ObjectBinaryOp::LessThan) => Instruction::I32LtU,
-            (SymPrimitiveKind::Usize, ObjectBinaryOp::GreaterEqual) => Instruction::I32GeU,
-            (SymPrimitiveKind::Usize, ObjectBinaryOp::LessEqual) => Instruction::I32LeU,
-            (SymPrimitiveKind::Usize, ObjectBinaryOp::EqualEqual) => Instruction::I32Eq,
+            (SymPrimitiveKind::Usize, SymBinaryOp::Add) => Instruction::I32Add,
+            (SymPrimitiveKind::Usize, SymBinaryOp::Sub) => Instruction::I32Sub,
+            (SymPrimitiveKind::Usize, SymBinaryOp::Mul) => Instruction::I32Mul,
+            (SymPrimitiveKind::Usize, SymBinaryOp::Div) => Instruction::I32DivU,
+            (SymPrimitiveKind::Usize, SymBinaryOp::GreaterThan) => Instruction::I32GtU,
+            (SymPrimitiveKind::Usize, SymBinaryOp::LessThan) => Instruction::I32LtU,
+            (SymPrimitiveKind::Usize, SymBinaryOp::GreaterEqual) => Instruction::I32GeU,
+            (SymPrimitiveKind::Usize, SymBinaryOp::LessEqual) => Instruction::I32LeU,
+            (SymPrimitiveKind::Usize, SymBinaryOp::EqualEqual) => Instruction::I32Eq,
 
-            (SymPrimitiveKind::Float { bits }, ObjectBinaryOp::Add) if bits <= 32 => {
+            (SymPrimitiveKind::Float { bits }, SymBinaryOp::Add) if bits <= 32 => {
                 Instruction::F32Add
             }
-            (SymPrimitiveKind::Float { bits }, ObjectBinaryOp::Sub) if bits <= 32 => {
+            (SymPrimitiveKind::Float { bits }, SymBinaryOp::Sub) if bits <= 32 => {
                 Instruction::F32Sub
             }
-            (SymPrimitiveKind::Float { bits }, ObjectBinaryOp::Mul) if bits <= 32 => {
+            (SymPrimitiveKind::Float { bits }, SymBinaryOp::Mul) if bits <= 32 => {
                 Instruction::F32Mul
             }
-            (SymPrimitiveKind::Float { bits }, ObjectBinaryOp::Div) if bits <= 32 => {
+            (SymPrimitiveKind::Float { bits }, SymBinaryOp::Div) if bits <= 32 => {
                 Instruction::F32Div
             }
-            (SymPrimitiveKind::Float { bits }, ObjectBinaryOp::GreaterThan) if bits <= 32 => {
+            (SymPrimitiveKind::Float { bits }, SymBinaryOp::GreaterThan) if bits <= 32 => {
                 Instruction::F32Gt
             }
-            (SymPrimitiveKind::Float { bits }, ObjectBinaryOp::LessThan) if bits <= 32 => {
+            (SymPrimitiveKind::Float { bits }, SymBinaryOp::LessThan) if bits <= 32 => {
                 Instruction::F32Lt
             }
-            (SymPrimitiveKind::Float { bits }, ObjectBinaryOp::GreaterEqual) if bits <= 32 => {
+            (SymPrimitiveKind::Float { bits }, SymBinaryOp::GreaterEqual) if bits <= 32 => {
                 Instruction::F32Ge
             }
-            (SymPrimitiveKind::Float { bits }, ObjectBinaryOp::LessEqual) if bits <= 32 => {
+            (SymPrimitiveKind::Float { bits }, SymBinaryOp::LessEqual) if bits <= 32 => {
                 Instruction::F32Le
             }
-            (SymPrimitiveKind::Float { bits }, ObjectBinaryOp::EqualEqual) if bits <= 32 => {
+            (SymPrimitiveKind::Float { bits }, SymBinaryOp::EqualEqual) if bits <= 32 => {
                 Instruction::F32Eq
             }
 
-            (SymPrimitiveKind::Float { bits }, ObjectBinaryOp::Add) if bits <= 64 => {
+            (SymPrimitiveKind::Float { bits }, SymBinaryOp::Add) if bits <= 64 => {
                 Instruction::F64Add
             }
-            (SymPrimitiveKind::Float { bits }, ObjectBinaryOp::Sub) if bits <= 64 => {
+            (SymPrimitiveKind::Float { bits }, SymBinaryOp::Sub) if bits <= 64 => {
                 Instruction::F64Sub
             }
-            (SymPrimitiveKind::Float { bits }, ObjectBinaryOp::Mul) if bits <= 64 => {
+            (SymPrimitiveKind::Float { bits }, SymBinaryOp::Mul) if bits <= 64 => {
                 Instruction::F64Mul
             }
-            (SymPrimitiveKind::Float { bits }, ObjectBinaryOp::Div) if bits <= 64 => {
+            (SymPrimitiveKind::Float { bits }, SymBinaryOp::Div) if bits <= 64 => {
                 Instruction::F64Div
             }
-            (SymPrimitiveKind::Float { bits }, ObjectBinaryOp::GreaterThan) if bits <= 64 => {
+            (SymPrimitiveKind::Float { bits }, SymBinaryOp::GreaterThan) if bits <= 64 => {
                 Instruction::F64Gt
             }
-            (SymPrimitiveKind::Float { bits }, ObjectBinaryOp::LessThan) if bits <= 64 => {
+            (SymPrimitiveKind::Float { bits }, SymBinaryOp::LessThan) if bits <= 64 => {
                 Instruction::F64Lt
             }
-            (SymPrimitiveKind::Float { bits }, ObjectBinaryOp::GreaterEqual) if bits <= 64 => {
+            (SymPrimitiveKind::Float { bits }, SymBinaryOp::GreaterEqual) if bits <= 64 => {
                 Instruction::F64Ge
             }
-            (SymPrimitiveKind::Float { bits }, ObjectBinaryOp::LessEqual) if bits <= 64 => {
+            (SymPrimitiveKind::Float { bits }, SymBinaryOp::LessEqual) if bits <= 64 => {
                 Instruction::F64Le
             }
-            (SymPrimitiveKind::Float { bits }, ObjectBinaryOp::EqualEqual) if bits <= 64 => {
+            (SymPrimitiveKind::Float { bits }, SymBinaryOp::EqualEqual) if bits <= 64 => {
                 Instruction::F64Eq
             }
 
@@ -473,10 +459,11 @@ impl<'cx, 'db> ExprCodegen<'cx, 'db> {
             }
             SymTyKind::Never | SymTyKind::Error(_) => Err(NotPrimitive::DeadCode),
             SymTyKind::Infer(_) => panic!("unexpected inference variable"),
+            SymTyKind::Perm(sym_perm, sym_ty) => todo!(),
         }
     }
 
-    fn push_match_expr(&mut self, match_ty: SymTy<'db>, arms: &[MatchArm<'db>]) {
+    fn push_match_expr(&mut self, match_ty: SymTy<'db>, arms: &[SymMatchArm<'db>]) {
         let Some((if_arm, else_arms)) = arms.split_first() else {
             return;
         };
@@ -530,7 +517,7 @@ impl<'cx, 'db> ExprCodegen<'cx, 'db> {
         }
     }
 
-    fn push_literal(&mut self, ty: SymTy<'db>, literal: PrimitiveLiteral) {
+    fn push_literal(&mut self, ty: SymTy<'db>, literal: SymLiteral) {
         let db = self.cx.db;
         let kind = match ty.kind(db) {
             SymTyKind::Named(sym_ty_name, _) => match sym_ty_name {
@@ -555,31 +542,31 @@ impl<'cx, 'db> ExprCodegen<'cx, 'db> {
             | SymPrimitiveKind::Isize
             | SymPrimitiveKind::Usize
             | SymPrimitiveKind::Char => {
-                let PrimitiveLiteral::Integral { bits } = literal else {
+                let SymLiteral::Integral { bits } = literal else {
                     panic!("expected integral {literal:?}");
                 };
                 self.instructions.push(Instruction::I32Const(bits as i32));
             }
             SymPrimitiveKind::Int { bits } | SymPrimitiveKind::Uint { bits } if bits <= 32 => {
-                let PrimitiveLiteral::Integral { bits } = literal else {
+                let SymLiteral::Integral { bits } = literal else {
                     panic!("expected integral {literal:?}");
                 };
                 self.instructions.push(Instruction::I32Const(bits as i32));
             }
             SymPrimitiveKind::Int { bits } | SymPrimitiveKind::Uint { bits } if bits <= 64 => {
-                let PrimitiveLiteral::Integral { bits } = literal else {
+                let SymLiteral::Integral { bits } = literal else {
                     panic!("expected integral {literal:?}");
                 };
                 self.instructions.push(Instruction::I64Const(bits as i64));
             }
             SymPrimitiveKind::Float { bits } if bits <= 32 => {
-                let PrimitiveLiteral::Float { bits } = literal else {
+                let SymLiteral::Float { bits } = literal else {
                     panic!("expected float {literal:?}");
                 };
                 self.instructions.push(Instruction::F32Const(bits.0 as f32));
             }
             SymPrimitiveKind::Float { bits } if bits <= 32 => {
-                let PrimitiveLiteral::Float { bits } = literal else {
+                let SymLiteral::Float { bits } = literal else {
                     panic!("expected float {literal:?}");
                 };
                 self.instructions.push(Instruction::F64Const(bits.0));
