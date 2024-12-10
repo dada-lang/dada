@@ -12,7 +12,7 @@ use crate::{
     prelude::Symbol,
     scope::Scope,
     symbol::SymVariable,
-    ty::{SymTy, SymTyName},
+    ir::ty::{SymTy, SymTyName},
     CheckInEnv,
 };
 

@@ -7,7 +7,7 @@ use std::{
     task::{Context, Waker},
 };
 
-use crate::{indices::InferVarIndex, symbol::SymGenericKind, ty::SymGenericTerm};
+use crate::{indices::InferVarIndex, symbol::SymGenericKind, ir::ty::SymGenericTerm};
 use check_task::CheckTask;
 use dada_ir_ast::{
     diagnostic::{Diagnostic, Err, Level},

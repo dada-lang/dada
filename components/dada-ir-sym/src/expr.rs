@@ -10,7 +10,7 @@ use crate::{
     class::SymField,
     scope::{NameResolution, Resolve},
     symbol::SymLocalVariable,
-    ty::{SymGenericArg, SymPlace, SymPlaceKind, SymTy},
+    ir::ty::{SymGenericArg, SymPlace, SymPlaceKind, SymTy},
     IntoSymInScope,
 };
 

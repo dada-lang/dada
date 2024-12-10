@@ -14,7 +14,7 @@ use crate::{
     indices::InferVarIndex,
     primitive::SymPrimitiveKind,
     symbol::SymVariable,
-    ty::{SymGenericTerm, SymPerm, SymPlace, SymTy, SymTyKind, SymTyName},
+    ir::ty::{SymGenericTerm, SymPerm, SymPlace, SymTy, SymTyKind, SymTyName},
 };
 
 #[derive(Copy, Clone, PartialEq, Eq, PartialOrd, Ord, Hash, Debug)]

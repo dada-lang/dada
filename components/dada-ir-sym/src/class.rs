@@ -9,12 +9,12 @@ use dada_util::FromImpls;
 
 use crate::{
     function::{SignatureSymbols, SymFunction, SymFunctionSource},
+    ir::ty::{SymTy, SymTyKind},
     populate::PopulateSignatureSymbols,
     prelude::Symbol,
     scope::Scope,
     scope_tree::{ScopeItem, ScopeTreeNode},
     symbol::{SymGenericKind, SymVariable},
-    ty::{SymTy, SymTyKind},
 };
 
 #[salsa::tracked]

@@ -13,11 +13,11 @@ use salsa::Update;
 use crate::{
     class::SymAggregate,
     ir::binder::{Binder, LeafBoundTerm},
+    ir::ty::SymTy,
     populate::PopulateSignatureSymbols,
     scope::Scope,
     scope_tree::{ScopeItem, ScopeTreeNode},
     symbol::SymVariable,
-    ty::SymTy,
 };
 
 #[salsa::tracked]

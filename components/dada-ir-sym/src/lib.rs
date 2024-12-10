@@ -43,7 +43,6 @@ mod statements;
 mod subobject;
 pub mod subst;
 pub mod symbol;
-pub mod ty;
 mod types;
 mod universe;
 pub mod well_known;
@@ -53,7 +52,7 @@ pub mod prelude {
     use crate::function::{SymFunction, SymFunctionSignature};
     use crate::ir::binder::Binder;
     use crate::ir::exprs::SymExpr;
-    use crate::ty::SymTy;
+    use crate::ir::ty::SymTy;
     use dada_ir_ast::diagnostic::Errors;
 
     /// Return the symbol corresponding to the AST node.

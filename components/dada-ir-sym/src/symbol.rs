@@ -4,7 +4,7 @@ use dada_ir_ast::{
 };
 use salsa::Update;
 
-use crate::{prelude::Symbol, scope::Scope, ty::SymGenericTerm};
+use crate::{prelude::Symbol, scope::Scope, ir::ty::SymGenericTerm};
 
 /// Symbol for a generic parameter or local variable.
 #[salsa::tracked]
@@ -75,7 +75,7 @@ pub trait HasKind<'db> {
 }
 
 /// Assert that `self` has the appropriate kind to produce an `R` value.
-/// Implemented by e.g. [`SymGenericTerm`][] to permit downcasting to [`SymTy`](`crate::ty::SymTy`).
+/// Implemented by e.g. [`SymGenericTerm`][] to permit downcasting to [`SymTy`](`crate::ir::ty::SymTy`).
 pub trait AssertKind<'db, R> {
     fn assert_kind(self, db: &'db dyn crate::Db) -> R;
 }
