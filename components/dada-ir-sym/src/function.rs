@@ -11,8 +11,8 @@ use dada_util::FromImpls;
 use salsa::Update;
 
 use crate::{
-    binder::{Binder, LeafBoundTerm},
     class::SymAggregate,
+    ir::binder::{Binder, LeafBoundTerm},
     populate::PopulateSignatureSymbols,
     scope::Scope,
     scope_tree::{ScopeItem, ScopeTreeNode},

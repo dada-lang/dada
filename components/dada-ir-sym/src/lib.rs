@@ -20,7 +20,8 @@ pub trait Db: dada_ir_ast::Db {
     fn source_file<'db>(&'db self, krate: Krate, modules: &[Identifier<'db>]) -> SourceFile;
 }
 
-pub mod binder;
+pub mod ir;
+
 mod blocks;
 mod bound;
 mod check;
@@ -49,9 +50,9 @@ mod universe;
 pub mod well_known;
 
 pub mod prelude {
-    use crate::binder::Binder;
     use crate::class::SymField;
     use crate::function::{SymFunction, SymFunctionSignature};
+    use crate::ir::binder::Binder;
     use crate::object_ir::ObjectExpr;
     use crate::ty::SymTy;
     use dada_ir_ast::diagnostic::Errors;

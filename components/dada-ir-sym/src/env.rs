@@ -1,8 +1,8 @@
 use std::sync::Arc;
 
 use crate::{
-    binder::BoundTerm,
     indices::{FromInfer, InferVarIndex},
+    ir::binder::BoundTerm,
     scope::Scope,
     subst::SubstWith,
     symbol::{SymGenericKind, SymVariable},

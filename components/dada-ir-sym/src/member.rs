@@ -1,9 +1,9 @@
 use std::pin::pin;
 
 use crate::{
-    binder::Binder,
     class::{SymAggregate, SymClassMember, SymField},
     function::SymFunction,
+    ir::binder::Binder,
     ty::{SymGenericTerm, SymTy, SymTyKind, SymTyName},
 };
 use dada_ir_ast::{

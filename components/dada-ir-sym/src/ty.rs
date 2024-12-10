@@ -1,8 +1,8 @@
 use crate::{
-    binder::LeafBoundTerm,
     class::{SymAggregate, SymField},
     env::EnvLike,
     indices::{FromInfer, FromInferVar, InferVarIndex},
+    ir::binder::LeafBoundTerm,
     prelude::Symbol,
     primitive::{SymPrimitive, SymPrimitiveKind},
     symbol::{AssertKind, FromVar, HasKind, SymGenericKind, SymVariable},

@@ -9,10 +9,10 @@ use dada_ir_ast::{
 use dada_util::FromImpls;
 
 use crate::{
-    binder::BoundTerm,
     class::{SymAggregate, SymClassMember},
     env::EnvLike,
     function::SymFunction,
+    ir::binder::BoundTerm,
     module::SymModule,
     prelude::Symbol,
     primitive::{primitives, SymPrimitive},

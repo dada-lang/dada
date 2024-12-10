@@ -1,10 +1,10 @@
 use std::future::Future;
 
 use crate::{
-    binder::Binder,
     class::SymAggregate,
     env::Env,
     function::{SymFunction, SymInputOutput},
+    ir::binder::Binder,
     member::MemberLookup,
     object_ir::{
         MatchArm, ObjectBinaryOp, ObjectExpr, ObjectExprKind, ObjectPlaceExpr, ObjectPlaceExprKind,

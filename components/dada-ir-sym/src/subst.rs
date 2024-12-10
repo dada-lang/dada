@@ -5,8 +5,8 @@ use dada_util::{Map, Never};
 use salsa::Update;
 
 use crate::{
-    binder::{Binder, BoundTerm, NeverBinder},
     function::SymInputOutput,
+    ir::binder::{Binder, BoundTerm, NeverBinder},
     symbol::{AssertKind, FromVar, HasKind, SymGenericKind, SymVariable},
     ty::{
         SymGenericTerm, SymPerm, SymPermKind, SymPlace, SymPlaceKind, SymTy, SymTyKind, SymTyName,
