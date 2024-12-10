@@ -41,7 +41,6 @@ pub mod scope_tree;
 mod signature;
 mod statements;
 mod subobject;
-pub mod subst;
 mod types;
 mod universe;
 pub mod well_known;

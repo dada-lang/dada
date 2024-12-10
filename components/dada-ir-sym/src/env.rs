@@ -3,10 +3,10 @@ use std::sync::Arc;
 use crate::{
     indices::{FromInfer, InferVarIndex},
     ir::binder::BoundTerm,
+    ir::subst::SubstWith,
     ir::symbol::SymVariable,
     ir::types::{SymGenericKind, SymGenericTerm, SymPerm, SymPlace, SymTy, SymTyKind},
     scope::Scope,
-    subst::SubstWith,
     CheckInEnv,
 };
 use dada_ir_ast::{diagnostic::Reported, span::Span};

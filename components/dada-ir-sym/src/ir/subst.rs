@@ -455,7 +455,7 @@ where
 
 /// For types that do not contain any potentially substitutable
 /// content, we can use a simple impl. Note that while these types
-/// default [`Subst::Term`][] type to `SymGenericTerm`,
+/// default [`ir::subst::Term`][] type to `SymGenericTerm`,
 /// that is just for convenience -- they implement [`SubstWith`][]
 /// for any type `Term`.
 macro_rules! identity_subst {
