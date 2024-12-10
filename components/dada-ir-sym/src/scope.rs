@@ -11,8 +11,8 @@ use dada_util::FromImpls;
 use crate::{
     class::{SymAggregate, SymClassMember},
     env::EnvLike,
-    function::SymFunction,
     ir::binder::BoundTerm,
+    ir::function::SymFunction,
     ir::primitive::{primitives, SymPrimitive},
     ir::symbol::{FromVar, SymVariable},
     ir::types::{SymGenericKind, SymGenericTerm, SymTy},

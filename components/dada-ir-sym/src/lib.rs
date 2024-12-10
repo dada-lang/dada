@@ -28,7 +28,6 @@ mod check;
 pub mod class;
 mod env;
 mod exprs;
-pub mod function;
 pub mod indices;
 mod inference;
 mod member;
@@ -46,9 +45,9 @@ pub mod well_known;
 
 pub mod prelude {
     use crate::class::SymField;
-    use crate::function::{SymFunction, SymFunctionSignature};
     use crate::ir::binder::Binder;
     use crate::ir::exprs::SymExpr;
+    use crate::ir::function::{SymFunction, SymFunctionSignature};
     use crate::ir::types::SymTy;
     use dada_ir_ast::diagnostic::Errors;
 

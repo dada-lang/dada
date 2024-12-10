@@ -8,7 +8,7 @@ use dada_parser::prelude::*;
 use dada_util::FromImpls;
 
 use crate::{
-    function::{SignatureSymbols, SymFunction, SymFunctionSource},
+    ir::function::{SignatureSymbols, SymFunction, SymFunctionSource},
     ir::symbol::SymVariable,
     ir::types::{SymGenericKind, SymTy, SymTyKind},
     populate::PopulateSignatureSymbols,

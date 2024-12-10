@@ -8,7 +8,7 @@ use dada_util::Map;
 use crate::{
     check::Runtime,
     env::{Env, EnvLike},
-    function::{SymFunction, SymFunctionSignature, SymFunctionSource, SymInputOutput},
+    ir::function::{SymFunction, SymFunctionSignature, SymFunctionSource, SymInputOutput},
     prelude::Symbol,
     scope::Scope,
     ir::symbol::SymVariable,

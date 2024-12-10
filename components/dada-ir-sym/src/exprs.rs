@@ -3,11 +3,11 @@ use std::future::Future;
 use crate::{
     class::SymAggregate,
     env::Env,
-    function::{SymFunction, SymInputOutput},
     ir::binder::Binder,
     ir::exprs::{
         SymBinaryOp, SymExpr, SymExprKind, SymLiteral, SymMatchArm, SymPlaceExpr, SymPlaceExprKind,
     },
+    ir::function::{SymFunction, SymInputOutput},
     ir::symbol::{FromVar, SymVariable},
     ir::types::{SymGenericKind, SymGenericTerm, SymPerm, SymTy, SymTyKind, SymTyName},
     member::MemberLookup,

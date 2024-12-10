@@ -2,8 +2,8 @@ use std::pin::pin;
 
 use crate::{
     class::{SymAggregate, SymClassMember, SymField},
-    function::SymFunction,
     ir::binder::Binder,
+    ir::function::SymFunction,
     ir::types::{SymGenericTerm, SymTy, SymTyKind, SymTyName},
 };
 use dada_ir_ast::{

@@ -9,7 +9,7 @@ use dada_util::{FromImpls, Map};
 
 use crate::{
     class::SymAggregate,
-    function::SymFunction,
+    ir::function::SymFunction,
     prelude::Symbol,
     ir::primitive::SymPrimitive,
     scope::{Resolve, Scope},

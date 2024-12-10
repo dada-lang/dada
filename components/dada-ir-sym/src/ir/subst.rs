@@ -5,7 +5,7 @@ use dada_util::{Map, Never};
 use salsa::Update;
 
 use crate::{
-    function::SymInputOutput,
+    ir::function::SymInputOutput,
     ir::binder::{Binder, BoundTerm, NeverBinder},
     ir::symbol::{FromVar, SymVariable},
     ir::types::{

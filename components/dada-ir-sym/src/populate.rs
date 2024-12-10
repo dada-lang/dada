@@ -3,7 +3,7 @@ use dada_ir_ast::ast::{
     AstPermKind, AstTy, AstTyKind,
 };
 
-use crate::{function::SignatureSymbols, ir::types::AnonymousPermSymbol, prelude::Symbol};
+use crate::{ir::function::SignatureSymbols, ir::types::AnonymousPermSymbol, prelude::Symbol};
 
 /// Iterate over the items in a signature (function, class, impl, etc)
 /// and create the symbols for generic types and/or parameters declared within.
@@ -25,7 +25,7 @@ impl<'db> PopulateSignatureSymbols<'db> for AstTy<'db> {
     fn populate_signature_symbols(
         &self,
         db: &'db dyn crate::Db,
-        symbols: &mut crate::function::SignatureSymbols<'db>,
+        symbols: &mut crate::ir::function::SignatureSymbols<'db>,
     ) {
         match self.kind(db) {
             AstTyKind::Perm(ast_perm, ast_ty) => {
@@ -49,7 +49,7 @@ impl<'db> PopulateSignatureSymbols<'db> for AstPerm<'db> {
     fn populate_signature_symbols(
         &self,
         db: &'db dyn crate::Db,
-        symbols: &mut crate::function::SignatureSymbols<'db>,
+        symbols: &mut crate::ir::function::SignatureSymbols<'db>,
     ) {
         match self.kind(db) {
             AstPermKind::Shared(Some(_))
@@ -74,7 +74,7 @@ impl<'db> PopulateSignatureSymbols<'db> for AstGenericTerm<'db> {
     fn populate_signature_symbols(
         &self,
         db: &'db dyn crate::Db,
-        symbols: &mut crate::function::SignatureSymbols<'db>,
+        symbols: &mut crate::ir::function::SignatureSymbols<'db>,
     ) {
         match self {
             AstGenericTerm::Ty(ast_ty) => ast_ty.populate_signature_symbols(db, symbols),

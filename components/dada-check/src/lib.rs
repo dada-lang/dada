@@ -8,8 +8,8 @@ use dada_ir_ast::{
 };
 use dada_ir_sym::{
     class::{SymAggregate, SymClassMember, SymField},
-    function::{SignatureSymbols, SymFunction, SymFunctionSignature, SymInputOutput},
     ir::binder::{Binder, BoundTerm},
+    ir::function::{SignatureSymbols, SymFunction, SymFunctionSignature, SymInputOutput},
     ir::symbol::SymVariable,
     ir::types::{SymGenericKind, SymTy},
     module::{SymItem, SymModule},
