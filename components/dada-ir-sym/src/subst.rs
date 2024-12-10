@@ -7,10 +7,11 @@ use salsa::Update;
 use crate::{
     function::SymInputOutput,
     ir::binder::{Binder, BoundTerm, NeverBinder},
+    ir::symbol::{FromVar, SymVariable},
     ir::types::{
-        SymGenericTerm, SymPerm, SymPermKind, SymPlace, SymPlaceKind, SymTy, SymTyKind, SymTyName,
+        AssertKind, HasKind, SymGenericKind, SymGenericTerm, SymPerm, SymPermKind, SymPlace,
+        SymPlaceKind, SymTy, SymTyKind, SymTyName,
     },
-    ir::symbol::{AssertKind, FromVar, HasKind, SymGenericKind, SymVariable},
 };
 
 pub struct SubstitutionFns<'s, 'db, Term> {

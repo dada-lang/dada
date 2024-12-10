@@ -4,7 +4,13 @@ use dada_ir_ast::{
 };
 use salsa::Update;
 
-use crate::{prelude::Symbol, scope::Scope, ir::types::SymGenericTerm};
+use crate::{
+    ir::types::{SymGenericKind, SymGenericTerm},
+    prelude::Symbol,
+    scope::Scope,
+};
+
+use super::types::HasKind;
 
 /// Symbol for a generic parameter or local variable.
 #[salsa::tracked]
@@ -60,26 +66,6 @@ pub trait FromVar<'db> {
     fn var(db: &'db dyn crate::Db, var: SymVariable<'db>) -> Self;
 }
 
-#[derive(Copy, Clone, PartialEq, Eq, PartialOrd, Ord, Hash, Update, Debug)]
-pub enum SymGenericKind {
-    Type,
-    Perm,
-    Place,
-}
-
-/// Test if `self` can be said to have the given kind (i.e., is it a type? a permission?).
-///
-/// Note that when errors occur, this may return true for multiple kinds.
-pub trait HasKind<'db> {
-    fn has_kind(&self, db: &'db dyn crate::Db, kind: SymGenericKind) -> bool;
-}
-
-/// Assert that `self` has the appropriate kind to produce an `R` value.
-/// Implemented by e.g. [`SymGenericTerm`][] to permit downcasting to [`SymTy`](`crate::ir::ty::SymTy`).
-pub trait AssertKind<'db, R> {
-    fn assert_kind(self, db: &'db dyn crate::Db) -> R;
-}
-
 impl<'db> Symbol<'db> for AstFunctionInput<'db> {
     type Output = SymVariable<'db>;
 
@@ -87,16 +73,6 @@ impl<'db> Symbol<'db> for AstFunctionInput<'db> {
         match self {
             AstFunctionInput::SelfArg(ast_self_arg) => ast_self_arg.symbol(db),
             AstFunctionInput::Variable(variable_decl) => variable_decl.symbol(db),
-        }
-    }
-}
-
-impl std::fmt::Display for SymGenericKind {
-    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
-        match self {
-            Self::Type => write!(f, "type"),
-            Self::Perm => write!(f, "perm"),
-            Self::Place => write!(f, "place"),
         }
     }
 }

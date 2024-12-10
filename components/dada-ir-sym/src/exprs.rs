@@ -8,13 +8,13 @@ use crate::{
     ir::exprs::{
         SymBinaryOp, SymExpr, SymExprKind, SymLiteral, SymMatchArm, SymPlaceExpr, SymPlaceExprKind,
     },
+    ir::symbol::{FromVar, SymVariable},
+    ir::types::{SymGenericKind, SymGenericTerm, SymPerm, SymTy, SymTyKind, SymTyName},
     member::MemberLookup,
     prelude::CheckedSignature,
     scope::{NameResolution, NameResolutionSym},
     scope_tree::ScopeTreeNode,
     subobject::{require_subtype, Expected},
-    ir::symbol::{FromVar, SymGenericKind, SymVariable},
-    ir::types::{SymGenericTerm, SymPerm, SymTy, SymTyKind, SymTyName},
     well_known, CheckExprInEnv,
 };
 use dada_ir_ast::{

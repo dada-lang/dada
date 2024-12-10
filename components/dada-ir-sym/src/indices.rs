@@ -1,6 +1,6 @@
 use salsa::Update;
 
-use crate::ir::symbol::SymGenericKind;
+use crate::ir::types::SymGenericKind;
 
 /// Identifies a particular inference variable during type checking.
 #[derive(Copy, Clone, PartialEq, Eq, PartialOrd, Ord, Hash, Update, Debug)]

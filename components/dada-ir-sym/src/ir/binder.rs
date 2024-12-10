@@ -4,8 +4,9 @@ use dada_util::Never;
 use salsa::Update;
 
 use crate::{
+    ir::symbol::SymVariable,
+    ir::types::{HasKind, SymGenericKind},
     subst::{Subst, SubstitutionFns},
-    ir::symbol::{HasKind, SymGenericKind, SymVariable},
 };
 
 /// Indicates a binder for generic variables

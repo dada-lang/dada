@@ -10,10 +10,10 @@ use dada_ir_sym::{
     class::{SymAggregate, SymClassMember, SymField},
     function::{SignatureSymbols, SymFunction, SymFunctionSignature, SymInputOutput},
     ir::binder::{Binder, BoundTerm},
+    ir::symbol::SymVariable,
+    ir::types::{SymGenericKind, SymTy},
     module::{SymItem, SymModule},
     prelude::*,
-    ir::symbol::{SymGenericKind, SymVariable},
-    ir::types::SymTy,
 };
 
 pub use dada_ir_sym::Db;

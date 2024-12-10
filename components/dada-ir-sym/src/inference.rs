@@ -1,7 +1,9 @@
 use dada_ir_ast::span::Span;
 use dada_util::vecset::VecSet;
 
-use crate::{bound::Direction, ir::symbol::SymGenericKind, ir::types::SymGenericTerm, universe::Universe};
+use crate::{
+    bound::Direction, ir::types::SymGenericKind, ir::types::SymGenericTerm, universe::Universe,
+};
 
 pub(crate) struct InferenceVarData<'db> {
     kind: SymGenericKind,
