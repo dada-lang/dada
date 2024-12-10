@@ -2,8 +2,8 @@ use std::sync::Arc;
 
 use dada_ir_ast::{ast::PermissionOp, diagnostic::Reported};
 use dada_ir_sym::ir::exprs::{SymBinaryOp, SymExpr, SymExprKind, SymLiteral, SymMatchArm};
-use dada_ir_sym::ir::ty::{SymGenericTerm, SymTy, SymTyKind};
-use dada_ir_sym::{primitive::SymPrimitiveKind, subst::Subst, symbol::SymVariable, ir::ty::SymTyName};
+use dada_ir_sym::ir::types::{SymGenericTerm, SymTy, SymTyKind};
+use dada_ir_sym::{primitive::SymPrimitiveKind, subst::Subst, symbol::SymVariable, ir::types::SymTyName};
 use dada_util::Map;
 use wasm_encoder::{Instruction, ValType};
 use wasm_place_repr::{WasmLocal, WasmPlaceRepr};

@@ -3,7 +3,7 @@ use dada_ir_sym::{
     function::{SymFunction, SymInputOutput},
     prelude::{CheckedBody, CheckedSignature},
     symbol::SymVariable,
-    ir::ty::{SymGenericTerm, SymTy},
+    ir::types::{SymGenericTerm, SymTy},
 };
 use dada_util::Map;
 use wasm_encoder::ValType;

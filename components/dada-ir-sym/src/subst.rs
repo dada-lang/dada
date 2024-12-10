@@ -7,7 +7,7 @@ use salsa::Update;
 use crate::{
     function::SymInputOutput,
     ir::binder::{Binder, BoundTerm, NeverBinder},
-    ir::ty::{
+    ir::types::{
         SymGenericTerm, SymPerm, SymPermKind, SymPlace, SymPlaceKind, SymTy, SymTyKind, SymTyName,
     },
     symbol::{AssertKind, FromVar, HasKind, SymGenericKind, SymVariable},

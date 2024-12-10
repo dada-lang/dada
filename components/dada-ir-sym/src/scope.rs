@@ -13,7 +13,7 @@ use crate::{
     env::EnvLike,
     function::SymFunction,
     ir::binder::BoundTerm,
-    ir::ty::{SymGenericTerm, SymTy},
+    ir::types::{SymGenericTerm, SymTy},
     module::SymModule,
     prelude::Symbol,
     primitive::{primitives, SymPrimitive},

@@ -52,7 +52,7 @@ pub mod prelude {
     use crate::function::{SymFunction, SymFunctionSignature};
     use crate::ir::binder::Binder;
     use crate::ir::exprs::SymExpr;
-    use crate::ir::ty::SymTy;
+    use crate::ir::types::SymTy;
     use dada_ir_ast::diagnostic::Errors;
 
     /// Return the symbol corresponding to the AST node.

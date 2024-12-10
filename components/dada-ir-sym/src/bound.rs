@@ -6,7 +6,7 @@ use std::{
 
 use crate::{
     indices::InferVarIndex,
-    ir::ty::{SymGenericTerm, SymPermKind, SymPlaceKind, SymTyKind},
+    ir::types::{SymGenericTerm, SymPermKind, SymPlaceKind, SymTyKind},
 };
 
 use crate::{check::Runtime, inference::InferenceVarData};

@@ -3,7 +3,7 @@ use dada_ir_sym::{
     prelude::CheckedFieldTy,
     primitive::SymPrimitiveKind,
     symbol::SymVariable,
-    ir::ty::{SymGenericTerm, SymPlace, SymTy, SymTyKind, SymTyName},
+    ir::types::{SymGenericTerm, SymPlace, SymTy, SymTyKind, SymTyName},
 };
 use dada_util::Map;
 use wasm_encoder::ValType;

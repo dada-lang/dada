@@ -13,7 +13,7 @@ use dada_ir_sym::{
     module::{SymItem, SymModule},
     prelude::*,
     symbol::{SymGenericKind, SymVariable},
-    ir::ty::SymTy,
+    ir::types::SymTy,
 };
 
 pub use dada_ir_sym::Db;

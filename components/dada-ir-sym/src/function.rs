@@ -13,7 +13,7 @@ use salsa::Update;
 use crate::{
     class::SymAggregate,
     ir::binder::{Binder, LeafBoundTerm},
-    ir::ty::SymTy,
+    ir::types::SymTy,
     populate::PopulateSignatureSymbols,
     scope::Scope,
     scope_tree::{ScopeItem, ScopeTreeNode},

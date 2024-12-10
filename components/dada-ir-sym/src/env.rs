@@ -3,7 +3,7 @@ use std::sync::Arc;
 use crate::{
     indices::{FromInfer, InferVarIndex},
     ir::binder::BoundTerm,
-    ir::ty::{SymGenericTerm, SymPerm, SymPlace, SymTy, SymTyKind},
+    ir::types::{SymGenericTerm, SymPerm, SymPlace, SymTy, SymTyKind},
     scope::Scope,
     subst::SubstWith,
     symbol::{SymGenericKind, SymVariable},

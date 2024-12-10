@@ -4,7 +4,7 @@ use dada_ir_sym::{
     class::SymField,
     ir::exprs::{SymPlaceExpr, SymPlaceExprKind},
     symbol::SymVariable,
-    ir::ty::{SymTy, SymTyKind, SymTyName},
+    ir::types::{SymTy, SymTyKind, SymTyName},
 };
 use wasm_encoder::{Instruction, ValType};
 

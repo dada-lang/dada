@@ -14,7 +14,7 @@ use crate::{
     scope_tree::ScopeTreeNode,
     subobject::{require_subtype, Expected},
     symbol::{FromVar, SymGenericKind, SymVariable},
-    ir::ty::{SymGenericTerm, SymPerm, SymTy, SymTyKind, SymTyName},
+    ir::types::{SymGenericTerm, SymPerm, SymTy, SymTyKind, SymTyName},
     well_known, CheckExprInEnv,
 };
 use dada_ir_ast::{

@@ -7,7 +7,7 @@ use crate::{
     env::Env,
     ir::exprs::{SymExpr, SymExprKind},
     symbol::SymVariable,
-    ir::ty::SymTy,
+    ir::types::SymTy,
     CheckExprInEnv,
 };
 

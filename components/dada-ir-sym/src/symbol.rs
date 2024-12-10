@@ -4,7 +4,7 @@ use dada_ir_ast::{
 };
 use salsa::Update;
 
-use crate::{prelude::Symbol, scope::Scope, ir::ty::SymGenericTerm};
+use crate::{prelude::Symbol, scope::Scope, ir::types::SymGenericTerm};
 
 /// Symbol for a generic parameter or local variable.
 #[salsa::tracked]

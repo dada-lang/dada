@@ -4,7 +4,7 @@ use crate::{
     class::{SymAggregate, SymClassMember, SymField},
     function::SymFunction,
     ir::binder::Binder,
-    ir::ty::{SymGenericTerm, SymTy, SymTyKind, SymTyName},
+    ir::types::{SymGenericTerm, SymTy, SymTyKind, SymTyName},
 };
 use dada_ir_ast::{
     ast::{Identifier, SpannedIdentifier},
