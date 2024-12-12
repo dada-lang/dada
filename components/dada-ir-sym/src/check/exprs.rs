@@ -2,7 +2,7 @@ use std::future::Future;
 
 use crate::{
     check::env::Env,
-    check::member::MemberLookup,
+    check::member_lookup::MemberLookup,
     check::scope::{NameResolution, NameResolutionSym},
     check::scope_tree::ScopeTreeNode,
     check::subobject::{require_subtype, Expected},

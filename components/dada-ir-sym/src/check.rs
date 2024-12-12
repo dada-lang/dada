@@ -10,7 +10,7 @@ mod env;
 mod exprs;
 pub(crate) mod fields;
 mod inference;
-mod member;
+mod member_lookup;
 mod runtime;
 pub(crate) mod scope;
 pub(crate) mod scope_tree;
