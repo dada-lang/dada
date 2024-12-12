@@ -204,7 +204,41 @@ async fn check_expr<'db>(expr: &AstExpr<'db>, mut env: &Env<'db>) -> ExprResult<
                     )
                 }
 
-                AstBinaryOp::AndAnd | AstBinaryOp::OrOr => {
+                AstBinaryOp::AndAnd => {
+                    let mut temporaries: Vec<Temporary<'db>> = vec![];
+                    let lhs: SymExpr<'db> = lhs
+                        .check_expr_in_env(env)
+                        .await
+                        .into_expr(env, &mut temporaries);
+                    let rhs: SymExpr<'db> = rhs
+                        .check_expr_in_env(env)
+                        .await
+                        .into_expr(env, &mut temporaries);
+                    env.require_expr_has_bool_ty(lhs);
+                    env.require_expr_has_bool_ty(rhs);
+
+                    // construct an expression like
+                    // if lhs { if rhs { true } else { false } } else { false }
+                    ExprResult::from_expr(
+                        env,
+                        SymExpr::if_then_else(
+                            db,
+                            expr_span,
+                            lhs,
+                            SymExpr::if_then_else(
+                                db,
+                                expr_span,
+                                rhs,
+                                SymExpr::true_literal(db, expr_span),
+                                SymExpr::false_literal(db, expr_span),
+                            ),
+                            SymExpr::false_literal(db, expr_span),
+                        ),
+                        temporaries,
+                    )
+                }
+
+                AstBinaryOp::OrOr => {
                     let mut temporaries: Vec<Temporary<'db>> = vec![];
                     let lhs: SymExpr<'db> = lhs
                         .check_expr_in_env(env)
@@ -218,17 +252,21 @@ async fn check_expr<'db>(expr: &AstExpr<'db>, mut env: &Env<'db>) -> ExprResult<
                     env.require_expr_has_bool_ty(lhs);
                     env.require_expr_has_bool_ty(rhs);
 
+                    // construct an expression like
+                    // if lhs { true } else { if rhs { true } else { false } }
                     ExprResult::from_expr(
                         env,
-                        SymExpr::new(
+                        SymExpr::if_then_else(
                             db,
                             expr_span,
-                            SymTy::boolean(db),
-                            SymExprKind::BinaryOp(
-                                SymBinaryOp::try_from(span_op.op)
-                                    .expect("invalid object binary op"),
-                                lhs,
+                            lhs,
+                            SymExpr::true_literal(db, expr_span),
+                            SymExpr::if_then_else(
+                                db,
+                                expr_span,
                                 rhs,
+                                SymExpr::true_literal(db, expr_span),
+                                SymExpr::false_literal(db, expr_span),
                             ),
                         ),
                         temporaries,

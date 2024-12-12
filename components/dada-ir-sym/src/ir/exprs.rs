@@ -36,6 +36,55 @@ pub struct SymExpr<'db> {
     pub kind: SymExprKind<'db>,
 }
 
+impl<'db> SymExpr<'db> {
+    /// Create an expression like `false`
+    pub(crate) fn false_literal(db: &'db dyn crate::Db, span: Span<'db>) -> SymExpr<'db> {
+        SymExpr::new(
+            db,
+            span,
+            SymTy::boolean(db),
+            SymExprKind::Primitive(SymLiteral::Integral { bits: 0 }),
+        )
+    }
+
+    /// Create an expression like `true`
+    pub(crate) fn true_literal(db: &'db dyn crate::Db, span: Span<'db>) -> SymExpr<'db> {
+        SymExpr::new(
+            db,
+            span,
+            SymTy::boolean(db),
+            SymExprKind::Primitive(SymLiteral::Integral { bits: 1 }),
+        )
+    }
+
+    /// Create an expression like `if $condition { $if_true } else { $if_false }`
+    pub(crate) fn if_then_else(
+        db: &'db dyn crate::Db,
+        span: Span<'db>,
+        condition: SymExpr<'db>,
+        if_true: SymExpr<'db>,
+        if_false: SymExpr<'db>,
+    ) -> SymExpr<'db> {
+        SymExpr::new(
+            db,
+            span,
+            SymTy::boolean(db),
+            SymExprKind::Match {
+                arms: vec![
+                    SymMatchArm {
+                        condition: Some(condition),
+                        body: if_true,
+                    },
+                    SymMatchArm {
+                        condition: None,
+                        body: if_false,
+                    },
+                ],
+            },
+        )
+    }
+}
+
 impl<'db> Err<'db> for SymExpr<'db> {
     fn err(db: &'db dyn dada_ir_ast::Db, r: Reported) -> Self {
         SymExpr::new(db, r.span(db), SymTy::err(db, r), SymExprKind::Error(r))
