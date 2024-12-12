@@ -9,17 +9,17 @@ use dada_ir_ast::{
 use dada_util::FromImpls;
 
 use crate::{
-    ir::classes::{SymAggregate, SymClassMember},
     check::env::EnvLike,
-    ir::binder::BoundTerm,
-    ir::functions::SymFunction,
-    ir::primitive::{primitives, SymPrimitive},
-    ir::variables::{FromVar, SymVariable},
-    ir::types::{SymGenericKind, SymGenericTerm, SymTy},
-    ir::module::SymModule,
-    prelude::Symbol,
     check::scope_tree::ScopeTreeNode,
-    CheckInEnv,
+    check::CheckInEnv,
+    ir::binder::BoundTerm,
+    ir::classes::{SymAggregate, SymClassMember},
+    ir::functions::SymFunction,
+    ir::module::SymModule,
+    ir::primitive::{primitives, SymPrimitive},
+    ir::types::{SymGenericKind, SymGenericTerm, SymTy},
+    ir::variables::{FromVar, SymVariable},
+    prelude::Symbol,
 };
 
 /// Name resolution scope, used when converting types/function-bodies etc into symbols.

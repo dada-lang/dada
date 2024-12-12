@@ -3,7 +3,6 @@
 #![feature(trait_upcasting)]
 #![feature(async_closure)]
 
-use check::env::{Env, EnvLike};
 use dada_ir_ast::{
     ast::Identifier,
     inputs::{CompilationRoot, Krate, SourceFile},
@@ -77,22 +76,4 @@ pub mod prelude {
             crate::check::signature::check_function_signature(db, self)
         }
     }
-}
-
-/// Convert to a type checked representation in the given environment.
-/// This is implemented by types that can be converted synchronously
-/// (although they may yield an inference variable if parts of the computation
-/// had to be deferred).
-trait CheckInEnv<'db>: Copy {
-    type Output;
-
-    fn check_in_env(self, env: &mut dyn EnvLike<'db>) -> Self::Output;
-}
-
-/// Type check an expression (including a block) in the given environment.
-/// This is an async operation -- it may block if insufficient inference data is available.
-trait CheckExprInEnv<'db> {
-    type Output;
-
-    async fn check_expr_in_env(&self, env: &Env<'db>) -> Self::Output;
 }

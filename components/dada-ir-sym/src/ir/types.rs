@@ -1,12 +1,11 @@
 use crate::{
-    check::env::EnvLike,
     ir::binder::LeafBoundTerm,
     ir::classes::{SymAggregate, SymField},
     ir::indices::{FromInfer, FromInferVar, InferVarIndex},
     ir::primitive::{SymPrimitive, SymPrimitiveKind},
     ir::variables::{FromVar, SymVariable},
     prelude::Symbol,
-    CheckInEnv, Db,
+    Db,
 };
 use dada_ir_ast::{
     ast::{AstGenericDecl, AstGenericKind, AstPerm, AstPermKind},
@@ -277,14 +276,6 @@ impl std::fmt::Display for SymTy<'_> {
             _ => write!(f, "{:?}", self.kind(db)),
         })
         .unwrap_or_else(|| std::fmt::Debug::fmt(self, f))
-    }
-}
-
-impl<'db> CheckInEnv<'db> for SymTy<'db> {
-    type Output = SymTy<'db>;
-
-    fn check_in_env(self, _env: &mut dyn EnvLike<'db>) -> Self::Output {
-        self
     }
 }
 

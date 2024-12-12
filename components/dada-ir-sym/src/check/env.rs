@@ -2,12 +2,12 @@ use std::sync::Arc;
 
 use crate::{
     check::scope::Scope,
+    check::CheckInEnv,
     ir::binder::BoundTerm,
     ir::indices::{FromInfer, InferVarIndex},
     ir::subst::SubstWith,
     ir::types::{SymGenericKind, SymGenericTerm, SymPerm, SymPlace, SymTy, SymTyKind},
     ir::variables::SymVariable,
-    CheckInEnv,
 };
 use dada_ir_ast::{diagnostic::Reported, span::Span};
 use dada_util::Map;

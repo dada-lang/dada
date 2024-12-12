@@ -5,10 +5,10 @@ use futures::join;
 
 use crate::{
     check::env::Env,
+    check::CheckExprInEnv,
     ir::exprs::{SymExpr, SymExprKind},
-    ir::variables::SymVariable,
     ir::types::SymTy,
-    CheckExprInEnv,
+    ir::variables::SymVariable,
 };
 
 pub fn check_block_statements<'a, 'db>(

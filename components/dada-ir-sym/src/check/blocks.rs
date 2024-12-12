@@ -14,8 +14,9 @@ use crate::{
     check::signature::prepare_env,
     check::statements::check_block_statements,
     ir::exprs::{SymExpr, SymExprKind, SymPlaceExpr, SymPlaceExprKind},
-    CheckExprInEnv,
 };
+
+use super::CheckExprInEnv;
 
 pub fn check_function_body<'db>(
     db: &'db dyn crate::Db,

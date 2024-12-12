@@ -6,6 +6,7 @@ use crate::{
     check::scope::{NameResolution, NameResolutionSym},
     check::scope_tree::ScopeTreeNode,
     check::subobject::{require_subtype, Expected},
+    check::CheckExprInEnv,
     ir::binder::Binder,
     ir::classes::SymAggregate,
     ir::exprs::{
@@ -15,7 +16,7 @@ use crate::{
     ir::types::{SymGenericKind, SymGenericTerm, SymPerm, SymTy, SymTyKind, SymTyName},
     ir::variables::{FromVar, SymVariable},
     prelude::CheckedSignature,
-    well_known, CheckExprInEnv,
+    well_known,
 };
 use dada_ir_ast::{
     ast::{
