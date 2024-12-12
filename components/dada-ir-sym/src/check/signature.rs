@@ -122,7 +122,28 @@ impl<'a, 'db> EnvLike<'db> for ProtoEnv<'a, 'db> {
 impl<'a, 'db> ProtoEnv<'a, 'db> {
     fn variable_ty_from_input(&mut self, input: &AstFunctionInput<'db>) -> SymTy<'db> {
         match input {
-            AstFunctionInput::SelfArg(arg) => todo!(),
+            AstFunctionInput::SelfArg(arg) => {
+                if let Some(aggregate) = self.scope.class() {
+                    let self_ty = aggregate.self_ty(self.db, &self.scope);
+                    match arg.perm(self.db) {
+                        Some(ast_perm) => {
+                            let sym_perm = ast_perm.check_in_env(self);
+                            SymTy::perm(self.db, sym_perm, self_ty)
+                        }
+                        None => self_ty,
+                    }
+                } else {
+                    SymTy::err(
+                        self.db,
+                        Diagnostic::error(
+                            self.db,
+                            arg.span(self.db),
+                            "self parameter is only permitted within a class definition",
+                        )
+                        .report(self.db),
+                    )
+                }
+            }
             AstFunctionInput::Variable(var) => var.ty(self.db()).check_in_env(self),
         }
     }
@@ -135,8 +156,8 @@ fn output_ty<'a, 'db>(env: &mut ProtoEnv<'a, 'db>, function: &SymFunction<'db>) 
             Some(ast_ty) => ast_ty.check_in_env(env),
             None => SymTy::unit(db),
         },
-        SymFunctionSource::Constructor(sym_aggregate, ast_aggregate) => {
-            todo!()
+        SymFunctionSource::Constructor(sym_aggregate, _ast_aggregate) => {
+            sym_aggregate.self_ty(db, &env.scope)
         }
     }
 }
