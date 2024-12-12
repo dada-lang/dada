@@ -7,7 +7,7 @@ mod bound;
 mod env;
 mod exprs;
 pub(crate) mod fields;
-pub(crate) mod inference;
+mod inference;
 mod member;
 pub(crate) mod populate;
 mod runtime;

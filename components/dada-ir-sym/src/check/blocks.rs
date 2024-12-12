@@ -18,7 +18,7 @@ use crate::{
 
 use super::CheckExprInEnv;
 
-pub fn check_function_body<'db>(
+pub(crate) fn check_function_body<'db>(
     db: &'db dyn crate::Db,
     function: SymFunction<'db>,
 ) -> Option<SymExpr<'db>> {
