@@ -11,11 +11,11 @@ use dada_util::FromImpls;
 use salsa::Update;
 
 use crate::{
-    check::populate::PopulateSignatureSymbols,
     check::scope::Scope,
     check::scope_tree::{ScopeItem, ScopeTreeNode},
     ir::binder::{Binder, LeafBoundTerm},
     ir::classes::SymAggregate,
+    ir::populate::PopulateSignatureSymbols,
     ir::types::SymTy,
     ir::variables::SymVariable,
 };
