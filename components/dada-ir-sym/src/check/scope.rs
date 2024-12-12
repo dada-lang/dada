@@ -10,7 +10,7 @@ use dada_util::FromImpls;
 
 use crate::{
     ir::classes::{SymAggregate, SymClassMember},
-    env::EnvLike,
+    check::env::EnvLike,
     ir::binder::BoundTerm,
     ir::functions::SymFunction,
     ir::primitive::{primitives, SymPrimitive},

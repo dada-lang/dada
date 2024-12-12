@@ -3,7 +3,7 @@ use std::future::Future;
 use crate::{
     check::scope::{NameResolution, NameResolutionSym},
     check::scope_tree::ScopeTreeNode,
-    env::Env,
+    check::env::Env,
     ir::binder::Binder,
     ir::classes::SymAggregate,
     ir::exprs::{

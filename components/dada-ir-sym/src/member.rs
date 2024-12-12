@@ -15,7 +15,7 @@ use futures::{Stream, StreamExt};
 
 use crate::{
     check::exprs::{ExprResult, ExprResultKind},
-    env::Env,
+    check::env::Env,
     ir::exprs::{SymPlaceExpr, SymPlaceExprKind},
     prelude::CheckedFieldTy,
 };

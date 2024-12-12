@@ -6,13 +6,13 @@ use dada_ir_ast::{
 use dada_util::Map;
 
 use crate::{
-    runtime::Runtime,
-    env::{Env, EnvLike},
-    ir::functions::{SymFunction, SymFunctionSignature, SymFunctionSource, SymInputOutput},
-    prelude::Symbol,
+    check::env::{Env, EnvLike},
+    check::runtime::Runtime,
     check::scope::Scope,
-    ir::variables::SymVariable,
+    ir::functions::{SymFunction, SymFunctionSignature, SymFunctionSource, SymInputOutput},
     ir::types::{SymTy, SymTyName},
+    ir::variables::SymVariable,
+    prelude::Symbol,
     CheckInEnv,
 };
 

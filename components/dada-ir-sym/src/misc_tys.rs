@@ -1,7 +1,8 @@
 use dada_ir_ast::diagnostic::{Err, Errors, Reported};
 
 use crate::{
-    env::Env, ir::binder::Binder, ir::classes::SymField, ir::types::SymTy, runtime::Runtime,
+    check::env::Env, check::runtime::Runtime, ir::binder::Binder, ir::classes::SymField,
+    ir::types::SymTy,
 };
 
 pub(crate) fn check_field<'db>(

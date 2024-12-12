@@ -1,5 +1,5 @@
 use crate::{
-    env::EnvLike,
+    check::env::EnvLike,
     ir::binder::LeafBoundTerm,
     ir::classes::{SymAggregate, SymField},
     ir::indices::{FromInfer, FromInferVar, InferVarIndex},

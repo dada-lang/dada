@@ -10,7 +10,7 @@ use futures::StreamExt;
 
 use crate::{
     bound::Direction,
-    env::Env,
+    check::env::Env,
     ir::indices::InferVarIndex,
     ir::primitive::SymPrimitiveKind,
     ir::types::{SymGenericTerm, SymPerm, SymPlace, SymTy, SymTyKind, SymTyName},

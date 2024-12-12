@@ -3,11 +3,11 @@
 #![feature(trait_upcasting)]
 #![feature(async_closure)]
 
+use check::env::{Env, EnvLike};
 use dada_ir_ast::{
     ast::Identifier,
     inputs::{CompilationRoot, Krate, SourceFile},
 };
-use env::{Env, EnvLike};
 
 /// Core functionality needed to symbolize.
 #[salsa::db]
@@ -24,15 +24,11 @@ mod check;
 pub mod ir;
 
 mod bound;
-mod env;
-mod inference;
 mod member;
 mod misc_tys;
-mod runtime;
 mod signature;
 mod statements;
 mod subobject;
-mod universe;
 pub mod well_known;
 
 pub mod prelude {

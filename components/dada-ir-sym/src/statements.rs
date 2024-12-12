@@ -4,7 +4,7 @@ use dada_ir_ast::{ast::AstStatement, span::Span};
 use futures::join;
 
 use crate::{
-    env::Env,
+    check::env::Env,
     ir::exprs::{SymExpr, SymExprKind},
     ir::variables::SymVariable,
     ir::types::SymTy,

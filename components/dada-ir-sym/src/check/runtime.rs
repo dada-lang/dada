@@ -18,7 +18,10 @@ use dada_ir_ast::{
 };
 use dada_util::{vecset::VecSet, Map};
 
-use crate::{bound::Direction, env::Env, inference::InferenceVarData, universe::Universe};
+use crate::{
+    bound::Direction, check::env::Env, check::inference::InferenceVarData,
+    check::universe::Universe,
+};
 
 #[derive(Clone)]
 pub(crate) struct Runtime<'db> {

@@ -9,8 +9,8 @@ use dada_ir_ast::{
 use dada_parser::prelude::FunctionBlock;
 
 use crate::{
-    runtime::Runtime,
-    env::Env,
+    check::env::Env,
+    check::runtime::Runtime,
     ir::exprs::{SymExpr, SymExprKind, SymPlaceExpr, SymPlaceExprKind},
     signature::prepare_env,
     statements::check_block_statements,

@@ -15,10 +15,10 @@ use futures::{Stream, StreamExt};
 
 use crate::{
     bound::{Direction, TransitiveBounds},
-    runtime::Runtime,
+    check::runtime::Runtime,
     ir::exprs::SymExpr,
     subobject::{require_assignable_type, require_numeric_type, require_subtype, Expected},
-    universe::Universe,
+    check::universe::Universe,
 };
 
 #[derive(Clone)]
