@@ -1,3 +1,5 @@
+//! Defines the type-checking and name-resolution logic. This is what creates the symbolic IR.
+
 use env::{Env, EnvLike};
 
 use crate::ir::types::SymTy;
