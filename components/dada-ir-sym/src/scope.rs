@@ -16,7 +16,7 @@ use crate::{
     ir::primitive::{primitives, SymPrimitive},
     ir::variables::{FromVar, SymVariable},
     ir::types::{SymGenericKind, SymGenericTerm, SymTy},
-    module::SymModule,
+    ir::module::SymModule,
     prelude::Symbol,
     scope_tree::ScopeTreeNode,
     CheckInEnv,

@@ -7,12 +7,12 @@ use dada_ir_ast::{
     span::Spanned,
 };
 use dada_ir_sym::{
-    ir::classes::{SymAggregate, SymClassMember, SymField},
     ir::binder::{Binder, BoundTerm},
+    ir::classes::{SymAggregate, SymClassMember, SymField},
     ir::functions::{SignatureSymbols, SymFunction, SymFunctionSignature, SymInputOutput},
-    ir::variables::SymVariable,
+    ir::module::{SymItem, SymModule},
     ir::types::{SymGenericKind, SymTy},
-    module::{SymItem, SymModule},
+    ir::variables::SymVariable,
     prelude::*,
 };
 

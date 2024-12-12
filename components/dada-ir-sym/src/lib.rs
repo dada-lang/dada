@@ -30,7 +30,6 @@ mod exprs;
 mod inference;
 mod member;
 mod misc_tys;
-pub mod module;
 mod populate;
 pub mod scope;
 pub mod scope_tree;
