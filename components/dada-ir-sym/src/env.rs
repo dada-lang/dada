@@ -15,7 +15,7 @@ use futures::{Stream, StreamExt};
 
 use crate::{
     bound::{Direction, TransitiveBounds},
-    check::Runtime,
+    runtime::Runtime,
     ir::exprs::SymExpr,
     subobject::{require_assignable_type, require_numeric_type, require_subtype, Expected},
     universe::Universe,

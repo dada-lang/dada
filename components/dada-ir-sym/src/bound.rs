@@ -9,7 +9,7 @@ use crate::{
     ir::types::{SymGenericTerm, SymPermKind, SymPlaceKind, SymTyKind},
 };
 
-use crate::{check::Runtime, inference::InferenceVarData};
+use crate::{runtime::Runtime, inference::InferenceVarData};
 
 #[derive(Copy, Clone, PartialEq, Eq, PartialOrd, Ord, Hash, Debug)]
 pub(crate) enum Direction {

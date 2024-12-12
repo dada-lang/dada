@@ -6,7 +6,7 @@ use dada_ir_ast::{
 use dada_util::Map;
 
 use crate::{
-    check::Runtime,
+    runtime::Runtime,
     env::{Env, EnvLike},
     ir::functions::{SymFunction, SymFunctionSignature, SymFunctionSource, SymInputOutput},
     prelude::Symbol,
