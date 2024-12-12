@@ -20,9 +20,9 @@ pub trait Db: dada_ir_ast::Db {
     fn source_file<'db>(&'db self, krate: Krate, modules: &[Identifier<'db>]) -> SourceFile;
 }
 
+mod check;
 pub mod ir;
 
-mod blocks;
 mod bound;
 mod env;
 mod exprs;
@@ -64,7 +64,7 @@ pub mod prelude {
     impl<'db> CheckedBody<'db> for SymFunction<'db> {
         #[salsa::tracked]
         fn checked_body(self, db: &'db dyn crate::Db) -> Option<SymExpr<'db>> {
-            crate::blocks::check_function_body(db, self)
+            crate::check::blocks::check_function_body(db, self)
         }
     }
 
