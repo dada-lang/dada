@@ -109,7 +109,7 @@ impl<'scope, 'db> Scope<'scope, 'db> {
 
     /// Resolve identifier `id` (found at `span`) in the scope.
     /// Reports errors if nothing is found and returns `Err(Reported)`.
-    pub fn resolve_name(
+    pub(crate) fn resolve_name(
         &self,
         db: &'db dyn crate::Db,
         id: Identifier<'db>,
@@ -292,6 +292,7 @@ impl<'db> NameResolution<'db> {
     }
 
     /// Returns a string describing `self` that fits the mold "an X named `foo`".
+    #[expect(dead_code)]
     pub fn describe(&self, db: &'db dyn crate::Db) -> impl Display + 'db {
         self.sym.describe(db)
     }
@@ -436,7 +437,6 @@ impl<'db> NameResolutionSym<'db> {
     }
 
     /// Returns a string describing `self` that fits the mold "an X named `foo`".
-    #[expect(dead_code)]
     pub fn describe(self, db: &'db dyn crate::Db) -> impl Display + 'db {
         match self {
             NameResolutionSym::SymModule(sym_module) => {

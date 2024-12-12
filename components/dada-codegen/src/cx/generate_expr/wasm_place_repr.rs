@@ -3,8 +3,8 @@ use std::sync::Arc;
 use dada_ir_sym::{
     ir::classes::SymField,
     ir::exprs::{SymPlaceExpr, SymPlaceExprKind},
-    ir::variables::SymVariable,
     ir::types::{SymTy, SymTyKind, SymTyName},
+    ir::variables::SymVariable,
 };
 use wasm_encoder::{Instruction, ValType};
 
@@ -173,6 +173,7 @@ impl<'cx, 'db> ExprCodegen<'cx, 'db> {
                     }
                 }
             },
+            #[expect(unused_variables)]
             SymTyKind::Perm(sym_perm, sym_ty) => todo!(),
         }
     }

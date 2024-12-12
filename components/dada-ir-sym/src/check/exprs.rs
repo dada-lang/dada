@@ -76,7 +76,6 @@ impl<'db> CheckExprInEnv<'db> for AstExpr<'db> {
 
 async fn check_expr<'db>(expr: &AstExpr<'db>, mut env: &Env<'db>) -> ExprResult<'db> {
     let db = env.db();
-    let scope = &env.scope;
     let expr_span = expr.span;
 
     match &*expr.kind {

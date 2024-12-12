@@ -1,9 +1,9 @@
 use dada_ir_sym::{
     ir::classes::{SymAggregate, SymAggregateStyle},
-    prelude::CheckedFieldTy,
     ir::primitive::SymPrimitiveKind,
+    ir::types::{SymGenericTerm, SymTy, SymTyKind, SymTyName},
     ir::variables::SymVariable,
-    ir::types::{SymGenericTerm, SymPlace, SymTy, SymTyKind, SymTyName},
+    prelude::CheckedFieldTy,
 };
 use dada_util::Map;
 use wasm_encoder::ValType;
@@ -93,6 +93,7 @@ impl<'db> Cx<'db> {
                 panic!("encountered unresolved inference variable")
             }
             SymTyKind::Never | SymTyKind::Error(_) => WasmRepr::Nothing,
+            #[expect(unused_variables)]
             SymTyKind::Perm(sym_perm, sym_ty) => todo!(),
         }
     }
@@ -179,6 +180,7 @@ impl<'db> Cx<'db> {
         let db = self.db;
         aggr.fields(db).map(|f| f.checked_field_ty(db)).map(|ty| {
             let ty = ty.substitute(db, ty_args);
+            #[expect(unreachable_code)]
             ty.substitute(db, &[SymGenericTerm::Place(todo!())])
         })
     }

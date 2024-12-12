@@ -1,9 +1,9 @@
 use dada_ir_ast::diagnostic::Err;
 use dada_ir_sym::{
     ir::functions::{SymFunction, SymInputOutput},
-    prelude::{CheckedBody, CheckedSignature},
-    ir::variables::SymVariable,
     ir::types::{SymGenericTerm, SymTy},
+    ir::variables::SymVariable,
+    prelude::{CheckedBody, CheckedSignature},
 };
 use dada_util::Map;
 use wasm_encoder::ValType;
@@ -107,6 +107,7 @@ impl<'db> Cx<'db> {
                 let input_output = signature
                     .input_output(self.db)
                     .substitute(self.db, generics);
+                #[expect(unreachable_code)]
                 let dummy_places = symbols
                     .input_variables
                     .iter()

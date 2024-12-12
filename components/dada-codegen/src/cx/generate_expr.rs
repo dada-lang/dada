@@ -4,8 +4,8 @@ use dada_ir_ast::{ast::PermissionOp, diagnostic::Reported};
 use dada_ir_sym::ir::exprs::{SymBinaryOp, SymExpr, SymExprKind, SymLiteral, SymMatchArm};
 use dada_ir_sym::ir::types::{SymGenericTerm, SymTy, SymTyKind};
 use dada_ir_sym::{
-    ir::primitive::SymPrimitiveKind, ir::subst::Subst, ir::variables::SymVariable,
-    ir::types::SymTyName,
+    ir::primitive::SymPrimitiveKind, ir::subst::Subst, ir::types::SymTyName,
+    ir::variables::SymVariable,
 };
 use dada_util::Map;
 use wasm_encoder::{Instruction, ValType};
@@ -462,6 +462,7 @@ impl<'cx, 'db> ExprCodegen<'cx, 'db> {
             }
             SymTyKind::Never | SymTyKind::Error(_) => Err(NotPrimitive::DeadCode),
             SymTyKind::Infer(_) => panic!("unexpected inference variable"),
+            #[expect(unused_variables)]
             SymTyKind::Perm(sym_perm, sym_ty) => todo!(),
         }
     }
@@ -538,6 +539,7 @@ impl<'cx, 'db> ExprCodegen<'cx, 'db> {
             SymTyKind::Error(reported) => {
                 return self.push_error(*reported);
             }
+            #[expect(unused_variables)]
             SymTyKind::Perm(sym_perm, sym_ty) => todo!(),
         };
         match kind {

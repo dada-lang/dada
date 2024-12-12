@@ -56,7 +56,7 @@ impl<'db> Env<'db> {
 
     /// Convenience function for invoking `to_object_ir`.
     /// We have to do a bit of a "dance" because `to_object_ir` needs a mutable reference to a shared reference.
-    pub fn symbolize<I>(&self, i: I) -> I::Output
+    pub(super) fn symbolize<I>(&self, i: I) -> I::Output
     where
         I: CheckInEnv<'db>,
     {
@@ -91,6 +91,7 @@ impl<'db> Env<'db> {
 
     /// Open the given symbols as universally quantified.
     /// Creates a new universe.
+    #[allow(dead_code)]
     pub fn open_universally<T>(&mut self, runtime: &Runtime<'db>, value: &T) -> T::LeafTerm
     where
         T: BoundTerm<'db>,
@@ -153,6 +154,7 @@ impl<'db> Env<'db> {
         self.return_ty = Some(ty);
     }
 
+    #[expect(dead_code)]
     pub fn return_ty(&self) -> Option<SymTy<'db>> {
         self.return_ty
     }
@@ -199,7 +201,7 @@ impl<'db> Env<'db> {
         )
     }
 
-    pub fn require_assignable_object_type(
+    pub(super) fn require_assignable_object_type(
         &self,
         value_span: Span<'db>,
         value_ty: impl CheckInEnv<'db, Output = SymTy<'db>>,
@@ -215,7 +217,7 @@ impl<'db> Env<'db> {
         })
     }
 
-    pub fn require_equal_object_types(
+    pub(super) fn require_equal_object_types(
         &self,
         span: Span<'db>,
         expected_ty: impl CheckInEnv<'db, Output = SymTy<'db>>,
@@ -236,7 +238,7 @@ impl<'db> Env<'db> {
         })
     }
 
-    pub fn require_numeric_type(
+    pub(super) fn require_numeric_type(
         &self,
         span: Span<'db>,
         ty: impl CheckInEnv<'db, Output = SymTy<'db>>,

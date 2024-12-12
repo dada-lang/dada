@@ -14,8 +14,8 @@ use dada_ir_ast::{
 use futures::{Stream, StreamExt};
 
 use crate::{
-    check::exprs::{ExprResult, ExprResultKind},
     check::env::Env,
+    check::exprs::{ExprResult, ExprResultKind},
     ir::exprs::{SymPlaceExpr, SymPlaceExprKind},
     prelude::CheckedFieldTy,
 };
@@ -286,8 +286,8 @@ impl<'member, 'db> MemberLookup<'member, 'db> {
         id: Identifier<'db>,
     ) -> Option<SearchResult<'db>> {
         let db = self.env.db();
-        match ty.kind(db) {
-            SymTyKind::Named(name, generics) => match *name {
+        match *ty.kind(db) {
+            SymTyKind::Named(name, ref generics) => match name {
                 // Primitive types don't have members.
                 SymTyName::Primitive(_) => None,
 
@@ -301,7 +301,7 @@ impl<'member, 'db> MemberLookup<'member, 'db> {
                 SymTyName::Future => None,
             },
 
-            SymTyKind::Perm(_, sym_ty) => self.search_lower_bound_for_member(ty, id),
+            SymTyKind::Perm(_, sym_ty) => self.search_lower_bound_for_member(sym_ty, id),
 
             SymTyKind::Infer(_) => {
                 // We can ignore inference variables because we are already iterating over lower bounds.
@@ -316,7 +316,7 @@ impl<'member, 'db> MemberLookup<'member, 'db> {
 
             SymTyKind::Never => None,
 
-            SymTyKind::Error(reported) => Some(SearchResult::Error(*reported)),
+            SymTyKind::Error(reported) => Some(SearchResult::Error(reported)),
         }
     }
 
