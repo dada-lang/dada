@@ -11,10 +11,10 @@ use futures::StreamExt;
 use crate::{
     bound::Direction,
     env::Env,
-    indices::InferVarIndex,
+    ir::indices::InferVarIndex,
     ir::primitive::SymPrimitiveKind,
-    ir::variables::SymVariable,
     ir::types::{SymGenericTerm, SymPerm, SymPlace, SymTy, SymTyKind, SymTyName},
+    ir::variables::SymVariable,
 };
 
 #[derive(Copy, Clone, PartialEq, Eq, PartialOrd, Ord, Hash, Debug)]

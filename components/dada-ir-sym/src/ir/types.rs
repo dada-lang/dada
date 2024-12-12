@@ -1,11 +1,11 @@
 use crate::{
     class::{SymAggregate, SymField},
     env::EnvLike,
-    indices::{FromInfer, FromInferVar, InferVarIndex},
     ir::binder::LeafBoundTerm,
+    ir::indices::{FromInfer, FromInferVar, InferVarIndex},
+    ir::primitive::{SymPrimitive, SymPrimitiveKind},
     ir::variables::{FromVar, SymVariable},
     prelude::Symbol,
-    ir::primitive::{SymPrimitive, SymPrimitiveKind},
     CheckInEnv, Db,
 };
 use dada_ir_ast::{

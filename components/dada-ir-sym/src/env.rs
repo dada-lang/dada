@@ -1,11 +1,11 @@
 use std::sync::Arc;
 
 use crate::{
-    indices::{FromInfer, InferVarIndex},
     ir::binder::BoundTerm,
+    ir::indices::{FromInfer, InferVarIndex},
     ir::subst::SubstWith,
-    ir::variables::SymVariable,
     ir::types::{SymGenericKind, SymGenericTerm, SymPerm, SymPlace, SymTy, SymTyKind},
+    ir::variables::SymVariable,
     scope::Scope,
     CheckInEnv,
 };

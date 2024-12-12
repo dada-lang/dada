@@ -5,7 +5,7 @@ use std::{
 };
 
 use crate::{
-    indices::InferVarIndex,
+    ir::indices::InferVarIndex,
     ir::types::{SymGenericTerm, SymPermKind, SymPlaceKind, SymTyKind},
 };
 

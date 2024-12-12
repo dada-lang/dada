@@ -8,7 +8,7 @@ use std::{
 };
 
 use crate::{
-    indices::InferVarIndex,
+    ir::indices::InferVarIndex,
     ir::types::{SymGenericKind, SymGenericTerm},
 };
 use check_task::CheckTask;

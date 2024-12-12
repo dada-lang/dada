@@ -28,7 +28,6 @@ mod check;
 pub mod class;
 mod env;
 mod exprs;
-pub mod indices;
 mod inference;
 mod member;
 mod misc_tys;
