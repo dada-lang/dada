@@ -2,12 +2,11 @@ use dada_ir_ast::{
     ast::{AstFunctionInput, AstSelfArg, Identifier, VariableDecl},
     span::{Span, Spanned},
 };
-use salsa::Update;
 
 use crate::{
+    check::scope::Scope,
     ir::types::{SymGenericKind, SymGenericTerm},
     prelude::Symbol,
-    check::scope::Scope,
 };
 
 use super::types::HasKind;

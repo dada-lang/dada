@@ -2,7 +2,7 @@ use dada_ir_ast::{
     ast::{AstGenericTerm, AstPerm, AstPermKind, AstTy, AstTyKind}, diagnostic::{ordinal, Diagnostic, Err, Level}, span::{Span, Spanned}
 };
 
-use crate::{check::env::EnvLike, check::scope::{NameResolution, NameResolutionSym, Resolve}, ir::variables::{FromVar}, ir::types::{SymGenericTerm, SymPerm, SymPlace, SymGenericKind, SymTy}, prelude::Symbol};
+use crate::{check::env::EnvLike, check::scope::{NameResolution, NameResolutionSym, Resolve}, ir::variables::FromVar, ir::types::{SymGenericTerm, SymPerm, SymPlace, SymGenericKind, SymTy}, prelude::Symbol};
 
 use super::CheckInEnv;
 

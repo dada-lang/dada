@@ -126,10 +126,6 @@ impl<'a, 'db> ProtoEnv<'a, 'db> {
             AstFunctionInput::Variable(var) => var.ty(self.db()).check_in_env(self),
         }
     }
-
-    fn into_input_tys(self) -> Map<SymVariable<'db>, SymTy<'db>> {
-        self.input_tys
-    }
 }
 
 fn output_ty<'a, 'db>(env: &mut ProtoEnv<'a, 'db>, function: &SymFunction<'db>) -> SymTy<'db> {

@@ -436,6 +436,7 @@ impl<'db> NameResolutionSym<'db> {
     }
 
     /// Returns a string describing `self` that fits the mold "an X named `foo`".
+    #[expect(dead_code)]
     pub fn describe(self, db: &'db dyn crate::Db) -> impl Display + 'db {
         match self {
             NameResolutionSym::SymModule(sym_module) => {

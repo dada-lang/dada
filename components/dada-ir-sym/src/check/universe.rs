@@ -20,6 +20,7 @@ impl Universe {
     };
 
     /// Create a universe one larger than the current universe.
+    #[expect(dead_code)]
     pub fn next(self) -> Universe {
         Universe(self.0.checked_add(1).unwrap())
     }
