@@ -60,9 +60,9 @@ pub mod prelude {
     impl<'db> CheckedFieldTy<'db> for SymField<'db> {
         #[salsa::tracked]
         fn checked_field_ty(self, db: &'db dyn crate::Db) -> Binder<'db, Binder<'db, SymTy<'db>>> {
-            match crate::check::misc_tys::check_field(db, self) {
+            match crate::check::fields::check_field(db, self) {
                 Ok(v) => v,
-                Err(reported) => crate::check::misc_tys::field_err_ty(db, self, reported),
+                Err(reported) => crate::check::fields::field_err_ty(db, self, reported),
             }
         }
     }
