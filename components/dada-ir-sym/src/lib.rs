@@ -25,7 +25,6 @@ pub mod ir;
 mod blocks;
 mod bound;
 mod check;
-pub mod class;
 mod env;
 mod exprs;
 mod inference;
@@ -43,8 +42,8 @@ mod universe;
 pub mod well_known;
 
 pub mod prelude {
-    use crate::class::SymField;
     use crate::ir::binder::Binder;
+    use crate::ir::class::SymField;
     use crate::ir::exprs::SymExpr;
     use crate::ir::functions::{SymFunction, SymFunctionSignature};
     use crate::ir::types::SymTy;

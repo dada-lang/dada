@@ -8,13 +8,13 @@ use dada_parser::prelude::SourceFileParse;
 use dada_util::{FromImpls, Map};
 
 use crate::{
-    class::SymAggregate,
+    ir::class::SymAggregate,
     ir::functions::SymFunction,
-    prelude::Symbol,
     ir::primitive::SymPrimitive,
+    ir::variables::SymVariable,
+    prelude::Symbol,
     scope::{Resolve, Scope},
     scope_tree::{ScopeItem, ScopeTreeNode},
-    ir::variables::SymVariable,
 };
 
 #[salsa::tracked]

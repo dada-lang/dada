@@ -1,5 +1,5 @@
 use crate::{
-    class::SymAggregate,
+    ir::class::SymAggregate,
     ir::functions::{SymFunction, SymFunctionSource, SymInputOutput},
 };
 use dada_ir_ast::{

@@ -11,7 +11,7 @@ use dada_util::FromImpls;
 use salsa::Update;
 
 use crate::{
-    class::SymAggregate,
+    ir::class::SymAggregate,
     ir::binder::{Binder, LeafBoundTerm},
     ir::variables::SymVariable,
     ir::types::SymTy,

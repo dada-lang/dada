@@ -1,7 +1,7 @@
 use std::future::Future;
 
 use crate::{
-    class::SymAggregate,
+    ir::class::SymAggregate,
     env::Env,
     ir::binder::Binder,
     ir::exprs::{

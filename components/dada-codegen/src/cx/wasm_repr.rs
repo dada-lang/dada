@@ -1,5 +1,5 @@
 use dada_ir_sym::{
-    class::{SymAggregate, SymAggregateStyle},
+    ir::class::{SymAggregate, SymAggregateStyle},
     prelude::CheckedFieldTy,
     ir::primitive::SymPrimitiveKind,
     ir::variables::SymVariable,

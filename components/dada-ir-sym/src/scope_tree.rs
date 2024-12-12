@@ -3,7 +3,7 @@ use dada_util::FromImpls;
 use salsa::Update;
 
 use crate::{
-    class::SymAggregate, ir::functions::SymFunction, ir::variables::SymVariable, module::SymModule,
+    ir::class::SymAggregate, ir::functions::SymFunction, ir::variables::SymVariable, module::SymModule,
     scope::Scope,
 };
 
