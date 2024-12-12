@@ -1,12 +1,12 @@
 use std::sync::Arc;
 
 use crate::{
+    check::scope::Scope,
     ir::binder::BoundTerm,
     ir::indices::{FromInfer, InferVarIndex},
     ir::subst::SubstWith,
     ir::types::{SymGenericKind, SymGenericTerm, SymPerm, SymPlace, SymTy, SymTyKind},
     ir::variables::SymVariable,
-    check::scope::Scope,
     CheckInEnv,
 };
 use dada_ir_ast::{diagnostic::Reported, span::Span};
@@ -14,11 +14,11 @@ use dada_util::Map;
 use futures::{Stream, StreamExt};
 
 use crate::{
-    bound::{Direction, TransitiveBounds},
+    check::bound::{Direction, TransitiveBounds},
     check::runtime::Runtime,
-    ir::exprs::SymExpr,
-    subobject::{require_assignable_type, require_numeric_type, require_subtype, Expected},
+    check::subobject::{require_assignable_type, require_numeric_type, require_subtype, Expected},
     check::universe::Universe,
+    ir::exprs::SymExpr,
 };
 
 #[derive(Clone)]

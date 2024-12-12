@@ -11,9 +11,9 @@ use dada_parser::prelude::FunctionBlock;
 use crate::{
     check::env::Env,
     check::runtime::Runtime,
+    check::signature::prepare_env,
+    check::statements::check_block_statements,
     ir::exprs::{SymExpr, SymExprKind, SymPlaceExpr, SymPlaceExprKind},
-    signature::prepare_env,
-    statements::check_block_statements,
     CheckExprInEnv,
 };
 

@@ -9,7 +9,7 @@ use dada_ir_ast::{
 use futures::StreamExt;
 
 use crate::{
-    bound::Direction,
+    check::bound::Direction,
     check::env::Env,
     ir::indices::InferVarIndex,
     ir::primitive::SymPrimitiveKind,

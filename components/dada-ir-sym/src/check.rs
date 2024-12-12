@@ -1,10 +1,16 @@
 pub(crate) mod blocks;
+mod bound;
 pub(crate) mod env;
 pub(crate) mod exprs;
 pub(crate) mod inference;
+mod member;
+pub(crate) mod misc_tys;
 pub(crate) mod populate;
 pub(crate) mod runtime;
 pub(crate) mod scope;
 pub(crate) mod scope_tree;
+pub(crate) mod signature;
+mod statements;
+mod subobject;
 mod types;
 mod universe;

@@ -22,13 +22,6 @@ pub trait Db: dada_ir_ast::Db {
 
 mod check;
 pub mod ir;
-
-mod bound;
-mod member;
-mod misc_tys;
-mod signature;
-mod statements;
-mod subobject;
 pub mod well_known;
 
 pub mod prelude {
@@ -67,9 +60,9 @@ pub mod prelude {
     impl<'db> CheckedFieldTy<'db> for SymField<'db> {
         #[salsa::tracked]
         fn checked_field_ty(self, db: &'db dyn crate::Db) -> Binder<'db, Binder<'db, SymTy<'db>>> {
-            match crate::misc_tys::check_field(db, self) {
+            match crate::check::misc_tys::check_field(db, self) {
                 Ok(v) => v,
-                Err(reported) => crate::misc_tys::field_err_ty(db, self, reported),
+                Err(reported) => crate::check::misc_tys::field_err_ty(db, self, reported),
             }
         }
     }
@@ -81,7 +74,7 @@ pub mod prelude {
     impl<'db> CheckedSignature<'db> for SymFunction<'db> {
         #[salsa::tracked]
         fn checked_signature(self, db: &'db dyn crate::Db) -> Errors<SymFunctionSignature<'db>> {
-            crate::signature::check_function_signature(db, self)
+            crate::check::signature::check_function_signature(db, self)
         }
     }
 }

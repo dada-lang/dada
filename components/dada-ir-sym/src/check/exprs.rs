@@ -1,9 +1,11 @@
 use std::future::Future;
 
 use crate::{
+    check::env::Env,
+    check::member::MemberLookup,
     check::scope::{NameResolution, NameResolutionSym},
     check::scope_tree::ScopeTreeNode,
-    check::env::Env,
+    check::subobject::{require_subtype, Expected},
     ir::binder::Binder,
     ir::classes::SymAggregate,
     ir::exprs::{
@@ -12,9 +14,7 @@ use crate::{
     ir::functions::{SymFunction, SymInputOutput},
     ir::types::{SymGenericKind, SymGenericTerm, SymPerm, SymTy, SymTyKind, SymTyName},
     ir::variables::{FromVar, SymVariable},
-    member::MemberLookup,
     prelude::CheckedSignature,
-    subobject::{require_subtype, Expected},
     well_known, CheckExprInEnv,
 };
 use dada_ir_ast::{

@@ -2,7 +2,7 @@ use dada_ir_ast::span::Span;
 use dada_util::vecset::VecSet;
 
 use crate::{
-    bound::Direction, check::universe::Universe, ir::types::SymGenericKind,
+    check::bound::Direction, check::universe::Universe, ir::types::SymGenericKind,
     ir::types::SymGenericTerm,
 };
 
