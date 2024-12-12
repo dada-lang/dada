@@ -28,7 +28,6 @@ mod env;
 mod inference;
 mod member;
 mod misc_tys;
-mod populate;
 mod runtime;
 mod signature;
 mod statements;

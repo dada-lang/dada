@@ -8,13 +8,13 @@ use dada_parser::prelude::*;
 use dada_util::FromImpls;
 
 use crate::{
-    ir::functions::{SignatureSymbols, SymFunction, SymFunctionSource},
-    ir::variables::SymVariable,
-    ir::types::{SymGenericKind, SymTy, SymTyKind},
-    populate::PopulateSignatureSymbols,
-    prelude::Symbol,
+    check::populate::PopulateSignatureSymbols,
     check::scope::Scope,
     check::scope_tree::{ScopeItem, ScopeTreeNode},
+    ir::functions::{SignatureSymbols, SymFunction, SymFunctionSource},
+    ir::types::{SymGenericKind, SymTy, SymTyKind},
+    ir::variables::SymVariable,
+    prelude::Symbol,
 };
 
 #[salsa::tracked]
