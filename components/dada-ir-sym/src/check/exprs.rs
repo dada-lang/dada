@@ -42,35 +42,6 @@ pub(crate) struct ExprResult<'db> {
     pub kind: ExprResultKind<'db>,
 }
 
-/// Translating an expression can result in the creation of
-/// anonymous local temporaries that are injected into the
-/// surrounding scope. These are returned alongside the result
-/// and will eventually be translated into `let-in` expressions
-/// when we reach the surrounding statement, block, or other
-/// terminating context.
-#[derive(Clone)]
-pub(crate) struct Temporary<'db> {
-    pub lv: SymVariable<'db>,
-    pub ty: SymTy<'db>,
-    pub initializer: Option<SymExpr<'db>>,
-}
-
-impl<'db> Temporary<'db> {
-    pub fn new(
-        db: &'db dyn crate::Db,
-        span: Span<'db>,
-        ty: SymTy<'db>,
-        initializer: Option<SymExpr<'db>>,
-    ) -> Self {
-        let lv = SymVariable::new(db, SymGenericKind::Place, None, span);
-        Self {
-            lv,
-            ty,
-            initializer,
-        }
-    }
-}
-
 #[derive(Clone, Debug, FromImpls)]
 pub(crate) enum ExprResultKind<'db> {
     /// An expression identifying a place in memory (e.g., a local variable).
