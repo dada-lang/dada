@@ -6,7 +6,7 @@ use crate::{
     ir::subst::SubstWith,
     ir::types::{SymGenericKind, SymGenericTerm, SymPerm, SymPlace, SymTy, SymTyKind},
     ir::variables::SymVariable,
-    scope::Scope,
+    check::scope::Scope,
     CheckInEnv,
 };
 use dada_ir_ast::{diagnostic::Reported, span::Span};

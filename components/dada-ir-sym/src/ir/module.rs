@@ -13,8 +13,8 @@ use crate::{
     ir::primitive::SymPrimitive,
     ir::variables::SymVariable,
     prelude::Symbol,
-    scope::{Resolve, Scope},
-    scope_tree::{ScopeItem, ScopeTreeNode},
+    check::scope::{Resolve, Scope},
+    check::scope_tree::{ScopeItem, ScopeTreeNode},
 };
 
 #[salsa::tracked]

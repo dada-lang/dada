@@ -1,19 +1,19 @@
 use std::future::Future;
 
 use crate::{
-    ir::classes::SymAggregate,
+    check::scope::{NameResolution, NameResolutionSym},
+    check::scope_tree::ScopeTreeNode,
     env::Env,
     ir::binder::Binder,
+    ir::classes::SymAggregate,
     ir::exprs::{
         SymBinaryOp, SymExpr, SymExprKind, SymLiteral, SymMatchArm, SymPlaceExpr, SymPlaceExprKind,
     },
     ir::functions::{SymFunction, SymInputOutput},
-    ir::variables::{FromVar, SymVariable},
     ir::types::{SymGenericKind, SymGenericTerm, SymPerm, SymTy, SymTyKind, SymTyName},
+    ir::variables::{FromVar, SymVariable},
     member::MemberLookup,
     prelude::CheckedSignature,
-    scope::{NameResolution, NameResolutionSym},
-    scope_tree::ScopeTreeNode,
     subobject::{require_subtype, Expected},
     well_known, CheckExprInEnv,
 };

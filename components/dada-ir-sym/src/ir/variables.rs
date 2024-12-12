@@ -7,7 +7,7 @@ use salsa::Update;
 use crate::{
     ir::types::{SymGenericKind, SymGenericTerm},
     prelude::Symbol,
-    scope::Scope,
+    check::scope::Scope,
 };
 
 use super::types::HasKind;

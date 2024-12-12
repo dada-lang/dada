@@ -18,7 +18,7 @@ use crate::{
     ir::types::{SymGenericKind, SymGenericTerm, SymTy},
     ir::module::SymModule,
     prelude::Symbol,
-    scope_tree::ScopeTreeNode,
+    check::scope_tree::ScopeTreeNode,
     CheckInEnv,
 };
 

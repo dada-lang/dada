@@ -13,8 +13,8 @@ use crate::{
     ir::types::{SymGenericKind, SymTy, SymTyKind},
     populate::PopulateSignatureSymbols,
     prelude::Symbol,
-    scope::Scope,
-    scope_tree::{ScopeItem, ScopeTreeNode},
+    check::scope::Scope,
+    check::scope_tree::{ScopeItem, ScopeTreeNode},
 };
 
 #[salsa::tracked]
