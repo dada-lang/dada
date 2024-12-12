@@ -25,14 +25,11 @@ pub mod ir;
 
 mod bound;
 mod env;
-mod exprs;
 mod inference;
 mod member;
 mod misc_tys;
 mod populate;
 mod runtime;
-mod scope;
-mod scope_tree;
 mod signature;
 mod statements;
 mod subobject;

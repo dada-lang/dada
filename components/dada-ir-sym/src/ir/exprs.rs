@@ -16,8 +16,8 @@
 use crate::{
     ir::classes::SymField,
     ir::functions::SymFunction,
-    ir::variables::{FromVar, SymVariable},
     ir::types::{SymGenericTerm, SymPlace, SymTy},
+    ir::variables::{FromVar, SymVariable},
 };
 use dada_ir_ast::{
     ast::{AstBinaryOp, PermissionOp},
@@ -27,7 +27,7 @@ use dada_ir_ast::{
 use ordered_float::OrderedFloat;
 use salsa::Update;
 
-use crate::exprs::Temporary;
+use crate::check::exprs::Temporary;
 
 #[salsa::tracked]
 pub struct SymExpr<'db> {

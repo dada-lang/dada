@@ -1,8 +1,8 @@
 use std::pin::pin;
 
 use crate::{
-    ir::classes::{SymAggregate, SymClassMember, SymField},
     ir::binder::Binder,
+    ir::classes::{SymAggregate, SymClassMember, SymField},
     ir::functions::SymFunction,
     ir::types::{SymGenericTerm, SymTy, SymTyKind, SymTyName},
 };
@@ -14,8 +14,8 @@ use dada_ir_ast::{
 use futures::{Stream, StreamExt};
 
 use crate::{
+    check::exprs::{ExprResult, ExprResultKind},
     env::Env,
-    exprs::{ExprResult, ExprResultKind},
     ir::exprs::{SymPlaceExpr, SymPlaceExprKind},
     prelude::CheckedFieldTy,
 };
