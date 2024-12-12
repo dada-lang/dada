@@ -1,7 +1,7 @@
 use crate::{
-    ir::class::{SymAggregate, SymField},
     env::EnvLike,
     ir::binder::LeafBoundTerm,
+    ir::classes::{SymAggregate, SymField},
     ir::indices::{FromInfer, FromInferVar, InferVarIndex},
     ir::primitive::{SymPrimitive, SymPrimitiveKind},
     ir::variables::{FromVar, SymVariable},

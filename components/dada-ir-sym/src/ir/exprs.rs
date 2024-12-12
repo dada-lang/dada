@@ -14,7 +14,7 @@
 //! The object IR gives us enough information to make those determinations.
 
 use crate::{
-    ir::class::SymField,
+    ir::classes::SymField,
     ir::functions::SymFunction,
     ir::variables::{FromVar, SymVariable},
     ir::types::{SymGenericTerm, SymPlace, SymTy},

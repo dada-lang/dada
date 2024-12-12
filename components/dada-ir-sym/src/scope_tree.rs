@@ -3,8 +3,8 @@ use dada_util::FromImpls;
 use salsa::Update;
 
 use crate::{
-    ir::class::SymAggregate, ir::functions::SymFunction, ir::variables::SymVariable, module::SymModule,
-    scope::Scope,
+    ir::classes::SymAggregate, ir::functions::SymFunction, ir::variables::SymVariable,
+    module::SymModule, scope::Scope,
 };
 
 /// A `ScopeItem` defines a name resolution scope.

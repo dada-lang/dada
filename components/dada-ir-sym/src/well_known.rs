@@ -5,7 +5,7 @@ use dada_ir_ast::{
 };
 
 use crate::{
-    ir::class::SymAggregate,
+    ir::classes::SymAggregate,
     module::{SymItem, SymModule},
     prelude::Symbol,
 };

@@ -1,7 +1,7 @@
 use std::pin::pin;
 
 use crate::{
-    ir::class::{SymAggregate, SymClassMember, SymField},
+    ir::classes::{SymAggregate, SymClassMember, SymField},
     ir::binder::Binder,
     ir::functions::SymFunction,
     ir::types::{SymGenericTerm, SymTy, SymTyKind, SymTyName},

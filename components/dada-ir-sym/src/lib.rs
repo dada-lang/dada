@@ -43,7 +43,7 @@ pub mod well_known;
 
 pub mod prelude {
     use crate::ir::binder::Binder;
-    use crate::ir::class::SymField;
+    use crate::ir::classes::SymField;
     use crate::ir::exprs::SymExpr;
     use crate::ir::functions::{SymFunction, SymFunctionSignature};
     use crate::ir::types::SymTy;

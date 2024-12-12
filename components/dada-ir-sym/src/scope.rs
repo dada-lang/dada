@@ -9,7 +9,7 @@ use dada_ir_ast::{
 use dada_util::FromImpls;
 
 use crate::{
-    ir::class::{SymAggregate, SymClassMember},
+    ir::classes::{SymAggregate, SymClassMember},
     env::EnvLike,
     ir::binder::BoundTerm,
     ir::functions::SymFunction,

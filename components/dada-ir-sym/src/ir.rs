@@ -1,5 +1,5 @@
 pub mod binder;
-pub mod class;
+pub mod classes;
 pub mod exprs;
 pub mod functions;
 pub mod indices;

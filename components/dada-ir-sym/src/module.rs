@@ -8,7 +8,7 @@ use dada_parser::prelude::SourceFileParse;
 use dada_util::{FromImpls, Map};
 
 use crate::{
-    ir::class::SymAggregate,
+    ir::classes::SymAggregate,
     ir::functions::SymFunction,
     ir::primitive::SymPrimitive,
     ir::variables::SymVariable,
