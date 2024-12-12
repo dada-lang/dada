@@ -29,6 +29,8 @@ use dada_parser::prelude::*;
 use dada_util::FromImpls;
 use futures::StreamExt;
 
+use super::temporaries::Temporary;
+
 #[derive(Clone)]
 pub(crate) struct ExprResult<'db> {
     /// List of [`Temporary`][] variables created by this expression.
