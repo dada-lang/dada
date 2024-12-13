@@ -56,12 +56,12 @@ impl<'db> Env<'db> {
 
     /// Convenience function for invoking `to_object_ir`.
     /// We have to do a bit of a "dance" because `to_object_ir` needs a mutable reference to a shared reference.
-    pub(super) fn symbolize<I>(&self, i: I) -> I::Output
+    pub(super) async fn check<I>(&self, i: I) -> I::Output
     where
         I: CheckInEnv<'db>,
     {
         let mut env = self;
-        i.check_in_env(&mut env)
+        i.check_in_env(&mut env).await
     }
 
     /// Extract the scope from the environment.
@@ -204,11 +204,9 @@ impl<'db> Env<'db> {
     pub(super) fn require_assignable_object_type(
         &self,
         value_span: Span<'db>,
-        value_ty: impl CheckInEnv<'db, Output = SymTy<'db>>,
-        place_ty: impl CheckInEnv<'db, Output = SymTy<'db>>,
+        value_ty: SymTy<'db>,
+        place_ty: SymTy<'db>,
     ) {
-        let value_ty = self.symbolize(value_ty);
-        let place_ty = self.symbolize(place_ty);
         self.runtime.defer(self, value_span, move |env| async move {
             match require_assignable_type(&env, value_span, value_ty, place_ty).await {
                 Ok(()) => (),
@@ -220,11 +218,9 @@ impl<'db> Env<'db> {
     pub(super) fn require_equal_object_types(
         &self,
         span: Span<'db>,
-        expected_ty: impl CheckInEnv<'db, Output = SymTy<'db>>,
-        found_ty: impl CheckInEnv<'db, Output = SymTy<'db>>,
+        expected_ty: SymTy<'db>,
+        found_ty: SymTy<'db>,
     ) {
-        let expected_ty = self.symbolize(expected_ty);
-        let found_ty = self.symbolize(found_ty);
         self.runtime.defer(self, span, move |env| async move {
             match require_subtype(&env, Expected::Lower, span, expected_ty, found_ty).await {
                 Ok(()) => (),
@@ -238,12 +234,7 @@ impl<'db> Env<'db> {
         })
     }
 
-    pub(super) fn require_numeric_type(
-        &self,
-        span: Span<'db>,
-        ty: impl CheckInEnv<'db, Output = SymTy<'db>>,
-    ) {
-        let ty = self.symbolize(ty);
+    pub(super) fn require_numeric_type(&self, span: Span<'db>, ty: SymTy<'db>) {
         self.runtime.defer(self, span, move |env| async move {
             match require_numeric_type(&env, span, ty).await {
                 Ok(()) => (),
@@ -311,7 +302,7 @@ impl<'db> Env<'db> {
 pub(crate) trait EnvLike<'db> {
     fn db(&self) -> &'db dyn crate::Db;
     fn scope(&self) -> &Scope<'db, 'db>;
-    fn variable_ty(&mut self, var: SymVariable<'db>) -> SymTy<'db>;
+    async fn variable_ty(&mut self, var: SymVariable<'db>) -> SymTy<'db>;
 }
 
 impl<'db> EnvLike<'db> for &Env<'db> {
@@ -323,7 +314,7 @@ impl<'db> EnvLike<'db> for &Env<'db> {
         &self.scope
     }
 
-    fn variable_ty(&mut self, var: SymVariable<'db>) -> SymTy<'db> {
+    async fn variable_ty(&mut self, var: SymVariable<'db>) -> SymTy<'db> {
         Env::variable_ty(self, var)
     }
 }

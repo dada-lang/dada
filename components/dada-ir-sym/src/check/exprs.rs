@@ -436,7 +436,10 @@ async fn check_expr<'db>(expr: &AstExpr<'db>, mut env: &Env<'db>) -> ExprResult<
 
                 ExprResultKind::Other(name_resolution) => {
                     let generics = square_bracket_args.parse_as_generics(db);
-                    match name_resolution.resolve_relative_generic_args(&mut env, &generics) {
+                    match name_resolution
+                        .resolve_relative_generic_args(&mut env, &generics)
+                        .await
+                    {
                         Ok(name_resolution) => ExprResult {
                             temporaries: owner_result.temporaries,
                             span: expr_span,
@@ -928,7 +931,7 @@ async fn check_method_call<'db>(
         Ok(signature) => signature,
         Err(reported) => {
             for &generic in generics.iter().flatten() {
-                let _ = env.symbolize(generic);
+                let _ = env.check(generic);
             }
             for ast_arg in ast_args {
                 let _ = ast_arg.check_expr_in_env(env).await;
@@ -999,7 +1002,7 @@ async fn check_method_call<'db>(
             // Convert each generic to a `SymGenericTerm` and check it has the correct kind.
             // If everything looks good, add it to the substitution.
             for (&ast_generic_term, &var) in generics.iter().zip(function_generics.iter()) {
-                let generic_term = env.symbolize(ast_generic_term);
+                let generic_term = env.check(ast_generic_term).await;
                 if !generic_term.has_kind(db, var.kind(db)) {
                     return ExprResult::err(
                         db,

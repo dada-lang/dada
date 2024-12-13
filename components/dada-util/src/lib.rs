@@ -1,3 +1,5 @@
+#![feature(async_closure)]
+
 pub use fxhash::FxHashMap as Map;
 pub use fxhash::FxHashSet as Set;
 pub use imstr::ImString as Text;
@@ -32,3 +34,8 @@ unsafe impl salsa::Update for Never {
 }
 
 pub mod arena;
+
+pub async fn indirect<T>(op: impl async FnOnce() -> T) -> T {
+    let boxed_future = futures::future::FutureExt::boxed_local(op());
+    boxed_future.await
+}

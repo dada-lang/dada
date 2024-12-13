@@ -53,10 +53,10 @@ fn check_function_body_class_constructor<'db>(
                     input_tys,
                     output_ty: _,
                 },
-            ) = prepare_env(db, runtime, function);
+            ) = prepare_env(db, runtime, function).await;
 
             let scope = env.scope.clone();
-            let self_ty = env.symbolize(sym_class.self_ty(db, &scope));
+            let self_ty = env.check(sym_class.self_ty(db, &scope)).await;
             let span = ast_class_item.inputs(db).as_ref().unwrap().span;
             let fields = sym_class.fields(db).collect::<Vec<_>>();
             assert_eq!(input_symbols.len(), input_tys.len());
@@ -115,7 +115,7 @@ fn check_function_body_ast_block<'db>(
         db,
         function.name_span(db),
         async move |runtime| -> SymExpr<'db> {
-            let (env, _, _) = prepare_env(db, runtime, function);
+            let (env, _, _) = prepare_env(db, runtime, function).await;
 
             let expr = body.check_expr_in_env(&env).await;
 

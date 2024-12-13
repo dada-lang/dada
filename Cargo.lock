@@ -401,6 +401,7 @@ version = "0.1.0"
 dependencies = [
  "anyhow",
  "dada-util-procmacro",
+ "futures",
  "fxhash",
  "imstr",
  "indexmap",

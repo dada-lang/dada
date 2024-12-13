@@ -28,7 +28,7 @@ mod universe;
 trait CheckInEnv<'db>: Copy {
     type Output;
 
-    fn check_in_env(self, env: &mut dyn EnvLike<'db>) -> Self::Output;
+    async fn check_in_env(self, env: &mut impl EnvLike<'db>) -> Self::Output;
 }
 
 /// Type check an expression (including a block) in the given environment.
@@ -42,7 +42,7 @@ trait CheckExprInEnv<'db> {
 impl<'db> CheckInEnv<'db> for SymTy<'db> {
     type Output = SymTy<'db>;
 
-    fn check_in_env(self, _env: &mut dyn EnvLike<'db>) -> Self::Output {
+    async fn check_in_env(self, _env: &mut impl EnvLike<'db>) -> Self::Output {
         self
     }
 }

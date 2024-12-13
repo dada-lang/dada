@@ -1,6 +1,7 @@
 use dada_ir_ast::{
     ast::{AstGenericTerm, AstPerm, AstPermKind, AstTy, AstTyKind}, diagnostic::{ordinal, Diagnostic, Err, Level}, span::{Span, Spanned}
 };
+use dada_util::indirect;
 
 use crate::{check::{env::EnvLike, scope::{NameResolution, NameResolutionSym, Resolve}}, ir::{types::{AnonymousPermSymbol, HasKind, SymGenericKind, SymGenericTerm, SymPerm, SymPlace, SymTy}, variables::FromVar}, prelude::Symbol};
 
@@ -9,32 +10,37 @@ use super::CheckInEnv;
 impl<'db> CheckInEnv<'db> for AstTy<'db> {
     type Output = SymTy<'db>;
 
-    fn check_in_env(self, env: &mut dyn EnvLike<'db>) -> Self::Output {
+    async fn check_in_env(self, env: &mut impl EnvLike<'db>) -> Self::Output {
         let db = env.db();
-        match self.kind(db) {
-            AstTyKind::Perm(ast_perm, ast_ty) => {
-                let sym_perm = ast_perm.check_in_env(env);
-                let sym_ty = ast_ty.check_in_env(env);
-                SymTy::perm(db, sym_perm, sym_ty)
-            }
+        indirect(async || {
+            match self.kind(db) {
+                AstTyKind::Perm(ast_perm, ast_ty) => {
+                    let sym_perm = ast_perm.check_in_env(env).await;
+                    let sym_ty = ast_ty.check_in_env(env).await;
+                    SymTy::perm(db, sym_perm, sym_ty)
+                }
 
-            AstTyKind::Named(ast_path, generics) => {
-                let generics = generics
-                    .iter()
-                    .flatten()
-                    .map(|g| (g.span(db), g.check_in_env(env)))
-                    .collect::<Vec<_>>();
-                match ast_path.resolve_in(env) {
-                    Ok(r) => name_resolution_to_sym_ty(db, r, ast_path, generics),
-                    Err(r) => SymTy::err(db, r),
+                AstTyKind::Named(ast_path, ref opt_ast_generics) => {
+                    let mut generics = vec![];
+                    if let Some(ast_generics) = opt_ast_generics {
+                        for g in ast_generics {
+                            let span = g.span(db);
+                            let checked = g.check_in_env(env).await;
+                            generics.push((span, checked));
+                        }
+                    }
+                    match ast_path.resolve_in(env).await {
+                        Ok(r) => name_resolution_to_sym_ty(db, r, ast_path, generics),
+                        Err(r) => SymTy::err(db, r),
+                    }
+                }
+
+                AstTyKind::GenericDecl(decl) => {
+                    let symbol = decl.symbol(db);
+                    SymTy::var(db, symbol)
                 }
             }
-
-            AstTyKind::GenericDecl(decl) => {
-                let symbol = decl.symbol(db);
-                SymTy::var(db, symbol)
-            }
-        }
+        }).await
     }
 }
 
@@ -212,11 +218,11 @@ fn name_resolution_to_sym_ty<'db>(
 impl<'db> CheckInEnv<'db> for AstGenericTerm<'db> {
     type Output = SymGenericTerm<'db>;
 
-    fn check_in_env(self, env: &mut dyn EnvLike<'db>) -> Self::Output {
+    async fn check_in_env(self, env: &mut impl EnvLike<'db>) -> Self::Output {
         match self {
-            AstGenericTerm::Ty(ast_ty) => ast_ty.check_in_env(env).into(),
-            AstGenericTerm::Perm(ast_perm) => ast_perm.check_in_env(env).into(),
-            AstGenericTerm::Id(id) => match id.resolve_in(env) {
+            AstGenericTerm::Ty(ast_ty) => ast_ty.check_in_env(env).await.into(),
+            AstGenericTerm::Perm(ast_perm) => ast_perm.check_in_env(env).await.into(),
+            AstGenericTerm::Id(id) => match id.resolve_in(env).await {
                 Ok(r) => name_resolution_to_generic_term(env.db(), r, id),
                 Err(r) => r.into(),
             },
@@ -239,7 +245,7 @@ fn name_resolution_to_generic_term<'db>(db: &'db dyn crate::Db, name_resolution:
 impl<'db> CheckInEnv<'db> for AstPerm<'db> {
     type Output = SymPerm<'db>;
 
-    fn check_in_env(self, env: &mut dyn EnvLike<'db>) -> Self::Output {
+    async fn check_in_env(self, env: &mut impl EnvLike<'db>) -> Self::Output {
         let db = env.db();
         match *self.kind(db) {
             AstPermKind::Shared(Some(ref paths)) => {
@@ -256,7 +262,7 @@ impl<'db> CheckInEnv<'db> for AstPerm<'db> {
             AstPermKind::My => SymPerm::my(db),
             AstPermKind::Our => SymPerm::our(db),
             AstPermKind::Variable(id) => {
-                match id.resolve_in(env) {
+                match id.resolve_in(env).await {
                     Ok(r) => name_resolution_to_sym_perm(db, r, id),
                     Err(r) => SymPerm::err(db, r),
                 }
