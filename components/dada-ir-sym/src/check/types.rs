@@ -2,7 +2,7 @@ use dada_ir_ast::{
     ast::{AstGenericTerm, AstPerm, AstPermKind, AstTy, AstTyKind}, diagnostic::{ordinal, Diagnostic, Err, Level}, span::{Span, Spanned}
 };
 
-use crate::{check::env::EnvLike, check::scope::{NameResolution, NameResolutionSym, Resolve}, ir::variables::FromVar, ir::types::{SymGenericTerm, SymPerm, SymPlace, SymGenericKind, SymTy}, prelude::Symbol};
+use crate::{check::{env::EnvLike, scope::{NameResolution, NameResolutionSym, Resolve}}, ir::{types::{AnonymousPermSymbol, HasKind, SymGenericKind, SymGenericTerm, SymPerm, SymPlace, SymTy}, variables::FromVar}, prelude::Symbol};
 
 use super::CheckInEnv;
 
@@ -145,6 +145,7 @@ fn name_resolution_to_sym_ty<'db>(
 
                 SymTy::named(db, sym_class.into(), generics)
         }
+
         NameResolutionSym::SymVariable(var) => {
             if generics.len() != 0 {
                 return SymTy::err(
@@ -235,20 +236,64 @@ fn name_resolution_to_generic_term<'db>(db: &'db dyn crate::Db, name_resolution:
     }
 }
 
-
 impl<'db> CheckInEnv<'db> for AstPerm<'db> {
     type Output = SymPerm<'db>;
 
     fn check_in_env(self, env: &mut dyn EnvLike<'db>) -> Self::Output {
         let db = env.db();
         match *self.kind(db) {
-            AstPermKind::Shared(ref _span_vec) => todo!(),
-            AstPermKind::Leased(ref _span_vec) => todo!(),
-            AstPermKind::Given(ref _span_vec) => todo!(),
+            AstPermKind::Shared(Some(ref paths)) => {
+                todo!()
+            }
+            AstPermKind::Leased(Some(ref span_vec)) => {
+                todo!()
+            }
+            AstPermKind::Given(Some(ref _span_vec)) => todo!(),
+            AstPermKind::Shared(None) | AstPermKind::Leased(None) | AstPermKind::Given(None) => {
+                let sym_var = self.anonymous_perm_symbol(db);
+                SymPerm::var(db, sym_var)
+            }
             AstPermKind::My => SymPerm::my(db),
             AstPermKind::Our => SymPerm::our(db),
-            AstPermKind::Variable(_spanned_identifier) => todo!(),
-            AstPermKind::GenericDecl(_ast_generic_decl) => todo!(),
+            AstPermKind::Variable(id) => {
+                match id.resolve_in(env) {
+                    Ok(r) => name_resolution_to_sym_perm(db, r, id),
+                    Err(r) => SymPerm::err(db, r),
+                }
+            }
+            AstPermKind::GenericDecl(ast_generic_decl) => {
+                let symbol = ast_generic_decl.symbol(db);
+                SymPerm::var(db, symbol)
+            }
         }
+    }
+}
+
+fn name_resolution_to_sym_perm<'db>(db: &'db dyn crate::Db, name_resolution: NameResolution<'db>, source: impl Spanned<'db>) -> SymPerm<'db> {
+    match name_resolution.sym {
+        NameResolutionSym::SymVariable(sym_variable) if sym_variable.has_kind(db, SymGenericKind::Perm) =>
+            SymPerm::var(db, sym_variable),
+
+        NameResolutionSym::SymModule(_) | 
+        NameResolutionSym::SymClass(_) | 
+        NameResolutionSym::SymFunction(_) | 
+        NameResolutionSym::SymVariable(_) |
+        NameResolutionSym::SymPrimitive(_) => {
+            SymPerm::err(
+                db, 
+                Diagnostic::error(
+                    db, 
+                    source.span(db), 
+                    format!("expected permission, found {}", name_resolution.sym.categorize(db))
+                )
+                .label(
+                    db,
+                    Level::Error,
+                    source.span(db),
+                    format!("I expected a permission, but I found {}", name_resolution.sym.describe(db)),
+                )
+                .report(db)
+            )
+        } 
     }
 }

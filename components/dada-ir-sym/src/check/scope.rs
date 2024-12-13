@@ -55,7 +55,7 @@ impl<'scope, 'db> Scope<'scope, 'db> {
         this
     }
 
-    /// Extend this scope wit the prelude from a crate.
+    /// Extend this scope with the prelude from a crate.
     /// Crates can define a module named `prelude`.
     fn with_prelude(self, db: &'db dyn crate::Db, span: Span<'db>, crate_source: Krate) -> Self {
         let prelude_id = Identifier::prelude(db);
