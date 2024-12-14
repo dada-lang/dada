@@ -1,7 +1,7 @@
 use dada_ir_ast::{
     ast::Identifier,
-    diagnostic::{Errors, Reported},
-    inputs::Krate,
+    diagnostic::{Diagnostic, Errors, Reported},
+    span::{Span, Spanned},
 };
 
 use crate::{
@@ -14,67 +14,85 @@ use crate::{
     prelude::Symbol,
 };
 
-fn dada_lang_krate(db: &dyn crate::Db) -> Errors<Krate> {
-    let root = db.root();
-    match root.libdada_crate(db) {
-        Some(krate) => Ok(krate),
-        None => Err(report_not_found(db, "the `dada` crate")),
-    }
+/// Returns the span of the `libdada` prelude. Used when a span is needed for diagnostics
+/// for something built-in, like a primitive.
+pub fn prelude_span<'db>(db: &'db dyn crate::Db) -> Span<'db> {
+    prelude_module(db).span(db)
 }
 
-fn prelude_module<'db>(db: &'db dyn crate::Db) -> Errors<SymModule<'db>> {
-    let krate = dada_lang_krate(db)?;
-    let identifier = Identifier::new(db, "prelude");
-    Ok(db.source_file(krate, &[identifier]).symbol(db))
+/// Returns the `libdada` prelude module. It must be present.
+fn prelude_module<'db>(db: &'db dyn crate::Db) -> SymModule<'db> {
+    let krate = db.root().libdada_crate(db);
+    let identifier = Identifier::prelude(db);
+    db.source_file(krate, &[identifier]).symbol(db)
 }
 
+/// Returns the member of the `libdada` prelude with the given name,
+/// reporting an error if it is not found.
 fn prelude_member<'db>(db: &'db dyn crate::Db, name: &str) -> Errors<SymItem<'db>> {
     let identifier = Identifier::new(db, name);
-    let module = prelude_module(db)?;
+    let module = prelude_module(db);
     module
         .items(db)
         .find(|item| item.name(db) == identifier)
-        .ok_or_else(|| report_not_found(db, &format!("`{name}` in the `libdada` prelude")))
+        .ok_or_else(|| report_not_found(db, module, &format!("`{name}` in the `libdada` prelude")))
 }
 
+/// Returns the `String` class from the `libdada` prelude.
 #[salsa::tracked]
 pub fn string_class<'db>(db: &'db dyn crate::Db) -> Errors<SymAggregate<'db>> {
     match prelude_member(db, "String")? {
         SymItem::SymClass(class) if class.is_class(db) => {
             if !class.symbols(db).has_generics_of_kind(db, &[]) {
-                return Err(report_unexpected(db, "String", "it has generic parameters"));
+                return Err(report_unexpected(
+                    db,
+                    class,
+                    "String",
+                    "it has generic parameters",
+                ));
             }
             Ok(class)
         }
-        _ => Err(report_unexpected(db, "String", "it is not a class")),
+        m => Err(report_unexpected(db, m, "String", "it is not a class")),
     }
 }
 
+/// Returns the `literal` function of the `String` class from the `libdada` prelude.
 #[salsa::tracked]
 pub fn string_literal_fn<'db>(db: &'db dyn crate::Db) -> Errors<SymFunction<'db>> {
     let string_class = string_class(db)?;
     let literal_fn = string_class
         .inherent_member_str(db, "literal")
-        .ok_or_else(|| report_unexpected(db, "String", "does not have a `literal` member"))?;
+        .ok_or_else(|| {
+            report_unexpected(
+                db,
+                string_class,
+                "String",
+                "does not have a `literal` member",
+            )
+        })?;
     match literal_fn {
         SymClassMember::SymFunction(function) => {
             if !function.symbols(db).has_generics_of_kind(db, &[]) {
                 return Err(report_unexpected(
                     db,
+                    function,
                     "String",
                     "`literal` should not have generic parameters",
                 ));
             }
             Ok(function)
         }
-        _ => Err(report_unexpected(
+        m => Err(report_unexpected(
             db,
+            m,
             "String",
             "`literal` is not a function",
         )),
     }
 }
 
+/// Returns the `Pointer` struct from the `libdada` prelude.
 #[salsa::tracked]
 pub fn pointer_struct<'db>(db: &'db dyn crate::Db) -> Errors<SymAggregate<'db>> {
     match prelude_member(db, "Pointer")? {
@@ -85,22 +103,28 @@ pub fn pointer_struct<'db>(db: &'db dyn crate::Db) -> Errors<SymAggregate<'db>> 
             {
                 return Err(report_unexpected(
                     db,
+                    class,
                     "Pointer",
                     "it should have 1 generic parameter",
                 ));
             }
             Ok(class)
         }
-        _ => Err(report_unexpected(db, "Pointer", "it is not a struct")),
+        m => Err(report_unexpected(db, m, "Pointer", "it is not a struct")),
     }
 }
 
-fn report_not_found<'db>(_db: &'db dyn crate::Db, name: &str) -> Reported {
-    // TODO: figure out how to report a diagnostic with some kind of default span
-    panic!("could not find {name}")
+fn report_not_found<'db>(db: &'db dyn crate::Db, module: SymModule<'db>, name: &str) -> Reported {
+    let module_span = module.span(db);
+    Diagnostic::error(db, module_span, format!("could not find {name}")).report(db)
 }
 
-fn report_unexpected<'db>(_db: &'db dyn crate::Db, name: &str, problem: &str) -> Reported {
-    // TODO: figure out how to report a diagnostic with some kind of default span
-    panic!("found {name} but {problem}")
+fn report_unexpected<'db>(
+    db: &'db dyn crate::Db,
+    spanned: impl Spanned<'db>,
+    name: &str,
+    problem: &str,
+) -> Reported {
+    let span = spanned.span(db);
+    Diagnostic::error(db, span, format!("found {name} but {problem}")).report(db)
 }

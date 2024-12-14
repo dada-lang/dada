@@ -6,18 +6,10 @@
 use dada_ir_ast::{
     ast::Identifier,
     inputs::{CompilationRoot, Krate, SourceFile},
+    span::Span,
 };
 
-/// Core functionality needed to symbolize.
-#[salsa::db]
-pub trait Db: dada_ir_ast::Db {
-    /// Access the [`CompilationRoot`], from which all crates and sources can be reached.
-    fn root(&self) -> CompilationRoot;
-
-    /// Load a source-file from the given directory.
-    /// The modules is a list of parent modules that translates to a file path.
-    fn source_file<'db>(&'db self, krate: Krate, modules: &[Identifier<'db>]) -> SourceFile;
-}
+pub use dada_ir_ast::Db;
 
 mod check;
 pub mod ir;

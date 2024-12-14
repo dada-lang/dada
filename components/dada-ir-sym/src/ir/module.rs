@@ -8,13 +8,16 @@ use dada_parser::prelude::SourceFileParse;
 use dada_util::{FromImpls, Map};
 
 use crate::{
-    ir::classes::SymAggregate,
-    ir::functions::SymFunction,
-    ir::primitive::SymPrimitive,
-    ir::variables::SymVariable,
+    check::{
+        scope::{Resolve, Scope},
+        scope_tree::{ScopeItem, ScopeTreeNode},
+    },
+    ir::{
+        classes::SymAggregate, functions::SymFunction, primitive::SymPrimitive,
+        variables::SymVariable,
+    },
     prelude::Symbol,
-    check::scope::{Resolve, Scope},
-    check::scope_tree::{ScopeItem, ScopeTreeNode},
+    well_known,
 };
 
 #[salsa::tracked]
@@ -229,6 +232,16 @@ impl<'db> SymItem<'db> {
             SymItem::SymClass(sym_class) => sym_class.name(db),
             SymItem::SymFunction(sym_function) => sym_function.name(db),
             SymItem::SymPrimitive(sym_primitive) => sym_primitive.name(db),
+        }
+    }
+}
+
+impl<'db> Spanned<'db> for SymItem<'db> {
+    fn span(&self, db: &'db dyn dada_ir_ast::Db) -> Span<'db> {
+        match self {
+            SymItem::SymClass(sym_class) => sym_class.span(db),
+            SymItem::SymFunction(sym_function) => sym_function.span(db),
+            SymItem::SymPrimitive(_) => well_known::prelude_span(db),
         }
     }
 }

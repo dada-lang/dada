@@ -35,10 +35,13 @@ impl CompilationRoot {
         inner(db, self, crate_name)
     }
 
-    pub fn libdada_crate<'db>(self, db: &'db dyn crate::Db) -> Option<Krate> {
+    /// Returns the [`Krate`][] for the `libdada` crate.
+    /// The creator of the [`CompilationRoot`][] is responsible for ensuring that this crate is present.
+    pub fn libdada_crate<'db>(self, db: &'db dyn crate::Db) -> Krate {
         #[salsa::tracked]
-        fn inner<'db>(db: &'db dyn crate::Db, root: CompilationRoot) -> Option<Krate> {
+        fn inner<'db>(db: &'db dyn crate::Db, root: CompilationRoot) -> Krate {
             root.crate_source(db, Identifier::dada(db))
+                .expect("libdada crate not found")
         }
 
         inner(db, self)

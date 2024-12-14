@@ -266,6 +266,15 @@ impl<'db> SymClassMember<'db> {
     }
 }
 
+impl<'db> Spanned<'db> for SymClassMember<'db> {
+    fn span(&self, db: &'db dyn dada_ir_ast::Db) -> Span<'db> {
+        match self {
+            SymClassMember::SymField(f) => f.name_span(db),
+            SymClassMember::SymFunction(f) => f.name_span(db),
+        }
+    }
+}
+
 /// Symbol for a field of a class, struct, or enum
 #[salsa::tracked]
 pub struct SymField<'db> {

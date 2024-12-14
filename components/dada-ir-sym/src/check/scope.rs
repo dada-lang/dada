@@ -35,9 +35,8 @@ impl<'scope, 'db> Scope<'scope, 'db> {
         };
 
         let root = db.root();
-        if let Some(crate_source) = root.libdada_crate(db) {
-            this = this.with_prelude(db, span, crate_source);
-        }
+        let crate_source = root.libdada_crate(db);
+        this = this.with_prelude(db, span, crate_source);
 
         this
     }

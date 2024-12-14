@@ -264,10 +264,7 @@ impl dada_ir_ast::Db for Compiler {
     fn url_display(&self, url: &Url) -> String {
         self.vfs.url_display(url)
     }
-}
 
-#[salsa::db]
-impl dada_check::Db for Compiler {
     fn root(&self) -> CompilationRoot {
         Compiler::root(self)
     }
