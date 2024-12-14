@@ -16,7 +16,7 @@ use crate::{
     ir::exprs::{SymExpr, SymExprKind, SymPlaceExpr, SymPlaceExprKind},
 };
 
-use super::CheckExprInEnv;
+use super::CheckInEnv;
 
 pub(crate) fn check_function_body<'db>(
     db: &'db dyn crate::Db,
@@ -124,7 +124,7 @@ fn check_function_body_ast_block<'db>(
     ))
 }
 
-impl<'db> CheckExprInEnv<'db> for AstBlock<'db> {
+impl<'db> CheckInEnv<'db> for AstBlock<'db> {
     type Output = SymExpr<'db>;
 
     async fn check_expr_in_env(&self, env: &Env<'db>) -> Self::Output {

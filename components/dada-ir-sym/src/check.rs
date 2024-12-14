@@ -25,21 +25,21 @@ mod universe;
 /// This is implemented by types that can be converted synchronously
 /// (although they may yield an inference variable if parts of the computation
 /// had to be deferred).
-trait CheckInEnv<'db>: Copy {
+trait CheckInEnvLike<'db>: Copy {
     type Output;
 
     async fn check_in_env(self, env: &mut impl EnvLike<'db>) -> Self::Output;
 }
 
-/// Type check an expression (including a block) in the given environment.
+/// Check an expression in a full environment.
 /// This is an async operation -- it may block if insufficient inference data is available.
-trait CheckExprInEnv<'db> {
+trait CheckInEnv<'db> {
     type Output;
 
     async fn check_expr_in_env(&self, env: &Env<'db>) -> Self::Output;
 }
 
-impl<'db> CheckInEnv<'db> for SymTy<'db> {
+impl<'db> CheckInEnvLike<'db> for SymTy<'db> {
     type Output = SymTy<'db>;
 
     async fn check_in_env(self, _env: &mut impl EnvLike<'db>) -> Self::Output {

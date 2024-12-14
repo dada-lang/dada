@@ -1,3 +1,13 @@
-export class String
+export class String {
+    data: Pointer[u8]
+    length: u32
+    capacity: u32
+
+    export fn len(self) -> u32 {
+        self.length
+    }
+}
+
+export struct Pointer[type T]
 
 export async fn print(s: String) {}

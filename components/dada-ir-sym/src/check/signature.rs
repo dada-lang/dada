@@ -9,7 +9,7 @@ use crate::{
     check::env::{Env, EnvLike},
     check::runtime::Runtime,
     check::scope::Scope,
-    check::CheckInEnv,
+    check::CheckInEnvLike,
     ir::functions::{SymFunction, SymFunctionSignature, SymFunctionSource, SymInputOutput},
     ir::types::{SymTy, SymTyName},
     ir::variables::SymVariable,

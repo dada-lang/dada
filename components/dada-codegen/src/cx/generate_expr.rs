@@ -196,6 +196,7 @@ impl<'cx, 'db> ExprCodegen<'cx, 'db> {
                 self.push_match_expr(expr.ty(db), arms);
             }
             SymExprKind::Error(reported) => self.push_error(reported),
+            SymExprKind::ByteLiteral(sym_byte_literal) => todo!(),
         }
     }
 

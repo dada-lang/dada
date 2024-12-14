@@ -11,7 +11,7 @@ use dada_util::{indirect, FromImpls};
 use crate::{
     check::env::EnvLike,
     check::scope_tree::ScopeTreeNode,
-    check::CheckInEnv,
+    check::CheckInEnvLike,
     ir::binder::BoundTerm,
     ir::classes::{SymAggregate, SymClassMember},
     ir::functions::SymFunction,

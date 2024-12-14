@@ -2,7 +2,7 @@ use std::sync::Arc;
 
 use crate::{
     check::scope::Scope,
-    check::CheckInEnv,
+    check::CheckInEnvLike,
     ir::binder::BoundTerm,
     ir::indices::{FromInfer, InferVarIndex},
     ir::subst::SubstWith,
@@ -58,7 +58,7 @@ impl<'db> Env<'db> {
     /// We have to do a bit of a "dance" because `to_object_ir` needs a mutable reference to a shared reference.
     pub(super) async fn check<I>(&self, i: I) -> I::Output
     where
-        I: CheckInEnv<'db>,
+        I: CheckInEnvLike<'db>,
     {
         let mut env = self;
         i.check_in_env(&mut env).await

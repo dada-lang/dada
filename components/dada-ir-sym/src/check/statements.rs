@@ -5,7 +5,7 @@ use futures::join;
 
 use crate::{
     check::env::Env,
-    check::CheckExprInEnv,
+    check::CheckInEnv,
     ir::exprs::{SymExpr, SymExprKind},
     ir::types::SymTy,
     ir::variables::SymVariable,

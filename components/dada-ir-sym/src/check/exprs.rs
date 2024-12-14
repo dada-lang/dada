@@ -6,7 +6,7 @@ use crate::{
     check::scope::{NameResolution, NameResolutionSym},
     check::scope_tree::ScopeTreeNode,
     check::subobject::{require_subtype, Expected},
-    check::CheckExprInEnv,
+    check::CheckInEnv,
     ir::binder::Binder,
     ir::classes::SymAggregate,
     ir::exprs::{
@@ -66,7 +66,7 @@ pub(crate) enum ExprResultKind<'db> {
     Other(NameResolution<'db>),
 }
 
-impl<'db> CheckExprInEnv<'db> for AstExpr<'db> {
+impl<'db> CheckInEnv<'db> for AstExpr<'db> {
     type Output = ExprResult<'db>;
 
     fn check_expr_in_env(&self, env: &Env<'db>) -> impl Future<Output = Self::Output> {

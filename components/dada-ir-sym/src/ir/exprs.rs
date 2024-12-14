@@ -102,6 +102,9 @@ pub enum SymExprKind<'db> {
     /// `22` etc
     Primitive(SymLiteral),
 
+    /// `b"..."`
+    ByteLiteral(SymByteLiteral<'db>),
+
     /// `let $lv: $ty [= $initializer] in $body`
     LetIn {
         lv: SymVariable<'db>,
@@ -158,6 +161,17 @@ pub enum SymExprKind<'db> {
 
     /// Error occurred somewhere.
     Error(Reported),
+}
+
+#[derive(Copy, Clone, PartialEq, Eq, PartialOrd, Ord, Hash, Debug, Update)]
+pub struct SymByteLiteral<'db> {
+    pub span: Span<'db>,
+    pub data: SymByteLiteralData<'db>,
+}
+
+#[salsa::interned]
+pub struct SymByteLiteralData<'db> {
+    pub value: Vec<u8>,
 }
 
 #[derive(Copy, Clone, PartialEq, Eq, PartialOrd, Ord, Hash, Debug, Update)]

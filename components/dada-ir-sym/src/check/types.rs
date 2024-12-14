@@ -5,9 +5,9 @@ use dada_util::indirect;
 
 use crate::{check::{env::EnvLike, scope::{NameResolution, NameResolutionSym, Resolve}}, ir::{types::{AnonymousPermSymbol, HasKind, SymGenericKind, SymGenericTerm, SymPerm, SymPlace, SymTy}, variables::FromVar}, prelude::Symbol};
 
-use super::CheckInEnv;
+use super::CheckInEnvLike;
 
-impl<'db> CheckInEnv<'db> for AstTy<'db> {
+impl<'db> CheckInEnvLike<'db> for AstTy<'db> {
     type Output = SymTy<'db>;
 
     async fn check_in_env(self, env: &mut impl EnvLike<'db>) -> Self::Output {
@@ -215,7 +215,7 @@ fn name_resolution_to_sym_ty<'db>(
     }    
 }
 
-impl<'db> CheckInEnv<'db> for AstGenericTerm<'db> {
+impl<'db> CheckInEnvLike<'db> for AstGenericTerm<'db> {
     type Output = SymGenericTerm<'db>;
 
     async fn check_in_env(self, env: &mut impl EnvLike<'db>) -> Self::Output {
@@ -242,7 +242,7 @@ fn name_resolution_to_generic_term<'db>(db: &'db dyn crate::Db, name_resolution:
     }
 }
 
-impl<'db> CheckInEnv<'db> for AstPerm<'db> {
+impl<'db> CheckInEnvLike<'db> for AstPerm<'db> {
     type Output = SymPerm<'db>;
 
     async fn check_in_env(self, env: &mut impl EnvLike<'db>) -> Self::Output {
