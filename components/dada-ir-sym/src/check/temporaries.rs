@@ -36,19 +36,35 @@ impl<'db> Temporary<'db> {
 }
 
 impl<'db> SymExpr<'db> {
+    /// Create a temporary to store the result of this expression.
+    ///
+    /// Returns a reference to the temporary as a place expression.
     pub(crate) fn into_temporary(
         self,
         db: &'db dyn crate::Db,
         temporaries: &mut Vec<Temporary<'db>>,
     ) -> SymPlaceExpr<'db> {
         let ty = self.ty(db);
+        let lv = self.into_temporary_var(db, temporaries);
+        SymPlaceExpr::new(db, self.span(db), ty, SymPlaceExprKind::Var(lv))
+    }
+
+    /// Create a temporary to store the result of this expression.
+    ///
+    /// Returns a reference to the temporary as a variable.
+    pub(crate) fn into_temporary_var(
+        self,
+        db: &'db dyn crate::Db,
+        temporaries: &mut Vec<Temporary<'db>>,
+    ) -> SymVariable<'db> {
+        let ty = self.ty(db);
 
         // Create a temporary to store the result of this expression.
-        let temporary = Temporary::new(db, self.span(db), self.ty(db), Some(self));
+        let temporary = Temporary::new(db, self.span(db), ty, Some(self));
         let lv = temporary.lv;
         temporaries.push(temporary);
 
         // The result will be a reference to that temporary.
-        SymPlaceExpr::new(db, self.span(db), ty, SymPlaceExprKind::Var(lv))
+        lv
     }
 }

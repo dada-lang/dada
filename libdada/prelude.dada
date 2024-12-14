@@ -3,6 +3,18 @@ export class String {
     length: u32
     capacity: u32
 
+    ## Create a string from a statically allocated byte array.
+    ## Used to create string literals.
+    ##
+    ## # Unsafe
+    ##
+    ## The data must be valid indefinitely.
+    ## The resulting string will not free the data when it is dropped.
+    export unsafe fn literal(data: Pointer[u8], length: u32) -> String {
+        String { data: data, length: length, capacity: 0 }
+    }
+
+    ## Get the length of the string.
     export fn len(self) -> u32 {
         self.length
     }

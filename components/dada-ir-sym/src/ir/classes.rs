@@ -41,6 +41,16 @@ impl<'db> SymAggregate<'db> {
         }
     }
 
+    /// True if this is a struct
+    pub fn is_struct(self, db: &'db dyn crate::Db) -> bool {
+        self.style(db) == SymAggregateStyle::Struct
+    }
+
+    /// True if this is a class
+    pub fn is_class(self, db: &'db dyn crate::Db) -> bool {
+        self.style(db) == SymAggregateStyle::Class
+    }
+
     /// Number of generic parameters
     pub fn len_generics(&self, db: &'db dyn crate::Db) -> usize {
         if let Some(generics) = self.source(db).generics(db) {
@@ -92,6 +102,7 @@ impl<'db> SymAggregate<'db> {
         generic.span(db)
     }
 
+    /// Returns the symbols for this class header (generic arguments).
     #[salsa::tracked(return_ref)]
     pub(crate) fn symbols(self, db: &'db dyn crate::Db) -> SignatureSymbols<'db> {
         let mut signature_symbols = SignatureSymbols::new(self);
@@ -128,6 +139,7 @@ impl<'db> SymAggregate<'db> {
         )
     }
 
+    /// Tracked list of class members.
     #[salsa::tracked(return_ref)]
     pub fn members(self, db: &'db dyn crate::Db) -> Vec<SymClassMember<'db>> {
         // If the class is declared like `class Foo(x: u32, y: u32)` then we make a constructor `new`
@@ -168,6 +180,7 @@ impl<'db> SymAggregate<'db> {
         ctor_members.chain(explicit_members).collect()
     }
 
+    /// Returns the member with the given name, if it exists.
     #[salsa::tracked]
     pub fn inherent_member(
         self,
@@ -180,6 +193,16 @@ impl<'db> SymAggregate<'db> {
             .find(|m| m.has_name(db, id))
     }
 
+    /// Returns the member with the given name, if it exists.
+    pub fn inherent_member_str(
+        self,
+        db: &'db dyn crate::Db,
+        id: &str,
+    ) -> Option<SymClassMember<'db>> {
+        self.inherent_member(db, Identifier::new(db, id))
+    }
+
+    /// Returns iterator over all fields in this class.
     pub fn fields(self, db: &'db dyn crate::Db) -> impl Iterator<Item = SymField<'db>> {
         self.members(db).iter().filter_map(|&m| match m {
             SymClassMember::SymField(f) => Some(f),
@@ -187,6 +210,7 @@ impl<'db> SymAggregate<'db> {
         })
     }
 
+    /// Returns iterator over all methods in this class.
     pub fn methods(self, db: &'db dyn crate::Db) -> impl Iterator<Item = SymFunction<'db>> {
         self.members(db).iter().filter_map(|&m| match m {
             SymClassMember::SymFunction(f) => Some(f),

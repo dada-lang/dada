@@ -20,6 +20,8 @@ use crate::{
     ir::variables::SymVariable,
 };
 
+use super::types::{HasKind, SymGenericKind};
+
 #[salsa::tracked]
 pub struct SymFunction<'db> {
     pub super_scope_item: ScopeItem<'db>,
@@ -184,6 +186,18 @@ pub struct SignatureSymbols<'db> {
 
     /// Symbols for the function input variables (if any)
     pub input_variables: Vec<SymVariable<'db>>,
+}
+
+impl<'db> SignatureSymbols<'db> {
+    pub fn has_generics_of_kind(&self, db: &'db dyn crate::Db, kinds: &[SymGenericKind]) -> bool {
+        if self.generic_variables.len() != kinds.len() {
+            return false;
+        }
+        self.generic_variables
+            .iter()
+            .zip(kinds)
+            .all(|(&v, &k)| v.has_kind(db, k))
+    }
 }
 
 #[derive(Copy, Clone, Debug, PartialEq, Eq, Hash, Update, FromImpls)]

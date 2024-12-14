@@ -1,11 +1,13 @@
 use crate::{
-    ir::binder::LeafBoundTerm,
-    ir::classes::{SymAggregate, SymField},
-    ir::indices::{FromInfer, FromInferVar, InferVarIndex},
-    ir::primitive::{SymPrimitive, SymPrimitiveKind},
-    ir::variables::{FromVar, SymVariable},
+    ir::{
+        binder::LeafBoundTerm,
+        classes::{SymAggregate, SymField},
+        indices::{FromInfer, FromInferVar, InferVarIndex},
+        primitive::{SymPrimitive, SymPrimitiveKind},
+        variables::{FromVar, SymVariable},
+    },
     prelude::Symbol,
-    Db,
+    well_known, Db,
 };
 use dada_ir_ast::{
     ast::{AstGenericDecl, AstGenericKind, AstPerm, AstPermKind},
@@ -185,6 +187,30 @@ pub struct SymTy<'db> {
 }
 
 impl<'db> SymTy<'db> {
+    /// Returns a [`SymTyKind::Named`][] type for the given primitive type.
+    pub fn primitive(db: &'db dyn Db, primitive: SymPrimitiveKind) -> Self {
+        SymTy::named(db, primitive.intern(db).into(), vec![])
+    }
+
+    /// Returns a [`SymTyKind::Named`][] type for `u8`.
+    pub fn u8(db: &'db dyn Db) -> Self {
+        SymTy::primitive(db, SymPrimitiveKind::Uint { bits: 8 })
+    }
+
+    /// Returns a [`SymTyKind::Named`][] type for `u32`.
+    pub fn u32(db: &'db dyn Db) -> Self {
+        SymTy::primitive(db, SymPrimitiveKind::Uint { bits: 32 })
+    }
+
+    /// Returns a [`SymTyKind::Named`][] type for `String`.
+    pub fn string(db: &'db dyn Db) -> Self {
+        let string_class = match well_known::string_class(db) {
+            Ok(v) => v,
+            Err(reported) => return SymTy::err(db, reported),
+        };
+        SymTy::named(db, string_class.into(), vec![])
+    }
+
     /// Returns a new [`SymTyKind::Named`][].
     pub fn named(
         db: &'db dyn Db,

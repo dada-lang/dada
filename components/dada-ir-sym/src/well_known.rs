@@ -5,8 +5,12 @@ use dada_ir_ast::{
 };
 
 use crate::{
-    ir::classes::SymAggregate,
-    ir::module::{SymItem, SymModule},
+    ir::{
+        classes::{SymAggregate, SymClassMember},
+        functions::SymFunction,
+        module::{SymItem, SymModule},
+        types::SymGenericKind,
+    },
     prelude::Symbol,
 };
 
@@ -36,13 +40,58 @@ fn prelude_member<'db>(db: &'db dyn crate::Db, name: &str) -> Errors<SymItem<'db
 #[salsa::tracked]
 pub fn string_class<'db>(db: &'db dyn crate::Db) -> Errors<SymAggregate<'db>> {
     match prelude_member(db, "String")? {
-        SymItem::SymClass(class) => {
-            if !class.symbols(db).generic_variables.is_empty() {
+        SymItem::SymClass(class) if class.is_class(db) => {
+            if !class.symbols(db).has_generics_of_kind(db, &[]) {
                 return Err(report_unexpected(db, "String", "it has generic parameters"));
             }
             Ok(class)
         }
         _ => Err(report_unexpected(db, "String", "it is not a class")),
+    }
+}
+
+#[salsa::tracked]
+pub fn string_literal_fn<'db>(db: &'db dyn crate::Db) -> Errors<SymFunction<'db>> {
+    let string_class = string_class(db)?;
+    let literal_fn = string_class
+        .inherent_member_str(db, "literal")
+        .ok_or_else(|| report_unexpected(db, "String", "does not have a `literal` member"))?;
+    match literal_fn {
+        SymClassMember::SymFunction(function) => {
+            if !function.symbols(db).has_generics_of_kind(db, &[]) {
+                return Err(report_unexpected(
+                    db,
+                    "String",
+                    "`literal` should not have generic parameters",
+                ));
+            }
+            Ok(function)
+        }
+        _ => Err(report_unexpected(
+            db,
+            "String",
+            "`literal` is not a function",
+        )),
+    }
+}
+
+#[salsa::tracked]
+pub fn pointer_struct<'db>(db: &'db dyn crate::Db) -> Errors<SymAggregate<'db>> {
+    match prelude_member(db, "Pointer")? {
+        SymItem::SymClass(class) if class.is_struct(db) => {
+            if !class
+                .symbols(db)
+                .has_generics_of_kind(db, &[SymGenericKind::Type])
+            {
+                return Err(report_unexpected(
+                    db,
+                    "Pointer",
+                    "it should have 1 generic parameter",
+                ));
+            }
+            Ok(class)
+        }
+        _ => Err(report_unexpected(db, "Pointer", "it is not a struct")),
     }
 }
 

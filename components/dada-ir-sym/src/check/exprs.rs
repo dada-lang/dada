@@ -1,20 +1,25 @@
 use std::future::Future;
 
 use crate::{
-    check::env::Env,
-    check::member_lookup::MemberLookup,
-    check::scope::{NameResolution, NameResolutionSym},
-    check::scope_tree::ScopeTreeNode,
-    check::subobject::{require_subtype, Expected},
-    check::CheckInEnv,
-    ir::binder::Binder,
-    ir::classes::SymAggregate,
-    ir::exprs::{
-        SymBinaryOp, SymExpr, SymExprKind, SymLiteral, SymMatchArm, SymPlaceExpr, SymPlaceExprKind,
+    check::{
+        env::Env,
+        member_lookup::MemberLookup,
+        scope::{NameResolution, NameResolutionSym},
+        scope_tree::ScopeTreeNode,
+        subobject::{require_subtype, Expected},
+        CheckInEnv,
     },
-    ir::functions::{SymFunction, SymInputOutput},
-    ir::types::{SymGenericKind, SymGenericTerm, SymPerm, SymTy, SymTyKind, SymTyName},
-    ir::variables::{FromVar, SymVariable},
+    ir::{
+        binder::Binder,
+        classes::SymAggregate,
+        exprs::{
+            SymBinaryOp, SymByteLiteral, SymByteLiteralData, SymExpr, SymExprKind, SymLiteral,
+            SymMatchArm, SymPlaceExpr, SymPlaceExprKind,
+        },
+        functions::{SymFunction, SymInputOutput},
+        types::{SymGenericKind, SymGenericTerm, SymPerm, SymTy, SymTyKind, SymTyName},
+        variables::{FromVar, SymVariable},
+    },
     prelude::CheckedSignature,
     well_known,
 };
@@ -101,11 +106,62 @@ async fn check_expr<'db>(expr: &AstExpr<'db>, mut env: &Env<'db>) -> ExprResult<
             }
 
             LiteralKind::String => {
-                let _string_class = match well_known::string_class(db) {
-                    Ok(v) => v,
-                    Err(reported) => return ExprResult::err(db, reported),
+                // Generate `String.literal(b"...", length)`
+
+                // Generate `b"..."`
+                let bytes = literal.text(db).as_bytes();
+                let byte_literal_expr = {
+                    let pointer_struct = match well_known::pointer_struct(db) {
+                        Ok(v) => v,
+                        Err(reported) => return ExprResult::err(db, reported),
+                    };
+                    let data = SymByteLiteralData::new(db, bytes);
+                    let byte_literal = SymByteLiteral::new(db, expr_span, data);
+                    SymExpr::new(
+                        db,
+                        expr_span,
+                        SymTy::named(db, pointer_struct.into(), vec![SymTy::u8(db).into()]),
+                        SymExprKind::ByteLiteral(byte_literal),
+                    )
                 };
-                todo!()
+
+                // Generate `length`
+                let len_literal_expr = {
+                    let value = bytes.len() as u64;
+                    SymExpr::new(
+                        db,
+                        expr_span,
+                        SymTy::u32(db),
+                        SymExprKind::Primitive(SymLiteral::Integral { bits: value }),
+                    )
+                };
+
+                // Generate and return `String.literal(b"...", length)`
+                let mut temporaries = vec![];
+                let ctor_call_expr = {
+                    let literal_fn = match well_known::string_literal_fn(db) {
+                        Ok(v) => v,
+                        Err(reported) => return ExprResult::err(db, reported),
+                    };
+                    SymExpr::new(
+                        db,
+                        expr_span,
+                        SymTy::string(db),
+                        SymExprKind::Call {
+                            function: literal_fn,
+                            substitution: vec![],
+                            arg_temps: vec![
+                                byte_literal_expr.into_temporary_var(db, &mut temporaries),
+                                len_literal_expr.into_temporary_var(db, &mut temporaries),
+                            ],
+                        },
+                    )
+                };
+                ExprResult {
+                    temporaries,
+                    span: expr_span,
+                    kind: ctor_call_expr.into(),
+                }
             }
 
             LiteralKind::Boolean => {

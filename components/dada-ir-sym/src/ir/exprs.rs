@@ -163,7 +163,7 @@ pub enum SymExprKind<'db> {
     Error(Reported),
 }
 
-#[derive(Copy, Clone, PartialEq, Eq, PartialOrd, Ord, Hash, Debug, Update)]
+#[salsa::tracked]
 pub struct SymByteLiteral<'db> {
     pub span: Span<'db>,
     pub data: SymByteLiteralData<'db>,
