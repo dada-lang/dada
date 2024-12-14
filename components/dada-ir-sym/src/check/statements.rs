@@ -39,7 +39,7 @@ pub fn check_block_statements<'a, 'db>(
                         match s.initializer(db) {
                             Some(initializer) => {
                                 let initializer = initializer
-                                    .check_expr_in_env(env)
+                                    .check_in_env(env)
                                     .await
                                     .into_expr_with_enclosed_temporaries(&env);
                                 env.require_assignable_object_type(
@@ -76,7 +76,7 @@ pub fn check_block_statements<'a, 'db>(
 
             AstStatement::Expr(e) => {
                 let check_e = async {
-                    e.check_expr_in_env(env)
+                    e.check_in_env(env)
                         .await
                         .into_expr_with_enclosed_temporaries(&env)
                 };

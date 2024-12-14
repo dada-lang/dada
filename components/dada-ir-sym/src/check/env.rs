@@ -61,7 +61,7 @@ impl<'db> Env<'db> {
         I: CheckInEnvLike<'db>,
     {
         let mut env = self;
-        i.check_in_env(&mut env).await
+        i.check_in_env_like(&mut env).await
     }
 
     /// Extract the scope from the environment.

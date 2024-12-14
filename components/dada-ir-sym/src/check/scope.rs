@@ -398,7 +398,7 @@ impl<'db> NameResolution<'db> {
         }
 
         for v in generics.values.iter() {
-            self.generics.push(v.check_in_env(env).await);
+            self.generics.push(v.check_in_env_like(env).await);
         }
 
         Ok(self)
