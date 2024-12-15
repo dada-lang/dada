@@ -1,4 +1,5 @@
 #![feature(async_closure)]
+#![feature(trait_upcasting)]
 
 pub use fxhash::FxHashMap as Map;
 pub use fxhash::FxHashSet as Set;
@@ -34,6 +35,8 @@ unsafe impl salsa::Update for Never {
 }
 
 pub mod arena;
+
+pub mod log;
 
 pub async fn indirect<T>(op: impl async FnOnce() -> T) -> T {
     let boxed_future = futures::future::FutureExt::boxed_local(op());
