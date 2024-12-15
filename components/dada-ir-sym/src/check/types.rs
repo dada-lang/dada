@@ -248,9 +248,11 @@ impl<'db> CheckInEnvLike<'db> for AstPerm<'db> {
     async fn check_in_env_like(self, env: &mut impl EnvLike<'db>) -> Self::Output {
         let db = env.db();
         match *self.kind(db) {
+            #[expect(unused_variables)]
             AstPermKind::Shared(Some(ref paths)) => {
                 todo!()
             }
+            #[expect(unused_variables)]
             AstPermKind::Leased(Some(ref span_vec)) => {
                 todo!()
             }

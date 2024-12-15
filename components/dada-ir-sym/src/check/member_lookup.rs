@@ -11,6 +11,7 @@ use dada_ir_ast::{
     diagnostic::{Diagnostic, Err, Errors, Level, Reported},
     span::Span,
 };
+use dada_util::{debug, debug_heading};
 use futures::{Stream, StreamExt};
 
 use crate::{
@@ -285,6 +286,7 @@ impl<'member, 'db> MemberLookup<'member, 'db> {
         ty: SymTy<'db>,
         id: Identifier<'db>,
     ) -> Option<SearchResult<'db>> {
+        debug_heading!("search_lower_bound_for_member", id, ty);
         let db = self.env.db();
         match *ty.kind(db) {
             SymTyKind::Named(name, ref generics) => match name {
@@ -327,22 +329,29 @@ impl<'member, 'db> MemberLookup<'member, 'db> {
         id: Identifier<'db>,
     ) -> Option<SearchResult<'db>> {
         let db = self.env.db();
+        debug_heading!("search_class_for_member", id, owner);
 
         for &member in owner.members(db) {
             match member {
                 SymClassMember::SymField(field) => {
                     if field.name(db) == id {
+                        debug!("found field", field);
                         return Some(SearchResult::Field {
                             owner,
                             field,
                             field_ty: field.checked_field_ty(db).substitute(db, &generics),
                         });
+                    } else {
+                        debug!("found field with wrong name", field.name(db));
                     }
                 }
 
                 SymClassMember::SymFunction(method) => {
                     if method.name(db) == id {
+                        debug!("found method", method);
                         return Some(SearchResult::Method { owner, method });
+                    } else {
+                        debug!("found method with wrong name", method.name(db));
                     }
                 }
             }

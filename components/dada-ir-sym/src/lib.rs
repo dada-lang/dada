@@ -3,12 +3,6 @@
 #![feature(trait_upcasting)]
 #![feature(async_closure)]
 
-use dada_ir_ast::{
-    ast::Identifier,
-    inputs::{CompilationRoot, Krate, SourceFile},
-    span::Span,
-};
-
 pub use dada_ir_ast::Db;
 
 mod check;

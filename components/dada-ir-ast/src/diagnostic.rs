@@ -1,6 +1,7 @@
 use std::fmt::Display;
 
 use crate::span::{AbsoluteSpan, Span};
+use dada_util::debug;
 use salsa::{Accumulator, Update};
 
 mod render;
@@ -91,6 +92,7 @@ impl Diagnostic {
     }
 
     pub fn report(self, db: &dyn crate::Db) -> Reported {
+        debug!("reporting diagnostic", self);
         let span = self.span;
         self.accumulate(db);
         Reported(span)

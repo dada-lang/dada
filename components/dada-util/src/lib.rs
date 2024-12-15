@@ -15,13 +15,6 @@ pub use anyhow::Error;
 
 pub use dada_util_procmacro::*;
 
-#[macro_export]
-macro_rules! debug {
-    ($($t:tt)*) => {
-        eprintln!($($t)*);
-    }
-}
-
 pub mod typedvec;
 pub mod vecset;
 
