@@ -4,6 +4,7 @@ use dada_ir_ast::{
         AstLetStatement, AstPerm, AstSelfArg, AstStatement, AstTy, AstVisibility, SpanVec,
         VariableDecl,
     },
+    diagnostic::{Diagnostic, Level},
     span::Span,
 };
 use salsa::Update;
@@ -119,13 +120,29 @@ impl<'db> Parse<'db> for AstFunctionEffects<'db> {
     type Output = Self;
 
     fn opt_parse(
-        _db: &'db dyn crate::Db,
+        db: &'db dyn crate::Db,
         parser: &mut Parser<'_, 'db>,
     ) -> Result<Option<Self>, super::ParseFail<'db>> {
         let mut effects = AstFunctionEffects::default();
 
-        if let Ok(span) = parser.eat_keyword(Keyword::Async) {
-            effects.async_effect = Some(span);
+        loop {
+            if let Ok(span) = parser.eat_keyword(Keyword::Async) {
+                if let Some(prev_span) = effects.async_effect {
+                    report_duplicate_keyword(db, "async", span, prev_span);
+                }
+                effects.async_effect = Some(span);
+                continue;
+            }
+
+            if let Ok(span) = parser.eat_keyword(Keyword::Unsafe) {
+                if let Some(prev_span) = effects.unsafe_effect {
+                    report_duplicate_keyword(db, "unsafe", span, prev_span);
+                }
+                effects.unsafe_effect = Some(span);
+                continue;
+            }
+
+            break;
         }
 
         Ok(Some(effects))
@@ -134,6 +151,28 @@ impl<'db> Parse<'db> for AstFunctionEffects<'db> {
     fn expected() -> Expected {
         Expected::Nonterminal("function effects")
     }
+}
+
+fn report_duplicate_keyword<'db>(
+    db: &'db dyn crate::Db,
+    kw: &str,
+    span: Span<'db>,
+    prev_span: Span<'db>,
+) {
+    Diagnostic::error(db, span, format!("duplicate `{kw}` keyword"))
+        .label(
+            db,
+            Level::Error,
+            span,
+            format!("`{kw}` keyword already specified"),
+        )
+        .label(
+            db,
+            Level::Error,
+            prev_span,
+            format!("previous `{kw}` keyword"),
+        )
+        .report(db);
 }
 
 impl<'db> Parse<'db> for AstFunctionInput<'db> {

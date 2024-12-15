@@ -44,6 +44,7 @@ pub struct AstFunction<'db> {
 #[derive(Copy, Clone, Default, PartialEq, Eq, PartialOrd, Ord, Hash, Update, Debug)]
 pub struct AstFunctionEffects<'db> {
     pub async_effect: Option<Span<'db>>,
+    pub unsafe_effect: Option<Span<'db>>,
 }
 
 impl<'db> Spanned<'db> for AstFunction<'db> {

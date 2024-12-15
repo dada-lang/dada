@@ -139,7 +139,13 @@ impl<'db> Parse<'db> for AstMember<'db> {
         db: &'db dyn crate::Db,
         parser: &mut Parser<'_, 'db>,
     ) -> Result<Option<Self>, super::ParseFail<'db>> {
-        AstFieldDecl::opt_parse(db, parser).or_opt_parse::<Self, AstFunction<'db>>(db, parser)
+        // Subtle: ordering is important here.
+        // We prefer to parse members that have distinctive keywords
+        // first (e.g., `fn`) because they are able to return `Ok(None)` when
+        // that keyword is not present, allowing easier detection of which
+        // form is correct. In principle we could modify `AstFieldDecl`'s parser
+        // to fail more gracefully, but it's easier to just reorder things here.
+        AstFunction::opt_parse(db, parser).or_opt_parse::<Self, AstFieldDecl<'db>>(db, parser)
     }
 
     fn expected() -> Expected {

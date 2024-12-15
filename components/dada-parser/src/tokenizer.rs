@@ -123,6 +123,7 @@ keywords! {
         Struct = "struct",
         True = "true",
         Type = "type",
+        Unsafe = "unsafe",
         Use = "use",
         Where = "where",
     }
