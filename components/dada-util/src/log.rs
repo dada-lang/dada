@@ -53,6 +53,11 @@ impl std::fmt::Debug for MessageKind {
     }
 }
 
+/// True if debug logging is enabled for this execution.
+pub fn is_enabled() -> bool {
+    enabled().is_some()
+}
+
 fn enabled() -> &'static Option<LogKind> {
     lazy_static::lazy_static! {
         static ref ENABLED: Option<LogKind> = match std::env::var("DADA_DEBUG").as_deref() {
