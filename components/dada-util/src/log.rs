@@ -6,6 +6,27 @@ thread_local! {
     static INDENT_LEVEL: std::cell::Cell<usize> = std::cell::Cell::new(0);
 }
 
+/// A log state is a snapshot of the current indent level and other thread-sensitive state.
+///
+/// It is used to restore the state when a task is left.
+pub struct LogState {
+    indent_level: usize,
+}
+
+impl LogState {
+    /// Get the current log state.
+    pub fn get() -> Self {
+        Self {
+            indent_level: INDENT_LEVEL.with(|level| level.get()),
+        }
+    }
+
+    /// Set the current log state back to what it was.
+    fn set(&self) {
+        INDENT_LEVEL.with(|level| level.set(self.indent_level));
+    }
+}
+
 enum LogKind {
     Human(std::fs::File),
     Json(std::fs::File),
@@ -16,6 +37,20 @@ enum MessageKind {
     Normal,
     Indent,
     Undent,
+    EnterTask(u64),
+    LeaveTask(u64),
+}
+
+impl std::fmt::Debug for MessageKind {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        match self {
+            MessageKind::Normal => write!(f, "- "),
+            MessageKind::Indent => write!(f, "> "),
+            MessageKind::Undent => write!(f, "< "),
+            MessageKind::EnterTask(id) => write!(f, "> task {id}"),
+            MessageKind::LeaveTask(id) => write!(f, "< task {id}"),
+        }
+    }
 }
 
 fn enabled() -> &'static Option<LogKind> {
@@ -33,16 +68,44 @@ fn enabled() -> &'static Option<LogKind> {
 
 #[macro_export]
 macro_rules! debug {
-    ($message:literal, $($args:expr),* $(,)?) => {
+    ($message:literal $(, $args:expr)* $(,)?) => {
         $crate::log::debug($message, |op| op(&[$($crate::log::LogArgument { label: stringify!($args), value: &$args },)*]));
     };
 }
 
 #[macro_export]
 macro_rules! debug_heading {
-    ($message:literal, $($args:expr),* $(,)?) => {
+    ($message:literal $(, $args:expr)* $(,)?) => {
         let _log = $crate::log::debug_heading($message, |op| op(&[$($crate::log::LogArgument { label: stringify!($args), value: &$args },)*]));
     };
+}
+
+/// Enter a task during type-checking and other async bits of the code.
+///
+/// # Parameters
+///
+/// * `id`, the task ID.
+/// * `log_state`, the log state of the task when it was suspended.
+pub fn enter_task(id: u64, log_state: LogState) -> TaskUndent {
+    let old_state = LogState::get();
+    match enabled() {
+        Some(kind) => debug_cold(kind, MessageKind::EnterTask(id), "", &[]),
+        None => (),
+    }
+    log_state.set();
+    TaskUndent(id, old_state)
+}
+
+pub struct TaskUndent(u64, LogState);
+
+impl Drop for TaskUndent {
+    fn drop(&mut self) {
+        match enabled() {
+            Some(kind) => debug_cold(kind, MessageKind::LeaveTask(self.0), "", &[]),
+            None => (),
+        }
+        self.1.set();
+    }
 }
 
 #[inline]
@@ -125,14 +188,17 @@ fn debug_cold(
     match log_kind {
         LogKind::Human(file) => {
             use std::io::Write;
-            let mut indent_level = INDENT_LEVEL.with(|level| level.get());
-            if let MessageKind::Undent = message_kind {
-                indent_level -= 1;
-                INDENT_LEVEL.with(|level| level.set(indent_level));
-            }
+            let indent_level = INDENT_LEVEL.with(|level| level.get());
 
             let mut writer = std::io::BufWriter::new(file);
-            write!(writer, "{:width$}", "", width = indent_level * 2).unwrap();
+            write!(
+                writer,
+                "{:width$}{thread_id:?} {message_kind:?}",
+                "",
+                thread_id = std::thread::current().id(),
+                width = indent_level * 2
+            )
+            .unwrap();
             write!(writer, "{}", message_text).unwrap();
             for arg in args {
                 write!(
@@ -145,9 +211,16 @@ fn debug_cold(
             }
 
             writeln!(writer).unwrap();
+            drop(writer);
 
-            if let MessageKind::Indent = message_kind {
-                INDENT_LEVEL.with(|level| level.set(indent_level + 1));
+            match message_kind {
+                MessageKind::Undent => {
+                    INDENT_LEVEL.with(|level| level.set(indent_level - 1));
+                }
+                MessageKind::Indent => {
+                    INDENT_LEVEL.with(|level| level.set(indent_level + 1));
+                }
+                MessageKind::Normal | MessageKind::EnterTask(_) | MessageKind::LeaveTask(_) => (),
             }
         }
         LogKind::Json(file) => {

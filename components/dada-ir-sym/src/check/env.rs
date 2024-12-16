@@ -10,7 +10,7 @@ use crate::{
     ir::variables::SymVariable,
 };
 use dada_ir_ast::{diagnostic::Reported, span::Span};
-use dada_util::Map;
+use dada_util::{debug, Map};
 use futures::{Stream, StreamExt};
 
 use crate::{
@@ -207,7 +207,10 @@ impl<'db> Env<'db> {
         value_ty: SymTy<'db>,
         place_ty: SymTy<'db>,
     ) {
+        debug!("defer require_assignable_object_type", value_ty, place_ty);
         self.runtime.defer(self, value_span, move |env| async move {
+            debug!("require_assignable_object_type", value_ty, place_ty);
+
             match require_assignable_type(&env, value_span, value_ty, place_ty).await {
                 Ok(()) => (),
                 Err(Reported(_)) => (),
@@ -221,7 +224,10 @@ impl<'db> Env<'db> {
         expected_ty: SymTy<'db>,
         found_ty: SymTy<'db>,
     ) {
+        debug!("defer require_equal_object_types", expected_ty, found_ty);
         self.runtime.defer(self, span, move |env| async move {
+            debug!("require_equal_object_types", expected_ty, found_ty);
+
             match require_subtype(&env, Expected::Lower, span, expected_ty, found_ty).await {
                 Ok(()) => (),
                 Err(Reported(_)) => return,

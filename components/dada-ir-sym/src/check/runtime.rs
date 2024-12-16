@@ -1,7 +1,7 @@
 use std::{
     future::Future,
     sync::{
-        atomic::{AtomicBool, Ordering},
+        atomic::{AtomicBool, AtomicU64, Ordering},
         Arc, Mutex, RwLock,
     },
     task::{Context, Waker},
@@ -16,7 +16,7 @@ use dada_ir_ast::{
     diagnostic::{Diagnostic, Err, Level},
     span::Span,
 };
-use dada_util::{vecset::VecSet, Map};
+use dada_util::{debug, vecset::VecSet, Map};
 
 use crate::{
     check::bound::Direction, check::env::Env, check::inference::InferenceVarData,
@@ -34,6 +34,7 @@ pub(crate) struct RuntimeData<'db> {
     ready_to_execute: Mutex<Vec<Arc<CheckTask>>>,
     waiting_on_inference_var: Mutex<Map<InferVarIndex, VecSet<EqWaker>>>,
     complete: AtomicBool,
+    next_task_id: AtomicU64,
 }
 
 /// Wrapper around waker to compare its data/vtable fields by pointer equality.
@@ -104,8 +105,13 @@ impl<'db> Runtime<'db> {
                 inference_vars: Default::default(),
                 ready_to_execute: Default::default(),
                 waiting_on_inference_var: Default::default(),
+                next_task_id: Default::default(),
             }),
         }
+    }
+
+    fn next_task_id(&self) -> u64 {
+        self.data.next_task_id.fetch_add(1, Ordering::Relaxed)
     }
 
     /// Spawn a new check-task.
@@ -168,6 +174,8 @@ impl<'db> Runtime<'db> {
     ) -> bool {
         let mut inference_vars = self.inference_vars.write().unwrap();
         if inference_vars[var.as_usize()].insert_bound(self.db, direction, term) {
+            debug!("insert_inference_var_bound", var, direction, term);
+
             let mut waiting_on_inference_var = self.waiting_on_inference_var.lock().unwrap();
             let wakers = waiting_on_inference_var.remove(&var);
             for EqWaker { waker } in wakers.into_iter().flatten() {
@@ -226,6 +234,7 @@ impl<'db> Runtime<'db> {
 
 mod check_task {
     use dada_ir_ast::span::Span;
+    use dada_util::log::LogState;
     use futures::{future::LocalBoxFuture, FutureExt};
     use std::{
         future::Future,
@@ -253,6 +262,9 @@ mod check_task {
         /// Erased type: `Check<'db>`
         runtime: Runtime<'static>,
 
+        /// Unique identifier for this task, used for debugging.
+        id: u64,
+
         /// Erased type: `Span<'db>`
         #[expect(dead_code)]
         span: Span<'static>,
@@ -263,7 +275,7 @@ mod check_task {
 
     enum CheckTaskState<'chk> {
         Executing,
-        Waiting(LocalBoxFuture<'chk, ()>),
+        Waiting(LocalBoxFuture<'chk, ()>, LogState),
         Complete,
     }
 
@@ -283,6 +295,7 @@ mod check_task {
 
                 Arc::new(Self {
                     runtime: my_check,
+                    id: runtime.next_task_id(),
                     span,
                     state: Mutex::new(CheckTaskState::Executing),
                 })
@@ -324,7 +337,7 @@ mod check_task {
                 std::mem::transmute::<LocalBoxFuture<'db, ()>, LocalBoxFuture<'static, ()>>(future)
             };
 
-            let old_state = self.replace_state(CheckTaskState::Waiting(future));
+            let old_state = self.replace_state(CheckTaskState::Waiting(future, LogState::get()));
 
             assert!(matches!(old_state, CheckTaskState::Executing));
         }
@@ -372,7 +385,8 @@ mod check_task {
                     return;
                 }
 
-                CheckTaskState::Waiting(mut future) => {
+                CheckTaskState::Waiting(mut future, log_state) => {
+                    let _log = dada_util::log::enter_task(self.id, log_state);
                     match Future::poll(
                         future.as_mut(),
                         &mut Context::from_waker(&self.clone().waker()),

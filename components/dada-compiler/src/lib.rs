@@ -10,8 +10,8 @@ use dada_ir_ast::{
     diagnostic::Diagnostic,
     inputs::{CompilationRoot, Krate, SourceFile},
 };
-use dada_util::{bail, Fallible, FromImpls, Map};
-use salsa::{Database as _, Durability, Event, Setter};
+use dada_util::{bail, debug, Fallible, FromImpls, Map};
+use salsa::{Database as _, Durability, Event, EventKind, Setter};
 use url::Url;
 
 mod fork;
@@ -256,7 +256,30 @@ pub trait Db: dada_check::Db {}
 
 #[salsa::db]
 impl salsa::Database for Compiler {
-    fn salsa_event(&self, _event: &dyn Fn() -> Event) {}
+    fn salsa_event(&self, event: &dyn Fn() -> Event) {
+        let event = event();
+        match event.kind {
+            EventKind::DidValidateMemoizedValue { database_key } => {
+                debug!("did_validate_memoized_value", database_key);
+            }
+            EventKind::WillBlockOn {
+                other_thread_id,
+                database_key,
+            } => {
+                debug!("will_block_on", other_thread_id, database_key);
+            }
+            EventKind::WillExecute { database_key } => {
+                debug!("will_execute", database_key);
+            }
+            EventKind::DidSetCancellationFlag => {
+                debug!("did_set_cancellation_flag");
+            }
+            EventKind::WillCheckCancellation
+            | EventKind::WillDiscardStaleOutput { .. }
+            | EventKind::DidDiscard { .. }
+            | EventKind::DidDiscardAccumulated { .. } => {}
+        }
+    }
 }
 
 #[salsa::db]
