@@ -178,6 +178,38 @@ impl<'db> SymGenericTerm<'db> {
             SymGenericTerm::Error(_) => true,
         }
     }
+
+    /// Returns the inference variable index if `self` is an inference variable.
+    pub fn as_infer(self, db: &'db dyn crate::Db) -> Option<InferVarIndex> {
+        match self {
+            SymGenericTerm::Type(ty) => match ty.kind(db) {
+                SymTyKind::Infer(infer) => Some(*infer),
+                SymTyKind::Var(..)
+                | SymTyKind::Named(..)
+                | SymTyKind::Never
+                | SymTyKind::Error(_)
+                | SymTyKind::Perm(..) => None,
+            },
+            SymGenericTerm::Perm(perm) => match perm.kind(db) {
+                SymPermKind::Infer(infer) => Some(*infer),
+                SymPermKind::My
+                | SymPermKind::Our
+                | SymPermKind::Shared(_)
+                | SymPermKind::Leased(_)
+                | SymPermKind::Given(_)
+                | SymPermKind::Var(_)
+                | SymPermKind::Error(_) => None,
+            },
+            SymGenericTerm::Place(place) => match place.kind(db) {
+                SymPlaceKind::Infer(infer) => Some(*infer),
+                SymPlaceKind::Var(_)
+                | SymPlaceKind::Field(..)
+                | SymPlaceKind::Index(..)
+                | SymPlaceKind::Error(..) => None,
+            },
+            SymGenericTerm::Error(_) => None,
+        }
+    }
 }
 
 #[salsa::interned]

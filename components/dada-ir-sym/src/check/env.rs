@@ -11,7 +11,6 @@ use crate::{
 };
 use dada_ir_ast::{diagnostic::Reported, span::Span};
 use dada_util::{debug, Map};
-use futures::{Stream, StreamExt};
 
 use crate::{
     check::bound::{Direction, TransitiveBounds},
@@ -267,11 +266,11 @@ impl<'db> Env<'db> {
             })
     }
 
-    pub fn transitive_lower_bounds(&self, ty: SymTy<'db>) -> impl Stream<Item = SymTy<'db>> + 'db {
+    pub fn transitive_lower_bounds(&self, ty: SymTy<'db>) -> TransitiveBounds<'db, SymTy<'db>> {
         self.transitive_bounds(ty, Direction::LowerBoundedBy)
     }
 
-    pub fn transitive_upper_bounds(&self, ty: SymTy<'db>) -> impl Stream<Item = SymTy<'db>> + 'db {
+    pub fn transitive_upper_bounds(&self, ty: SymTy<'db>) -> TransitiveBounds<'db, SymTy<'db>> {
         self.transitive_bounds(ty, Direction::UpperBoundedBy)
     }
 
@@ -279,14 +278,12 @@ impl<'db> Env<'db> {
         &self,
         ty: SymTy<'db>,
         direction: Direction,
-    ) -> impl Stream<Item = SymTy<'db>> + 'db {
+    ) -> TransitiveBounds<'db, SymTy<'db>> {
         let db = self.db();
         if let &SymTyKind::Infer(inference_var) = ty.kind(db) {
             TransitiveBounds::new(&self.runtime, direction, inference_var)
-                .map(|b: SymGenericTerm<'db>| b.assert_type(db))
-                .boxed_local()
         } else {
-            futures::stream::once(futures::future::ready(ty)).boxed_local()
+            TransitiveBounds::just(&self.runtime, direction, ty)
         }
     }
 

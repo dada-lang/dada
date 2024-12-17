@@ -33,6 +33,10 @@ impl<'db> InferenceVarData<'db> {
         self.span
     }
 
+    pub fn kind(&self) -> SymGenericKind {
+        self.kind
+    }
+
     pub fn insert_bound(
         &mut self,
         db: &'db dyn crate::Db,

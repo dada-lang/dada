@@ -1,5 +1,3 @@
-use std::pin::pin;
-
 use crate::{
     ir::binder::Binder,
     ir::classes::{SymAggregate, SymClassMember, SymField},
@@ -12,7 +10,7 @@ use dada_ir_ast::{
     span::Span,
 };
 use dada_util::{debug, debug_heading};
-use futures::{Stream, StreamExt};
+use futures::StreamExt;
 
 use crate::{
     check::env::Env,
@@ -20,6 +18,8 @@ use crate::{
     ir::exprs::{SymPlaceExpr, SymPlaceExprKind},
     prelude::CheckedFieldTy,
 };
+
+use super::bound::TransitiveBounds;
 
 #[derive(Copy, Clone)]
 pub(crate) struct MemberLookup<'member, 'db> {
@@ -48,12 +48,19 @@ impl<'member, 'db> MemberLookup<'member, 'db> {
 
         while let Some(ty) = lower_bounds.next().await {
             // The owner will be some supertype of `ty`.
-            if let Some(member) = self.search_lower_bound_for_member(ty, id.id) {
-                return self.confirm_member(owner, ty, member, id, lower_bounds);
-            } else {
-                // If there is no member, then since the owner must be a supertype of `ty`,
-                // this expression is invalid.
-                return self.no_such_member_result(id, owner.span, ty);
+            match self.search_lower_bound_for_member(ty, id.id, &mut lower_bounds) {
+                Ok(Some(member)) => {
+                    return self.confirm_member(owner, ty, member, id, lower_bounds);
+                }
+                Ok(None) => {
+                    // inference variable, just keep searching
+                    continue;
+                }
+                Err(()) => {
+                    // If there is no member, then since the owner must be a supertype of `ty`,
+                    // this expression is invalid.
+                    return self.no_such_member_result(id, owner.span, ty);
+                }
             }
         }
 
@@ -70,7 +77,7 @@ impl<'member, 'db> MemberLookup<'member, 'db> {
         owner_ty: SymTy<'db>,
         member: SearchResult<'db>,
         id: SpannedIdentifier<'db>,
-        lower_bounds: impl Stream<Item = SymTy<'db>> + 'db,
+        mut lower_bounds: TransitiveBounds<'db, SymTy<'db>>,
     ) -> ExprResult<'db> {
         let db = self.env.db();
 
@@ -82,10 +89,9 @@ impl<'member, 'db> MemberLookup<'member, 'db> {
                 let member = member.clone();
                 async move |env| {
                     let this = MemberLookup { env: &env };
-                    let mut lower_bounds = pin!(lower_bounds);
                     while let Some(ty) = lower_bounds.next().await {
                         if let Err(Reported(_)) =
-                            this.check_member(&owner, id, owner_ty, &member, ty)
+                            this.check_member(&owner, id, owner_ty, &member, ty, &mut lower_bounds)
                         {
                             return;
                         }
@@ -142,9 +148,10 @@ impl<'member, 'db> MemberLookup<'member, 'db> {
         prev_ty: SymTy<'db>,
         prev_member: &SearchResult<'db>,
         new_ty: SymTy<'db>,
+        lower_bounds: &mut TransitiveBounds<'db, SymTy<'db>>,
     ) -> Errors<()> {
-        match self.search_lower_bound_for_member(new_ty, id.id) {
-            Some(new_member) => {
+        match self.search_lower_bound_for_member(new_ty, id.id, lower_bounds) {
+            Ok(Some(new_member)) => {
                 if *prev_member == new_member {
                     Ok(())
                 } else {
@@ -158,7 +165,11 @@ impl<'member, 'db> MemberLookup<'member, 'db> {
                     ))
                 }
             }
-            None => {
+            Ok(None) => {
+                // inference variable, just keep searching
+                Ok(())
+            }
+            Err(()) => {
                 // FIXME: not the ideal error message
                 Err(self.no_such_member(id, owner.span, new_ty))
             }
@@ -285,40 +296,47 @@ impl<'member, 'db> MemberLookup<'member, 'db> {
         self,
         ty: SymTy<'db>,
         id: Identifier<'db>,
-    ) -> Option<SearchResult<'db>> {
+        bounds: &mut TransitiveBounds<'db, SymTy<'db>>,
+    ) -> Result<Option<SearchResult<'db>>, ()> {
         debug_heading!("search_lower_bound_for_member", id, ty);
         let db = self.env.db();
         match *ty.kind(db) {
             SymTyKind::Named(name, ref generics) => match name {
                 // Primitive types don't have members.
-                SymTyName::Primitive(_) => None,
+                SymTyName::Primitive(_) => Err(()),
 
                 // Tuples have indexed members, not named ones.
-                SymTyName::Tuple { arity: _ } => None,
+                SymTyName::Tuple { arity: _ } => Err(()),
 
                 // Classes have members.
-                SymTyName::Aggregate(owner) => self.search_class_for_member(owner, generics, id),
+                SymTyName::Aggregate(owner) => {
+                    Ok(Some(self.search_class_for_member(owner, generics, id)?))
+                }
 
                 // Future types have no members.
-                SymTyName::Future => None,
+                SymTyName::Future => Err(()),
             },
 
-            SymTyKind::Perm(_, sym_ty) => self.search_lower_bound_for_member(sym_ty, id),
+            SymTyKind::Perm(_, sym_ty) => self.search_lower_bound_for_member(sym_ty, id, bounds),
 
-            SymTyKind::Infer(_) => {
-                // We can ignore inference variables because we are already iterating over lower bounds.
-                // Any bounds they acquire will therefore show up as actual types.
-                None
+            SymTyKind::Infer(var) => {
+                // The transitive bounds search will not directly yield inference variables,
+                // but we can encounter them if it yields e.g. a type like `leased ?X`.
+                // In that case we just push them onto the transitive bounds iterator and explore
+                // their bounds too.
+                debug!("pushing inference var", var);
+                bounds.push_inference_var(var);
+                Ok(None)
             }
 
             SymTyKind::Var(_) => {
                 // FIXME: where-clauses
-                None
+                Err(())
             }
 
-            SymTyKind::Never => None,
+            SymTyKind::Never => Err(()),
 
-            SymTyKind::Error(reported) => Some(SearchResult::Error(reported)),
+            SymTyKind::Error(reported) => Ok(Some(SearchResult::Error(reported))),
         }
     }
 
@@ -327,7 +345,7 @@ impl<'member, 'db> MemberLookup<'member, 'db> {
         owner: SymAggregate<'db>,
         generics: &[SymGenericTerm<'db>],
         id: Identifier<'db>,
-    ) -> Option<SearchResult<'db>> {
+    ) -> Result<SearchResult<'db>, ()> {
         let db = self.env.db();
         debug_heading!("search_class_for_member", id, owner);
 
@@ -336,7 +354,7 @@ impl<'member, 'db> MemberLookup<'member, 'db> {
                 SymClassMember::SymField(field) => {
                     if field.name(db) == id {
                         debug!("found field", field);
-                        return Some(SearchResult::Field {
+                        return Ok(SearchResult::Field {
                             owner,
                             field,
                             field_ty: field.checked_field_ty(db).substitute(db, &generics),
@@ -349,7 +367,7 @@ impl<'member, 'db> MemberLookup<'member, 'db> {
                 SymClassMember::SymFunction(method) => {
                     if method.name(db) == id {
                         debug!("found method", method);
-                        return Some(SearchResult::Method { owner, method });
+                        return Ok(SearchResult::Method { owner, method });
                     } else {
                         debug!("found method with wrong name", method.name(db));
                     }
@@ -357,7 +375,7 @@ impl<'member, 'db> MemberLookup<'member, 'db> {
             }
         }
 
-        None
+        Err(())
     }
 }
 
