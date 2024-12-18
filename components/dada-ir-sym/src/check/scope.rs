@@ -9,16 +9,16 @@ use dada_ir_ast::{
 use dada_util::{indirect, FromImpls};
 
 use crate::{
-    check::env::EnvLike,
-    check::scope_tree::ScopeTreeNode,
-    check::CheckInEnvLike,
-    ir::binder::BoundTerm,
-    ir::classes::{SymAggregate, SymClassMember},
-    ir::functions::SymFunction,
-    ir::module::SymModule,
-    ir::primitive::{primitives, SymPrimitive},
-    ir::types::{SymGenericKind, SymGenericTerm, SymTy},
-    ir::variables::{FromVar, SymVariable},
+    check::{env::EnvLike, scope_tree::ScopeTreeNode, CheckInEnvLike},
+    ir::{
+        binder::BoundTerm,
+        classes::{SymAggregate, SymClassMember},
+        functions::SymFunction,
+        module::SymModule,
+        primitive::{primitives, SymPrimitive},
+        types::{SymGenericKind, SymGenericTerm},
+        variables::{FromVar, SymVariable},
+    },
     prelude::Symbol,
 };
 
@@ -237,10 +237,6 @@ impl<'db> EnvLike<'db> for GlobalEnv<'db> {
     fn scope(&self) -> &Scope<'db, 'db> {
         &self.scope
     }
-
-    async fn variable_ty(&mut self, var: SymVariable<'db>) -> SymTy<'db> {
-        unreachable!("global scope has no variables, `{var}` is not in scope")
-    }
 }
 
 /// A link in the scope resolution chain. We first attempt to resolve an identifier
@@ -361,7 +357,7 @@ impl<'db> NameResolution<'db> {
     /// Attempts to resolve generic argments like `foo[u32]`.    
     pub(crate) async fn resolve_relative_generic_args(
         mut self,
-        env: &mut impl EnvLike<'db>,
+        env: &impl EnvLike<'db>,
         generics: &SpanVec<'db, AstGenericTerm<'db>>,
     ) -> Errors<NameResolution<'db>> {
         let db = env.db();
@@ -482,13 +478,13 @@ impl<'db> NameResolutionSym<'db> {
 }
 
 pub trait Resolve<'db> {
-    async fn resolve_in(self, env: &mut impl EnvLike<'db>) -> Errors<NameResolution<'db>>;
+    async fn resolve_in(self, env: &impl EnvLike<'db>) -> Errors<NameResolution<'db>>;
 }
 
 impl<'db> Resolve<'db> for AstPath<'db> {
     /// Given a path that must resolve to some kind of name resolution,
     /// resolve it if we can (reporting errors if it is invalid).
-    async fn resolve_in(self, env: &mut impl EnvLike<'db>) -> Errors<NameResolution<'db>> {
+    async fn resolve_in(self, env: &impl EnvLike<'db>) -> Errors<NameResolution<'db>> {
         let db = env.db();
         indirect(async || match self.kind(db) {
             AstPathKind::Identifier(first_id) => first_id.resolve_in(env).await,
@@ -519,7 +515,7 @@ impl<'db> Resolve<'db> for AstPath<'db> {
 }
 
 impl<'db> Resolve<'db> for SpannedIdentifier<'db> {
-    async fn resolve_in(self, env: &mut impl EnvLike<'db>) -> Errors<NameResolution<'db>> {
+    async fn resolve_in(self, env: &impl EnvLike<'db>) -> Errors<NameResolution<'db>> {
         env.scope().resolve_name(env.db(), self.id, self.span)
     }
 }

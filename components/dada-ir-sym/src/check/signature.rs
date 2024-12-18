@@ -3,18 +3,17 @@ use dada_ir_ast::{
     diagnostic::{Diagnostic, Err, Errors},
     span::Spanned,
 };
-use dada_util::Map;
 
 use crate::{
-    check::env::{Env, EnvLike},
+    check::env::Env,
     check::runtime::Runtime,
-    check::scope::Scope,
-    check::CheckInEnvLike,
     ir::functions::{SymFunction, SymFunctionSignature, SymFunctionSource, SymInputOutput},
     ir::types::{SymTy, SymTyName},
     ir::variables::SymVariable,
     prelude::Symbol,
 };
+
+use super::CheckInEnvLike;
 
 pub fn check_function_signature<'db>(
     db: &'db dyn crate::Db,
@@ -47,23 +46,23 @@ pub async fn prepare_env<'db>(
         .iter()
         .map(|input| input.symbol(db))
         .collect::<Vec<_>>();
-    let mut proto_env = ProtoEnv {
-        db,
-        scope: function.scope(db),
-        inputs: input_symbols.iter().copied().zip(inputs.iter()).collect(),
-        input_tys: Default::default(),
-        stack: Default::default(),
-    };
 
     let mut env: Env<'db> = Env::new(runtime, function.scope(db));
+
+    // Set the AST types for the inputs.
+    for i in source.inputs(db).iter() {
+        set_variable_ty_from_input(&mut env, i).await;
+    }
+
+    // Now that all input types are available, symbolify and create `input_tys` vector.
     let mut input_tys: Vec<SymTy<'db>> = vec![];
     for i in source.inputs(db).iter() {
-        let ty = proto_env.variable_ty(i.symbol(db)).await;
-        env.set_program_variable_ty(i.symbol(db), ty);
+        let ty = env.variable_ty(i.symbol(db)).await;
         input_tys.push(ty);
     }
 
-    let mut output_ty: SymTy<'db> = output_ty(&mut proto_env, &function).await;
+    // Symbolify the output type.
+    let mut output_ty: SymTy<'db> = output_ty(&env, &function).await;
     if function.effects(db).async_effect {
         output_ty = SymTy::named(db, SymTyName::Future, vec![output_ty.into()]);
     }
@@ -79,80 +78,40 @@ pub async fn prepare_env<'db>(
     )
 }
 
-struct ProtoEnv<'a, 'db> {
-    db: &'db dyn crate::Db,
-    scope: Scope<'db, 'db>,
-    inputs: Map<SymVariable<'db>, &'a AstFunctionInput<'db>>,
-    input_tys: Map<SymVariable<'db>, SymTy<'db>>,
-    stack: Vec<SymVariable<'db>>,
-}
-
-impl<'a, 'db> EnvLike<'db> for ProtoEnv<'a, 'db> {
-    fn db(&self) -> &'db dyn crate::Db {
-        self.db
-    }
-
-    fn scope(&self) -> &Scope<'db, 'db> {
-        &self.scope
-    }
-
-    async fn variable_ty(&mut self, lv: SymVariable<'db>) -> SymTy<'db> {
-        if let Some(&ty) = self.input_tys.get(&lv) {
-            return ty;
-        }
-
-        let input = self.inputs[&lv];
-        if self.stack.contains(&lv) {
-            return SymTy::err(
-                self.db,
-                Diagnostic::error(
-                    self.db,
-                    input.span(self.db),
-                    format!("type of `{lv}` references itself"),
-                )
-                .report(self.db),
-            );
-        }
-
-        self.stack.push(lv);
-        self.variable_ty_from_input(input).await
-    }
-}
-
-impl<'a, 'db> ProtoEnv<'a, 'db> {
-    async fn variable_ty_from_input(&mut self, input: &AstFunctionInput<'db>) -> SymTy<'db> {
-        match input {
-            AstFunctionInput::SelfArg(arg) => {
-                if let Some(aggregate) = self.scope.class() {
-                    let self_ty = aggregate.self_ty(self.db, &self.scope);
-                    match arg.perm(self.db) {
-                        Some(ast_perm) => {
-                            let sym_perm = ast_perm.check_in_env_like(self).await;
-                            SymTy::perm(self.db, sym_perm, self_ty)
-                        }
-                        None => self_ty,
+async fn set_variable_ty_from_input<'db>(env: &mut Env<'db>, input: &AstFunctionInput<'db>) {
+    let db = env.db();
+    let lv = input.symbol(db);
+    match input {
+        AstFunctionInput::SelfArg(arg) => {
+            let self_ty = if let Some(aggregate) = env.scope.class() {
+                let aggr_ty = aggregate.self_ty(db, &env.scope);
+                match arg.perm(db) {
+                    Some(ast_perm) => {
+                        let sym_perm = ast_perm.check_in_env_like(env).await;
+                        SymTy::perm(db, sym_perm, aggr_ty)
                     }
-                } else {
-                    SymTy::err(
-                        self.db,
-                        Diagnostic::error(
-                            self.db,
-                            arg.span(self.db),
-                            "self parameter is only permitted within a class definition",
-                        )
-                        .report(self.db),
-                    )
+                    None => aggr_ty,
                 }
-            }
-            AstFunctionInput::Variable(var) => var.ty(self.db()).check_in_env_like(self).await,
+            } else {
+                SymTy::err(
+                    db,
+                    Diagnostic::error(
+                        db,
+                        arg.span(db),
+                        "self parameter is only permitted within a class definition",
+                    )
+                    .report(db),
+                )
+            };
+            env.set_variable_sym_ty(lv, self_ty);
+        }
+        AstFunctionInput::Variable(var) => {
+            env.set_variable_ast_ty(lv, var.ty(db));
         }
     }
 }
 
-async fn output_ty<'a, 'db>(
-    env: &mut ProtoEnv<'a, 'db>,
-    function: &SymFunction<'db>,
-) -> SymTy<'db> {
+async fn output_ty<'db>(env: &Env<'db>, function: &SymFunction<'db>) -> SymTy<'db> {
     let db = env.db();
     match function.source(db) {
         SymFunctionSource::Function(ast_function) => match ast_function.output_ty(db) {

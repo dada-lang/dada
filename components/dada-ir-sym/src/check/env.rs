@@ -1,4 +1,4 @@
-use std::sync::Arc;
+use std::{cell::Cell, sync::Arc};
 
 use crate::{
     check::scope::Scope,
@@ -9,7 +9,11 @@ use crate::{
     ir::types::{SymGenericKind, SymGenericTerm, SymPerm, SymPlace, SymTy, SymTyKind},
     ir::variables::SymVariable,
 };
-use dada_ir_ast::{diagnostic::Reported, span::Span};
+use dada_ir_ast::{
+    ast::AstTy,
+    diagnostic::{Diagnostic, Err, Reported},
+    span::Span,
+};
 use dada_util::{debug, Map};
 
 use crate::{
@@ -33,8 +37,12 @@ pub(crate) struct Env<'db> {
     /// Universe of each free variable that is in scope.
     variable_universes: Arc<Map<SymVariable<'db>, Universe>>,
 
-    /// Object type for each in-scope variable.
-    variable_tys: Arc<Map<SymVariable<'db>, SymTy<'db>>>,
+    /// Type for in-scope variables. Local variables
+    /// are stored directly in symbolic form but function
+    /// parameters are stored initially as AST types.
+    /// Those types are symbolified lazily.
+    /// See [`VariableType`] for details.
+    variable_tys: Arc<Map<SymVariable<'db>, VariableTypeCell<'db>>>,
 
     /// If `None`, not type checking a function or method.
     pub return_ty: Option<SymTy<'db>>,
@@ -53,14 +61,12 @@ impl<'db> Env<'db> {
         }
     }
 
-    /// Convenience function for invoking `to_object_ir`.
-    /// We have to do a bit of a "dance" because `to_object_ir` needs a mutable reference to a shared reference.
+    /// Convenience function for invoking [`CheckInEnvLike::check_in_env_like`][].
     pub(super) async fn check<I>(&self, i: I) -> I::Output
     where
         I: CheckInEnvLike<'db>,
     {
-        let mut env = self;
-        i.check_in_env_like(&mut env).await
+        i.check_in_env_like(self).await
     }
 
     /// Extract the scope from the environment.
@@ -128,8 +134,10 @@ impl<'db> Env<'db> {
         self.universe = self.universe.next();
     }
 
-    /// Sets the type for a program variable that is in scope already.
-    pub fn set_program_variable_ty(&mut self, lv: SymVariable<'db>, ty: SymTy<'db>) {
+    /// Sets the symbolic type for a program variable. Used during environment
+    /// construction but typically you should use [`Self::push_program_variable_with_ty`]
+    /// instead.
+    pub fn set_variable_sym_ty(&mut self, lv: SymVariable<'db>, ty: SymTy<'db>) {
         assert!(
             self.scope.generic_sym_in_scope(self.db(), lv),
             "variable `{lv:?}` not in scope"
@@ -138,14 +146,27 @@ impl<'db> Env<'db> {
             !self.variable_tys.contains_key(&lv),
             "variable `{lv:?}` already has a type"
         );
-        Arc::make_mut(&mut self.variable_tys).insert(lv, ty);
+        Arc::make_mut(&mut self.variable_tys).insert(lv, VariableTypeCell::symbolic(lv, ty));
     }
 
-    /// Extends the scope with a new program variable.
-    /// You still need to call [`Self::set_program_variable_ty`][] after calling this function to set the type.
+    /// Sets the AST type for a parameter that is in scope already.
+    /// This AST type will be lazily symbolified when requested.
+    pub fn set_variable_ast_ty(&mut self, lv: SymVariable<'db>, ty: AstTy<'db>) {
+        assert!(
+            self.scope.generic_sym_in_scope(self.db(), lv),
+            "variable `{lv:?}` not in scope"
+        );
+        assert!(
+            !self.variable_tys.contains_key(&lv),
+            "variable `{lv:?}` already has a type"
+        );
+        Arc::make_mut(&mut self.variable_tys).insert(lv, VariableTypeCell::ast(lv, ty));
+    }
+
+    /// Extends the scope with a new program variable given its type.
     pub fn push_program_variable_with_ty(&mut self, lv: SymVariable<'db>, ty: SymTy<'db>) {
         Arc::make_mut(&mut self.scope).push_link(lv);
-        self.set_program_variable_ty(lv, ty);
+        self.set_variable_sym_ty(lv, ty);
     }
 
     /// Set the return type of the current function.
@@ -163,8 +184,12 @@ impl<'db> Env<'db> {
     /// # Panics
     ///
     /// If the variable is not present.
-    pub fn variable_ty(&self, lv: SymVariable<'db>) -> SymTy<'db> {
-        self.variable_tys.get(&lv).copied().unwrap()
+    pub async fn variable_ty(&self, lv: SymVariable<'db>) -> SymTy<'db> {
+        self.variable_tys
+            .get(&lv)
+            .expect("variable not in scope")
+            .get(self)
+            .await
     }
 
     pub fn fresh_inference_var(&self, kind: SymGenericKind, span: Span<'db>) -> InferVarIndex {
@@ -207,7 +232,7 @@ impl<'db> Env<'db> {
         place_ty: SymTy<'db>,
     ) {
         debug!("defer require_assignable_object_type", value_ty, place_ty);
-        self.runtime.defer(self, value_span, move |env| async move {
+        self.runtime.defer(self, value_span, async move |env| {
             debug!("require_assignable_object_type", value_ty, place_ty);
 
             match require_assignable_type(&env, value_span, value_ty, place_ty).await {
@@ -305,10 +330,9 @@ impl<'db> Env<'db> {
 pub(crate) trait EnvLike<'db> {
     fn db(&self) -> &'db dyn crate::Db;
     fn scope(&self) -> &Scope<'db, 'db>;
-    async fn variable_ty(&mut self, var: SymVariable<'db>) -> SymTy<'db>;
 }
 
-impl<'db> EnvLike<'db> for &Env<'db> {
+impl<'db> EnvLike<'db> for Env<'db> {
     fn db(&self) -> &'db dyn crate::Db {
         Env::db(self)
     }
@@ -316,8 +340,78 @@ impl<'db> EnvLike<'db> for &Env<'db> {
     fn scope(&self) -> &Scope<'db, 'db> {
         &self.scope
     }
+}
 
-    async fn variable_ty(&mut self, var: SymVariable<'db>) -> SymTy<'db> {
-        Env::variable_ty(self, var)
+#[derive(Clone)]
+struct VariableTypeCell<'db> {
+    lv: SymVariable<'db>,
+    state: Cell<VariableType<'db>>,
+}
+
+impl<'db> VariableTypeCell<'db> {
+    fn symbolic(lv: SymVariable<'db>, ty: SymTy<'db>) -> Self {
+        Self {
+            lv,
+            state: Cell::new(VariableType::Symbolic(ty)),
+        }
     }
+
+    fn ast(lv: SymVariable<'db>, ty: AstTy<'db>) -> Self {
+        Self {
+            lv,
+            state: Cell::new(VariableType::Ast(ty)),
+        }
+    }
+
+    async fn get(&self, env: &Env<'db>) -> SymTy<'db> {
+        match self.state.get() {
+            VariableType::Ast(ast_ty) => {
+                self.state.set(VariableType::InProgress(ast_ty));
+                let sym_ty = ast_ty.check_in_env_like(env).await;
+                // update state to symbolic unless it was already set to an error
+                if let VariableType::InProgress(_) = self.state.get() {
+                    self.state.set(VariableType::Symbolic(sym_ty));
+                }
+                sym_ty
+            }
+            VariableType::InProgress(ast_ty) => {
+                let ty_err = SymTy::err(
+                    env.db(),
+                    Diagnostic::error(
+                        env.db(),
+                        ast_ty.span(env.db()),
+                        format!("type of `{}` references itself", self.lv),
+                    )
+                    .report(env.db()),
+                );
+                self.state.set(VariableType::Symbolic(ty_err));
+                ty_err
+            }
+            VariableType::Symbolic(sym_ty) => sym_ty,
+        }
+    }
+}
+
+/// The type of a variable.
+#[derive(Copy, Clone)]
+enum VariableType<'db> {
+    /// AST form of the type is available and we have not yet begun to symbolify it.
+    /// AST types are used when we introduce a set of variables, where each variable
+    /// may refer to others as part of its type. In that case we don't know the right
+    /// order to process the variables in so we have to do a depth-first search.
+    ///
+    /// e.g., in `fn foo(x: shared[y] String, y: my Vec[String])`, we could begin with
+    /// `y` then `x`, but that is not clear at first. So instead we begin with `x`, mark it as
+    /// in progress, and then to convert `y` to a symbolic expression, wind up converting
+    /// the type of `y`. If `y` did refer to `x`, this would result in an error.
+    Ast(AstTy<'db>),
+
+    /// AST form of the type is available and we have begun symbolifying it.
+    /// When in this state, a repeated request for the variable's type will report an error.
+    InProgress(AstTy<'db>),
+
+    /// Symbolic type is available. For local variables, we introduce the type directly
+    /// in this form, but for parameters or other cases where there are a set of variables
+    /// introduced at once, we have to begin with AST form.
+    Symbolic(SymTy<'db>),
 }

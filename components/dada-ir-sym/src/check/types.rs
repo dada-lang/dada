@@ -10,7 +10,7 @@ use super::CheckInEnvLike;
 impl<'db> CheckInEnvLike<'db> for AstTy<'db> {
     type Output = SymTy<'db>;
 
-    async fn check_in_env_like(self, env: &mut impl EnvLike<'db>) -> Self::Output {
+    async fn check_in_env_like(self, env: &impl EnvLike<'db>) -> Self::Output {
         let db = env.db();
         indirect(async || {
             match self.kind(db) {
@@ -218,7 +218,7 @@ fn name_resolution_to_sym_ty<'db>(
 impl<'db> CheckInEnvLike<'db> for AstGenericTerm<'db> {
     type Output = SymGenericTerm<'db>;
 
-    async fn check_in_env_like(self, env: &mut impl EnvLike<'db>) -> Self::Output {
+    async fn check_in_env_like(self, env: &impl EnvLike<'db>) -> Self::Output {
         match self {
             AstGenericTerm::Ty(ast_ty) => ast_ty.check_in_env_like(env).await.into(),
             AstGenericTerm::Perm(ast_perm) => ast_perm.check_in_env_like(env).await.into(),
@@ -245,7 +245,7 @@ fn name_resolution_to_generic_term<'db>(db: &'db dyn crate::Db, name_resolution:
 impl<'db> CheckInEnvLike<'db> for AstPerm<'db> {
     type Output = SymPerm<'db>;
 
-    async fn check_in_env_like(self, env: &mut impl EnvLike<'db>) -> Self::Output {
+    async fn check_in_env_like(self, env: &impl EnvLike<'db>) -> Self::Output {
         let db = env.db();
         match *self.kind(db) {
             #[expect(unused_variables)]

@@ -28,7 +28,7 @@ mod universe;
 trait CheckInEnvLike<'db>: Copy {
     type Output;
 
-    async fn check_in_env_like(self, env: &mut impl EnvLike<'db>) -> Self::Output;
+    async fn check_in_env_like(self, env: &impl EnvLike<'db>) -> Self::Output;
 }
 
 /// Check an expression in a full environment.
@@ -42,7 +42,7 @@ trait CheckInEnv<'db> {
 impl<'db> CheckInEnvLike<'db> for SymTy<'db> {
     type Output = SymTy<'db>;
 
-    async fn check_in_env_like(self, _env: &mut impl EnvLike<'db>) -> Self::Output {
+    async fn check_in_env_like(self, _env: &impl EnvLike<'db>) -> Self::Output {
         self
     }
 }

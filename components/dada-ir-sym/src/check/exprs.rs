@@ -79,7 +79,7 @@ impl<'db> CheckInEnv<'db> for AstExpr<'db> {
     }
 }
 
-async fn check_expr<'db>(expr: &AstExpr<'db>, mut env: &Env<'db>) -> ExprResult<'db> {
+async fn check_expr<'db>(expr: &AstExpr<'db>, env: &Env<'db>) -> ExprResult<'db> {
     let db = env.db();
     let expr_span = expr.span;
 
@@ -389,7 +389,7 @@ async fn check_expr<'db>(expr: &AstExpr<'db>, mut env: &Env<'db>) -> ExprResult<
         AstExprKind::Id(SpannedIdentifier { span: id_span, id }) => {
             match env.scope.resolve_name(db, *id, *id_span) {
                 Err(reported) => ExprResult::err(db, reported),
-                Ok(res) => ExprResult::from_name_resolution(env, res, expr_span),
+                Ok(res) => ExprResult::from_name_resolution(env, res, expr_span).await,
             }
         }
 
@@ -408,7 +408,7 @@ async fn check_expr<'db>(expr: &AstExpr<'db>, mut env: &Env<'db>) -> ExprResult<
                         Err(reported) => ExprResult::err(db, reported),
 
                         // Found something with lexical resolution? Continue.
-                        Ok(Ok(r)) => ExprResult::from_name_resolution(env, r, expr_span),
+                        Ok(Ok(r)) => ExprResult::from_name_resolution(env, r, expr_span).await,
 
                         // Otherwise, try type-dependent lookup.
                         Ok(Err(name_resolution)) => {
@@ -475,7 +475,7 @@ async fn check_expr<'db>(expr: &AstExpr<'db>, mut env: &Env<'db>) -> ExprResult<
                 ExprResultKind::Other(name_resolution) => {
                     let generics = square_bracket_args.parse_as_generics(db);
                     match name_resolution
-                        .resolve_relative_generic_args(&mut env, &generics)
+                        .resolve_relative_generic_args(env, &generics)
                         .await
                     {
                         Ok(name_resolution) => ExprResult {
@@ -1235,11 +1235,15 @@ impl<'db> Err<'db> for ExprResult<'db> {
 
 impl<'db> ExprResult<'db> {
     /// Create a result based on lexical name resolution.
-    pub fn from_name_resolution(env: &Env<'db>, res: NameResolution<'db>, span: Span<'db>) -> Self {
+    pub async fn from_name_resolution(
+        env: &Env<'db>,
+        res: NameResolution<'db>,
+        span: Span<'db>,
+    ) -> Self {
         let db = env.db();
         match res.sym {
             NameResolutionSym::SymVariable(var) if var.kind(db) == SymGenericKind::Place => {
-                let ty = env.variable_ty(var);
+                let ty = env.variable_ty(var).await;
                 let place_expr = SymPlaceExpr::new(db, span, ty, SymPlaceExprKind::Var(var));
                 Self {
                     temporaries: vec![],
