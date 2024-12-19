@@ -327,21 +327,6 @@ impl<'db> Env<'db> {
     }
 }
 
-pub(crate) trait EnvLike<'db> {
-    fn db(&self) -> &'db dyn crate::Db;
-    fn scope(&self) -> &Scope<'db, 'db>;
-}
-
-impl<'db> EnvLike<'db> for Env<'db> {
-    fn db(&self) -> &'db dyn crate::Db {
-        Env::db(self)
-    }
-
-    fn scope(&self) -> &Scope<'db, 'db> {
-        &self.scope
-    }
-}
-
 #[derive(Clone)]
 struct VariableTypeCell<'db> {
     lv: SymVariable<'db>,

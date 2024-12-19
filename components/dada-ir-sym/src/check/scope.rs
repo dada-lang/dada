@@ -9,7 +9,7 @@ use dada_ir_ast::{
 use dada_util::{indirect, FromImpls};
 
 use crate::{
-    check::{env::EnvLike, scope_tree::ScopeTreeNode, CheckInEnvLike},
+    check::{scope_tree::ScopeTreeNode, CheckInEnvLike},
     ir::{
         binder::BoundTerm,
         classes::{SymAggregate, SymClassMember},
@@ -21,6 +21,8 @@ use crate::{
     },
     prelude::Symbol,
 };
+
+use super::Env;
 
 /// Name resolution scope, used when converting types/function-bodies etc into symbols.
 #[derive(Clone, Debug, PartialEq, Eq)]
@@ -330,7 +332,7 @@ impl<'db> NameResolution<'db> {
     /// Attempts to resolve generic argments like `foo[u32]`.    
     pub(crate) async fn resolve_relative_generic_args(
         mut self,
-        env: &impl EnvLike<'db>,
+        env: &Env<'db>,
         generics: &SpanVec<'db, AstGenericTerm<'db>>,
     ) -> Errors<NameResolution<'db>> {
         let db = env.db();
@@ -451,13 +453,13 @@ impl<'db> NameResolutionSym<'db> {
 }
 
 pub trait Resolve<'db> {
-    async fn resolve_in(self, env: &impl EnvLike<'db>) -> Errors<NameResolution<'db>>;
+    async fn resolve_in(self, env: &Env<'db>) -> Errors<NameResolution<'db>>;
 }
 
 impl<'db> Resolve<'db> for AstPath<'db> {
     /// Given a path that must resolve to some kind of name resolution,
     /// resolve it if we can (reporting errors if it is invalid).
-    async fn resolve_in(self, env: &impl EnvLike<'db>) -> Errors<NameResolution<'db>> {
+    async fn resolve_in(self, env: &Env<'db>) -> Errors<NameResolution<'db>> {
         let db = env.db();
         indirect(async || match self.kind(db) {
             AstPathKind::Identifier(first_id) => first_id.resolve_in(env).await,
@@ -488,8 +490,8 @@ impl<'db> Resolve<'db> for AstPath<'db> {
 }
 
 impl<'db> Resolve<'db> for SpannedIdentifier<'db> {
-    async fn resolve_in(self, env: &impl EnvLike<'db>) -> Errors<NameResolution<'db>> {
-        env.scope().resolve_name(env.db(), self.id, self.span)
+    async fn resolve_in(self, env: &Env<'db>) -> Errors<NameResolution<'db>> {
+        env.scope.resolve_name(env.db(), self.id, self.span)
     }
 }
 

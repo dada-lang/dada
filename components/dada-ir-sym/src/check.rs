@@ -1,6 +1,6 @@
 //! Defines the type-checking and name-resolution logic. This is what creates the symbolic IR.
 
-use env::{Env, EnvLike};
+use env::Env;
 use runtime::Runtime;
 
 use crate::ir::types::SymTy;
@@ -30,7 +30,7 @@ mod universe;
 trait CheckInEnvLike<'db>: Copy {
     type Output;
 
-    async fn check_in_env_like(self, env: &impl EnvLike<'db>) -> Self::Output;
+    async fn check_in_env_like(self, env: &Env<'db>) -> Self::Output;
 }
 
 /// Check an expression in a full environment.
@@ -44,7 +44,7 @@ trait CheckInEnv<'db> {
 impl<'db> CheckInEnvLike<'db> for SymTy<'db> {
     type Output = SymTy<'db>;
 
-    async fn check_in_env_like(self, _env: &impl EnvLike<'db>) -> Self::Output {
+    async fn check_in_env_like(self, _env: &Env<'db>) -> Self::Output {
         self
     }
 }
