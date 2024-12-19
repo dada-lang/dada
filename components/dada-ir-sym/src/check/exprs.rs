@@ -1228,7 +1228,7 @@ impl<'db> Err<'db> for ExprResult<'db> {
         Self {
             temporaries: vec![],
             span: r.span(db),
-            kind: ExprResultKind::Expr(SymExpr::err(db, r)),
+            kind: ExprResultKind::PlaceExpr(SymPlaceExpr::err(db, r)),
         }
     }
 }

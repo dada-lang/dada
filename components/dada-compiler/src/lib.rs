@@ -10,7 +10,7 @@ use dada_ir_ast::{
     diagnostic::Diagnostic,
     inputs::{CompilationRoot, Krate, SourceFile},
 };
-use dada_util::{bail, debug, Fallible, FromImpls, Map};
+use dada_util::{bail, debug, Fallible, FromImpls, Map, Set};
 use salsa::{Database as _, Durability, Event, EventKind, Setter};
 use url::Url;
 
@@ -150,7 +150,13 @@ impl Compiler {
 
     /// Compute all diagnostics for a source file
     pub fn check_all(&self, source_file: SourceFile) -> Vec<Diagnostic> {
-        check_all::accumulated::<Diagnostic>(self, source_file)
+        let mut diagnostics = check_all::accumulated::<Diagnostic>(self, source_file);
+
+        // Remove duplicates
+        let mut new = Set::default();
+        diagnostics.retain(|d| new.insert(d.clone()));
+
+        diagnostics
     }
 
     pub fn fn_asts(&self, source_file: SourceFile) -> String {

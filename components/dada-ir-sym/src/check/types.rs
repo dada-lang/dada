@@ -1,11 +1,13 @@
+use std::future::Future;
+
 use dada_ir_ast::{
-    ast::{AstGenericTerm, AstPerm, AstPermKind, AstTy, AstTyKind}, diagnostic::{ordinal, Diagnostic, Err, Level}, span::{Span, Spanned}
+    ast::{AstGenericTerm, AstPath, AstPathKind, AstPerm, AstPermKind, AstTy, AstTyKind}, diagnostic::{ordinal, Diagnostic, Err, Level}, span::{Span, Spanned}
 };
 use dada_util::indirect;
 
-use crate::{check::{env::Env, scope::{NameResolution, NameResolutionSym, Resolve}}, ir::{types::{AnonymousPermSymbol, HasKind, SymGenericKind, SymGenericTerm, SymPerm, SymPlace, SymTy}, variables::FromVar}, prelude::Symbol};
+use crate::{check::{env::Env, exprs::ExprResultKind, scope::{NameResolution, NameResolutionSym, Resolve}}, ir::{types::{AnonymousPermSymbol, HasKind, SymGenericKind, SymGenericTerm, SymPerm, SymPermKind, SymPlace, SymTy}, variables::FromVar}, prelude::Symbol};
 
-use super::CheckInEnv;
+use super::{exprs::ExprResult, member_lookup::MemberLookup, CheckInEnv};
 
 impl<'db> CheckInEnv<'db> for AstTy<'db> {
     type Output = SymTy<'db>;
@@ -248,13 +250,13 @@ impl<'db> CheckInEnv<'db> for AstPerm<'db> {
     async fn check_in_env(&self, env: &Env<'db>) -> Self::Output {
         let db = env.db();
         match *self.kind(db) {
-            #[expect(unused_variables)]
             AstPermKind::Shared(Some(ref paths)) => {
-                todo!()
+                let places = paths_to_sym_places(env, paths).await;
+                SymPerm::new(db, SymPermKind::Shared(places))
             }
-            #[expect(unused_variables)]
-            AstPermKind::Leased(Some(ref span_vec)) => {
-                todo!()
+            AstPermKind::Leased(Some(ref paths)) => {
+                let places = paths_to_sym_places(env, paths).await;
+                SymPerm::new(db, SymPermKind::Leased(places))
             }
             AstPermKind::Given(Some(ref _span_vec)) => todo!(),
             AstPermKind::Shared(None) | AstPermKind::Leased(None) | AstPermKind::Given(None) => {
@@ -304,4 +306,62 @@ fn name_resolution_to_sym_perm<'db>(db: &'db dyn crate::Db, name_resolution: Nam
             )
         } 
     }
+}
+
+async fn paths_to_sym_places<'db>(env: &Env<'db>, paths: &[AstPath<'db>]) -> Vec<SymPlace<'db>> {
+    let mut places = vec![];
+    for &path in paths {
+        places.push(path_to_sym_place(env, path).await);
+    }
+    places
+}
+
+async fn path_to_sym_place<'db>(env: &Env<'db>, path: AstPath<'db>) -> SymPlace<'db> {
+    let db = env.db();
+    let ExprResult { temporaries, span, kind } = path_to_expr_result(env, path).await;
+    
+    assert!(temporaries.is_empty());
+
+    match kind {
+        ExprResultKind::PlaceExpr(expr) => expr.into_sym_place(db),
+        _ => {
+            SymPlace::err(db, Diagnostic::error(db, span, "expected a place, found something else")
+                .label(
+                    db,
+                    Level::Error,
+                    span,
+                    "I expected a place, but I found something else",
+                )
+                .report(db))
+        }
+    }
+}
+
+fn path_to_expr_result<'a, 'db>(env: &'a Env<'db>, path: AstPath<'db>) -> impl Future<Output = ExprResult<'db>> + use<'a, 'db> {
+    let db = env.db();
+    Box::pin(async move {
+        match *path.kind(env.db()) {
+            AstPathKind::Identifier(id) => {
+                let nr = match id.resolve_in(env).await {
+                    Ok(nr) => nr,
+                    Err(r) => return ExprResult::err(db, r),
+                };
+                ExprResult::from_name_resolution(env, nr, id.span(db)).await
+            }
+            AstPathKind::GenericArgs { .. } => {
+                ExprResult::err(db, Diagnostic::error(db, path.span(db), "generic arguments are not valid places")
+                        .label(
+                            db,
+                            Level::Error,   
+                            path.span(db),
+                            "I expected a place, but I found generic arguments",
+                    )
+                    .report(db))
+            }
+            AstPathKind::Member { path, id } => {
+                let owner = path_to_expr_result(env, path).await;
+                MemberLookup::new(env).lookup_member(owner, id).await
+            }
+        }
+    })
 }
