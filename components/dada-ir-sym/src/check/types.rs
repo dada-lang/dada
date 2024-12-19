@@ -5,18 +5,18 @@ use dada_util::indirect;
 
 use crate::{check::{env::Env, scope::{NameResolution, NameResolutionSym, Resolve}}, ir::{types::{AnonymousPermSymbol, HasKind, SymGenericKind, SymGenericTerm, SymPerm, SymPlace, SymTy}, variables::FromVar}, prelude::Symbol};
 
-use super::CheckInEnvLike;
+use super::CheckInEnv;
 
-impl<'db> CheckInEnvLike<'db> for AstTy<'db> {
+impl<'db> CheckInEnv<'db> for AstTy<'db> {
     type Output = SymTy<'db>;
 
-    async fn check_in_env_like(self, env: &Env<'db>) -> Self::Output {
+    async fn check_in_env(&self, env: &Env<'db>) -> Self::Output {
         let db = env.db();
         indirect(async || {
             match self.kind(db) {
                 AstTyKind::Perm(ast_perm, ast_ty) => {
-                    let sym_perm = ast_perm.check_in_env_like(env).await;
-                    let sym_ty = ast_ty.check_in_env_like(env).await;
+                    let sym_perm = ast_perm.check_in_env(env).await;
+                    let sym_ty = ast_ty.check_in_env(env).await;
                     SymTy::perm(db, sym_perm, sym_ty)
                 }
 
@@ -25,7 +25,7 @@ impl<'db> CheckInEnvLike<'db> for AstTy<'db> {
                     if let Some(ast_generics) = opt_ast_generics {
                         for g in ast_generics {
                             let span = g.span(db);
-                            let checked = g.check_in_env_like(env).await;
+                            let checked = g.check_in_env(env).await;
                             generics.push((span, checked));
                         }
                     }
@@ -215,13 +215,13 @@ fn name_resolution_to_sym_ty<'db>(
     }    
 }
 
-impl<'db> CheckInEnvLike<'db> for AstGenericTerm<'db> {
+impl<'db> CheckInEnv<'db> for AstGenericTerm<'db> {
     type Output = SymGenericTerm<'db>;
 
-    async fn check_in_env_like(self, env: &Env<'db>) -> Self::Output {
-        match self {
-            AstGenericTerm::Ty(ast_ty) => ast_ty.check_in_env_like(env).await.into(),
-            AstGenericTerm::Perm(ast_perm) => ast_perm.check_in_env_like(env).await.into(),
+    async fn check_in_env(&self, env: &Env<'db>) -> Self::Output {
+        match *self {
+            AstGenericTerm::Ty(ast_ty) => ast_ty.check_in_env(env).await.into(),
+            AstGenericTerm::Perm(ast_perm) => ast_perm.check_in_env(env).await.into(),
             AstGenericTerm::Id(id) => match id.resolve_in(env).await {
                 Ok(r) => name_resolution_to_generic_term(env.db(), r, id),
                 Err(r) => r.into(),
@@ -242,10 +242,10 @@ fn name_resolution_to_generic_term<'db>(db: &'db dyn crate::Db, name_resolution:
     }
 }
 
-impl<'db> CheckInEnvLike<'db> for AstPerm<'db> {
+impl<'db> CheckInEnv<'db> for AstPerm<'db> {
     type Output = SymPerm<'db>;
 
-    async fn check_in_env_like(self, env: &Env<'db>) -> Self::Output {
+    async fn check_in_env(&self, env: &Env<'db>) -> Self::Output {
         let db = env.db();
         match *self.kind(db) {
             #[expect(unused_variables)]

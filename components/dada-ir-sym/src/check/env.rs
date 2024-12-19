@@ -2,7 +2,6 @@ use std::{cell::Cell, sync::Arc};
 
 use crate::{
     check::scope::Scope,
-    check::CheckInEnvLike,
     ir::binder::BoundTerm,
     ir::indices::{FromInfer, InferVarIndex},
     ir::subst::SubstWith,
@@ -23,6 +22,8 @@ use crate::{
     check::universe::Universe,
     ir::exprs::SymExpr,
 };
+
+use super::CheckInEnv;
 
 #[derive(Clone)]
 pub(crate) struct Env<'db> {
@@ -59,14 +60,6 @@ impl<'db> Env<'db> {
             variable_universes: Default::default(),
             return_ty: Default::default(),
         }
-    }
-
-    /// Convenience function for invoking [`CheckInEnvLike::check_in_env_like`][].
-    pub(super) async fn check<I>(&self, i: I) -> I::Output
-    where
-        I: CheckInEnvLike<'db>,
-    {
-        i.check_in_env_like(self).await
     }
 
     /// Extract the scope from the environment.
@@ -352,7 +345,7 @@ impl<'db> VariableTypeCell<'db> {
         match self.state.get() {
             VariableType::Ast(ast_ty) => {
                 self.state.set(VariableType::InProgress(ast_ty));
-                let sym_ty = ast_ty.check_in_env_like(env).await;
+                let sym_ty = ast_ty.check_in_env(env).await;
                 // update state to symbolic unless it was already set to an error
                 if let VariableType::InProgress(_) = self.state.get() {
                     self.state.set(VariableType::Symbolic(sym_ty));

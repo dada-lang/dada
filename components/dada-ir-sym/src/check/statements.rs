@@ -30,7 +30,7 @@ pub fn check_block_statements<'a, 'db>(
 
                 // For explicit local variables, we compute their type as a full symbol type first.
                 let ty = match s.ty(db) {
-                    Some(ty) => env.check(ty).await,
+                    Some(ty) => ty.check_in_env(env).await,
                     None => env.fresh_ty_inference_var(s.name(db).span),
                 };
 

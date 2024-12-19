@@ -9,7 +9,7 @@ use dada_ir_ast::{
 use dada_util::{indirect, FromImpls};
 
 use crate::{
-    check::{scope_tree::ScopeTreeNode, CheckInEnvLike},
+    check::{scope_tree::ScopeTreeNode, CheckInEnv},
     ir::{
         binder::BoundTerm,
         classes::{SymAggregate, SymClassMember},
@@ -368,7 +368,7 @@ impl<'db> NameResolution<'db> {
         }
 
         for v in generics.values.iter() {
-            self.generics.push(v.check_in_env_like(env).await);
+            self.generics.push(v.check_in_env(env).await);
         }
 
         Ok(self)

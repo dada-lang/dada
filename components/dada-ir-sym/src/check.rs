@@ -23,16 +23,6 @@ mod temporaries;
 mod types;
 mod universe;
 
-/// Convert to a type checked representation in the given environment.
-/// This is implemented by types that can be converted synchronously
-/// (although they may yield an inference variable if parts of the computation
-/// had to be deferred).
-trait CheckInEnvLike<'db>: Copy {
-    type Output;
-
-    async fn check_in_env_like(self, env: &Env<'db>) -> Self::Output;
-}
-
 /// Check an expression in a full environment.
 /// This is an async operation -- it may block if insufficient inference data is available.
 trait CheckInEnv<'db> {
@@ -41,10 +31,10 @@ trait CheckInEnv<'db> {
     async fn check_in_env(&self, env: &Env<'db>) -> Self::Output;
 }
 
-impl<'db> CheckInEnvLike<'db> for SymTy<'db> {
+impl<'db> CheckInEnv<'db> for SymTy<'db> {
     type Output = SymTy<'db>;
 
-    async fn check_in_env_like(self, _env: &Env<'db>) -> Self::Output {
-        self
+    async fn check_in_env(&self, _env: &Env<'db>) -> Self::Output {
+        *self
     }
 }

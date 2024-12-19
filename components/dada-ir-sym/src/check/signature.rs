@@ -13,7 +13,7 @@ use crate::{
     prelude::Symbol,
 };
 
-use super::CheckInEnvLike;
+use super::CheckInEnv;
 
 pub fn check_function_signature<'db>(
     db: &'db dyn crate::Db,
@@ -87,7 +87,7 @@ async fn set_variable_ty_from_input<'db>(env: &mut Env<'db>, input: &AstFunction
                 let aggr_ty = aggregate.self_ty(db, &env.scope);
                 match arg.perm(db) {
                     Some(ast_perm) => {
-                        let sym_perm = ast_perm.check_in_env_like(env).await;
+                        let sym_perm = ast_perm.check_in_env(env).await;
                         SymTy::perm(db, sym_perm, aggr_ty)
                     }
                     None => aggr_ty,
@@ -115,7 +115,7 @@ async fn output_ty<'db>(env: &Env<'db>, function: &SymFunction<'db>) -> SymTy<'d
     let db = env.db();
     match function.source(db) {
         SymFunctionSource::Function(ast_function) => match ast_function.output_ty(db) {
-            Some(ast_ty) => ast_ty.check_in_env_like(env).await,
+            Some(ast_ty) => ast_ty.check_in_env(env).await,
             None => SymTy::unit(db),
         },
         SymFunctionSource::Constructor(sym_aggregate, _ast_aggregate) => {
