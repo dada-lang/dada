@@ -9,7 +9,7 @@ use dada_util::{FromImpls, Map};
 
 use crate::{
     check::{
-        scope::{Resolve, Scope},
+        scope::Scope,
         scope_tree::{ScopeItem, ScopeTreeNode},
     },
     ir::{
@@ -68,16 +68,6 @@ impl<'db> SymModule<'db> {
                     .copied()
                     .map(|i| SymItem::from(i)),
             )
-    }
-
-    /// Resolve all use items found in this module.
-    /// This is executed by `dada-ir-check` crate
-    /// simply to force errors to be reported.
-    pub fn resolve_use_items(self, db: &'db dyn crate::Db) {
-        let env = &mut self.mod_scope(db).into_global_env(db);
-        for item in self.ast_use_map(db).values() {
-            let _ = item.path(db).resolve_in(env);
-        }
     }
 }
 

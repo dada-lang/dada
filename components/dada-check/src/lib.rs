@@ -45,7 +45,7 @@ impl<'db> Check<'db> for SourceFile {
 impl<'db> Check<'db> for SymModule<'db> {
     fn check(&self, db: &'db dyn crate::Db) {
         self.items(db).for_each(|item| item.check(db));
-        self.resolve_use_items(db);
+        let _ = self.check_use_items(db);
     }
 }
 

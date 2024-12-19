@@ -1,6 +1,7 @@
 //! Defines the type-checking and name-resolution logic. This is what creates the symbolic IR.
 
 use env::{Env, EnvLike};
+use runtime::Runtime;
 
 use crate::ir::types::SymTy;
 
@@ -11,6 +12,7 @@ mod exprs;
 pub(crate) mod fields;
 mod inference;
 mod member_lookup;
+mod modules;
 mod runtime;
 pub(crate) mod scope;
 pub(crate) mod scope_tree;

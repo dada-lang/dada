@@ -25,6 +25,10 @@ pub mod prelude {
         fn symbol(self, db: &'db dyn crate::Db) -> Self::Output;
     }
 
+    pub trait CheckUseItems<'db> {
+        fn check_use_items(self, db: &'db dyn crate::Db);
+    }
+
     pub trait CheckedBody<'db> {
         fn checked_body(self, db: &'db dyn crate::Db) -> Option<SymExpr<'db>>;
     }

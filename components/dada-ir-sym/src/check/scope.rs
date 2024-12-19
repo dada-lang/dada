@@ -210,33 +210,6 @@ impl<'scope, 'db> Scope<'scope, 'db> {
         vec.reverse();
         vec
     }
-
-    /// Create a global environment (meaning: one with no local variables, parameters, etc)
-    /// from this scope. Used when resolving `use` statements, for example.
-    pub fn into_global_env(self, db: &'db dyn crate::Db) -> GlobalEnv<'db>
-    where
-        'scope: 'db,
-    {
-        GlobalEnv { db, scope: self }
-    }
-}
-
-/// A global environment that implements [`EnvLike`][].
-/// Suitable when there are no local variables or parameters in scope.
-/// Created by [`Scope::into_global_env`][].
-pub struct GlobalEnv<'db> {
-    db: &'db dyn crate::Db,
-    scope: Scope<'db, 'db>,
-}
-
-impl<'db> EnvLike<'db> for GlobalEnv<'db> {
-    fn db(&self) -> &'db dyn crate::Db {
-        self.db
-    }
-
-    fn scope(&self) -> &Scope<'db, 'db> {
-        &self.scope
-    }
 }
 
 /// A link in the scope resolution chain. We first attempt to resolve an identifier
