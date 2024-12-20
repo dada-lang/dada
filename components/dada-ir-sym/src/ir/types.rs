@@ -196,7 +196,6 @@ impl<'db> SymGenericTerm<'db> {
                 | SymPermKind::Our
                 | SymPermKind::Shared(_)
                 | SymPermKind::Leased(_)
-                | SymPermKind::Given(_)
                 | SymPermKind::Var(_)
                 | SymPermKind::Error(_) => None,
             },
@@ -295,14 +294,6 @@ impl<'db> SymTy<'db> {
         SymTy::new(
             db,
             SymTyKind::Perm(SymPerm::new(db, SymPermKind::Leased(vec![place])), self),
-        )
-    }
-
-    /// Returns a version of this type given from `place`.
-    pub fn given(self, db: &'db dyn Db, place: SymPlace<'db>) -> Self {
-        SymTy::new(
-            db,
-            SymTyKind::Perm(SymPerm::new(db, SymPermKind::Given(vec![place])), self),
         )
     }
 }
@@ -469,7 +460,6 @@ pub enum SymPermKind<'db> {
     Our,
     Shared(Vec<SymPlace<'db>>),
     Leased(Vec<SymPlace<'db>>),
-    Given(Vec<SymPlace<'db>>),
 
     /// An inference variable (e.g., `?X`).
     Infer(InferVarIndex),

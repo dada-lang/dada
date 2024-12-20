@@ -107,8 +107,6 @@ impl<'g, 'db> WasmReprCx<'g, 'db> {
             SymPermKind::Error(_) => WasmRepr::Nothing,
 
             SymPermKind::Infer(_infer_var_index) => todo!(),
-
-            SymPermKind::Given(_vec) => todo!(),
         }
     }
 

@@ -5,13 +5,13 @@ use dada_util::{Map, Never};
 use salsa::Update;
 
 use crate::{
-    ir::functions::SymInputOutput,
     ir::binder::{Binder, BoundTerm, NeverBinder},
-    ir::variables::{FromVar, SymVariable},
+    ir::functions::SymInputOutput,
     ir::types::{
         AssertKind, HasKind, SymGenericKind, SymGenericTerm, SymPerm, SymPermKind, SymPlace,
         SymPlaceKind, SymTy, SymTyKind, SymTyName,
     },
+    ir::variables::{FromVar, SymVariable},
 };
 
 pub struct SubstitutionFns<'s, 'db, Term> {
@@ -261,14 +261,6 @@ impl<'db> SubstWith<'db, SymGenericTerm<'db>> for SymPerm<'db> {
             SymPermKind::Leased(vec) => SymPerm::new(
                 db,
                 SymPermKind::Leased(
-                    vec.iter()
-                        .map(|g| g.subst_with(db, bound_vars, subst_fns))
-                        .collect(),
-                ),
-            ),
-            SymPermKind::Given(vec) => SymPerm::new(
-                db,
-                SymPermKind::Given(
                     vec.iter()
                         .map(|g| g.subst_with(db, bound_vars, subst_fns))
                         .collect(),
