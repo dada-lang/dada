@@ -5,6 +5,7 @@ use wasm_encoder::{CodeSection, FunctionSection, TypeSection};
 
 mod generate_expr;
 mod generate_fn;
+mod wasm_fn_type;
 mod wasm_repr;
 
 /// Core codegen context.

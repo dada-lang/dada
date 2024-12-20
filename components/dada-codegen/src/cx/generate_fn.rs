@@ -30,7 +30,7 @@ impl<'db> Cx<'db> {
         // Extract function signature
         let CodegenSignature {
             inputs: _,
-            generics: _,
+            ref generics,
             input_output:
                 SymInputOutput {
                     input_tys,
@@ -46,12 +46,10 @@ impl<'db> Cx<'db> {
                 .chain(
                     input_tys
                         .iter()
-                        .flat_map(|&t| self.wasm_repr_of_type(t, &Default::default()).flatten()),
+                        .flat_map(|&t| self.wasm_repr_of_type(t, generics).flatten()),
                 )
                 .collect::<Vec<_>>();
-            let output_val_types = self
-                .wasm_repr_of_type(output_ty, &Default::default())
-                .flatten();
+            let output_val_types = self.wasm_repr_of_type(output_ty, generics).flatten();
             self.declare_fn_type(input_val_types, output_val_types)
         };
 
