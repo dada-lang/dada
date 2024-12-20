@@ -62,7 +62,7 @@ impl<'cx, 'db> ExprCodegen<'cx, 'db> {
     /// Returns the [`WasmRepr`][] for a Dada type.
     pub fn wasm_repr_of_type(&self, ty: SymTy<'db>) -> WasmRepr {
         let db = self.cx.db;
-        let wrcx = WasmReprCx::new(db, &self.generics);
+        let mut wrcx = WasmReprCx::new(db, &self.generics);
         wrcx.wasm_repr_of_type(ty)
     }
 

@@ -40,7 +40,7 @@ impl<'db> Cx<'db> {
 
         // Create the type for this function
         let ty_index = {
-            let wrcx = WasmReprCx::new(self.db, generics);
+            let mut wrcx = WasmReprCx::new(self.db, generics);
             // The first input is the stack pointer.
             // The remainder are the values given by the user.
             let input_val_types = std::iter::once(ValType::I32)

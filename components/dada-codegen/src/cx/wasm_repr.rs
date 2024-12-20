@@ -1,8 +1,10 @@
 use dada_ir_sym::{
-    ir::classes::{SymAggregate, SymAggregateStyle},
-    ir::primitive::SymPrimitiveKind,
-    ir::types::{SymGenericTerm, SymTy, SymTyKind, SymTyName},
-    ir::variables::SymVariable,
+    ir::{
+        classes::{SymAggregate, SymAggregateStyle},
+        primitive::SymPrimitiveKind,
+        types::{SymGenericTerm, SymPerm, SymPermKind, SymTy, SymTyKind, SymTyName},
+        variables::SymVariable,
+    },
     prelude::CheckedFieldTy,
 };
 use dada_util::Map;
@@ -58,14 +60,16 @@ impl<'g, 'db> WasmReprCx<'g, 'db> {
     }
 
     /// Returns the [`WasmRepr`][] that describes how `of_type` will be represented in WASM.
-    pub(super) fn wasm_repr_of_type(&self, of_type: SymTy<'db>) -> WasmRepr {
+    pub(super) fn wasm_repr_of_type(&mut self, of_type: SymTy<'db>) -> WasmRepr {
         let db = self.db;
-        match of_type.kind(db) {
-            SymTyKind::Named(ty_name, ty_args) => self.wasm_repr_of_named_type(*ty_name, ty_args),
+        match *of_type.kind(db) {
+            SymTyKind::Named(ty_name, ref ty_args) => {
+                self.wasm_repr_of_named_type(ty_name, ty_args)
+            }
             SymTyKind::Var(sym_variable) => {
                 let result = self
                     .generics
-                    .get(sym_variable)
+                    .get(&sym_variable)
                     .expect("expected value for each generic type")
                     .assert_type(db);
                 self.wasm_repr_of_type(result)
@@ -74,14 +78,43 @@ impl<'g, 'db> WasmReprCx<'g, 'db> {
                 panic!("encountered unresolved inference variable")
             }
             SymTyKind::Never | SymTyKind::Error(_) => WasmRepr::Nothing,
-            #[expect(unused_variables)]
-            SymTyKind::Perm(sym_perm, sym_ty) => todo!(),
+            SymTyKind::Perm(sym_perm, sym_ty) => self.wasm_repr_of_perm_type(sym_perm, sym_ty),
+        }
+    }
+
+    fn wasm_repr_of_perm_type(&mut self, sym_perm: SymPerm<'db>, sym_ty: SymTy<'db>) -> WasmRepr {
+        let db = self.db;
+        match sym_perm.kind(db) {
+            // A leased type is a pointer to the data.
+            SymPermKind::Leased(_) => self.wasm_pointer(),
+
+            // Owned or shared types are copies of the data.
+            SymPermKind::My | SymPermKind::Our | SymPermKind::Shared(_) => {
+                self.wasm_repr_of_type(sym_ty)
+            }
+
+            // Substitute generics.
+            SymPermKind::Var(sym_variable) => {
+                let result = self
+                    .generics
+                    .get(&sym_variable)
+                    .expect("expected value for each generic type")
+                    .assert_perm(db);
+                self.wasm_repr_of_perm_type(result, sym_ty)
+            }
+
+            // Error types are zero-sized.
+            SymPermKind::Error(_) => WasmRepr::Nothing,
+
+            SymPermKind::Infer(_infer_var_index) => todo!(),
+
+            SymPermKind::Given(_vec) => todo!(),
         }
     }
 
     /// Returns the [`WasmRepr`][] for a Dada named type.
     fn wasm_repr_of_named_type(
-        &self,
+        &mut self,
         ty_name: SymTyName<'db>,
         ty_args: &Vec<SymGenericTerm<'db>>,
     ) -> WasmRepr {
@@ -93,11 +126,11 @@ impl<'g, 'db> WasmReprCx<'g, 'db> {
             SymTyName::Aggregate(aggr) => match aggr.style(db) {
                 // structs  have the fields inlined
                 SymAggregateStyle::Struct => {
-                    WasmRepr::Struct(self.wasm_repr_of_aggr_fields(aggr, ty_args).collect())
+                    WasmRepr::Struct(self.wasm_repr_of_aggr_fields(aggr, ty_args))
                 }
 
                 SymAggregateStyle::Class => {
-                    WasmRepr::Class(self.wasm_repr_of_aggr_fields(aggr, ty_args).collect())
+                    WasmRepr::Class(self.wasm_repr_of_aggr_fields(aggr, ty_args))
                 }
             },
             SymTyName::Future => {
@@ -128,7 +161,7 @@ impl<'g, 'db> WasmReprCx<'g, 'db> {
                 33..=64 => ValType::I64,
                 _ => panic!("unexpectedly large number of integer bits {bits}"),
             },
-            SymPrimitiveKind::Usize | SymPrimitiveKind::Isize => ValType::I32,
+            SymPrimitiveKind::Usize | SymPrimitiveKind::Isize => self.pointer_val_type(),
             SymPrimitiveKind::Float { bits } => match bits {
                 32 => ValType::F32,
                 64 => ValType::F64,
@@ -139,13 +172,15 @@ impl<'g, 'db> WasmReprCx<'g, 'db> {
 
     /// The WASM representations for the fields of some aggregate type
     /// (could be a struct or a class).
-    fn wasm_repr_of_aggr_fields<'a>(
-        &'a self,
+    fn wasm_repr_of_aggr_fields(
+        &mut self,
         aggr: SymAggregate<'db>,
-        ty_args: &'a Vec<SymGenericTerm<'db>>,
-    ) -> impl Iterator<Item = WasmRepr> + use<'a, 'db> {
+        ty_args: &Vec<SymGenericTerm<'db>>,
+    ) -> Vec<WasmRepr> {
         self.aggr_field_tys(aggr, ty_args)
-            .map(move |ty| self.wasm_repr_of_type(ty))
+            .iter()
+            .map(|ty| self.wasm_repr_of_type(*ty))
+            .collect()
     }
 
     /// The types of each field of some aggregate type given the values `ty_args` for its generic arguments.
@@ -153,12 +188,26 @@ impl<'g, 'db> WasmReprCx<'g, 'db> {
         &self,
         aggr: SymAggregate<'db>,
         ty_args: &'a Vec<SymGenericTerm<'db>>,
-    ) -> impl Iterator<Item = SymTy<'db>> + use<'a, 'db> {
+    ) -> Vec<SymTy<'db>> {
         let db = self.db;
-        aggr.fields(db).map(|f| f.checked_field_ty(db)).map(|ty| {
-            let ty = ty.substitute(db, ty_args);
-            #[expect(unreachable_code)]
-            ty.substitute(db, &[SymGenericTerm::Place(todo!())])
-        })
+        aggr.fields(db)
+            .map(|f| f.checked_field_ty(db))
+            .map(|ty| {
+                let ty = ty.substitute(db, ty_args);
+                #[expect(unreachable_code)]
+                ty.substitute(db, &[SymGenericTerm::Place(todo!())])
+            })
+            .collect()
+    }
+
+    /// The WASM representation for a pointer value.
+    fn wasm_pointer(&self) -> WasmRepr {
+        WasmRepr::Val(self.pointer_val_type())
+    }
+
+    /// The [`ValType`][] for a pointer value.
+    /// For now, hardcoded to [`ValType::I32`][] but if/when 64-bit wasm exists this could change.
+    fn pointer_val_type(&self) -> ValType {
+        ValType::I32
     }
 }
