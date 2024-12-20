@@ -40,7 +40,7 @@ impl<'cx, 'db> ExprCodegen<'cx, 'db> {
     /// This can allocate more stack space in WASM memory.
     /// You can find this place by invoking [`Self::local`][] later on.
     pub(super) fn insert_variable(&mut self, lv: SymVariable<'db>, ty: SymTy<'db>) {
-        let ty_repr = self.cx.wasm_repr_of_type(ty, &self.generics);
+        let ty_repr = self.wasm_repr_of_type(ty);
         let emplaced_repr = self.emplace_local(&ty_repr);
         self.variables.insert(lv, emplaced_repr);
     }

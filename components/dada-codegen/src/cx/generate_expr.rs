@@ -11,6 +11,7 @@ use dada_util::Map;
 use wasm_encoder::{Instruction, ValType};
 use wasm_place_repr::{WasmLocal, WasmPlaceRepr};
 
+use super::wasm_repr::WasmReprCx;
 use super::{wasm_repr::WasmRepr, Cx};
 
 pub(crate) mod wasm_place_repr;
@@ -56,6 +57,13 @@ impl<'cx, 'db> ExprCodegen<'cx, 'db> {
             f.instruction(&instruction);
         }
         f
+    }
+
+    /// Returns the [`WasmRepr`][] for a Dada type.
+    pub fn wasm_repr_of_type(&self, ty: SymTy<'db>) -> WasmRepr {
+        let db = self.cx.db;
+        let wrcx = WasmReprCx::new(db, &self.generics);
+        wrcx.wasm_repr_of_type(ty)
     }
 
     pub fn pop_arguments(&mut self, inputs: &[SymVariable<'db>], input_tys: &[SymTy<'db>]) {
@@ -169,7 +177,7 @@ impl<'cx, 'db> ExprCodegen<'cx, 'db> {
                 self.execute_binary_op(binary_op, object_expr.ty(db), object_expr.ty(db));
             }
             SymExprKind::Aggregate { ty, ref fields } => {
-                let wasm_repr = self.cx.wasm_repr_of_type(ty, &self.generics);
+                let wasm_repr = self.wasm_repr_of_type(ty);
                 match wasm_repr {
                     WasmRepr::Struct(field_reprs) => {
                         assert_eq!(fields.len(), field_reprs.len());
@@ -510,10 +518,7 @@ impl<'cx, 'db> ExprCodegen<'cx, 'db> {
     ///
     /// [cfi]: https://webassembly.github.io/spec/core/syntax/instructions.html#control-instructions
     fn block_type(&mut self, match_ty: SymTy<'db>) -> wasm_encoder::BlockType {
-        let val_types = self
-            .cx
-            .wasm_repr_of_type(match_ty, &self.generics)
-            .flatten();
+        let val_types = self.wasm_repr_of_type(match_ty).flatten();
         match val_types.len() {
             0 => wasm_encoder::BlockType::Empty,
             1 => wasm_encoder::BlockType::Result(val_types[0]),

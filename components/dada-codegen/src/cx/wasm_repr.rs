@@ -8,8 +8,6 @@ use dada_ir_sym::{
 use dada_util::Map;
 use wasm_encoder::ValType;
 
-use super::Cx;
-
 /// The WASM representation for a Dada value independent of the place in which it is stored.
 /// This isn't really a specific representation, in some sense,
 /// but rather enough information to determine how to represent
@@ -49,24 +47,28 @@ pub(crate) enum WasmRepr {
 
 type Generics<'db> = Map<SymVariable<'db>, SymGenericTerm<'db>>;
 
-impl<'db> Cx<'db> {
+pub(super) struct WasmReprCx<'g, 'db> {
+    db: &'db dyn crate::Db,
+    generics: &'g Generics<'db>,
+}
+
+impl<'g, 'db> WasmReprCx<'g, 'db> {
+    pub(super) fn new(db: &'db dyn crate::Db, generics: &'g Generics<'db>) -> Self {
+        Self { db, generics }
+    }
+
     /// Returns the [`WasmRepr`][] that describes how `of_type` will be represented in WASM.
-    pub(super) fn wasm_repr_of_type(
-        &self,
-        of_type: SymTy<'db>,
-        generics: &Generics<'db>,
-    ) -> WasmRepr {
+    pub(super) fn wasm_repr_of_type(&self, of_type: SymTy<'db>) -> WasmRepr {
         let db = self.db;
         match of_type.kind(db) {
-            SymTyKind::Named(ty_name, ty_args) => {
-                self.wasm_repr_of_named_type(*ty_name, ty_args, generics)
-            }
+            SymTyKind::Named(ty_name, ty_args) => self.wasm_repr_of_named_type(*ty_name, ty_args),
             SymTyKind::Var(sym_variable) => {
-                let result = generics
+                let result = self
+                    .generics
                     .get(sym_variable)
                     .expect("expected value for each generic type")
                     .assert_type(db);
-                self.wasm_repr_of_type(result, generics)
+                self.wasm_repr_of_type(result)
             }
             SymTyKind::Infer(_) => {
                 panic!("encountered unresolved inference variable")
@@ -82,7 +84,6 @@ impl<'db> Cx<'db> {
         &self,
         ty_name: SymTyName<'db>,
         ty_args: &Vec<SymGenericTerm<'db>>,
-        generics: &Generics<'db>,
     ) -> WasmRepr {
         let db = self.db;
         match ty_name {
@@ -91,27 +92,25 @@ impl<'db> Cx<'db> {
             }
             SymTyName::Aggregate(aggr) => match aggr.style(db) {
                 // structs  have the fields inlined
-                SymAggregateStyle::Struct => WasmRepr::Struct(
-                    self.wasm_repr_of_aggr_fields(aggr, ty_args, generics)
-                        .collect(),
-                ),
+                SymAggregateStyle::Struct => {
+                    WasmRepr::Struct(self.wasm_repr_of_aggr_fields(aggr, ty_args).collect())
+                }
 
-                SymAggregateStyle::Class => WasmRepr::Class(
-                    self.wasm_repr_of_aggr_fields(aggr, ty_args, generics)
-                        .collect(),
-                ),
+                SymAggregateStyle::Class => {
+                    WasmRepr::Class(self.wasm_repr_of_aggr_fields(aggr, ty_args).collect())
+                }
             },
             SymTyName::Future => {
                 assert_eq!(ty_args.len(), 1);
                 let ty_arg = ty_args[0].assert_type(db);
-                WasmRepr::Class(vec![self.wasm_repr_of_type(ty_arg, generics)])
+                WasmRepr::Class(vec![self.wasm_repr_of_type(ty_arg)])
             }
             SymTyName::Tuple { arity } => {
                 assert_eq!(ty_args.len(), arity);
                 WasmRepr::Struct(
                     ty_args
                         .iter()
-                        .map(|term| self.wasm_repr_of_type(term.assert_type(db), generics))
+                        .map(|term| self.wasm_repr_of_type(term.assert_type(db)))
                         .collect(),
                 )
             }
@@ -144,10 +143,9 @@ impl<'db> Cx<'db> {
         &'a self,
         aggr: SymAggregate<'db>,
         ty_args: &'a Vec<SymGenericTerm<'db>>,
-        generics: &'a Generics<'db>,
     ) -> impl Iterator<Item = WasmRepr> + use<'a, 'db> {
         self.aggr_field_tys(aggr, ty_args)
-            .map(move |ty| self.wasm_repr_of_type(ty, generics))
+            .map(move |ty| self.wasm_repr_of_type(ty))
     }
 
     /// The types of each field of some aggregate type given the values `ty_args` for its generic arguments.

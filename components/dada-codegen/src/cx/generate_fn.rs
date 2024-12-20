@@ -8,7 +8,7 @@ use dada_ir_sym::{
 use dada_util::Map;
 use wasm_encoder::ValType;
 
-use super::{generate_expr::ExprCodegen, Cx, FnIndex, FnKey};
+use super::{generate_expr::ExprCodegen, wasm_repr::WasmReprCx, Cx, FnIndex, FnKey};
 
 impl<'db> Cx<'db> {
     /// Declares an instantiation of a function with a given set of arguments and returns its index.
@@ -40,16 +40,17 @@ impl<'db> Cx<'db> {
 
         // Create the type for this function
         let ty_index = {
+            let wrcx = WasmReprCx::new(self.db, generics);
             // The first input is the stack pointer.
             // The remainder are the values given by the user.
             let input_val_types = std::iter::once(ValType::I32)
                 .chain(
                     input_tys
                         .iter()
-                        .flat_map(|&t| self.wasm_repr_of_type(t, generics).flatten()),
+                        .flat_map(|&t| wrcx.wasm_repr_of_type(t).flatten()),
                 )
                 .collect::<Vec<_>>();
-            let output_val_types = self.wasm_repr_of_type(output_ty, generics).flatten();
+            let output_val_types = wrcx.wasm_repr_of_type(output_ty).flatten();
             self.declare_fn_type(input_val_types, output_val_types)
         };
 
