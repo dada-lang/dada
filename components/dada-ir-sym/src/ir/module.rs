@@ -69,6 +69,15 @@ impl<'db> SymModule<'db> {
                     .map(|i| SymItem::from(i)),
             )
     }
+
+    /// Returns the function named `name` in this module, if any.
+    pub fn function_named(
+        self,
+        db: &'db dyn crate::Db,
+        name: Identifier<'db>,
+    ) -> Option<SymFunction<'db>> {
+        self.function_map(db).get(&name).copied()
+    }
 }
 
 #[salsa::tracked]

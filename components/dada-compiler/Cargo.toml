@@ -12,3 +12,5 @@ salsa = { workspace = true }
 rust-embed = "8.5.0"
 extension-trait = "1.0.2"
 url = { workspace = true }
+dada-codegen = { version = "0.1.0", path = "../dada-codegen" }
+dada-ir-sym = { version = "0.1.0", path = "../dada-ir-sym" }

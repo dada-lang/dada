@@ -38,6 +38,10 @@ impl<'db> Identifier<'db> {
         Identifier::new(db, "dada")
     }
 
+    pub fn main(db: &'db dyn crate::Db) -> Identifier<'db> {
+        Identifier::new(db, "main")
+    }
+
     pub fn new_ident(db: &'db dyn crate::Db) -> Identifier<'db> {
         Identifier::new(db, "new")
     }

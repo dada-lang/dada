@@ -3,6 +3,7 @@ use dada_util::Fallible;
 use crate::{Command, GlobalOptions};
 
 mod compile;
+mod run;
 mod test;
 
 pub struct Main {
@@ -19,6 +20,7 @@ impl Main {
         match command {
             Command::Compile { compile_options } => self.compile(&compile_options)?,
             Command::Test { test_options } => self.test(&test_options)?,
+            Command::Run { run_options } => self.run_command(&run_options)?,
         }
         Ok(())
     }

@@ -314,7 +314,9 @@ name = "dada-compiler"
 version = "0.1.0"
 dependencies = [
  "dada-check",
+ "dada-codegen",
  "dada-ir-ast",
+ "dada-ir-sym",
  "dada-parser",
  "dada-util",
  "extension-trait",

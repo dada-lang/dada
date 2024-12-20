@@ -43,6 +43,11 @@ pub enum Command {
         compile_options: CompileOptions,
     },
 
+    Run {
+        #[structopt(flatten)]
+        run_options: RunOptions,
+    },
+
     Test {
         #[structopt(flatten)]
         test_options: TestOptions,
@@ -53,6 +58,12 @@ pub enum Command {
 pub struct CompileOptions {
     /// Main source file to compile.
     input: String,
+}
+
+#[derive(Debug, StructOpt)]
+pub struct RunOptions {
+    #[structopt(flatten)]
+    compile_options: CompileOptions,
 }
 
 #[derive(Debug, StructOpt)]
