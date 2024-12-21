@@ -8,35 +8,11 @@ use dada_util::{debug, debug_heading, log::DebugArgument};
 
 use crate::ir::{
     indices::InferVarIndex,
+    inference::Direction,
     types::{SymGenericKind, SymGenericTerm, SymTy},
 };
 
-use crate::{check::inference::InferenceVarData, check::runtime::Runtime};
-
-#[derive(Copy, Clone, PartialEq, Eq, PartialOrd, Ord, Hash, Debug)]
-pub(crate) enum Direction {
-    LowerBoundedBy,
-    UpperBoundedBy,
-}
-
-impl Direction {
-    pub fn reverse(self) -> Self {
-        match self {
-            Direction::LowerBoundedBy => Direction::UpperBoundedBy,
-            Direction::UpperBoundedBy => Direction::LowerBoundedBy,
-        }
-    }
-
-    pub fn infer_var_bounds<'i, 'db>(
-        self,
-        data: &'i InferenceVarData<'db>,
-    ) -> &'i [SymGenericTerm<'db>] {
-        match self {
-            Direction::LowerBoundedBy => data.lower_bounds(),
-            Direction::UpperBoundedBy => data.upper_bounds(),
-        }
-    }
-}
+use crate::check::runtime::Runtime;
 
 /// A stream of the terms that bound an inference variable `?X`.
 ///

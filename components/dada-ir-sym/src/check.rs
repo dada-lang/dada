@@ -10,7 +10,6 @@ mod bound;
 mod env;
 mod exprs;
 pub(crate) mod fields;
-mod inference;
 mod member_lookup;
 mod modules;
 mod runtime;
@@ -21,7 +20,6 @@ mod statements;
 mod subobject;
 mod temporaries;
 mod types;
-mod universe;
 
 /// Check an expression in a full environment.
 /// This is an async operation -- it may block if insufficient inference data is available.
