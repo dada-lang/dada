@@ -2,14 +2,11 @@ use std::{cell::Cell, sync::Arc};
 
 use crate::{
     check::scope::Scope,
-    ir::{
-        binder::BoundTerm,
-        indices::{FromInfer, InferVarIndex},
-        inference::Direction,
-        subst::SubstWith,
-        types::{SymGenericKind, SymGenericTerm, SymPerm, SymPlace, SymTy, SymTyKind},
-        variables::SymVariable,
-    },
+    ir::binder::BoundTerm,
+    ir::indices::{FromInfer, InferVarIndex},
+    ir::subst::SubstWith,
+    ir::types::{SymGenericKind, SymGenericTerm, SymPerm, SymPlace, SymTy, SymTyKind},
+    ir::variables::SymVariable,
 };
 use dada_ir_ast::{
     ast::AstTy,
@@ -19,11 +16,11 @@ use dada_ir_ast::{
 use dada_util::{debug, Map};
 
 use crate::{
-    check::bound::TransitiveBounds,
+    check::bound::{Direction, TransitiveBounds},
     check::runtime::Runtime,
     check::subobject::{require_assignable_type, require_numeric_type, require_subtype, Expected},
+    check::universe::Universe,
     ir::exprs::SymExpr,
-    ir::universe::Universe,
 };
 
 use super::CheckInEnv;

@@ -9,9 +9,9 @@ use dada_ir_ast::{
 use futures::StreamExt;
 
 use crate::{
+    check::bound::Direction,
     check::env::Env,
     ir::indices::InferVarIndex,
-    ir::inference::Direction,
     ir::primitive::SymPrimitiveKind,
     ir::types::{SymGenericTerm, SymPerm, SymPlace, SymTy, SymTyKind, SymTyName},
     ir::variables::SymVariable,

@@ -1,9 +1,12 @@
 use dada_ir_ast::span::Span;
 use dada_util::vecset::VecSet;
 
-use crate::{ir::types::SymGenericKind, ir::types::SymGenericTerm, ir::universe::Universe};
+use crate::{
+    check::bound::Direction, check::universe::Universe, ir::types::SymGenericKind,
+    ir::types::SymGenericTerm,
+};
 
-pub struct InferenceVarData<'db> {
+pub(crate) struct InferenceVarData<'db> {
     kind: SymGenericKind,
 
     #[expect(dead_code)]
@@ -53,30 +56,5 @@ impl<'db> InferenceVarData<'db> {
 
     pub fn upper_bounds(&self) -> &[SymGenericTerm<'db>] {
         &self.upper_bounds
-    }
-}
-
-#[derive(Copy, Clone, PartialEq, Eq, PartialOrd, Ord, Hash, Debug)]
-pub enum Direction {
-    LowerBoundedBy,
-    UpperBoundedBy,
-}
-
-impl Direction {
-    pub fn reverse(self) -> Self {
-        match self {
-            Direction::LowerBoundedBy => Direction::UpperBoundedBy,
-            Direction::UpperBoundedBy => Direction::LowerBoundedBy,
-        }
-    }
-
-    pub fn infer_var_bounds<'i, 'db>(
-        self,
-        data: &'i InferenceVarData<'db>,
-    ) -> &'i [SymGenericTerm<'db>] {
-        match self {
-            Direction::LowerBoundedBy => data.lower_bounds(),
-            Direction::UpperBoundedBy => data.upper_bounds(),
-        }
     }
 }

@@ -8,12 +8,8 @@ use std::{
 };
 
 use crate::{
-    check::env::Env,
     ir::indices::InferVarIndex,
-    ir::inference::Direction,
-    ir::inference::InferenceVarData,
     ir::types::{SymGenericKind, SymGenericTerm},
-    ir::universe::Universe,
 };
 use check_task::CheckTask;
 use dada_ir_ast::{
@@ -21,6 +17,11 @@ use dada_ir_ast::{
     span::Span,
 };
 use dada_util::{debug, vecset::VecSet, Map};
+
+use crate::{
+    check::bound::Direction, check::env::Env, check::inference::InferenceVarData,
+    check::universe::Universe,
+};
 
 #[derive(Clone)]
 pub(crate) struct Runtime<'db> {
