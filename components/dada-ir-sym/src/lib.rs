@@ -1,7 +1,6 @@
 //! "Symbolic IR": High-level, type checked representaton. Derived from the AST.
 
 #![feature(trait_upcasting)]
-#![feature(async_closure)]
 
 pub use dada_ir_ast::Db;
 

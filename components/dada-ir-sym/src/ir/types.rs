@@ -478,6 +478,14 @@ impl<'db> SymPlace<'db> {
     pub fn field(self, db: &'db dyn crate::Db, field: SymField<'db>) -> Self {
         SymPlace::new(db, SymPlaceKind::Field(self, field))
     }
+
+    pub fn covers(self, db: &'db dyn crate::Db, other: SymPlace<'db>) -> bool {
+        self == other
+            || match (self.kind(db), other.kind(db)) {
+                (_, SymPlaceKind::Field(p2, _)) => self.covers(db, *p2),
+                _ => false,
+            }
+    }
 }
 
 impl<'db> FromInfer<'db> for SymPlace<'db> {

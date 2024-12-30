@@ -1,4 +1,4 @@
-use std::{cell::Cell, sync::Arc};
+use std::{cell::Cell, ops::AsyncFnOnce, sync::Arc};
 
 use crate::{
     check::scope::Scope,
@@ -274,7 +274,7 @@ impl<'db> Env<'db> {
 
         span: Span<'db>,
         tys: &[SymTy<'db>],
-        op: impl async FnOnce(Env<'db>) + 'db,
+        op: impl AsyncFnOnceFnOnce(Env<'db>) + 'db,
     ) {
         let _tys = tys.to_vec();
         self.runtime
@@ -309,7 +309,7 @@ impl<'db> Env<'db> {
         format!("{ty:?}") // FIXME
     }
 
-    pub(crate) fn defer(&self, span: Span<'db>, op: impl async FnOnce(Self) + 'db) {
+    pub(crate) fn defer(&self, span: Span<'db>, op: impl AsyncFnOnce(Self) + 'db) {
         self.runtime.defer(self, span, op)
     }
 
@@ -317,6 +317,11 @@ impl<'db> Env<'db> {
         let db = self.db();
         let boolean_ty = SymTy::boolean(db);
         self.require_assignable_object_type(expr.span(db), expr.ty(db), boolean_ty);
+    }
+
+    /// Check if the given (perm, type) variable is declared as shared.
+    pub fn is_shared_var(&self, var: SymVariable<'db>) -> bool {
+        false // FIXME
     }
 }
 

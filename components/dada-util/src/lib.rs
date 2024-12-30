@@ -1,5 +1,6 @@
-#![feature(async_closure)]
 #![feature(trait_upcasting)]
+
+use std::ops::AsyncFnOnce;
 
 pub use fxhash::FxHashMap as Map;
 pub use fxhash::FxHashSet as Set;
@@ -31,7 +32,7 @@ pub mod arena;
 
 pub mod log;
 
-pub async fn indirect<T>(op: impl async FnOnce() -> T) -> T {
+pub async fn indirect<T>(op: impl AsyncFnOnce() -> T) -> T {
     let boxed_future = futures::future::FutureExt::boxed_local(op());
     boxed_future.await
 }
