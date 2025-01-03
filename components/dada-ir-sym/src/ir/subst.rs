@@ -14,11 +14,18 @@ use crate::{
     ir::variables::{FromVar, SymVariable},
 };
 
+use super::indices::InferVarIndex;
+
 pub struct SubstitutionFns<'s, 'db, Term> {
     /// Invoked for free variables.
     ///
     /// If this returns None, no substitution is performed.
     pub free_var: &'s mut dyn FnMut(SymVariable<'db>) -> Option<Term>,
+
+    /// Invoked for inference variables.
+    ///
+    /// If this returns None, no substitution is performed.
+    pub infer_var: &'s mut dyn FnMut(InferVarIndex) -> Option<Term>,
 }
 
 pub fn default_free_var<'db, Term>(_: SymVariable<'db>) -> Option<Term> {
@@ -39,17 +46,15 @@ pub trait Subst<'db>: SubstWith<'db, Self::GenericTerm> + Debug {
         db: &'db dyn crate::Db,
         map: &Map<SymVariable<'db>, Self::GenericTerm>,
     ) -> Self::Output {
-        debug_assert!(map
-            .iter()
-            .all(|(&var, term)| term.has_kind(db, var.kind(db))));
+        debug_assert!(
+            map.iter()
+                .all(|(&var, term)| term.has_kind(db, var.kind(db)))
+        );
 
-        self.subst_with(
-            db,
-            &mut Default::default(),
-            &mut SubstitutionFns {
-                free_var: &mut |var| map.get(&var).copied(),
-            },
-        )
+        self.subst_with(db, &mut Default::default(), &mut SubstitutionFns {
+            free_var: &mut |var| map.get(&var).copied(),
+            infer_var: &mut |_| None,
+        })
     }
 
     /// Replace the variable `var` with `term`.
@@ -61,13 +66,23 @@ pub trait Subst<'db>: SubstWith<'db, Self::GenericTerm> + Debug {
     ) -> Self::Output {
         debug_assert!(term.has_kind(db, var.kind(db)));
 
-        self.subst_with(
-            db,
-            &mut Default::default(),
-            &mut SubstitutionFns {
-                free_var: &mut |v| if v == var { Some(term) } else { None },
-            },
-        )
+        self.subst_with(db, &mut Default::default(), &mut SubstitutionFns {
+            free_var: &mut |v| if v == var { Some(term) } else { None },
+            infer_var: &mut |_| None,
+        })
+    }
+
+    /// Replace all inference variables with whatever is returned by `op`;
+    /// if `op` returns None, the inference variable is left unchanged.
+    fn resolve_infer_var(
+        &self,
+        db: &'db dyn crate::Db,
+        mut op: impl FnMut(InferVarIndex) -> Option<Self::GenericTerm>,
+    ) -> Self::Output {
+        self.subst_with(db, &mut Default::default(), &mut SubstitutionFns {
+            free_var: &mut |_| None,
+            infer_var: &mut op,
+        })
     }
 }
 
@@ -198,6 +213,13 @@ impl<'db> SubstWith<'db, SymGenericTerm<'db>> for SymTy<'db> {
         match self.kind(db) {
             // Variables
             SymTyKind::Var(var) => subst_var(db, bound_vars, subst_fns, *var),
+            SymTyKind::Infer(v) => {
+                if let Some(term) = (subst_fns.infer_var)(*v) {
+                    term.assert_type(db)
+                } else {
+                    self.identity()
+                }
+            }
 
             // Structucal cases
             SymTyKind::Perm(sym_perm, sym_ty) => SymTy::new(
@@ -216,10 +238,8 @@ impl<'db> SubstWith<'db, SymGenericTerm<'db>> for SymTy<'db> {
                         .collect(),
                 ),
             ),
-
             SymTyKind::Never => self.identity(),
             SymTyKind::Error(_) => self.identity(),
-            SymTyKind::Infer(_) => self.identity(),
         }
     }
 
@@ -248,6 +268,13 @@ impl<'db> SubstWith<'db, SymGenericTerm<'db>> for SymPerm<'db> {
         match self.kind(db) {
             // Variables
             SymPermKind::Var(var) => subst_var(db, bound_vars, subst_fns, *var),
+            SymPermKind::Infer(v) => {
+                if let Some(term) = (subst_fns.infer_var)(*v) {
+                    term.assert_perm(db)
+                } else {
+                    self.identity()
+                }
+            }
 
             // Structural cases
             SymPermKind::Shared(vec) => SymPerm::new(
@@ -272,7 +299,6 @@ impl<'db> SubstWith<'db, SymGenericTerm<'db>> for SymPerm<'db> {
             ),
             SymPermKind::My => self.identity(),
             SymPermKind::Our => self.identity(),
-            SymPermKind::Infer(_) => self.identity(),
         }
     }
 }
@@ -297,6 +323,13 @@ impl<'db> SubstWith<'db, SymGenericTerm<'db>> for SymPlace<'db> {
         match self.kind(db) {
             // Variables
             SymPlaceKind::Var(var) => subst_var(db, bound_vars, subst_fns, *var),
+            SymPlaceKind::Infer(v) => {
+                if let Some(term) = (subst_fns.infer_var)(*v) {
+                    term.assert_place(db)
+                } else {
+                    self.identity()
+                }
+            }
 
             // Structural cases
             SymPlaceKind::Field(sym_place, identifier) => SymPlace::new(
@@ -311,7 +344,6 @@ impl<'db> SubstWith<'db, SymGenericTerm<'db>> for SymPlace<'db> {
                 db,
                 SymPlaceKind::Error(reported.subst_with(db, bound_vars, subst_fns)),
             ),
-            SymPlaceKind::Infer(_) => self.identity(),
         }
     }
 }

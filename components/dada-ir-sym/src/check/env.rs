@@ -2,23 +2,25 @@ use std::{cell::Cell, ops::AsyncFnOnce, sync::Arc};
 
 use crate::{
     check::scope::Scope,
-    ir::binder::BoundTerm,
-    ir::indices::{FromInfer, InferVarIndex},
-    ir::subst::SubstWith,
-    ir::types::{SymGenericKind, SymGenericTerm, SymPerm, SymPlace, SymTy, SymTyKind},
-    ir::variables::SymVariable,
+    ir::{
+        binder::BoundTerm,
+        indices::{FromInfer, InferVarIndex},
+        subst::SubstWith,
+        types::{SymGenericKind, SymGenericTerm, SymPerm, SymPermKind, SymPlace, SymTy, SymTyKind},
+        variables::SymVariable,
+    },
 };
 use dada_ir_ast::{
     ast::AstTy,
     diagnostic::{Diagnostic, Err, Reported},
     span::Span,
 };
-use dada_util::{debug, Map};
+use dada_util::{Map, debug};
 
 use crate::{
     check::bound::{Direction, TransitiveBounds},
     check::runtime::Runtime,
-    check::subobject::{require_assignable_type, require_numeric_type, require_subtype, Expected},
+    check::subobject::{Expected, require_assignable_type, require_numeric_type, require_subtype},
     check::universe::Universe,
     ir::exprs::SymExpr,
 };
@@ -271,10 +273,9 @@ impl<'db> Env<'db> {
     /// Otherwise, if no type in `tys` is known to be never, invoke `op` (asynchronously).
     pub fn if_not_never(
         &self,
-
         span: Span<'db>,
         tys: &[SymTy<'db>],
-        op: impl AsyncFnOnceFnOnce(Env<'db>) + 'db,
+        op: impl AsyncFnOnce(Env<'db>) + 'db,
     ) {
         let _tys = tys.to_vec();
         self.runtime
@@ -284,15 +285,19 @@ impl<'db> Env<'db> {
             })
     }
 
-    pub fn transitive_lower_bounds(&self, ty: SymTy<'db>) -> TransitiveBounds<'db, SymTy<'db>> {
-        self.transitive_bounds(ty, Direction::LowerBoundedBy)
+    /// Transitive lower bounds (subtypes) of `ty`. If `ty` is not an inference variable, this simply yields `ty`.
+    pub fn transitive_ty_lower_bounds(&self, ty: SymTy<'db>) -> TransitiveBounds<'db, SymTy<'db>> {
+        self.transitive_ty_bounds(ty, Direction::LowerBoundedBy)
     }
 
-    pub fn transitive_upper_bounds(&self, ty: SymTy<'db>) -> TransitiveBounds<'db, SymTy<'db>> {
-        self.transitive_bounds(ty, Direction::UpperBoundedBy)
+    /// Transitive upper bounds (supertypes) of `ty`. If `ty` is not an inference variable, this simply yields `ty`.
+    pub fn transitive_ty_upper_bounds(&self, ty: SymTy<'db>) -> TransitiveBounds<'db, SymTy<'db>> {
+        self.transitive_ty_bounds(ty, Direction::UpperBoundedBy)
     }
 
-    pub fn transitive_bounds(
+    /// Transitive bounds (upper or lower, depending on `direction`) of `ty`.
+    /// If `ty` is not an inference variable, this simply yields `ty`.
+    pub fn transitive_ty_bounds(
         &self,
         ty: SymTy<'db>,
         direction: Direction,
@@ -302,6 +307,28 @@ impl<'db> Env<'db> {
             TransitiveBounds::new(&self.runtime, direction, inference_var)
         } else {
             TransitiveBounds::just(&self.runtime, direction, ty)
+        }
+    }
+
+    /// Transitive bounds of a type variable.
+    pub fn transitive_ty_var_bounds(
+        &self,
+        inference_var: InferVarIndex,
+        direction: Direction,
+    ) -> TransitiveBounds<'db, SymTy<'db>> {
+        TransitiveBounds::new(&self.runtime, direction, inference_var)
+    }
+
+    pub fn transitive_perm_bounds(
+        &self,
+        perm: SymPerm<'db>,
+        direction: Direction,
+    ) -> TransitiveBounds<'db, SymPerm<'db>> {
+        let db = self.db();
+        if let &SymPermKind::Infer(inference_var) = perm.kind(db) {
+            TransitiveBounds::new(&self.runtime, direction, inference_var)
+        } else {
+            TransitiveBounds::just(&self.runtime, direction, perm)
         }
     }
 
@@ -322,6 +349,10 @@ impl<'db> Env<'db> {
     /// Check if the given (perm, type) variable is declared as shared.
     pub fn is_shared_var(&self, var: SymVariable<'db>) -> bool {
         false // FIXME
+    }
+
+    pub(crate) fn infer_var_kind(&self, v: InferVarIndex) -> SymGenericKind {
+        self.runtime.with_inference_var_data(v, |data| data.kind())
     }
 }
 

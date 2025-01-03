@@ -1,4 +1,7 @@
+use std::collections::VecDeque;
+
 use crate::{
+    Db,
     ir::{
         binder::LeafBoundTerm,
         classes::{SymAggregate, SymField},
@@ -7,7 +10,7 @@ use crate::{
         variables::{FromVar, SymVariable},
     },
     prelude::Symbol,
-    well_known, Db,
+    well_known,
 };
 use dada_ir_ast::{
     ast::{AstGenericDecl, AstGenericKind, AstPerm, AstPermKind},
@@ -54,6 +57,12 @@ pub enum SymGenericTerm<'db> {
     Perm(SymPerm<'db>),
     Place(SymPlace<'db>),
     Error(Reported),
+}
+
+impl<'db> Err<'db> for SymGenericTerm<'db> {
+    fn err(_db: &'db dyn crate::Db, reported: Reported) -> Self {
+        SymGenericTerm::Error(reported)
+    }
 }
 
 impl<'db> std::fmt::Display for SymGenericTerm<'db> {
@@ -419,6 +428,53 @@ impl<'db> SymPerm<'db> {
     pub fn our(db: &'db dyn crate::Db) -> Self {
         SymPerm::new(db, SymPermKind::Our)
     }
+
+    /// Returns a permission `shared` with the given places.
+    pub fn shared(db: &'db dyn crate::Db, places: Vec<SymPlace<'db>>) -> Self {
+        SymPerm::new(db, SymPermKind::Shared(places))
+    }
+
+    /// Returns a permission `leased` with the given places.
+    pub fn leased(db: &'db dyn crate::Db, places: Vec<SymPlace<'db>>) -> Self {
+        SymPerm::new(db, SymPermKind::Leased(places))
+    }
+
+    /// Returns a generic permission with the given generic variable `var`.
+    pub fn var(db: &'db dyn crate::Db, var: SymVariable<'db>) -> Self {
+        SymPerm::new(db, SymPermKind::Var(var))
+    }
+
+    /// Returns a permission `perm1 perm2` (e.g., `shared[x] leased[y]`).
+    pub fn apply(db: &'db dyn crate::Db, perm1: SymPerm<'db>, perm2: SymPerm<'db>) -> Self {
+        SymPerm::new(db, SymPermKind::Apply(perm1, perm2))
+    }
+
+    /// Iterate over the "leaves" of this permission (i.e., non-application permissions)
+    /// in left-to-right order (e.g., for `shared[x] leased[y]` the order is `shared[x], leased[y]`).
+    pub fn leaves(self, db: &'db dyn crate::Db) -> impl Iterator<Item = SymPerm<'db>> {
+        let mut stack = vec![self];
+        std::iter::from_fn(move || {
+            while let Some(perm) = stack.pop() {
+                match *perm.kind(db) {
+                    SymPermKind::Apply(left, right) => {
+                        stack.push(right);
+                        stack.push(left);
+                    }
+
+                    SymPermKind::My
+                    | SymPermKind::Our
+                    | SymPermKind::Shared(_)
+                    | SymPermKind::Leased(_)
+                    | SymPermKind::Infer(..)
+                    | SymPermKind::Var(..)
+                    | SymPermKind::Error(..) => {
+                        return Some(perm);
+                    }
+                }
+            }
+            None
+        })
+    }
 }
 
 impl<'db> FromInfer<'db> for SymPerm<'db> {
@@ -456,15 +512,28 @@ impl<'db> Err<'db> for SymPerm<'db> {
 
 #[derive(Clone, PartialEq, Eq, PartialOrd, Ord, Hash, Update, Debug)]
 pub enum SymPermKind<'db> {
+    /// `my`
     My,
+
+    /// `our`
     Our,
+
+    /// `shared[x]`
     Shared(Vec<SymPlace<'db>>),
+
+    /// `leased[x]`
     Leased(Vec<SymPlace<'db>>),
+
+    /// `perm1 perm2` (e.g., `shared[x] leased[y]`)
+    Apply(SymPerm<'db>, SymPerm<'db>),
 
     /// An inference variable (e.g., `?X`).
     Infer(InferVarIndex),
 
+    /// A generic variable (e.g., `T`).
     Var(SymVariable<'db>),
+
+    /// An error occurred and has been reported to the user.
     Error(Reported),
 }
 
@@ -479,7 +548,21 @@ impl<'db> SymPlace<'db> {
         SymPlace::new(db, SymPlaceKind::Field(self, field))
     }
 
+    /// True if `self` contains no inference variables.
+    pub fn no_inference_vars(self, db: &'db dyn crate::Db) -> bool {
+        match self.kind(db) {
+            SymPlaceKind::Var(..) => true,
+            SymPlaceKind::Infer(..) => false,
+            SymPlaceKind::Field(sym_place, _) => sym_place.no_inference_vars(db),
+            SymPlaceKind::Index(sym_place) => sym_place.no_inference_vars(db),
+            SymPlaceKind::Error(..) => true,
+        }
+    }
+
+    /// True if `self` covers `other`. Neither place may contain inference variables.
     pub fn covers(self, db: &'db dyn crate::Db, other: SymPlace<'db>) -> bool {
+        assert!(self.no_inference_vars(db));
+        assert!(other.no_inference_vars(db));
         self == other
             || match (self.kind(db), other.kind(db)) {
                 (_, SymPlaceKind::Field(p2, _)) => self.covers(db, *p2),

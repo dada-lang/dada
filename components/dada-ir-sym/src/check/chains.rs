@@ -5,6 +5,7 @@
 use std::{collections::VecDeque, future::Future, ops::AsyncFnMut};
 
 use dada_ir_ast::diagnostic::{Err, Reported};
+use futures::StreamExt;
 use salsa::Update;
 
 use crate::ir::{
@@ -12,24 +13,52 @@ use crate::ir::{
     variables::SymVariable,
 };
 
-use super::{bound::Direction, Env};
+use super::{Env, bound::Direction};
 
+/// A "lien chain" is a list of permissions by which some data may have been reached.
+/// An empty lien chain corresponds to owned data (`my`, in surface Dada syntax).
+/// A lien chain like `shared[p] leased[q]` would correspond to data shared from a variable `p`
+/// which in turn had data leased from `q` (which in turn owned the data).
 #[derive(Debug, PartialEq, Eq, Clone, PartialOrd, Ord, Update)]
 pub struct LienChain<'db> {
-    links: Vec<Lien<'db>>,
+    pub links: Vec<Lien<'db>>,
 }
 
 impl<'db> LienChain<'db> {
-    fn new(db: &'db dyn crate::Db, links: Vec<Lien<'db>>) -> Self {
+    fn new(_db: &'db dyn crate::Db, links: Vec<Lien<'db>>) -> Self {
         Self { links }
     }
 
-    fn my(db: &'db dyn crate::Db) -> Self {
+    pub fn is_my(&self) -> bool {
+        self.links.is_empty()
+    }
+
+    pub fn is_our(&self) -> bool {
+        self.links.len() == 1 && self.links[0] == Lien::Our
+    }
+
+    pub fn is_shared(&self) -> bool {
+        self.links.len() == 1 && matches!(self.links[0], Lien::Shared(_))
+    }
+
+    pub fn is_leased(&self) -> bool {
+        self.links.len() == 1 && matches!(self.links[0], Lien::Leased(_))
+    }
+
+    /// Create a "fully owned" lien chain.
+    pub fn my(db: &'db dyn crate::Db) -> Self {
         Self::new(db, vec![])
     }
 
-    fn our(db: &'db dyn crate::Db) -> Self {
+    /// Create a "shared ownership" lien chain.
+    pub fn our(db: &'db dyn crate::Db) -> Self {
         Self::new(db, vec![Lien::Our])
+    }
+
+    /// Create a lien chain representing "shared from `place`".
+    ///
+    fn shared(db: &'db dyn crate::Db, places: SymPlace<'db>) -> Self {
+        Self::new(db, vec![Lien::Shared(places)])
     }
 
     /// Add `lien` onto the chain; if `lien` is shared,
@@ -50,12 +79,22 @@ impl<'db> Err<'db> for LienChain<'db> {
     }
 }
 
+/// An individual unit in a [`LienChain`][], representing a particular way of reaching data.
 #[derive(Debug, PartialEq, Eq, Clone, Copy, PartialOrd, Ord, Update)]
 pub enum Lien<'db> {
+    /// Data mutually owned by many variables. This lien is always first in a chain.
     Our,
+
+    /// Data shared from the given place. This lien is always first in a chain.
     Shared(SymPlace<'db>),
+
+    /// Data leased from the given place.
     Leased(SymPlace<'db>),
+
+    /// Data given from a generic permission variable.
     Var(SymVariable<'db>),
+
+    /// An error occurred while processing this lien.
     Error(Reported),
 }
 
@@ -96,10 +135,16 @@ impl<'db> Err<'db> for Lien<'db> {
     }
 }
 
-#[salsa::tracked]
+/// A "type chain" describes a data type and the permission chain (`lien`) by which that data can be reached.
 pub struct TyChain<'db> {
     pub lien: LienChain<'db>,
     pub kind: TyChainKind<'db>,
+}
+
+impl<'db> TyChain<'db> {
+    pub fn new(_db: &'db dyn crate::Db, lien: LienChain<'db>, kind: TyChainKind<'db>) -> Self {
+        Self { lien, kind }
+    }
 }
 
 impl<'db> Err<'db> for TyChain<'db> {
@@ -136,6 +181,7 @@ pub enum TyChainKind<'db> {
 /// that appear in `p`'s type as "pending". Then we return to the liens
 /// from the input type (e.g., in case 2, that would be `leased[r]`). As we add the liens
 /// from the input into the chain, we also add pending liens.
+#[derive(Debug, PartialEq, Eq, Clone, PartialOrd, Ord)]
 struct Pair<'db> {
     /// The chain of permissions that are "committed".
     chain: LienChain<'db>,
@@ -153,8 +199,22 @@ impl<'db> Pair<'db> {
         }
     }
 
+    fn shared(db: &'db dyn crate::Db, place: SymPlace<'db>) -> Self {
+        Self {
+            chain: LienChain::shared(db, place),
+            pending: Default::default(),
+        }
+    }
+
+    /// Clone the pair and apply `lien` to it.
+    fn with_lien_applied(&self, env: &Env<'db>, lien: Lien<'db>) -> Self {
+        let mut pair = self.clone();
+        pair.apply_lien(env, lien);
+        pair
+    }
+
     /// Apply `lien` to the `chain`, pushing (some of the) pending liens first.
-    fn apply(&mut self, env: &Env<'db>, lien: Lien<'db>) {
+    fn apply_lien(&mut self, env: &Env<'db>, lien: Lien<'db>) {
         while let Some(pending_lien) = self.pending.pop_front() {
             if lien.covers(env.db(), pending_lien) {
                 break;
@@ -192,88 +252,137 @@ impl<'env, 'db> ToChain<'env, 'db> {
         Self { db: env.db(), env }
     }
 
-    // pub async fn ty_chains(
-    //     &mut self,
-    //     cx: LienChain<'db>,
-    //     ty: SymTy<'db>,
-    //     direction: Direction,
-    // ) -> Vec<TyChain<'db>> {
-    //     let pair = Pair {
-    //         chain: cx,
-    //         pending: Default::default(),
-    //     };
-    //     let mut chains = Vec::new();
-    //     self.each_ty_chain(ty, pair, direction, async |chain| {
-    //         chains.push(chain);
-    //     })
-    //     .await;
-    //     chains
-    // }
+    /// Return a set of "type chains" bounding `ty` from the given `direction`.
+    pub async fn ty_chains(&self, ty: SymTy<'db>, direction: Direction) -> Vec<TyChain<'db>> {
+        self.ty_chains_in_cx(LienChain::my(self.db), ty, direction)
+            .await
+    }
 
-    // fn each_ty_chain(
-    //     &mut self,
-    //     ty: SymTy<'db>,
-    //     pair: Pair<'db>,
-    //     direction: Direction,
-    //     mut yield_chain: impl AsyncFnMut(TyChain<'db>),
-    // ) -> impl Future<Output = ()> {
-    //     Box::pin(async move {
-    //         match *ty.kind(self.db) {
-    //             SymTyKind::Perm(sym_perm, sym_ty) => {}
-    //             SymTyKind::Named(sym_ty_name, ref vec) => {}
-    //             SymTyKind::Infer(infer_var_index) => todo!(),
-    //             SymTyKind::Var(sym_variable) => {
-    //                 yield_chain(TyChain::new(
-    //                     self.db,
-    //                     pair.into_lien_chain(self.env),
-    //                     TyChainKind::Var(sym_variable),
-    //                 ))
-    //                 .await;
-    //             }
-    //             SymTyKind::Never => {
-    //                 yield_chain(TyChain::new(
-    //                     self.db,
-    //                     LienChain::my(self.db),
-    //                     TyChainKind::Never,
-    //                 ))
-    //                 .await;
-    //             }
-    //             SymTyKind::Error(reported) => yield_chain(TyChain::err(self.db, reported)).await,
-    //         }
-    //     })
-    // }
+    /// Return a set of "type chains" bounding `ty` from the given `direction`
+    /// when it appears in the context of the permission chain `cx`.
+    pub async fn ty_chains_in_cx(
+        &self,
+        cx: LienChain<'db>,
+        ty: SymTy<'db>,
+        direction: Direction,
+    ) -> Vec<TyChain<'db>> {
+        let pair = Pair {
+            chain: cx,
+            pending: Default::default(),
+        };
+        let mut chains = Vec::new();
+        self.each_ty_chain(ty, pair, direction, &mut async |chain| {
+            chains.push(chain);
+        })
+        .await;
+        chains
+    }
 
-    // fn perm_pairs(
-    //     &mut self,
-    //     pair: Pair<'db>,
-    //     perm: SymPerm<'db>,
-    //     yield_chain: impl AsyncFnMut(Pair<'db>),
-    // ) -> impl Future<Output = ()> {
-    //     Box::pin(async move {
-    //         match *perm.kind(self.db) {
-    //             SymPermKind::My => yield_chain(pair),
-    //             SymPermKind::Our => yield_chain(Pair::our(self.db)),
-    //             SymPermKind::Shared(ref vec) => {
-    //                 self.shared_from_places(vec, yield_chain).await;
-    //             }
-    //             SymPermKind::Leased(ref vec) => {
-    //                 self.leased_from_places(vec, yield_chain).await;
-    //             }
-    //             SymPermKind::Infer(infer_var_index) => todo!(),
-    //             SymPermKind::Var(sym_variable) => todo!(),
-    //             SymPermKind::Error(reported) => yield_chain(Pair::err(self.db, reported)),
-    //         }
-    //     })
-    // }
+    /// Invoke `yield_chain` with each type chain bounding `ty` from `direction` in the permission context `pair`.
+    fn each_ty_chain(
+        &self,
+        ty: SymTy<'db>,
+        pair: Pair<'db>,
+        direction: Direction,
+        yield_chain: &mut impl AsyncFnMut(TyChain<'db>),
+    ) -> impl Future<Output = ()> {
+        Box::pin(async move {
+            match *ty.kind(self.db) {
+                SymTyKind::Perm(sym_perm, sym_ty) => {
+                    self.perm_pairs(pair, direction, sym_perm, &mut async move |pair| {
+                        self.each_ty_chain(sym_ty, pair, direction, yield_chain)
+                            .await;
+                    })
+                    .await;
+                }
+                SymTyKind::Named(sym_ty_name, ref vec) => {
+                    todo!()
+                }
+                SymTyKind::Infer(var) => {
+                    let mut bounds = self.env.transitive_ty_var_bounds(var, direction);
+                    while let Some(bound) = bounds.next().await {
+                        self.each_ty_chain(bound, pair.clone(), direction, yield_chain)
+                            .await;
+                    }
+                }
+                SymTyKind::Var(sym_variable) => {
+                    yield_chain(TyChain::new(
+                        self.db,
+                        pair.into_lien_chain(self.env),
+                        TyChainKind::Var(sym_variable),
+                    ))
+                    .await;
+                }
+                SymTyKind::Never => {
+                    yield_chain(TyChain::new(
+                        self.db,
+                        LienChain::my(self.db),
+                        TyChainKind::Never,
+                    ))
+                    .await;
+                }
+                SymTyKind::Error(reported) => yield_chain(TyChain::err(self.db, reported)).await,
+            }
+        })
+    }
 
-    // async fn shared_from_places(
-    //     &mut self,
-    //     places: &[SymPlace<'db>],
-    //     yield_chain: impl AsyncFnMut(Pair<'db>),
-    // ) {
-    //     for place in places {
-    //         let perm = self.env.shared_perm(place);
-    //         self.perm_pairs(pair, perm, yield_chain).await;
-    //     }
-    // }
+    /// Invoke `yield_chain` with each permission pair bounding `perm` from `direction` in the permission context `pair`.
+    fn perm_pairs(
+        &self,
+        mut pair: Pair<'db>,
+        direction: Direction,
+        perm: SymPerm<'db>,
+        yield_chain: &mut impl AsyncFnMut(Pair<'db>),
+    ) -> impl Future<Output = ()> {
+        Box::pin(async move {
+            match *perm.kind(self.db) {
+                SymPermKind::My => yield_chain(pair).await,
+                SymPermKind::Our => yield_chain(Pair::our(self.db)).await,
+                SymPermKind::Shared(ref places) => {
+                    self.shared_from_places(places, yield_chain).await;
+                }
+                SymPermKind::Leased(ref places) => {
+                    self.leased_from_places(pair, places, yield_chain).await;
+                }
+                SymPermKind::Infer(_) => {
+                    let mut bounds = self.env.transitive_perm_bounds(perm, direction);
+                    while let Some(bound) = bounds.next().await {
+                        self.perm_pairs(pair.clone(), direction, bound, yield_chain)
+                            .await;
+                    }
+                }
+                SymPermKind::Var(sym_variable) => {
+                    let var_lien = Lien::Var(sym_variable);
+                    pair.apply_lien(self.env, var_lien);
+                    yield_chain(pair).await;
+                }
+                SymPermKind::Error(reported) => yield_chain(Pair::err(self.db, reported)).await,
+            }
+        })
+    }
+
+    /// Invoke `yield_chain` with permission pair shared from `places`.
+    async fn shared_from_places(
+        &self,
+        places: &[SymPlace<'db>],
+        yield_chain: &mut impl AsyncFnMut(Pair<'db>),
+    ) {
+        for &place in places {
+            yield_chain(Pair::shared(self.db, place)).await;
+        }
+    }
+
+    /// Invoke `yield_chain` with permission pair leased from `places`.
+    /// `pair` represents the chain leading up to the lease.
+    async fn leased_from_places(
+        &self,
+        pair: Pair<'db>,
+        places: &[SymPlace<'db>],
+        yield_chain: &mut impl AsyncFnMut(Pair<'db>),
+    ) {
+        for &place in places {
+            let leased_lien = Lien::Leased(place);
+            yield_chain(pair.with_lien_applied(self.env, leased_lien)).await;
+        }
+    }
 }

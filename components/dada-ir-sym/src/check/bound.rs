@@ -8,14 +8,18 @@ use dada_util::{debug, debug_heading, log::DebugArgument};
 
 use crate::ir::{
     indices::InferVarIndex,
-    types::{SymGenericKind, SymGenericTerm, SymTy},
+    types::{SymGenericKind, SymGenericTerm, SymPerm, SymTy},
 };
 
 use crate::{check::inference::InferenceVarData, check::runtime::Runtime};
 
+/// Direction (upper or lower) of a bound in a lattice.
 #[derive(Copy, Clone, PartialEq, Eq, PartialOrd, Ord, Hash, Debug)]
 pub(crate) enum Direction {
+    /// A *lower bound* of `X` (for types, a subtype of `X`).
     LowerBoundedBy,
+
+    /// An *upper bound* of `X` (for types, a supertype of `X`).
     UpperBoundedBy,
 }
 
@@ -56,6 +60,11 @@ pub(crate) struct TransitiveBounds<'db, Kind: OutputKind<'db>> {
 impl<'db, Kind: OutputKind<'db>> TransitiveBounds<'db, Kind> {
     /// Create a new stream of bounds for an inference variable.
     pub fn new(check: &Runtime<'db>, direction: Direction, var: InferVarIndex) -> Self {
+        assert_eq!(
+            check.with_inference_var_data(var, |data| data.kind()),
+            Kind::KIND
+        );
+
         let mut this = Self {
             runtime: check.clone(),
             direction,
@@ -181,5 +190,13 @@ impl<'db> OutputKind<'db> for SymTy<'db> {
 
     fn assert_from_term(db: &'db dyn crate::Db, term: SymGenericTerm<'db>) -> Self {
         term.assert_type(db)
+    }
+}
+
+impl<'db> OutputKind<'db> for SymPerm<'db> {
+    const KIND: SymGenericKind = SymGenericKind::Perm;
+
+    fn assert_from_term(db: &'db dyn crate::Db, term: SymGenericTerm<'db>) -> Self {
+        term.assert_perm(db)
     }
 }

@@ -1,7 +1,7 @@
 [package]
 name = "dada-codegen"
 version = "0.1.0"
-edition = "2021"
+edition = "2024"
 
 [dependencies]
 dada-ir-sym = { version = "0.1.0", path = "../dada-ir-sym" }

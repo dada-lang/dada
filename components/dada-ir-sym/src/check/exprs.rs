@@ -2,12 +2,12 @@ use std::future::Future;
 
 use crate::{
     check::{
+        CheckInEnv,
         env::Env,
         member_lookup::MemberLookup,
         scope::{NameResolution, NameResolutionSym},
         scope_tree::ScopeTreeNode,
-        subobject::{require_subtype, Expected},
-        CheckInEnv,
+        subobject::{Expected, require_subtype},
     },
     ir::{
         binder::Binder,
@@ -143,19 +143,14 @@ async fn check_expr<'db>(expr: &AstExpr<'db>, env: &Env<'db>) -> ExprResult<'db>
                         Ok(v) => v,
                         Err(reported) => return ExprResult::err(db, reported),
                     };
-                    SymExpr::new(
-                        db,
-                        expr_span,
-                        SymTy::string(db),
-                        SymExprKind::Call {
-                            function: literal_fn,
-                            substitution: vec![],
-                            arg_temps: vec![
-                                byte_literal_expr.into_temporary_var(db, &mut temporaries),
-                                len_literal_expr.into_temporary_var(db, &mut temporaries),
-                            ],
-                        },
-                    )
+                    SymExpr::new(db, expr_span, SymTy::string(db), SymExprKind::Call {
+                        function: literal_fn,
+                        substitution: vec![],
+                        arg_temps: vec![
+                            byte_literal_expr.into_temporary_var(db, &mut temporaries),
+                            len_literal_expr.into_temporary_var(db, &mut temporaries),
+                        ],
+                    })
                 };
                 ExprResult {
                     temporaries,
@@ -374,12 +369,10 @@ async fn check_expr<'db>(expr: &AstExpr<'db>, env: &Env<'db>) -> ExprResult<'db>
 
                     ExprResult::from_expr(
                         env,
-                        SymExpr::new(
-                            db,
-                            expr_span,
-                            SymTy::unit(db),
-                            SymExprKind::Assign { place, value },
-                        ),
+                        SymExpr::new(db, expr_span, SymTy::unit(db), SymExprKind::Assign {
+                            place,
+                            value,
+                        }),
                         temporaries,
                     )
                 }
@@ -643,15 +636,10 @@ async fn check_expr<'db>(expr: &AstExpr<'db>, env: &Env<'db>) -> ExprResult<'db>
             ExprResult {
                 temporaries,
                 span: expr_span,
-                kind: SymExpr::new(
-                    db,
-                    expr_span,
-                    awaited_ty,
-                    SymExprKind::Await {
-                        future: future_expr,
-                        await_keyword: await_span,
-                    },
-                )
+                kind: SymExpr::new(db, expr_span, awaited_ty, SymExprKind::Await {
+                    future: future_expr,
+                    await_keyword: await_span,
+                })
                 .into(),
             }
         }
@@ -667,15 +655,10 @@ async fn check_expr<'db>(expr: &AstExpr<'db>, env: &Env<'db>) -> ExprResult<'db>
                 ExprResult {
                     temporaries,
                     span: expr_span,
-                    kind: SymExpr::new(
-                        db,
-                        expr_span,
-                        SymTy::boolean(db),
-                        SymExprKind::Not {
-                            operand,
-                            op_span: spanned_unary_op.span,
-                        },
-                    )
+                    kind: SymExpr::new(db, expr_span, SymTy::boolean(db), SymExprKind::Not {
+                        operand,
+                        op_span: spanned_unary_op.span,
+                    })
                     .into(),
                 }
             }
@@ -858,7 +841,7 @@ async fn require_future<'db>(
 ) {
     let db = env.db();
 
-    let mut bounds = env.transitive_lower_bounds(future_ty);
+    let mut bounds = env.transitive_ty_lower_bounds(future_ty);
     while let Some(ty) = bounds.next().await {
         match *ty.kind(db) {
             SymTyKind::Infer(_) => (),
@@ -1191,16 +1174,11 @@ async fn check_call_common<'db>(
     //     let tmp2 = arg2 in
     //     ...
     //     call(tmp1, tmp2, ...)
-    let mut call_expr = SymExpr::new(
-        db,
-        expr_span,
-        input_output.output_ty,
-        SymExprKind::Call {
-            function,
-            substitution,
-            arg_temps: arg_temp_symbols.clone(),
-        },
-    );
+    let mut call_expr = SymExpr::new(db, expr_span, input_output.output_ty, SymExprKind::Call {
+        function,
+        substitution,
+        arg_temps: arg_temp_symbols.clone(),
+    });
     for (arg_temp_symbol, arg_expr) in arg_temp_symbols
         .into_iter()
         .rev()
@@ -1293,17 +1271,12 @@ impl<'db> ExprResult<'db> {
         let mut temporaries = vec![];
         let mut expr = self.into_expr(env, &mut temporaries);
         for temporary in temporaries.into_iter().rev() {
-            expr = SymExpr::new(
-                db,
-                expr.span(db),
-                expr.ty(db),
-                SymExprKind::LetIn {
-                    lv: temporary.lv,
-                    ty: temporary.ty,
-                    initializer: temporary.initializer,
-                    body: expr,
-                },
-            );
+            expr = SymExpr::new(db, expr.span(db), expr.ty(db), SymExprKind::LetIn {
+                lv: temporary.lv,
+                ty: temporary.ty,
+                initializer: temporary.initializer,
+                body: expr,
+            });
         }
 
         expr

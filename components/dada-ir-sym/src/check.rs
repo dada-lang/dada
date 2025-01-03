@@ -14,6 +14,7 @@ pub(crate) mod fields;
 mod inference;
 mod member_lookup;
 mod modules;
+mod resolve;
 mod runtime;
 pub(crate) mod scope;
 pub(crate) mod scope_tree;

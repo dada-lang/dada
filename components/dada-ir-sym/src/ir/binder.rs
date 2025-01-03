@@ -5,8 +5,8 @@ use salsa::Update;
 
 use crate::{
     ir::subst::{Subst, SubstitutionFns},
-    ir::variables::SymVariable,
     ir::types::{HasKind, SymGenericKind},
+    ir::variables::SymVariable,
 };
 
 /// Indicates a binder for generic variables
@@ -43,10 +43,8 @@ impl<'db, T: BoundTerm<'db>> Binder<'db, T> {
     {
         let mut cache = vec![None; self.len()];
 
-        self.bound_value.subst_with(
-            db,
-            &mut Default::default(),
-            &mut SubstitutionFns {
+        self.bound_value
+            .subst_with(db, &mut Default::default(), &mut SubstitutionFns {
                 free_var: &mut |var| {
                     if let Some(index) = self.variables.iter().position(|v| *v == var) {
                         Some(*cache[index].get_or_insert_with(|| func(index)))
@@ -54,8 +52,8 @@ impl<'db, T: BoundTerm<'db>> Binder<'db, T> {
                         None
                     }
                 },
-            },
-        )
+                infer_var: &mut |_| None,
+            })
     }
 
     /// Open the binder by replacing each variable with the corresponding term from `substitution`.

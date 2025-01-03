@@ -65,7 +65,7 @@ pub fn require_subtype<'a, 'db>(
 
     // Prospective supertype
     upper: SymTy<'db>,
-) -> impl Future<Output = Errors<()>> + use<'a, 'db> {
+) -> impl Future<Output = Errors<()>> {
     Box::pin(async move {
         let db = env.db();
 
@@ -269,7 +269,7 @@ pub async fn require_numeric_type<'db>(
 ) -> Errors<()> {
     let db = env.db();
 
-    let mut bounds = env.transitive_upper_bounds(start_ty);
+    let mut bounds = env.transitive_ty_upper_bounds(start_ty);
     while let Some(ty) = bounds.next().await {
         match *ty.kind(db) {
             SymTyKind::Error(_) => {}
@@ -282,11 +282,11 @@ pub async fn require_numeric_type<'db>(
                     | SymPrimitiveKind::Usize
                     | SymPrimitiveKind::Float { .. } => {}
                     SymPrimitiveKind::Bool | SymPrimitiveKind::Char => {
-                        return Err(report_numeric_type_expected(env, span, ty))
+                        return Err(report_numeric_type_expected(env, span, ty));
                     }
                 },
                 SymTyName::Future | SymTyName::Aggregate(_) | SymTyName::Tuple { .. } => {
-                    return Err(report_numeric_type_expected(env, span, ty))
+                    return Err(report_numeric_type_expected(env, span, ty));
                 }
             },
             SymTyKind::Var(_) => return Err(report_numeric_type_expected(env, span, ty)),

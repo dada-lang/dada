@@ -44,7 +44,7 @@ impl<'member, 'db> MemberLookup<'member, 'db> {
         // * If we find a lower bound:
         //
         // Once we
-        let mut lower_bounds = self.env.transitive_lower_bounds(owner_ty);
+        let mut lower_bounds = self.env.transitive_ty_lower_bounds(owner_ty);
 
         while let Some(ty) = lower_bounds.next().await {
             // The owner will be some supertype of `ty`.
