@@ -9,7 +9,7 @@ use crate::{
     ir::{
         indices::InferVarIndex,
         subst::Subst,
-        types::{SymGenericKind, SymGenericTerm, SymPerm, SymPermKind, SymPlace, SymTy},
+        types::{SymGenericKind, SymGenericTerm, SymPerm, SymPermKind, SymPlace, SymTy, SymTyKind},
     },
 };
 
@@ -92,7 +92,7 @@ impl<'env, 'db> Resolver<'env, 'db> {
     }
 
     /// Return the bounding type on the type inference variable `v` from the given `direction`.
-    async fn bounding_ty(&self, v: InferVarIndex, direction: Direction) -> SymTy<'db> {
+    async fn bounding_ty(&mut self, v: InferVarIndex, direction: Direction) -> SymTy<'db> {
         // First find the bounding type chains. These may contain inference variables but only in generic arguments.
         let mut perm_chains = vec![];
         let mut type_chain_kinds = vec![];
@@ -106,8 +106,8 @@ impl<'env, 'db> Resolver<'env, 'db> {
         }
 
         let merged_perm = self.merge_lien_chains(v, perm_chains, direction);
-
-        chains
+        let merged_ty = self.merge_ty_chain_kinds(v, type_chain_kinds, direction);
+        merged_perm.apply_to_ty(self.db, merged_ty)
     }
 
     /// Convert `ty` into list of bounding type chains from the given `direction`.
@@ -127,59 +127,72 @@ impl<'env, 'db> Resolver<'env, 'db> {
             return SymPerm::my(self.db);
         };
 
-        let mut merged = self.lien_chain_to_perm(first);
-        for lien_chain in lien_chains {
-            merged = match self.merge_perm_and_lien_chain(merged, lien_chain, direction) {
+        let mut merged_perm = self.lien_chain_to_perm(first);
+        for unmerged_chain in lien_chains {
+            let unmerged_perm = self.lien_chain_to_perm(unmerged_chain);
+            merged_perm = match self.merge_perms(merged_perm, unmerged_perm, direction) {
                 Ok(perm) => perm,
-                Err(IrreconciliablePerms { left, right }) => {
-                    // FIXME: This error stinks. We need better spans threaded through inference to do better, though.
-                    let infer_var_span = self
-                        .env
-                        .runtime()
-                        .with_inference_var_data(v, |data| data.span());
-                    return SymPerm::err(
-                        self.db,
-                        Diagnostic::error(self.db, infer_var_span, "irreconciliable permissions")
-                            .label(
-                                self.db,
-                                Level::Error,
-                                infer_var_span,
-                                format!("permission 1 is {left:?}"),
-                            )
-                            .label(
-                                self.db,
-                                Level::Error,
-                                infer_var_span,
-                                format!("permission 2 is {right:?}"),
-                            )
-                            .report(self.db),
-                    );
+                Err(Irreconciliable { left, right }) => {
+                    return self.report_irreconciliable_error(v, left, right);
                 }
             };
         }
 
-        merged
+        merged_perm
     }
 
-    /// Merge `unmerged_chain` into `merged_perm` (which must be a merged perm produced by us),
-    /// returning either a new merged perm or else an error.
-    fn merge_perm_and_lien_chain(
-        &self,
-        merged_perm: SymPerm<'db>,
-        unmerged_chain: LienChain<'db>,
+    fn merge_ty_chain_kinds(
+        &mut self,
+        v: InferVarIndex,
+        type_chain_kinds: Vec<TyChainKind<'db>>,
         direction: Direction,
-    ) -> Result<SymPerm<'db>, IrreconciliablePerms<'db>> {
-        let unmerged_perm = self.lien_chain_to_perm(unmerged_chain);
-        if self.is_my_perm(merged_perm) {
-            self.merge_my_perm_and_perm(merged_perm, unmerged_perm, direction)
-        } else if self.is_our_perm(unmerged_perm) {
-            self.merge_my_perm_and_perm(unmerged_perm, merged_perm, direction)
-        } else if self.is_our_perm(merged_perm) {
-            self.merge_our_perm_and_perm(merged_perm, unmerged_perm, direction)
-        } else if self.is_our_perm(unmerged_perm) {
-            self.merge_our_perm_and_perm(unmerged_perm, merged_perm, direction)
+    ) -> SymTy<'db> {
+        let mut type_chain_kinds = type_chain_kinds.into_iter();
+
+        let Some(first) = type_chain_kinds.next() else {
+            return SymTy::never(self.db);
+        };
+
+        let mut merged_ty = self.ty_chain_kind_to_ty(first);
+        for unmerged_kind in type_chain_kinds {
+            let unmerged_ty = self.ty_chain_kind_to_ty(unmerged_kind);
+            merged_ty = match self.merge_tys(merged_ty, unmerged_ty, direction) {
+                Ok(ty) => ty,
+                Err(Irreconciliable { left, right }) => {
+                    return self.report_irreconciliable_error(v, left, right);
+                }
+            };
+        }
+
+        merged_ty
+    }
+
+    fn ty_chain_kind_to_ty(&self, kind: TyChainKind<'db>) -> SymTy<'db> {
+        match kind {
+            TyChainKind::Error(reported) => SymTy::err(self.db, reported),
+            TyChainKind::Named(n, args) => SymTy::named(self.db, n, args),
+            TyChainKind::Never => SymTy::never(self.db),
+            TyChainKind::Var(v) => SymTy::var(self.db, v),
+        }
+    }
+
+    /// Merge `left` and `right` producing the lub or glb according to `direction`
+    fn merge_perms(
+        &self,
+        left: SymPerm<'db>,
+        right: SymPerm<'db>,
+        direction: Direction,
+    ) -> Result<SymPerm<'db>, Irreconciliable<'db>> {
+        if self.is_my_perm(left) {
+            self.merge_my_perm_and_perm(left, right, direction)
+        } else if self.is_my_perm(right) {
+            self.merge_my_perm_and_perm(right, left, direction)
+        } else if self.is_our_perm(left) {
+            self.merge_our_perm_and_perm(left, right, direction)
+        } else if self.is_our_perm(right) {
+            self.merge_our_perm_and_perm(right, left, direction)
         } else {
-            self.merge_other_perms(merged_perm, unmerged_perm, direction)
+            self.merge_other_perms(left, right, direction)
         }
     }
 
@@ -189,11 +202,11 @@ impl<'env, 'db> Resolver<'env, 'db> {
         my_perm: SymPerm<'db>,
         other_perm: SymPerm<'db>,
         direction: Direction,
-    ) -> Result<SymPerm<'db>, IrreconciliablePerms<'db>> {
+    ) -> Result<SymPerm<'db>, Irreconciliable<'db>> {
         assert!(self.is_my_perm(my_perm));
         if self.is_my_perm(other_perm) {
             Ok(my_perm)
-        } else if self.is_our_perm(other_perm) || self.is_shared_perm(other_perm) {
+        } else if self.meets_shared_bound(other_perm) {
             // my <: our <: shared
             match direction {
                 Direction::LowerBoundedBy => {
@@ -206,13 +219,8 @@ impl<'env, 'db> Resolver<'env, 'db> {
                     Ok(other_perm)
                 }
             }
-        } else if self.is_leased_perm(other_perm) {
-            Err(IrreconciliablePerms {
-                left: my_perm,
-                right: other_perm,
-            })
         } else {
-            unreachable!()
+            Err(Irreconciliable::new(my_perm, other_perm))
         }
     }
 
@@ -222,13 +230,13 @@ impl<'env, 'db> Resolver<'env, 'db> {
         our_perm: SymPerm<'db>,
         other_perm: SymPerm<'db>,
         direction: Direction,
-    ) -> Result<SymPerm<'db>, IrreconciliablePerms<'db>> {
+    ) -> Result<SymPerm<'db>, Irreconciliable<'db>> {
         assert!(self.is_our_perm(our_perm));
         assert!(!self.is_my_perm(other_perm));
 
         if self.is_our_perm(other_perm) {
             Ok(our_perm)
-        } else if self.is_shared_perm(other_perm) {
+        } else if self.meets_shared_bound(other_perm) {
             // our <: shared
             match direction {
                 Direction::LowerBoundedBy => {
@@ -241,13 +249,8 @@ impl<'env, 'db> Resolver<'env, 'db> {
                     Ok(other_perm)
                 }
             }
-        } else if self.is_leased_perm(other_perm) {
-            Err(IrreconciliablePerms {
-                left: our_perm,
-                right: other_perm,
-            })
         } else {
-            unreachable!()
+            Err(Irreconciliable::new(our_perm, other_perm))
         }
     }
 
@@ -257,22 +260,20 @@ impl<'env, 'db> Resolver<'env, 'db> {
         left: SymPerm<'db>,
         right: SymPerm<'db>,
         direction: Direction,
-    ) -> Result<SymPerm<'db>, IrreconciliablePerms<'db>> {
+    ) -> Result<SymPerm<'db>, Irreconciliable<'db>> {
         match direction {
             Direction::LowerBoundedBy => self.merge_other_perms_glb(left, right),
             Direction::UpperBoundedBy => self.merge_other_perms_lub(left, right),
         }
     }
 
-    /// Compute mutual subtype of two shared permissions (greatest lower bound).
+    /// Compute mutual subtype of two permissions (greatest lower bound).
+    /// Neither permission can be `my` or `our`.
     ///
     /// Since the result must be a subtype, we want the intersection of the two permissions--
     /// something that is true for both left *and* right.
     ///
-    /// Become it comes from a lien, the right permission never has more than one place,
-    /// but the left may.
-    ///
-    /// Examples:
+    /// Examples (same results hold in reverse):
     ///
     /// * (`shared[a]`, `shared[b]`) = error
     /// * (`shared[a]`, `leased[b]`) = error
@@ -281,6 +282,8 @@ impl<'env, 'db> Resolver<'env, 'db> {
     /// * (`shared[a, b]`, `shared[a]`) = `shared[a]`
     /// * (`shared[a, b]`, `shared[a.b]`) = `shared[a.b]`
     /// * (`leased[a, b]`, `leased[a.b]`) = `leased[a.b]`
+    /// * (`shared[a, b]`, `shared[a, c]`) = `shared[a]`
+    /// * (`shared[a, b]`, `shared[a.b, c]`) = `shared[a.b]`
     /// * (`shared[a]`, `shared[a]`) = `shared[a]`
     /// * (`shared[a] shared[b]`, `shared[a]`) = `shared[a] shared[b]`
     /// * (`shared[a] shared[b]`, `shared[c]`) = error
@@ -294,7 +297,7 @@ impl<'env, 'db> Resolver<'env, 'db> {
         &self,
         left: SymPerm<'db>,
         right: SymPerm<'db>,
-    ) -> Result<SymPerm<'db>, IrreconciliablePerms<'db>> {
+    ) -> Result<SymPerm<'db>, Irreconciliable<'db>> {
         let mut left_leaves = left.leaves(self.db).peekable();
         let mut right_leaves = right.leaves(self.db).peekable();
 
@@ -306,14 +309,16 @@ impl<'env, 'db> Resolver<'env, 'db> {
 
             match (left_leaf.kind(self.db), right_leaf.kind(self.db)) {
                 // Handled by previous cases.
-                (SymPermKind::My, _) | (_, SymPermKind::My) => unreachable!(),
-                (SymPermKind::Our, _) | (_, SymPermKind::Our) => unreachable!(),
-
-                // Not leaves.
-                (SymPermKind::Apply(..), _) | (_, SymPermKind::Apply(..)) => unreachable!(),
-
-                // Never part of the merging process.
-                (SymPermKind::Infer(_), _) | (_, SymPermKind::Infer(_)) => unreachable!(),
+                (SymPermKind::My, _)
+                | (_, SymPermKind::My)
+                | (SymPermKind::Our, _)
+                | (_, SymPermKind::Our)
+                | (SymPermKind::Apply(..), _)
+                | (_, SymPermKind::Apply(..))
+                | (SymPermKind::Infer(_), _)
+                | (_, SymPermKind::Infer(_)) => {
+                    unreachable!("unexpected permission kinds {left_leaf:?} and {right_leaf:?}")
+                }
 
                 // Propagate errors.
                 (SymPermKind::Error(reported), _) | (_, SymPermKind::Error(reported)) => {
@@ -327,20 +332,20 @@ impl<'env, 'db> Resolver<'env, 'db> {
                 | (SymPermKind::Var(_), SymPermKind::Shared(_))
                 | (SymPermKind::Leased(_), SymPermKind::Var(_))
                 | (SymPermKind::Var(_), SymPermKind::Leased(_)) => {
-                    return Err(IrreconciliablePerms { left, right });
+                    return Err(Irreconciliable::new(left, right));
                 }
 
                 (SymPermKind::Shared(left_places), SymPermKind::Shared(right_places)) => {
                     merged_leaves.push(SymPerm::shared(
                         self.db,
-                        self.intersect_places(left, left_places, right, right_places)?,
+                        self.intersect_places(left_places, right_places)?,
                     ))
                 }
 
                 (SymPermKind::Leased(left_places), SymPermKind::Leased(right_places)) => {
                     merged_leaves.push(SymPerm::leased(
                         self.db,
-                        self.intersect_places(left, left_places, right, right_places)?,
+                        self.intersect_places(left_places, right_places)?,
                     ));
                 }
 
@@ -348,7 +353,7 @@ impl<'env, 'db> Resolver<'env, 'db> {
                     if left_variable == right_variable {
                         merged_leaves.push(left_leaf);
                     } else {
-                        return Err(IrreconciliablePerms { left, right });
+                        return Err(Irreconciliable::new(left, right));
                     }
                 }
             }
@@ -363,38 +368,63 @@ impl<'env, 'db> Resolver<'env, 'db> {
     }
 
     /// Compute the intersection of `left_places` and `right_places`.
-    /// `right_places` must have length 1.
     ///
     /// Examples:
     ///
     /// * `([a], [b]) = error`
     /// * `([a], [a]) = [a]`
     /// * `([a], [a.b]) = [a.b]`
+    /// * `([a.b.c], [a.b]) = [a.b.c]`
     /// * `([a, c], [a.b]) = [a.b]`
     /// * `([a, c], [c.d]) = [c.d]`
+    /// * `([a.b.c], [a, a.b, a.b.c.d]) = [a.b.c]` (\*)
+    /// * `([a], [a.b, a, a.b.c.d]) = [a]` (\*)
+    ///
+    /// (\*) We generally expect minimized sets of places, but this
+    /// function can tolerate non-minimized inputs. It always produces
+    /// minimized output (as shown).
     fn intersect_places(
         &self,
-        left: SymPerm<'db>,
         left_places: &[SymPlace<'db>],
-        right: SymPerm<'db>,
         right_places: &[SymPlace<'db>],
-    ) -> Result<Vec<SymPlace<'db>>, IrreconciliablePerms<'db>> {
-        assert_eq!(right_places.len(), 1);
-        let right_place = right_places[0];
-        if left_places.iter().any(|p| p.covers(self.db, right_place)) {
-            Ok(vec![right_place])
-        } else {
-            Err(IrreconciliablePerms { left, right })
+    ) -> Result<Vec<SymPlace<'db>>, Irreconciliable<'db>> {
+        let mut intersected_places = vec![];
+
+        for &left_place in left_places {
+            for &right_place in right_places {
+                if left_place.covers(self.db, right_place) {
+                    intersected_places.push(right_place);
+                } else if right_place.covers(self.db, left_place) {
+                    intersected_places.push(left_place);
+                }
+            }
         }
+
+        Ok(self.minimize_places(intersected_places))
+    }
+
+    /// Removes duplicates from `places` or elements that are covered by another element.
+    /// For example, `[a, a, a.b, a.b.c]` becomes `[a]`.
+    fn minimize_places(&self, places: Vec<SymPlace<'db>>) -> Vec<SymPlace<'db>> {
+        let mut minimized_places: Vec<SymPlace<'db>> = vec![];
+
+        for place in places {
+            if minimized_places.iter().any(|&mp| mp.covers(self.db, place)) {
+                continue;
+            }
+
+            minimized_places.retain(|&mp| !place.covers(self.db, mp));
+
+            minimized_places.push(place);
+        }
+
+        minimized_places
     }
 
     /// Compute mutual supertype of two permissions (least upper bound).
     ///
     /// Since the result must be a supertype, we want something that genearlizes left and right,
     /// but we can lose specificity.
-    ///
-    /// Become it comes from a lien, the right permission never has more than one place,
-    /// but the left may.
     ///
     /// Examples:
     ///
@@ -414,14 +444,14 @@ impl<'env, 'db> Resolver<'env, 'db> {
     /// * (`leased[a] X`, `leased[a] Y`) = error (*)
     /// * (`leased[a] X`, `leased[a.b] X`) = `leased[a] X`
     /// * (`X`, `X`) = `X`
-    /// * (`X`, `Y`) = error (*)
+    /// * (`X`, `Y`) = error (\*)
     ///
-    /// (*) Conceivably could be computed with better where-clauses.
+    /// (\*) Conceivably could be computed with better where-clauses.
     fn merge_other_perms_lub(
         &self,
         left: SymPerm<'db>,
         right: SymPerm<'db>,
-    ) -> Result<SymPerm<'db>, IrreconciliablePerms<'db>> {
+    ) -> Result<SymPerm<'db>, Irreconciliable<'db>> {
         let mut left_leaves = left.leaves(self.db).peekable();
         let mut right_leaves = right.leaves(self.db).peekable();
 
@@ -450,7 +480,7 @@ impl<'env, 'db> Resolver<'env, 'db> {
                 | (SymPermKind::Var(_), SymPermKind::Shared(_))
                 | (SymPermKind::Leased(_), SymPermKind::Var(_))
                 | (SymPermKind::Var(_), SymPermKind::Leased(_)) => {
-                    return Err(IrreconciliablePerms { left, right });
+                    return Err(Irreconciliable::new(left, right));
                 }
 
                 // Leaves.
@@ -472,7 +502,7 @@ impl<'env, 'db> Resolver<'env, 'db> {
                     if left_variable == right_variable {
                         merged_leaves.push(left_leaf);
                     } else {
-                        return Err(IrreconciliablePerms { left, right });
+                        return Err(Irreconciliable::new(left, right));
                     }
                 }
             }
@@ -497,24 +527,30 @@ impl<'env, 'db> Resolver<'env, 'db> {
     /// * `([a, c], [a.b]) = [a, c]`
     /// * `([a, c], [c.d]) = [a, c]`
     /// * `([a.b], [a]) = [a]`
+    /// * (`[a.b.c]`, `[a, a.b, a.b.c.d]`) = `[a]` (\*\*)
+    /// * (`[a]`, `[a.b, a, a.b.c.d]`) = `[a]` (\*\*)
+    ///
+    /// (\*) We generally expect minimized sets of places, but this
+    /// function can tolerate non-minimized inputs. It always produces
+    /// minimized output (as shown).
     fn union_places(
         &self,
         left_places: &[SymPlace<'db>],
         right_places: &[SymPlace<'db>],
     ) -> Vec<SymPlace<'db>> {
-        assert_eq!(right_places.len(), 1);
-        let right_place = right_places[0];
+        let mut unioned_places = vec![];
 
-        if left_places.iter().any(|p| p.covers(self.db, right_place)) {
-            left_places.to_vec()
-        } else {
-            left_places
-                .iter()
-                .copied()
-                .filter(|p| !right_place.covers(self.db, *p))
-                .chain(std::iter::once(right_place))
-                .collect()
+        for &left_place in left_places {
+            for &right_place in right_places {
+                if left_place.covers(self.db, right_place) {
+                    unioned_places.push(left_place);
+                } else if right_place.covers(self.db, left_place) {
+                    unioned_places.push(right_place);
+                }
+            }
         }
+
+        self.minimize_places(unioned_places)
     }
 
     /// Convert a `LienChain` into a `SymPerm`.
@@ -578,22 +614,24 @@ impl<'env, 'db> Resolver<'env, 'db> {
         }
     }
 
-    /// Return true if `perm` is [`SymPermKind::Shared`][].
+    /// Return true if `perm` meets the `shared` bound.
+    /// This can be [`SymPermKind::My`][], [`SymPermKind::Shared`][], [`SymPermKind::Our`][],
+    /// or [`SymPermKind::Var`][] with a shared variable.
     /// This can appear on the left side of an `apply` node.
-    fn is_shared_perm(&self, perm: SymPerm<'db>) -> bool {
+    fn meets_shared_bound(&self, perm: SymPerm<'db>) -> bool {
         match *perm.kind(self.db) {
             SymPermKind::Shared(_) => true,
-            SymPermKind::Apply(left, _) => self.is_shared_perm(left),
-            SymPermKind::My => false,
-            SymPermKind::Our => false,
+            SymPermKind::Apply(left, _) => self.meets_shared_bound(left),
+            SymPermKind::My => true,
+            SymPermKind::Our => true,
             SymPermKind::Leased(_) => false,
             SymPermKind::Infer(_) => false,
-            SymPermKind::Var(_) => false,
+            SymPermKind::Var(var) => self.env.is_shared_var(var),
             SymPermKind::Error(_) => false,
         }
     }
 
-    /// Return true if `perm` is [`SymPermKind::Leased`][].
+    /// Return true if `perm` is [`SymPermKind::Leased`][] or [`SymPermKind::Var`][] with a leased variable.
     /// This can appear on the left side of an `apply` node.
     fn is_leased_perm(&self, perm: SymPerm<'db>) -> bool {
         match *perm.kind(self.db) {
@@ -603,13 +641,155 @@ impl<'env, 'db> Resolver<'env, 'db> {
             SymPermKind::Our => false,
             SymPermKind::Shared(_) => false,
             SymPermKind::Infer(_) => false,
-            SymPermKind::Var(_) => false,
+            SymPermKind::Var(var) => self.env.is_leased_var(var),
             SymPermKind::Error(_) => false,
         }
     }
+
+    fn merge_tys(
+        &mut self,
+        left: SymTy<'db>,
+        right: SymTy<'db>,
+        direction: Direction,
+    ) -> Result<SymTy<'db>, Irreconciliable<'db>> {
+        match (left.kind(self.db), right.kind(self.db)) {
+            (&SymTyKind::Error(reported), _) | (_, &SymTyKind::Error(reported)) => {
+                Ok(SymTy::err(self.db, reported))
+            }
+
+            (SymTyKind::Never, _) => match direction {
+                Direction::LowerBoundedBy => Ok(left),
+                Direction::UpperBoundedBy => Ok(right),
+            },
+
+            (_, SymTyKind::Never) => match direction {
+                Direction::LowerBoundedBy => Ok(right),
+                Direction::UpperBoundedBy => Ok(left),
+            },
+
+            (SymTyKind::Named(..), SymTyKind::Var(..))
+            | (SymTyKind::Var(..), SymTyKind::Named(..)) => {
+                return Err(Irreconciliable::new(left, right));
+            }
+
+            (SymTyKind::Named(n1, args1), SymTyKind::Named(n2, args2)) => {
+                if n1 == n2 {
+                    // FIXME: variance
+                    let variances = self.env.variances(n1);
+                    assert_eq!(args1.len(), variances.len());
+                    assert_eq!(args1.len(), args2.len());
+                    let resolved_args1 = args1
+                        .iter()
+                        .zip(&variances)
+                        .map(|(a1, v)| self.resolve_term(a1, *v));
+                    let resolved_args2 = args2
+                        .iter()
+                        .zip(&variances)
+                        .map(|(a2, v)| self.resolve_term(a2, *v));
+                    let args = resolved_args1
+                        .zip(resolved_args2)
+                        .zip(&variances)
+                        .map(|((a1, a2), v)| self.merge_generic_arguments(a1, a2, direction, v));
+                    Ok(SymTy::named(self.db, *n1, args.collect::<Result<_, _>>()?))
+                } else {
+                    Err(Irreconciliable::new(left, right))
+                }
+            }
+        }
+    }
+
+    fn merge_generic_arguments(
+        &mut self,
+        left: SymGenericTerm<'db>,
+        right: SymGenericTerm<'db>,
+        original_direction: Direction,
+        variance: Variance,
+    ) -> Result<SymGenericTerm<'db>, Irreconciliable<'db>> {
+        let direction = match variance {
+            Variance::Covariant => original_direction,
+            Variance::Contravariant => original_direction.reverse(),
+
+            // FIXME: invariance
+            Variance::Invariant => original_direction,
+        };
+
+        match (left, right) {
+            (SymGenericTerm::Error(reported), _) | (_, SymGenericTerm::Error(reported)) => {
+                Ok(SymGenericTerm::Error(reported))
+            }
+
+            (SymGenericTerm::Type(ty), SymGenericTerm::Type(ty2)) => {
+                Ok(self.merge_tys(ty, ty2, direction)?.into())
+            }
+            (SymGenericTerm::Type(_), _) | (_, SymGenericTerm::Type(_)) => {
+                unreachable!("kind mismatch")
+            }
+
+            (SymGenericTerm::Perm(perm), SymGenericTerm::Perm(perm2)) => {
+                Ok(self.merge_perms(perm, perm2, direction)?.into())
+            }
+            (SymGenericTerm::Perm(_), _) | (_, SymGenericTerm::Perm(_)) => {
+                unreachable!("kind mismatch")
+            }
+
+            (SymGenericTerm::Place(_), SymGenericTerm::Place(_)) => {
+                unreachable!("place generic argument")
+            }
+        }
+    }
+
+    fn report_irreconciliable_error<T: Err<'db>>(
+        &self,
+        v: InferVarIndex,
+        left: SymGenericTerm<'db>,
+        right: SymGenericTerm<'db>,
+    ) -> T {
+        // FIXME: This error stinks. We need better spans threaded through inference to do better, though.
+        // This would be an interesting place to deply AI.
+
+        let (infer_var_kind, infer_var_span) = self
+            .env
+            .runtime()
+            .with_inference_var_data(v, |data| (data.kind(), data.span()));
+
+        let message = match infer_var_kind {
+            SymGenericKind::Type => "cannot infer a type due to conflicting constraints",
+            SymGenericKind::Perm => "cannot infer a permission due to conflicting constraints",
+            SymGenericKind::Place => "cannot infer a place due to conflicting constraints",
+        };
+        return T::err(
+            self.db,
+            Diagnostic::error(self.db, infer_var_span, message)
+                .label(
+                    self.db,
+                    Level::Error,
+                    infer_var_span,
+                    format!("constraint 1 is {left:?}"),
+                )
+                .label(
+                    self.db,
+                    Level::Error,
+                    infer_var_span,
+                    format!("constraint 2 is {right:?}"),
+                )
+                .report(self.db),
+        );
+    }
 }
 
-struct IrreconciliablePerms<'db> {
-    left: SymPerm<'db>,
-    right: SymPerm<'db>,
+struct Irreconciliable<'db> {
+    left: SymGenericTerm<'db>,
+    right: SymGenericTerm<'db>,
+}
+
+impl<'db> Irreconciliable<'db> {
+    pub fn new(
+        left: impl Into<SymGenericTerm<'db>>,
+        right: impl Into<SymGenericTerm<'db>>,
+    ) -> Self {
+        Self {
+            left: left.into(),
+            right: right.into(),
+        }
+    }
 }

@@ -351,8 +351,18 @@ impl<'db> Env<'db> {
         false // FIXME
     }
 
+    /// Check if the given (perm, type) variable is declared as leased.
+    pub fn is_leased_var(&self, var: SymVariable<'db>) -> bool {
+        false // FIXME
+    }
+
     pub(crate) fn infer_var_kind(&self, v: InferVarIndex) -> SymGenericKind {
         self.runtime.with_inference_var_data(v, |data| data.kind())
+    }
+
+    pub(crate) fn variances(&self, n: SymTyName<'db>) -> &[Variance] {
+        // FIXME: variances
+        &[]
     }
 }
 

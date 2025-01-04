@@ -260,6 +260,11 @@ impl<'db> SymTy<'db> {
         SymTy::new(db, SymTyKind::Named(name, generics))
     }
 
+    /// Returns a [`SymTyKind::Var`][] type for the given variable.
+    pub fn var(db: &'db dyn Db, var: SymVariable<'db>) -> Self {
+        SymTy::new(db, SymTyKind::Var(var))
+    }
+
     /// Returns a [`SymTyKind::Named`][] type for `()`.
     pub fn unit(db: &'db dyn Db) -> Self {
         #[salsa::tracked]
@@ -447,6 +452,14 @@ impl<'db> SymPerm<'db> {
     /// Returns a permission `perm1 perm2` (e.g., `shared[x] leased[y]`).
     pub fn apply(db: &'db dyn crate::Db, perm1: SymPerm<'db>, perm2: SymPerm<'db>) -> Self {
         SymPerm::new(db, SymPermKind::Apply(perm1, perm2))
+    }
+
+    /// Apply this permission to the given type (if `self` is not `my`).
+    pub fn apply_to_ty(self, db: &'db dyn crate::Db, ty: SymTy<'db>) -> SymTy<'db> {
+        match self.kind(db) {
+            SymPermKind::My => ty,
+            _ => SymTy::perm(db, self, ty),
+        }
     }
 
     /// Iterate over the "leaves" of this permission (i.e., non-application permissions)
