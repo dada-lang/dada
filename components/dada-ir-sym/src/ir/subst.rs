@@ -299,6 +299,13 @@ impl<'db> SubstWith<'db, SymGenericTerm<'db>> for SymPerm<'db> {
             ),
             SymPermKind::My => self.identity(),
             SymPermKind::Our => self.identity(),
+            SymPermKind::Apply(left, right) => SymPerm::new(
+                db,
+                SymPermKind::Apply(
+                    left.subst_with(db, bound_vars, subst_fns),
+                    right.subst_with(db, bound_vars, subst_fns),
+                ),
+            ),
         }
     }
 }

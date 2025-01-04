@@ -1,8 +1,8 @@
 use std::{
     future::Future,
     sync::{
-        atomic::{AtomicBool, AtomicU64, Ordering},
         Arc, Mutex, RwLock,
+        atomic::{AtomicBool, AtomicU64, Ordering},
     },
     task::{Context, Waker},
 };
@@ -16,7 +16,7 @@ use dada_ir_ast::{
     diagnostic::{Diagnostic, Err, Level},
     span::Span,
 };
-use dada_util::{debug, vecset::VecSet, Map};
+use dada_util::{Map, debug, vecset::VecSet};
 
 use crate::{
     check::bound::Direction, check::env::Env, check::inference::InferenceVarData,
@@ -145,6 +145,7 @@ impl<'db> Runtime<'db> {
         universe: Universe,
         span: Span<'db>,
     ) -> InferVarIndex {
+        assert!(!self.check_complete());
         let mut inference_vars = self.inference_vars.write().unwrap();
         let var_index = InferVarIndex::from(inference_vars.len());
         inference_vars.push(InferenceVarData::new(kind, universe, span));
@@ -172,6 +173,7 @@ impl<'db> Runtime<'db> {
         direction: Direction,
         term: SymGenericTerm<'db>,
     ) -> bool {
+        assert!(!self.check_complete());
         let mut inference_vars = self.inference_vars.write().unwrap();
         if inference_vars[var.as_usize()].insert_bound(self.db, direction, term) {
             debug!("insert_inference_var_bound", var, direction, term);
@@ -230,12 +232,22 @@ impl<'db> Runtime<'db> {
         }
         diag.report(db)
     }
+
+    /// Execute `output` synchronously after type check constraints are gathered.
+    /// Since type check constraints are gathered, we know it will never block.
+    pub(crate) fn assert_check_complete<T>(&self, output: impl Future<Output = T>) -> T {
+        assert!(
+            self.check_complete(),
+            "type inference constraints not yet complete"
+        );
+        futures::executor::block_on(output)
+    }
 }
 
 mod check_task {
     use dada_ir_ast::span::Span;
     use dada_util::log::LogState;
-    use futures::{future::LocalBoxFuture, FutureExt};
+    use futures::{FutureExt, future::LocalBoxFuture};
     use std::{
         future::Future,
         sync::{Arc, Mutex},

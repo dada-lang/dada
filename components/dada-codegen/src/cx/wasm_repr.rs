@@ -84,7 +84,7 @@ impl<'g, 'db> WasmReprCx<'g, 'db> {
 
     fn wasm_repr_of_perm_type(&mut self, sym_perm: SymPerm<'db>, sym_ty: SymTy<'db>) -> WasmRepr {
         let db = self.db;
-        match sym_perm.kind(db) {
+        match *sym_perm.kind(db) {
             // A leased type is a pointer to the data.
             SymPermKind::Leased(_) => self.wasm_pointer(),
 
@@ -106,7 +106,9 @@ impl<'g, 'db> WasmReprCx<'g, 'db> {
             // Error types are zero-sized.
             SymPermKind::Error(_) => WasmRepr::Nothing,
 
-            SymPermKind::Infer(_infer_var_index) => todo!(),
+            SymPermKind::Apply(left, _) => self.wasm_repr_of_perm_type(left, sym_ty),
+
+            SymPermKind::Infer(_infer_var_index) => unreachable!(),
         }
     }
 

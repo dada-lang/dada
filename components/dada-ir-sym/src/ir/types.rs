@@ -206,7 +206,8 @@ impl<'db> SymGenericTerm<'db> {
                 | SymPermKind::Shared(_)
                 | SymPermKind::Leased(_)
                 | SymPermKind::Var(_)
-                | SymPermKind::Error(_) => None,
+                | SymPermKind::Error(_)
+                | SymPermKind::Apply(..) => None,
             },
             SymGenericTerm::Place(place) => match place.kind(db) {
                 SymPlaceKind::Infer(infer) => Some(*infer),

@@ -19,6 +19,7 @@ use super::{
     chains::{Lien, LienChain, TyChain, TyChainKind},
 };
 
+#[derive(Copy, Clone, PartialEq, Eq, PartialOrd, Ord, Hash, Debug)]
 pub enum Variance {
     Covariant,
     Contravariant,
@@ -33,6 +34,11 @@ pub struct Resolver<'env, 'db> {
 
 impl<'env, 'db> Resolver<'env, 'db> {
     pub fn new(env: &'env Env<'db>) -> Self {
+        assert!(
+            env.runtime().check_complete(),
+            "resolution is only possible once type constraints are known"
+        );
+
         Self {
             db: env.db(),
             env,
@@ -49,14 +55,10 @@ impl<'env, 'db> Resolver<'env, 'db> {
     }
 
     /// Resolve an inference variable to a generic term, given the variance of the location in which it appears
-    async fn resolve_infer_var(
-        &mut self,
-        v: InferVarIndex,
-        variance: Variance,
-    ) -> SymGenericTerm<'db> {
+    fn resolve_infer_var(&mut self, v: InferVarIndex, variance: Variance) -> SymGenericTerm<'db> {
         if self.var_stack.insert(v) {
             let result = match self.env.infer_var_kind(v) {
-                SymGenericKind::Type => self.resolve_ty_var(v, variance).await.into(),
+                SymGenericKind::Type => self.resolve_ty_var(v, variance).into(),
                 SymGenericKind::Perm => todo!(),
                 SymGenericKind::Place => todo!(),
             };
@@ -75,96 +77,98 @@ impl<'env, 'db> Resolver<'env, 'db> {
     }
 
     /// Resolve a type inference variable `v` to a type, given the variance of the location in which it appears.
-    async fn resolve_ty_var(&mut self, v: InferVarIndex, variance: Variance) -> SymTy<'db> {
+    fn resolve_ty_var(&mut self, v: InferVarIndex, variance: Variance) -> SymTy<'db> {
         match variance {
             // In a covariant setting, we can pick any supertype of the "true type" represented by this variable.
             // So look at its supertype bounds.
-            Variance::Covariant => self.bounding_ty(v, Direction::UpperBoundedBy).await,
+            Variance::Covariant => self.bounding_ty(v, Direction::UpperBoundedBy),
 
             // As above, but for subtypes.
-            Variance::Contravariant => self.bounding_ty(v, Direction::LowerBoundedBy).await,
+            Variance::Contravariant => self.bounding_ty(v, Direction::LowerBoundedBy),
 
             Variance::Invariant => {
                 // FIXME
-                self.bounding_ty(v, Direction::UpperBoundedBy).await
+                self.bounding_ty(v, Direction::UpperBoundedBy)
             }
         }
     }
 
     /// Return the bounding type on the type inference variable `v` from the given `direction`.
-    async fn bounding_ty(&mut self, v: InferVarIndex, direction: Direction) -> SymTy<'db> {
+    fn bounding_ty(&mut self, v: InferVarIndex, direction: Direction) -> SymTy<'db> {
+        self.env.runtime().assert_check_complete(async {
+            let mut ty_chains = vec![];
+            let mut bounds = self.env.transitive_ty_var_bounds(v, direction);
+            while let Some(ty) = bounds.next().await {
+                ToChain::new(self.env)
+                    .push_ty_chains(ty, direction, &mut ty_chains)
+                    .await;
+            }
+
+            match self.merge_ty_chains(ty_chains, direction) {
+                Ok(ty) => ty,
+                Err(Irreconciliable { left, right }) => {
+                    self.report_irreconciliable_error(v, left, right)
+                }
+            }
+        })
+    }
+
+    fn merge_ty_chains(
+        &mut self,
+        ty_chains: Vec<TyChain<'db>>,
+        direction: Direction,
+    ) -> Result<SymTy<'db>, Irreconciliable<'db>> {
         // First find the bounding type chains. These may contain inference variables but only in generic arguments.
         let mut perm_chains = vec![];
         let mut type_chain_kinds = vec![];
-        let mut bounds = self.env.transitive_ty_var_bounds(v, direction);
-        while let Some(ty) = bounds.next().await {
-            let ty_chains = self.bounding_ty_chains(ty, direction).await;
-            for TyChain { lien, kind } in ty_chains {
-                perm_chains.push(lien);
-                type_chain_kinds.push(kind);
-            }
+        for TyChain { lien, kind } in ty_chains {
+            perm_chains.push(lien);
+            type_chain_kinds.push(kind);
         }
 
-        let merged_perm = self.merge_lien_chains(v, perm_chains, direction);
-        let merged_ty = self.merge_ty_chain_kinds(v, type_chain_kinds, direction);
-        merged_perm.apply_to_ty(self.db, merged_ty)
-    }
-
-    /// Convert `ty` into list of bounding type chains from the given `direction`.
-    async fn bounding_ty_chains(&self, ty: SymTy<'db>, direction: Direction) -> Vec<TyChain<'db>> {
-        ToChain::new(self.env).ty_chains(ty, direction).await
+        let merged_perm = self.merge_lien_chains(perm_chains, direction)?;
+        let merged_ty = self.merge_ty_chain_kinds(type_chain_kinds, direction)?;
+        Ok(merged_perm.apply_to_ty(self.db, merged_ty))
     }
 
     fn merge_lien_chains(
         &self,
-        v: InferVarIndex,
         lien_chains: Vec<LienChain<'db>>,
         direction: Direction,
-    ) -> SymPerm<'db> {
+    ) -> Result<SymPerm<'db>, Irreconciliable<'db>> {
         let mut lien_chains = lien_chains.into_iter();
 
         let Some(first) = lien_chains.next() else {
-            return SymPerm::my(self.db);
+            return Ok(SymPerm::my(self.db));
         };
 
         let mut merged_perm = self.lien_chain_to_perm(first);
         for unmerged_chain in lien_chains {
             let unmerged_perm = self.lien_chain_to_perm(unmerged_chain);
-            merged_perm = match self.merge_perms(merged_perm, unmerged_perm, direction) {
-                Ok(perm) => perm,
-                Err(Irreconciliable { left, right }) => {
-                    return self.report_irreconciliable_error(v, left, right);
-                }
-            };
+            merged_perm = self.merge_perms(merged_perm, unmerged_perm, direction)?;
         }
 
-        merged_perm
+        Ok(merged_perm)
     }
 
     fn merge_ty_chain_kinds(
         &mut self,
-        v: InferVarIndex,
         type_chain_kinds: Vec<TyChainKind<'db>>,
         direction: Direction,
-    ) -> SymTy<'db> {
+    ) -> Result<SymTy<'db>, Irreconciliable<'db>> {
         let mut type_chain_kinds = type_chain_kinds.into_iter();
 
         let Some(first) = type_chain_kinds.next() else {
-            return SymTy::never(self.db);
+            return Ok(SymTy::never(self.db));
         };
 
         let mut merged_ty = self.ty_chain_kind_to_ty(first);
         for unmerged_kind in type_chain_kinds {
             let unmerged_ty = self.ty_chain_kind_to_ty(unmerged_kind);
-            merged_ty = match self.merge_tys(merged_ty, unmerged_ty, direction) {
-                Ok(ty) => ty,
-                Err(Irreconciliable { left, right }) => {
-                    return self.report_irreconciliable_error(v, left, right);
-                }
-            };
+            merged_ty = self.merge_ty_chain_kind_tys(merged_ty, unmerged_ty, direction)?;
         }
 
-        merged_ty
+        Ok(merged_ty)
     }
 
     fn ty_chain_kind_to_ty(&self, kind: TyChainKind<'db>) -> SymTy<'db> {
@@ -646,7 +650,9 @@ impl<'env, 'db> Resolver<'env, 'db> {
         }
     }
 
-    fn merge_tys(
+    /// Merge two types that resulted from type kinds.
+    /// These types cannot have permissions nor inference variables.
+    fn merge_ty_chain_kind_tys(
         &mut self,
         left: SymTy<'db>,
         right: SymTy<'db>,
@@ -672,28 +678,48 @@ impl<'env, 'db> Resolver<'env, 'db> {
                 return Err(Irreconciliable::new(left, right));
             }
 
+            (SymTyKind::Var(v1), SymTyKind::Var(v2)) => {
+                if v1 == v2 {
+                    Ok(left)
+                } else {
+                    return Err(Irreconciliable::new(left, right));
+                }
+            }
+
             (SymTyKind::Named(n1, args1), SymTyKind::Named(n2, args2)) => {
                 if n1 == n2 {
                     // FIXME: variance
-                    let variances = self.env.variances(n1);
+                    let variances = self.env.variances(*n1);
                     assert_eq!(args1.len(), variances.len());
                     assert_eq!(args1.len(), args2.len());
                     let resolved_args1 = args1
                         .iter()
-                        .zip(&variances)
-                        .map(|(a1, v)| self.resolve_term(a1, *v));
+                        .zip(variances)
+                        .map(|(&a1, &v)| self.resolve_term(a1, v))
+                        .collect::<Vec<_>>();
                     let resolved_args2 = args2
                         .iter()
-                        .zip(&variances)
-                        .map(|(a2, v)| self.resolve_term(a2, *v));
-                    let args = resolved_args1
+                        .zip(variances)
+                        .map(|(&a2, &v)| self.resolve_term(a2, v))
+                        .collect::<Vec<_>>();
+                    let generics = resolved_args1
+                        .into_iter()
                         .zip(resolved_args2)
-                        .zip(&variances)
-                        .map(|((a1, a2), v)| self.merge_generic_arguments(a1, a2, direction, v));
-                    Ok(SymTy::named(self.db, *n1, args.collect::<Result<_, _>>()?))
+                        .zip(variances)
+                        .map(|((a1, a2), &v)| self.merge_generic_arguments(a1, a2, direction, v))
+                        .collect::<Result<Vec<_>, _>>()?;
+                    Ok(SymTy::named(self.db, *n1, generics))
                 } else {
                     Err(Irreconciliable::new(left, right))
                 }
+            }
+
+            (SymTyKind::Perm(..), _) | (_, SymTyKind::Perm(..)) => {
+                unreachable!("Perm types are not expected in this function")
+            }
+
+            (SymTyKind::Infer(_), _) | (_, SymTyKind::Infer(_)) => {
+                unreachable!()
             }
         }
     }
@@ -736,6 +762,26 @@ impl<'env, 'db> Resolver<'env, 'db> {
                 unreachable!("place generic argument")
             }
         }
+    }
+
+    fn merge_tys(
+        &mut self,
+        left: SymTy<'db>,
+        right: SymTy<'db>,
+        direction: Direction,
+    ) -> Result<SymTy<'db>, Irreconciliable<'db>> {
+        self.env.runtime().assert_check_complete(async {
+            // FIXME: Should we be propagating context for the type chains?
+            // Seems like yes, but that also suggests we need to rework this merging process a bit.
+            let mut ty_chains = vec![];
+            ToChain::new(self.env)
+                .push_ty_chains(left, direction, &mut ty_chains)
+                .await;
+            ToChain::new(self.env)
+                .push_ty_chains(right, direction, &mut ty_chains)
+                .await;
+            self.merge_ty_chains(ty_chains, direction)
+        })
     }
 
     fn report_irreconciliable_error<T: Err<'db>>(

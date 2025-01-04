@@ -6,7 +6,10 @@ use crate::{
         binder::BoundTerm,
         indices::{FromInfer, InferVarIndex},
         subst::SubstWith,
-        types::{SymGenericKind, SymGenericTerm, SymPerm, SymPermKind, SymPlace, SymTy, SymTyKind},
+        types::{
+            SymGenericKind, SymGenericTerm, SymPerm, SymPermKind, SymPlace, SymTy, SymTyKind,
+            SymTyName,
+        },
         variables::SymVariable,
     },
 };
@@ -25,7 +28,7 @@ use crate::{
     ir::exprs::SymExpr,
 };
 
-use super::CheckInEnv;
+use super::{CheckInEnv, resolve::Variance};
 
 #[derive(Clone)]
 pub(crate) struct Env<'db> {

@@ -253,29 +253,33 @@ impl<'env, 'db> ToChain<'env, 'db> {
     }
 
     /// Return a set of "type chains" bounding `ty` from the given `direction`.
-    pub async fn ty_chains(&self, ty: SymTy<'db>, direction: Direction) -> Vec<TyChain<'db>> {
-        self.ty_chains_in_cx(LienChain::my(self.db), ty, direction)
+    pub async fn push_ty_chains(
+        &self,
+        ty: SymTy<'db>,
+        direction: Direction,
+        chains: &mut Vec<TyChain<'db>>,
+    ) {
+        self.push_ty_chains_in_cx(LienChain::my(self.db), ty, direction, chains)
             .await
     }
 
     /// Return a set of "type chains" bounding `ty` from the given `direction`
     /// when it appears in the context of the permission chain `cx`.
-    pub async fn ty_chains_in_cx(
+    pub async fn push_ty_chains_in_cx(
         &self,
         cx: LienChain<'db>,
         ty: SymTy<'db>,
         direction: Direction,
-    ) -> Vec<TyChain<'db>> {
+        chains: &mut Vec<TyChain<'db>>,
+    ) {
         let pair = Pair {
             chain: cx,
             pending: Default::default(),
         };
-        let mut chains = Vec::new();
         self.each_ty_chain(ty, pair, direction, &mut async |chain| {
             chains.push(chain);
         })
         .await;
-        chains
     }
 
     /// Invoke `yield_chain` with each type chain bounding `ty` from `direction` in the permission context `pair`.
@@ -357,6 +361,13 @@ impl<'env, 'db> ToChain<'env, 'db> {
                     yield_chain(pair).await;
                 }
                 SymPermKind::Error(reported) => yield_chain(Pair::err(self.db, reported)).await,
+                SymPermKind::Apply(left, right) => {
+                    self.perm_pairs(pair, direction, left, &mut async |left_pair| {
+                        self.perm_pairs(left_pair, direction, right, yield_chain)
+                            .await
+                    })
+                    .await
+                }
             }
         })
     }
