@@ -1,8 +1,7 @@
 use std::fmt::Debug;
 
-use dada_ir_ast::diagnostic::Reported;
+use dada_ir_ast::{diagnostic::Reported, span::Span};
 use dada_util::{Map, Never};
-use salsa::Update;
 
 use crate::{
     ir::binder::{Binder, BoundTerm, NeverBinder},
@@ -14,7 +13,7 @@ use crate::{
     ir::variables::{FromVar, SymVariable},
 };
 
-use super::indices::InferVarIndex;
+use super::{classes::SymField, functions::SymFunction, indices::InferVarIndex};
 
 pub struct SubstitutionFns<'s, 'db, Term> {
     /// Invoked for free variables.
@@ -93,7 +92,7 @@ pub trait Subst<'db>: SubstWith<'db, Self::GenericTerm> + Debug {
 /// (see the macro [`identity_subst`][]).
 pub trait SubstWith<'db, Term> {
     /// The type of the resulting term; typically `Self` but not always.
-    type Output: Update;
+    type Output;
 
     /// Reproduce `self` with no edits.
     fn identity(&self) -> Self::Output;
@@ -110,7 +109,7 @@ pub trait SubstWith<'db, Term> {
     fn subst_with<'subst>(
         &'subst self,
         db: &'db dyn crate::Db,
-        bound_vars: &mut Vec<&'subst [SymVariable<'db>]>,
+        bound_vars: &mut Vec<SymVariable<'db>>,
         subst_fns: &mut SubstitutionFns<'_, 'db, Term>,
     ) -> Self::Output;
 }
@@ -129,7 +128,7 @@ impl<'db, Term> SubstWith<'db, Term> for Never {
     fn subst_with<'subst>(
         &'subst self,
         _db: &'db dyn crate::Db,
-        _bound_vars: &mut Vec<&'subst [SymVariable<'db>]>,
+        _bound_vars: &mut Vec<SymVariable<'db>>,
         _subst_fns: &mut SubstitutionFns<'_, 'db, Term>,
     ) -> Self::Output {
         unreachable!()
@@ -152,7 +151,7 @@ where
     fn subst_with<'subst>(
         &'subst self,
         db: &'db dyn crate::Db,
-        bound_vars: &mut Vec<&'subst [SymVariable<'db>]>,
+        bound_vars: &mut Vec<SymVariable<'db>>,
         subst_fns: &mut SubstitutionFns<'_, 'db, Term>,
     ) -> Self::Output {
         T::subst_with(self, db, bound_vars, subst_fns)
@@ -173,7 +172,7 @@ impl<'db> SubstWith<'db, SymGenericTerm<'db>> for SymGenericTerm<'db> {
     fn subst_with<'subst>(
         &'subst self,
         db: &'db dyn crate::Db,
-        bound_vars: &mut Vec<&'subst [SymVariable<'db>]>,
+        bound_vars: &mut Vec<SymVariable<'db>>,
         subst_fns: &mut SubstitutionFns<'_, 'db, SymGenericTerm<'db>>,
     ) -> Self::Output {
         match self {
@@ -207,7 +206,7 @@ impl<'db> SubstWith<'db, SymGenericTerm<'db>> for SymTy<'db> {
     fn subst_with<'subst>(
         &'subst self,
         db: &'db dyn crate::Db,
-        bound_vars: &mut Vec<&'subst [SymVariable<'db>]>,
+        bound_vars: &mut Vec<SymVariable<'db>>,
         subst_fns: &mut SubstitutionFns<'_, 'db, SymGenericTerm<'db>>,
     ) -> Self::Output {
         match self.kind(db) {
@@ -262,7 +261,7 @@ impl<'db> SubstWith<'db, SymGenericTerm<'db>> for SymPerm<'db> {
     fn subst_with<'subst>(
         &self,
         db: &'db dyn crate::Db,
-        bound_vars: &mut Vec<&'subst [SymVariable<'db>]>,
+        bound_vars: &mut Vec<SymVariable<'db>>,
         subst_fns: &mut SubstitutionFns<'_, 'db, SymGenericTerm<'db>>,
     ) -> Self::Output {
         match self.kind(db) {
@@ -324,7 +323,7 @@ impl<'db> SubstWith<'db, SymGenericTerm<'db>> for SymPlace<'db> {
     fn subst_with<'subst>(
         &'subst self,
         db: &'db dyn crate::Db,
-        bound_vars: &mut Vec<&'subst [SymVariable<'db>]>,
+        bound_vars: &mut Vec<SymVariable<'db>>,
         subst_fns: &mut SubstitutionFns<'_, 'db, SymGenericTerm<'db>>,
     ) -> Self::Output {
         match self.kind(db) {
@@ -375,12 +374,13 @@ impl<'db, T: BoundTerm<'db>> SubstWith<'db, T::GenericTerm> for Binder<'db, T> {
     fn subst_with<'subst>(
         &'subst self,
         db: &'db dyn crate::Db,
-        bound_vars: &mut Vec<&'subst [SymVariable<'db>]>,
+        bound_vars: &mut Vec<SymVariable<'db>>,
         subst_fns: &mut SubstitutionFns<'_, 'db, T::GenericTerm>,
     ) -> Self::Output {
-        bound_vars.push(&self.variables);
+        let len = bound_vars.len();
+        bound_vars.extend_from_slice(&self.variables);
         let bound_value = self.bound_value.subst_with(db, bound_vars, subst_fns);
-        bound_vars.pop().unwrap();
+        bound_vars.truncate(len);
 
         Binder {
             variables: self.variables.clone(),
@@ -406,7 +406,7 @@ impl<'db, T, Term> SubstWith<'db, Term> for NeverBinder<T> {
     fn subst_with<'subst>(
         &'subst self,
         _db: &'db dyn crate::Db,
-        _bound_vars: &mut Vec<&'subst [SymVariable<'db>]>,
+        _bound_vars: &mut Vec<SymVariable<'db>>,
         _subst_fns: &mut SubstitutionFns<'_, 'db, Term>,
     ) -> Self::Output {
         unreachable!()
@@ -427,7 +427,7 @@ impl<'db> SubstWith<'db, SymGenericTerm<'db>> for SymInputOutput<'db> {
     fn subst_with<'subst>(
         &'subst self,
         db: &'db dyn crate::Db,
-        bound_vars: &mut Vec<&'subst [SymVariable<'db>]>,
+        bound_vars: &mut Vec<SymVariable<'db>>,
         subst_fns: &mut SubstitutionFns<'_, 'db, SymGenericTerm<'db>>,
     ) -> Self::Output {
         SymInputOutput {
@@ -454,7 +454,7 @@ impl<'db, T: Subst<'db>> SubstWith<'db, T::GenericTerm> for Vec<T> {
     fn subst_with<'subst>(
         &'subst self,
         db: &'db dyn crate::Db,
-        bound_vars: &mut Vec<&'subst [SymVariable<'db>]>,
+        bound_vars: &mut Vec<SymVariable<'db>>,
         subst_fns: &mut SubstitutionFns<'_, 'db, T::GenericTerm>,
     ) -> Self::Output {
         self.iter()
@@ -465,7 +465,7 @@ impl<'db, T: Subst<'db>> SubstWith<'db, T::GenericTerm> for Vec<T> {
 
 pub fn subst_var<'db, Output, Term>(
     db: &'db dyn crate::Db,
-    bound_vars: &Vec<&[SymVariable<'db>]>,
+    bound_vars: &mut Vec<SymVariable<'db>>,
     subst_fns: &mut SubstitutionFns<'_, 'db, Term>,
     var: SymVariable<'db>,
 ) -> Output
@@ -473,7 +473,7 @@ where
     Term: AssertKind<'db, Output>,
     Output: FromVar<'db>,
 {
-    let var_appears_free = bound_vars.iter().all(|v| !v.contains(&var));
+    let var_appears_free = !bound_vars.contains(&var);
 
     if var_appears_free {
         if let Some(term) = (subst_fns.free_var)(var) {
@@ -506,7 +506,7 @@ macro_rules! identity_subst {
                 fn subst_with<'subst>(
                     &self,
                     _db: &$l dyn crate::Db,
-                    _bound_vars: &mut Vec<&'subst [SymVariable<'db>]>,
+                    _bound_vars: &mut  Vec<SymVariable<'db>>,
                     _subst_fns: &mut SubstitutionFns<'_, $l, Term>,
                 ) -> Self::Output {
                     *self
@@ -515,6 +515,7 @@ macro_rules! identity_subst {
         )*
     };
 }
+pub(crate) use identity_subst; // Now classic paths Just Work™
 
 identity_subst! {
     for 'db {
@@ -522,5 +523,61 @@ identity_subst! {
         Reported,
         SymGenericKind,
         SymTyName<'db>,
+        Span<'db>,
+        SymFunction<'db>,
+        SymField<'db>,
+    }
+}
+
+impl<'db, Term, T> SubstWith<'db, Term> for Option<T>
+where
+    T: SubstWith<'db, Term>,
+{
+    type Output = Option<T::Output>;
+
+    fn identity(&self) -> Self::Output {
+        match self {
+            Some(v) => Some(v.identity()),
+            None => None,
+        }
+    }
+
+    fn subst_with<'subst>(
+        &'subst self,
+        db: &'db dyn crate::Db,
+        bound_vars: &mut Vec<SymVariable<'db>>,
+        subst_fns: &mut SubstitutionFns<'_, 'db, Term>,
+    ) -> Self::Output {
+        match self {
+            Some(v) => Some(v.subst_with(db, bound_vars, subst_fns)),
+            None => None,
+        }
+    }
+}
+
+impl<'db, O, E, Term> SubstWith<'db, Term> for Result<O, E>
+where
+    O: SubstWith<'db, Term>,
+    E: SubstWith<'db, Term>,
+{
+    type Output = Result<O::Output, E::Output>;
+
+    fn identity(&self) -> Self::Output {
+        match self {
+            Ok(v) => Ok(v.identity()),
+            Err(e) => Err(e.identity()),
+        }
+    }
+
+    fn subst_with<'subst>(
+        &'subst self,
+        db: &'db dyn crate::Db,
+        bound_vars: &mut Vec<SymVariable<'db>>,
+        subst_fns: &mut SubstitutionFns<'_, 'db, Term>,
+    ) -> Self::Output {
+        match self {
+            Ok(v) => Ok(v.subst_with(db, bound_vars, subst_fns)),
+            Err(e) => Err(e.subst_with(db, bound_vars, subst_fns)),
+        }
     }
 }

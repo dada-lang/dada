@@ -7,9 +7,10 @@ use std::{
     task::{Context, Waker},
 };
 
-use crate::{
-    ir::indices::InferVarIndex,
-    ir::types::{SymGenericKind, SymGenericTerm},
+use crate::ir::{
+    indices::InferVarIndex,
+    subst::{Subst, SubstWith},
+    types::{SymGenericKind, SymGenericTerm},
 };
 use check_task::CheckTask;
 use dada_ir_ast::{
@@ -74,9 +75,9 @@ impl<'db> Runtime<'db> {
         db: &'db dyn crate::Db,
         span: Span<'db>,
         op: impl AsyncFnOnce(&Runtime<'db>) -> T + 'db,
-    ) -> T
+    ) -> T::Output
     where
-        T: Err<'db>,
+        T: Err<'db> + SubstWith<'db, SymGenericTerm<'db>>,
     {
         let check = Runtime::new(db);
         let (channel_tx, channel_rx) = std::sync::mpsc::channel();
@@ -89,12 +90,14 @@ impl<'db> Runtime<'db> {
         });
         check.drain();
 
-        match channel_rx.try_recv() {
+        let v = match channel_rx.try_recv() {
             Ok(v) => v,
 
             // FIXME: Obviously we need a better error message than this!
             Err(_) => T::err(db, check.report_type_annotations_needed(span)),
-        }
+        };
+
+        v.identity()
     }
 
     fn new(db: &'db dyn crate::Db) -> Self {
