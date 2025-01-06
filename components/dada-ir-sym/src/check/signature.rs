@@ -32,6 +32,7 @@ pub fn check_function_signature<'db>(
                 scope.into_bound_value(db, input_output),
             ))
         },
+        |v| v,
     )
 }
 
@@ -68,14 +69,10 @@ pub async fn prepare_env<'db>(
     }
     env.set_return_ty(output_ty);
 
-    (
-        env,
-        input_symbols,
-        SymInputOutput {
-            input_tys,
-            output_ty,
-        },
-    )
+    (env, input_symbols, SymInputOutput {
+        input_tys,
+        output_ty,
+    })
 }
 
 async fn set_variable_ty_from_input<'db>(env: &mut Env<'db>, input: &AstFunctionInput<'db>) {

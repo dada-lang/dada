@@ -71,33 +71,33 @@ impl<'db> std::ops::Deref for Runtime<'db> {
 }
 
 impl<'db> Runtime<'db> {
-    pub(crate) fn execute<T: 'db>(
+    pub(crate) fn execute<T: 'db, R: 'db>(
         db: &'db dyn crate::Db,
         span: Span<'db>,
-        op: impl AsyncFnOnce(&Runtime<'db>) -> T + 'db,
-    ) -> T::Output
+        constrain: impl AsyncFnOnce(&Runtime<'db>) -> T + 'db,
+        cleanup: impl FnOnce(T) -> R + 'db,
+    ) -> R
     where
-        T: Err<'db> + SubstWith<'db, SymGenericTerm<'db>>,
+        R: Err<'db>,
     {
-        let check = Runtime::new(db);
+        let runtime = Runtime::new(db);
         let (channel_tx, channel_rx) = std::sync::mpsc::channel();
-        check.spawn(span, {
-            let check = check.clone();
+        runtime.spawn(span, {
+            let runtime = runtime.clone();
             async move {
-                let result = op(&check).await;
+                let result = constrain(&runtime).await;
                 channel_tx.send(result).unwrap();
             }
         });
-        check.drain();
+        runtime.drain();
+        runtime.complete.store(true, Ordering::Relaxed);
 
-        let v = match channel_rx.try_recv() {
-            Ok(v) => v,
+        match channel_rx.try_recv() {
+            Ok(v) => cleanup(v),
 
             // FIXME: Obviously we need a better error message than this!
-            Err(_) => T::err(db, check.report_type_annotations_needed(span)),
-        };
-
-        v.identity()
+            Err(_) => R::err(db, runtime.report_type_annotations_needed(span)),
+        }
     }
 
     fn new(db: &'db dyn crate::Db) -> Self {

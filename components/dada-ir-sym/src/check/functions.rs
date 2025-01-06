@@ -14,7 +14,10 @@ use crate::{
     ir::exprs::{SymExpr, SymExprKind, SymPlaceExpr, SymPlaceExprKind},
 };
 
-use super::CheckInEnv;
+use super::{
+    CheckInEnv, Env,
+    resolve::{Resolver, Variance},
+};
 
 pub(crate) fn check_function_body<'db>(
     db: &'db dyn crate::Db,
@@ -96,6 +99,7 @@ fn check_function_body_class_constructor<'db>(
                 fields: parameter_exprs.chain(other_exprs).collect(),
             })
         },
+        |expr| expr,
     )
 }
 
@@ -107,12 +111,13 @@ fn check_function_body_ast_block<'db>(
     Some(Runtime::execute(
         db,
         function.name_span(db),
-        async move |runtime| -> SymExpr<'db> {
+        async move |runtime| -> (Env<'db>, SymExpr<'db>) {
             let (env, _, _) = prepare_env(db, runtime, function).await;
 
             let expr = body.check_in_env(&env).await;
 
-            expr
+            (env, expr)
         },
+        |(env, expr)| Resolver::new(&env).resolve_term(expr, Variance::Covariant),
     ))
 }

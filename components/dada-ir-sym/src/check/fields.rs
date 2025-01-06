@@ -22,6 +22,7 @@ pub(crate) fn check_field<'db>(
             let bound_ty = env.into_scope().into_bound_value(db, ty);
             Ok(bound_ty)
         },
+        |bound_ty| bound_ty,
     )
 }
 
