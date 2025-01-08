@@ -17,7 +17,7 @@ use super::{
     Env,
     bound::Direction,
     chains::{Lien, LienChain, TyChain, TyChainKind},
-    subtype_check::is_subtype,
+    subtype_check::{is_subterm, is_subtype},
 };
 
 #[derive(Copy, Clone, PartialEq, Eq, PartialOrd, Ord, Hash, Debug)]
@@ -78,18 +78,34 @@ impl<'env, 'db> Resolver<'env, 'db> {
     }
 
     /// Resolve a type inference variable `v` to a type, given the variance of the location in which it appears.
-    fn resolve_ty_var(&mut self, v: InferVarIndex) -> SymTy<'db> {
-        let lower_bound = self.bounding_ty(v, Direction::LowerBoundedBy);
-        let upper_bound = self.bounding_ty(v, Direction::UpperBoundedBy);
+    fn resolve_ty_var(&mut self, v: InferVarIndex) -> SymGenericTerm<'db> {
+        let (lower_bound, upper_bound): (Option<SymGenericTerm<'db>>, Option<SymGenericTerm<'db>>) =
+            match self.env.infer_var_kind(v) {
+                SymGenericKind::Type => (
+                    self.bounding_ty(v, Direction::LowerBoundedBy)
+                        .map(|ty| ty.into()),
+                    self.bounding_ty(v, Direction::UpperBoundedBy)
+                        .map(|ty| ty.into()),
+                ),
+                SymGenericKind::Perm => (
+                    self.bounding_perm(v, Direction::LowerBoundedBy)
+                        .map(|perm| perm.into()),
+                    self.bounding_perm(v, Direction::UpperBoundedBy)
+                        .map(|perm| perm.into()),
+                ),
+                SymGenericKind::Place => unimplemented!("place variable inference"),
+            };
+
         match (lower_bound, upper_bound) {
             (Some(bound), None) | (None, Some(bound)) => bound,
             (Some(lower_bound), Some(upper_bound)) => {
                 // Here is the challenge. We know that each of the upper bounds, individually, was a supertype
                 // of each of the lower bounds. But that does not make the LUB a supertype of the GLB.
-                if lower_bound == upper_bound || is_subtype(self.env, lower_bound, upper_bound) {
+                if lower_bound == upper_bound || is_subterm(self.env, lower_bound, upper_bound) {
                     upper_bound
                 } else {
-                    todo!()
+                    // For now, we just error.
+                    self.report_irreconciliable_error(v, lower_bound.into(), upper_bound.into())
                 }
             }
             (None, None) => {
@@ -125,6 +141,31 @@ impl<'env, 'db> Resolver<'env, 'db> {
         })
     }
 
+    /// Return the bounding perm on the permission inference variable `v` from the given `direction`.
+    fn bounding_perm(&mut self, v: InferVarIndex, direction: Direction) -> Option<SymPerm<'db>> {
+        self.env.runtime().assert_check_complete(async {
+            let mut lien_chains = vec![];
+            let mut bounds = self.env.transitive_perm_var_bounds(v, direction);
+            while let Some(perm) = bounds.next().await {
+                ToChain::new(self.env)
+                    .push_lien_chains(perm, direction, &mut lien_chains)
+                    .await;
+            }
+
+            if lien_chains.is_empty() {
+                return None;
+            }
+
+            match self.merge_lien_chains(lien_chains, direction) {
+                Ok(perm) => Some(perm),
+                Err(Irreconciliable { left, right }) => {
+                    Some(self.report_irreconciliable_error(v, left, right))
+                }
+            }
+        })
+    }
+
+    /// Merge a list of type chains, computing their LUB or GLB depending on `direction`.
     fn merge_ty_chains(
         &mut self,
         ty_chains: Vec<TyChain<'db>>,
@@ -143,6 +184,7 @@ impl<'env, 'db> Resolver<'env, 'db> {
         Ok(merged_perm.apply_to_ty(self.db, merged_ty))
     }
 
+    /// Merge a list of lien chains, computing their LUB or GLB depending on `direction`.
     fn merge_lien_chains(
         &self,
         lien_chains: Vec<LienChain<'db>>,
@@ -157,7 +199,7 @@ impl<'env, 'db> Resolver<'env, 'db> {
         let mut merged_perm = self.lien_chain_to_perm(first);
         for unmerged_chain in lien_chains {
             let unmerged_perm = self.lien_chain_to_perm(unmerged_chain);
-            merged_perm = self.merge_perms(merged_perm, unmerged_perm, direction)?;
+            merged_perm = self.merge_resolved_perms(merged_perm, unmerged_perm, direction)?;
         }
 
         Ok(merged_perm)
@@ -193,7 +235,9 @@ impl<'env, 'db> Resolver<'env, 'db> {
     }
 
     /// Merge `left` and `right` producing the lub or glb according to `direction`
-    fn merge_perms(
+    ///
+    /// `left` and `right` cannot contain inference variables.
+    fn merge_resolved_perms(
         &self,
         left: SymPerm<'db>,
         right: SymPerm<'db>,
@@ -647,21 +691,6 @@ impl<'env, 'db> Resolver<'env, 'db> {
         }
     }
 
-    /// Return true if `perm` is [`SymPermKind::Leased`][] or [`SymPermKind::Var`][] with a leased variable.
-    /// This can appear on the left side of an `apply` node.
-    fn is_leased_perm(&self, perm: SymPerm<'db>) -> bool {
-        match *perm.kind(self.db) {
-            SymPermKind::Leased(_) => true,
-            SymPermKind::Apply(left, _) => self.is_leased_perm(left),
-            SymPermKind::My => false,
-            SymPermKind::Our => false,
-            SymPermKind::Shared(_) => false,
-            SymPermKind::Infer(_) => false,
-            SymPermKind::Var(var) => self.env.is_leased_var(var),
-            SymPermKind::Error(_) => false,
-        }
-    }
-
     /// Merge two types that resulted from type kinds.
     /// These types cannot have permissions nor inference variables.
     fn merge_ty_chain_kind_tys(
@@ -675,21 +704,13 @@ impl<'env, 'db> Resolver<'env, 'db> {
                 Ok(SymTy::err(self.db, reported))
             }
 
-            (SymTyKind::Never, _) => match direction {
-                Direction::LowerBoundedBy => Ok(left),
-                Direction::UpperBoundedBy => Ok(right),
-            },
-
-            (_, SymTyKind::Never) => match direction {
-                Direction::LowerBoundedBy => Ok(right),
-                Direction::UpperBoundedBy => Ok(left),
-            },
-
-            (SymTyKind::Named(..), SymTyKind::Var(..))
-            | (SymTyKind::Var(..), SymTyKind::Named(..)) => {
+            // Never is only a subtype of itself.
+            (SymTyKind::Never, SymTyKind::Never) => Ok(left),
+            (SymTyKind::Never, _) | (_, SymTyKind::Never) => {
                 return Err(Irreconciliable::new(left, right));
             }
 
+            // Generic variables can only be related to themselves.
             (SymTyKind::Var(v1), SymTyKind::Var(v2)) => {
                 if v1 == v2 {
                     Ok(left)
@@ -697,7 +718,12 @@ impl<'env, 'db> Resolver<'env, 'db> {
                     return Err(Irreconciliable::new(left, right));
                 }
             }
+            (SymTyKind::Named(..), SymTyKind::Var(..))
+            | (SymTyKind::Var(..), SymTyKind::Named(..)) => {
+                return Err(Irreconciliable::new(left, right));
+            }
 
+            // Named types can only be related to themselves.
             (SymTyKind::Named(n1, args1), SymTyKind::Named(n2, args2)) => {
                 if n1 == n2 {
                     // FIXME: variance
@@ -718,16 +744,25 @@ impl<'env, 'db> Resolver<'env, 'db> {
                 }
             }
 
-            (SymTyKind::Perm(..), _) | (_, SymTyKind::Perm(..)) => {
-                unreachable!("Perm types are not expected in this function")
-            }
-
-            (SymTyKind::Infer(_), _) | (_, SymTyKind::Infer(_)) => {
-                unreachable!()
+            // Unreachable cases.
+            (SymTyKind::Perm(..), _)
+            | (_, SymTyKind::Perm(..))
+            | (SymTyKind::Infer(_), _)
+            | (_, SymTyKind::Infer(_)) => {
+                unreachable!(
+                    "unexpected type kinds in merge_ty_chain_kind_tys: ({left:?}, {right:?})"
+                )
             }
         }
     }
 
+    /// Merge two generic arguments, taking the variance of the generic argument into account.
+    ///
+    /// # Parameters
+    ///
+    /// * `left`, `right` -- the two generic arguments
+    /// * `original_direction` -- whether we are computing the LUB or GLB of the the original type whose generic argument this is.
+    /// * `variance` -- the variance of this argument in the original type
     fn merge_generic_arguments(
         &mut self,
         left: SymGenericTerm<'db>,
@@ -735,14 +770,52 @@ impl<'env, 'db> Resolver<'env, 'db> {
         original_direction: Direction,
         variance: Variance,
     ) -> Result<SymGenericTerm<'db>, Irreconciliable<'db>> {
-        let direction = match variance {
-            Variance::Covariant => original_direction,
-            Variance::Contravariant => original_direction.reverse(),
+        // This is a bit subtle. The `original_direction` indicates whether we are trying to
+        // find the LUB or GLB of two types -- say, `Foo[X]` and `Foo[Y]`.
+        // We are trying to decide how to merge `X` and `Y` into `Z`.
+        match variance {
+            // For a covariant parameter, assuming direction is
+            // `UpperBoundedBy` (LUB), we want `Z = LUB(X, Y)`.
+            // So e.g. the common supertype of `Foo[our String]` and `Foo[my String]`
+            // is `Foo[our String]`.
+            //
+            // If the direction is `LowerBoundedBy` (GLB), then e.g.
+            // we have something like `Fn(our String)` and `Fn(my String)` and we want
+            // the common *subtype*, `Fn(my String)`.
+            Variance::Covariant => self.merge_generic_terms(left, right, original_direction),
 
-            // FIXME: invariance
-            Variance::Invariant => original_direction,
-        };
+            // As above, but reversed.
+            Variance::Contravariant => {
+                self.merge_generic_terms(left, right, original_direction.reverse())
+            }
 
+            // Invariance is tricky. If `Foo[X]` and `Foo[Y]` are invariant,
+            // they can only be merged into a common sub- or super-type
+            // if `X == Y`. So `Cell[our String]` and `Cell[my String]`
+            // have no common super or subtypes!
+            //
+            // However `left` and `right` may have inference
+            // variables etc so we have to resolve them before comparing for
+            // equality.
+            Variance::Invariant => {
+                let left = self.resolve_term(left);
+                let right = self.resolve_term(right);
+                if left == right {
+                    Ok(left)
+                } else {
+                    Err(Irreconciliable::new(left, right))
+                }
+            }
+        }
+    }
+
+    /// Merge two generic terms, computing their LUB or GLB depending on `direction`.
+    fn merge_generic_terms(
+        &mut self,
+        left: SymGenericTerm<'db>,
+        right: SymGenericTerm<'db>,
+        direction: Direction,
+    ) -> Result<SymGenericTerm<'db>, Irreconciliable<'db>> {
         match (left, right) {
             (SymGenericTerm::Error(reported), _) | (_, SymGenericTerm::Error(reported)) => {
                 Ok(SymGenericTerm::Error(reported))
@@ -756,7 +829,7 @@ impl<'env, 'db> Resolver<'env, 'db> {
             }
 
             (SymGenericTerm::Perm(perm), SymGenericTerm::Perm(perm2)) => {
-                Ok(self.merge_perms(perm, perm2, direction)?.into())
+                Ok(self.merge_unresolved_perms(perm, perm2, direction)?.into())
             }
             (SymGenericTerm::Perm(_), _) | (_, SymGenericTerm::Perm(_)) => {
                 unreachable!("kind mismatch")
@@ -768,6 +841,7 @@ impl<'env, 'db> Resolver<'env, 'db> {
         }
     }
 
+    /// Merge two types, computing their LUB or GLB depending on `direction`.
     fn merge_tys(
         &mut self,
         left: SymTy<'db>,
@@ -785,6 +859,27 @@ impl<'env, 'db> Resolver<'env, 'db> {
                 .push_ty_chains(right, direction, &mut ty_chains)
                 .await;
             self.merge_ty_chains(ty_chains, direction)
+        })
+    }
+
+    /// Merge two permissions, computing their LUB or GLB depending on `direction`.
+    fn merge_unresolved_perms(
+        &mut self,
+        left: SymPerm<'db>,
+        right: SymPerm<'db>,
+        direction: Direction,
+    ) -> Result<SymPerm<'db>, Irreconciliable<'db>> {
+        self.env.runtime().assert_check_complete(async {
+            // FIXME: Should we be propagating context for the type chains?
+            // Seems like yes, but that also suggests we need to rework this merging process a bit.
+            let mut lien_chains = vec![];
+            ToChain::new(self.env)
+                .push_lien_chains(left, direction, &mut lien_chains)
+                .await;
+            ToChain::new(self.env)
+                .push_lien_chains(right, direction, &mut lien_chains)
+                .await;
+            self.merge_lien_chains(lien_chains, direction)
         })
     }
 

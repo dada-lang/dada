@@ -118,6 +118,6 @@ fn check_function_body_ast_block<'db>(
 
             (env, expr)
         },
-        |(env, expr)| Resolver::new(&env).resolve_term(expr, Variance::Covariant),
+        |(env, expr)| Resolver::new(&env).resolve_term(expr),
     ))
 }

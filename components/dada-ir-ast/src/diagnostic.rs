@@ -150,3 +150,9 @@ impl<'db, T> Err<'db> for Errors<T> {
         Err(reported)
     }
 }
+
+impl<'db> Err<'db> for Reported {
+    fn err(_db: &'db dyn crate::Db, reported: Reported) -> Self {
+        reported
+    }
+}

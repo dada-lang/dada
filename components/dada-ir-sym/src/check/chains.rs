@@ -270,6 +270,28 @@ impl<'env, 'db> ToChain<'env, 'db> {
             .await
     }
 
+    /// Return a set of "lien chains" bounding `perm` from the given `direction`.
+    pub async fn into_lien_chains(
+        self,
+        perm: SymPerm<'db>,
+        direction: Direction,
+    ) -> Vec<LienChain<'db>> {
+        let mut chains = vec![];
+        self.push_lien_chains(perm, direction, &mut chains).await;
+        chains
+    }
+
+    /// Push a set of "type chains" bounding `ty` from the given `direction` into the given vector.
+    pub async fn push_lien_chains(
+        &self,
+        perm: SymPerm<'db>,
+        direction: Direction,
+        chains: &mut Vec<LienChain<'db>>,
+    ) {
+        self.push_lien_chains_in_cx(LienChain::my(self.db), perm, direction, chains)
+            .await
+    }
+
     /// Return a set of "type chains" bounding `ty` from the given `direction`
     /// when it appears in the context of the permission chain `cx`.
     pub async fn push_ty_chains_in_cx(
@@ -285,6 +307,25 @@ impl<'env, 'db> ToChain<'env, 'db> {
         };
         self.each_ty_chain(ty, pair, direction, &mut async |chain| {
             chains.push(chain);
+        })
+        .await;
+    }
+
+    /// Return a set of "type chains" bounding `ty` from the given `direction`
+    /// when it appears in the context of the permission chain `cx`.
+    pub async fn push_lien_chains_in_cx(
+        &self,
+        cx: LienChain<'db>,
+        perm: SymPerm<'db>,
+        direction: Direction,
+        chains: &mut Vec<LienChain<'db>>,
+    ) {
+        let pair = Pair {
+            chain: cx,
+            pending: Default::default(),
+        };
+        self.perm_pairs(pair, direction, perm, &mut async |pair| {
+            chains.push(pair.into_lien_chain(self.env));
         })
         .await;
     }
@@ -307,7 +348,12 @@ impl<'env, 'db> ToChain<'env, 'db> {
                     .await;
                 }
                 SymTyKind::Named(sym_ty_name, ref vec) => {
-                    todo!()
+                    yield_chain(TyChain::new(
+                        self.db,
+                        pair.into_lien_chain(self.env),
+                        TyChainKind::Named(sym_ty_name, vec.clone()),
+                    ))
+                    .await;
                 }
                 SymTyKind::Infer(var) => {
                     let mut bounds = self.env.transitive_ty_var_bounds(var, direction);

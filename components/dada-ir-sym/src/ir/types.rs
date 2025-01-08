@@ -573,7 +573,11 @@ impl<'db> SymPlace<'db> {
         }
     }
 
-    /// True if `self` covers `other`. Neither place may contain inference variables.
+    /// True if `self` *covers* `other`. Neither place may contain inference variables.
+    ///
+    /// # Definition
+    /// 
+    /// A place P *covers* another place Q if P includes all of Q. E.g., `a` covers `a.b`.
     pub fn covers(self, db: &'db dyn crate::Db, other: SymPlace<'db>) -> bool {
         assert!(self.no_inference_vars(db));
         assert!(other.no_inference_vars(db));

@@ -331,10 +331,19 @@ impl<'db> Env<'db> {
     ) -> TransitiveBounds<'db, SymPerm<'db>> {
         let db = self.db();
         if let &SymPermKind::Infer(inference_var) = perm.kind(db) {
-            TransitiveBounds::new(&self.runtime, direction, inference_var)
+            self.transitive_perm_var_bounds(inference_var, direction)
         } else {
             TransitiveBounds::just(&self.runtime, direction, perm)
         }
+    }
+
+    /// Transitive bounds of a permission variable.
+    pub fn transitive_perm_var_bounds(
+        &self,
+        inference_var: InferVarIndex,
+        direction: Direction,
+    ) -> TransitiveBounds<'db, SymPerm<'db>> {
+        TransitiveBounds::new(&self.runtime, direction, inference_var)
     }
 
     pub fn describe_ty<'a, 'chk>(&'a self, ty: SymTy<'db>) -> impl std::fmt::Display + 'a {
