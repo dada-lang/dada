@@ -48,15 +48,15 @@ impl<'env, 'db> Resolver<'env, 'db> {
     }
 
     /// Return a version of `term` in which all inference variables are (deeply) removed.
-    pub fn resolve_term<T>(&mut self, term: T, variance: Variance) -> T::Output
+    pub fn resolve_term<T>(&mut self, term: T) -> T::Output
     where
         T: Subst<'db, GenericTerm = SymGenericTerm<'db>>,
     {
-        term.resolve_infer_var(self.db, |v| Some(self.resolve_infer_var(v, variance)))
+        term.resolve_infer_var(self.db, |v| Some(self.resolve_infer_var(v)))
     }
 
     /// Resolve an inference variable to a generic term, given the variance of the location in which it appears
-    fn resolve_infer_var(&mut self, v: InferVarIndex, variance: Variance) -> SymGenericTerm<'db> {
+    fn resolve_infer_var(&mut self, v: InferVarIndex) -> SymGenericTerm<'db> {
         if self.var_stack.insert(v) {
             let result = match self.env.infer_var_kind(v) {
                 SymGenericKind::Type => self.resolve_ty_var(v).into(),
@@ -704,16 +704,8 @@ impl<'env, 'db> Resolver<'env, 'db> {
                     let variances = self.env.variances(*n1);
                     assert_eq!(args1.len(), variances.len());
                     assert_eq!(args1.len(), args2.len());
-                    let resolved_args1 = args1
-                        .iter()
-                        .zip(variances)
-                        .map(|(&a1, &v)| self.resolve_term(a1, v))
-                        .collect::<Vec<_>>();
-                    let resolved_args2 = args2
-                        .iter()
-                        .zip(variances)
-                        .map(|(&a2, &v)| self.resolve_term(a2, v))
-                        .collect::<Vec<_>>();
+                    let resolved_args1 = self.resolve_term(args1);
+                    let resolved_args2 = self.resolve_term(args2);
                     let generics = resolved_args1
                         .into_iter()
                         .zip(resolved_args2)
