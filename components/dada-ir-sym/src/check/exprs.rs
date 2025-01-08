@@ -7,7 +7,7 @@ use crate::{
         member_lookup::MemberLookup,
         scope::{NameResolution, NameResolutionSym},
         scope_tree::ScopeTreeNode,
-        subobject::{Expected, require_subtype},
+        subtype_require::{Expected, require_subtype},
     },
     ir::{
         binder::Binder,

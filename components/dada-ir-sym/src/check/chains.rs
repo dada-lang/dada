@@ -253,6 +253,13 @@ impl<'env, 'db> ToChain<'env, 'db> {
     }
 
     /// Return a set of "type chains" bounding `ty` from the given `direction`.
+    pub async fn into_ty_chains(self, ty: SymTy<'db>, direction: Direction) -> Vec<TyChain<'db>> {
+        let mut chains = vec![];
+        self.push_ty_chains(ty, direction, &mut chains).await;
+        chains
+    }
+
+    /// Push a set of "type chains" bounding `ty` from the given `direction` into the given vector.
     pub async fn push_ty_chains(
         &self,
         ty: SymTy<'db>,

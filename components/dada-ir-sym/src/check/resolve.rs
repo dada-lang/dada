@@ -17,6 +17,7 @@ use super::{
     Env,
     bound::Direction,
     chains::{Lien, LienChain, TyChain, TyChainKind},
+    subtype_check::is_subtype,
 };
 
 #[derive(Copy, Clone, PartialEq, Eq, PartialOrd, Ord, Hash, Debug)]
@@ -58,7 +59,7 @@ impl<'env, 'db> Resolver<'env, 'db> {
     fn resolve_infer_var(&mut self, v: InferVarIndex, variance: Variance) -> SymGenericTerm<'db> {
         if self.var_stack.insert(v) {
             let result = match self.env.infer_var_kind(v) {
-                SymGenericKind::Type => self.resolve_ty_var(v, variance).into(),
+                SymGenericKind::Type => self.resolve_ty_var(v).into(),
                 SymGenericKind::Perm => todo!(),
                 SymGenericKind::Place => todo!(),
             };
@@ -77,24 +78,31 @@ impl<'env, 'db> Resolver<'env, 'db> {
     }
 
     /// Resolve a type inference variable `v` to a type, given the variance of the location in which it appears.
-    fn resolve_ty_var(&mut self, v: InferVarIndex, variance: Variance) -> SymTy<'db> {
-        match variance {
-            // In a covariant setting, we can pick any supertype of the "true type" represented by this variable.
-            // So look at its supertype bounds.
-            Variance::Covariant => self.bounding_ty(v, Direction::UpperBoundedBy),
-
-            // As above, but for subtypes.
-            Variance::Contravariant => self.bounding_ty(v, Direction::LowerBoundedBy),
-
-            Variance::Invariant => {
-                // FIXME
-                self.bounding_ty(v, Direction::UpperBoundedBy)
+    fn resolve_ty_var(&mut self, v: InferVarIndex) -> SymTy<'db> {
+        let lower_bound = self.bounding_ty(v, Direction::LowerBoundedBy);
+        let upper_bound = self.bounding_ty(v, Direction::UpperBoundedBy);
+        match (lower_bound, upper_bound) {
+            (Some(bound), None) | (None, Some(bound)) => bound,
+            (Some(lower_bound), Some(upper_bound)) => {
+                // Here is the challenge. We know that each of the upper bounds, individually, was a supertype
+                // of each of the lower bounds. But that does not make the LUB a supertype of the GLB.
+                if lower_bound == upper_bound || is_subtype(self.env, lower_bound, upper_bound) {
+                    upper_bound
+                } else {
+                    todo!()
+                }
+            }
+            (None, None) => {
+                // No bounds on this type variable.
+                // What should we pick?
+                // Or should we error?
+                todo!()
             }
         }
     }
 
     /// Return the bounding type on the type inference variable `v` from the given `direction`.
-    fn bounding_ty(&mut self, v: InferVarIndex, direction: Direction) -> SymTy<'db> {
+    fn bounding_ty(&mut self, v: InferVarIndex, direction: Direction) -> Option<SymTy<'db>> {
         self.env.runtime().assert_check_complete(async {
             let mut ty_chains = vec![];
             let mut bounds = self.env.transitive_ty_var_bounds(v, direction);
@@ -104,10 +112,14 @@ impl<'env, 'db> Resolver<'env, 'db> {
                     .await;
             }
 
+            if ty_chains.is_empty() {
+                return None;
+            }
+
             match self.merge_ty_chains(ty_chains, direction) {
-                Ok(ty) => ty,
+                Ok(ty) => Some(ty),
                 Err(Irreconciliable { left, right }) => {
-                    self.report_irreconciliable_error(v, left, right)
+                    Some(self.report_irreconciliable_error(v, left, right))
                 }
             }
         })

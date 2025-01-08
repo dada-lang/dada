@@ -23,7 +23,9 @@ use dada_util::{Map, debug};
 use crate::{
     check::bound::{Direction, TransitiveBounds},
     check::runtime::Runtime,
-    check::subobject::{Expected, require_assignable_type, require_numeric_type, require_subtype},
+    check::subtype_require::{
+        Expected, require_assignable_type, require_numeric_type, require_subtype,
+    },
     check::universe::Universe,
     ir::exprs::SymExpr,
 };
