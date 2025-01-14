@@ -337,7 +337,7 @@ async fn path_to_sym_place<'db>(env: &Env<'db>, path: AstPath<'db>) -> SymPlace<
     }
 }
 
-fn path_to_expr_result<'a, 'db>(env: &'a Env<'db>, path: AstPath<'db>) -> impl Future<Output = ExprResult<'db>> + use<'a, 'db> {
+fn path_to_expr_result<'a, 'db>(env: &'a Env<'db>, path: AstPath<'db>) -> impl Future<Output = ExprResult<'db>> {
     let db = env.db();
     Box::pin(async move {
         match *path.kind(env.db()) {

@@ -360,13 +360,33 @@ impl<'db> Env<'db> {
         self.require_assignable_object_type(expr.span(db), expr.ty(db), boolean_ty);
     }
 
-    /// Check if the given (perm, type) variable is declared as shared.
-    pub fn is_shared_var(&self, var: SymVariable<'db>) -> bool {
+    /// Check if the given (perm, type) variable is declared as copy.
+    pub fn is_copy_var(&self, _var: SymVariable<'db>) -> bool {
         false // FIXME
     }
 
+    /// Check if the given (perm, type) variable is declared as move.
+    pub fn is_move_var(&self, _var: SymVariable<'db>) -> bool {
+        false // FIXME
+    }
+
+    /// Check if the given (perm, type) variable is declared as lent.
+    pub fn is_lent_var(&self, _var: SymVariable<'db>) -> bool {
+        false // FIXME
+    }
+
+    /// Check if the given (perm, type) variable is declared as owned.
+    pub fn is_owned_var(&self, _var: SymVariable<'db>) -> bool {
+        false // FIXME
+    }
+
+    // /// Check if the given (perm, type) variable is declared as shared.
+    // pub fn is_shared_var(&self, var: SymVariable<'db>) -> bool {
+    //     false // FIXME
+    // }
+
     /// Check if the given (perm, type) variable is declared as leased.
-    pub fn is_leased_var(&self, var: SymVariable<'db>) -> bool {
+    pub fn is_leased_var(&self, _var: SymVariable<'db>) -> bool {
         false // FIXME
     }
 

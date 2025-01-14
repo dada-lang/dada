@@ -162,7 +162,7 @@ fn bound_inference_var<'a, 'db>(
 
     // The term to bound the inference variable by
     term: SymGenericTerm<'db>,
-) -> impl Future<Output = Errors<()>> + use<'a, 'db> {
+) -> impl Future<Output = Errors<()>> {
     Box::pin(async move {
         // If this variable already has the given bound, stop.
         if !env

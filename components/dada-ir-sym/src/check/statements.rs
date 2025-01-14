@@ -4,8 +4,8 @@ use dada_ir_ast::{ast::AstStatement, span::Span};
 use futures::join;
 
 use crate::{
-    check::env::Env,
     check::CheckInEnv,
+    check::env::Env,
     ir::exprs::{SymExpr, SymExprKind},
     ir::types::SymTy,
     ir::variables::SymVariable,
@@ -15,7 +15,7 @@ pub fn check_block_statements<'a, 'db>(
     env: &'a Env<'db>,
     block_span: Span<'db>,
     statements: &'a [AstStatement<'db>],
-) -> impl Future<Output = SymExpr<'db>> + use<'a, 'db> {
+) -> impl Future<Output = SymExpr<'db>> {
     // (the box here permits recursion)
     Box::pin(async move {
         let db = env.db();
@@ -61,17 +61,12 @@ pub fn check_block_statements<'a, 'db>(
                 );
 
                 // Create `let lv: ty = lv = initializer; remainder`
-                SymExpr::new(
-                    db,
-                    s.name(db).span,
-                    body.ty(db),
-                    SymExprKind::LetIn {
-                        lv,
-                        ty,
-                        initializer,
-                        body,
-                    },
-                )
+                SymExpr::new(db, s.name(db).span, body.ty(db), SymExprKind::LetIn {
+                    lv,
+                    ty,
+                    initializer,
+                    body,
+                })
             }
 
             AstStatement::Expr(e) => {

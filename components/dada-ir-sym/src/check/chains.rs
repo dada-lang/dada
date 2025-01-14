@@ -29,6 +29,14 @@ impl<'db> LienChain<'db> {
         Self { links }
     }
 
+    /// Returns the first link in the chain (if any).
+    pub fn first_link(&self) -> FirstLink<'db> {
+        match self.links.first() {
+            Some(&lien) => FirstLink::Lien(lien),
+            None => FirstLink::My,
+        }
+    }
+
     pub fn is_my(&self) -> bool {
         self.links.is_empty()
     }
@@ -104,7 +112,7 @@ impl<'db> Lien<'db> {
             Lien::Our => true,
             Lien::Shared(_) => true,
             Lien::Leased(_) => false,
-            Lien::Var(sym_variable) => env.is_shared_var(sym_variable),
+            Lien::Var(sym_variable) => env.is_copy_var(sym_variable),
             Lien::Error(_) => false,
         }
     }
@@ -133,6 +141,12 @@ impl<'db> Err<'db> for Lien<'db> {
     fn err(_db: &'db dyn crate::Db, reported: Reported) -> Self {
         Lien::Error(reported)
     }
+}
+
+/// More declarative version of `Option<Lien>` returned by `first_link` method.
+pub enum FirstLink<'db> {
+    My,
+    Lien(Lien<'db>),
 }
 
 /// A "type chain" describes a data type and the permission chain (`lien`) by which that data can be reached.

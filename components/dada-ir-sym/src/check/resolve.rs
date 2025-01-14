@@ -686,7 +686,7 @@ impl<'env, 'db> Resolver<'env, 'db> {
             SymPermKind::Our => true,
             SymPermKind::Leased(_) => false,
             SymPermKind::Infer(_) => false,
-            SymPermKind::Var(var) => self.env.is_shared_var(var),
+            SymPermKind::Var(var) => self.env.is_copy_var(var),
             SymPermKind::Error(_) => false,
         }
     }
