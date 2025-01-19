@@ -1,5 +1,9 @@
 //! Check that one type is a subtype of another assuming inference has completed.
 
+use core::unicode::conversions;
+
+use dada_ir_ast::diagnostic::Err;
+
 use super::{
     Env,
     bound::Direction,
@@ -267,6 +271,7 @@ fn is_owned_chain<'db>(env: &Env<'db>, chain: &LienChain<'db>) -> bool {
     }
 }
 
+/// Compare corresponding generic arguments `a` and `b` assuming the given variance.
 fn is_subgeneric<'db>(
     env: &Env<'db>,
     variance: Variance,
@@ -275,7 +280,69 @@ fn is_subgeneric<'db>(
     sup_cx: &LienChain<'db>,
     sup_term: SymGenericTerm<'db>,
 ) -> bool {
-    todo!()
+    let db = env.db();
+
+    assert!(
+        if let Ok(k) = sub_term.kind() {
+            sup_term.has_kind(db, k)
+        } else {
+            true
+        },
+        "is_subgeneric: kind mismatch between {sub_term:?} and {sup_term:?}",
+    );
+
+    let is_subgeneric_impl =
+        |a: (&LienChain<'db>, SymGenericTerm<'db>), b: (&LienChain<'db>, SymGenericTerm<'db>)| {
+            let a_lubs = term_to_ty_chain(env, a.0, a.1, Direction::UpperBoundedBy);
+            let b_glbs = term_to_ty_chain(env, b.0, b.1, Direction::LowerBoundedBy);
+            a_lubs
+                .iter()
+                .all(|a_lub| b_glbs.iter().any(|glb| is_subtychain(env, a_lub, glb)))
+        };
+
+    let covariant = || is_subgeneric_impl((sub_cx, sub_term), (sup_cx, sup_term));
+
+    let contravariant = || is_subgeneric_impl((sup_cx, sup_term), (sub_cx, sub_term));
+
+    match variance {
+        Variance::Covariant => covariant(),
+        Variance::Contravariant => contravariant(),
+        Variance::Invariant => covariant() && contravariant(),
+    }
+}
+
+/// Convert the generic term into a type chain. If `term` is a permission, returns a type chain applied to `()`.
+fn term_to_ty_chain<'db>(
+    env: &Env<'db>,
+    cx: &LienChain<'db>,
+    term: SymGenericTerm<'db>,
+    direction: Direction,
+) -> Vec<TyChain<'db>> {
+    env.runtime().assert_check_complete(async {
+        let db = env.db();
+        let mut chains = vec![];
+        match term {
+            SymGenericTerm::Type(ty) => {
+                ToChain::new(env)
+                    .push_ty_chains_in_cx(cx.clone(), ty, direction, &mut chains)
+                    .await
+            }
+            SymGenericTerm::Perm(perm) => {
+                let mut lien_chains = vec![];
+                ToChain::new(env)
+                    .push_lien_chains_in_cx(cx.clone(), perm, direction, &mut lien_chains)
+                    .await;
+                chains.extend(
+                    lien_chains
+                        .into_iter()
+                        .map(|lien_chain| TyChain::new(db, lien_chain, TyChainKind::unit(db))),
+                );
+            }
+            SymGenericTerm::Place(_) => unreachable!("unexpected place term"),
+            SymGenericTerm::Error(reported) => chains.push(TyChain::err(env.db(), reported)),
+        }
+        chains
+    })
 }
 
 pub fn is_subplace<'db>(env: &Env<'db>, sub: SymPlace<'db>, sup: SymPlace<'db>) -> bool {

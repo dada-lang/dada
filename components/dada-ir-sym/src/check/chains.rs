@@ -154,6 +154,13 @@ pub enum TyChainKind<'db> {
     Var(SymVariable<'db>),
 }
 
+impl<'db> TyChainKind<'db> {
+    /// Return ty chain kind for unit (0-arity tuple).
+    pub fn unit(db: &'db dyn crate::Db) -> Self {
+        Self::Named(SymTyName::Tuple { arity: 0 }, vec![])
+    }
+}
+
 /// A `Pair` is used during lien chain construction.
 ///
 /// The challenge is that we have to fill in missing pieces from
