@@ -156,7 +156,7 @@ pub enum TyChainKind<'db> {
 
 impl<'db> TyChainKind<'db> {
     /// Return ty chain kind for unit (0-arity tuple).
-    pub fn unit(db: &'db dyn crate::Db) -> Self {
+    pub fn unit(_db: &'db dyn crate::Db) -> Self {
         Self::Named(SymTyName::Tuple { arity: 0 }, vec![])
     }
 }

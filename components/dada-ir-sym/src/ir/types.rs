@@ -1,5 +1,3 @@
-use std::collections::VecDeque;
-
 use crate::{
     Db,
     ir::{
@@ -19,6 +17,13 @@ use dada_ir_ast::{
 };
 use dada_util::FromImpls;
 use salsa::Update;
+
+#[derive(Copy, Clone, PartialEq, Eq, PartialOrd, Ord, Hash, Debug)]
+pub enum Variance {
+    Covariant,
+    Contravariant,
+    Invariant,
+}
 
 #[derive(Copy, Clone, PartialEq, Eq, PartialOrd, Ord, Hash, Update, Debug)]
 pub enum SymGenericKind {

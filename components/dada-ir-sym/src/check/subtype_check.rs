@@ -1,18 +1,15 @@
 //! Check that one type is a subtype of another assuming inference has completed.
 
-use core::unicode::conversions;
-
 use dada_ir_ast::diagnostic::Err;
 
 use super::{
     Env,
     bound::Direction,
     chains::{Lien, LienChain, TyChainKind},
-    resolve::Variance,
 };
 use crate::{
     check::chains::{ToChain, TyChain},
-    ir::types::{SymGenericTerm, SymPerm, SymPlace, SymTy},
+    ir::types::{SymGenericTerm, SymPerm, SymPlace, SymTy, Variance},
 };
 
 pub fn is_subterm<'db>(env: &Env<'db>, sub: SymGenericTerm<'db>, sup: SymGenericTerm<'db>) -> bool {

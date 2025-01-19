@@ -9,7 +9,10 @@ use crate::{
     ir::{
         indices::InferVarIndex,
         subst::Subst,
-        types::{SymGenericKind, SymGenericTerm, SymPerm, SymPermKind, SymPlace, SymTy, SymTyKind},
+        types::{
+            SymGenericKind, SymGenericTerm, SymPerm, SymPermKind, SymPlace, SymTy, SymTyKind,
+            Variance,
+        },
     },
 };
 
@@ -19,13 +22,6 @@ use super::{
     chains::{Lien, LienChain, TyChain, TyChainKind},
     subtype_check::is_subterm,
 };
-
-#[derive(Copy, Clone, PartialEq, Eq, PartialOrd, Ord, Hash, Debug)]
-pub enum Variance {
-    Covariant,
-    Contravariant,
-    Invariant,
-}
 
 pub struct Resolver<'env, 'db> {
     db: &'db dyn crate::Db,
@@ -736,7 +732,7 @@ impl<'env, 'db> Resolver<'env, 'db> {
                         .into_iter()
                         .zip(resolved_args2)
                         .zip(variances)
-                        .map(|((a1, a2), &v)| self.merge_generic_arguments(a1, a2, direction, v))
+                        .map(|((a1, a2), v)| self.merge_generic_arguments(a1, a2, direction, v))
                         .collect::<Result<Vec<_>, _>>()?;
                     Ok(SymTy::named(self.db, *n1, generics))
                 } else {

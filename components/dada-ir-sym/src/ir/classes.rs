@@ -17,6 +17,8 @@ use crate::{
     prelude::Symbol,
 };
 
+use super::types::Variance;
+
 #[salsa::tracked]
 pub struct SymAggregate<'db> {
     /// The scope in which this class is declared.
@@ -58,6 +60,13 @@ impl<'db> SymAggregate<'db> {
         } else {
             0
         }
+    }
+
+    /// Variance of generic parameters
+    pub fn variances(&self, db: &'db dyn crate::Db) -> Vec<Variance> {
+        let len_generics = self.len_generics(db);
+        // FIXME
+        vec![Variance::Covariant; len_generics]
     }
 
     /// Kinds of generic parameters

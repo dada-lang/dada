@@ -8,7 +8,7 @@ use crate::{
         subst::SubstWith,
         types::{
             SymGenericKind, SymGenericTerm, SymPerm, SymPermKind, SymPlace, SymTy, SymTyKind,
-            SymTyName,
+            SymTyName, Variance,
         },
         variables::SymVariable,
     },
@@ -30,7 +30,7 @@ use crate::{
     ir::exprs::SymExpr,
 };
 
-use super::{CheckInEnv, resolve::Variance};
+use super::CheckInEnv;
 
 #[derive(Clone)]
 pub(crate) struct Env<'db> {
@@ -396,9 +396,13 @@ impl<'db> Env<'db> {
         self.runtime.with_inference_var_data(v, |data| data.kind())
     }
 
-    pub(crate) fn variances(&self, _n: SymTyName<'db>) -> &[Variance] {
-        // FIXME: variances
-        &[]
+    pub(crate) fn variances(&self, n: SymTyName<'db>) -> Vec<Variance> {
+        match n {
+            SymTyName::Primitive(_) => vec![],
+            SymTyName::Future => vec![Variance::Covariant],
+            SymTyName::Tuple { arity } => vec![Variance::Covariant; arity],
+            SymTyName::Aggregate(aggr) => aggr.variances(self.db()),
+        }
     }
 }
 
