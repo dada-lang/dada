@@ -371,6 +371,7 @@ impl<'db> Env<'db> {
     }
 
     /// Check if the given (perm, type) variable is declared as lent.
+    #[expect(dead_code)]
     pub fn is_lent_var(&self, _var: SymVariable<'db>) -> bool {
         false // FIXME
     }
@@ -386,6 +387,7 @@ impl<'db> Env<'db> {
     // }
 
     /// Check if the given (perm, type) variable is declared as leased.
+    #[expect(dead_code)]
     pub fn is_leased_var(&self, _var: SymVariable<'db>) -> bool {
         false // FIXME
     }
@@ -394,7 +396,7 @@ impl<'db> Env<'db> {
         self.runtime.with_inference_var_data(v, |data| data.kind())
     }
 
-    pub(crate) fn variances(&self, n: SymTyName<'db>) -> &[Variance] {
+    pub(crate) fn variances(&self, _n: SymTyName<'db>) -> &[Variance] {
         // FIXME: variances
         &[]
     }

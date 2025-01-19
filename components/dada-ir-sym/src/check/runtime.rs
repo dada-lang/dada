@@ -9,7 +9,6 @@ use std::{
 
 use crate::ir::{
     indices::InferVarIndex,
-    subst::{Subst, SubstWith},
     types::{SymGenericKind, SymGenericTerm},
 };
 use check_task::CheckTask;

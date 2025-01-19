@@ -17,7 +17,7 @@ use super::{
     Env,
     bound::Direction,
     chains::{Lien, LienChain, TyChain, TyChainKind},
-    subtype_check::{is_subterm, is_subtype},
+    subtype_check::is_subterm,
 };
 
 #[derive(Copy, Clone, PartialEq, Eq, PartialOrd, Ord, Hash, Debug)]
@@ -615,7 +615,7 @@ impl<'env, 'db> Resolver<'env, 'db> {
 
     /// Convert a `LienChain` into a `SymPerm`.
     fn lien_chain_to_perm(&self, lien_chain: LienChain<'db>) -> SymPerm<'db> {
-        self.liens_to_perm(&lien_chain.links)
+        self.liens_to_perm(lien_chain.links())
     }
 
     /// Convert a list of `Lien`s into a `SymPerm`.

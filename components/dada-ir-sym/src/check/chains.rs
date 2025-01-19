@@ -21,7 +21,7 @@ use super::{Env, bound::Direction};
 /// which in turn had data leased from `q` (which in turn owned the data).
 #[derive(Debug, PartialEq, Eq, Clone, PartialOrd, Ord, Update)]
 pub struct LienChain<'db> {
-    pub links: Vec<Lien<'db>>,
+    links: Vec<Lien<'db>>,
 }
 
 impl<'db> LienChain<'db> {
@@ -29,28 +29,9 @@ impl<'db> LienChain<'db> {
         Self { links }
     }
 
-    /// Returns the first link in the chain (if any).
-    pub fn first_link(&self) -> FirstLink<'db> {
-        match self.links.first() {
-            Some(&lien) => FirstLink::Lien(lien),
-            None => FirstLink::My,
-        }
-    }
-
-    pub fn is_my(&self) -> bool {
-        self.links.is_empty()
-    }
-
-    pub fn is_our(&self) -> bool {
-        self.links.len() == 1 && self.links[0] == Lien::Our
-    }
-
-    pub fn is_shared(&self) -> bool {
-        self.links.len() == 1 && matches!(self.links[0], Lien::Shared(_))
-    }
-
-    pub fn is_leased(&self) -> bool {
-        self.links.len() == 1 && matches!(self.links[0], Lien::Leased(_))
+    /// Access a slice of the links in the chain.
+    pub fn links(&self) -> &[Lien<'db>] {
+        &self.links
     }
 
     /// Create a "fully owned" lien chain.
@@ -130,9 +111,9 @@ impl<'db> Lien<'db> {
             (Lien::Leased(_), _) => false,
 
             (Lien::Var(v1), Lien::Var(v2)) => v1 == v2,
-            (Lien::Var(v1), _) => false,
+            (Lien::Var(_), _) => false,
 
-            (Lien::Error(_), _) | (_, Lien::Error(_)) => true,
+            (Lien::Error(_), _) => true,
         }
     }
 }
@@ -141,12 +122,6 @@ impl<'db> Err<'db> for Lien<'db> {
     fn err(_db: &'db dyn crate::Db, reported: Reported) -> Self {
         Lien::Error(reported)
     }
-}
-
-/// More declarative version of `Option<Lien>` returned by `first_link` method.
-pub enum FirstLink<'db> {
-    My,
-    Lien(Lien<'db>),
 }
 
 /// A "type chain" describes a data type and the permission chain (`lien`) by which that data can be reached.
