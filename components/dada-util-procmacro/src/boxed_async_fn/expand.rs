@@ -2,7 +2,7 @@ use proc_macro2::{Span, TokenStream};
 use quote::{ToTokens, quote};
 use syn::{
     Block, Lifetime, Receiver, ReturnType, Signature, TypeReference, WhereClause, parse_quote,
-    punctuated::Punctuated, visit_mut::VisitMut,
+    punctuated::Punctuated, visit_mut::VisitMut, visit_mut::visit_type_reference_mut,
 };
 
 use super::parse::{AsyncItem, RecursionArgs};
@@ -49,6 +49,15 @@ struct ReferenceVisitor {
     self_lifetime: Option<Lifetime>,
 }
 
+impl ReferenceVisitor {
+    fn fresh_lifetime(&mut self) -> Lifetime {
+        let lt = Lifetime::new(&format!("'life{}", self.counter), Span::call_site());
+        self.lifetimes.push(ArgLifetime::New(parse_quote!(#lt)));
+        self.counter += 1;
+        lt
+    }
+}
+
 impl VisitMut for ReferenceVisitor {
     fn visit_receiver_mut(&mut self, receiver: &mut Receiver) {
         self.self_lifetime = Some(if let Some((_, lt)) = &mut receiver.reference {
@@ -70,16 +79,12 @@ impl VisitMut for ReferenceVisitor {
         });
     }
 
-    fn visit_type_reference_mut(&mut self, argument: &mut TypeReference) {
-        if argument.lifetime.is_none() {
-            // If this reference doesn't have a lifetime (e.g. &T), then give it one.
-            let lt = Lifetime::new(&format!("'life{}", self.counter), Span::call_site());
-            self.lifetimes.push(ArgLifetime::New(parse_quote!(#lt)));
-            argument.lifetime = Some(lt);
-            self.counter += 1;
+    fn visit_lifetime_mut(&mut self, i: &mut Lifetime) {
+        if i.ident == "_" {
+            *i = self.fresh_lifetime();
         } else {
             // If it does (e.g. &'life T), then keep track of it.
-            let lt = argument.lifetime.as_ref().cloned().unwrap();
+            let lt = Lifetime::clone(i);
 
             // Check that this lifetime isn't already in our vector
             let ident_matches = |x: &ArgLifetime| {
@@ -93,6 +98,16 @@ impl VisitMut for ReferenceVisitor {
             if !self.lifetimes.iter().any(ident_matches) {
                 self.lifetimes.push(ArgLifetime::Existing(lt));
             }
+        }
+    }
+
+    fn visit_type_reference_mut(&mut self, argument: &mut TypeReference) {
+        visit_type_reference_mut(self, argument);
+
+        if argument.lifetime.is_none() {
+            // If this reference doesn't have a lifetime (e.g. &T), then give it one.
+            let lt = self.fresh_lifetime();
+            argument.lifetime = Some(lt);
         }
     }
 }
@@ -119,7 +134,6 @@ fn transform_sig(sig: &mut Signature, args: &RecursionArgs) {
     }
 
     // Does this expansion require `async_recursion to be added to the output?
-    let mut requires_lifetime = false;
     let mut where_clause_lifetimes = vec![];
     let mut where_clause_generics = vec![];
 
@@ -130,12 +144,10 @@ fn transform_sig(sig: &mut Signature, args: &RecursionArgs) {
     for param in sig.generics.type_params() {
         let ident = param.ident.clone();
         where_clause_generics.push(ident);
-        requires_lifetime = true;
     }
 
     // Add an 'a : 'async_recursion bound to any lifetimes 'a appearing in the function
     if !v.lifetimes.is_empty() {
-        requires_lifetime = true;
         for alt in v.lifetimes {
             if let ArgLifetime::New(lt) = &alt {
                 // If this is a new argument,
@@ -155,17 +167,10 @@ fn transform_sig(sig: &mut Signature, args: &RecursionArgs) {
             sig.generics.params.push(parse_quote!('life_self));
         }
         where_clause_lifetimes.extend(v.self_lifetime);
-        requires_lifetime = true;
     }
 
-    let box_lifetime: TokenStream = if requires_lifetime {
-        // Add 'async_recursion to our generic parameters
-        sig.generics.params.push(parse_quote!('async_recursion));
-
-        quote!(+ #asr)
-    } else {
-        quote!()
-    };
+    // Add 'async_recursion to our generic parameters
+    sig.generics.params.push(parse_quote!('async_recursion));
 
     let send_bound: TokenStream = if args.send_bound {
         quote!(+ ::core::marker::Send)
@@ -202,6 +207,6 @@ fn transform_sig(sig: &mut Signature, args: &RecursionArgs) {
     // Modify the return type
     sig.output = parse_quote! {
         -> ::core::pin::Pin<Box<
-            dyn ::core::future::Future<Output = #ret> #box_lifetime #send_bound #sync_bound>>
+            dyn ::core::future::Future<Output = #ret> + #asr #send_bound #sync_bound>>
     };
 }
