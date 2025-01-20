@@ -250,13 +250,19 @@ impl<'env, 'db> ToChain<'env, 'db> {
     }
 
     /// Return a set of "type chains" bounding `ty` from the given `direction`.
-    pub async fn into_ty_chains(self, ty: SymTy<'db>, direction: Direction) -> Vec<TyChain<'db>> {
+    #[boxed_async_fn]
+    pub async fn into_ty_chains(
+        self: ToChain<'env, 'db>,
+        ty: SymTy<'db>,
+        direction: Direction,
+    ) -> Vec<TyChain<'db>> {
         let mut chains = vec![];
         self.push_ty_chains(ty, direction, &mut chains).await;
         chains
     }
 
     /// Push a set of "type chains" bounding `ty` from the given `direction` into the given vector.
+    #[boxed_async_fn]
     pub async fn push_ty_chains(
         &self,
         ty: SymTy<'db>,
@@ -268,8 +274,9 @@ impl<'env, 'db> ToChain<'env, 'db> {
     }
 
     /// Return a set of "lien chains" bounding `perm` from the given `direction`.
+    #[boxed_async_fn]
     pub async fn into_lien_chains(
-        self,
+        self: ToChain<'env, 'db>,
         perm: SymPerm<'db>,
         direction: Direction,
     ) -> Vec<LienChain<'db>> {
@@ -279,6 +286,7 @@ impl<'env, 'db> ToChain<'env, 'db> {
     }
 
     /// Push a set of "type chains" bounding `ty` from the given `direction` into the given vector.
+    #[boxed_async_fn]
     pub async fn push_lien_chains(
         &self,
         perm: SymPerm<'db>,
@@ -291,6 +299,7 @@ impl<'env, 'db> ToChain<'env, 'db> {
 
     /// Return a set of "type chains" bounding `ty` from the given `direction`
     /// when it appears in the context of the permission chain `cx`.
+    #[boxed_async_fn]
     pub async fn push_ty_chains_in_cx(
         &self,
         cx: LienChain<'db>,
@@ -310,6 +319,7 @@ impl<'env, 'db> ToChain<'env, 'db> {
 
     /// Return a set of "type chains" bounding `ty` from the given `direction`
     /// when it appears in the context of the permission chain `cx`.
+    #[boxed_async_fn]
     pub async fn push_lien_chains_in_cx(
         &self,
         cx: LienChain<'db>,
@@ -421,6 +431,7 @@ impl<'env, 'db> ToChain<'env, 'db> {
     }
 
     /// Invoke `yield_chain` with permission pair shared from `places`.
+    #[boxed_async_fn]
     async fn shared_from_places(
         &self,
         places: &[SymPlace<'db>],
@@ -433,6 +444,7 @@ impl<'env, 'db> ToChain<'env, 'db> {
 
     /// Invoke `yield_chain` with permission pair leased from `places`.
     /// `pair` represents the chain leading up to the lease.
+    #[boxed_async_fn]
     async fn leased_from_places(
         &self,
         pair: Pair<'db>,

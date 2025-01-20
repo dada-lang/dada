@@ -24,6 +24,7 @@ pub enum Expected {
     // The upper type is the expected one.
     Upper,
 }
+
 impl Expected {
     fn expected_found<T>(self, lower: T, upper: T) -> (T, T) {
         match self {
