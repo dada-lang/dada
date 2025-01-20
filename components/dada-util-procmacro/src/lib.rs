@@ -2,6 +2,8 @@ use proc_macro::TokenStream;
 use quote::quote;
 use synstructure::decl_derive;
 
+mod boxed_async_fn;
+
 decl_derive!([FromImpls, attributes(no_from_impl)] => from_impls_derive);
 
 fn from_impls_derive(s: synstructure::Structure) -> TokenStream {
@@ -58,4 +60,13 @@ fn from_impls_derive(s: synstructure::Structure) -> TokenStream {
         Ok(tokens) => tokens.into(),
         Err(err) => err.into_compile_error().into(),
     }
+}
+
+/// Transforms an async fn to return a `Box<dyn Future<Output = T>>`.
+///
+/// Adapted from the [`async_recursion`](https://crates.io/crates/async-recursion) crate authored by
+/// Robert Usher and licensed under MIT/APACHE-2.0.
+#[proc_macro_attribute]
+pub fn boxed_async_fn(args: TokenStream, input: TokenStream) -> TokenStream {
+    boxed_async_fn::boxed_async_fn(args, input)
 }

@@ -2,9 +2,10 @@
 //! They can only be produced after inference is complete as they require enumerating the bounds of inference variables.
 //! They are used in borrow checking and for producing the final version of each inference variable.
 
-use std::{collections::VecDeque, future::Future, ops::AsyncFnMut};
+use std::collections::VecDeque;
 
 use dada_ir_ast::diagnostic::{Err, Reported};
+use dada_util::boxed_async_fn;
 use futures::StreamExt;
 use salsa::Update;
 
@@ -327,98 +328,96 @@ impl<'env, 'db> ToChain<'env, 'db> {
     }
 
     /// Invoke `yield_chain` with each type chain bounding `ty` from `direction` in the permission context `pair`.
-    fn each_ty_chain(
+    #[boxed_async_fn]
+    async fn each_ty_chain(
         &self,
         ty: SymTy<'db>,
         pair: Pair<'db>,
         direction: Direction,
         yield_chain: &mut impl AsyncFnMut(TyChain<'db>),
-    ) -> impl Future<Output = ()> {
-        Box::pin(async move {
-            match *ty.kind(self.db) {
-                SymTyKind::Perm(sym_perm, sym_ty) => {
-                    self.perm_pairs(pair, direction, sym_perm, &mut async move |pair| {
-                        self.each_ty_chain(sym_ty, pair, direction, yield_chain)
-                            .await;
-                    })
-                    .await;
-                }
-                SymTyKind::Named(sym_ty_name, ref vec) => {
-                    yield_chain(TyChain::new(
-                        self.db,
-                        pair.into_lien_chain(self.env),
-                        TyChainKind::Named(sym_ty_name, vec.clone()),
-                    ))
-                    .await;
-                }
-                SymTyKind::Infer(var) => {
-                    let mut bounds = self.env.transitive_ty_var_bounds(var, direction);
-                    while let Some(bound) = bounds.next().await {
-                        self.each_ty_chain(bound, pair.clone(), direction, yield_chain)
-                            .await;
-                    }
-                }
-                SymTyKind::Var(sym_variable) => {
-                    yield_chain(TyChain::new(
-                        self.db,
-                        pair.into_lien_chain(self.env),
-                        TyChainKind::Var(sym_variable),
-                    ))
-                    .await;
-                }
-                SymTyKind::Never => {
-                    yield_chain(TyChain::new(
-                        self.db,
-                        LienChain::my(self.db),
-                        TyChainKind::Never,
-                    ))
-                    .await;
-                }
-                SymTyKind::Error(reported) => yield_chain(TyChain::err(self.db, reported)).await,
+    ) {
+        match *ty.kind(self.db) {
+            SymTyKind::Perm(sym_perm, sym_ty) => {
+                self.perm_pairs(pair, direction, sym_perm, &mut async move |pair| {
+                    self.each_ty_chain(sym_ty, pair, direction, yield_chain)
+                        .await;
+                })
+                .await;
             }
-        })
+            SymTyKind::Named(sym_ty_name, ref vec) => {
+                yield_chain(TyChain::new(
+                    self.db,
+                    pair.into_lien_chain(self.env),
+                    TyChainKind::Named(sym_ty_name, vec.clone()),
+                ))
+                .await;
+            }
+            SymTyKind::Infer(var) => {
+                let mut bounds = self.env.transitive_ty_var_bounds(var, direction);
+                while let Some(bound) = bounds.next().await {
+                    self.each_ty_chain(bound, pair.clone(), direction, yield_chain)
+                        .await;
+                }
+            }
+            SymTyKind::Var(sym_variable) => {
+                yield_chain(TyChain::new(
+                    self.db,
+                    pair.into_lien_chain(self.env),
+                    TyChainKind::Var(sym_variable),
+                ))
+                .await;
+            }
+            SymTyKind::Never => {
+                yield_chain(TyChain::new(
+                    self.db,
+                    LienChain::my(self.db),
+                    TyChainKind::Never,
+                ))
+                .await;
+            }
+            SymTyKind::Error(reported) => yield_chain(TyChain::err(self.db, reported)).await,
+        }
     }
 
     /// Invoke `yield_chain` with each permission pair bounding `perm` from `direction` in the permission context `pair`.
-    fn perm_pairs(
+    #[boxed_async_fn]
+    async fn perm_pairs(
         &self,
         mut pair: Pair<'db>,
         direction: Direction,
         perm: SymPerm<'db>,
         yield_chain: &mut impl AsyncFnMut(Pair<'db>),
-    ) -> impl Future<Output = ()> {
-        Box::pin(async move {
-            match *perm.kind(self.db) {
-                SymPermKind::My => yield_chain(pair).await,
-                SymPermKind::Our => yield_chain(Pair::our(self.db)).await,
-                SymPermKind::Shared(ref places) => {
-                    self.shared_from_places(places, yield_chain).await;
-                }
-                SymPermKind::Leased(ref places) => {
-                    self.leased_from_places(pair, places, yield_chain).await;
-                }
-                SymPermKind::Infer(_) => {
-                    let mut bounds = self.env.transitive_perm_bounds(perm, direction);
-                    while let Some(bound) = bounds.next().await {
-                        self.perm_pairs(pair.clone(), direction, bound, yield_chain)
-                            .await;
-                    }
-                }
-                SymPermKind::Var(sym_variable) => {
-                    let var_lien = Lien::Var(sym_variable);
-                    pair.apply_lien(self.env, var_lien);
-                    yield_chain(pair).await;
-                }
-                SymPermKind::Error(reported) => yield_chain(Pair::err(self.db, reported)).await,
-                SymPermKind::Apply(left, right) => {
-                    self.perm_pairs(pair, direction, left, &mut async |left_pair| {
-                        self.perm_pairs(left_pair, direction, right, yield_chain)
-                            .await
-                    })
-                    .await
+    ) {
+        match *perm.kind(self.db) {
+            SymPermKind::My => yield_chain(pair).await,
+            SymPermKind::Our => yield_chain(Pair::our(self.db)).await,
+            SymPermKind::Shared(ref places) => {
+                self.shared_from_places(places, yield_chain).await;
+            }
+            SymPermKind::Leased(ref places) => {
+                self.leased_from_places(pair, places, yield_chain).await;
+            }
+            SymPermKind::Infer(_) => {
+                let mut bounds = self.env.transitive_perm_bounds(perm, direction);
+                while let Some(bound) = bounds.next().await {
+                    self.perm_pairs(pair.clone(), direction, bound, yield_chain)
+                        .await;
                 }
             }
-        })
+            SymPermKind::Var(sym_variable) => {
+                let var_lien = Lien::Var(sym_variable);
+                pair.apply_lien(self.env, var_lien);
+                yield_chain(pair).await;
+            }
+            SymPermKind::Error(reported) => yield_chain(Pair::err(self.db, reported)).await,
+            SymPermKind::Apply(left, right) => {
+                self.perm_pairs(pair, direction, left, &mut async |left_pair| {
+                    self.perm_pairs(left_pair, direction, right, yield_chain)
+                        .await
+                })
+                .await
+            }
+        }
     }
 
     /// Invoke `yield_chain` with permission pair shared from `places`.

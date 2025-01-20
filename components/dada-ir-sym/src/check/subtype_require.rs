@@ -1,11 +1,10 @@
 //! Implement object-level subtyping.
 
-use std::future::Future;
-
 use dada_ir_ast::{
     diagnostic::{Diagnostic, Errors, Level, Reported},
     span::Span,
 };
+use dada_util::boxed_async_fn;
 use futures::StreamExt;
 
 use crate::{
@@ -48,7 +47,8 @@ pub async fn require_assignable_type<'db>(
     }
 }
 
-pub fn require_subtype<'a, 'db>(
+#[boxed_async_fn]
+pub async fn require_subtype<'a, 'db>(
     env: &'a Env<'db>,
 
     // Tracks which of the types is the "expected" type from a user's point-of-view.
@@ -65,87 +65,83 @@ pub fn require_subtype<'a, 'db>(
 
     // Prospective supertype
     upper: SymTy<'db>,
-) -> impl Future<Output = Errors<()>> {
-    Box::pin(async move {
-        let db = env.db();
+) -> Errors<()> {
+    let db = env.db();
 
-        match (lower.kind(db), upper.kind(db)) {
-            (SymTyKind::Error(_), _) | (_, SymTyKind::Error(_)) => Ok(()),
+    match (lower.kind(db), upper.kind(db)) {
+        (SymTyKind::Error(_), _) | (_, SymTyKind::Error(_)) => Ok(()),
 
-            (SymTyKind::Var(univ_lower), SymTyKind::Var(univ_upper)) => {
-                if univ_lower == univ_upper {
-                    Ok(())
-                } else {
-                    Err(report_universal_mismatch(
-                        env,
-                        expected,
-                        span,
-                        *univ_lower,
-                        *univ_upper,
-                    ))
-                }
-            }
-
-            (&SymTyKind::Infer(infer_var), _) => {
-                bound_inference_var(
-                    env,
-                    span,
-                    infer_var,
-                    expected == Expected::Lower,
-                    Direction::UpperBoundedBy,
-                    upper.into(),
-                )
-                .await
-            }
-
-            (_, &SymTyKind::Infer(infer_var)) => {
-                bound_inference_var(
-                    env,
-                    span,
-                    infer_var,
-                    expected == Expected::Upper,
-                    Direction::LowerBoundedBy,
-                    lower.into(),
-                )
-                .await
-            }
-
-            (
-                SymTyKind::Named(name_lower, args_lower),
-                SymTyKind::Named(name_upper, args_upper),
-            ) => {
-                if name_lower != name_upper {
-                    return Err(report_class_name_mismatch(
-                        env,
-                        expected,
-                        span,
-                        *name_lower,
-                        *name_upper,
-                    ));
-                }
-
-                assert_eq!(args_lower.len(), args_upper.len());
-
-                // FIXME: variance
-                for (&arg_lower, &arg_upper) in args_lower.iter().zip(args_upper) {
-                    require_sub_generic_term(env, expected, span, arg_lower, arg_upper).await?;
-                }
-
+        (SymTyKind::Var(univ_lower), SymTyKind::Var(univ_upper)) => {
+            if univ_lower == univ_upper {
                 Ok(())
-            }
-
-            _ => {
-                // FIXME
-                Ok(())
+            } else {
+                Err(report_universal_mismatch(
+                    env,
+                    expected,
+                    span,
+                    *univ_lower,
+                    *univ_upper,
+                ))
             }
         }
-    })
+
+        (&SymTyKind::Infer(infer_var), _) => {
+            bound_inference_var(
+                env,
+                span,
+                infer_var,
+                expected == Expected::Lower,
+                Direction::UpperBoundedBy,
+                upper.into(),
+            )
+            .await
+        }
+
+        (_, &SymTyKind::Infer(infer_var)) => {
+            bound_inference_var(
+                env,
+                span,
+                infer_var,
+                expected == Expected::Upper,
+                Direction::LowerBoundedBy,
+                lower.into(),
+            )
+            .await
+        }
+
+        (SymTyKind::Named(name_lower, args_lower), SymTyKind::Named(name_upper, args_upper)) => {
+            if name_lower != name_upper {
+                return Err(report_class_name_mismatch(
+                    env,
+                    expected,
+                    span,
+                    *name_lower,
+                    *name_upper,
+                ));
+            }
+
+            assert_eq!(args_lower.len(), args_upper.len());
+
+            // FIXME: variance
+            for (&arg_lower, &arg_upper) in args_lower.iter().zip(args_upper) {
+                require_sub_generic_term(env, expected, span, arg_lower, arg_upper).await?;
+            }
+
+            Ok(())
+        }
+
+        _ => {
+            // FIXME
+            Ok(())
+        }
+    }
 }
 
 /// Introduce `term` as a lower or upper bound on `infer_var` (depending on `direction`).
 /// This will also relate `term` to any previously added bounds, per the MLsub algorithm.
 /// For example adding `term` as a lower bound will relate `term` to any previous upper bounds.
-fn bound_inference_var<'a, 'db>(
+#[boxed_async_fn]
+async fn bound_inference_var<'a, 'db>(
     env: &'a Env<'db>,
 
     // Span that is forcing the sub-object comparison
@@ -162,63 +158,61 @@ fn bound_inference_var<'a, 'db>(
 
     // The term to bound the inference variable by
     term: SymGenericTerm<'db>,
-) -> impl Future<Output = Errors<()>> {
-    Box::pin(async move {
-        // If this variable already has the given bound, stop.
-        if !env
-            .runtime()
-            .insert_inference_var_bound(infer_var, direction, term)
-        {
-            return Ok(());
-        }
+) -> Errors<()> {
+    // If this variable already has the given bound, stop.
+    if !env
+        .runtime()
+        .insert_inference_var_bound(infer_var, direction, term)
+    {
+        return Ok(());
+    }
 
-        // Relate `term` to existing bounds in the opposite direction.
-        // For example, if we are adding a lower bound (i.e., `term <: ?X`),
-        // then we get each existing bound `B` where `?X <: B` and require `term <: B`.
-        let opposite_bounds: Vec<SymGenericTerm<'db>> =
-            env.runtime().with_inference_var_data(infer_var, |data| {
-                direction.reverse().infer_var_bounds(data).to_vec()
-            });
-        for opposite_bound in opposite_bounds {
-            let (arg_sub, arg_sup, expected) = match direction {
-                Direction::LowerBoundedBy => {
-                    // If direction == LowerBounds, we are adding a new `T <: ?X`
-                    // and we already knew that `?X <: opposite_bound`.
-                    // Therefore we now require that `T <: opposite_bound`.
-                    (
-                        term,
-                        opposite_bound,
-                        if infer_var_expected {
-                            // The inference variable is being replaced by opposite-bound
-                            // in the position of upper-bound.
-                            Expected::Upper
-                        } else {
-                            Expected::Lower
-                        },
-                    )
-                }
+    // Relate `term` to existing bounds in the opposite direction.
+    // For example, if we are adding a lower bound (i.e., `term <: ?X`),
+    // then we get each existing bound `B` where `?X <: B` and require `term <: B`.
+    let opposite_bounds: Vec<SymGenericTerm<'db>> =
+        env.runtime().with_inference_var_data(infer_var, |data| {
+            direction.reverse().infer_var_bounds(data).to_vec()
+        });
+    for opposite_bound in opposite_bounds {
+        let (arg_sub, arg_sup, expected) = match direction {
+            Direction::LowerBoundedBy => {
+                // If direction == LowerBounds, we are adding a new `T <: ?X`
+                // and we already knew that `?X <: opposite_bound`.
+                // Therefore we now require that `T <: opposite_bound`.
+                (
+                    term,
+                    opposite_bound,
+                    if infer_var_expected {
+                        // The inference variable is being replaced by opposite-bound
+                        // in the position of upper-bound.
+                        Expected::Upper
+                    } else {
+                        Expected::Lower
+                    },
+                )
+            }
 
-                Direction::UpperBoundedBy => {
-                    // Like the other match arm, but in reverse:
-                    // We already knew that `opposite_bound <: ?X` and we are adding `?X <: T`.
-                    // Therefore we now require that `opposite_bound <: T`.
-                    (
-                        opposite_bound,
-                        term,
-                        if infer_var_expected {
-                            Expected::Lower
-                        } else {
-                            Expected::Upper
-                        },
-                    )
-                }
-            };
+            Direction::UpperBoundedBy => {
+                // Like the other match arm, but in reverse:
+                // We already knew that `opposite_bound <: ?X` and we are adding `?X <: T`.
+                // Therefore we now require that `opposite_bound <: T`.
+                (
+                    opposite_bound,
+                    term,
+                    if infer_var_expected {
+                        Expected::Lower
+                    } else {
+                        Expected::Upper
+                    },
+                )
+            }
+        };
 
-            require_sub_generic_term(env, expected, span, arg_sub, arg_sup).await?;
-        }
+        require_sub_generic_term(env, expected, span, arg_sub, arg_sup).await?;
+    }
 
-        Ok(())
-    })
+    Ok(())
 }
 
 async fn require_sub_generic_term<'db>(

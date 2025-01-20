@@ -5,6 +5,11 @@ default-members = [ # Exclude xtask so it isn't installed with `cargo install`
   "components/dada-*",
 ]
 
+[workspace.package]
+version = "0.1.0"
+repository = "https://github.com/dada-lang"
+edition = "2024"
+
 [workspace.dependencies]
 salsa = { git = "https://github.com/salsa-rs/salsa.git" }
 anyhow = "1.0.93"
@@ -14,8 +19,9 @@ wasm-encoder = "0.220.0"
 
 [package]
 name = "dada"
-version = "0.1.0"
-edition = "2024"
+version.workspace = true
+edition.workspace = true
+repository.workspace = true
 default-run = "dada"
 
 # See more keys and their definitions at https://doc.rust-lang.org/cargo/reference/manifest.html

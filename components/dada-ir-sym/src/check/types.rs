@@ -1,9 +1,8 @@
-use std::future::Future;
 
 use dada_ir_ast::{
     ast::{AstGenericTerm, AstPath, AstPathKind, AstPerm, AstPermKind, AstTy, AstTyKind}, diagnostic::{ordinal, Diagnostic, Err, Level}, span::{Span, Spanned}
 };
-use dada_util::indirect;
+use dada_util::{boxed_async_fn, indirect};
 
 use crate::{check::{env::Env, exprs::ExprResultKind, scope::{NameResolution, NameResolutionSym, Resolve}}, ir::{types::{AnonymousPermSymbol, HasKind, SymGenericKind, SymGenericTerm, SymPerm, SymPermKind, SymPlace, SymTy}, variables::FromVar}, prelude::Symbol};
 
@@ -337,19 +336,19 @@ async fn path_to_sym_place<'db>(env: &Env<'db>, path: AstPath<'db>) -> SymPlace<
     }
 }
 
-fn path_to_expr_result<'a, 'db>(env: &'a Env<'db>, path: AstPath<'db>) -> impl Future<Output = ExprResult<'db>> {
+#[boxed_async_fn]
+async fn path_to_expr_result<'a, 'db>(env: &'a Env<'db>, path: AstPath<'db>) -> ExprResult<'db> {
     let db = env.db();
-    Box::pin(async move {
-        match *path.kind(env.db()) {
-            AstPathKind::Identifier(id) => {
-                let nr = match id.resolve_in(env).await {
-                    Ok(nr) => nr,
-                    Err(r) => return ExprResult::err(db, r),
-                };
-                ExprResult::from_name_resolution(env, nr, id.span(db)).await
-            }
-            AstPathKind::GenericArgs { .. } => {
-                ExprResult::err(db, Diagnostic::error(db, path.span(db), "generic arguments are not valid places")
+    match *path.kind(env.db()) {
+        AstPathKind::Identifier(id) => {
+            let nr = match id.resolve_in(env).await {
+                Ok(nr) => nr,
+                Err(r) => return ExprResult::err(db, r),
+            };
+            ExprResult::from_name_resolution(env, nr, id.span(db)).await
+        }
+        AstPathKind::GenericArgs { .. } => {
+            ExprResult::err(db, Diagnostic::error(db, path.span(db), "generic arguments are not valid places")
                         .label(
                             db,
                             Level::Error,   
@@ -360,8 +359,7 @@ fn path_to_expr_result<'a, 'db>(env: &'a Env<'db>, path: AstPath<'db>) -> impl F
             }
             AstPathKind::Member { path, id } => {
                 let owner = path_to_expr_result(env, path).await;
-                MemberLookup::new(env).lookup_member(owner, id).await
-            }
+               MemberLookup::new(env).lookup_member(owner, id).await
         }
-    })
+    }
 }

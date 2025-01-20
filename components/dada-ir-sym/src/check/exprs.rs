@@ -1,5 +1,3 @@
-use std::future::Future;
-
 use crate::{
     check::{
         CheckInEnv,
@@ -32,7 +30,7 @@ use dada_ir_ast::{
     span::{Span, Spanned},
 };
 use dada_parser::prelude::*;
-use dada_util::FromImpls;
+use dada_util::{FromImpls, boxed_async_fn};
 use futures::StreamExt;
 
 use super::temporaries::Temporary;
@@ -74,11 +72,12 @@ pub(crate) enum ExprResultKind<'db> {
 impl<'db> CheckInEnv<'db> for AstExpr<'db> {
     type Output = ExprResult<'db>;
 
-    fn check_in_env(&self, env: &Env<'db>) -> impl Future<Output = Self::Output> {
-        Box::pin(check_expr(self, env))
+    async fn check_in_env(&self, env: &Env<'db>) -> Self::Output {
+        check_expr(self, env).await
     }
 }
 
+#[boxed_async_fn]
 async fn check_expr<'db>(expr: &AstExpr<'db>, env: &Env<'db>) -> ExprResult<'db> {
     let db = env.db();
     let expr_span = expr.span;
@@ -732,6 +731,7 @@ async fn check_expr<'db>(expr: &AstExpr<'db>, env: &Env<'db>) -> ExprResult<'db>
     }
 }
 
+#[boxed_async_fn]
 async fn check_class_call<'db>(
     env: &Env<'db>,
     class_span: Span<'db>,
@@ -832,6 +832,7 @@ fn report_no_new_method<'db>(
     diag.report(db)
 }
 
+#[boxed_async_fn]
 async fn require_future<'db>(
     env: &Env<'db>,
     future_span: Span<'db>,
@@ -886,6 +887,7 @@ fn require_owned<'db>(_env: &Env<'db>, _await_span: Span<'db>, _perm: SymPerm<'d
     todo!()
 }
 
+#[boxed_async_fn]
 async fn check_function_call<'db>(
     env: &Env<'db>,
     function_span: Span<'db>,
@@ -935,6 +937,7 @@ async fn check_function_call<'db>(
 /// Check a call like `a.b()` where `b` is a method.
 /// These are somewhat different than calls like `b(a)` because of how
 /// type arguments are handled.
+#[boxed_async_fn]
 async fn check_method_call<'db>(
     env: &Env<'db>,
     id_span: Span<'db>,
@@ -1078,6 +1081,7 @@ async fn check_method_call<'db>(
     .await
 }
 
+#[boxed_async_fn]
 async fn check_call_common<'db>(
     env: &Env<'db>,
     function: SymFunction<'db>,
