@@ -192,6 +192,7 @@ impl<'db> Env<'db> {
             .await
     }
 
+    /// Create a fresh inference variable of the given kind.
     pub fn fresh_inference_var(&self, kind: SymGenericKind, span: Span<'db>) -> InferVarIndex {
         self.runtime.fresh_inference_var(kind, self.universe, span)
     }
@@ -218,6 +219,7 @@ impl<'db> Env<'db> {
         }
     }
 
+    /// Create a fresh type inference variable.
     pub fn fresh_ty_inference_var(&self, span: Span<'db>) -> SymTy<'db> {
         SymTy::infer(
             self.db(),
@@ -225,7 +227,8 @@ impl<'db> Env<'db> {
         )
     }
 
-    pub(super) fn require_assignable_object_type(
+    /// Spawn a subtask that will require `value_ty` be assignable to `place_ty`.
+    pub(super) fn require_assignable_type(
         &self,
         value_span: Span<'db>,
         value_ty: SymTy<'db>,
@@ -242,7 +245,8 @@ impl<'db> Env<'db> {
         })
     }
 
-    pub(super) fn require_equal_object_types(
+    /// Spawn a subtask that will require `expected_ty` be equal to `found_ty`.
+    pub(super) fn require_equal_types(
         &self,
         span: Span<'db>,
         expected_ty: SymTy<'db>,
@@ -357,7 +361,7 @@ impl<'db> Env<'db> {
     pub(crate) fn require_expr_has_bool_ty(&self, expr: SymExpr<'db>) {
         let db = self.db();
         let boolean_ty = SymTy::boolean(db);
-        self.require_assignable_object_type(expr.span(db), expr.ty(db), boolean_ty);
+        self.require_assignable_type(expr.span(db), expr.ty(db), boolean_ty);
     }
 
     /// Check if the given (perm, type) variable is declared as copy.

@@ -40,7 +40,7 @@ pub async fn check_block_statements<'a, 'db>(
                                 .check_in_env(env)
                                 .await
                                 .into_expr_with_enclosed_temporaries(&env);
-                            env.require_assignable_object_type(
+                            env.require_assignable_type(
                                 initializer.span(db),
                                 initializer.ty(db),
                                 ty,

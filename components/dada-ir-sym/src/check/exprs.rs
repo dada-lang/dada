@@ -226,7 +226,7 @@ async fn check_expr<'db>(expr: &AstExpr<'db>, env: &Env<'db>) -> ExprResult<'db>
                     env.require_numeric_type(expr_span, lhs.ty(db));
                     env.require_numeric_type(expr_span, rhs.ty(db));
                     env.if_not_never(span_op.span, &[lhs.ty(db), rhs.ty(db)], async move |env| {
-                        env.require_equal_object_types(expr_span, lhs.ty(db), rhs.ty(db));
+                        env.require_equal_types(expr_span, lhs.ty(db), rhs.ty(db));
                     });
 
                     // What type do we want these operators to have?
@@ -328,7 +328,7 @@ async fn check_expr<'db>(expr: &AstExpr<'db>, env: &Env<'db>) -> ExprResult<'db>
                     env.require_numeric_type(expr_span, lhs.ty(db));
                     env.require_numeric_type(expr_span, rhs.ty(db));
                     env.if_not_never(span_op.span, &[lhs.ty(db), rhs.ty(db)], async move |env| {
-                        env.require_equal_object_types(expr_span, lhs.ty(db), rhs.ty(db));
+                        env.require_equal_types(expr_span, lhs.ty(db), rhs.ty(db));
                     });
 
                     // What type do we want these operators to have?
@@ -364,7 +364,7 @@ async fn check_expr<'db>(expr: &AstExpr<'db>, env: &Env<'db>) -> ExprResult<'db>
                     // For now, let's do a dumb rule that operands must be
                     // of the same primitive (and scalar) type.
 
-                    env.require_assignable_object_type(value.span(db), value.ty(db), place.ty(db));
+                    env.require_assignable_type(value.span(db), value.ty(db), place.ty(db));
 
                     ExprResult::from_expr(
                         env,
@@ -592,7 +592,7 @@ async fn check_expr<'db>(expr: &AstExpr<'db>, env: &Env<'db>) -> ExprResult<'db>
                 );
             };
 
-            env.require_assignable_object_type(
+            env.require_assignable_type(
                 return_expr.span(db),
                 return_expr.ty(db),
                 expected_return_ty,
@@ -697,7 +697,7 @@ async fn check_expr<'db>(expr: &AstExpr<'db>, env: &Env<'db>) -> ExprResult<'db>
             };
 
             for arm in &arms {
-                env.require_assignable_object_type(arm.body.span(db), arm.body.ty(db), if_ty);
+                env.require_assignable_type(arm.body.span(db), arm.body.ty(db), if_ty);
             }
 
             ExprResult {
@@ -1161,7 +1161,7 @@ async fn check_call_common<'db>(
                 .await
                 .into_expr(env, &mut arg_temporaries)
         };
-        env.require_assignable_object_type(expr.span(db), expr.ty(db), input_output.input_tys[i]);
+        env.require_assignable_type(expr.span(db), expr.ty(db), input_output.input_tys[i]);
         ExprResult::from_expr(env, expr, arg_temporaries)
     };
 
