@@ -42,7 +42,7 @@ pub(crate) struct Env<'db> {
     /// Lexical scope for name resolution
     pub scope: Arc<Scope<'db, 'db>>,
 
-    /// Universe of each free variable that is in scope.
+    /// Universe of each free generic variable that is in scope.
     variable_universes: Arc<Map<SymVariable<'db>, Universe>>,
 
     /// Type for in-scope variables. Local variables
