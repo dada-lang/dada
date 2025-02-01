@@ -9,10 +9,10 @@ pub type IndexMap<K, V> = indexmap::IndexMap<K, V, fxhash::FxBuildHasher>;
 
 pub type Fallible<T> = anyhow::Result<T>;
 
-pub use anyhow::anyhow;
-pub use anyhow::bail;
 pub use anyhow::Context;
 pub use anyhow::Error;
+pub use anyhow::anyhow;
+pub use anyhow::bail;
 
 pub use dada_util_procmacro::*;
 
@@ -36,3 +36,5 @@ pub async fn indirect<T>(op: impl AsyncFnOnce() -> T) -> T {
     let boxed_future = futures::future::FutureExt::boxed_local(op());
     boxed_future.await
 }
+
+pub mod vecext;

@@ -16,7 +16,7 @@ use dada_ir_ast::{
     diagnostic::{Diagnostic, Err, Level},
     span::Span,
 };
-use dada_util::{Map, debug, vecset::VecSet};
+use dada_util::{Map, debug, vecext::VecExt};
 
 use crate::{
     check::bound::Direction, check::env::Env, check::inference::InferenceVarData,
@@ -32,7 +32,7 @@ pub(crate) struct RuntimeData<'db> {
     pub db: &'db dyn crate::Db,
     inference_vars: RwLock<Vec<InferenceVarData<'db>>>,
     ready_to_execute: Mutex<Vec<Arc<CheckTask>>>,
-    waiting_on_inference_var: Mutex<Map<InferVarIndex, VecSet<EqWaker>>>,
+    waiting_on_inference_var: Mutex<Map<InferVarIndex, Vec<EqWaker>>>,
     complete: AtomicBool,
     next_task_id: AtomicU64,
 }
@@ -209,7 +209,7 @@ impl<'db> Runtime<'db> {
         waiting_on_inference_var
             .entry(var)
             .or_default()
-            .insert(EqWaker::new(cx.waker()));
+            .push_if_not_contained(EqWaker::new(cx.waker()));
     }
 
     fn report_type_annotations_needed(&self, span: Span<'db>) -> dada_ir_ast::diagnostic::Reported {
