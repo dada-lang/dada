@@ -19,7 +19,7 @@ use crate::{
     prelude::CheckedFieldTy,
 };
 
-use super::bound::TransitiveBounds;
+use super::bounds::TransitiveBounds;
 
 #[derive(Copy, Clone)]
 pub(crate) struct MemberLookup<'member, 'db> {

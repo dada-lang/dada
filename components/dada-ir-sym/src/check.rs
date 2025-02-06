@@ -6,7 +6,7 @@ use runtime::Runtime;
 use crate::ir::types::SymTy;
 
 pub(crate) mod blocks;
-mod bound;
+mod bounds;
 mod chains;
 mod env;
 mod exprs;
@@ -15,6 +15,7 @@ pub(crate) mod functions;
 mod inference;
 mod member_lookup;
 mod modules;
+mod predicates;
 mod resolve;
 mod runtime;
 pub(crate) mod scope;

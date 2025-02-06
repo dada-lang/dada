@@ -18,7 +18,7 @@ use crate::{
 
 use super::{
     Env,
-    bound::Direction,
+    bounds::Direction,
     chains::{Lien, LienChain, TyChain, TyChainKind},
     subtype_check::is_subterm,
 };

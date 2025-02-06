@@ -4,7 +4,7 @@ use dada_ir_ast::diagnostic::Err;
 
 use super::{
     Env,
-    bound::Direction,
+    bounds::Direction,
     chains::{Lien, LienChain, TyChainKind},
 };
 use crate::{

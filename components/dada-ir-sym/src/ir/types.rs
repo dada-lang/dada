@@ -224,6 +224,16 @@ impl<'db> SymGenericTerm<'db> {
             SymGenericTerm::Error(_) => None,
         }
     }
+
+    /// Returns a string describing `self`, similar to "type `X`"
+    pub fn describe(&self) -> String {
+        match self {
+            SymGenericTerm::Type(sym_ty) => format!("type `{sym_ty}`"),
+            SymGenericTerm::Perm(sym_perm) => format!("permission `{sym_perm}`"),
+            SymGenericTerm::Place(sym_place) => format!("place `{sym_place}`"),
+            SymGenericTerm::Error(_) => format!("(error)"),
+        }
+    }
 }
 
 #[salsa::interned]

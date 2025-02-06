@@ -21,7 +21,7 @@ use dada_ir_ast::{
 use dada_util::{Map, debug};
 
 use crate::{
-    check::bound::{Direction, TransitiveBounds},
+    check::bounds::{Direction, TransitiveBounds},
     check::runtime::Runtime,
     check::subtype_require::{
         Expected, require_assignable_type, require_numeric_type, require_subtype,
@@ -30,7 +30,7 @@ use crate::{
     ir::exprs::SymExpr,
 };
 
-use super::CheckInEnv;
+use super::{CheckInEnv, runtime::DeferResult};
 
 #[derive(Clone)]
 pub(crate) struct Env<'db> {
@@ -92,6 +92,33 @@ impl<'db> Env<'db> {
     /// Access the lower-level type checking runtime
     pub fn runtime(&self) -> &Runtime<'db> {
         &self.runtime
+    }
+
+    /// True if the given variable is declared to meet the given predicate.
+    pub fn var_is_declared_to_be(&self, var: SymVariable<'db>, predicate: Predicate) -> bool {
+        todo!()
+    }
+
+    /// Requires the inference variable to meet the given predicate (possibly reporting an error
+    /// if that is contradictory).
+    pub fn require_infer_to_be(
+        &self,
+        span: Span<'db>,
+        var: SymVariable<'db>,
+        predicate: Predicate,
+    ) -> Errors<()> {
+        todo!()
+    }
+
+    /// Requires the inference variable not meet the given predicate (possibly reporting an error
+    /// if that is contradictory).
+    pub fn require_infer_to_not_be(
+        &self,
+        span: Span<'db>,
+        var: SymVariable<'db>,
+        predicate: Predicate,
+    ) -> Errors<()> {
+        todo!()
     }
 
     /// Open the given symbols as universally quantified.
@@ -354,8 +381,26 @@ impl<'db> Env<'db> {
         format!("{ty:?}") // FIXME
     }
 
-    pub(crate) fn defer(&self, span: Span<'db>, op: impl AsyncFnOnce(Self) + 'db) {
-        self.runtime.defer(self, span, op)
+    pub(crate) fn defer<R>(&self, span: Span<'db>, op: impl AsyncFnOnce(&Self) -> R + 'db)
+    where
+        R: DeferResult,
+    {
+        self.runtime
+            .defer(self, span, async move |env| op(&env).await)
+    }
+
+    pub(crate) fn defer_for_all<T, R>(
+        &self,
+        span: Span<'db>,
+        items: impl IntoIterator<Item = T>,
+        op: impl AsyncFnOnce(&Self, T) -> R + 'db,
+    ) where
+        R: DeferResult,
+    {
+        for item in items {
+            self.runtime
+                .defer(self, span, async move |env| op(&env, item).await);
+        }
     }
 
     pub(crate) fn require_expr_has_bool_ty(&self, expr: SymExpr<'db>) {

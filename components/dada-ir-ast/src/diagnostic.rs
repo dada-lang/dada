@@ -75,6 +75,14 @@ impl Diagnostic {
         Self::new(db, Level::Error, span, message)
     }
 
+    pub fn help<'db>(db: &'db dyn crate::Db, span: Span<'db>, message: impl Display) -> Self {
+        Self::new(db, Level::Help, span, message)
+    }
+
+    pub fn info<'db>(db: &'db dyn crate::Db, span: Span<'db>, message: impl Display) -> Self {
+        Self::new(db, Level::Info, span, message)
+    }
+
     pub fn new<'db>(
         db: &'db dyn crate::Db,
         level: Level,

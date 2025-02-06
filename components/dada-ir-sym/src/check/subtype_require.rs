@@ -8,7 +8,7 @@ use dada_util::boxed_async_fn;
 use futures::StreamExt;
 
 use crate::{
-    check::bound::Direction,
+    check::bounds::Direction,
     check::env::Env,
     ir::indices::InferVarIndex,
     ir::primitive::SymPrimitiveKind,

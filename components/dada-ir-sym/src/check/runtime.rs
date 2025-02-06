@@ -13,13 +13,13 @@ use crate::ir::{
 };
 use check_task::CheckTask;
 use dada_ir_ast::{
-    diagnostic::{Diagnostic, Err, Level},
+    diagnostic::{Diagnostic, Err, Errors, Level},
     span::Span,
 };
 use dada_util::{Map, debug, vecext::VecExt};
 
 use crate::{
-    check::bound::Direction, check::env::Env, check::inference::InferenceVarData,
+    check::bounds::Direction, check::env::Env, check::inference::InferenceVarData,
     check::universe::Universe,
 };
 
@@ -157,7 +157,7 @@ impl<'db> Runtime<'db> {
     /// Read the current data for the given inference variable.
     ///
     /// A lock is held while the read occurs; deadlock will occur if there is an
-    /// attempt to mutate the data during the read.
+    /// attempt to mutate inference var data during the read.
     pub fn with_inference_var_data<T>(
         &self,
         infer: InferVarIndex,
@@ -193,8 +193,16 @@ impl<'db> Runtime<'db> {
 
     /// Execute the given future asynchronously from the main execution.
     /// It must execute to completion eventually or an error will be reported.
-    pub fn defer(&self, env: &Env<'db>, span: Span<'db>, check: impl 'db + AsyncFnOnce(Env<'db>)) {
-        self.spawn(span, check(env.clone()));
+    pub fn defer<R>(
+        &self,
+        env: &Env<'db>,
+        span: Span<'db>,
+        check: impl 'db + AsyncFnOnce(Env<'db>) -> R,
+    ) where
+        R: DeferResult,
+    {
+        let future = check(env.clone());
+        self.spawn(span, async move { future.await.finish() });
     }
 
     /// Block the current task on new bounds being added to the given inference variable.
@@ -444,4 +452,22 @@ mod check_task {
             std::mem::drop(p);
         },
     );
+}
+
+/// A trait to process the items that can result from a `Defer`.
+pub(crate) trait DeferResult {
+    fn finish(self);
+}
+
+impl DeferResult for () {
+    fn finish(self) {}
+}
+
+impl<T: DeferResult> DeferResult for Errors<T> {
+    fn finish(self) {
+        match self {
+            Ok(v) => v.finish(),
+            Err(_reported) => (),
+        }
+    }
 }

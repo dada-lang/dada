@@ -14,7 +14,7 @@ use crate::ir::{
     variables::SymVariable,
 };
 
-use super::{Env, bound::Direction};
+use super::{Env, bounds::Direction};
 
 /// A "lien chain" is a list of permissions by which some data may have been reached.
 /// An empty lien chain corresponds to owned data (`my`, in surface Dada syntax).
