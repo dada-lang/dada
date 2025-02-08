@@ -15,13 +15,12 @@ use crate::{
 };
 use dada_ir_ast::{
     ast::AstTy,
-    diagnostic::{Diagnostic, Err, Reported},
+    diagnostic::{Diagnostic, Err, Errors, Level, Reported},
     span::Span,
 };
 use dada_util::{Map, debug};
 
 use crate::{
-    check::bounds::{Direction, TransitiveBounds},
     check::runtime::Runtime,
     check::subtype_require::{
         Expected, require_assignable_type, require_numeric_type, require_subtype,
@@ -30,7 +29,7 @@ use crate::{
     ir::exprs::SymExpr,
 };
 
-use super::{CheckInEnv, runtime::DeferResult};
+use super::{CheckInEnv, predicates::Predicate, runtime::DeferResult};
 
 #[derive(Clone)]
 pub(crate) struct Env<'db> {
@@ -96,28 +95,6 @@ impl<'db> Env<'db> {
 
     /// True if the given variable is declared to meet the given predicate.
     pub fn var_is_declared_to_be(&self, var: SymVariable<'db>, predicate: Predicate) -> bool {
-        todo!()
-    }
-
-    /// Requires the inference variable to meet the given predicate (possibly reporting an error
-    /// if that is contradictory).
-    pub fn require_infer_to_be(
-        &self,
-        span: Span<'db>,
-        var: SymVariable<'db>,
-        predicate: Predicate,
-    ) -> Errors<()> {
-        todo!()
-    }
-
-    /// Requires the inference variable not meet the given predicate (possibly reporting an error
-    /// if that is contradictory).
-    pub fn require_infer_to_not_be(
-        &self,
-        span: Span<'db>,
-        var: SymVariable<'db>,
-        predicate: Predicate,
-    ) -> Errors<()> {
         todo!()
     }
 

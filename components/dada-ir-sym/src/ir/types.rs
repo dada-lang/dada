@@ -32,6 +32,16 @@ pub enum SymGenericKind {
     Place,
 }
 
+impl std::fmt::Display for SymGenericKind {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        match self {
+            Self::Type => write!(f, "type"),
+            Self::Perm => write!(f, "perm"),
+            Self::Place => write!(f, "place"),
+        }
+    }
+}
+
 /// Test if `self` can be said to have the given kind (i.e., is it a type? a permission?).
 ///
 /// Note that when errors occur, this may return true for multiple kinds.

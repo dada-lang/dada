@@ -4,7 +4,7 @@ use std::{
         Arc, Mutex, RwLock,
         atomic::{AtomicBool, AtomicU64, Ordering},
     },
-    task::{Context, Waker},
+    task::{Context, Poll, Waker},
 };
 
 use crate::ir::{
@@ -22,6 +22,8 @@ use crate::{
     check::bounds::Direction, check::env::Env, check::inference::InferenceVarData,
     check::universe::Universe,
 };
+
+use super::predicates::Predicate;
 
 #[derive(Clone)]
 pub(crate) struct Runtime<'db> {
@@ -154,6 +156,25 @@ impl<'db> Runtime<'db> {
         var_index
     }
 
+    /// Returns a future that blocks the current task until `op` returns `Some`.
+    /// `op` will be reinvoked each time the state of the inference variable may have changed.
+    pub fn loop_on_inference_var<T>(
+        &self,
+        infer: InferVarIndex,
+        op: impl Fn(&InferenceVarData) -> Option<T>,
+    ) -> impl Future<Output = T> {
+        std::future::poll_fn(move |cx| {
+            let data = self.with_inference_var_data(infer, |data| op(data));
+            match data {
+                Some(v) => Poll::Ready(v),
+                None => {
+                    self.block_on_inference_var(infer, cx);
+                    Poll::Pending
+                }
+            }
+        })
+    }
+
     /// Read the current data for the given inference variable.
     ///
     /// A lock is held while the read occurs; deadlock will occur if there is an
@@ -165,6 +186,36 @@ impl<'db> Runtime<'db> {
     ) -> T {
         let inference_vars = self.inference_vars.read().unwrap();
         op(&inference_vars[infer.as_usize()])
+    }
+
+    /// Records that the inference variable is required to meet the given predicate.
+    /// This is a low-level function that is intended to be called by [`Env`].
+    ///
+    /// # Panics
+    ///
+    /// * If called when [`Self::check_complete`][] returns true;
+    /// * If the inference variable is required to satisfy a contradictory predicate.
+    pub fn require_inference_var_is(
+        &self,
+        var: InferVarIndex,
+        predicate: Predicate,
+        span: Span<'db>,
+    ) {
+        assert!(!self.check_complete());
+        let mut inference_vars = self.inference_vars.write().unwrap();
+        let inference_var = &mut inference_vars[var.as_usize()];
+        assert!(inference_var.is(predicate.invert()).is_none());
+        if inference_var.require_is(predicate, span) {
+            self.wake_tasks_monitoring_inference_var(var);
+        }
+    }
+
+    fn wake_tasks_monitoring_inference_var(&self, var: InferVarIndex) {
+        let mut waiting_on_inference_var = self.waiting_on_inference_var.lock().unwrap();
+        let wakers = waiting_on_inference_var.remove(&var);
+        for EqWaker { waker } in wakers.into_iter().flatten() {
+            waker.wake();
+        }
     }
 
     /// Modify the list of bounds for `var`, awakening any tasks that are monitoring this variable.
@@ -179,12 +230,7 @@ impl<'db> Runtime<'db> {
         let mut inference_vars = self.inference_vars.write().unwrap();
         if inference_vars[var.as_usize()].insert_bound(self.db, direction, term) {
             debug!("insert_inference_var_bound", var, direction, term);
-
-            let mut waiting_on_inference_var = self.waiting_on_inference_var.lock().unwrap();
-            let wakers = waiting_on_inference_var.remove(&var);
-            for EqWaker { waker } in wakers.into_iter().flatten() {
-                waker.wake();
-            }
+            self.wake_tasks_monitoring_inference_var(var);
             true
         } else {
             false

@@ -20,6 +20,26 @@ pub enum Predicate {
 }
 
 impl Predicate {
+    pub const ALL: [Predicate; 4] = [
+        Predicate::Copy,
+        Predicate::Move,
+        Predicate::Owned,
+        Predicate::Lent,
+    ];
+    pub const LEN: usize = Self::ALL.len();
+
+    pub fn index(self) -> usize {
+        match self {
+            Predicate::Copy => 0,
+            Predicate::Move => 1,
+            Predicate::Owned => 2,
+            Predicate::Lent => 3,
+        }
+    }
+
+    /// Returns the "opposite" of this predicate. For example, the opposite of
+    /// `Copy` is `Move`, and vice versa. It is not possible for `self` and `Self::invert` to both hold
+    /// for thr same term.
     pub fn invert(self) -> Predicate {
         match self {
             Predicate::Copy => Predicate::Move,

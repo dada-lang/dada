@@ -16,8 +16,10 @@ pub(crate) struct InferenceVarData<'db> {
 
     span: Span<'db>,
 
-    is: VecSet<Predicate>,
-    isnt: VecSet<Predicate>,
+    /// If the element for a given predicate is `Some`, then the predicate is known to be true
+    /// due to code at the given span.
+    is: [Option<Span<'db>>; Predicate::LEN],
+
     lower_bound: Option<RedTerm<'db>>,
     upper_bound: Option<RedTerm<'db>>,
 
@@ -30,8 +32,7 @@ impl<'db> InferenceVarData<'db> {
             kind,
             universe,
             span,
-            is: Default::default(),
-            isnt: Default::default(),
+            is: [None; Predicate::LEN],
             lower_bound: None,
             upper_bound: None,
             modifications: 0,
@@ -48,16 +49,10 @@ impl<'db> InferenceVarData<'db> {
         self.kind
     }
 
-    /// Returns the set of predicates that must be true.
-    /// Always disjoint from [`Self::isnt`].
-    pub fn is(&self) -> &VecSet<Predicate> {
-        &self.is
-    }
-
-    /// Returns the set of predicates that must be false.
-    /// Always disjoint from [`Self::is`].
-    pub fn isnt(&self) -> &VecSet<Predicate> {
-        &self.isnt
+    /// Returns `None` if the predicate is not known to be true
+    /// or `Some(s)` where `s` is the span of code which required the predicate to be true.
+    pub fn is(&self, predicate: Predicate) -> Option<Span<'db>> {
+        self.is[predicate.index()]
     }
 
     /// Returns the lower bound.
@@ -73,22 +68,14 @@ impl<'db> InferenceVarData<'db> {
     /// Insert a predicate into the `is` set.
     /// Returns `true` if the predicate was not already in the set.
     /// Low-level method invoked by runtime only.
-    pub fn insert_is_predicate(&mut self, predicate: Predicate) -> bool {
-        assert!(!self.isnt.contains(&predicate));
-        if self.is.insert(predicate) {
-            self.modifications += 1;
-            true
-        } else {
-            false
-        }
-    }
-
-    /// Insert a predicate into the `isnt` set.
-    /// Returns `true` if the predicate was not already in the set.
-    /// Low-level method invoked by runtime only.
-    pub fn insert_isnt_predicate(&mut self, predicate: Predicate) -> bool {
-        assert!(!self.is.contains(&predicate));
-        if self.isnt.insert(predicate) {
+    ///
+    /// # Panics
+    ///
+    /// * If the inference variable is required to satisfy a contradictory predicate.
+    pub fn require_is(&mut self, predicate: Predicate, span: Span<'db>) -> bool {
+        assert!(self.is(predicate.invert()).is_none());
+        if self.is(predicate).is_none() {
+            self.is[predicate.index()] = Some(span);
             self.modifications += 1;
             true
         } else {
