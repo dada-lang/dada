@@ -366,20 +366,6 @@ impl<'db> Env<'db> {
             .defer(self, span, async move |env| op(&env).await)
     }
 
-    pub(crate) fn defer_for_all<T, R>(
-        &self,
-        span: Span<'db>,
-        items: impl IntoIterator<Item = T>,
-        op: impl AsyncFnOnce(&Self, T) -> R + 'db,
-    ) where
-        R: DeferResult,
-    {
-        for item in items {
-            self.runtime
-                .defer(self, span, async move |env| op(&env, item).await);
-        }
-    }
-
     pub(crate) fn require_expr_has_bool_ty(&self, expr: SymExpr<'db>) {
         let db = self.db();
         let boolean_ty = SymTy::boolean(db);

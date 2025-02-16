@@ -16,6 +16,12 @@ use crate::{
     ir::variables::SymVariable,
 };
 
+use super::predicates::{
+    Predicate,
+    require::is::{require_term_is, require_term_is_leased},
+    test::is::{test_term_is, test_term_is_leased},
+};
+
 #[derive(Copy, Clone, PartialEq, Eq, PartialOrd, Ord, Hash, Debug)]
 pub enum Expected {
     // The lower type is the expected one.
@@ -67,6 +73,8 @@ pub async fn require_subtype<'a, 'db>(
     upper: SymTy<'db>,
 ) -> Errors<()> {
     let db = env.db();
+
+    propagate_bounds(env, span, lower.into(), upper.into());
 
     match (lower.kind(db), upper.kind(db)) {
         (SymTyKind::Error(_), _) | (_, SymTyKind::Error(_)) => Ok(()),
@@ -135,6 +143,58 @@ pub async fn require_subtype<'a, 'db>(
             Ok(())
         }
     }
+}
+
+/// Whenever we require that `lower <: upper`, we can also propagate certain bounds,
+/// such as copy/lent and owned/move, from lower-to-upper and upper-to-lower.
+/// This can unblock inference.
+fn propagate_bounds<'db>(
+    env: &Env<'db>,
+    span: Span<'db>,
+    lower: SymGenericTerm<'db>,
+    upper: SymGenericTerm<'db>,
+) {
+    env.defer(span, async move |env| {
+        if test_term_is(env, lower, Predicate::Copy).await? {
+            require_term_is(env, span, upper, Predicate::Copy).await?;
+        }
+        Ok(())
+    });
+
+    env.defer(span, async move |env| {
+        if test_term_is(env, lower, Predicate::Lent).await? {
+            require_term_is(env, span, upper, Predicate::Lent).await?;
+        }
+        Ok(())
+    });
+
+    env.defer(span, async move |env| {
+        if test_term_is(env, upper, Predicate::Move).await? {
+            require_term_is(env, span, lower, Predicate::Move).await?;
+        }
+        Ok(())
+    });
+
+    env.defer(span, async move |env| {
+        if test_term_is(env, upper, Predicate::Owned).await? {
+            require_term_is(env, span, lower, Predicate::Owned).await?;
+        }
+        Ok(())
+    });
+
+    env.defer(span, async move |env| {
+        if test_term_is_leased(env, lower).await? {
+            require_term_is_leased(env, span, upper).await?;
+        }
+        Ok(())
+    });
+
+    env.defer(span, async move |env| {
+        if test_term_is_leased(env, upper).await? {
+            require_term_is_leased(env, span, lower).await?;
+        }
+        Ok(())
+    });
 }
 
 /// Introduce `term` as a lower or upper bound on `infer_var` (depending on `direction`).
@@ -239,11 +299,12 @@ async fn require_sub_generic_term<'db>(
 }
 
 async fn require_subperms<'db>(
-    _env: &Env<'db>,
-    _span: Span<'db>,
-    _lower: SymPerm<'db>,
-    _upper: SymPerm<'db>,
+    env: &Env<'db>,
+    span: Span<'db>,
+    lower: SymPerm<'db>,
+    upper: SymPerm<'db>,
 ) -> Errors<()> {
+    propagate_bounds(env, span, lower.into(), upper.into());
     todo!()
 }
 

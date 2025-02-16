@@ -652,9 +652,6 @@ pub enum SymPlaceKind<'db> {
     /// `x`
     Var(SymVariable<'db>),
 
-    /// `?x`
-    Infer(InferVarIndex),
-
     /// `x.f`
     Field(SymPlace<'db>, SymField<'db>),
 

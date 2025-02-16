@@ -8,8 +8,11 @@ use crate::ir::types::{SymGenericTerm, SymPerm, SymTy, SymTyKind};
 
 use super::env::Env;
 
-mod require;
-mod test;
+mod combinator;
+mod report;
+pub(crate) mod require;
+pub(crate) mod test;
+mod var_infer;
 
 #[derive(Copy, Clone, Debug, Eq, PartialEq, Hash, Ord, PartialOrd)]
 pub enum Predicate {

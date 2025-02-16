@@ -2,15 +2,20 @@ use dada_ir_ast::diagnostic::Errors;
 use dada_util::boxed_async_fn;
 
 use crate::{
-    check::{env::Env, predicates::Predicate},
+    check::{
+        env::Env,
+        places::PlaceTy,
+        predicates::{
+            Predicate,
+            combinator::{Extensions, both, either, exists, for_all, not},
+        },
+    },
     ir::{
         classes::SymAggregateStyle,
         indices::InferVarIndex,
-        types::{SymGenericTerm, SymPerm, SymPermKind, SymTy, SymTyKind, SymTyName},
+        types::{SymGenericTerm, SymPerm, SymPermKind, SymPlace, SymTy, SymTyKind, SymTyName},
     },
 };
-
-use super::combinator::{Extensions, both, either, exists, for_all, not};
 
 pub(crate) async fn test_term_is<'db>(
     env: &Env<'db>,
@@ -20,6 +25,17 @@ pub(crate) async fn test_term_is<'db>(
     term_is(env, term, predicate)
         .and_not(term_is(env, term, predicate.invert()))
         .await
+}
+
+pub(crate) async fn test_term_is_leased<'db>(
+    env: &Env<'db>,
+    term: SymGenericTerm<'db>,
+) -> Errors<bool> {
+    both(
+        test_term_is(env, term, Predicate::Move),
+        test_term_is(env, term, Predicate::Lent),
+    )
+    .await
 }
 
 async fn term_is<'db>(
@@ -171,16 +187,33 @@ pub(crate) async fn perm_is<'db>(
         },
 
         // Shared = Copy & Lent
-        SymPermKind::Shared(_) => match predicate {
-            Predicate::Copy | Predicate::Lent => Ok(true),
-            Predicate::Move | Predicate::Owned => Ok(false),
+        SymPermKind::Shared(ref places) => match predicate {
+            Predicate::Copy => Ok(true),
+            _ => {
+                if places_are_copy(env, places).await? {
+                    // If the places are copy, the shared is irrelevant, we will use their chain.
+                    for_all(places, async |&place| place_is(env, place, predicate).await).await
+                } else {
+                    match predicate {
+                        Predicate::Copy | Predicate::Lent => Ok(true),
+                        Predicate::Move | Predicate::Owned => Ok(false),
+                    }
+                }
+            }
         },
 
         // Leased = Move & Lent
-        SymPermKind::Leased(_) => match predicate {
-            Predicate::Move | Predicate::Lent => Ok(true),
-            Predicate::Copy | Predicate::Owned => Ok(false),
-        },
+        SymPermKind::Leased(ref places) => {
+            if places_are_copy(env, places).await? {
+                // If the places are copy, the leased is irrelevant, we will use their chain.
+                for_all(places, async |&place| place_is(env, place, predicate).await).await
+            } else {
+                match predicate {
+                    Predicate::Move | Predicate::Lent => Ok(true),
+                    Predicate::Copy | Predicate::Owned => Ok(false),
+                }
+            }
+        }
 
         SymPermKind::Apply(lhs, rhs) => Ok(apply_is(env, lhs.into(), rhs.into(), predicate).await?),
 
@@ -190,19 +223,20 @@ pub(crate) async fn perm_is<'db>(
     }
 }
 
-async fn infer_is<'db>(env: &Env<'db>, infer: InferVarIndex, predicate: Predicate) -> bool {
-    let inverted = predicate.invert();
+#[boxed_async_fn]
+async fn places_are_copy<'db>(env: &Env<'db>, places: &[SymPlace<'db>]) -> Errors<bool> {
+    for_all(places, async |&place| {
+        place_is(env, place, Predicate::Copy).await
+    })
+    .await
+}
 
-    env.runtime()
-        .loop_on_inference_var(infer, |data| {
-            let (is, is_inverted) = (data.is(predicate), data.is(inverted));
-            if is.is_some() {
-                Some(true)
-            } else if is_inverted.is_some() {
-                Some(false)
-            } else {
-                None
-            }
-        })
-        .await
+#[boxed_async_fn]
+pub(crate) async fn place_is<'db>(
+    env: &Env<'db>,
+    place: SymPlace<'db>,
+    predicate: Predicate,
+) -> Errors<bool> {
+    let ty = place.place_ty(env).await;
+    ty_is(env, ty, predicate).await
 }

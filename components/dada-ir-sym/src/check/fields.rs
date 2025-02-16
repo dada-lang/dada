@@ -7,6 +7,9 @@ use crate::{
 
 use super::CheckInEnv;
 
+/// Check the type of a field.
+/// The returned type has two binders, the outer binder is the class,
+/// the inner binder is the `self` place.
 pub(crate) fn check_field<'db>(
     db: &'db dyn crate::Db,
     field: SymField<'db>,

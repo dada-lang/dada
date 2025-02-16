@@ -41,6 +41,7 @@ pub mod prelude {
     }
 
     pub trait CheckedFieldTy<'db> {
+        /// See [`crate::check::fields::check_field`][]
         fn checked_field_ty(self, db: &'db dyn crate::Db) -> Binder<'db, Binder<'db, SymTy<'db>>>;
     }
 

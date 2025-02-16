@@ -5,7 +5,7 @@ use dada_ir_ast::diagnostic::Err;
 use super::{
     Env,
     bounds::Direction,
-    chains::{Lien, LienChain, TyChainKind},
+    chains::{Lien, Chain, TyChainKind},
 };
 use crate::{
     check::chains::{ToChain, TyChain},
@@ -116,8 +116,8 @@ fn is_subtychain<'db>(env: &Env<'db>, sub_chain: &TyChain<'db>, sup_chain: &TyCh
 /// and assuming that the places in `live_after` are live at the point of conversion.
 fn is_sublienchain<'db>(
     env: &Env<'db>,
-    sub_chain: &LienChain<'db>,
-    sup_chain: &LienChain<'db>,
+    sub_chain: &Chain<'db>,
+    sup_chain: &Chain<'db>,
 ) -> bool {
     match (sub_chain.links(), sup_chain.links()) {
         ([Lien::Error(_), ..], _) | (_, [Lien::Error(_), ..]) => true,
@@ -242,7 +242,7 @@ fn lien_covered_by<'db>(env: &Env<'db>, sub_lien: Lien<'db>, sup_lien: Lien<'db>
     }
 }
 
-fn is_copy_chain<'db>(env: &Env<'db>, chain: &LienChain<'db>) -> bool {
+fn is_copy_chain<'db>(env: &Env<'db>, chain: &Chain<'db>) -> bool {
     match chain.links() {
         [] => false,
         [lien, ..] => is_copy_lien(env, *lien),
@@ -257,7 +257,7 @@ fn is_copy_lien<'db>(env: &Env<'db>, lien: Lien<'db>) -> bool {
     }
 }
 
-fn is_owned_chain<'db>(env: &Env<'db>, chain: &LienChain<'db>) -> bool {
+fn is_owned_chain<'db>(env: &Env<'db>, chain: &Chain<'db>) -> bool {
     match chain.links() {
         [] => false,
         [lien, ..] => match lien {
@@ -272,9 +272,9 @@ fn is_owned_chain<'db>(env: &Env<'db>, chain: &LienChain<'db>) -> bool {
 fn is_subgeneric<'db>(
     env: &Env<'db>,
     variance: Variance,
-    sub_cx: &LienChain<'db>,
+    sub_cx: &Chain<'db>,
     sub_term: SymGenericTerm<'db>,
-    sup_cx: &LienChain<'db>,
+    sup_cx: &Chain<'db>,
     sup_term: SymGenericTerm<'db>,
 ) -> bool {
     let db = env.db();
@@ -289,7 +289,7 @@ fn is_subgeneric<'db>(
     );
 
     let is_subgeneric_impl =
-        |a: (&LienChain<'db>, SymGenericTerm<'db>), b: (&LienChain<'db>, SymGenericTerm<'db>)| {
+        |a: (&Chain<'db>, SymGenericTerm<'db>), b: (&Chain<'db>, SymGenericTerm<'db>)| {
             let a_lubs = term_to_ty_chain(env, a.0, a.1, Direction::UpperBoundedBy);
             let b_glbs = term_to_ty_chain(env, b.0, b.1, Direction::LowerBoundedBy);
             a_lubs
@@ -311,7 +311,7 @@ fn is_subgeneric<'db>(
 /// Convert the generic term into a type chain. If `term` is a permission, returns a type chain applied to `()`.
 fn term_to_ty_chain<'db>(
     env: &Env<'db>,
-    cx: &LienChain<'db>,
+    cx: &Chain<'db>,
     term: SymGenericTerm<'db>,
     direction: Direction,
 ) -> Vec<TyChain<'db>> {

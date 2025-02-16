@@ -18,7 +18,7 @@ use crate::{
 
 use super::{
     Env,
-    chains::{Lien, LienChain, TyChain, TyChainKind},
+    chains::{Chain, Lien, TyChain, TyChainKind},
     subtype_check::is_subterm,
 };
 
@@ -182,7 +182,7 @@ impl<'env, 'db> Resolver<'env, 'db> {
     /// Merge a list of lien chains, computing their LUB or GLB depending on `direction`.
     fn merge_lien_chains(
         &self,
-        lien_chains: Vec<LienChain<'db>>,
+        lien_chains: Vec<Chain<'db>>,
         direction: Direction,
     ) -> Result<SymPerm<'db>, Irreconciliable<'db>> {
         let mut lien_chains = lien_chains.into_iter();
@@ -609,7 +609,7 @@ impl<'env, 'db> Resolver<'env, 'db> {
     }
 
     /// Convert a `LienChain` into a `SymPerm`.
-    fn lien_chain_to_perm(&self, lien_chain: LienChain<'db>) -> SymPerm<'db> {
+    fn lien_chain_to_perm(&self, lien_chain: Chain<'db>) -> SymPerm<'db> {
         self.liens_to_perm(lien_chain.links())
     }
 

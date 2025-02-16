@@ -7,21 +7,15 @@ use std::{
     task::{Context, Poll, Waker},
 };
 
-use crate::ir::{
-    indices::InferVarIndex,
-    types::{SymGenericKind, SymGenericTerm},
-};
+use crate::ir::{indices::InferVarIndex, types::SymGenericKind};
 use check_task::CheckTask;
 use dada_ir_ast::{
     diagnostic::{Diagnostic, Err, Errors, Level},
     span::Span,
 };
-use dada_util::{Map, debug, vecext::VecExt};
+use dada_util::{Map, vecext::VecExt};
 
-use crate::{
-    check::bounds::Direction, check::env::Env, check::inference::InferenceVarData,
-    check::universe::Universe,
-};
+use crate::{check::env::Env, check::inference::InferenceVarData, check::universe::Universe};
 
 use super::predicates::Predicate;
 
@@ -189,7 +183,8 @@ impl<'db> Runtime<'db> {
     }
 
     /// Records that the inference variable is required to meet the given predicate.
-    /// This is a low-level function that is intended to be called by [`Env`].
+    /// This is a low-level function that is called from the [`require`](`crate::check::predicates::require`)
+    /// module.
     ///
     /// # Panics
     ///
@@ -218,25 +213,6 @@ impl<'db> Runtime<'db> {
         }
     }
 
-    /// Modify the list of bounds for `var`, awakening any tasks that are monitoring this variable.
-    /// This is a low-level function that should only be used as part of subtyping.
-    pub fn insert_inference_var_bound(
-        &self,
-        var: InferVarIndex,
-        direction: Direction,
-        term: SymGenericTerm<'db>,
-    ) -> bool {
-        assert!(!self.check_complete());
-        let mut inference_vars = self.inference_vars.write().unwrap();
-        if inference_vars[var.as_usize()].insert_bound(self.db, direction, term) {
-            debug!("insert_inference_var_bound", var, direction, term);
-            self.wake_tasks_monitoring_inference_var(var);
-            true
-        } else {
-            false
-        }
-    }
-
     /// Execute the given future asynchronously from the main execution.
     /// It must execute to completion eventually or an error will be reported.
     pub fn defer<R>(
@@ -251,13 +227,12 @@ impl<'db> Runtime<'db> {
         self.spawn(span, async move { future.await.finish() });
     }
 
-    /// Block the current task on new bounds being added to the given inference variable.
-    /// Used as part of implementing the [`InferenceVarBounds`](`crate::bound::InferenceVarBounds`) stream.
+    /// Block the current task on changes to the given inference variable.
     ///
     /// # Panics
     ///
     /// If called when [`Self::check_complete`][] returns true.
-    pub fn block_on_inference_var(&self, var: InferVarIndex, cx: &mut Context<'_>) {
+    fn block_on_inference_var(&self, var: InferVarIndex, cx: &mut Context<'_>) {
         assert!(!self.check_complete());
         let mut waiting_on_inference_var = self.waiting_on_inference_var.lock().unwrap();
         waiting_on_inference_var
