@@ -7,6 +7,7 @@ edition.workspace = true
 dada-ir-ast = { version = "0.1.0", path = "../dada-ir-ast" }
 dada-parser = { version = "0.1.0", path = "../dada-parser" }
 dada-util = { version = "0.1.0", path = "../dada-util" }
+either = "1.13.0"
 futures = "0.3.31"
 ordered-float = "4.5.0"
 salsa = { workspace = true }

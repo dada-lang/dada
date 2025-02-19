@@ -30,6 +30,12 @@ impl<T: Ord> VecSet<T> {
         }
     }
 
+    pub fn singleton(item: T) -> Self {
+        VecSet {
+            sorted_elements: vec![item],
+        }
+    }
+
     /// Insert `item` into the set.
     ///
     /// Returns `true` if the item was not already in the set.
@@ -41,6 +47,13 @@ impl<T: Ord> VecSet<T> {
                 true
             }
         }
+    }
+
+    /// Extend the set with the items from `other`.
+    pub fn extend(&mut self, other: impl IntoIterator<Item = T>) {
+        self.sorted_elements.extend(other);
+        self.sorted_elements.sort_unstable();
+        self.sorted_elements.dedup();
     }
 
     /// Check if the set contains `item`.

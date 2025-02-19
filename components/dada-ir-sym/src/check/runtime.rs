@@ -199,8 +199,37 @@ impl<'db> Runtime<'db> {
         assert!(!self.check_complete());
         let mut inference_vars = self.inference_vars.write().unwrap();
         let inference_var = &mut inference_vars[var.as_usize()];
-        assert!(inference_var.is(predicate.invert()).is_none());
-        if inference_var.require_is(predicate, span) {
+
+        assert!(inference_var.is_known_to_be(predicate.invert()).is_none());
+        assert!(inference_var.isnt_known_to_be(predicate).is_none());
+
+        let mut changed = false;
+        changed |= inference_var.require_is(predicate, span);
+        changed |= inference_var.require_isnt(predicate.invert(), span);
+        if changed {
+            self.wake_tasks_monitoring_inference_var(var);
+        }
+    }
+
+    /// Records that the inference variable cannot be known to meet the given predicate.
+    /// This is a low-level function that is called from the [`require`](`crate::check::predicates::require`)
+    /// module.
+    ///
+    /// # Panics
+    ///
+    /// * If called when [`Self::check_complete`][] returns true;
+    /// * If the inference variable is required to meet the predicate.
+    pub fn require_inference_var_isnt(
+        &self,
+        var: InferVarIndex,
+        predicate: Predicate,
+        span: Span<'db>,
+    ) {
+        assert!(!self.check_complete());
+        let mut inference_vars = self.inference_vars.write().unwrap();
+        let inference_var = &mut inference_vars[var.as_usize()];
+        assert!(inference_var.is_known_to_be(predicate).is_none());
+        if inference_var.require_isnt(predicate, span) {
             self.wake_tasks_monitoring_inference_var(var);
         }
     }

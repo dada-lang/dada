@@ -7,9 +7,8 @@ use crate::{
         places::PlaceTy,
         predicates::{
             Predicate,
-            combinator::{do_both, exists, require, require_for_all},
+            combinator::{exists, require, require_both},
             report::{report_never_must_be_but_isnt, report_term_must_be_but_isnt},
-            test::test_term_is_move,
             var_infer::{require_infer_is, require_var_is},
         },
     },
@@ -18,6 +17,8 @@ use crate::{
         types::{SymGenericTerm, SymPerm, SymPermKind, SymPlace, SymTy, SymTyKind, SymTyName},
     },
 };
+
+use super::is_move::{place_is_move, term_is_move};
 
 pub(crate) async fn require_term_is_move<'db>(
     env: &Env<'db>,
@@ -43,7 +44,7 @@ async fn require_application_is_move<'db>(
     // Simultaneously test for whether LHS/RHS is `predicate`.
     // If either is, we are done.
     // If either is *not*, the other must be.
-    do_both(
+    require_both(
         require_term_is_move(env, span, lhs),
         require_term_is_move(env, span, rhs),
     )
@@ -82,9 +83,7 @@ async fn require_ty_is_move<'db>(env: &Env<'db>, span: Span<'db>, term: SymTy<'d
                 SymAggregateStyle::Class => Ok(()),
                 SymAggregateStyle::Struct => {
                     require(
-                        exists(generics, async |&generic| {
-                            test_term_is_move(env, generic).await
-                        }),
+                        exists(generics, async |&generic| term_is_move(env, generic).await),
                         || report_term_must_be_but_isnt(env, span, term, Predicate::Move),
                     )
                     .await
@@ -101,9 +100,7 @@ async fn require_ty_is_move<'db>(env: &Env<'db>, span: Span<'db>, term: SymTy<'d
             SymTyName::Tuple { arity } => {
                 assert_eq!(arity, generics.len());
                 require(
-                    exists(generics, async |&generic| {
-                        test_term_is_move(env, generic).await
-                    }),
+                    exists(generics, async |&generic| term_is_move(env, generic).await),
                     || report_term_must_be_but_isnt(env, span, term, Predicate::Move),
                 )
                 .await
@@ -120,28 +117,23 @@ async fn require_perm_is_move<'db>(
 ) -> Errors<()> {
     let db = env.db();
     match *perm.kind(db) {
-        // Error cases first
         SymPermKind::Error(reported) => Err(reported),
 
-        // My = Move & Owned
-        SymPermKind::My => Err(report_term_must_be_but_isnt(
+        SymPermKind::My => Ok(()),
+
+        SymPermKind::Our | SymPermKind::Shared(_) => Err(report_term_must_be_but_isnt(
             env,
             span,
             perm,
-            Predicate::Copy,
+            Predicate::Move,
         )),
 
-        // Our = Copy & Owned
-        SymPermKind::Our => Ok(()),
-
-        // Shared = Copy & Lent
-        SymPermKind::Shared(_) => Ok(()),
-
-        // Leased = Move & Lent
         SymPermKind::Leased(ref places) => {
-            require_for_all(places, async |&place| {
-                require_place_is_move(env, span, place).await
-            })
+            // If there is at least one place `p` that is move, this will result in a `leased[p]` chain.
+            require(
+                exists(places, async |&place| place_is_move(env, place).await),
+                || report_term_must_be_but_isnt(env, span, perm, Predicate::Move),
+            )
             .await
         }
 

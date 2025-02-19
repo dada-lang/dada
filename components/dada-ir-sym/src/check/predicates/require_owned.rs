@@ -7,14 +7,15 @@ use crate::{
         places::PlaceTy,
         predicates::{
             Predicate,
-            combinator::{do_both, require_for_all},
+            combinator::{require_both, require_for_all},
             report::report_term_must_be_but_isnt,
-            require::is_copy::require_place_is_copy,
             var_infer::{require_infer_is, require_var_is},
         },
     },
     ir::types::{SymGenericTerm, SymPerm, SymPermKind, SymPlace, SymTy, SymTyKind},
 };
+
+use super::require_copy::require_place_is_copy;
 
 pub(crate) async fn require_term_is_owned<'db>(
     env: &Env<'db>,
@@ -40,7 +41,7 @@ async fn require_both_are_owned<'db>(
     // Simultaneously test for whether LHS/RHS is `predicate`.
     // If either is, we are done.
     // If either is *not*, the other must be.
-    do_both(
+    require_both(
         require_term_is_owned(env, span, lhs),
         require_term_is_owned(env, span, rhs),
     )
@@ -104,7 +105,7 @@ async fn require_perm_is_owned<'db>(
             // the `p` values must be `our` -- copy so that the shared/leased
             // doesn't apply, and then themselves owned.
             require_for_all(places, async |&place| {
-                do_both(
+                require_both(
                     require_place_is_copy(env, span, place),
                     require_place_is_owned(env, span, place),
                 )

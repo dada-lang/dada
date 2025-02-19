@@ -17,8 +17,18 @@ pub(crate) struct InferenceVarData<'db> {
     span: Span<'db>,
 
     /// If the element for a given predicate is `Some`, then the predicate is known to be true
-    /// due to code at the given span.
+    /// due to code at the given span. If the element is `None`, then it is not known that the
+    /// predicate is true (but it still could be, depending on what value we ultimately infer).
+    ///
+    /// See also the `isnt` field.
     is: [Option<Span<'db>>; Predicate::LEN],
+
+    /// If the element for a given predicate is `Some`, then the predicate is NOT known to be true
+    /// due to code at the given span.
+    ///
+    /// This is a subtle distinction. Knowing that a variable `isnt (known to be) copy` doesn't
+    /// imply that it is `is (known to be) move`. It means "you will never be able to prove this is copy".
+    isnt: [Option<Span<'db>>; Predicate::LEN],
 
     lower_bound: Option<RedTerm<'db>>,
     upper_bound: Option<RedTerm<'db>>,
@@ -33,6 +43,7 @@ impl<'db> InferenceVarData<'db> {
             universe,
             span,
             is: [None; Predicate::LEN],
+            isnt: [None; Predicate::LEN],
             lower_bound: None,
             upper_bound: None,
             modifications: 0,
@@ -49,10 +60,19 @@ impl<'db> InferenceVarData<'db> {
         self.kind
     }
 
-    /// Returns `None` if the predicate is not known to be true
-    /// or `Some(s)` where `s` is the span of code which required the predicate to be true.
-    pub fn is(&self, predicate: Predicate) -> Option<Span<'db>> {
+    /// Returns `Some(s)` if the predicate is known to be true (where `s` is the span of code
+    /// which required the predicate to be true).
+    pub fn is_known_to_be(&self, predicate: Predicate) -> Option<Span<'db>> {
         self.is[predicate.index()]
+    }
+
+    /// Returns `Some(s)` if the predicate is not known to be true (where `s` is the span of code
+    /// which required the predicate to not be known to be true).
+    ///
+    /// This is different from being known to be false. It means we know we won't be able to know.
+    /// Can occur with generics etc.
+    pub fn isnt_known_to_be(&self, predicate: Predicate) -> Option<Span<'db>> {
+        self.isnt[predicate.index()]
     }
 
     /// Returns the lower bound.
@@ -73,9 +93,28 @@ impl<'db> InferenceVarData<'db> {
     ///
     /// * If the inference variable is required to satisfy a contradictory predicate.
     pub fn require_is(&mut self, predicate: Predicate, span: Span<'db>) -> bool {
-        assert!(self.is(predicate.invert()).is_none());
-        if self.is(predicate).is_none() {
+        assert!(self.is_known_to_be(predicate.invert()).is_none());
+        assert!(self.isnt_known_to_be(predicate).is_none());
+        if self.is_known_to_be(predicate).is_none() {
             self.is[predicate.index()] = Some(span);
+            self.modifications += 1;
+            true
+        } else {
+            false
+        }
+    }
+
+    /// Insert a predicate into the `isnt` set.
+    /// Returns `true` if the predicate was not already in the set.
+    /// Low-level method invoked by runtime only.
+    ///
+    /// # Panics
+    ///
+    /// * If the inference variable is required to satisfy a contradictory predicate.
+    pub fn require_isnt(&mut self, predicate: Predicate, span: Span<'db>) -> bool {
+        assert!(self.is_known_to_be(predicate).is_none());
+        if self.isnt_known_to_be(predicate).is_none() {
+            self.isnt[predicate.index()] = Some(span);
             self.modifications += 1;
             true
         } else {

@@ -5,21 +5,29 @@ use dada_ir_ast::{
     span::Span,
 };
 use dada_util::boxed_async_fn;
+use either::Either;
 use futures::StreamExt;
 
 use crate::{
-    check::bounds::Direction,
     check::env::Env,
-    ir::indices::InferVarIndex,
-    ir::primitive::SymPrimitiveKind,
-    ir::types::{SymGenericTerm, SymPerm, SymPlace, SymTy, SymTyKind, SymTyName},
-    ir::variables::SymVariable,
+    ir::{
+        indices::InferVarIndex,
+        primitive::SymPrimitiveKind,
+        types::{SymGenericTerm, SymPerm, SymPlace, SymTy, SymTyKind, SymTyName},
+        variables::SymVariable,
+    },
 };
 
-use super::predicates::{
-    Predicate,
-    require::is::{require_term_is, require_term_is_leased},
-    test::is::{test_term_is, test_term_is_leased},
+use super::{
+    chains::{Lien, RedTerm, RedTy, ToRedTerm, TyChain},
+    predicates::{
+        Predicate,
+        require::{
+            require_term_is_copy, require_term_is_lent, require_term_is_move, require_term_is_owned,
+        },
+        require_term_is_leased, term_is_leased,
+        test::{test_term_is_copy, test_term_is_lent, test_term_is_move, test_term_is_owned},
+    },
 };
 
 #[derive(Copy, Clone, PartialEq, Eq, PartialOrd, Ord, Hash, Debug)]
@@ -49,12 +57,11 @@ pub async fn require_assignable_type<'db>(
 
     match (value_ty.kind(db), place_ty.kind(db)) {
         (SymTyKind::Never, _) => Ok(()),
-        _ => require_subtype(env, Expected::Upper, span, value_ty, place_ty).await,
+        _ => require_sub_terms(env, Expected::Upper, span, value_ty, place_ty).await,
     }
 }
 
-#[boxed_async_fn]
-pub async fn require_subtype<'a, 'db>(
+pub async fn require_sub_terms<'a, 'db>(
     env: &'a Env<'db>,
 
     // Tracks which of the types is the "expected" type from a user's point-of-view.
@@ -67,82 +74,51 @@ pub async fn require_subtype<'a, 'db>(
     span: Span<'db>,
 
     // Prospective subtype
-    lower: SymTy<'db>,
+    lower: SymGenericTerm<'db>,
 
     // Prospective supertype
-    upper: SymTy<'db>,
+    upper: SymGenericTerm<'db>,
 ) -> Errors<()> {
     let db = env.db();
-
     propagate_bounds(env, span, lower.into(), upper.into());
 
-    match (lower.kind(db), upper.kind(db)) {
-        (SymTyKind::Error(_), _) | (_, SymTyKind::Error(_)) => Ok(()),
+    // Reduce and relate
+    let red_term_lower = lower.to_red_term(db, env).await;
+    let red_term_upper = upper.to_red_term(db, env).await;
+    require_sub_redterms(env, expected, span, red_term_lower, red_term_upper).await
+}
 
-        (SymTyKind::Var(univ_lower), SymTyKind::Var(univ_upper)) => {
-            if univ_lower == univ_upper {
-                Ok(())
-            } else {
-                Err(report_universal_mismatch(
-                    env,
-                    expected,
-                    span,
-                    *univ_lower,
-                    *univ_upper,
-                ))
-            }
-        }
-
-        (&SymTyKind::Infer(infer_var), _) => {
-            bound_inference_var(
-                env,
-                span,
-                infer_var,
-                expected == Expected::Lower,
-                Direction::UpperBoundedBy,
-                upper.into(),
-            )
-            .await
-        }
-
-        (_, &SymTyKind::Infer(infer_var)) => {
-            bound_inference_var(
-                env,
-                span,
-                infer_var,
-                expected == Expected::Upper,
-                Direction::LowerBoundedBy,
-                lower.into(),
-            )
-            .await
-        }
-
-        (SymTyKind::Named(name_lower, args_lower), SymTyKind::Named(name_upper, args_upper)) => {
-            if name_lower != name_upper {
-                return Err(report_class_name_mismatch(
-                    env,
-                    expected,
-                    span,
-                    *name_lower,
-                    *name_upper,
-                ));
-            }
-
-            assert_eq!(args_lower.len(), args_upper.len());
-
-            // FIXME: variance
-            for (&arg_lower, &arg_upper) in args_lower.iter().zip(args_upper) {
-                require_sub_generic_term(env, expected, span, arg_lower, arg_upper).await?;
-            }
-
-            Ok(())
-        }
-
-        _ => {
-            // FIXME
-            Ok(())
-        }
+pub async fn require_sub_all_of_some<'a, 'db>(
+    env: &'a Env<'db>,
+    expected: Expected,
+    span: Span<'db>,
+    lower: RedTerm<'db>,
+    upper: RedTerm<'db>,
+) -> Errors<()> {
+    let lower_ty_chains = lower.ty_chains();
+    let upper_ty_chains = upper.ty_chains();
+    for lower_ty_chain in lower_ty_chains {
+        require_sub_of_some(env, expected, span, lower_ty_chain, &upper_ty_chains).await?;
     }
+    Ok(())
+}
+
+pub async fn require_sub_of_some<'a, 'db>(
+    env: &'a Env<'db>,
+    expected: Expected,
+    span: Span<'db>,
+    lower: TyChain<'_, 'db>,
+    uppers: &[TyChain<'_, 'db>],
+) -> Errors<()> {
+}
+
+pub async fn sub_chains<'a, 'db>(
+    env: &'a Env<'db>,
+    expected: Expected,
+    span: Span<'db>,
+    lower: &[Lien<'db>],
+    upper: &[Lien<'db>],
+) -> Errors<()> {
 }
 
 /// Whenever we require that `lower <: upper`, we can also propagate certain bounds,
@@ -155,42 +131,42 @@ fn propagate_bounds<'db>(
     upper: SymGenericTerm<'db>,
 ) {
     env.defer(span, async move |env| {
-        if test_term_is(env, lower, Predicate::Copy).await? {
-            require_term_is(env, span, upper, Predicate::Copy).await?;
+        if test_term_is_copy(env, lower).await? {
+            require_term_is_copy(env, span, upper).await?;
         }
         Ok(())
     });
 
     env.defer(span, async move |env| {
-        if test_term_is(env, lower, Predicate::Lent).await? {
-            require_term_is(env, span, upper, Predicate::Lent).await?;
+        if test_term_is_lent(env, lower).await? {
+            require_term_is_lent(env, span, upper).await?;
         }
         Ok(())
     });
 
     env.defer(span, async move |env| {
-        if test_term_is(env, upper, Predicate::Move).await? {
-            require_term_is(env, span, lower, Predicate::Move).await?;
+        if test_term_is_move(env, upper).await? {
+            require_term_is_move(env, span, lower).await?;
         }
         Ok(())
     });
 
     env.defer(span, async move |env| {
-        if test_term_is(env, upper, Predicate::Owned).await? {
-            require_term_is(env, span, lower, Predicate::Owned).await?;
+        if test_term_is_owned(env, upper).await? {
+            require_term_is_owned(env, span, lower).await?;
         }
         Ok(())
     });
 
     env.defer(span, async move |env| {
-        if test_term_is_leased(env, lower).await? {
+        if term_is_leased(env, lower).await? {
             require_term_is_leased(env, span, upper).await?;
         }
         Ok(())
     });
 
     env.defer(span, async move |env| {
-        if test_term_is_leased(env, upper).await? {
+        if term_is_leased(env, upper).await? {
             require_term_is_leased(env, span, lower).await?;
         }
         Ok(())

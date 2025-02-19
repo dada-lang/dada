@@ -18,7 +18,7 @@ pub async fn require_for_all<'db, T>(
     Ok(())
 }
 
-pub async fn do_both<'db>(
+pub async fn require_both<'db>(
     first: impl Future<Output = Errors<()>>,
     second: impl Future<Output = Errors<()>>,
 ) -> Errors<()> {

@@ -17,7 +17,7 @@ use crate::{
     },
 };
 
-use super::{test_place_is_lent, test_place_is_move};
+use super::is_move::place_is_move;
 
 pub(crate) async fn term_is_lent<'db>(env: &Env<'db>, term: SymGenericTerm<'db>) -> Errors<bool> {
     match term {
@@ -76,8 +76,8 @@ pub(crate) async fn perm_is_lent<'db>(env: &Env<'db>, perm: SymPerm<'db>) -> Err
             // we would be lent if they are lent; but if they are not
             // copy, we are lent.
             either(
-                for_all(places, async |&place| test_place_is_move(env, place).await),
-                exists(places, async |&place| test_place_is_lent(env, place).await),
+                for_all(places, async |&place| place_is_move(env, place).await),
+                exists(places, async |&place| place_is_lent(env, place).await),
             )
             .await
         }
