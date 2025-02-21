@@ -3,11 +3,11 @@ use dada_util::boxed_async_fn;
 
 use crate::{
     check::{
+        combinator::{require_both, require_for_all},
         env::Env,
         places::PlaceTy,
         predicates::{
             Predicate,
-            combinator::{require_both, require_for_all},
             report::{report_never_must_be_but_isnt, report_term_must_be_but_isnt},
             var_infer::{require_infer_is, require_var_is},
         },
@@ -18,7 +18,7 @@ use crate::{
     },
 };
 
-use super::is_copy::term_is_copy;
+use super::is_ktb_copy::term_is_ktb_copy;
 
 pub(crate) async fn require_term_is_copy<'db>(
     env: &Env<'db>,
@@ -46,13 +46,13 @@ async fn require_either_is_copy<'db>(
     // If either is *not*, the other must be.
     require_both(
         async {
-            if !term_is_copy(env, rhs).await? {
+            if !term_is_ktb_copy(env, rhs).await? {
                 require_term_is_copy(env, span, lhs).await?;
             }
             Ok(())
         },
         async {
-            if !term_is_copy(env, lhs).await? {
+            if !term_is_ktb_copy(env, lhs).await? {
                 require_term_is_copy(env, span, rhs).await?;
             }
             Ok(())

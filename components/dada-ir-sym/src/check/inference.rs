@@ -3,7 +3,7 @@ use dada_util::vecset::VecSet;
 
 use crate::{
     check::universe::Universe,
-    ir::{red_terms::RedTerm, types::SymGenericKind},
+    ir::{indices::InferVarIndex, red_terms::RedTerm, types::SymGenericKind},
 };
 
 use super::predicates::Predicate;
@@ -33,6 +33,9 @@ pub(crate) struct InferenceVarData<'db> {
     lower_bound: Option<RedTerm<'db>>,
     upper_bound: Option<RedTerm<'db>>,
 
+    lower_bound_vars: Vec<InferVarIndex>,
+    upper_bound_vars: Vec<InferVarIndex>,
+
     modifications: u32,
 }
 
@@ -46,6 +49,8 @@ impl<'db> InferenceVarData<'db> {
             isnt: [None; Predicate::LEN],
             lower_bound: None,
             upper_bound: None,
+            lower_bound_vars: Vec::new(),
+            upper_bound_vars: Vec::new(),
             modifications: 0,
         }
     }

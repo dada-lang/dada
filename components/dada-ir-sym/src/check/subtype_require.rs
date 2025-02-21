@@ -5,7 +5,6 @@ use dada_ir_ast::{
     span::Span,
 };
 use dada_util::boxed_async_fn;
-use either::Either;
 use futures::StreamExt;
 
 use crate::{
@@ -19,14 +18,14 @@ use crate::{
 };
 
 use super::{
-    chains::{Lien, RedTerm, RedTy, ToRedTerm, TyChain},
+    chains::{Lien, RedTerm, ToRedTerm, TyChain},
+    combinator,
     predicates::{
-        Predicate,
-        require::{
-            require_term_is_copy, require_term_is_lent, require_term_is_move, require_term_is_owned,
-        },
-        require_term_is_leased, term_is_leased,
-        test::{test_term_is_copy, test_term_is_lent, test_term_is_move, test_term_is_owned},
+        is_ktb_copy::term_is_ktb_copy, is_ktb_lent::term_is_ktb_lent,
+        is_ktb_move::term_is_ktb_move, is_ktb_owned::term_is_ktb_owned,
+        require_copy::require_term_is_copy, require_lent::require_term_is_lent,
+        require_move::require_term_is_move, require_owned::require_term_is_owned,
+        require_term_is_leased, term_is_ktb_leased,
     },
 };
 
@@ -80,12 +79,16 @@ pub async fn require_sub_terms<'a, 'db>(
     upper: SymGenericTerm<'db>,
 ) -> Errors<()> {
     let db = env.db();
-    propagate_bounds(env, span, lower.into(), upper.into());
-
-    // Reduce and relate
-    let red_term_lower = lower.to_red_term(db, env).await;
-    let red_term_upper = upper.to_red_term(db, env).await;
-    require_sub_redterms(env, expected, span, red_term_lower, red_term_upper).await
+    combinator::require_all!(
+        propagate_bounds(env, span, lower.into(), upper.into()),
+        async {
+            // Reduce and relate chains
+            let red_term_lower = lower.to_red_term(db, env).await;
+            let red_term_upper = upper.to_red_term(db, env).await;
+            require_sub_redterms(env, expected, span, red_term_lower, red_term_upper).await
+        },
+    )
+    .await
 }
 
 pub async fn require_sub_all_of_some<'a, 'db>(
@@ -124,53 +127,57 @@ pub async fn sub_chains<'a, 'db>(
 /// Whenever we require that `lower <: upper`, we can also propagate certain bounds,
 /// such as copy/lent and owned/move, from lower-to-upper and upper-to-lower.
 /// This can unblock inference.
-fn propagate_bounds<'db>(
+async fn propagate_bounds<'db>(
     env: &Env<'db>,
     span: Span<'db>,
     lower: SymGenericTerm<'db>,
     upper: SymGenericTerm<'db>,
-) {
-    env.defer(span, async move |env| {
-        if test_term_is_copy(env, lower).await? {
-            require_term_is_copy(env, span, upper).await?;
-        }
-        Ok(())
-    });
-
-    env.defer(span, async move |env| {
-        if test_term_is_lent(env, lower).await? {
-            require_term_is_lent(env, span, upper).await?;
-        }
-        Ok(())
-    });
-
-    env.defer(span, async move |env| {
-        if test_term_is_move(env, upper).await? {
-            require_term_is_move(env, span, lower).await?;
-        }
-        Ok(())
-    });
-
-    env.defer(span, async move |env| {
-        if test_term_is_owned(env, upper).await? {
-            require_term_is_owned(env, span, lower).await?;
-        }
-        Ok(())
-    });
-
-    env.defer(span, async move |env| {
-        if term_is_leased(env, lower).await? {
-            require_term_is_leased(env, span, upper).await?;
-        }
-        Ok(())
-    });
-
-    env.defer(span, async move |env| {
-        if term_is_leased(env, upper).await? {
-            require_term_is_leased(env, span, lower).await?;
-        }
-        Ok(())
-    });
+) -> Errors<()> {
+    combinator::require_all!(
+        async {
+            if term_is_ktb_copy(env, lower).await? {
+                require_term_is_copy(env, span, upper).await?;
+            }
+            Ok(())
+        },
+        async {
+            if term_is_ktb_lent(env, lower).await? {
+                require_term_is_lent(env, span, upper).await?;
+            }
+            Ok(())
+        },
+        async {
+            if term_is_ktb_move(env, upper).await? {
+                require_term_is_move(env, span, lower).await?;
+            }
+            Ok(())
+        },
+        async {
+            if term_isnt_ktb_copy(env, upper).await? {
+                require_term_isnt_ktb_copy(env, span, lower).await?;
+            }
+            Ok(())
+        },
+        async {
+            if term_is_ktb_owned(env, upper).await? {
+                require_term_is_owned(env, span, lower).await?;
+            }
+            Ok(())
+        },
+        async {
+            if term_is_ktb_leased(env, lower).await? {
+                require_term_is_leased(env, span, upper).await?;
+            }
+            Ok(())
+        },
+        async {
+            if term_is_ktb_leased(env, upper).await? {
+                require_term_is_leased(env, span, lower).await?;
+            }
+            Ok(())
+        },
+    )
+    .await
 }
 
 /// Introduce `term` as a lower or upper bound on `infer_var` (depending on `direction`).

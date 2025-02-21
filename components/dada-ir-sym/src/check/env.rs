@@ -298,62 +298,6 @@ impl<'db> Env<'db> {
             })
     }
 
-    /// Transitive lower bounds (subtypes) of `ty`. If `ty` is not an inference variable, this simply yields `ty`.
-    pub fn transitive_ty_lower_bounds(&self, ty: SymTy<'db>) -> TransitiveBounds<'db, SymTy<'db>> {
-        self.transitive_ty_bounds(ty, Direction::LowerBoundedBy)
-    }
-
-    /// Transitive upper bounds (supertypes) of `ty`. If `ty` is not an inference variable, this simply yields `ty`.
-    pub fn transitive_ty_upper_bounds(&self, ty: SymTy<'db>) -> TransitiveBounds<'db, SymTy<'db>> {
-        self.transitive_ty_bounds(ty, Direction::UpperBoundedBy)
-    }
-
-    /// Transitive bounds (upper or lower, depending on `direction`) of `ty`.
-    /// If `ty` is not an inference variable, this simply yields `ty`.
-    pub fn transitive_ty_bounds(
-        &self,
-        ty: SymTy<'db>,
-        direction: Direction,
-    ) -> TransitiveBounds<'db, SymTy<'db>> {
-        let db = self.db();
-        if let &SymTyKind::Infer(inference_var) = ty.kind(db) {
-            TransitiveBounds::new(&self.runtime, direction, inference_var)
-        } else {
-            TransitiveBounds::just(&self.runtime, direction, ty)
-        }
-    }
-
-    /// Transitive bounds of a type variable.
-    pub fn transitive_ty_var_bounds(
-        &self,
-        inference_var: InferVarIndex,
-        direction: Direction,
-    ) -> TransitiveBounds<'db, SymTy<'db>> {
-        TransitiveBounds::new(&self.runtime, direction, inference_var)
-    }
-
-    pub fn transitive_perm_bounds(
-        &self,
-        perm: SymPerm<'db>,
-        direction: Direction,
-    ) -> TransitiveBounds<'db, SymPerm<'db>> {
-        let db = self.db();
-        if let &SymPermKind::Infer(inference_var) = perm.kind(db) {
-            self.transitive_perm_var_bounds(inference_var, direction)
-        } else {
-            TransitiveBounds::just(&self.runtime, direction, perm)
-        }
-    }
-
-    /// Transitive bounds of a permission variable.
-    pub fn transitive_perm_var_bounds(
-        &self,
-        inference_var: InferVarIndex,
-        direction: Direction,
-    ) -> TransitiveBounds<'db, SymPerm<'db>> {
-        TransitiveBounds::new(&self.runtime, direction, inference_var)
-    }
-
     pub fn describe_ty<'a, 'chk>(&'a self, ty: SymTy<'db>) -> impl std::fmt::Display + 'a {
         format!("{ty:?}") // FIXME
     }

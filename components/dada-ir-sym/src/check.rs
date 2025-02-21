@@ -7,6 +7,7 @@ use crate::ir::types::SymTy;
 
 pub(crate) mod blocks;
 mod chains;
+mod combinator;
 mod env;
 mod exprs;
 pub(crate) mod fields;

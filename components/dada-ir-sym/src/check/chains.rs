@@ -16,7 +16,10 @@ use crate::ir::{
 use super::{
     Env,
     places::PlaceTy,
-    predicates::{Predicate, is_copy::place_is_copy, test_infer_is, test_var_is},
+    predicates::{
+        Predicate, is_ktb_copy::place_is_ktb_copy, test_infer_is_known_to_be,
+        test_var_is_known_to_be,
+    },
 };
 
 /// A "red(uced) term" combines the possible permissions (a [`VecSet`] of [`Chain`])
@@ -192,8 +195,8 @@ impl<'db> Lien<'db> {
         match *self {
             Lien::Our | Lien::Shared(_) => Ok(true),
             Lien::Leased(_) => Ok(false),
-            Lien::Var(v) => Ok(test_var_is(env, v, Predicate::Copy)),
-            Lien::Infer(v) => Ok(test_infer_is(env, v, Predicate::Copy).await),
+            Lien::Var(v) => Ok(test_var_is_known_to_be(env, v, Predicate::Copy)),
+            Lien::Infer(v) => Ok(test_infer_is_known_to_be(env, v, Predicate::Copy).await),
             Lien::Error(reported) => Err(reported),
         }
     }
@@ -333,7 +336,7 @@ impl<'db> ToChains<'db> for SymPerm<'db> {
             }
             SymPermKind::Shared(ref places) => {
                 for &place in places {
-                    if place_is_copy(env, place).await.is_ok() {
+                    if place_is_ktb_copy(env, place).await.is_ok() {
                         output.extend(place.to_chains(db, env).await?);
                     } else {
                         output.insert(Chain::shared(db, place));
@@ -342,7 +345,7 @@ impl<'db> ToChains<'db> for SymPerm<'db> {
             }
             SymPermKind::Leased(ref places) => {
                 for &place in places {
-                    if place_is_copy(env, place).await.is_ok() {
+                    if place_is_ktb_copy(env, place).await.is_ok() {
                         output.extend(place.to_chains(db, env).await?);
                     } else {
                         output.insert(Chain::leased(db, place));

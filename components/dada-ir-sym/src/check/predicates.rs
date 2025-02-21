@@ -1,8 +1,7 @@
-mod combinator;
-pub(crate) mod is_copy;
-pub(crate) mod is_lent;
-pub(crate) mod is_move;
-pub(crate) mod is_owned;
+pub(crate) mod is_ktb_copy;
+pub(crate) mod is_ktb_lent;
+pub(crate) mod is_ktb_move;
+pub(crate) mod is_ktb_owned;
 mod report;
 pub(crate) mod require_copy;
 pub(crate) mod require_lent;
@@ -10,17 +9,19 @@ pub(crate) mod require_move;
 pub(crate) mod require_owned;
 mod var_infer;
 
-use combinator::{both, require_both};
 use dada_ir_ast::{diagnostic::Errors, span::Span};
-use is_lent::term_is_lent;
-use is_move::term_is_move;
+use is_ktb_lent::term_is_ktb_lent;
+use is_ktb_move::term_is_ktb_move;
 use require_lent::require_term_is_lent;
 use require_move::require_term_is_move;
-pub(crate) use var_infer::{test_infer_is, test_var_is};
+pub(crate) use var_infer::{test_infer_is_known_to_be, test_var_is_known_to_be};
 
 use crate::ir::types::SymGenericTerm;
 
-use super::env::Env;
+use super::{
+    combinator::{both, require_both},
+    env::Env,
+};
 
 #[derive(Copy, Clone, Debug, Eq, PartialEq, Hash, Ord, PartialOrd)]
 pub enum Predicate {
@@ -72,8 +73,11 @@ impl std::fmt::Display for Predicate {
     }
 }
 
-pub(crate) async fn term_is_leased<'db>(env: &Env<'db>, term: SymGenericTerm<'db>) -> Errors<bool> {
-    both(term_is_move(env, term), term_is_lent(env, term)).await
+pub(crate) async fn term_is_ktb_leased<'db>(
+    env: &Env<'db>,
+    term: SymGenericTerm<'db>,
+) -> Errors<bool> {
+    both(term_is_ktb_move(env, term), term_is_ktb_lent(env, term)).await
 }
 
 pub(crate) async fn require_term_is_leased<'db>(

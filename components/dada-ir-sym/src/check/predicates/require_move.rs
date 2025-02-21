@@ -3,11 +3,11 @@ use dada_util::boxed_async_fn;
 
 use crate::{
     check::{
+        combinator::{exists, require, require_both},
         env::Env,
         places::PlaceTy,
         predicates::{
             Predicate,
-            combinator::{exists, require, require_both},
             report::{report_never_must_be_but_isnt, report_term_must_be_but_isnt},
             var_infer::{require_infer_is, require_var_is},
         },
@@ -18,7 +18,7 @@ use crate::{
     },
 };
 
-use super::is_move::{place_is_move, term_is_move};
+use super::is_ktb_move::{place_is_ktb_move, term_is_ktb_move};
 
 pub(crate) async fn require_term_is_move<'db>(
     env: &Env<'db>,
@@ -83,7 +83,9 @@ async fn require_ty_is_move<'db>(env: &Env<'db>, span: Span<'db>, term: SymTy<'d
                 SymAggregateStyle::Class => Ok(()),
                 SymAggregateStyle::Struct => {
                     require(
-                        exists(generics, async |&generic| term_is_move(env, generic).await),
+                        exists(generics, async |&generic| {
+                            term_is_ktb_move(env, generic).await
+                        }),
                         || report_term_must_be_but_isnt(env, span, term, Predicate::Move),
                     )
                     .await
@@ -100,7 +102,9 @@ async fn require_ty_is_move<'db>(env: &Env<'db>, span: Span<'db>, term: SymTy<'d
             SymTyName::Tuple { arity } => {
                 assert_eq!(arity, generics.len());
                 require(
-                    exists(generics, async |&generic| term_is_move(env, generic).await),
+                    exists(generics, async |&generic| {
+                        term_is_ktb_move(env, generic).await
+                    }),
                     || report_term_must_be_but_isnt(env, span, term, Predicate::Move),
                 )
                 .await
@@ -131,7 +135,7 @@ async fn require_perm_is_move<'db>(
         SymPermKind::Leased(ref places) => {
             // If there is at least one place `p` that is move, this will result in a `leased[p]` chain.
             require(
-                exists(places, async |&place| place_is_move(env, place).await),
+                exists(places, async |&place| place_is_ktb_move(env, place).await),
                 || report_term_must_be_but_isnt(env, span, perm, Predicate::Move),
             )
             .await

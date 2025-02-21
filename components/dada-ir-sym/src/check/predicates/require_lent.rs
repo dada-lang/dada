@@ -3,11 +3,11 @@ use dada_util::boxed_async_fn;
 
 use crate::{
     check::{
+        combinator::{both, either, exists, for_all, require, require_for_all},
         env::Env,
         places::PlaceTy,
         predicates::{
             Predicate,
-            combinator::{both, either, exists, for_all, require, require_for_all},
             report::{report_never_must_be_but_isnt, report_term_must_be_but_isnt},
             var_infer::{require_infer_is, require_var_is},
         },
@@ -19,8 +19,8 @@ use crate::{
 };
 
 use super::{
-    is_lent::{place_is_lent, term_is_lent},
-    is_move::{place_is_move, term_is_move},
+    is_ktb_lent::{place_is_ktb_lent, term_is_ktb_lent},
+    is_ktb_move::{place_is_ktb_move, term_is_ktb_move},
 };
 
 pub(crate) async fn require_term_is_lent<'db>(
@@ -47,8 +47,8 @@ async fn require_application_is_lent<'db>(
 ) -> Errors<()> {
     require(
         either(
-            term_is_lent(env, rhs),
-            both(term_is_move(env, rhs), term_is_lent(env, lhs)),
+            term_is_ktb_lent(env, rhs),
+            both(term_is_ktb_move(env, rhs), term_is_ktb_lent(env, lhs)),
         ),
         || report_term_must_be_but_isnt(env, span, term, Predicate::Lent),
     )
@@ -104,7 +104,9 @@ async fn require_ty_is_lent<'db>(env: &Env<'db>, span: Span<'db>, term: SymTy<'d
             SymTyName::Tuple { arity } => {
                 assert_eq!(arity, generics.len());
                 require(
-                    exists(generics, async |&generic| term_is_lent(env, generic).await),
+                    exists(generics, async |&generic| {
+                        term_is_ktb_lent(env, generic).await
+                    }),
                     || report_term_must_be_but_isnt(env, span, term, Predicate::Lent),
                 )
                 .await
@@ -151,9 +153,9 @@ async fn require_perm_is_lent<'db>(
                     either(
                         // If the place `p` is move, then the result will be `shared[p]` or `leased[p]` perm,
                         // which is lent.
-                        place_is_move(env, place),
+                        place_is_ktb_move(env, place),
                         // Or, if the place `p` is not move and hence may be copy, then it must itself be `lent`.
-                        place_is_lent(env, place),
+                        place_is_ktb_lent(env, place),
                     )
                     .await
                 }),

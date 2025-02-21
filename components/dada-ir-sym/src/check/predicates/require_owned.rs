@@ -3,11 +3,11 @@ use dada_util::boxed_async_fn;
 
 use crate::{
     check::{
+        combinator::{require_both, require_for_all},
         env::Env,
         places::PlaceTy,
         predicates::{
             Predicate,
-            combinator::{require_both, require_for_all},
             report::report_term_must_be_but_isnt,
             var_infer::{require_infer_is, require_var_is},
         },

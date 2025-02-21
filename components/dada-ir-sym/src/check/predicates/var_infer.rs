@@ -11,7 +11,7 @@ use crate::{
     ir::{indices::InferVarIndex, variables::SymVariable},
 };
 
-pub(crate) fn test_var_is<'db>(
+pub(crate) fn test_var_is_known_to_be<'db>(
     env: &Env<'db>,
     var: SymVariable<'db>,
     predicate: Predicate,
@@ -76,22 +76,20 @@ pub(super) fn require_infer_is<'db>(
 }
 
 /// Wait until we know that the inference variable IS (or IS NOT) the given predicate.
-pub(crate) async fn test_infer_is<'db>(
+pub(crate) async fn test_infer_is_known_to_be<'db>(
     env: &Env<'db>,
     infer: InferVarIndex,
     predicate: Predicate,
 ) -> bool {
-    let inverted = predicate.invert();
-
     env.runtime()
         .loop_on_inference_var(infer, |data| {
-            let (is, is_inverted) = (
+            let (is, isnt) = (
                 data.is_known_to_be(predicate),
-                data.is_known_to_be(inverted),
+                data.isnt_known_to_be(predicate),
             );
             if is.is_some() {
                 Some(true)
-            } else if is_inverted.is_some() {
+            } else if isnt.is_some() {
                 Some(false)
             } else {
                 None

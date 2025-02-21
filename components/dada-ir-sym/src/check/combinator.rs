@@ -1,7 +1,24 @@
 use std::pin::pin;
 
 use dada_ir_ast::diagnostic::{Errors, Reported};
-use futures::{StreamExt, future::Either, stream::FuturesUnordered};
+use futures::{
+    StreamExt,
+    future::{Either, LocalBoxFuture},
+    stream::FuturesUnordered,
+};
+
+macro_rules! require_all {
+    ($task0:expr, $task1:expr,) => {
+        $crate::check::combinator::require_both($task0, $task1)
+    };
+
+    ($($task:expr,)*) => {
+        $crate::check::combinator::require_all(vec![
+            $(Box::pin($task) as futures::future::LocalBoxFuture<'_, Errors<()>>),*
+        ])
+    };
+}
+pub(crate) use require_all;
 
 pub async fn require<'db>(
     a: impl Future<Output = Errors<bool>>,
@@ -23,6 +40,13 @@ pub async fn require_both<'db>(
     second: impl Future<Output = Errors<()>>,
 ) -> Errors<()> {
     let ((), ()) = futures::future::try_join(first, second).await?;
+    Ok(())
+}
+
+pub async fn require_all<'db>(
+    tasks: impl IntoIterator<Item = LocalBoxFuture<'_, Errors<()>>>,
+) -> Errors<()> {
+    futures::future::try_join_all(tasks).await?;
     Ok(())
 }
 
