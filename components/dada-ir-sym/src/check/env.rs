@@ -20,14 +20,7 @@ use dada_ir_ast::{
 };
 use dada_util::{Map, debug};
 
-use crate::{
-    check::runtime::Runtime,
-    check::subtype_require::{
-        Expected, require_assignable_type, require_numeric_type, require_subtype,
-    },
-    check::universe::Universe,
-    ir::exprs::SymExpr,
-};
+use crate::{check::runtime::Runtime, check::universe::Universe, ir::exprs::SymExpr};
 
 use super::{CheckInEnv, predicates::Predicate, runtime::DeferResult};
 

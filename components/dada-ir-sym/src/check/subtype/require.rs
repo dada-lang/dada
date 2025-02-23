@@ -24,6 +24,7 @@ use crate::{
             require_owned::{require_chain_is_owned, require_term_is_owned},
             require_term_is_leased, require_term_is_not_leased, term_is_provably_leased,
         },
+        report::{Because, OrElse},
     },
     ir::{
         indices::InferVarIndex,
@@ -52,9 +53,9 @@ impl Expected {
 
 pub async fn require_assignable_type<'db>(
     env: &Env<'db>,
-    span: Span<'db>,
     value_ty: SymTy<'db>,
     place_ty: SymTy<'db>,
+    or_else: &dyn OrElse<'db>,
 ) -> Errors<()> {
     let db = env.db();
 
@@ -66,30 +67,18 @@ pub async fn require_assignable_type<'db>(
 
 pub async fn require_sub_terms<'a, 'db>(
     env: &'a Env<'db>,
-
-    // Tracks which of the types is the "expected" type from a user's point-of-view.
-    // This typically starts out as `UpperBoundedBy`, meaning that the `sup` type is
-    // the one that is "expected", but it can flip due to variance.
-    expected: Expected,
-
-    // Span that is forcing the sub-object comparison. We should probably track a more
-    // complex cause.
-    span: Span<'db>,
-
-    // Prospective subtype
     lower: SymGenericTerm<'db>,
-
-    // Prospective supertype
     upper: SymGenericTerm<'db>,
+    or_else: &dyn OrElse<'db>,
 ) -> Errors<()> {
     let db = env.db();
     combinator::require_all!(
-        propagate_bounds(env, span, lower.into(), upper.into()),
+        propagate_bounds(env, lower.into(), upper.into(), or_else),
         async {
             // Reduce and relate chains
             let red_term_lower = lower.to_red_term(db, env).await;
             let red_term_upper = upper.to_red_term(db, env).await;
-            require_sub_redterms(env, expected, span, red_term_lower, red_term_upper).await
+            require_sub_redterms(env, red_term_lower, red_term_upper, or_else).await
         },
     )
     .await
@@ -160,21 +149,9 @@ async fn propagate_bounds<'db>(
 
 async fn require_sub_red_terms<'a, 'db>(
     env: &'a Env<'db>,
-
-    // Tracks which of the types is the "expected" type from a user's point-of-view.
-    // This typically starts out as `UpperBoundedBy`, meaning that the `sup` type is
-    // the one that is "expected", but it can flip due to variance.
-    expected: Expected,
-
-    // Span that is forcing the sub-object comparison. We should probably track a more
-    // complex cause.
-    span: Span<'db>,
-
-    // Prospective subtype
     lower: RedTerm<'db>,
-
-    // Prospective supertype
     upper: RedTerm<'db>,
+    or_else: &dyn OrElse<'db>,
 ) -> Errors<()> {
     match (&lower.ty(), &upper.ty()) {
         (RedTy::Error(reported), _) | (_, RedTy::Error(reported)) => Err(*reported),
@@ -187,7 +164,7 @@ async fn require_sub_red_terms<'a, 'db>(
         (RedTy::Named(..), _) | (_, RedTy::Named(..)) => todo!(),
 
         (RedTy::Never, RedTy::Never) => {
-            require_sub_red_perms(env, expected, span, lower.chains(), upper.chains()).await
+            require_sub_red_perms(env, lower.chains(), upper.chains(), or_else).await
         }
         (RedTy::Never, _) | (_, RedTy::Never) => todo!(),
 
@@ -208,25 +185,13 @@ async fn require_sub_red_terms<'a, 'db>(
 
 async fn require_sub_red_perms<'a, 'db>(
     env: &'a Env<'db>,
-
-    // Tracks which of the types is the "expected" type from a user's point-of-view.
-    // This typically starts out as `UpperBoundedBy`, meaning that the `sup` type is
-    // the one that is "expected", but it can flip due to variance.
-    expected: Expected,
-
-    // Span that is forcing the sub-object comparison. We should probably track a more
-    // complex cause.
-    span: Span<'db>,
-
-    // Prospective subtype
     lower_chains: &VecSet<Chain<'db>>,
-
-    // Prospective supertype
     upper_chains: &VecSet<Chain<'db>>,
+    or_else: &dyn OrElse<'db>,
 ) -> Errors<()> {
     for lower_chain in lower_chains {
         for upper_chain in upper_chains {
-            require_sub_red_perm(env, expected, span, lower_chain, upper_chain).await?;
+            require_sub_red_perm(env, lower_chain, upper_chain, or_else).await?;
         }
     }
     Ok(())
@@ -236,7 +201,7 @@ async fn require_sub_chains<'a, 'db>(
     env: &'a Env<'db>,
     lower_chain: &[Lien<'db>],
     upper_chain: &[Lien<'db>],
-    report_error: &impl Fn(&Env<'db>, NotSubBecause<'db>) -> Reported,
+    or_else: &dyn OrElse<'db>,
 ) -> Errors<()> {
     // Rules (ignoring inference)
     //
@@ -275,7 +240,6 @@ async fn require_sub_chains<'a, 'db>(
                 // * `our <= C1 if C1 is copy`
                 return require_term_is_not_leased(
                     env,
-                    span,
                     Lien::chain_to_perm(upper_chain, db).into(),
                 )
                 .await;
@@ -287,7 +251,7 @@ async fn require_sub_chains<'a, 'db>(
         Lien::Shared(place) => {
             // * `(shared[place0] C0) <= (shared[place1] C1) if place1 <= place0 && C0 <= C1`
             // * `(shared[place0] C0) <= (our C1) if (leased[place0] C0) <= C1`
-            require_sub_of_shared(emv, expected, span, place, lower_tail, upper_chain).await
+            require_sub_of_shared(env, place, lower_tail, upper_chain, report_error).await
         }
 
         Lien::Leased(place) => {
@@ -311,42 +275,33 @@ async fn require_sub_of_shared<'a, 'db>(
     lower_place: SymPlace<'db>,
     lower_tail: &[Lien<'db>],
     upper_chain: &[Lien<'db>],
-    report_error: &impl Fn(&Env<'db>, NotSubBecause<'db>) -> Reported,
+    or_else: &dyn OrElse<'db>,
 ) -> Errors<()> {
     let db = env.db();
 
     // * `(shared[place0] C0) <= (shared[place1] C1) if place1 <= place0 && C0 <= C1`
     // * `(shared[place0] C0) <= (our C1) if (leased[place0] C0) <= C1`
     let Some((upper_head, upper_tail)) = upper_chain.split_first() else {
-        return Err(report_error(
-            env,
-            NotSubBecause::NotSubOfShared(lower_place),
-        ));
+        return Err(or_else.report(env.db(), Because::NotSubOfShared(lower_place)));
     };
 
     match *upper_head {
         Lien::Our => {
             // * `(shared[place0] C0) <= (our C1) if (leased[place0] C0) <= C1`
-            require_sub_of_leased(env, lower_place, lower_tail, upper_tail, report_error).await
+            require_sub_of_leased(env, lower_place, lower_tail, upper_tail, or_else).await
         }
 
         Lien::Shared(upper_place) => {
             // * `(shared[place0] C0) <= (shared[place1] C1) if place1 <= place0 && C0 <= C1`
             if lower_place.is_covered_by(db, upper_place) {
-                require_sub_chains(env, lower_tail, upper_tail, report_error).await
+                require_sub_chains(env, lower_tail, upper_tail, or_else).await
             } else {
-                Err(report_error(
-                    env,
-                    NotSubBecause::NotSubOfShared(lower_place),
-                ))
+                Err(or_else.report(env.db(), Because::NotSubOfShared(lower_place)))
             }
         }
 
         Lien::Leased(_) | Lien::Var(_) => {
-            return Err(report_error(
-                env,
-                NotSubBecause::NotSubOfShared(lower_place),
-            ));
+            return Err(or_else.report(env.db(), Because::NotSubOfShared(lower_place)));
         }
 
         Lien::Infer(v) => todo!(),
@@ -360,40 +315,33 @@ async fn require_sub_of_leased<'a, 'db>(
     lower_place: SymPlace<'db>,
     lower_tail: &[Lien<'db>],
     upper_chain: &[Lien<'db>],
-    report_error: &impl Fn(&Env<'db>, NotSubBecause<'db>) -> Reported,
+    or_else: &dyn OrElse<'db>,
 ) -> Errors<()> {
     let db = env.db();
 
     let Some((upper_head, upper_tail)) = upper_chain.split_first() else {
-        return Err(report_error(
-            env,
-            NotSubBecause::NotSubOfLeased(lower_place),
-        ));
+        return Err(or_else.report(env.db(), Because::NotSubOfLeased(lower_place)));
     };
 
     match *upper_head {
-        Lien::Leased(sym_place) => {
+        Lien::Leased(upper_place) => {
             // * `(leased[place0] C0) <= (leased[place1] C1) if place1 <= place0 && C0 <= C1`
             if lower_place.is_covered_by(db, upper_place) {
-                require_sub_chains(env, lower_tail, upper_tail, report_error).await
+                require_sub_chains(env, lower_tail, upper_tail, or_else).await
             } else {
-                Err(report_error(
-                    env,
-                    NotSubBecause::NotSubOfLeased(lower_place),
-                ))
+                Err(or_else.report(env.db(), Because::NotSubOfLeased(lower_place)))
             }
         }
 
         Lien::Our | Lien::Shared(_) | Lien::Var(_) => {
-            return Err(report_error(
-                env,
-                NotSubBecause::NotSubOfLeased(lower_place),
-            ));
+            return Err(or_else.report(env.db(), Because::NotSubOfLeased(lower_place)));
         }
 
         Lien::Infer(infer_var_index) => todo!(),
+
         Lien::Error(reported) => todo!(),
     }
+}
 
 fn chain_is_infer<'db>(chain: &[Lien<'db>]) -> Option<InferVarIndex> {
     if chain.len() != 1 {

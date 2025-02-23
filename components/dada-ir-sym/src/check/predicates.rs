@@ -26,6 +26,7 @@ use crate::ir::types::SymGenericTerm;
 use super::{
     combinator::{both, either, require, require_both},
     env::Env,
+    report::{Because, OrElse},
 };
 
 #[derive(Copy, Clone, Debug, Eq, PartialEq, Hash, Ord, PartialOrd)]
@@ -103,15 +104,15 @@ pub(crate) async fn require_term_is_leased<'db>(
 
 pub(crate) async fn require_term_is_not_leased<'db>(
     env: &Env<'db>,
-    span: Span<'db>,
     term: SymGenericTerm<'db>,
+    or_else: &dyn OrElse<'db>,
 ) -> Errors<()> {
     require(
         either(
             term_is_provably_copy(env, term),
             term_is_provably_owned(env, term),
         ),
-        || report_term_must_not_be_leased_but_is(env, span, term),
+        || or_else.report(env.db(), Because::TermMustNotBeLeasedButIs(term)),
     )
     .await
 }

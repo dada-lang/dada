@@ -10,7 +10,7 @@ use crate::{
     ir::{
         classes::SymAggregate,
         indices::InferVarIndex,
-        types::{SymGenericTerm, SymTyName},
+        types::{SymGenericTerm, SymPerm, SymPlace, SymTy, SymTyName},
         variables::SymVariable,
     },
 };
@@ -78,6 +78,8 @@ pub enum Because<'db> {
 
     /// Leasing from a copy place yields a copy permission (which is not desired here)
     LeasedFromCopyIsCopy(SymPerm<'db>),
+
+    MyIsMove,
 }
 
 impl Because {

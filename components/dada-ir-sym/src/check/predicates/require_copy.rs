@@ -1,7 +1,4 @@
-use dada_ir_ast::{
-    diagnostic::{Diagnostic, Errors},
-    span::Span,
-};
+use dada_ir_ast::diagnostic::Errors;
 use dada_util::boxed_async_fn;
 
 use crate::{
@@ -11,10 +8,9 @@ use crate::{
         places::PlaceTy,
         predicates::{
             Predicate,
-            report::{report_never_must_be_but_isnt, report_term_must_be_but_isnt},
             var_infer::{require_infer_is, require_var_is},
         },
-        report::Because,
+        report::{Because, OrElse},
     },
     ir::{
         classes::SymAggregateStyle,
@@ -85,10 +81,10 @@ async fn require_ty_is_copy<'db>(
         SymTyKind::Never => Err(or_else(Because::NeverIsNotCopy).report(env.db())),
 
         // Inference variables
-        SymTyKind::Infer(infer) => require_infer_is(env, span, infer, Predicate::Copy),
+        SymTyKind::Infer(infer) => require_infer_is(env, infer, Predicate::Copy, or_else),
 
         // Universal variables
-        SymTyKind::Var(var) => require_var_is(env, span, var, Predicate::Copy),
+        SymTyKind::Var(var) => require_var_is(env, var, Predicate::Copy, or_else),
 
         // Named types
         SymTyKind::Named(sym_ty_name, ref generics) => match sym_ty_name {
@@ -137,12 +133,7 @@ async fn require_perm_is_copy<'db>(
     match *perm.kind(db) {
         SymPermKind::Error(reported) => Err(reported),
 
-        SymPermKind::My => Err(report_term_must_be_but_isnt(
-            env,
-            span,
-            perm,
-            Predicate::Copy,
-        )),
+        SymPermKind::My => Err(or_else.report(env.db(), Because::MyIsMove)),
 
         SymPermKind::Our => Ok(()),
 
@@ -151,19 +142,19 @@ async fn require_perm_is_copy<'db>(
         SymPermKind::Leased(ref places) => {
             // For a leased[p] to be copy, all the places in `p` must have copy permission.
             require_for_all(places, async |&place| {
-                require_place_is_copy(env, span, place).await
+                require_place_is_copy(env, place, or_else).await
             })
             .await
         }
 
         // Apply
         SymPermKind::Apply(lhs, rhs) => {
-            require_either_is_copy(env, span, lhs.into(), rhs.into()).await
+            require_either_is_copy(env, lhs.into(), rhs.into(), or_else).await
         }
 
         // Variable and inference
-        SymPermKind::Var(var) => require_var_is(env, span, var, Predicate::Copy),
-        SymPermKind::Infer(infer) => require_infer_is(env, span, infer, or_else),
+        SymPermKind::Var(var) => require_var_is(env, var, Predicate::Copy, or_else),
+        SymPermKind::Infer(infer) => require_infer_is(env, infer, Predicate::Copy, or_else),
     }
 }
 
