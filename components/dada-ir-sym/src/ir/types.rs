@@ -18,6 +18,8 @@ use dada_ir_ast::{
 use dada_util::FromImpls;
 use salsa::Update;
 
+use super::classes::SymAggregateStyle;
+
 #[derive(Copy, Clone, PartialEq, Eq, PartialOrd, Ord, Hash, Debug)]
 pub enum Variance {
     Covariant,
@@ -426,6 +428,18 @@ pub enum SymTyName<'db> {
     Tuple {
         arity: usize,
     },
+}
+
+impl<'db> SymTyName<'db> {
+    /// Aggregate style (struct, etc)
+    pub fn style(self, db: &'db dyn crate::Db) -> SymAggregateStyle {
+        match self {
+            SymTyName::Primitive(_) => SymAggregateStyle::Struct,
+            SymTyName::Aggregate(sym_aggregate) => sym_aggregate.style(db),
+            SymTyName::Future => SymAggregateStyle::Class,
+            SymTyName::Tuple { arity: _ } => SymAggregateStyle::Struct,
+        }
+    }
 }
 
 impl std::fmt::Display for SymTyName<'_> {

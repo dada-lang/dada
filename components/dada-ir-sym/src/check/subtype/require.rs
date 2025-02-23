@@ -27,6 +27,7 @@ use crate::{
         report::{Because, OrElse},
     },
     ir::{
+        classes::SymAggregateStyle,
         indices::InferVarIndex,
         primitive::SymPrimitiveKind,
         types::{SymGenericTerm, SymPerm, SymPlace, SymTy, SymTyKind, SymTyName},
@@ -61,7 +62,7 @@ pub async fn require_assignable_type<'db>(
 
     match (value_ty.kind(db), place_ty.kind(db)) {
         (SymTyKind::Never, _) => Ok(()),
-        _ => require_sub_terms(env, value_ty, place_ty, or_else).await,
+        _ => require_sub_terms(env, value_ty.into(), place_ty.into(), or_else).await,
     }
 }
 
@@ -163,13 +164,33 @@ async fn require_sub_red_terms<'a, 'db>(
         (
             &RedTy::Named(name_lower, ref lower_generics),
             &RedTy::Named(name_upper, ref upper_generics),
-        ) => {}
-        (&RedTy::Named(..), _) | (_, &RedTy::Named(..)) => todo!(),
+        ) => {
+            if name_lower == name_upper {
+                // relate generics
+                // XXX
+
+                match name_lower.style(env.db()) {
+                    SymAggregateStyle::Struct => {}
+                    SymAggregateStyle::Class => {
+                        require_sub_red_perms(env, lower.chains(), upper.chains(), or_else).await?;
+                    }
+                }
+
+                Ok(())
+            } else {
+                Err(or_else.report(env.db(), Because::NameMismatch(name_lower, name_upper)))
+            }
+        }
+        (&RedTy::Named(..), _) | (_, &RedTy::Named(..)) => {
+            Err(or_else.report(env.db(), Because::NotSubRedTys(lower, upper)))
+        }
 
         (&RedTy::Never, &RedTy::Never) => {
             require_sub_red_perms(env, lower.chains(), upper.chains(), or_else).await
         }
-        (&RedTy::Never, _) | (_, &RedTy::Never) => todo!(),
+        (&RedTy::Never, _) | (_, &RedTy::Never) => {
+            Err(or_else.report(env.db(), Because::NotSubRedTys(lower, upper)))
+        }
 
         (&RedTy::Var(var_lower), &RedTy::Var(var_upper)) => {
             if var_lower == var_upper {
@@ -178,7 +199,9 @@ async fn require_sub_red_terms<'a, 'db>(
                 Err(or_else.report(env.db(), Because::UniversalMismatch(var_lower, var_upper)))
             }
         }
-        (&RedTy::Var(_), _) | (_, &RedTy::Var(_)) => todo!(),
+        (&RedTy::Var(_), _) | (_, &RedTy::Var(_)) => {
+            Err(or_else.report(env.db(), Because::NotSubRedTys(lower, upper)))
+        }
 
         (&RedTy::Perm, &RedTy::Perm) => {
             require_sub_red_perms(env, lower.chains(), upper.chains(), or_else).await
@@ -200,6 +223,7 @@ async fn require_sub_red_perms<'a, 'db>(
     Ok(())
 }
 
+#[boxed_async_fn]
 async fn require_sub_chains<'a, 'db>(
     env: &'a Env<'db>,
     lower_chain: &[Lien<'db>],
@@ -252,14 +276,15 @@ async fn require_sub_chains<'a, 'db>(
             }
         }
 
-        Lien::Shared(place) => {
+        Lien::Shared(lower_place) => {
             // * `(shared[place0] C0) <= (shared[place1] C1) if place1 <= place0 && C0 <= C1`
             // * `(shared[place0] C0) <= (our C1) if (leased[place0] C0) <= C1`
-            require_sub_of_shared(env, place, lower_tail, upper_chain, or_else).await
+            require_sub_of_shared(env, lower_place, lower_tail, upper_chain, or_else).await?;
         }
 
-        Lien::Leased(place) => {
+        Lien::Leased(lower_place) => {
             // * `(leased[place0] C0) <= (leased[place1] C1) if place1 <= place0 && C0 <= C1`
+            require_sub_of_leased(env, lower_place, lower_tail, upper_chain, or_else).await?;
         }
 
         Lien::Var(v) => {

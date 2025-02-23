@@ -15,6 +15,8 @@ use crate::{
     },
 };
 
+use super::chains::RedTerm;
+
 pub trait OrElse<'db> {
     fn report(&self, db: &'db dyn Db, because: Because<'db>) -> Reported {
         self.or_else(because).report(db)
@@ -122,6 +124,12 @@ pub enum Because<'db> {
 
     /// Universal mismatch
     UniversalMismatch(SymVariable<'db>, SymVariable<'db>),
+
+    /// Name mismatch
+    NameMismatch(SymTyName<'db>, SymTyName<'db>),
+
+    /// Not a subtype
+    NotSubRedTys(RedTerm<'db>, RedTerm<'db>),
 }
 
 impl<'db> Because<'db> {
