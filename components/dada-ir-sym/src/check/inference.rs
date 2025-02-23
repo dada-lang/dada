@@ -6,7 +6,10 @@ use crate::{
     ir::{indices::InferVarIndex, red_terms::RedTerm, types::SymGenericKind},
 };
 
-use super::predicates::Predicate;
+use super::{
+    chains::{Chain, RedTerm, RedTy},
+    predicates::Predicate,
+};
 
 pub(crate) struct InferenceVarData<'db> {
     kind: SymGenericKind,
@@ -30,11 +33,11 @@ pub(crate) struct InferenceVarData<'db> {
     /// imply that it is `is (known to be) move`. It means "you will never be able to prove this is copy".
     isnt: [Option<Span<'db>>; Predicate::LEN],
 
-    lower_bound: Option<RedTerm<'db>>,
-    upper_bound: Option<RedTerm<'db>>,
+    lower_chains: VecSet<Chain<'db>>,
+    upper_chains: VecSet<Chain<'db>>,
 
-    lower_bound_vars: Vec<InferVarIndex>,
-    upper_bound_vars: Vec<InferVarIndex>,
+    lower_red_ty: Option<RedTy<'db>>,
+    upper_red_ty: Option<RedTy<'db>>,
 
     modifications: u32,
 }
@@ -47,10 +50,10 @@ impl<'db> InferenceVarData<'db> {
             span,
             is: [None; Predicate::LEN],
             isnt: [None; Predicate::LEN],
-            lower_bound: None,
-            upper_bound: None,
-            lower_bound_vars: Vec::new(),
-            upper_bound_vars: Vec::new(),
+            lower_chains: VecSet::new(),
+            upper_chains: VecSet::new(),
+            lower_red_ty: None,
+            upper_red_ty: None,
             modifications: 0,
         }
     }
@@ -67,7 +70,7 @@ impl<'db> InferenceVarData<'db> {
 
     /// Returns `Some(s)` if the predicate is known to be true (where `s` is the span of code
     /// which required the predicate to be true).
-    pub fn is_known_to_be(&self, predicate: Predicate) -> Option<Span<'db>> {
+    pub fn is_known_to_provably_be(&self, predicate: Predicate) -> Option<Span<'db>> {
         self.is[predicate.index()]
     }
 
@@ -76,37 +79,44 @@ impl<'db> InferenceVarData<'db> {
     ///
     /// This is different from being known to be false. It means we know we won't be able to know.
     /// Can occur with generics etc.
-    pub fn isnt_known_to_be(&self, predicate: Predicate) -> Option<Span<'db>> {
+    pub fn is_known_not_to_provably_be(&self, predicate: Predicate) -> Option<Span<'db>> {
         self.isnt[predicate.index()]
     }
 
     /// Returns the lower bound.
-    pub fn lower_bound(&self) -> Option<RedTerm<'db>> {
-        self.lower_bound
+    pub fn lower_chains(&self) -> &VecSet<Chain<'db>> {
+        &self.lower_chains
     }
 
     /// Returns the upper bound.
-    pub fn upper_bound(&self) -> Option<RedTerm<'db>> {
-        self.upper_bound
+    pub fn upper_chains(&self) -> &VecSet<Chain<'db>> {
+        &self.upper_chains
     }
 
-    /// Insert a predicate into the `is` set.
-    /// Returns `true` if the predicate was not already in the set.
+    /// Insert a predicate into the `is` set (and its invert into the `isnt` set).
+    /// Returns `true` if either predicate was not already in the set.
     /// Low-level method invoked by runtime only.
     ///
     /// # Panics
     ///
     /// * If the inference variable is required to satisfy a contradictory predicate.
     pub fn require_is(&mut self, predicate: Predicate, span: Span<'db>) -> bool {
-        assert!(self.is_known_to_be(predicate.invert()).is_none());
-        assert!(self.isnt_known_to_be(predicate).is_none());
-        if self.is_known_to_be(predicate).is_none() {
+        let predicate_invert = predicate.invert();
+        assert!(self.is_known_to_provably_be(predicate_invert).is_none());
+        assert!(self.is_known_not_to_provably_be(predicate).is_none());
+        let mut changed = false;
+
+        if self.is_known_to_provably_be(predicate).is_none() {
             self.is[predicate.index()] = Some(span);
-            self.modifications += 1;
-            true
-        } else {
-            false
+            changed = true;
         }
+
+        if self.is_known_not_to_provably_be(predicate_invert).is_none() {
+            self.isnt[predicate_invert.index()] = Some(span);
+            changed = true;
+        }
+
+        changed
     }
 
     /// Insert a predicate into the `isnt` set.
@@ -117,28 +127,14 @@ impl<'db> InferenceVarData<'db> {
     ///
     /// * If the inference variable is required to satisfy a contradictory predicate.
     pub fn require_isnt(&mut self, predicate: Predicate, span: Span<'db>) -> bool {
-        assert!(self.is_known_to_be(predicate).is_none());
-        if self.isnt_known_to_be(predicate).is_none() {
+        assert!(self.is_known_to_provably_be(predicate).is_none());
+        if self.is_known_not_to_provably_be(predicate).is_none() {
             self.isnt[predicate.index()] = Some(span);
             self.modifications += 1;
             true
         } else {
             false
         }
-    }
-
-    /// Set the lower bound.
-    /// Low-level method invoked by runtime only.
-    pub fn set_lower_bound(&mut self, lower_bound: RedTerm<'db>) {
-        self.lower_bound = Some(lower_bound);
-        self.modifications += 1;
-    }
-
-    /// Set the upper bound.
-    /// Low-level method invoked by runtime only.
-    pub fn set_upper_bound(&mut self, upper_bound: RedTerm<'db>) {
-        self.upper_bound = Some(upper_bound);
-        self.modifications += 1;
     }
 
     /// Returns the number of modifications to this inference variable.

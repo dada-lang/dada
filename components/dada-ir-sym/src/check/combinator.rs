@@ -13,7 +13,7 @@ macro_rules! require_all {
     };
 
     ($($task:expr,)*) => {
-        $crate::check::combinator::require_all(vec![
+        $crate::check::combinator::require_all_(vec![
             $(Box::pin($task) as futures::future::LocalBoxFuture<'_, Errors<()>>),*
         ])
     };
@@ -43,7 +43,7 @@ pub async fn require_both<'db>(
     Ok(())
 }
 
-pub async fn require_all<'db>(
+pub async fn require_all_<'db>(
     tasks: impl IntoIterator<Item = LocalBoxFuture<'_, Errors<()>>>,
 ) -> Errors<()> {
     futures::future::try_join_all(tasks).await?;

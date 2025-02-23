@@ -17,7 +17,7 @@ use dada_util::{Map, vecext::VecExt};
 
 use crate::{check::env::Env, check::inference::InferenceVarData, check::universe::Universe};
 
-use super::predicates::Predicate;
+use super::{predicates::Predicate, report::OrElseFn};
 
 #[derive(Clone)]
 pub(crate) struct Runtime<'db> {
@@ -194,14 +194,22 @@ impl<'db> Runtime<'db> {
         &self,
         var: InferVarIndex,
         predicate: Predicate,
-        span: Span<'db>,
+        or_else_fn: &OrElseFn<'db>,
     ) {
         assert!(!self.check_complete());
         let mut inference_vars = self.inference_vars.write().unwrap();
         let inference_var = &mut inference_vars[var.as_usize()];
 
-        assert!(inference_var.is_known_to_be(predicate.invert()).is_none());
-        assert!(inference_var.isnt_known_to_be(predicate).is_none());
+        assert!(
+            inference_var
+                .is_known_to_provably_be(predicate.invert())
+                .is_none()
+        );
+        assert!(
+            inference_var
+                .is_known_not_to_provably_be(predicate)
+                .is_none()
+        );
 
         let mut changed = false;
         changed |= inference_var.require_is(predicate, span);
@@ -228,7 +236,7 @@ impl<'db> Runtime<'db> {
         assert!(!self.check_complete());
         let mut inference_vars = self.inference_vars.write().unwrap();
         let inference_var = &mut inference_vars[var.as_usize()];
-        assert!(inference_var.is_known_to_be(predicate).is_none());
+        assert!(inference_var.is_known_to_provably_be(predicate).is_none());
         if inference_var.require_isnt(predicate, span) {
             self.wake_tasks_monitoring_inference_var(var);
         }

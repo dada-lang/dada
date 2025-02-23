@@ -8,7 +8,7 @@ use either::Either;
 use salsa::Update;
 
 use crate::ir::{
-    indices::InferVarIndex,
+    indices::{FromInfer, InferVarIndex},
     types::{SymGenericTerm, SymPerm, SymPermKind, SymPlace, SymTy, SymTyKind, SymTyName},
     variables::SymVariable,
 };
@@ -17,8 +17,8 @@ use super::{
     Env,
     places::PlaceTy,
     predicates::{
-        Predicate, is_ktb_copy::place_is_ktb_copy, test_infer_is_known_to_be,
-        test_var_is_known_to_be,
+        Predicate, is_provably_copy::place_is_provably_copy, test_infer_is_known_to_be,
+        test_var_is_provably,
     },
 };
 
@@ -150,7 +150,7 @@ impl<'db> Chain<'db> {
         }
     }
 
-    /// Check if the chain is copy.
+    /// Check if the chain is copy. Will block if this chain contains an inference variable.
     async fn is_copy(&self, env: &Env<'db>) -> Errors<bool> {
         for lien in &self.liens {
             if lien.is_copy(env).await? {
@@ -158,6 +158,11 @@ impl<'db> Chain<'db> {
             }
         }
         Ok(false)
+    }
+
+    /// Convert this chain to an equivalent [`SymPerm`].
+    fn to_perm(&self, db: &'db dyn crate::Db) -> SymPerm<'db> {
+        Lien::chain_to_perm(&self.liens, db)
     }
 }
 
@@ -168,7 +173,7 @@ impl<'db> Err<'db> for Chain<'db> {
 }
 
 /// An individual unit in a [`LienChain`][], representing a particular way of reaching data.
-#[derive(Debug, PartialEq, Eq, Clone, Copy, PartialOrd, Ord, Update)]
+#[derive(Debug, PartialEq, Eq, Copy, Clone, PartialOrd, Ord, Update)]
 pub enum Lien<'db> {
     /// Data mutually owned by many variables. This lien is always first in a chain.
     Our,
@@ -195,9 +200,29 @@ impl<'db> Lien<'db> {
         match *self {
             Lien::Our | Lien::Shared(_) => Ok(true),
             Lien::Leased(_) => Ok(false),
-            Lien::Var(v) => Ok(test_var_is_known_to_be(env, v, Predicate::Copy)),
+            Lien::Var(v) => Ok(test_var_is_provably(env, v, Predicate::Copy)),
             Lien::Infer(v) => Ok(test_infer_is_known_to_be(env, v, Predicate::Copy).await),
             Lien::Error(reported) => Err(reported),
+        }
+    }
+
+    pub fn chain_to_perm(liens: &[Self], db: &'db dyn crate::Db) -> SymPerm<'db> {
+        liens
+            .iter()
+            .map(|lien| lien.to_perm(db))
+            .reduce(|lhs, rhs| SymPerm::apply(db, lhs, rhs))
+            .unwrap_or_else(|| SymPerm::my(db))
+    }
+
+    /// Convert this lien to an equivalent [`SymPerm`].
+    pub fn to_perm(self, db: &'db dyn crate::Db) -> SymPerm<'db> {
+        match self {
+            Lien::Our => SymPerm::our(db),
+            Lien::Shared(place) => SymPerm::shared(db, vec![place]),
+            Lien::Leased(place) => SymPerm::leased(db, vec![place]),
+            Lien::Var(v) => SymPerm::var(db, v),
+            Lien::Infer(v) => SymPerm::infer(db, v),
+            Lien::Error(reported) => SymPerm::err(db, reported),
         }
     }
 }
@@ -336,7 +361,7 @@ impl<'db> ToChains<'db> for SymPerm<'db> {
             }
             SymPermKind::Shared(ref places) => {
                 for &place in places {
-                    if place_is_ktb_copy(env, place).await.is_ok() {
+                    if place_is_provably_copy(env, place).await.is_ok() {
                         output.extend(place.to_chains(db, env).await?);
                     } else {
                         output.insert(Chain::shared(db, place));
@@ -345,7 +370,7 @@ impl<'db> ToChains<'db> for SymPerm<'db> {
             }
             SymPermKind::Leased(ref places) => {
                 for &place in places {
-                    if place_is_ktb_copy(env, place).await.is_ok() {
+                    if place_is_provably_copy(env, place).await.is_ok() {
                         output.extend(place.to_chains(db, env).await?);
                     } else {
                         output.insert(Chain::leased(db, place));

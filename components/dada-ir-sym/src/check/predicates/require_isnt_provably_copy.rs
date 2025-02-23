@@ -3,15 +3,11 @@ use dada_util::boxed_async_fn;
 
 use crate::{
     check::{
-        chains::Lien,
         combinator::{exists, require, require_both},
         env::Env,
         places::PlaceTy,
-        predicates::{
-            Predicate,
-            report::{report_never_must_be_but_isnt, report_term_must_be_but_isnt},
-            var_infer::{require_infer_is, require_var_is},
-        },
+        predicates::{Predicate, report::report_term_must_be_but_isnt},
+        report::Because,
     },
     ir::{
         classes::SymAggregateStyle,
@@ -19,35 +15,30 @@ use crate::{
     },
 };
 
-use super::is_provably_move::{place_is_provably_move, term_is_provably_move};
+use super::{
+    isnt_provably_copy::{place_isnt_provably_copy, term_isnt_provably_copy},
+    report::report_term_must_not_be_but_is,
+    var_infer::{require_infer_isnt, require_var_isnt},
+};
 
-pub(crate) async fn require_term_is_move<'db>(
+pub(crate) async fn require_term_isnt_provably_copy<'db>(
     env: &Env<'db>,
     term: SymGenericTerm<'db>,
     or_else: &dyn OrElse<'db>,
 ) -> Errors<()> {
     match term {
-        SymGenericTerm::Type(sym_ty) => require_ty_is_move(env, sym_ty, or_else).await,
-        SymGenericTerm::Perm(sym_perm) => require_perm_is_move(env, sym_perm, or_else).await,
+        SymGenericTerm::Type(sym_ty) => require_ty_isnt_provably_copy(env, sym_ty, or_else).await,
+        SymGenericTerm::Perm(sym_perm) => {
+            require_perm_isnt_provably_copy(env, sym_perm, or_else).await
+        }
         SymGenericTerm::Place(place) => panic!("unexpected place term: {place:?}"),
         SymGenericTerm::Error(reported) => Err(reported),
     }
 }
 
-/// Requires that the given chain is `move`.
-pub(crate) async fn require_chain_is_move<'db>(
-    env: &Env<'db>,
-    chain: &[Lien<'db>],
-    or_else: &dyn OrElse<'db>,
-) -> Errors<()> {
-    let db = env.db();
-    let perm = Lien::chain_to_perm(chain, db);
-    require_perm_is_move(env, perm, or_else).await
-}
-
 /// Requires that `(lhs rhs)` is `move`.
 /// This requires both `lhs` and `rhs` to be `move` independently.
-async fn require_application_is_move<'db>(
+async fn require_application_isnt_provably_copy<'db>(
     env: &Env<'db>,
     lhs: SymGenericTerm<'db>,
     rhs: SymGenericTerm<'db>,
@@ -57,14 +48,14 @@ async fn require_application_is_move<'db>(
     // If either is, we are done.
     // If either is *not*, the other must be.
     require_both(
-        require_term_is_move(env, lhs, or_else),
-        require_term_is_move(env, rhs, or_else),
+        require_term_isnt_provably_copy(env, lhs, or_else),
+        require_term_isnt_provably_copy(env, rhs, or_else),
     )
     .await
 }
 
 #[boxed_async_fn]
-async fn require_ty_is_move<'db>(
+async fn require_ty_isnt_provably_copy<'db>(
     env: &Env<'db>,
     term: SymTy<'db>,
     or_else: &dyn OrElse<'db>,
@@ -76,33 +67,29 @@ async fn require_ty_is_move<'db>(
 
         // Apply
         SymTyKind::Perm(sym_perm, sym_ty) => {
-            require_application_is_move(env, sym_perm.into(), sym_ty.into(), or_else).await
+            require_application_isnt_provably_copy(env, span, sym_perm.into(), sym_ty.into()).await
         }
 
         // Never
         SymTyKind::Never => Ok(()),
 
         // Variable and inference
-        SymTyKind::Infer(infer) => require_infer_is(env, infer, Predicate::Move, or_else),
-        SymTyKind::Var(var) => require_var_is(env, var, Predicate::Move, or_else),
+        SymTyKind::Infer(infer) => require_infer_isnt(env, span, infer, or_else),
+
+        SymTyKind::Var(var) => require_var_isnt(env, span, var, or_else),
 
         // Named types
         SymTyKind::Named(sym_ty_name, ref generics) => match sym_ty_name {
-            SymTyName::Primitive(_sym_primitive) => Err(report_term_must_be_but_isnt(
-                env,
-                span,
-                term,
-                Predicate::Move,
-            )),
+            SymTyName::Primitive(_) => or_else.report(env.db(), Because::StructIsCopy(term)),
 
             SymTyName::Aggregate(sym_aggregate) => match sym_aggregate.style(db) {
                 SymAggregateStyle::Class => Ok(()),
                 SymAggregateStyle::Struct => {
                     require(
                         exists(generics, async |&generic| {
-                            term_is_provably_move(env, generic).await
+                            term_isnt_provably_copy(env, generic).await
                         }),
-                        || report_term_must_be_but_isnt(env, span, term, Predicate::Move),
+                        || or_else.report(env.db(), Because::StructIsCopy(term)),
                     )
                     .await
                 }
@@ -114,9 +101,9 @@ async fn require_ty_is_move<'db>(
                 assert_eq!(arity, generics.len());
                 require(
                     exists(generics, async |&generic| {
-                        term_is_provably_move(env, generic).await
+                        term_isnt_provably_copy(env, generic).await
                     }),
-                    || report_term_must_be_but_isnt(env, span, term, Predicate::Move),
+                    || or_else.report(env.db(), Because::StructIsCopy(term)),
                 )
                 .await
             }
@@ -125,7 +112,7 @@ async fn require_ty_is_move<'db>(
 }
 
 #[boxed_async_fn]
-async fn require_perm_is_move<'db>(
+async fn require_perm_isnt_provably_copy<'db>(
     env: &Env<'db>,
     perm: SymPerm<'db>,
     or_else: &dyn OrElse<'db>,
@@ -136,40 +123,37 @@ async fn require_perm_is_move<'db>(
 
         SymPermKind::My => Ok(()),
 
-        SymPermKind::Our | SymPermKind::Shared(_) => Err(report_term_must_be_but_isnt(
-            env,
-            span,
-            perm,
-            Predicate::Move,
-        )),
+        SymPermKind::Our | SymPermKind::Shared(_) => {
+            or_else.report(env.db(), Because::PermIsCopy(perm))
+        }
 
         SymPermKind::Leased(ref places) => {
             // If there is at least one place `p` that is move, this will result in a `leased[p]` chain.
             require(
                 exists(places, async |&place| {
-                    place_is_provably_move(env, place).await
+                    place_isnt_provably_copy(env, place).await
                 }),
-                || report_term_must_be_but_isnt(env, span, perm, Predicate::Move),
+                || or_else.report(env.db(), Because::LeasedFromCopyIsCopy(perm)),
             )
             .await
         }
 
         // Apply
         SymPermKind::Apply(lhs, rhs) => {
-            require_application_is_move(env, span, lhs.into(), rhs.into()).await
+            require_application_isnt_provably_copy(env, lhs.into(), rhs.into(), or_else).await
         }
 
         // Variable and inference
-        SymPermKind::Var(var) => require_var_is(env, span, var, Predicate::Move),
-        SymPermKind::Infer(infer) => require_infer_is(env, span, infer, Predicate::Move),
+        SymPermKind::Var(var) => require_var_isnt(env, span, var, Predicate::Copy),
+        SymPermKind::Infer(infer) => require_infer_isnt(env, span, infer, Predicate::Copy),
     }
 }
 
-pub(super) async fn require_place_is_move<'db>(
+pub(super) async fn require_place_isnt_provably_copy<'db>(
     env: &Env<'db>,
     place: SymPlace<'db>,
     or_else: &dyn OrElse<'db>,
 ) -> Errors<()> {
     let ty = place.place_ty(env).await;
-    require_ty_is_move(env, ty, or_else).await
+    require_ty_isnt_provably_copy(env, ty, or_else).await
 }
