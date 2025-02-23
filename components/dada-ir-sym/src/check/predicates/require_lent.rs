@@ -1,17 +1,16 @@
-use dada_ir_ast::{diagnostic::Errors, span::Span};
+use dada_ir_ast::diagnostic::Errors;
 use dada_util::boxed_async_fn;
 
 use crate::{
     check::{
-        combinator::{both, either, exists, for_all, require, require_for_all},
+        combinator::{both, either, exists, for_all, require},
         env::Env,
         places::PlaceTy,
         predicates::{
             Predicate,
-            report::{report_never_must_be_but_isnt, report_term_must_be_but_isnt},
             var_infer::{require_infer_is, require_var_is},
         },
-        report::Because,
+        report::{Because, OrElse},
     },
     ir::{
         classes::SymAggregateStyle,
@@ -41,7 +40,6 @@ pub(crate) async fn require_term_is_lent<'db>(
 /// The semantics of `(lhs rhs)` is: `rhs` if `rhs is copy` or `lhs union rhs` otherwise.
 async fn require_application_is_lent<'db>(
     env: &Env<'db>,
-    term: SymGenericTerm<'db>,
     lhs: SymGenericTerm<'db>,
     rhs: SymGenericTerm<'db>,
     or_else: &dyn OrElse<'db>,
@@ -72,8 +70,7 @@ async fn require_ty_is_lent<'db>(
 
         // Apply
         SymTyKind::Perm(sym_perm, sym_ty) => {
-            require_application_is_lent(env, term.into(), sym_perm.into(), sym_ty.into(), &or_else)
-                .await
+            require_application_is_lent(env, sym_perm.into(), sym_ty.into(), or_else).await
         }
 
         // Never
@@ -88,26 +85,23 @@ async fn require_ty_is_lent<'db>(
             SymTyName::Primitive(_sym_primitive) => Ok(()),
 
             SymTyName::Aggregate(sym_aggregate) => match sym_aggregate.style(db) {
-                SymAggregateStyle::Class => Err(report_term_must_be_but_isnt(
-                    env,
-                    span,
-                    term,
-                    Predicate::Copy,
-                )),
+                SymAggregateStyle::Class => {
+                    Err(or_else.report(env.db(), Because::ClassIsNotLent(sym_ty_name)))
+                }
                 SymAggregateStyle::Struct => {
-                    require_for_all(generics, async |&generic| {
-                        require_term_is_lent(env, span, generic).await
-                    })
+                    require(
+                        exists(generics, async |&generic| {
+                            term_is_provably_lent(env, generic).await
+                        }),
+                        || or_else.report(env.db(), Because::NoLentComponent(term.into())),
+                    )
                     .await
                 }
             },
 
-            SymTyName::Future => Err(report_term_must_be_but_isnt(
-                env,
-                span,
-                term,
-                Predicate::Copy,
-            )),
+            SymTyName::Future => {
+                Err(or_else.report(env.db(), Because::ClassIsNotLent(sym_ty_name)))
+            }
 
             SymTyName::Tuple { arity } => {
                 assert_eq!(arity, generics.len());
@@ -115,7 +109,7 @@ async fn require_ty_is_lent<'db>(
                     exists(generics, async |&generic| {
                         term_is_provably_lent(env, generic).await
                     }),
-                    || report_term_must_be_but_isnt(env, span, term, Predicate::Lent),
+                    || or_else.report(env.db(), Because::NoLentComponent(term.into())),
                 )
                 .await
             }
@@ -135,20 +129,10 @@ async fn require_perm_is_lent<'db>(
         SymPermKind::Error(reported) => Err(reported),
 
         // My = Move & Owned
-        SymPermKind::My => Err(report_term_must_be_but_isnt(
-            env,
-            span,
-            perm,
-            Predicate::Copy,
-        )),
+        SymPermKind::My => Err(or_else.report(env.db(), Because::MyIsOwned)),
 
         // Our = Copy & Owned
-        SymPermKind::Our => Err(report_term_must_be_but_isnt(
-            env,
-            span,
-            perm,
-            Predicate::Lent,
-        )),
+        SymPermKind::Our => Err(or_else.report(env.db(), Because::OurIsOwned)),
 
         // Shared = Copy & Lent, Leased = Move & Lent
         SymPermKind::Shared(ref places) | SymPermKind::Leased(ref places) => {
@@ -167,19 +151,19 @@ async fn require_perm_is_lent<'db>(
                     )
                     .await
                 }),
-                || report_term_must_be_but_isnt(env, span, perm, Predicate::Lent),
+                || or_else.report(env.db(), Because::NoLentComponent(perm.into())),
             )
             .await
         }
 
         // Apply
         SymPermKind::Apply(lhs, rhs) => {
-            require_application_is_lent(env, span, perm.into(), lhs.into(), rhs.into()).await
+            require_application_is_lent(env, lhs.into(), rhs.into(), or_else).await
         }
 
         // Variable and inference
-        SymPermKind::Var(var) => require_var_is(env, span, var, Predicate::Lent),
-        SymPermKind::Infer(infer) => require_infer_is(env, span, infer, Predicate::Lent),
+        SymPermKind::Var(var) => require_var_is(env, var, Predicate::Lent, or_else),
+        SymPermKind::Infer(infer) => require_infer_is(env, infer, Predicate::Lent, or_else),
     }
 }
 

@@ -6,8 +6,8 @@ use crate::{
         combinator::{exists, require, require_both},
         env::Env,
         places::PlaceTy,
-        predicates::{Predicate, report::report_term_must_be_but_isnt},
-        report::Because,
+        predicates::Predicate,
+        report::{Because, OrElse},
     },
     ir::{
         classes::SymAggregateStyle,
@@ -17,7 +17,6 @@ use crate::{
 
 use super::{
     isnt_provably_copy::{place_isnt_provably_copy, term_isnt_provably_copy},
-    report::report_term_must_not_be_but_is,
     var_infer::{require_infer_isnt, require_var_isnt},
 };
 
@@ -67,20 +66,21 @@ async fn require_ty_isnt_provably_copy<'db>(
 
         // Apply
         SymTyKind::Perm(sym_perm, sym_ty) => {
-            require_application_isnt_provably_copy(env, span, sym_perm.into(), sym_ty.into()).await
+            require_application_isnt_provably_copy(env, sym_perm.into(), sym_ty.into(), or_else)
+                .await
         }
 
         // Never
         SymTyKind::Never => Ok(()),
 
         // Variable and inference
-        SymTyKind::Infer(infer) => require_infer_isnt(env, span, infer, or_else),
+        SymTyKind::Infer(infer) => require_infer_isnt(env, infer, Predicate::Copy, or_else),
 
-        SymTyKind::Var(var) => require_var_isnt(env, span, var, or_else),
+        SymTyKind::Var(var) => require_var_isnt(env, var, Predicate::Copy, or_else),
 
         // Named types
         SymTyKind::Named(sym_ty_name, ref generics) => match sym_ty_name {
-            SymTyName::Primitive(_) => or_else.report(env.db(), Because::StructIsCopy(term)),
+            SymTyName::Primitive(_) => Err(or_else.report(env.db(), Because::StructIsCopy(term))),
 
             SymTyName::Aggregate(sym_aggregate) => match sym_aggregate.style(db) {
                 SymAggregateStyle::Class => Ok(()),
@@ -123,9 +123,9 @@ async fn require_perm_isnt_provably_copy<'db>(
 
         SymPermKind::My => Ok(()),
 
-        SymPermKind::Our | SymPermKind::Shared(_) => {
-            or_else.report(env.db(), Because::PermIsCopy(perm))
-        }
+        SymPermKind::Our => Err(or_else.report(env.db(), Because::OurIsCopy)),
+
+        SymPermKind::Shared(_) => Err(or_else.report(env.db(), Because::SharedIsCopy(perm))),
 
         SymPermKind::Leased(ref places) => {
             // If there is at least one place `p` that is move, this will result in a `leased[p]` chain.
@@ -144,8 +144,8 @@ async fn require_perm_isnt_provably_copy<'db>(
         }
 
         // Variable and inference
-        SymPermKind::Var(var) => require_var_isnt(env, span, var, Predicate::Copy),
-        SymPermKind::Infer(infer) => require_infer_isnt(env, span, infer, Predicate::Copy),
+        SymPermKind::Var(var) => require_var_isnt(env, var, Predicate::Copy, or_else),
+        SymPermKind::Infer(infer) => require_infer_isnt(env, infer, Predicate::Copy, or_else),
     }
 }
 

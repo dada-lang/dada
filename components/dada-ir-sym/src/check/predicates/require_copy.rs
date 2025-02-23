@@ -10,7 +10,7 @@ use crate::{
             Predicate,
             var_infer::{require_infer_is, require_var_is},
         },
-        report::{Because, OrElse},
+        report::{Because, OrElse, OrElseHelper},
     },
     ir::{
         classes::SymAggregateStyle,
@@ -78,7 +78,7 @@ async fn require_ty_is_copy<'db>(
         }
 
         // Never
-        SymTyKind::Never => Err(or_else(Because::NeverIsNotCopy).report(env.db())),
+        SymTyKind::Never => Err(or_else.report(env.db(), Because::NeverIsNotCopy)),
 
         // Inference variables
         SymTyKind::Infer(infer) => require_infer_is(env, infer, Predicate::Copy, or_else),
@@ -92,13 +92,17 @@ async fn require_ty_is_copy<'db>(
 
             SymTyName::Aggregate(sym_aggregate) => match sym_aggregate.style(db) {
                 SymAggregateStyle::Class => {
-                    Err(or_else(Because::ClassIsNotCopy(sym_ty_name)).report(env.db()))
+                    Err(or_else.report(env.db(), Because::ClassIsNotCopy(sym_ty_name)))
                 }
                 SymAggregateStyle::Struct => {
                     require_for_all(generics, async |&generic| {
-                        require_term_is_copy(env, generic, &|because| {
-                            or_else(because.struct_component_not_copy(sym_ty_name, generic))
-                        })
+                        require_term_is_copy(
+                            env,
+                            generic,
+                            &or_else.map_because(move |because| {
+                                because.struct_component_not_copy(sym_ty_name, generic)
+                            }),
+                        )
                         .await
                     })
                     .await
@@ -106,15 +110,19 @@ async fn require_ty_is_copy<'db>(
             },
 
             SymTyName::Future => {
-                Err(or_else(Because::ClassIsNotCopy(sym_ty_name)).report(env.db()))
+                Err(or_else.report(env.db(), Because::ClassIsNotCopy(sym_ty_name)))
             }
 
             SymTyName::Tuple { arity } => {
                 assert_eq!(arity, generics.len());
                 require_for_all(generics, async |&generic| {
-                    require_term_is_copy(env, generic, &|because| {
-                        or_else(because.struct_component_not_copy(sym_ty_name, generic))
-                    })
+                    require_term_is_copy(
+                        env,
+                        generic,
+                        &or_else.map_because(move |because| {
+                            because.struct_component_not_copy(sym_ty_name, generic)
+                        }),
+                    )
                     .await
                 })
                 .await

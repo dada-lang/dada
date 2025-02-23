@@ -11,12 +11,11 @@ pub(crate) mod require_move;
 pub(crate) mod require_owned;
 mod var_infer;
 
-use dada_ir_ast::{diagnostic::Errors, span::Span};
+use dada_ir_ast::diagnostic::Errors;
 use is_provably_copy::term_is_provably_copy;
 use is_provably_lent::term_is_provably_lent;
 use is_provably_move::term_is_provably_move;
 use is_provably_owned::term_is_provably_owned;
-use report::{report_term_must_be_but_isnt, report_term_must_not_be_leased_but_is};
 use require_lent::require_term_is_lent;
 use require_move::require_term_is_move;
 pub(crate) use var_infer::{test_infer_is_known_to_be, test_var_is_provably};
@@ -112,7 +111,7 @@ pub(crate) async fn require_term_is_not_leased<'db>(
             term_is_provably_copy(env, term),
             term_is_provably_owned(env, term),
         ),
-        || or_else.report(env.db(), Because::TermMustNotBeLeasedButIs(term)),
+        || or_else.report(env.db(), Because::TermCouldBeLeased(term)),
     )
     .await
 }

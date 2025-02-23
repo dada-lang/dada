@@ -61,7 +61,7 @@ pub async fn require_assignable_type<'db>(
 
     match (value_ty.kind(db), place_ty.kind(db)) {
         (SymTyKind::Never, _) => Ok(()),
-        _ => require_sub_terms(env, Expected::Upper, span, value_ty, place_ty).await,
+        _ => require_sub_terms(env, value_ty, place_ty, or_else).await,
     }
 }
 
@@ -78,7 +78,7 @@ pub async fn require_sub_terms<'a, 'db>(
             // Reduce and relate chains
             let red_term_lower = lower.to_red_term(db, env).await;
             let red_term_upper = upper.to_red_term(db, env).await;
-            require_sub_redterms(env, red_term_lower, red_term_upper, or_else).await
+            require_sub_red_terms(env, red_term_lower, red_term_upper, or_else).await
         },
     )
     .await
@@ -153,32 +153,35 @@ async fn require_sub_red_terms<'a, 'db>(
     upper: RedTerm<'db>,
     or_else: &dyn OrElse<'db>,
 ) -> Errors<()> {
-    match (&lower.ty(), &upper.ty()) {
-        (RedTy::Error(reported), _) | (_, RedTy::Error(reported)) => Err(*reported),
+    match (lower.ty(), upper.ty()) {
+        (&RedTy::Error(reported), _) | (_, &RedTy::Error(reported)) => Err(reported),
 
-        (RedTy::Infer(infer_lower), RedTy::Infer(infer_upper)) => todo!(),
-        (RedTy::Infer(infer_lower), _) => todo!(),
-        (_, RedTy::Infer(infer_lower)) => todo!(),
+        (&RedTy::Infer(infer_lower), &RedTy::Infer(infer_upper)) => todo!(),
+        (&RedTy::Infer(infer_lower), _) => todo!(),
+        (_, &RedTy::Infer(infer_lower)) => todo!(),
 
-        (RedTy::Named(name_lower, lower_ty), RedTy::Named(name_upper, upper_ty)) => {}
-        (RedTy::Named(..), _) | (_, RedTy::Named(..)) => todo!(),
+        (
+            &RedTy::Named(name_lower, ref lower_generics),
+            &RedTy::Named(name_upper, ref upper_generics),
+        ) => {}
+        (&RedTy::Named(..), _) | (_, &RedTy::Named(..)) => todo!(),
 
-        (RedTy::Never, RedTy::Never) => {
+        (&RedTy::Never, &RedTy::Never) => {
             require_sub_red_perms(env, lower.chains(), upper.chains(), or_else).await
         }
-        (RedTy::Never, _) | (_, RedTy::Never) => todo!(),
+        (&RedTy::Never, _) | (_, &RedTy::Never) => todo!(),
 
-        (RedTy::Var(var_lower), RedTy::Var(var_upper)) => {
+        (&RedTy::Var(var_lower), &RedTy::Var(var_upper)) => {
             if var_lower == var_upper {
-                require_sub_red_perms(env, expected, span, lower.chains(), upper.chains()).await
+                require_sub_red_perms(env, lower.chains(), upper.chains(), or_else).await
             } else {
-                report_universal_mismatch(env, expected, span, var_lower, var_upper).await
+                Err(or_else.report(env.db(), Because::UniversalMismatch(var_lower, var_upper)))
             }
         }
-        (RedTy::Var(_), _) | (_, RedTy::Var(_)) => todo!(),
+        (&RedTy::Var(_), _) | (_, &RedTy::Var(_)) => todo!(),
 
-        (RedTy::Perm, RedTy::Perm) => {
-            require_sub_red_perms(env, expected, span, lower.chains(), upper.chains()).await
+        (&RedTy::Perm, &RedTy::Perm) => {
+            require_sub_red_perms(env, lower.chains(), upper.chains(), or_else).await
         }
     }
 }
@@ -228,8 +231,8 @@ async fn require_sub_chains<'a, 'db>(
     let Some((lower_head, lower_tail)) = lower_chain.split_first() else {
         // If the lower chain is empty, then it is "my", which implies upper-chain must be "my"
         return combinator::require_all!(
-            require_chain_is_move(env, span, upper_chain),
-            require_chain_is_owned(env, span, upper_chain),
+            require_chain_is_move(env, upper_chain, or_else),
+            require_chain_is_owned(env, upper_chain, or_else),
         )
         .await;
     };
@@ -241,6 +244,7 @@ async fn require_sub_chains<'a, 'db>(
                 return require_term_is_not_leased(
                     env,
                     Lien::chain_to_perm(upper_chain, db).into(),
+                    or_else,
                 )
                 .await;
             } else {
@@ -251,7 +255,7 @@ async fn require_sub_chains<'a, 'db>(
         Lien::Shared(place) => {
             // * `(shared[place0] C0) <= (shared[place1] C1) if place1 <= place0 && C0 <= C1`
             // * `(shared[place0] C0) <= (our C1) if (leased[place0] C0) <= C1`
-            require_sub_of_shared(env, place, lower_tail, upper_chain, report_error).await
+            require_sub_of_shared(env, place, lower_tail, upper_chain, or_else).await
         }
 
         Lien::Leased(place) => {
@@ -353,5 +357,3 @@ fn chain_is_infer<'db>(chain: &[Lien<'db>]) -> Option<InferVarIndex> {
         }
     }
 }
-
-fn report_error() -> Errors<()> {}

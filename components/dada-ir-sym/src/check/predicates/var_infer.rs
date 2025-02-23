@@ -3,16 +3,11 @@ use dada_ir_ast::{diagnostic::Errors, span::Span};
 use crate::{
     check::{
         env::Env,
-        predicates::{
-            Predicate,
-            report::{report_infer_is_contradictory, report_var_must_be_but_is_not_declared_to_be},
-        },
-        report::{Because, OrElse},
+        predicates::Predicate,
+        report::{Because, OrElse, report_infer_is_contradictory},
     },
     ir::{indices::InferVarIndex, variables::SymVariable},
 };
-
-use super::report::report_var_must_not_be_declared_but_is;
 
 pub(crate) fn test_var_is_provably<'db>(
     env: &Env<'db>,
@@ -71,14 +66,15 @@ pub(super) fn require_infer_is<'db>(
     // Check if were already required to not be the predicate
     // and report an error if so.
     if let Some(isnt_span) = isnt_already {
-        return Err(report_infer_is_contradictory(
-            env, infer, predicate, span, isnt_span,
-        ));
+        return or_else.report(
+            env.db(),
+            Because::InferIsContradictory(infer, predicate, isnt_span),
+        );
     }
 
     // Record the requirement in the runtime, awakening any tasks that may be impacted.
     env.runtime()
-        .require_inference_var_is(infer, predicate, span);
+        .require_inference_var_is(infer, predicate, or_else);
 
     Ok(())
 }
@@ -105,15 +101,16 @@ pub(super) fn require_infer_isnt<'db>(
 
     // Check if were already required to be the predicate
     // and report an error if so.
-    if let Some(is_span) = is_already {
-        return Err(report_infer_is_contradictory(
-            env, infer, predicate, is_span, span,
-        ));
+    if let Some(is_or_else) = is_already {
+        return or_else.report(
+            env.db(),
+            Because::PreviousRequirement(is_or_else.report(env.db(), Because::BaseRequirement)),
+        );
     }
 
     // Record the requirement in the runtime, awakening any tasks that may be impacted.
     env.runtime()
-        .require_inference_var_isnt(infer, predicate, span);
+        .require_inference_var_isnt(infer, predicate, or_else);
 
     Ok(())
 }

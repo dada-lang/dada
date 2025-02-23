@@ -1,14 +1,17 @@
+use std::sync::Arc;
+
 use dada_ir_ast::span::Span;
 use dada_util::vecset::VecSet;
 
 use crate::{
     check::universe::Universe,
-    ir::{indices::InferVarIndex, red_terms::RedTerm, types::SymGenericKind},
+    ir::{red_terms::RedTerm, types::SymGenericKind},
 };
 
 use super::{
-    chains::{Chain, RedTerm, RedTy},
+    chains::{Chain, RedTy},
     predicates::Predicate,
+    report::OrElse,
 };
 
 pub(crate) struct InferenceVarData<'db> {
@@ -24,22 +27,20 @@ pub(crate) struct InferenceVarData<'db> {
     /// predicate is true (but it still could be, depending on what value we ultimately infer).
     ///
     /// See also the `isnt` field.
-    is: [Option<Span<'db>>; Predicate::LEN],
+    is: [Option<Arc<dyn OrElse<'db> + 'db>>; Predicate::LEN],
 
     /// If the element for a given predicate is `Some`, then the predicate is NOT known to be true
     /// due to code at the given span.
     ///
     /// This is a subtle distinction. Knowing that a variable `isnt (known to be) copy` doesn't
     /// imply that it is `is (known to be) move`. It means "you will never be able to prove this is copy".
-    isnt: [Option<Span<'db>>; Predicate::LEN],
+    isnt: [Option<Arc<dyn OrElse<'db> + 'db>>; Predicate::LEN],
 
     lower_chains: VecSet<Chain<'db>>,
     upper_chains: VecSet<Chain<'db>>,
 
     lower_red_ty: Option<RedTy<'db>>,
     upper_red_ty: Option<RedTy<'db>>,
-
-    modifications: u32,
 }
 
 impl<'db> InferenceVarData<'db> {
@@ -54,7 +55,6 @@ impl<'db> InferenceVarData<'db> {
             upper_chains: VecSet::new(),
             lower_red_ty: None,
             upper_red_ty: None,
-            modifications: 0,
         }
     }
 
@@ -70,8 +70,11 @@ impl<'db> InferenceVarData<'db> {
 
     /// Returns `Some(s)` if the predicate is known to be true (where `s` is the span of code
     /// which required the predicate to be true).
-    pub fn is_known_to_provably_be(&self, predicate: Predicate) -> Option<Span<'db>> {
-        self.is[predicate.index()]
+    pub fn is_known_to_provably_be(
+        &self,
+        predicate: Predicate,
+    ) -> Option<Arc<dyn OrElse<'db> + 'db>> {
+        self.is[predicate.index()].clone()
     }
 
     /// Returns `Some(s)` if the predicate is not known to be true (where `s` is the span of code
@@ -79,8 +82,11 @@ impl<'db> InferenceVarData<'db> {
     ///
     /// This is different from being known to be false. It means we know we won't be able to know.
     /// Can occur with generics etc.
-    pub fn is_known_not_to_provably_be(&self, predicate: Predicate) -> Option<Span<'db>> {
-        self.isnt[predicate.index()]
+    pub fn is_known_not_to_provably_be(
+        &self,
+        predicate: Predicate,
+    ) -> Option<Arc<dyn OrElse<'db> + 'db>> {
+        self.isnt[predicate.index()].clone()
     }
 
     /// Returns the lower bound.
@@ -100,23 +106,38 @@ impl<'db> InferenceVarData<'db> {
     /// # Panics
     ///
     /// * If the inference variable is required to satisfy a contradictory predicate.
-    pub fn require_is(&mut self, predicate: Predicate, span: Span<'db>) -> bool {
+    pub fn require_is(&mut self, predicate: Predicate, or_else: &dyn OrElse<'db>) -> bool {
         let predicate_invert = predicate.invert();
-        assert!(self.is_known_to_provably_be(predicate_invert).is_none());
-        assert!(self.is_known_not_to_provably_be(predicate).is_none());
-        let mut changed = false;
 
-        if self.is_known_to_provably_be(predicate).is_none() {
-            self.is[predicate.index()] = Some(span);
-            changed = true;
+        let predicate_is = self.is_known_to_provably_be(predicate).is_some();
+        let predicate_isnt = self.is_known_not_to_provably_be(predicate).is_some();
+        let inverted_is = self.is_known_to_provably_be(predicate_invert).is_some();
+        let inverted_isnt = self.is_known_not_to_provably_be(predicate_invert).is_some();
+
+        // Check that we haven't been given contradictory constraints.
+        assert!(
+            !predicate_isnt,
+            "require_is: {predicate} already required to be isnt"
+        );
+        assert!(
+            !inverted_is,
+            "require_is: {predicate_invert} already required to be is"
+        );
+
+        // If these constraints are alreayd recorded, just return.
+        if predicate_is && inverted_isnt {
+            return false;
         }
 
-        if self.is_known_not_to_provably_be(predicate_invert).is_none() {
-            self.isnt[predicate_invert.index()] = Some(span);
-            changed = true;
+        // Otherwise record.
+        let or_else = or_else.to_arc();
+        if !predicate_is {
+            self.is[predicate.index()] = Some(or_else.clone());
         }
-
-        changed
+        if !inverted_isnt {
+            self.isnt[predicate_invert.index()] = Some(or_else.clone());
+        }
+        true
     }
 
     /// Insert a predicate into the `isnt` set.
@@ -126,11 +147,10 @@ impl<'db> InferenceVarData<'db> {
     /// # Panics
     ///
     /// * If the inference variable is required to satisfy a contradictory predicate.
-    pub fn require_isnt(&mut self, predicate: Predicate, span: Span<'db>) -> bool {
+    pub fn require_isnt(&mut self, predicate: Predicate, or_else: &dyn OrElse<'db>) -> bool {
         assert!(self.is_known_to_provably_be(predicate).is_none());
         if self.is_known_not_to_provably_be(predicate).is_none() {
-            self.isnt[predicate.index()] = Some(span);
-            self.modifications += 1;
+            self.isnt[predicate.index()] = Some(or_else.to_arc());
             true
         } else {
             false

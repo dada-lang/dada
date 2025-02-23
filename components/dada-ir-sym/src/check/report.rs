@@ -1,6 +1,7 @@
-use std::error::Report;
+use std::sync::Arc;
 
 use dada_ir_ast::{
+    Db,
     diagnostic::{Diagnostic, Level, Reported},
     span::Span,
 };
@@ -8,7 +9,6 @@ use dada_ir_ast::{
 use crate::{
     check::{env::Env, predicates::Predicate},
     ir::{
-        classes::SymAggregate,
         indices::InferVarIndex,
         types::{SymGenericTerm, SymPerm, SymPlace, SymTy, SymTyName},
         variables::SymVariable,
@@ -16,32 +16,46 @@ use crate::{
 };
 
 pub trait OrElse<'db> {
-    fn report(&self, db: &'db dyn Db, because: Because) -> Reported;
+    fn report(&self, db: &'db dyn Db, because: Because<'db>) -> Reported {
+        self.or_else(because).report(db)
+    }
 
-    fn or_else(&self, because: Because) -> Diagnostic<'db>;
+    fn or_else(&self, because: Because<'db>) -> Diagnostic;
 
-    fn to_arc(&self) -> Arc<dyn OrElse<'db>>;
+    fn to_arc(&self) -> Arc<dyn OrElse<'db> + 'db>;
 }
 
-impl<'db, F> OrElse<'db> for F
-where
-    F: 'db,
-    F: Fn(Because) -> Diagnostic<'db>,
-    F: Clone,
-{
-    fn report(&self, db: &'db dyn Db, because: Because) -> Reported {
-        (*self)(because).report(db)
-    }
-
-    fn or_else(&self, because: Because) -> Diagnostic<'db> {
-        (*self)(because)
-    }
-
-    fn to_arc(&self) -> Arc<dyn OrElse<'db>> {
-        Arc::new(F::clone(self))
-    }
+pub trait OrElseHelper<'db>: Sized {
+    fn map_because(
+        self,
+        f: impl 'db + Clone + Fn(Because<'db>) -> Because<'db>,
+    ) -> impl OrElse<'db>;
 }
 
+impl<'db> OrElseHelper<'db> for &dyn OrElse<'db> {
+    fn map_because(
+        self,
+        f: impl 'db + Clone + Fn(Because<'db>) -> Because<'db>,
+    ) -> impl OrElse<'db> {
+        struct MapBecause<F, G>(F, G);
+
+        impl<'db, F, G> OrElse<'db> for MapBecause<F, G>
+        where
+            F: 'db + Clone + Fn(Because<'db>) -> Because<'db>,
+            G: std::ops::Deref<Target: OrElse<'db>>,
+        {
+            fn or_else(&self, because: Because<'db>) -> Diagnostic {
+                self.1.or_else((self.0)(because))
+            }
+
+            fn to_arc(&self) -> Arc<dyn OrElse<'db> + 'db> {
+                Arc::new(MapBecause(self.0.clone(), self.1.to_arc()))
+            }
+        }
+
+        MapBecause(f, self)
+    }
+}
 pub enum Because<'db> {
     /// `shared[place]` was required
     NotSubOfShared(SymPlace<'db>),
@@ -64,6 +78,15 @@ pub enum Because<'db> {
     /// Classes are not copy
     ClassIsNotCopy(SymTyName<'db>),
 
+    /// Classes are not lent
+    ClassIsNotLent(SymTyName<'db>),
+
+    /// We cannot infer otherwise because of a previous requirement
+    PreviousRequirement(Diagnostic),
+
+    /// In an inference failure, this indicates the conflict with previously recorded requirement.
+    BaseRequirement,
+
     /// `A B` is not lent
     ApplicationNotLent(SymGenericTerm<'db>, SymGenericTerm<'db>),
 
@@ -73,17 +96,36 @@ pub enum Because<'db> {
     /// Struct is copy
     StructIsCopy(SymTy<'db>),
 
-    /// Perm is copy
-    PermIsCopy(SymPerm<'db>),
+    /// Type does not have a lent component
+    NoLentComponent(SymGenericTerm<'db>),
+
+    /// Shared is copy
+    SharedIsCopy(SymPerm<'db>),
 
     /// Leasing from a copy place yields a copy permission (which is not desired here)
     LeasedFromCopyIsCopy(SymPerm<'db>),
 
+    /// My is move
     MyIsMove,
+
+    /// Our is copy
+    OurIsCopy,
+
+    /// My is owned
+    MyIsOwned,
+
+    /// Our is owned
+    OurIsOwned,
+
+    /// Term could be leased
+    TermCouldBeLeased(SymGenericTerm<'db>),
+
+    /// Universal mismatch
+    UniversalMismatch(SymVariable<'db>, SymVariable<'db>),
 }
 
-impl Because {
-    pub fn struct_component_not_copy<'db>(
+impl<'db> Because<'db> {
+    pub fn struct_component_not_copy(
         self,
         sym_ty_name: SymTyName<'db>,
         term: impl Into<SymGenericTerm<'db>>,
