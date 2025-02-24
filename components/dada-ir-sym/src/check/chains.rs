@@ -162,7 +162,7 @@ impl<'db> Chain<'db> {
 
     /// Convert this chain to an equivalent [`SymPerm`].
     fn to_perm(&self, db: &'db dyn crate::Db) -> SymPerm<'db> {
-        Lien::chain_to_perm(&self.liens, db)
+        Lien::chain_to_perm(db, &self.liens)
     }
 }
 
@@ -206,7 +206,17 @@ impl<'db> Lien<'db> {
         }
     }
 
-    pub fn chain_to_perm(liens: &[Self], db: &'db dyn crate::Db) -> SymPerm<'db> {
+    /// Convert a (head, ..tail) to a permission.
+    pub fn head_tail_to_perm(db: &'db dyn crate::Db, head: Self, tail: &[Self]) -> SymPerm<'db> {
+        if tail.is_empty() {
+            head.to_perm(db)
+        } else {
+            SymPerm::apply(db, head.to_perm(db), Self::chain_to_perm(db, tail))
+        }
+    }
+
+    /// Convert a list of liens to a permission.
+    pub fn chain_to_perm(db: &'db dyn crate::Db, liens: &[Self]) -> SymPerm<'db> {
         liens
             .iter()
             .map(|lien| lien.to_perm(db))

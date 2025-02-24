@@ -223,6 +223,18 @@ async fn require_sub_red_perms<'a, 'db>(
     Ok(())
 }
 
+struct Alternatives {}
+
+#[boxed_async_fn]
+async fn sub_chains<'a, 'db>(
+    env: &'a Env<'db>,
+    alternatives: &Alternatives,
+    lower_chain: &[Lien<'db>],
+    upper_chain: &[Lien<'db>],
+    or_else: &dyn OrElse<'db>,
+) -> Errors<()> {
+}
+
 #[boxed_async_fn]
 async fn require_sub_chains<'a, 'db>(
     env: &'a Env<'db>,
