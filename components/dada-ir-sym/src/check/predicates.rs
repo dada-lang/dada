@@ -18,6 +18,7 @@ use is_provably_move::term_is_provably_move;
 use is_provably_owned::term_is_provably_owned;
 use require_lent::require_term_is_lent;
 use require_move::require_term_is_move;
+use require_owned::require_term_is_owned;
 pub(crate) use var_infer::{test_infer_is_known_to_be, test_var_is_provably};
 
 use crate::ir::types::SymGenericTerm;
@@ -112,6 +113,29 @@ pub(crate) async fn require_term_is_not_leased<'db>(
             term_is_provably_owned(env, term),
         ),
         || or_else.report(env.db(), Because::TermCouldBeLeased(term)),
+    )
+    .await
+}
+
+pub(crate) async fn require_term_is_my<'db>(
+    env: &Env<'db>,
+    term: SymGenericTerm<'db>,
+    or_else: &dyn OrElse<'db>,
+) -> Errors<()> {
+    require_both(
+        require_term_is_move(env, term, or_else),
+        require_term_is_owned(env, term, or_else),
+    )
+    .await
+}
+
+pub(crate) async fn term_is_provably_my<'db>(
+    env: &Env<'db>,
+    term: SymGenericTerm<'db>,
+) -> Errors<bool> {
+    both(
+        term_is_provably_move(env, term),
+        term_is_provably_owned(env, term),
     )
     .await
 }

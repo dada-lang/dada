@@ -1,42 +1,18 @@
-use std::{cell::Cell, task::Poll};
-
 use dada_ir_ast::diagnostic::Errors;
-use dada_util::boxed_async_fn;
-use futures::FutureExt;
+use dada_util::{boxed_async_fn, vecset::VecSet};
 
 use crate::check::{
-    chains::Lien,
-    combinator,
+    chains::{Chain, Lien},
+    combinator::{exists, require, require_for_all},
     env::Env,
-    predicates::{Predicate, require_copy::require_term_is_copy},
-    report::OrElse,
+    predicates::{
+        Predicate, is_provably_copy::term_is_provably_copy, require_copy::require_term_is_copy,
+        require_term_is_my, term_is_provably_my,
+    },
+    report::{Because, OrElse},
 };
 
-struct Alternatives {
-    counter: Cell<usize>,
-}
-
-impl Alternatives {
-    fn if_required(
-        &self,
-        not_required: impl Future<Output = Errors<bool>>,
-        is_required: impl Future<Output = Errors<()>>,
-    ) -> impl Future<Output = Errors<bool>> {
-        let mut not_required = Box::pin(not_required);
-        let mut is_required = Box::pin(is_required);
-        std::future::poll_fn(move |cx| {
-            if self.counter.get() == 0 {
-                match is_required.poll_unpin(cx) {
-                    Poll::Ready(Ok(())) => Poll::Ready(Ok(true)),
-                    Poll::Ready(Err(reported)) => Poll::Ready(Err(reported)),
-                    Poll::Pending => Poll::Pending,
-                }
-            } else {
-                not_required.poll_unpin(cx)
-            }
-        })
-    }
-}
+use super::alternatives::Alternative;
 
 // Rules (ignoring inference and layout rules)
 //
@@ -50,43 +26,74 @@ impl Alternatives {
 // * `X <= our if X is copy+owned`
 // * `X <= my if X is move+owned`
 
+pub async fn require_sub_red_perms<'a, 'db>(
+    env: &'a Env<'db>,
+    lower_chains: &VecSet<Chain<'db>>,
+    upper_chains: &VecSet<Chain<'db>>,
+    or_else: &dyn OrElse<'db>,
+) -> Errors<()> {
+    let db = env.db();
+
+    require_for_all(lower_chains, async |lower_chain| {
+        let root = Alternative::root();
+        let children_alternatives = root.spawn_children(upper_chains.len());
+        require(
+            exists(
+                upper_chains.into_iter().zip(children_alternatives),
+                async |(upper_chain, child_alternative)| {
+                    sub_chains(
+                        env,
+                        &child_alternative,
+                        lower_chain.links(),
+                        upper_chain.links(),
+                        or_else,
+                    )
+                    .await
+                },
+            ),
+            || {
+                or_else.report(
+                    db,
+                    Because::NotSubChain(lower_chain.clone(), upper_chains.clone()),
+                )
+            },
+        )
+        .await
+    })
+    .await
+}
+
 #[boxed_async_fn]
 async fn sub_chains<'a, 'db>(
     env: &'a Env<'db>,
-    alternatives: &Alternatives,
+    alternative: &Alternative<'_>,
     lower_chain: &[Lien<'db>],
     upper_chain: &[Lien<'db>],
     or_else: &dyn OrElse<'db>,
 ) -> Errors<bool> {
+    let db = env.db();
     match (lower_chain.split_first(), upper_chain.split_first()) {
+        (Some((&Lien::Error(reported), _)), _) | (_, Some((&Lien::Error(reported), _))) => {
+            Err(reported)
+        }
+
         (None, _) => {
             // `my <= C`
             Ok(true)
         }
 
-        (Some((&Lien::Error(reported), _)), _) | (_, Some((&Lien::Error(reported), _))) => {
-            Err(reported)
+        (Some(_), None) => {
+            let lower_term = Lien::chain_to_perm(db, lower_chain);
+            alternative
+                .if_required(
+                    require_term_is_my(env, lower_term.into(), or_else),
+                    term_is_provably_my(env, lower_term.into()),
+                )
+                .await
         }
-
-        (Some((&Lien::Infer(v0), c0)), None) => {
-            // XXX add bound to v0
-            todo!("{v0:?} {c0:?}")
-        }
-
-        (Some((&Lien::Var(v0), [])), None) => {
-            // `X <= my if X is move+owned`
-            Ok(env.var_is_declared_to_be(v0, Predicate::Move)
-                && env.var_is_declared_to_be(v0, Predicate::Owned))
-        }
-
-        // Nothing else is a subchain of `my`
-        (Some((&Lien::Our, _)), None) => Ok(false),
-        (Some((&Lien::Shared(_), _)), None) => Ok(false),
-        (Some((&Lien::Leased(_), _)), None) => Ok(false),
-        (Some((&Lien::Var(_), [_, ..])), None) => Ok(false),
 
         (Some((&lien0, c0)), Some((&lien1, c1))) => {
-            sub_chains1(env, alternatives, lien0, c0, lien1, c1, or_else).await
+            sub_chains1(env, alternative, lien0, c0, lien1, c1, or_else).await
         }
     }
 }
@@ -94,7 +101,7 @@ async fn sub_chains<'a, 'db>(
 #[boxed_async_fn]
 async fn sub_chains1<'a, 'db>(
     env: &'a Env<'db>,
-    alternatives: &Alternatives,
+    alternative: &Alternative<'_>,
     lower_chain_head: Lien<'db>,
     lower_chain_tail: &[Lien<'db>],
     upper_chain_head: Lien<'db>,
@@ -135,26 +142,17 @@ async fn sub_chains1<'a, 'db>(
 
         (Lien::Our, [], head1, tail1) => {
             // `our <= C1 if C1 is copy`
-            alternatives
+            let perm1 = Lien::head_tail_to_perm(db, head1, tail1);
+            alternative
                 .if_required(
-                    async {
-                        // XXX
-                        Ok(true)
-                    },
-                    async {
-                        require_term_is_copy(
-                            env,
-                            Lien::head_tail_to_perm(db, head1, tail1).into(),
-                            or_else,
-                        )
-                        .await
-                    },
+                    require_term_is_copy(env, perm1.into(), or_else),
+                    term_is_provably_copy(env, perm1.into()),
                 )
                 .await
         }
         (Lien::Our, c0, Lien::Our, c1) => {
             // `(our C0) <= (our C1) if C0 <= C1`
-            sub_chains(env, alternatives, c0, c1, or_else).await
+            sub_chains(env, alternative, c0, c1, or_else).await
         }
         (Lien::Our, _, Lien::Leased(_), _) => Ok(false),
         (Lien::Our, _, Lien::Shared(_), _) => Ok(false),
@@ -164,7 +162,7 @@ async fn sub_chains1<'a, 'db>(
         (Lien::Leased(place0), c0, Lien::Leased(place1), c1) => {
             // * `(leased[place0] C0) <= (leased[place1] C1) if place1 <= place0 && C0 <= C1`
             if place0.is_covered_by(db, place1) {
-                sub_chains(env, alternatives, c0, c1, or_else).await
+                sub_chains(env, alternative, c0, c1, or_else).await
             } else {
                 Ok(false)
             }
@@ -176,7 +174,7 @@ async fn sub_chains1<'a, 'db>(
             // * `(shared[place0] C0) <= (our C1) if (leased[place0] C0) <= C1`
             sub_chains1(
                 env,
-                alternatives,
+                alternative,
                 Lien::Leased(place0),
                 c0,
                 *lien1,
@@ -192,7 +190,7 @@ async fn sub_chains1<'a, 'db>(
         (Lien::Shared(place0), c0, Lien::Shared(place1), c1) => {
             // * `(shared[place0] C0) <= (shared[place1] C1) if place1 <= place0 && C0 <= C1`
             if place0.is_covered_by(db, place1) {
-                sub_chains(env, alternatives, c0, c1, or_else).await
+                sub_chains(env, alternative, c0, c1, or_else).await
             } else {
                 Ok(false)
             }
@@ -209,7 +207,7 @@ async fn sub_chains1<'a, 'db>(
         (Lien::Var(v0), c0, Lien::Var(v1), c1) => {
             // * `X C0 <= X C1 if C0 <= C1`
             if v0 == v1 {
-                sub_chains(env, alternatives, c0, c1, or_else).await
+                sub_chains(env, alternative, c0, c1, or_else).await
             } else {
                 Ok(false)
             }

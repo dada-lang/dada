@@ -1,39 +1,29 @@
 //! Implement object-level subtyping.
 
-use dada_ir_ast::{
-    diagnostic::{Diagnostic, Errors, Level, Reported},
-    span::Span,
-};
-use dada_util::{boxed_async_fn, vecset::VecSet};
+use dada_ir_ast::diagnostic::Errors;
 
 use crate::{
     check::{
-        chains::{Chain, Lien, RedTerm, RedTy, ToRedTerm, TyChain},
+        chains::{RedTerm, RedTy, ToRedTerm},
         combinator,
         env::Env,
         predicates::{
-            is_provably_copy::term_is_provably_copy,
-            is_provably_lent::term_is_provably_lent,
-            is_provably_move::term_is_provably_move,
-            is_provably_owned::term_is_provably_owned,
-            isnt_provably_copy::term_isnt_provably_copy,
-            require_copy::require_term_is_copy,
+            is_provably_copy::term_is_provably_copy, is_provably_lent::term_is_provably_lent,
+            is_provably_move::term_is_provably_move, is_provably_owned::term_is_provably_owned,
+            isnt_provably_copy::term_isnt_provably_copy, require_copy::require_term_is_copy,
             require_isnt_provably_copy::require_term_isnt_provably_copy,
-            require_lent::require_term_is_lent,
-            require_move::{require_chain_is_move, require_term_is_move},
-            require_owned::{require_chain_is_owned, require_term_is_owned},
-            require_term_is_leased, require_term_is_not_leased, term_is_provably_leased,
+            require_lent::require_term_is_lent, require_move::require_term_is_move,
+            require_owned::require_term_is_owned, require_term_is_leased, term_is_provably_leased,
         },
         report::{Because, OrElse},
     },
     ir::{
         classes::SymAggregateStyle,
-        indices::InferVarIndex,
-        primitive::SymPrimitiveKind,
-        types::{SymGenericTerm, SymPerm, SymPlace, SymTy, SymTyKind, SymTyName},
-        variables::SymVariable,
+        types::{SymGenericTerm, SymTy, SymTyKind},
     },
 };
+
+use super::chains::require_sub_red_perms;
 
 #[derive(Copy, Clone, PartialEq, Eq, PartialOrd, Ord, Hash, Debug)]
 pub enum Expected {
@@ -205,192 +195,6 @@ async fn require_sub_red_terms<'a, 'db>(
 
         (&RedTy::Perm, &RedTy::Perm) => {
             require_sub_red_perms(env, lower.chains(), upper.chains(), or_else).await
-        }
-    }
-}
-
-async fn require_sub_red_perms<'a, 'db>(
-    env: &'a Env<'db>,
-    lower_chains: &VecSet<Chain<'db>>,
-    upper_chains: &VecSet<Chain<'db>>,
-    or_else: &dyn OrElse<'db>,
-) -> Errors<()> {
-    for lower_chain in lower_chains {
-        for upper_chain in upper_chains {
-            require_sub_red_perm(env, lower_chain, upper_chain, or_else).await?;
-        }
-    }
-    Ok(())
-}
-
-struct Alternatives {}
-
-#[boxed_async_fn]
-async fn sub_chains<'a, 'db>(
-    env: &'a Env<'db>,
-    alternatives: &Alternatives,
-    lower_chain: &[Lien<'db>],
-    upper_chain: &[Lien<'db>],
-    or_else: &dyn OrElse<'db>,
-) -> Errors<()> {
-}
-
-#[boxed_async_fn]
-async fn require_sub_chains<'a, 'db>(
-    env: &'a Env<'db>,
-    lower_chain: &[Lien<'db>],
-    upper_chain: &[Lien<'db>],
-    or_else: &dyn OrElse<'db>,
-) -> Errors<()> {
-    // Rules (ignoring inference)
-    //
-    // * `my <= C`
-    // * `our <= C1 if C1 is copy`
-    // * `(our C0) <= (our C1) if C0 <= C1`
-    // * `(leased[place0] C0) <= (leased[place1] C1) if place1 <= place0 && C0 <= C1`
-    // * `(shared[place0] C0) <= (shared[place1] C1) if place1 <= place0 && C0 <= C1`
-    // * `(shared[place0] C0) <= (our C1) if (leased[place0] C0) <= C1`
-    // * `X C0 <= X C1 if C0 <= C1`
-
-    let db = env.db();
-
-    // If either the lower or upper bound is JUST an inference variable,
-    // or both, this is an easy case-- we just want to add the opposite as a bound
-    // of that variable.
-    match (chain_is_infer(lower_chain), chain_is_infer(upper_chain)) {
-        (Some(lower_var), Some(upper_var)) => todo!(),
-        (Some(lower_var), None) => todo!(),
-        (None, Some(upper_var)) => todo!(),
-        (None, None) => (),
-    }
-
-    let Some((lower_head, lower_tail)) = lower_chain.split_first() else {
-        // If the lower chain is empty, then it is "my", which implies upper-chain must be "my"
-        return combinator::require_all!(
-            require_chain_is_move(env, upper_chain, or_else),
-            require_chain_is_owned(env, upper_chain, or_else),
-        )
-        .await;
-    };
-
-    match *lower_head {
-        Lien::Our => {
-            if lower_tail.is_empty() {
-                // * `our <= C1 if C1 is copy`
-                return require_term_is_not_leased(
-                    env,
-                    Lien::chain_to_perm(upper_chain, db).into(),
-                    or_else,
-                )
-                .await;
-            } else {
-                // * `(our C0) <= (our C1) if C0 <= C1`
-            }
-        }
-
-        Lien::Shared(lower_place) => {
-            // * `(shared[place0] C0) <= (shared[place1] C1) if place1 <= place0 && C0 <= C1`
-            // * `(shared[place0] C0) <= (our C1) if (leased[place0] C0) <= C1`
-            require_sub_of_shared(env, lower_place, lower_tail, upper_chain, or_else).await?;
-        }
-
-        Lien::Leased(lower_place) => {
-            // * `(leased[place0] C0) <= (leased[place1] C1) if place1 <= place0 && C0 <= C1`
-            require_sub_of_leased(env, lower_place, lower_tail, upper_chain, or_else).await?;
-        }
-
-        Lien::Var(v) => {
-            // * `X C0 <= X C1 if C0 <= C1`
-        }
-
-        Lien::Infer(v) => todo!(),
-
-        Lien::Error(reported) => return Err(reported),
-    }
-
-    Ok(())
-}
-
-async fn require_sub_of_shared<'a, 'db>(
-    env: &'a Env<'db>,
-    lower_place: SymPlace<'db>,
-    lower_tail: &[Lien<'db>],
-    upper_chain: &[Lien<'db>],
-    or_else: &dyn OrElse<'db>,
-) -> Errors<()> {
-    let db = env.db();
-
-    // * `(shared[place0] C0) <= (shared[place1] C1) if place1 <= place0 && C0 <= C1`
-    // * `(shared[place0] C0) <= (our C1) if (leased[place0] C0) <= C1`
-    let Some((upper_head, upper_tail)) = upper_chain.split_first() else {
-        return Err(or_else.report(env.db(), Because::NotSubOfShared(lower_place)));
-    };
-
-    match *upper_head {
-        Lien::Our => {
-            // * `(shared[place0] C0) <= (our C1) if (leased[place0] C0) <= C1`
-            require_sub_of_leased(env, lower_place, lower_tail, upper_tail, or_else).await
-        }
-
-        Lien::Shared(upper_place) => {
-            // * `(shared[place0] C0) <= (shared[place1] C1) if place1 <= place0 && C0 <= C1`
-            if lower_place.is_covered_by(db, upper_place) {
-                require_sub_chains(env, lower_tail, upper_tail, or_else).await
-            } else {
-                Err(or_else.report(env.db(), Because::NotSubOfShared(lower_place)))
-            }
-        }
-
-        Lien::Leased(_) | Lien::Var(_) => {
-            return Err(or_else.report(env.db(), Because::NotSubOfShared(lower_place)));
-        }
-
-        Lien::Infer(v) => todo!(),
-
-        Lien::Error(reported) => return Err(reported),
-    }
-}
-
-async fn require_sub_of_leased<'a, 'db>(
-    env: &'a Env<'db>,
-    lower_place: SymPlace<'db>,
-    lower_tail: &[Lien<'db>],
-    upper_chain: &[Lien<'db>],
-    or_else: &dyn OrElse<'db>,
-) -> Errors<()> {
-    let db = env.db();
-
-    let Some((upper_head, upper_tail)) = upper_chain.split_first() else {
-        return Err(or_else.report(env.db(), Because::NotSubOfLeased(lower_place)));
-    };
-
-    match *upper_head {
-        Lien::Leased(upper_place) => {
-            // * `(leased[place0] C0) <= (leased[place1] C1) if place1 <= place0 && C0 <= C1`
-            if lower_place.is_covered_by(db, upper_place) {
-                require_sub_chains(env, lower_tail, upper_tail, or_else).await
-            } else {
-                Err(or_else.report(env.db(), Because::NotSubOfLeased(lower_place)))
-            }
-        }
-
-        Lien::Our | Lien::Shared(_) | Lien::Var(_) => {
-            return Err(or_else.report(env.db(), Because::NotSubOfLeased(lower_place)));
-        }
-
-        Lien::Infer(infer_var_index) => todo!(),
-
-        Lien::Error(reported) => todo!(),
-    }
-}
-
-fn chain_is_infer<'db>(chain: &[Lien<'db>]) -> Option<InferVarIndex> {
-    if chain.len() != 1 {
-        None
-    } else {
-        match chain[0] {
-            Lien::Infer(v) => Some(v),
-            _ => None,
         }
     }
 }

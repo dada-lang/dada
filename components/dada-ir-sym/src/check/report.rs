@@ -5,6 +5,7 @@ use dada_ir_ast::{
     diagnostic::{Diagnostic, Level, Reported},
     span::Span,
 };
+use dada_util::vecset::VecSet;
 
 use crate::{
     check::{env::Env, predicates::Predicate},
@@ -15,7 +16,7 @@ use crate::{
     },
 };
 
-use super::chains::RedTerm;
+use super::chains::{Chain, RedTerm};
 
 pub trait OrElse<'db> {
     fn report(&self, db: &'db dyn Db, because: Because<'db>) -> Reported {
@@ -130,6 +131,9 @@ pub enum Because<'db> {
 
     /// Not a subtype
     NotSubRedTys(RedTerm<'db>, RedTerm<'db>),
+
+    /// The given chain was not a sub-chain of any of the upper bounds in the set
+    NotSubChain(Chain<'db>, VecSet<Chain<'db>>),
 }
 
 impl<'db> Because<'db> {
