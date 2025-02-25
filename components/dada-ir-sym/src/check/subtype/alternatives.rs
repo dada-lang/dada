@@ -19,13 +19,17 @@ use futures::FutureExt;
 ///     * Option B.1
 ///     * Option B.2
 ///
-/// Each node in this tree (root, A, B, A.1, etc) will have an `Alternative` struct.
-/// Each alternative will inherit a `flag` from its parent and also store its
-/// own children. The flag indicates whether this node is required to be true
-/// or is merely one alternative out of many. The root flag will always be true
-/// but other flags begin as false. Once a given node has a true flag and a single
-/// viable child, it sets that child's flag to true (which can then propagate
-/// down the tree).
+/// Each node in this tree will have an `Alternative` struct. Each `Alternative`
+/// will have a reference to its parent and will also track the number of active
+/// children. To determine if a given node is required, all of its parents must
+/// either be the root or have a single child. When an `Alternative` struct is dropped,
+/// it decrements its parent's counter of the number of children.
+///
+/// In this example, no nodes but the would be considered required.
+/// But once (say) the alternative for option B is dropped, then the root would have
+/// one child, and hence the node for Option A would be considered required.
+/// Likewise, if the node for Option A.1, then Option A.2 would be considered required
+/// as Option A would have 1 child.
 pub(crate) struct Alternative<'p> {
     parent: Option<&'p Alternative<'p>>,
     counter: Cell<usize>,
@@ -71,7 +75,13 @@ impl<'p> Alternative<'p> {
 
     /// Spawn N children. Each of the alternatives returned will be considered active
     /// until it is dropped.
+    ///
+    /// It is important that all children are spawned "atomically"
+    /// because that way none of them are considered required yet. If we spawned them one by one
+    /// and began executing a child before other children were spawned, then they would
+    /// consider themselves required incorrectly.
     pub fn spawn_children<'me>(&'me self, count: usize) -> Vec<Alternative<'me>> {
+        assert_eq!(self.counter.get(), 0, "node already has children");
         (0..count).map(|_| Alternative::child(self)).collect()
     }
 
