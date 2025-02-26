@@ -22,7 +22,7 @@ use dada_util::{Map, debug};
 
 use crate::{check::runtime::Runtime, check::universe::Universe, ir::exprs::SymExpr};
 
-use super::{CheckInEnv, predicates::Predicate, runtime::DeferResult};
+use super::{CheckInEnv, chains::Chain, predicates::Predicate, runtime::DeferResult};
 
 #[derive(Clone)]
 pub(crate) struct Env<'db> {

@@ -104,6 +104,12 @@ impl<'db> Chain<'db> {
         Self { liens: links }
     }
 
+    pub fn from_links(_db: &'db dyn crate::Db, links: &[Lien<'db>]) -> Self {
+        Self {
+            liens: links.to_vec(),
+        }
+    }
+
     /// Access a slice of the links in the chain.
     pub fn links(&self) -> &[Lien<'db>] {
         &self.liens

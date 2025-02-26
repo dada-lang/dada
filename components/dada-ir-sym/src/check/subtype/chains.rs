@@ -1,15 +1,19 @@
 use dada_ir_ast::diagnostic::Errors;
 use dada_util::{boxed_async_fn, vecset::VecSet};
 
-use crate::check::{
-    chains::{Chain, Lien},
-    combinator::{exists, require, require_for_all},
-    env::Env,
-    predicates::{
-        Predicate, is_provably_copy::term_is_provably_copy, require_copy::require_term_is_copy,
-        require_term_is_my, term_is_provably_my,
+use crate::{
+    check::{
+        chains::{Chain, Lien},
+        combinator::{exists, require, require_for_all},
+        env::Env,
+        inference::InferenceVarData,
+        predicates::{
+            Predicate, is_provably_copy::term_is_provably_copy, require_copy::require_term_is_copy,
+            require_term_is_my, term_is_provably_my,
+        },
+        report::{Because, OrElse},
     },
-    report::{Because, OrElse},
+    ir::indices::InferVarIndex,
 };
 
 use super::alternatives::Alternative;
@@ -35,15 +39,15 @@ pub async fn require_sub_red_perms<'a, 'db>(
     let db = env.db();
 
     require_for_all(lower_chains, async |lower_chain| {
-        let root = Alternative::root();
+        let mut root = Alternative::root();
         let children_alternatives = root.spawn_children(upper_chains.len());
         require(
             exists(
                 upper_chains.into_iter().zip(children_alternatives),
-                async |(upper_chain, child_alternative)| {
+                async |(upper_chain, mut child_alternative)| {
                     sub_chains(
                         env,
-                        &child_alternative,
+                        &mut child_alternative,
                         lower_chain.links(),
                         upper_chain.links(),
                         or_else,
@@ -66,7 +70,7 @@ pub async fn require_sub_red_perms<'a, 'db>(
 #[boxed_async_fn]
 async fn sub_chains<'a, 'db>(
     env: &'a Env<'db>,
-    alternative: &Alternative<'_>,
+    alternative: &mut Alternative<'_>,
     lower_chain: &[Lien<'db>],
     upper_chain: &[Lien<'db>],
     or_else: &dyn OrElse<'db>,
@@ -97,7 +101,7 @@ async fn sub_chains<'a, 'db>(
 #[boxed_async_fn]
 async fn sub_chains1<'a, 'db>(
     env: &'a Env<'db>,
-    alternative: &Alternative<'_>,
+    alternative: &mut Alternative<'_>,
     lower_chain_head: Lien<'db>,
     lower_chain_tail: &[Lien<'db>],
     upper_chain_head: Lien<'db>,
@@ -211,4 +215,124 @@ async fn sub_chains1<'a, 'db>(
         (Lien::Var(_), _, Lien::Leased(_), _) => Ok(false),
         (Lien::Var(_), _, Lien::Shared(_), _) => Ok(false),
     }
+}
+
+async fn require_lower_bound<'db>(
+    env: &Env<'db>,
+    infer: InferVarIndex,
+    lower_liens: &[Lien<'db>],
+    or_else: &dyn OrElse<'db>,
+) -> Errors<()> {
+    let lower_chain = Chain::from_links(env.db(), lower_liens);
+
+    if !env.runtime().insert_lower_bound(infer, lower_chain) {
+        return Ok(());
+    }
+
+    let lower_bounds = env
+        .runtime()
+        .with_inference_var_data(infer, |data| data.lower_chains().clone());
+
+    // IDEA: spawn a task checking that there exists an upper-bound that is compatible with this
+
+    Ok(())
+}
+async fn require_upper_bound<'db>(
+    env: &Env<'db>,
+    infer: InferVarIndex,
+    upper_liens: &[Lien<'db>],
+    or_else: &dyn OrElse<'db>,
+) -> Errors<()> {
+    let upper_chain = Chain::from_links(env.db(), upper_liens);
+
+    if !env.runtime().insert_upper_bound(infer, upper_chain) {
+        return Ok(());
+    }
+
+    // IDEA: no work is needed here, I think?
+    // IDEA: but we do want to check at some point that
+    // overall we can reconstruct a real type...?
+
+    Ok(())
+}
+
+async fn exists_upper_bound<'db>(
+    env: &Env<'db>,
+    infer: InferVarIndex,
+    mut op: impl AsyncFnMut(Chain<'db>, &mut Alternative<'_>) -> Errors<bool>,
+) -> Errors<bool> {
+    // Spawn out two alternatives. The first one will represent the current bound
+    // we are exploring. The second one will remain untouched forever and represents
+    // any future bounds that may appear. The key point is that we will never
+    // consider `op` to be *required*.
+    let mut root = Alternative::root();
+    let mut children = root.spawn_children(2);
+
+    loop {
+        let mut observed = VecSet::new();
+        let mut stack = vec![];
+        extract_bounding_chains(env, infer, &mut observed, &mut stack, |data| {
+            data.upper_chains()
+        })
+        .await;
+
+        while let Some(chain) = stack.pop() {
+            match op(chain, &mut children[0]).await {
+                Ok(true) => return Ok(true),
+                Ok(false) => (),
+                Err(reported) => return Err(reported),
+            }
+        }
+    }
+}
+
+async fn for_all_lower_bounds<'db>(
+    env: &Env<'db>,
+    infer: InferVarIndex,
+    mut op: impl AsyncFnMut(Chain<'db>, &mut Alternative<'_>) -> Errors<bool>,
+) -> Errors<bool> {
+    // Spawn out two alternatives. The first one will represent the current bound
+    // we are exploring. The second one will remain untouched forever and represents
+    // any future bounds that may appear. The key point is that we will never
+    // consider `op` to be *required*.
+    let mut root = Alternative::root();
+    let mut children = root.spawn_children(2);
+
+    loop {
+        let mut observed = VecSet::new();
+        let mut stack = vec![];
+        extract_bounding_chains(env, infer, &mut observed, &mut stack, |data| {
+            data.lower_chains()
+        })
+        .await;
+
+        while let Some(chain) = stack.pop() {
+            match op(chain, &mut children[0]).await {
+                Ok(true) => (),
+                Ok(false) => return Ok(false),
+                Err(reported) => return Err(reported),
+            }
+        }
+    }
+}
+
+async fn extract_bounding_chains<'db>(
+    env: &Env<'db>,
+    infer: InferVarIndex,
+    observed: &mut VecSet<Chain<'db>>,
+    stack: &mut Vec<Chain<'db>>,
+    op: impl for<'a> Fn(&'a InferenceVarData<'db>) -> &'a VecSet<Chain<'db>>,
+) {
+    env.runtime()
+        .loop_on_inference_var(infer, |data| {
+            let chains = op(data);
+            assert!(stack.is_empty());
+            for chain in chains {
+                if observed.insert(chain.clone()) {
+                    stack.push(chain.clone());
+                }
+            }
+            if !stack.is_empty() { Some(()) } else { None }
+        })
+        .await;
 }

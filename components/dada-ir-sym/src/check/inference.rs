@@ -49,8 +49,8 @@ impl<'db> InferenceVarData<'db> {
             kind,
             universe,
             span,
-            is: [None; Predicate::LEN],
-            isnt: [None; Predicate::LEN],
+            is: [None, None, None, None],
+            isnt: [None, None, None, None],
             lower_chains: VecSet::new(),
             upper_chains: VecSet::new(),
             lower_red_ty: None,
@@ -155,10 +155,5 @@ impl<'db> InferenceVarData<'db> {
         } else {
             false
         }
-    }
-
-    /// Returns the number of modifications to this inference variable.
-    pub fn modifications(&self) -> u32 {
-        self.modifications
     }
 }

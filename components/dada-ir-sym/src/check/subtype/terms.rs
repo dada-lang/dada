@@ -25,23 +25,6 @@ use crate::{
 
 use super::chains::require_sub_red_perms;
 
-#[derive(Copy, Clone, PartialEq, Eq, PartialOrd, Ord, Hash, Debug)]
-pub enum Expected {
-    // The lower type is the expected one.
-    Lower,
-
-    // The upper type is the expected one.
-    Upper,
-}
-impl Expected {
-    fn expected_found<T>(self, lower: T, upper: T) -> (T, T) {
-        match self {
-            Expected::Lower => (lower, upper),
-            Expected::Upper => (upper, lower),
-        }
-    }
-}
-
 pub async fn require_assignable_type<'db>(
     env: &Env<'db>,
     value_ty: SymTy<'db>,
