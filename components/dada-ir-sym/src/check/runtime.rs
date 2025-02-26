@@ -155,7 +155,7 @@ impl<'db> Runtime<'db> {
     pub fn loop_on_inference_var<T>(
         &self,
         infer: InferVarIndex,
-        op: impl Fn(&InferenceVarData) -> Option<T>,
+        mut op: impl FnMut(&InferenceVarData) -> Option<T>,
     ) -> impl Future<Output = T> {
         std::future::poll_fn(move |cx| {
             let data = self.with_inference_var_data(infer, |data| op(data));

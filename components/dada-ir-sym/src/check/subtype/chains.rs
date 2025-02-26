@@ -73,10 +73,6 @@ async fn sub_chains<'a, 'db>(
 ) -> Errors<bool> {
     let db = env.db();
     match (lower_chain.split_first(), upper_chain.split_first()) {
-        (Some((&Lien::Error(reported), _)), _) | (_, Some((&Lien::Error(reported), _))) => {
-            Err(reported)
-        }
-
         (None, _) => {
             // `my <= C`
             Ok(true)
