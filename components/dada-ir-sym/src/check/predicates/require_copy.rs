@@ -3,6 +3,7 @@ use dada_util::boxed_async_fn;
 
 use crate::{
     check::{
+        chains::Lien,
         combinator::{require_both, require_for_all},
         env::Env,
         places::PlaceTy,
@@ -31,6 +32,17 @@ pub(crate) async fn require_term_is_copy<'db>(
         SymGenericTerm::Place(place) => panic!("unexpected place term: {place:?}"),
         SymGenericTerm::Error(reported) => Err(reported),
     }
+}
+
+/// Requires that the given chain is `copy`.
+pub(crate) async fn require_chain_is_copy<'db>(
+    env: &Env<'db>,
+    chain: &[Lien<'db>],
+    or_else: &dyn OrElse<'db>,
+) -> Errors<()> {
+    let db = env.db();
+    let perm = Lien::chain_to_perm(db, chain);
+    require_perm_is_copy(env, perm, or_else).await
 }
 
 /// Requires that `(lhs rhs)` satisfies the given predicate.

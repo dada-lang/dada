@@ -22,7 +22,10 @@ use dada_util::{Map, debug};
 
 use crate::{check::runtime::Runtime, check::universe::Universe, ir::exprs::SymExpr};
 
-use super::{CheckInEnv, chains::Chain, predicates::Predicate, runtime::DeferResult};
+use super::{
+    CheckInEnv, chains::Chain, inference::require_consistency, predicates::Predicate,
+    runtime::DeferResult,
+};
 
 #[derive(Clone)]
 pub(crate) struct Env<'db> {
@@ -191,7 +194,8 @@ impl<'db> Env<'db> {
 
     /// Create a fresh inference variable of the given kind.
     pub fn fresh_inference_var(&self, kind: SymGenericKind, span: Span<'db>) -> InferVarIndex {
-        self.runtime.fresh_inference_var(kind, self.universe, span)
+        let infer = self.runtime.fresh_inference_var(kind, self.universe, span);
+        infer
     }
 
     /// A fresh term with an inference variable of the given kind.
@@ -232,7 +236,7 @@ impl<'db> Env<'db> {
         place_ty: SymTy<'db>,
     ) {
         debug!("defer require_assignable_object_type", value_ty, place_ty);
-        self.runtime.defer(self, value_span, async move |env| {
+        self.runtime.defer(self, async move |env| {
             debug!("require_assignable_object_type", value_ty, place_ty);
 
             match require_assignable_type(&env, value_span, value_ty, place_ty).await {
@@ -250,7 +254,7 @@ impl<'db> Env<'db> {
         found_ty: SymTy<'db>,
     ) {
         debug!("defer require_equal_object_types", expected_ty, found_ty);
-        self.runtime.defer(self, span, move |env| async move {
+        self.runtime.defer(self, move |env| async move {
             debug!("require_equal_object_types", expected_ty, found_ty);
 
             match require_subtype(&env, Expected::Lower, span, expected_ty, found_ty).await {
@@ -266,7 +270,7 @@ impl<'db> Env<'db> {
     }
 
     pub(super) fn require_numeric_type(&self, span: Span<'db>, ty: SymTy<'db>) {
-        self.runtime.defer(self, span, move |env| async move {
+        self.runtime.defer(self, move |env| async move {
             match require_numeric_type(&env, span, ty).await {
                 Ok(()) => (),
                 Err(Reported(_)) => (),
@@ -284,23 +288,21 @@ impl<'db> Env<'db> {
         op: impl AsyncFnOnce(Env<'db>) + 'db,
     ) {
         let _tys = tys.to_vec();
-        self.runtime
-            .defer(self, span, move |env: Env<'db>| async move {
-                // FIXME: check for never
-                op(env).await
-            })
+        self.runtime.defer(self, move |env: Env<'db>| async move {
+            // FIXME: check for never
+            op(env).await
+        })
     }
 
     pub fn describe_ty<'a, 'chk>(&'a self, ty: SymTy<'db>) -> impl std::fmt::Display + 'a {
         format!("{ty:?}") // FIXME
     }
 
-    pub(crate) fn defer<R>(&self, span: Span<'db>, op: impl AsyncFnOnce(&Self) -> R + 'db)
+    pub(crate) fn defer<R>(&self, op: impl AsyncFnOnce(&Self) -> R + 'db)
     where
         R: DeferResult,
     {
-        self.runtime
-            .defer(self, span, async move |env| op(&env).await)
+        self.runtime.defer(self, async move |env| op(&env).await)
     }
 
     pub(crate) fn require_expr_has_bool_ty(&self, expr: SymExpr<'db>) {

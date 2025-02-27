@@ -1,15 +1,16 @@
 use std::sync::Arc;
 
-use dada_ir_ast::span::Span;
+use dada_ir_ast::{diagnostic::Errors, span::Span};
 use dada_util::vecset::VecSet;
 
 use crate::{
     check::universe::Universe,
-    ir::{red_terms::RedTerm, types::SymGenericKind},
+    ir::{indices::InferVarIndex, red_terms::RedTerm, types::SymGenericKind},
 };
 
 use super::{
     chains::{Chain, RedTy},
+    env::Env,
     predicates::Predicate,
     report::OrElse,
 };
@@ -99,14 +100,19 @@ impl<'db> InferenceVarData<'db> {
         &self.upper_chains
     }
 
-    /// Insert a predicate into the `is` set (and its invert into the `isnt` set).
-    /// Returns `true` if either predicate was not already in the set.
+    /// Insert a predicate into the `is` set and its invert into the `isnt` set.
+    /// Returns `None` if these are not new requirements.
+    /// Otherwise, returns `Some(o)` where `o` is the Arc-ified version of `or_else`.
     /// Low-level method invoked by runtime only.
     ///
     /// # Panics
     ///
     /// * If the inference variable is required to satisfy a contradictory predicate.
-    pub fn require_is(&mut self, predicate: Predicate, or_else: &dyn OrElse<'db>) -> bool {
+    pub fn require_is(
+        &mut self,
+        predicate: Predicate,
+        or_else: &dyn OrElse<'db>,
+    ) -> Option<Arc<dyn OrElse<'db> + 'db>> {
         let predicate_invert = predicate.invert();
 
         let predicate_is = self.is_known_to_provably_be(predicate).is_some();
@@ -126,7 +132,7 @@ impl<'db> InferenceVarData<'db> {
 
         // If these constraints are alreayd recorded, just return.
         if predicate_is && inverted_isnt {
-            return false;
+            return None;
         }
 
         // Otherwise record.
@@ -137,7 +143,7 @@ impl<'db> InferenceVarData<'db> {
         if !inverted_isnt {
             self.isnt[predicate_invert.index()] = Some(or_else.clone());
         }
-        true
+        Some(or_else)
     }
 
     /// Insert a predicate into the `isnt` set.
@@ -147,13 +153,18 @@ impl<'db> InferenceVarData<'db> {
     /// # Panics
     ///
     /// * If the inference variable is required to satisfy a contradictory predicate.
-    pub fn require_isnt(&mut self, predicate: Predicate, or_else: &dyn OrElse<'db>) -> bool {
+    pub fn require_isnt(
+        &mut self,
+        predicate: Predicate,
+        or_else: &dyn OrElse<'db>,
+    ) -> Option<Arc<dyn OrElse<'db> + 'db>> {
         assert!(self.is_known_to_provably_be(predicate).is_none());
         if self.is_known_not_to_provably_be(predicate).is_none() {
-            self.isnt[predicate.index()] = Some(or_else.to_arc());
-            true
+            let or_else = or_else.to_arc();
+            self.isnt[predicate.index()] = Some(or_else.clone());
+            Some(or_else)
         } else {
-            false
+            None
         }
     }
 }

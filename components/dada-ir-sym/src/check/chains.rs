@@ -172,6 +172,14 @@ impl<'db> Chain<'db> {
     }
 }
 
+impl<'db> Deref for Chain<'db> {
+    type Target = [Lien<'db>];
+
+    fn deref(&self) -> &Self::Target {
+        &self.liens
+    }
+}
+
 impl<'db> Err<'db> for Chain<'db> {
     fn err(db: &'db dyn crate::Db, reported: Reported) -> Self {
         Chain::new(db, vec![Lien::Error(reported)])

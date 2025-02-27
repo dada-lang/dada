@@ -41,7 +41,7 @@ pub(crate) async fn require_chain_is_move<'db>(
     or_else: &dyn OrElse<'db>,
 ) -> Errors<()> {
     let db = env.db();
-    let perm = Lien::chain_to_perm(chain, db);
+    let perm = Lien::chain_to_perm(db, chain);
     require_perm_is_move(env, perm, or_else).await
 }
 

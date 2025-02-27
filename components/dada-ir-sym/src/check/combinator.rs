@@ -1,6 +1,7 @@
 use std::pin::pin;
 
 use dada_ir_ast::diagnostic::{Errors, Reported};
+use dada_util::vecset::VecSet;
 use futures::{
     StreamExt,
     future::{Either, LocalBoxFuture},
@@ -19,6 +20,10 @@ macro_rules! require_all {
     };
 }
 pub(crate) use require_all;
+
+use crate::ir::indices::InferVarIndex;
+
+use super::{chains::Chain, env::Env, inference::InferenceVarData};
 
 pub async fn require<'db>(
     a: impl Future<Output = Errors<bool>>,
@@ -150,4 +155,75 @@ where
             Either::Right((Ok(false), f)) => f.await,
         }
     }
+}
+
+pub async fn exists_upper_bound<'db>(
+    env: &Env<'db>,
+    infer: InferVarIndex,
+    mut op: impl AsyncFnMut(Chain<'db>) -> Errors<bool>,
+) -> Errors<bool> {
+    loop {
+        let mut observed = VecSet::new();
+        let mut stack = vec![];
+        extract_bounding_chains(
+            env,
+            infer,
+            &mut observed,
+            &mut stack,
+            &InferenceVarData::upper_chains,
+        )
+        .await;
+
+        while let Some(chain) = stack.pop() {
+            match op(chain).await {
+                Ok(true) => return Ok(true),
+                Ok(false) => (),
+                Err(reported) => return Err(reported),
+            }
+        }
+    }
+}
+
+/// Invoke `op` on every bounding chain (either upper or lower determined by `direction`).
+/// Typically never returns as the full set of bounds on an inference variable is never known.
+/// Exception is if an `Err` occurs, it is propagated.
+pub async fn require_for_all_infer_bounds<'db>(
+    env: &Env<'db>,
+    infer: InferVarIndex,
+    direction: impl for<'a> Fn(&'a InferenceVarData<'db>) -> &'a VecSet<Chain<'db>>,
+    mut op: impl AsyncFnMut(Chain<'db>) -> Errors<()>,
+) -> Errors<()> {
+    loop {
+        let mut observed = VecSet::new();
+        let mut stack = vec![];
+        extract_bounding_chains(env, infer, &mut observed, &mut stack, &direction).await;
+
+        while let Some(chain) = stack.pop() {
+            match op(chain).await {
+                Ok(()) => (),
+                Err(reported) => return Err(reported),
+            }
+        }
+    }
+}
+
+pub async fn extract_bounding_chains<'db>(
+    env: &Env<'db>,
+    infer: InferVarIndex,
+    observed: &mut VecSet<Chain<'db>>,
+    stack: &mut Vec<Chain<'db>>,
+    op: &impl for<'a> Fn(&'a InferenceVarData<'db>) -> &'a VecSet<Chain<'db>>,
+) {
+    env.runtime()
+        .loop_on_inference_var(infer, |data| {
+            let chains = op(data);
+            assert!(stack.is_empty());
+            for chain in chains {
+                if observed.insert(chain.clone()) {
+                    stack.push(chain.clone());
+                }
+            }
+            if !stack.is_empty() { Some(()) } else { None }
+        })
+        .await;
 }

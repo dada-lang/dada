@@ -1,3 +1,3 @@
 mod alternatives;
 mod chains;
-mod terms;
+pub mod terms;

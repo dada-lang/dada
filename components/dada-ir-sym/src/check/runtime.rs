@@ -17,7 +17,7 @@ use dada_util::{Map, vecext::VecExt};
 
 use crate::{check::env::Env, check::inference::InferenceVarData, check::universe::Universe};
 
-use super::{predicates::Predicate, report::OrElse};
+use super::{chains::Chain, predicates::Predicate, report::OrElse};
 
 #[derive(Clone)]
 pub(crate) struct Runtime<'db> {
@@ -77,7 +77,7 @@ impl<'db> Runtime<'db> {
     {
         let runtime = Runtime::new(db);
         let (channel_tx, channel_rx) = std::sync::mpsc::channel();
-        runtime.spawn(span, {
+        runtime.spawn({
             let runtime = runtime.clone();
             async move {
                 let result = constrain(&runtime).await;
@@ -113,8 +113,8 @@ impl<'db> Runtime<'db> {
     }
 
     /// Spawn a new check-task.
-    fn spawn(&self, span: Span<'db>, future: impl Future<Output = ()> + 'db) {
-        let task = CheckTask::new(self, span, future);
+    fn spawn(&self, future: impl Future<Output = ()> + 'db) {
+        let task = CheckTask::new(self, future);
         self.ready_to_execute.lock().unwrap().push(task);
     }
 
@@ -137,6 +137,8 @@ impl<'db> Runtime<'db> {
     }
 
     /// Creates a fresh inference variable of the given kind and universe.
+    ///
+    /// Low-level routine not to be directly invoked.
     pub fn fresh_inference_var(
         &self,
         kind: SymGenericKind,
@@ -186,6 +188,10 @@ impl<'db> Runtime<'db> {
     /// This is a low-level function that is called from the [`require`](`crate::check::predicates::require`)
     /// module.
     ///
+    /// # Returns
+    ///
+    /// `Some(o)` if this is a new requirement, where `o` is the arc-ified version of `or_else`
+    ///
     /// # Panics
     ///
     /// * If called when [`Self::check_complete`][] returns true;
@@ -194,8 +200,8 @@ impl<'db> Runtime<'db> {
         &self,
         var: InferVarIndex,
         predicate: Predicate,
-        or_else: &dyn OrElse<'db>,
-    ) {
+        or_else: &Arc<dyn OrElse<'db> + 'db>,
+    ) -> Option<Arc<dyn OrElse<'db> + 'db>> {
         assert!(!self.check_complete());
         let mut inference_vars = self.inference_vars.write().unwrap();
         let inference_var = &mut inference_vars[var.as_usize()];
@@ -211,14 +217,21 @@ impl<'db> Runtime<'db> {
                 .is_none()
         );
 
-        if inference_var.require_is(predicate, or_else) {
+        if let Some(o) = inference_var.require_is(predicate, or_else) {
             self.wake_tasks_monitoring_inference_var(var);
+            Some(o)
+        } else {
+            None
         }
     }
 
     /// Records that the inference variable cannot be known to meet the given predicate.
     /// This is a low-level function that is called from the [`require`](`crate::check::predicates::require`)
     /// module.
+    ///
+    /// # Returns
+    ///
+    /// `Some(o)` if this is a new requirement, where `o` is the arc-ified version of `or_else`
     ///
     /// # Panics
     ///
@@ -229,14 +242,29 @@ impl<'db> Runtime<'db> {
         var: InferVarIndex,
         predicate: Predicate,
         or_else: &dyn OrElse<'db>,
-    ) {
+    ) -> Option<Arc<dyn OrElse<'db> + 'db>> {
         assert!(!self.check_complete());
         let mut inference_vars = self.inference_vars.write().unwrap();
         let inference_var = &mut inference_vars[var.as_usize()];
         assert!(inference_var.is_known_to_provably_be(predicate).is_none());
-        if inference_var.require_isnt(predicate, or_else) {
+        if let Some(o) = inference_var.require_isnt(predicate, or_else) {
             self.wake_tasks_monitoring_inference_var(var);
+            Some(o)
+        } else {
+            false
         }
+    }
+
+    pub fn insert_lower_chain(
+        &self,
+        var: InferVarIndex,
+        chain: &Chain<'db>,
+        or_else: &dyn OrElse<'db>,
+    ) -> Option<Arc<dyn OrElse<'db> + 'db>> {
+        assert!(!self.check_complete());
+        let mut inference_vars = self.inference_vars.write().unwrap();
+        let inference_var = &mut inference_vars[var.as_usize()];
+        // TODO: Write this code
     }
 
     fn wake_tasks_monitoring_inference_var(&self, var: InferVarIndex) {
@@ -249,16 +277,12 @@ impl<'db> Runtime<'db> {
 
     /// Execute the given future asynchronously from the main execution.
     /// It must execute to completion eventually or an error will be reported.
-    pub fn defer<R>(
-        &self,
-        env: &Env<'db>,
-        span: Span<'db>,
-        check: impl 'db + AsyncFnOnce(Env<'db>) -> R,
-    ) where
+    pub fn defer<R>(&self, env: &Env<'db>, check: impl 'db + AsyncFnOnce(Env<'db>) -> R)
+    where
         R: DeferResult,
     {
         let future = check(env.clone());
-        self.spawn(span, async move { future.await.finish() });
+        self.spawn(async move { future.await.finish() });
     }
 
     /// Block the current task on changes to the given inference variable.
@@ -342,10 +366,6 @@ mod check_task {
         /// Unique identifier for this task, used for debugging.
         id: u64,
 
-        /// Erased type: `Span<'db>`
-        #[expect(dead_code)]
-        span: Span<'static>,
-
         /// Erased type: `CheckTaskState<'chk>`
         state: Mutex<CheckTaskState<'static>>,
     }
@@ -359,7 +379,6 @@ mod check_task {
     impl CheckTask {
         pub(super) fn new<'db>(
             runtime: &Runtime<'db>,
-            span: Span<'db>,
             future: impl Future<Output = ()> + 'db,
         ) -> Arc<Self> {
             let this = {
@@ -368,12 +387,10 @@ mod check_task {
                 // UNSAFE: Erase lifetimes as described on [`CheckTask`][] above.
                 let my_check =
                     unsafe { std::mem::transmute::<Runtime<'db>, Runtime<'static>>(my_check) };
-                let span = unsafe { std::mem::transmute::<Span<'db>, Span<'static>>(span) };
 
                 Arc::new(Self {
                     runtime: my_check,
                     id: runtime.next_task_id(),
-                    span,
                     state: Mutex::new(CheckTaskState::Executing),
                 })
             };

@@ -1,12 +1,24 @@
+use std::sync::Arc;
+
 use dada_ir_ast::{diagnostic::Errors, span::Span};
+use dada_util::vecset::VecSet;
 
 use crate::{
     check::{
+        combinator::{require_for_all, require_for_all_infer_bounds},
         env::Env,
+        inference::InferenceVarData,
         predicates::Predicate,
         report::{Because, OrElse, report_infer_is_contradictory},
     },
     ir::{indices::InferVarIndex, variables::SymVariable},
+};
+
+use super::{
+    require_copy::require_chain_is_copy,
+    require_isnt_provably_copy::require_chain_isnt_provably_copy,
+    require_lent::require_chain_is_lent, require_move::require_chain_is_move,
+    require_owned::require_chain_is_owned,
 };
 
 pub(crate) fn test_var_is_provably<'db>(
@@ -66,15 +78,41 @@ pub(super) fn require_infer_is<'db>(
     // Check if were already required to not be the predicate
     // and report an error if so.
     if let Some(isnt_span) = isnt_already {
-        return or_else.report(
+        return Err(or_else.report(
             env.db(),
             Because::InferIsContradictory(infer, predicate, isnt_span),
-        );
+        ));
     }
 
     // Record the requirement in the runtime, awakening any tasks that may be impacted.
-    env.runtime()
-        .require_inference_var_is(infer, predicate, or_else);
+    if let Some(or_else) = env
+        .runtime()
+        .require_inference_var_is(infer, predicate, or_else)
+    {
+        defer_require_bounds_provably_predicate(env, infer, predicate, or_else);
+
+        let (is_move, is_copy, is_owned) = env.runtime().with_inference_var_data(infer, |data| {
+            (
+                data.is_known_to_provably_be(Predicate::Move).is_some(),
+                data.is_known_to_provably_be(Predicate::Copy).is_some(),
+                data.is_known_to_provably_be(Predicate::Owned).is_some(),
+            )
+        });
+
+        if let Predicate::Move | Predicate::Owned = predicate
+            && is_move
+            && is_owned
+        {
+            // If we just learned that the inference variable must be `my`...
+        }
+
+        if let Predicate::Copy | Predicate::Owned = predicate
+            && is_copy
+            && is_owned
+        {
+            // If we just learned that the inference variable must be `our`...
+        }
+    }
 
     Ok(())
 }
@@ -109,8 +147,12 @@ pub(super) fn require_infer_isnt<'db>(
     }
 
     // Record the requirement in the runtime, awakening any tasks that may be impacted.
-    env.runtime()
-        .require_inference_var_isnt(infer, predicate, or_else);
+    if let Some(or_else) = env
+        .runtime()
+        .require_inference_var_isnt(infer, predicate, or_else)
+    {
+        defer_require_bounds_not_provably_predicate(env, infer, predicate, or_else);
+    }
 
     Ok(())
 }
@@ -136,4 +178,78 @@ pub(crate) async fn test_infer_is_known_to_be<'db>(
             }
         })
         .await
+}
+
+fn defer_require_bounds_provably_predicate<'db>(
+    env: &Env<'db>,
+    infer: InferVarIndex,
+    predicate: Predicate,
+    or_else: Arc<dyn OrElse<'db> + 'db>,
+) {
+    env.defer(async move |ref env| match predicate {
+        Predicate::Copy => {
+            require_for_all_infer_bounds(
+                env,
+                infer,
+                InferenceVarData::upper_chains,
+                async |chain| require_chain_is_copy(env, &chain, &*or_else).await,
+            )
+            .await
+        }
+        Predicate::Move => {
+            require_for_all_infer_bounds(
+                env,
+                infer,
+                InferenceVarData::lower_chains,
+                async |chain| require_chain_is_move(env, &chain, &*or_else).await,
+            )
+            .await
+        }
+        Predicate::Owned => {
+            require_for_all_infer_bounds(
+                env,
+                infer,
+                InferenceVarData::lower_chains,
+                async |chain| require_chain_is_owned(env, &chain, &*or_else).await,
+            )
+            .await
+        }
+        Predicate::Lent => {
+            require_for_all_infer_bounds(
+                env,
+                infer,
+                InferenceVarData::upper_chains,
+                async |chain| require_chain_is_lent(env, chain, &*or_else).await,
+            )
+            .await
+        }
+    });
+}
+
+fn defer_require_bounds_not_provably_predicate<'db>(
+    env: &Env<'db>,
+    infer: InferVarIndex,
+    predicate: Predicate,
+    or_else: Arc<dyn OrElse<'db> + 'db>,
+) {
+    env.defer(async move |ref env| match predicate {
+        Predicate::Copy => {
+            require_for_all_infer_bounds(
+                env,
+                infer,
+                InferenceVarData::upper_chains,
+                async |chain| require_chain_isnt_provably_copy(env, &chain, &*or_else).await,
+            )
+            .await
+        }
+        Predicate::Move => {
+            todo!()
+        }
+        Predicate::Owned => {
+            todo!()
+        }
+        Predicate::Lent => {
+            todo!()
+        }
+    });
 }
