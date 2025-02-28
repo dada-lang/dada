@@ -1,15 +1,14 @@
 use std::sync::Arc;
 
-use dada_ir_ast::{diagnostic::Errors, span::Span};
-use dada_util::vecset::VecSet;
+use dada_ir_ast::diagnostic::Errors;
 
 use crate::{
     check::{
-        combinator::{require_for_all, require_for_all_infer_bounds},
+        combinator::require_for_all_infer_bounds,
         env::Env,
         inference::InferenceVarData,
         predicates::Predicate,
-        report::{Because, OrElse, report_infer_is_contradictory},
+        report::{Because, OrElse},
     },
     ir::{indices::InferVarIndex, variables::SymVariable},
 };
@@ -77,10 +76,10 @@ pub(super) fn require_infer_is<'db>(
 
     // Check if were already required to not be the predicate
     // and report an error if so.
-    if let Some(isnt_span) = isnt_already {
+    if let Some(prev_or_else) = isnt_already {
         return Err(or_else.report(
             env.db(),
-            Because::InferIsContradictory(infer, predicate, isnt_span),
+            Because::PreviousRequirement(prev_or_else.or_else(Because::BaseRequirement)),
         ));
     }
 
@@ -139,11 +138,11 @@ pub(super) fn require_infer_isnt<'db>(
 
     // Check if were already required to be the predicate
     // and report an error if so.
-    if let Some(is_or_else) = is_already {
-        return or_else.report(
+    if let Some(prev_or_else) = is_already {
+        return Err(or_else.report(
             env.db(),
-            Because::PreviousRequirement(is_or_else.report(env.db(), Because::BaseRequirement)),
-        );
+            Because::PreviousRequirement(prev_or_else.or_else(Because::BaseRequirement)),
+        ));
     }
 
     // Record the requirement in the runtime, awakening any tasks that may be impacted.
@@ -174,10 +173,20 @@ pub(crate) async fn test_infer_is_known_to_be<'db>(
             } else if isnt.is_some() {
                 Some(false)
             } else {
+                // We do not yet have a constraint on whether the inference variable
+                // is known to be `predicate`, so block to see what new constraints
+                // are added in the future.
                 None
             }
         })
         .await
+        .unwrap_or({
+            // If `None` is returned, it indicates that we terminated without ever
+            // adding a constrain on the inference variable one way or the other.
+            // This implies that the variable is not KNOWN to be `predicate` (though of course
+            // it may be).
+            false
+        })
 }
 
 fn defer_require_bounds_provably_predicate<'db>(
@@ -192,7 +201,7 @@ fn defer_require_bounds_provably_predicate<'db>(
                 env,
                 infer,
                 InferenceVarData::upper_chains,
-                async |chain| require_chain_is_copy(env, &chain, &*or_else).await,
+                async |chain| require_chain_is_copy(env, &chain, &or_else).await,
             )
             .await
         }
@@ -201,7 +210,7 @@ fn defer_require_bounds_provably_predicate<'db>(
                 env,
                 infer,
                 InferenceVarData::lower_chains,
-                async |chain| require_chain_is_move(env, &chain, &*or_else).await,
+                async |chain| require_chain_is_move(env, &chain, &or_else).await,
             )
             .await
         }
@@ -210,7 +219,7 @@ fn defer_require_bounds_provably_predicate<'db>(
                 env,
                 infer,
                 InferenceVarData::lower_chains,
-                async |chain| require_chain_is_owned(env, &chain, &*or_else).await,
+                async |chain| require_chain_is_owned(env, &chain, &or_else).await,
             )
             .await
         }
@@ -219,7 +228,7 @@ fn defer_require_bounds_provably_predicate<'db>(
                 env,
                 infer,
                 InferenceVarData::upper_chains,
-                async |chain| require_chain_is_lent(env, chain, &*or_else).await,
+                async |chain| require_chain_is_lent(env, &chain, &or_else).await,
             )
             .await
         }
@@ -238,7 +247,7 @@ fn defer_require_bounds_not_provably_predicate<'db>(
                 env,
                 infer,
                 InferenceVarData::upper_chains,
-                async |chain| require_chain_isnt_provably_copy(env, &chain, &*or_else).await,
+                async |chain| require_chain_isnt_provably_copy(env, &chain, &or_else).await,
             )
             .await
         }

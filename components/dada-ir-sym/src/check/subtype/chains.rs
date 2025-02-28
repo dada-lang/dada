@@ -6,7 +6,6 @@ use crate::{
         chains::{Chain, Lien},
         combinator::{exists, exists_upper_bound, require, require_for_all},
         env::Env,
-        inference::InferenceVarData,
         predicates::{
             Predicate, is_provably_copy::term_is_provably_copy, require_copy::require_term_is_copy,
             require_term_is_my, term_is_provably_my,
@@ -242,10 +241,10 @@ async fn require_lower_bound<'db>(
         return Ok(());
     };
 
-    let upper_bounds = env
-        .runtime()
-        .with_inference_var_data(infer, |data| data.upper_chains().clone());
-
+    // If this is a new lower bound, spawn a task that will check that
+    // there is at least one *upper bound* on the variable (either one
+    // that currently exists or one that may be added in the future)
+    // that is a superchain of this lower bound.
     env.runtime().defer(env, async move |ref env| {
         require(
             exists_upper_bound(env, infer, async |upper_chain| {
@@ -261,16 +260,22 @@ async fn require_lower_bound<'db>(
                     &mut children[0],
                     lower_chain.links(),
                     upper_chain.links(),
-                    &*or_else,
+                    &or_else,
                 )
                 .await
             }),
-            || or_else.report(db, Because::NotSubChain(lower_chain.clone(), upper_bounds)),
+            || {
+                let upper_bounds = env
+                    .runtime()
+                    .with_inference_var_data(infer, |data| data.upper_chains().to_vec());
+                or_else.report(
+                    db,
+                    Because::NotSubChainInfer(lower_chain.clone(), upper_bounds),
+                )
+            },
         )
         .await
     });
-
-    // IDEA: spawn a task checking that there exists an upper-bound that is compatible with this
 
     Ok(())
 }
@@ -283,9 +288,18 @@ async fn require_upper_bound<'db>(
 ) -> Errors<()> {
     let upper_chain = Chain::from_links(env.db(), upper_liens);
 
-    if !env.runtime().insert_upper_bound(infer, upper_chain) {
+    let Some(_or_else) = env
+        .runtime()
+        .insert_upper_chain(infer, &upper_chain, or_else)
+    else {
         return Ok(());
-    }
+    };
+
+    // Interesting observation: We don't actually need to check for
+    // consistency with lower-bounds here. If there are any lower-bounds,
+    // they will have spawned a task that is
+
+    //
 
     // IDEA: no work is needed here, I think?
     // IDEA: but we do want to check at some point that

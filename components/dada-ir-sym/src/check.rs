@@ -18,7 +18,6 @@ mod modules;
 mod places;
 mod predicates;
 mod report;
-mod resolve;
 mod runtime;
 pub(crate) mod scope;
 pub(crate) mod scope_tree;

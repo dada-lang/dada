@@ -1,31 +1,28 @@
 use std::{cell::Cell, ops::AsyncFnOnce, sync::Arc};
 
 use crate::{
-    check::scope::Scope,
+    check::{
+        scope::Scope,
+        subtype::terms::{require_assignable_type, require_sub_terms},
+    },
     ir::{
         binder::BoundTerm,
         indices::{FromInfer, InferVarIndex},
         subst::SubstWith,
-        types::{
-            SymGenericKind, SymGenericTerm, SymPerm, SymPermKind, SymPlace, SymTy, SymTyKind,
-            SymTyName, Variance,
-        },
+        types::{SymGenericKind, SymGenericTerm, SymPerm, SymPlace, SymTy, SymTyName, Variance},
         variables::SymVariable,
     },
 };
 use dada_ir_ast::{
     ast::AstTy,
-    diagnostic::{Diagnostic, Err, Errors, Level, Reported},
+    diagnostic::{Diagnostic, Err, Reported},
     span::Span,
 };
 use dada_util::{Map, debug};
 
 use crate::{check::runtime::Runtime, check::universe::Universe, ir::exprs::SymExpr};
 
-use super::{
-    CheckInEnv, chains::Chain, inference::require_consistency, predicates::Predicate,
-    runtime::DeferResult,
-};
+use super::{CheckInEnv, predicates::Predicate, report::OrElse, runtime::DeferResult};
 
 #[derive(Clone)]
 pub(crate) struct Env<'db> {
@@ -231,15 +228,16 @@ impl<'db> Env<'db> {
     /// Spawn a subtask that will require `value_ty` be assignable to `place_ty`.
     pub(super) fn require_assignable_type(
         &self,
-        value_span: Span<'db>,
         value_ty: SymTy<'db>,
         place_ty: SymTy<'db>,
+        or_else: &dyn OrElse<'db>,
     ) {
         debug!("defer require_assignable_object_type", value_ty, place_ty);
+        let or_else = or_else.to_arc();
         self.runtime.defer(self, async move |env| {
             debug!("require_assignable_object_type", value_ty, place_ty);
 
-            match require_assignable_type(&env, value_span, value_ty, place_ty).await {
+            match require_assignable_type(&env, value_ty, place_ty, &or_else).await {
                 Ok(()) => (),
                 Err(Reported(_)) => (),
             }
@@ -249,29 +247,31 @@ impl<'db> Env<'db> {
     /// Spawn a subtask that will require `expected_ty` be equal to `found_ty`.
     pub(super) fn require_equal_types(
         &self,
-        span: Span<'db>,
         expected_ty: SymTy<'db>,
         found_ty: SymTy<'db>,
+        or_else: &dyn OrElse<'db>,
     ) {
         debug!("defer require_equal_object_types", expected_ty, found_ty);
+        let or_else = or_else.to_arc();
         self.runtime.defer(self, move |env| async move {
             debug!("require_equal_object_types", expected_ty, found_ty);
 
-            match require_subtype(&env, Expected::Lower, span, expected_ty, found_ty).await {
+            match require_sub_terms(&env, expected_ty.into(), found_ty.into(), &or_else).await {
                 Ok(()) => (),
                 Err(Reported(_)) => return,
             }
 
-            match require_subtype(&env, Expected::Upper, span, found_ty, expected_ty).await {
+            match require_sub_terms(&env, found_ty.into(), expected_ty.into(), &or_else).await {
                 Ok(()) => (),
                 Err(Reported(_)) => return,
             }
         })
     }
 
-    pub(super) fn require_numeric_type(&self, span: Span<'db>, ty: SymTy<'db>) {
+    pub(super) fn require_numeric_type(&self, ty: SymTy<'db>, or_else: &dyn OrElse<'db>) {
+        let or_else = or_else.to_arc();
         self.runtime.defer(self, move |env| async move {
-            match require_numeric_type(&env, span, ty).await {
+            match require_numeric_type(&env, ty, &or_else).await {
                 Ok(()) => (),
                 Err(Reported(_)) => (),
             }

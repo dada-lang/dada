@@ -53,6 +53,16 @@ pub trait OrElse<'db> {
 /// See [`OrElse::to_arc`][].
 pub type ArcOrElse<'db> = Arc<dyn OrElse<'db> + 'db>;
 
+impl<'db> OrElse<'db> for ArcOrElse<'db> {
+    fn or_else(&self, because: Because<'db>) -> Diagnostic {
+        <dyn OrElse<'db>>::or_else(self, because)
+    }
+
+    fn to_arc(&self) -> ArcOrElse<'db> {
+        Arc::clone(self)
+    }
+}
+
 pub trait OrElseHelper<'db>: Sized {
     /// Create a new [`OrElse`][] that just maps the [`Because`][]
     /// value and propagates to an underlying or-else. This is used
@@ -94,6 +104,9 @@ impl<'db> OrElseHelper<'db> for &dyn OrElse<'db> {
 
 /// Reason that a low-level typing operation failed.
 pub enum Because<'db> {
+    /// This type is not numeric
+    NotNumeric(RedTy<'db>),
+
     /// `shared[place]` was required
     NotSubOfShared(SymPlace<'db>),
 
@@ -168,6 +181,10 @@ pub enum Because<'db> {
 
     /// The given chain was not a sub-chain of any of the upper bounds in the set
     NotSubChain(Chain<'db>, VecSet<Chain<'db>>),
+
+    /// The given chain was not a sub-chain of any of the upper bounds
+    /// that were found for this inference variable.
+    NotSubChainInfer(Chain<'db>, Vec<(Chain<'db>, ArcOrElse<'db>)>),
 }
 
 impl<'db> Because<'db> {

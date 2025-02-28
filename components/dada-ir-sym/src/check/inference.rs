@@ -1,18 +1,16 @@
 use std::sync::Arc;
 
-use dada_ir_ast::{diagnostic::Errors, span::Span};
-use dada_util::vecset::VecSet;
+use dada_ir_ast::span::Span;
 
 use crate::{
     check::universe::Universe,
-    ir::{indices::InferVarIndex, red_terms::RedTerm, types::SymGenericKind},
+    ir::{red_terms::RedTerm, types::SymGenericKind},
 };
 
 use super::{
     chains::{Chain, RedTy},
-    env::Env,
     predicates::Predicate,
-    report::OrElse,
+    report::{ArcOrElse, OrElse},
 };
 
 pub(crate) struct InferenceVarData<'db> {
@@ -37,8 +35,8 @@ pub(crate) struct InferenceVarData<'db> {
     /// imply that it is `is (known to be) move`. It means "you will never be able to prove this is copy".
     isnt: [Option<ArcOrElse<'db>>; Predicate::LEN],
 
-    lower_chains: VecSet<Chain<'db>>,
-    upper_chains: VecSet<Chain<'db>>,
+    lower_chains: Vec<(Chain<'db>, ArcOrElse<'db>)>,
+    upper_chains: Vec<(Chain<'db>, ArcOrElse<'db>)>,
 
     lower_red_ty: Option<RedTy<'db>>,
     upper_red_ty: Option<RedTy<'db>>,
@@ -52,8 +50,8 @@ impl<'db> InferenceVarData<'db> {
             span,
             is: [None, None, None, None],
             isnt: [None, None, None, None],
-            lower_chains: VecSet::new(),
-            upper_chains: VecSet::new(),
+            lower_chains: Default::default(),
+            upper_chains: Default::default(),
             lower_red_ty: None,
             upper_red_ty: None,
         }
@@ -90,13 +88,17 @@ impl<'db> InferenceVarData<'db> {
         self.isnt[predicate.index()].clone()
     }
 
-    /// Returns the lower bound.
-    pub fn lower_chains(&self) -> &VecSet<Chain<'db>> {
+    /// Returns the set of lower bounding chains and the
+    /// [`ArcOrElse`][] objects representing the reasons they were added.
+    /// The ordering of the chains represents the order they were added.
+    pub fn lower_chains(&self) -> &[(Chain<'db>, ArcOrElse<'db>)] {
         &self.lower_chains
     }
 
-    /// Returns the upper bound.
-    pub fn upper_chains(&self) -> &VecSet<Chain<'db>> {
+    /// Returns the set of upper bounding chains and the
+    /// [`ArcOrElse`][] objects representing the reasons they were added.
+    /// The ordering of the chains represents the order they were added.
+    pub fn upper_chains(&self) -> &[(Chain<'db>, ArcOrElse<'db>)] {
         &self.upper_chains
     }
 
@@ -168,15 +170,33 @@ impl<'db> InferenceVarData<'db> {
         }
     }
 
+    /// Insert a chain as a lower bound.
+    /// Returns `Some(or_else.to_arc())` if this is a new upper bound.
     pub fn insert_lower_chain(
         &mut self,
         chain: &Chain<'db>,
         or_else: &dyn OrElse<'db>,
     ) -> Option<Arc<dyn OrElse<'db> + 'db>> {
-        if self.lower_chains.contains(chain) {
+        if self.lower_chains.iter().any(|pair| pair.0 == *chain) {
             return None;
         }
-        self.lower_chains.insert(chain.clone());
+        let or_else = or_else.to_arc();
+        self.lower_chains.push((chain.clone(), or_else.clone()));
+        Some(or_else)
+    }
+
+    /// Insert a chain as an upper bound.
+    /// Returns `Some(or_else.to_arc())` if this is a new upper bound.
+    pub fn insert_upper_chain(
+        &mut self,
+        chain: &Chain<'db>,
+        or_else: &dyn OrElse<'db>,
+    ) -> Option<Arc<dyn OrElse<'db> + 'db>> {
+        if self.upper_chains.iter().any(|pair| pair.0 == *chain) {
+            return None;
+        }
+        let or_else = or_else.to_arc();
+        self.upper_chains.push((chain.clone(), or_else.clone()));
         Some(or_else)
     }
 }

@@ -87,6 +87,8 @@ impl<'db> Runtime<'db> {
         runtime.drain();
         runtime.complete.store(true, Ordering::Relaxed);
 
+        // Once we have reached the "complete" state, we should awaken all remaining tasks (?).
+
         match channel_rx.try_recv() {
             Ok(v) => cleanup(v),
 
@@ -158,14 +160,18 @@ impl<'db> Runtime<'db> {
         &self,
         infer: InferVarIndex,
         mut op: impl FnMut(&InferenceVarData<'db>) -> Option<T>,
-    ) -> impl Future<Output = T> {
+    ) -> impl Future<Output = Option<T>> {
         std::future::poll_fn(move |cx| {
             let data = self.with_inference_var_data(infer, |data| op(data));
             match data {
-                Some(v) => Poll::Ready(v),
+                Some(v) => Poll::Ready(Some(v)),
                 None => {
-                    self.block_on_inference_var(infer, cx);
-                    Poll::Pending
+                    if self.check_complete() {
+                        Poll::Ready(None)
+                    } else {
+                        self.block_on_inference_var(infer, cx);
+                        Poll::Pending
+                    }
                 }
             }
         })
@@ -184,75 +190,68 @@ impl<'db> Runtime<'db> {
         op(&inference_vars[infer.as_usize()])
     }
 
-    /// Records that the inference variable is required to meet the given predicate.
-    /// This is a low-level function that is called from the [`require`](`crate::check::predicates::require`)
-    /// module.
-    ///
-    /// # Returns
-    ///
-    /// `Some(o)` if this is a new requirement, where `o` is the arc-ified version of `or_else`
-    ///
-    /// # Panics
-    ///
-    /// * If called when [`Self::check_complete`][] returns true;
-    /// * If the inference variable is required to satisfy a contradictory predicate.
+    /// See [`InferenceVarData::require_is`][]. Low-level function not to be casually invoked.
     pub fn require_inference_var_is(
         &self,
-        var: InferVarIndex,
+        infer: InferVarIndex,
         predicate: Predicate,
         or_else: &dyn OrElse<'db>,
     ) -> Option<Arc<dyn OrElse<'db> + 'db>> {
-        self.mutate_inference_var_data_and_wake(var, |data| data.require_is(predicate, or_else))
+        self.mutate_inference_var_data_and_wake(infer, |data| data.require_is(predicate, or_else))
     }
 
-    /// Records that the inference variable cannot be known to meet the given predicate.
-    /// This is a low-level function that is called from the [`require`](`crate::check::predicates::require`)
-    /// module.
-    ///
-    /// # Returns
-    ///
-    /// `Some(o)` if this is a new requirement, where `o` is the arc-ified version of `or_else`
-    ///
-    /// # Panics
-    ///
-    /// * If called when [`Self::check_complete`][] returns true;
-    /// * If the inference variable is required to meet the predicate.
+    /// See [`InferenceVarData::require_isnt`][]. Low-level function not to be casually invoked.
     pub fn require_inference_var_isnt(
         &self,
-        var: InferVarIndex,
+        infer: InferVarIndex,
         predicate: Predicate,
         or_else: &dyn OrElse<'db>,
     ) -> Option<Arc<dyn OrElse<'db> + 'db>> {
-        self.mutate_inference_var_data_and_wake(var, |data| data.require_isnt(predicate, or_else))
+        self.mutate_inference_var_data_and_wake(infer, |data| data.require_isnt(predicate, or_else))
     }
 
+    /// See [`InferenceVarData::insert_lower_chain`][]. Low-level function not to be casually invoked.
     pub fn insert_lower_chain(
         &self,
-        var: InferVarIndex,
+        infer: InferVarIndex,
         chain: &Chain<'db>,
         or_else: &dyn OrElse<'db>,
     ) -> Option<Arc<dyn OrElse<'db> + 'db>> {
-        self.mutate_inference_var_data_and_wake(var, |data| data.require_isnt(predicate, or_else))
+        self.mutate_inference_var_data_and_wake(infer, |data| {
+            data.insert_lower_chain(chain, or_else)
+        })
+    }
+
+    /// See [`InferenceVarData::insert_upper_chain`][]. Low-level function not to be casually invoked.
+    pub fn insert_upper_chain(
+        &self,
+        infer: InferVarIndex,
+        chain: &Chain<'db>,
+        or_else: &dyn OrElse<'db>,
+    ) -> Option<Arc<dyn OrElse<'db> + 'db>> {
+        self.mutate_inference_var_data_and_wake(infer, |data| {
+            data.insert_upper_chain(chain, or_else)
+        })
     }
 
     fn mutate_inference_var_data_and_wake(
         &self,
-        var: InferVarIndex,
+        infer: InferVarIndex,
         op: impl FnOnce(&mut InferenceVarData<'db>) -> Option<Arc<dyn OrElse<'db> + 'db>>,
     ) -> Option<Arc<dyn OrElse<'db> + 'db>> {
         assert!(!self.check_complete());
         let mut inference_vars = self.inference_vars.write().unwrap();
-        let inference_var = &mut inference_vars[var.as_usize()];
+        let inference_var = &mut inference_vars[infer.as_usize()];
         let Some(or_else) = op(inference_var) else {
             return None;
         };
-        self.wake_tasks_monitoring_inference_var(var);
+        self.wake_tasks_monitoring_inference_var(infer);
         Some(or_else)
     }
 
-    fn wake_tasks_monitoring_inference_var(&self, var: InferVarIndex) {
+    fn wake_tasks_monitoring_inference_var(&self, infer: InferVarIndex) {
         let mut waiting_on_inference_var = self.waiting_on_inference_var.lock().unwrap();
-        let wakers = waiting_on_inference_var.remove(&var);
+        let wakers = waiting_on_inference_var.remove(&infer);
         for EqWaker { waker } in wakers.into_iter().flatten() {
             waker.wake();
         }
@@ -273,11 +272,11 @@ impl<'db> Runtime<'db> {
     /// # Panics
     ///
     /// If called when [`Self::check_complete`][] returns true.
-    fn block_on_inference_var(&self, var: InferVarIndex, cx: &mut Context<'_>) {
+    fn block_on_inference_var(&self, infer: InferVarIndex, cx: &mut Context<'_>) {
         assert!(!self.check_complete());
         let mut waiting_on_inference_var = self.waiting_on_inference_var.lock().unwrap();
         waiting_on_inference_var
-            .entry(var)
+            .entry(infer)
             .or_default()
             .push_if_not_contained(EqWaker::new(cx.waker()));
     }
@@ -317,7 +316,6 @@ impl<'db> Runtime<'db> {
 }
 
 mod check_task {
-    use dada_ir_ast::span::Span;
     use dada_util::log::LogState;
     use futures::{FutureExt, future::LocalBoxFuture};
     use std::{
