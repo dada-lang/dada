@@ -18,17 +18,48 @@ use crate::{
 
 use super::chains::{Chain, RedTerm};
 
+/// The `OrElse` trait captures error reporting context.
+/// Primitive type operations like subtyping are given an `&dyn OrElse<'db>`
+/// as argument. If the subtyping operation fails, it invokes the [`OrElse::report`][]
+/// method to report the error.
+///
+/// `OrElse` objects can be converted, using the [`OrElse::to_arc`][] method,
+/// into an [`ArcOrElse<'db>`][], which allows the or-else to be preserved
+/// for longer than the current stack frame. This is used to store an or-else in
+/// inference variable data so that, if a conflict is later generated, we can
+/// extract the reason for that original constraint.
 pub trait OrElse<'db> {
+    /// Report the diagnostic created by [`OrElse::or_else`][].
     fn report(&self, db: &'db dyn Db, because: Because<'db>) -> Reported {
         self.or_else(because).report(db)
     }
 
+    /// Create a diagnostic representing the error.
+    ///
+    /// The error would typically be expressed in high-level terms, like
+    /// "cannot assign from `a` to `b`" or "incorrect type of function argument".
+    ///
+    /// The `because` argument signals the reason the low-level operation failed
+    /// and will be used to provide additional details, like "`our` is not assignable to `my`".
     fn or_else(&self, because: Because<'db>) -> Diagnostic;
 
-    fn to_arc(&self) -> Arc<dyn OrElse<'db> + 'db>;
+    /// Convert a `&dyn OrElse<'db>` into an `ArcOrElse<'db>` so that it can be
+    /// stored in an [`InferenceVarData`](`crate::check::inference::InferenceVarData`)
+    /// or otherwise preserved beyond the current stack frame.
+    /// See the trait comment for more details.
+    fn to_arc(&self) -> ArcOrElse<'db>;
 }
 
+/// See [`OrElse::to_arc`][].
+pub type ArcOrElse<'db> = Arc<dyn OrElse<'db> + 'db>;
+
 pub trait OrElseHelper<'db>: Sized {
+    /// Create a new [`OrElse`][] that just maps the [`Because`][]
+    /// value and propagates to an underlying or-else. This is used
+    /// when an operating like subtyping delegates to sub-operations:
+    /// the suboperation will provide a [`Because`][] value and
+    /// then the subtyping can provide additional context, but the
+    /// high-level 'or-else' is left unchanged.
     fn map_because(
         self,
         f: impl 'db + Clone + Fn(Because<'db>) -> Because<'db>,
@@ -36,6 +67,7 @@ pub trait OrElseHelper<'db>: Sized {
 }
 
 impl<'db> OrElseHelper<'db> for &dyn OrElse<'db> {
+    /// See [`OrElseHelper::map_because`][].
     fn map_because(
         self,
         f: impl 'db + Clone + Fn(Because<'db>) -> Because<'db>,
@@ -59,6 +91,8 @@ impl<'db> OrElseHelper<'db> for &dyn OrElse<'db> {
         MapBecause(f, self)
     }
 }
+
+/// Reason that a low-level typing operation failed.
 pub enum Because<'db> {
     /// `shared[place]` was required
     NotSubOfShared(SymPlace<'db>),
@@ -137,6 +171,7 @@ pub enum Because<'db> {
 }
 
 impl<'db> Because<'db> {
+    /// Convenience function to create a [`Because::StructComponentNotCopy`][].
     pub fn struct_component_not_copy(
         self,
         sym_ty_name: SymTyName<'db>,

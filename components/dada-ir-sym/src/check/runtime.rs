@@ -200,29 +200,9 @@ impl<'db> Runtime<'db> {
         &self,
         var: InferVarIndex,
         predicate: Predicate,
-        or_else: &Arc<dyn OrElse<'db> + 'db>,
+        or_else: &dyn OrElse<'db>,
     ) -> Option<Arc<dyn OrElse<'db> + 'db>> {
-        assert!(!self.check_complete());
-        let mut inference_vars = self.inference_vars.write().unwrap();
-        let inference_var = &mut inference_vars[var.as_usize()];
-
-        assert!(
-            inference_var
-                .is_known_to_provably_be(predicate.invert())
-                .is_none()
-        );
-        assert!(
-            inference_var
-                .is_known_not_to_provably_be(predicate)
-                .is_none()
-        );
-
-        if let Some(o) = inference_var.require_is(predicate, or_else) {
-            self.wake_tasks_monitoring_inference_var(var);
-            Some(o)
-        } else {
-            None
-        }
+        self.mutate_inference_var_data_and_wake(var, |data| data.require_is(predicate, or_else))
     }
 
     /// Records that the inference variable cannot be known to meet the given predicate.
@@ -243,16 +223,7 @@ impl<'db> Runtime<'db> {
         predicate: Predicate,
         or_else: &dyn OrElse<'db>,
     ) -> Option<Arc<dyn OrElse<'db> + 'db>> {
-        assert!(!self.check_complete());
-        let mut inference_vars = self.inference_vars.write().unwrap();
-        let inference_var = &mut inference_vars[var.as_usize()];
-        assert!(inference_var.is_known_to_provably_be(predicate).is_none());
-        if let Some(o) = inference_var.require_isnt(predicate, or_else) {
-            self.wake_tasks_monitoring_inference_var(var);
-            Some(o)
-        } else {
-            false
-        }
+        self.mutate_inference_var_data_and_wake(var, |data| data.require_isnt(predicate, or_else))
     }
 
     pub fn insert_lower_chain(
@@ -261,10 +232,22 @@ impl<'db> Runtime<'db> {
         chain: &Chain<'db>,
         or_else: &dyn OrElse<'db>,
     ) -> Option<Arc<dyn OrElse<'db> + 'db>> {
+        self.mutate_inference_var_data_and_wake(var, |data| data.require_isnt(predicate, or_else))
+    }
+
+    fn mutate_inference_var_data_and_wake(
+        &self,
+        var: InferVarIndex,
+        op: impl FnOnce(&mut InferenceVarData<'db>) -> Option<Arc<dyn OrElse<'db> + 'db>>,
+    ) -> Option<Arc<dyn OrElse<'db> + 'db>> {
         assert!(!self.check_complete());
         let mut inference_vars = self.inference_vars.write().unwrap();
         let inference_var = &mut inference_vars[var.as_usize()];
-        // TODO: Write this code
+        let Some(or_else) = op(inference_var) else {
+            return None;
+        };
+        self.wake_tasks_monitoring_inference_var(var);
+        Some(or_else)
     }
 
     fn wake_tasks_monitoring_inference_var(&self, var: InferVarIndex) {

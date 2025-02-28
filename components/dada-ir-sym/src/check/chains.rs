@@ -172,7 +172,7 @@ impl<'db> Chain<'db> {
     }
 }
 
-impl<'db> Deref for Chain<'db> {
+impl<'db> std::ops::Deref for Chain<'db> {
     type Target = [Lien<'db>];
 
     fn deref(&self) -> &Self::Target {

@@ -28,14 +28,14 @@ pub(crate) struct InferenceVarData<'db> {
     /// predicate is true (but it still could be, depending on what value we ultimately infer).
     ///
     /// See also the `isnt` field.
-    is: [Option<Arc<dyn OrElse<'db> + 'db>>; Predicate::LEN],
+    is: [Option<ArcOrElse<'db>>; Predicate::LEN],
 
     /// If the element for a given predicate is `Some`, then the predicate is NOT known to be true
     /// due to code at the given span.
     ///
     /// This is a subtle distinction. Knowing that a variable `isnt (known to be) copy` doesn't
     /// imply that it is `is (known to be) move`. It means "you will never be able to prove this is copy".
-    isnt: [Option<Arc<dyn OrElse<'db> + 'db>>; Predicate::LEN],
+    isnt: [Option<ArcOrElse<'db>>; Predicate::LEN],
 
     lower_chains: VecSet<Chain<'db>>,
     upper_chains: VecSet<Chain<'db>>,
@@ -166,5 +166,17 @@ impl<'db> InferenceVarData<'db> {
         } else {
             None
         }
+    }
+
+    pub fn insert_lower_chain(
+        &mut self,
+        chain: &Chain<'db>,
+        or_else: &dyn OrElse<'db>,
+    ) -> Option<Arc<dyn OrElse<'db> + 'db>> {
+        if self.lower_chains.contains(chain) {
+            return None;
+        }
+        self.lower_chains.insert(chain.clone());
+        Some(or_else)
     }
 }
