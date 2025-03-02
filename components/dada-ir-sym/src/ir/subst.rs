@@ -329,13 +329,6 @@ impl<'db> SubstWith<'db, SymGenericTerm<'db>> for SymPlace<'db> {
         match self.kind(db) {
             // Variables
             SymPlaceKind::Var(var) => subst_var(db, bound_vars, subst_fns, *var),
-            SymPlaceKind::Infer(v) => {
-                if let Some(term) = (subst_fns.infer_var)(*v) {
-                    term.assert_place(db)
-                } else {
-                    self.identity()
-                }
-            }
 
             // Structural cases
             SymPlaceKind::Field(sym_place, identifier) => SymPlace::new(

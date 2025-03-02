@@ -77,10 +77,7 @@ pub(super) fn require_infer_is<'db>(
     // Check if were already required to not be the predicate
     // and report an error if so.
     if let Some(prev_or_else) = isnt_already {
-        return Err(or_else.report(
-            env.db(),
-            Because::PreviousRequirement(prev_or_else.or_else(Because::BaseRequirement)),
-        ));
+        return Err(or_else.report(env.db(), Because::PreviousRequirement(prev_or_else)));
     }
 
     // Record the requirement in the runtime, awakening any tasks that may be impacted.
@@ -139,10 +136,7 @@ pub(super) fn require_infer_isnt<'db>(
     // Check if were already required to be the predicate
     // and report an error if so.
     if let Some(prev_or_else) = is_already {
-        return Err(or_else.report(
-            env.db(),
-            Because::PreviousRequirement(prev_or_else.or_else(Because::BaseRequirement)),
-        ));
+        return Err(or_else.report(env.db(), Because::PreviousRequirement(prev_or_else)));
     }
 
     // Record the requirement in the runtime, awakening any tasks that may be impacted.

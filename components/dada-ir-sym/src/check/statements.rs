@@ -3,11 +3,12 @@ use dada_util::boxed_async_fn;
 use futures::join;
 
 use crate::{
-    check::CheckInEnv,
-    check::env::Env,
-    ir::exprs::{SymExpr, SymExprKind},
-    ir::types::SymTy,
-    ir::variables::SymVariable,
+    check::{CheckInEnv, env::Env, report::UnassignableType},
+    ir::{
+        exprs::{SymExpr, SymExprKind},
+        types::SymTy,
+        variables::SymVariable,
+    },
 };
 
 #[boxed_async_fn]
@@ -41,9 +42,14 @@ pub async fn check_block_statements<'a, 'db>(
                                 .await
                                 .into_expr_with_enclosed_temporaries(&env);
                             env.require_assignable_type(
-                                initializer.span(db),
                                 initializer.ty(db),
                                 ty,
+                                &UnassignableType {
+                                    variable: lv,
+                                    variable_span: s.name(db).span,
+                                    variable_ty: ty,
+                                    initializer,
+                                },
                             );
                             Some(initializer)
                         }

@@ -121,7 +121,7 @@ async fn propagate_bounds<'db>(
     .await
 }
 
-async fn require_sub_red_terms<'a, 'db>(
+pub async fn require_sub_red_terms<'a, 'db>(
     env: &'a Env<'db>,
     lower: RedTerm<'db>,
     upper: RedTerm<'db>,

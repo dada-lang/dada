@@ -14,7 +14,7 @@ use crate::{
     ir::exprs::{SymExpr, SymExprKind, SymPlaceExpr, SymPlaceExprKind},
 };
 
-use super::{CheckInEnv, Env, resolve::Resolver};
+use super::{CheckInEnv, Env};
 
 pub(crate) fn check_function_body<'db>(
     db: &'db dyn crate::Db,

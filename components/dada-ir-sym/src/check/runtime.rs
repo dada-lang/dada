@@ -17,7 +17,11 @@ use dada_util::{Map, vecext::VecExt};
 
 use crate::{check::env::Env, check::inference::InferenceVarData, check::universe::Universe};
 
-use super::{chains::Chain, predicates::Predicate, report::OrElse};
+use super::{
+    chains::{Chain, RedTy},
+    predicates::Predicate,
+    report::{ArcOrElse, OrElse},
+};
 
 #[derive(Clone)]
 pub(crate) struct Runtime<'db> {
@@ -216,7 +220,7 @@ impl<'db> Runtime<'db> {
         infer: InferVarIndex,
         chain: &Chain<'db>,
         or_else: &dyn OrElse<'db>,
-    ) -> Option<Arc<dyn OrElse<'db> + 'db>> {
+    ) -> Option<ArcOrElse<'db>> {
         self.mutate_inference_var_data_and_wake(infer, |data| {
             data.insert_lower_chain(chain, or_else)
         })
@@ -228,10 +232,36 @@ impl<'db> Runtime<'db> {
         infer: InferVarIndex,
         chain: &Chain<'db>,
         or_else: &dyn OrElse<'db>,
-    ) -> Option<Arc<dyn OrElse<'db> + 'db>> {
+    ) -> Option<ArcOrElse<'db>> {
         self.mutate_inference_var_data_and_wake(infer, |data| {
             data.insert_upper_chain(chain, or_else)
         })
+    }
+
+    /// See [`InferenceVarData::set_lower_red_ty`][]. Low-level function not to be casually invoked.
+    pub fn set_lower_red_ty(
+        &self,
+        infer: InferVarIndex,
+        red_ty: RedTy<'db>,
+        or_else: &dyn OrElse<'db>,
+    ) -> ArcOrElse<'db> {
+        self.mutate_inference_var_data_and_wake(infer, |data| {
+            Some(data.set_lower_red_ty(red_ty, or_else))
+        })
+        .unwrap()
+    }
+
+    /// See [`InferenceVarData::set_upper_red_ty`][]. Low-level function not to be casually invoked.
+    pub fn set_upper_red_ty(
+        &self,
+        infer: InferVarIndex,
+        red_ty: RedTy<'db>,
+        or_else: &dyn OrElse<'db>,
+    ) -> ArcOrElse<'db> {
+        self.mutate_inference_var_data_and_wake(infer, |data| {
+            Some(data.set_upper_red_ty(red_ty, or_else))
+        })
+        .unwrap()
     }
 
     fn mutate_inference_var_data_and_wake(

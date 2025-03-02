@@ -12,7 +12,7 @@ use crate::{
     },
 };
 
-pub fn require_numeric_type<'db>(
+pub async fn require_numeric_type<'db>(
     env: &Env<'db>,
     mut ty: SymTy<'db>,
     or_else: &dyn OrElse<'db>,

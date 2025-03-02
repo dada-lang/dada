@@ -10,13 +10,14 @@ use dada_util::vecset::VecSet;
 use crate::{
     check::{env::Env, predicates::Predicate},
     ir::{
+        exprs::SymExpr,
         indices::InferVarIndex,
         types::{SymGenericTerm, SymPerm, SymPlace, SymTy, SymTyName},
         variables::SymVariable,
     },
 };
 
-use super::chains::{Chain, RedTerm};
+use super::chains::{Chain, RedTerm, RedTy};
 
 /// The `OrElse` trait captures error reporting context.
 /// Primitive type operations like subtyping are given an `&dyn OrElse<'db>`
@@ -31,7 +32,7 @@ use super::chains::{Chain, RedTerm};
 pub trait OrElse<'db> {
     /// Report the diagnostic created by [`OrElse::or_else`][].
     fn report(&self, db: &'db dyn Db, because: Because<'db>) -> Reported {
-        self.or_else(because).report(db)
+        self.or_else(db, because).report(db)
     }
 
     /// Create a diagnostic representing the error.
@@ -41,7 +42,7 @@ pub trait OrElse<'db> {
     ///
     /// The `because` argument signals the reason the low-level operation failed
     /// and will be used to provide additional details, like "`our` is not assignable to `my`".
-    fn or_else(&self, because: Because<'db>) -> Diagnostic;
+    fn or_else(&self, db: &'db dyn Db, because: Because<'db>) -> Diagnostic;
 
     /// Convert a `&dyn OrElse<'db>` into an `ArcOrElse<'db>` so that it can be
     /// stored in an [`InferenceVarData`](`crate::check::inference::InferenceVarData`)
@@ -54,8 +55,8 @@ pub trait OrElse<'db> {
 pub type ArcOrElse<'db> = Arc<dyn OrElse<'db> + 'db>;
 
 impl<'db> OrElse<'db> for ArcOrElse<'db> {
-    fn or_else(&self, because: Because<'db>) -> Diagnostic {
-        <dyn OrElse<'db>>::or_else(self, because)
+    fn or_else(&self, db: &'db dyn Db, because: Because<'db>) -> Diagnostic {
+        <dyn OrElse<'db>>::or_else(self, db, because)
     }
 
     fn to_arc(&self) -> ArcOrElse<'db> {
@@ -89,8 +90,8 @@ impl<'db> OrElseHelper<'db> for &dyn OrElse<'db> {
             F: 'db + Clone + Fn(Because<'db>) -> Because<'db>,
             G: std::ops::Deref<Target: OrElse<'db>>,
         {
-            fn or_else(&self, because: Because<'db>) -> Diagnostic {
-                self.1.or_else((self.0)(because))
+            fn or_else(&self, db: &'db dyn Db, because: Because<'db>) -> Diagnostic {
+                self.1.or_else(db, (self.0)(because))
             }
 
             fn to_arc(&self) -> Arc<dyn OrElse<'db> + 'db> {
@@ -132,7 +133,7 @@ pub enum Because<'db> {
     ClassIsNotLent(SymTyName<'db>),
 
     /// We cannot infer otherwise because of a previous requirement
-    PreviousRequirement(Diagnostic),
+    PreviousRequirement(ArcOrElse<'db>),
 
     /// In an inference failure, this indicates the conflict with previously recorded requirement.
     BaseRequirement,
@@ -369,4 +370,70 @@ pub(super) fn report_var_must_not_be_declared_but_is<'db>(
         format!("variable `{var}` must not be declared to be `{predicate}`"),
     )
     .report(db)
+}
+
+#[derive(Copy, Clone, Debug)]
+pub struct UnassignableType<'db> {
+    pub variable: SymVariable<'db>,
+    pub variable_span: Span<'db>,
+    pub variable_ty: SymTy<'db>,
+    pub initializer: SymExpr<'db>,
+}
+
+impl<'db> OrElse<'db> for UnassignableType<'db> {
+    fn or_else(&self, db: &'db dyn Db, _because: Because<'db>) -> Diagnostic {
+        let initializer_ty = self.initializer.ty(db);
+        Diagnostic::error(
+            db,
+            self.initializer.span(db),
+            format!("variable initialized with value of wrong type"),
+        )
+        .label(
+            db,
+            Level::Error,
+            self.initializer.span(db),
+            format!("initializer has type `{initializer_ty}`"),
+        )
+        .label(
+            db,
+            Level::Info,
+            self.variable_span,
+            format!(
+                "variable has type `{variable_ty}`",
+                variable_ty = self.variable_ty
+            ),
+        )
+    }
+
+    fn to_arc(&self) -> ArcOrElse<'db> {
+        Arc::new(*self)
+    }
+}
+
+#[derive(Copy, Clone, Debug)]
+pub struct BooleanTypeRequired<'db> {
+    pub expr: SymExpr<'db>,
+}
+
+impl<'db> OrElse<'db> for BooleanTypeRequired<'db> {
+    fn or_else(&self, db: &'db dyn Db, _because: Because<'db>) -> Diagnostic {
+        Diagnostic::error(
+            db,
+            self.expr.span(db),
+            format!("boolean expression required"),
+        )
+        .label(
+            db,
+            Level::Error,
+            self.expr.span(db),
+            format!(
+                "I expected this expression to have a boolean type, but it has the type `{}`",
+                self.expr.ty(db)
+            ),
+        )
+    }
+
+    fn to_arc(&self) -> ArcOrElse<'db> {
+        Arc::new(*self)
+    }
 }

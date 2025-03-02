@@ -1,4 +1,5 @@
 mod alternatives;
 mod chains;
-mod numeric;
+pub mod numeric;
 pub mod terms;
+pub mod var_infer;

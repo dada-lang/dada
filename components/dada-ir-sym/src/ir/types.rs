@@ -57,16 +57,6 @@ pub trait AssertKind<'db, R> {
     fn assert_kind(self, db: &'db dyn crate::Db) -> R;
 }
 
-impl std::fmt::Display for SymGenericKind {
-    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
-        match self {
-            Self::Type => write!(f, "type"),
-            Self::Perm => write!(f, "perm"),
-            Self::Place => write!(f, "place"),
-        }
-    }
-}
-
 /// Value of a generic parameter
 #[derive(Copy, Clone, PartialEq, Eq, PartialOrd, Ord, Hash, Update, Debug, FromImpls)]
 pub enum SymGenericTerm<'db> {
@@ -152,7 +142,7 @@ impl<'db> FromInferVar<'db> for SymGenericTerm<'db> {
         match kind {
             SymGenericKind::Type => SymTy::new(db, SymTyKind::Infer(index)).into(),
             SymGenericKind::Perm => SymPerm::new(db, SymPermKind::Infer(index)).into(),
-            SymGenericKind::Place => SymPlace::new(db, SymPlaceKind::Infer(index)).into(),
+            SymGenericKind::Place => panic!("no inference variables for a place"),
         }
     }
 }
@@ -227,7 +217,6 @@ impl<'db> SymGenericTerm<'db> {
                 | SymPermKind::Apply(..) => None,
             },
             SymGenericTerm::Place(place) => match place.kind(db) {
-                SymPlaceKind::Infer(infer) => Some(*infer),
                 SymPlaceKind::Var(_)
                 | SymPlaceKind::Field(..)
                 | SymPlaceKind::Index(..)

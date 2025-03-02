@@ -22,7 +22,13 @@ use dada_util::{Map, debug};
 
 use crate::{check::runtime::Runtime, check::universe::Universe, ir::exprs::SymExpr};
 
-use super::{CheckInEnv, predicates::Predicate, report::OrElse, runtime::DeferResult};
+use super::{
+    CheckInEnv,
+    predicates::Predicate,
+    report::{BooleanTypeRequired, OrElse},
+    runtime::DeferResult,
+    subtype::numeric::require_numeric_type,
+};
 
 #[derive(Clone)]
 pub(crate) struct Env<'db> {
@@ -271,22 +277,14 @@ impl<'db> Env<'db> {
     pub(super) fn require_numeric_type(&self, ty: SymTy<'db>, or_else: &dyn OrElse<'db>) {
         let or_else = or_else.to_arc();
         self.runtime.defer(self, move |env| async move {
-            match require_numeric_type(&env, ty, &or_else).await {
-                Ok(()) => (),
-                Err(Reported(_)) => (),
-            }
+            require_numeric_type(&env, ty, &or_else).await
         })
     }
 
     /// Check whether any type in `tys` is known to be never (or error).
     /// If so, do nothing.
     /// Otherwise, if no type in `tys` is known to be never, invoke `op` (asynchronously).
-    pub fn if_not_never(
-        &self,
-        span: Span<'db>,
-        tys: &[SymTy<'db>],
-        op: impl AsyncFnOnce(Env<'db>) + 'db,
-    ) {
+    pub fn if_not_never(&self, tys: &[SymTy<'db>], op: impl AsyncFnOnce(Env<'db>) + 'db) {
         let _tys = tys.to_vec();
         self.runtime.defer(self, move |env: Env<'db>| async move {
             // FIXME: check for never
@@ -308,7 +306,7 @@ impl<'db> Env<'db> {
     pub(crate) fn require_expr_has_bool_ty(&self, expr: SymExpr<'db>) {
         let db = self.db();
         let boolean_ty = SymTy::boolean(db);
-        self.require_assignable_type(expr.span(db), expr.ty(db), boolean_ty);
+        self.require_assignable_type(expr.ty(db), boolean_ty, &BooleanTypeRequired { expr });
     }
 
     /// Check if the given (perm, type) variable is declared as copy.

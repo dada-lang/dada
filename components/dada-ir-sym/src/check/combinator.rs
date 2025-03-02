@@ -22,7 +22,12 @@ pub(crate) use require_all;
 
 use crate::ir::indices::InferVarIndex;
 
-use super::{chains::Chain, env::Env, inference::InferenceVarData, report::ArcOrElse};
+use super::{
+    chains::{Chain, RedTy},
+    env::Env,
+    inference::InferenceVarData,
+    report::ArcOrElse,
+};
 
 pub async fn require<'db>(
     a: impl Future<Output = Errors<bool>>,
@@ -208,6 +213,30 @@ pub async fn require_for_all_infer_bounds<'db>(
     }
 }
 
+pub async fn require_for_all_infer_red_ty_bounds<'db>(
+    env: &Env<'db>,
+    infer: InferVarIndex,
+    direction: impl for<'a> Fn(&'a InferenceVarData<'db>) -> &'a Option<(RedTy<'db>, ArcOrElse<'db>)>,
+    mut op: impl AsyncFnMut(&RedTy<'db>) -> Errors<()>,
+) -> Errors<()> {
+    let mut red_ty = None;
+    loop {
+        red_ty = extract_red_ty(env, infer, red_ty, &direction).await;
+
+        match &red_ty {
+            Some(r) => op(r).await?,
+            None => {
+                // No further bounds, so `op` was true for all bounds.
+                return Ok(());
+            }
+        }
+    }
+}
+
+/// Monitor the inference variable `infer` and push new bounding chains (either upper or lower
+/// depending on `direction`) onto `stack`. The variable `observed` is used to track which
+/// chains have been observed from previous invocations; it should begin as `0` and it will be
+/// incremented during the call.
 pub async fn extract_bounding_chains<'db>(
     env: &Env<'db>,
     infer: InferVarIndex,
@@ -228,4 +257,29 @@ pub async fn extract_bounding_chains<'db>(
             }
         })
         .await;
+}
+
+/// Monitor the red ty bounds on `infer`. Each time the fn is called, the result from any
+/// previous call should be passed as `previous_red_ty`; pass `None` if the fn has never
+/// been called before. This will return `Some(b)` if there is a new red ty bound on infer
+/// or `None` if no further refined bounds are forthcoming.
+pub async fn extract_red_ty<'db>(
+    env: &Env<'db>,
+    infer: InferVarIndex,
+    previous_red_ty: Option<RedTy<'db>>,
+    direction: &impl for<'a> Fn(&'a InferenceVarData<'db>) -> &'a Option<(RedTy<'db>, ArcOrElse<'db>)>,
+) -> Option<RedTy<'db>> {
+    env.runtime()
+        .loop_on_inference_var(infer, |data| {
+            let Some((next_red_ty, _or_else)) = direction(data) else {
+                return None;
+            };
+            let next_red_ty = Some(next_red_ty.clone());
+            if previous_red_ty == next_red_ty {
+                None
+            } else {
+                next_red_ty
+            }
+        })
+        .await
 }

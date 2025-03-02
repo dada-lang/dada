@@ -38,8 +38,8 @@ pub(crate) struct InferenceVarData<'db> {
     lower_chains: Vec<(Chain<'db>, ArcOrElse<'db>)>,
     upper_chains: Vec<(Chain<'db>, ArcOrElse<'db>)>,
 
-    lower_red_ty: Option<RedTy<'db>>,
-    upper_red_ty: Option<RedTy<'db>>,
+    lower_red_ty: Option<(RedTy<'db>, ArcOrElse<'db>)>,
+    upper_red_ty: Option<(RedTy<'db>, ArcOrElse<'db>)>,
 }
 
 impl<'db> InferenceVarData<'db> {
@@ -102,6 +102,18 @@ impl<'db> InferenceVarData<'db> {
         &self.upper_chains
     }
 
+    /// Returns the lower bounding red-ty and the
+    /// [`ArcOrElse`][] object representing the reasons it were added.
+    pub fn lower_red_ty(&self) -> &Option<(RedTy<'db>, ArcOrElse<'db>)> {
+        &self.lower_red_ty
+    }
+
+    /// Returns the upper bounding red-ty and the
+    /// [`ArcOrElse`][] object representing the reasons it were added.
+    pub fn upper_red_ty(&self) -> &Option<(RedTy<'db>, ArcOrElse<'db>)> {
+        &self.upper_red_ty
+    }
+
     /// Insert a predicate into the `is` set and its invert into the `isnt` set.
     /// Returns `None` if these are not new requirements.
     /// Otherwise, returns `Some(o)` where `o` is the Arc-ified version of `or_else`.
@@ -114,7 +126,7 @@ impl<'db> InferenceVarData<'db> {
         &mut self,
         predicate: Predicate,
         or_else: &dyn OrElse<'db>,
-    ) -> Option<Arc<dyn OrElse<'db> + 'db>> {
+    ) -> Option<ArcOrElse<'db>> {
         let predicate_invert = predicate.invert();
 
         let predicate_is = self.is_known_to_provably_be(predicate).is_some();
@@ -159,7 +171,7 @@ impl<'db> InferenceVarData<'db> {
         &mut self,
         predicate: Predicate,
         or_else: &dyn OrElse<'db>,
-    ) -> Option<Arc<dyn OrElse<'db> + 'db>> {
+    ) -> Option<ArcOrElse<'db>> {
         assert!(self.is_known_to_provably_be(predicate).is_none());
         if self.is_known_not_to_provably_be(predicate).is_none() {
             let or_else = or_else.to_arc();
@@ -176,7 +188,7 @@ impl<'db> InferenceVarData<'db> {
         &mut self,
         chain: &Chain<'db>,
         or_else: &dyn OrElse<'db>,
-    ) -> Option<Arc<dyn OrElse<'db> + 'db>> {
+    ) -> Option<ArcOrElse<'db>> {
         if self.lower_chains.iter().any(|pair| pair.0 == *chain) {
             return None;
         }
@@ -191,12 +203,46 @@ impl<'db> InferenceVarData<'db> {
         &mut self,
         chain: &Chain<'db>,
         or_else: &dyn OrElse<'db>,
-    ) -> Option<Arc<dyn OrElse<'db> + 'db>> {
+    ) -> Option<ArcOrElse<'db>> {
         if self.upper_chains.iter().any(|pair| pair.0 == *chain) {
             return None;
         }
         let or_else = or_else.to_arc();
         self.upper_chains.push((chain.clone(), or_else.clone()));
         Some(or_else)
+    }
+
+    /// Set the lower bounding red ty. Returns `c` with the `or_else` reason if
+    /// this is a new value for the upper bounding red ty.
+    ///
+    /// # Panics
+    ///
+    /// If there is already a lower bound red ty.
+    pub fn set_lower_red_ty(
+        &mut self,
+        red_ty: RedTy<'db>,
+        or_else: &dyn OrElse<'db>,
+    ) -> ArcOrElse<'db> {
+        assert!(self.lower_red_ty.is_none());
+        let or_else = or_else.to_arc();
+        self.lower_red_ty = Some((red_ty, or_else.clone()));
+        or_else
+    }
+
+    /// Set the upper bounding red ty. Returns `Some(c)` with the `or_else` reason if
+    /// this is a new value for the upper bounding red ty.
+    ///
+    /// # Panics
+    ///
+    /// If there is already an upper bound red ty.
+    pub fn set_upper_red_ty(
+        &mut self,
+        red_ty: RedTy<'db>,
+        or_else: &dyn OrElse<'db>,
+    ) -> ArcOrElse<'db> {
+        assert!(self.upper_red_ty.is_none());
+        let or_else = or_else.to_arc();
+        self.upper_red_ty = Some((red_ty, or_else.clone()));
+        or_else
     }
 }
