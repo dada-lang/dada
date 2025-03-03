@@ -2,10 +2,7 @@ use std::sync::Arc;
 
 use dada_ir_ast::span::Span;
 
-use crate::{
-    check::universe::Universe,
-    ir::{red_terms::RedTerm, types::SymGenericKind},
-};
+use crate::{check::universe::Universe, ir::types::SymGenericKind};
 
 use super::{
     chains::{Chain, RedTy},

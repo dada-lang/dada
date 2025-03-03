@@ -110,6 +110,13 @@ impl<'db> Chain<'db> {
         }
     }
 
+    pub fn from_head_tail(_db: &'db dyn crate::Db, head: Lien<'db>, tail: &[Lien<'db>]) -> Self {
+        let mut liens = Vec::with_capacity(tail.len() + 1);
+        liens.push(head);
+        liens.extend(tail);
+        Self { liens }
+    }
+
     /// Access a slice of the links in the chain.
     pub fn links(&self) -> &[Lien<'db>] {
         &self.liens
@@ -169,6 +176,10 @@ impl<'db> Chain<'db> {
     /// Convert this chain to an equivalent [`SymPerm`].
     fn to_perm(&self, db: &'db dyn crate::Db) -> SymPerm<'db> {
         Lien::chain_to_perm(db, &self.liens)
+    }
+
+    pub fn extend(&mut self, liens: &[Lien<'db>]) {
+        self.liens.extend_from_slice(liens);
     }
 }
 

@@ -1,4 +1,4 @@
-use dada_ir_ast::{ast::VariableDecl, diagnostic::Errors, span::Span};
+use dada_ir_ast::{diagnostic::Errors, span::Span};
 use dada_util::vecset::VecSet;
 
 use crate::{
@@ -6,7 +6,7 @@ use crate::{
         chains::{RedTerm, RedTy},
         combinator,
         env::Env,
-        report::{ArcOrElse, Because, OrElse, OrElseHelper},
+        report::{ArcOrElse, OrElse},
     },
     ir::{
         indices::{FromInfer, InferVarIndex},

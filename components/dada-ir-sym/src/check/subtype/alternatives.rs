@@ -36,6 +36,15 @@ pub(crate) struct Alternative<'p> {
 }
 
 impl<'p> Alternative<'p> {
+    /// Invokes `op` with an alternative that will never be considered required.
+    /// This is used in scenarios where we are iterating over a series of inference
+    /// bounds but we always have to assume that a future bound may arrive.
+    pub async fn the_future_never_comes<R>(op: impl AsyncFnOnce(&mut Alternative<'_>) -> R) -> R {
+        let mut root = Alternative::root();
+        let mut children = root.spawn_children(2);
+        op(&mut children[0]).await
+    }
+
     /// Create the root alternative.
     pub fn root() -> Self {
         Self {

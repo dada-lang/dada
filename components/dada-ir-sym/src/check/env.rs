@@ -9,7 +9,10 @@ use crate::{
         binder::BoundTerm,
         indices::{FromInfer, InferVarIndex},
         subst::SubstWith,
-        types::{SymGenericKind, SymGenericTerm, SymPerm, SymPlace, SymTy, SymTyName, Variance},
+        types::{
+            Assumption, AssumptionKind, SymGenericKind, SymGenericTerm, SymPerm, SymTy, SymTyName,
+            Variance,
+        },
         variables::SymVariable,
     },
 };
@@ -52,11 +55,18 @@ pub(crate) struct Env<'db> {
 
     /// If `None`, not type checking a function or method.
     pub return_ty: Option<SymTy<'db>>,
+
+    /// Assumptions declared
+    assumptions: Vec<Assumption<'db>>,
 }
 
 impl<'db> Env<'db> {
     /// Create an empty environment
-    pub(crate) fn new(runtime: &Runtime<'db>, scope: Scope<'db, 'db>) -> Self {
+    pub(crate) fn new(
+        runtime: &Runtime<'db>,
+        scope: Scope<'db, 'db>,
+        assumptions: Vec<Assumption<'db>>,
+    ) -> Self {
         Self {
             universe: Universe::ROOT,
             runtime: runtime.clone(),
@@ -64,6 +74,7 @@ impl<'db> Env<'db> {
             variable_tys: Default::default(),
             variable_universes: Default::default(),
             return_ty: Default::default(),
+            assumptions,
         }
     }
 
@@ -94,7 +105,38 @@ impl<'db> Env<'db> {
 
     /// True if the given variable is declared to meet the given predicate.
     pub fn var_is_declared_to_be(&self, var: SymVariable<'db>, predicate: Predicate) -> bool {
-        todo!()
+        match predicate {
+            Predicate::Copy => self.assumed(var, |kind| {
+                matches!(
+                    kind,
+                    AssumptionKind::Copy | AssumptionKind::Our | AssumptionKind::Shared
+                )
+            }),
+            Predicate::Move => self.assumed(var, |kind| {
+                matches!(
+                    kind,
+                    AssumptionKind::Move | AssumptionKind::My | AssumptionKind::Leased
+                )
+            }),
+            Predicate::Owned => self.assumed(var, |kind| {
+                matches!(
+                    kind,
+                    AssumptionKind::Owned | AssumptionKind::My | AssumptionKind::Our
+                )
+            }),
+            Predicate::Lent => self.assumed(var, |kind| {
+                matches!(
+                    kind,
+                    AssumptionKind::Lent | AssumptionKind::Leased | AssumptionKind::Shared
+                )
+            }),
+        }
+    }
+
+    fn assumed(&self, var: SymVariable<'db>, kind: impl Fn(AssumptionKind) -> bool) -> bool {
+        self.assumptions
+            .iter()
+            .any(|a| a.var(self.db()) == var && kind(a.kind(self.db())))
     }
 
     /// Open the given symbols as universally quantified.
@@ -216,10 +258,7 @@ impl<'db> Env<'db> {
                 self.db(),
                 self.fresh_inference_var(kind, span),
             )),
-            SymGenericKind::Place => SymGenericTerm::Place(SymPlace::infer(
-                self.db(),
-                self.fresh_inference_var(kind, span),
-            )),
+            SymGenericKind::Place => panic!("cannot create inference variable for place"),
         }
     }
 

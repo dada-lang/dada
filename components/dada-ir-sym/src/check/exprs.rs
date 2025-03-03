@@ -32,7 +32,7 @@ use dada_parser::prelude::*;
 use dada_util::{FromImpls, boxed_async_fn};
 use futures::StreamExt;
 
-use super::temporaries::Temporary;
+use super::{report::NumericTypeExpected, temporaries::Temporary};
 
 #[derive(Clone)]
 pub(crate) struct ExprResult<'db> {
@@ -89,17 +89,17 @@ async fn check_expr<'db>(expr: &AstExpr<'db>, env: &Env<'db>) -> ExprResult<'db>
                     Ok(v) => v,
                     Err(e) => panic!("error: {e:?}"),
                 };
-                env.require_numeric_type(expr_span, ty);
+                let sym_expr = SymExpr::new(
+                    db,
+                    expr_span,
+                    ty,
+                    SymExprKind::Primitive(SymLiteral::Integral { bits }),
+                );
+                env.require_numeric_type(ty, &NumericTypeExpected { expr: sym_expr, ty });
                 ExprResult {
                     temporaries: vec![],
                     span: expr_span,
-                    kind: SymExpr::new(
-                        db,
-                        expr_span,
-                        ty,
-                        SymExprKind::Primitive(SymLiteral::Integral { bits }),
-                    )
-                    .into(),
+                    kind: sym_expr.into(),
                 }
             }
 

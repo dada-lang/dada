@@ -161,23 +161,17 @@ where
     }
 }
 
-pub async fn exists_upper_bound<'db>(
+pub async fn exists_infer_bound<'db>(
     env: &Env<'db>,
     infer: InferVarIndex,
+    direction: impl for<'a> Fn(&'a InferenceVarData<'db>) -> &'a [(Chain<'db>, ArcOrElse<'db>)],
     mut op: impl AsyncFnMut(Chain<'db>) -> Errors<bool>,
 ) -> Errors<bool> {
     let mut observed = 0;
     let mut stack = vec![];
 
     loop {
-        extract_bounding_chains(
-            env,
-            infer,
-            &mut observed,
-            &mut stack,
-            &InferenceVarData::upper_chains,
-        )
-        .await;
+        extract_bounding_chains(env, infer, &mut observed, &mut stack, &direction).await;
 
         while let Some(chain) = stack.pop() {
             match op(chain).await {

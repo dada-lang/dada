@@ -437,3 +437,24 @@ impl<'db> OrElse<'db> for BooleanTypeRequired<'db> {
         Arc::new(*self)
     }
 }
+
+#[derive(Copy, Clone, Debug)]
+pub struct NumericTypeExpected<'db> {
+    pub expr: SymExpr<'db>,
+    pub ty: SymTy<'db>,
+}
+
+impl<'db> OrElse<'db> for NumericTypeExpected<'db> {
+    fn or_else(&self, db: &'db dyn Db, because: Because<'db>) -> Diagnostic {
+        Diagnostic::error(db, self.expr.span(db), "numeric type expected").label(
+            db,
+            Level::Error,
+            self.expr.span(db),
+            format!("I expected a numeric type but I found `{}`", self.ty),
+        )
+    }
+
+    fn to_arc(&self) -> ArcOrElse<'db> {
+        Arc::new(*self)
+    }
+}

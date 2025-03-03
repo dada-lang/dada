@@ -594,7 +594,6 @@ impl<'db> SymPlace<'db> {
     pub fn no_inference_vars(self, db: &'db dyn crate::Db) -> bool {
         match self.kind(db) {
             SymPlaceKind::Var(..) => true,
-            SymPlaceKind::Infer(..) => false,
             SymPlaceKind::Field(sym_place, _) => sym_place.no_inference_vars(db),
             SymPlaceKind::Index(sym_place) => sym_place.no_inference_vars(db),
             SymPlaceKind::Error(..) => true,
@@ -620,12 +619,6 @@ impl<'db> SymPlace<'db> {
     /// See [`Self::covers`] for the definition of coverage.
     pub fn is_covered_by(self, db: &'db dyn crate::Db, other: SymPlace<'db>) -> bool {
         other.covers(db, self)
-    }
-}
-
-impl<'db> FromInfer<'db> for SymPlace<'db> {
-    fn infer(db: &'db dyn crate::Db, var: InferVarIndex) -> Self {
-        SymPlace::new(db, SymPlaceKind::Infer(var))
     }
 }
 
@@ -713,4 +706,22 @@ impl<'db> AnonymousPermSymbol<'db> for AstPerm<'db> {
             _ => panic!("`anonymous_perm_symbol` invoked on inappropriate perm: {self:?}"),
         }
     }
+}
+
+#[salsa::interned]
+pub struct Assumption<'db> {
+    pub kind: AssumptionKind,
+    pub var: SymVariable<'db>,
+}
+
+#[derive(Copy, Clone, PartialEq, Eq, PartialOrd, Ord, Hash, Update, Debug)]
+pub enum AssumptionKind {
+    Lent,
+    Shared,
+    Move,
+    Leased,
+    Owned,
+    Copy,
+    My,
+    Our,
 }
