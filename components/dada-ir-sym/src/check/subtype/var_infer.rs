@@ -6,7 +6,7 @@ use crate::{
         chains::{RedTerm, RedTy},
         combinator,
         env::Env,
-        report::{Because, OrElse, OrElseHelper},
+        report::{ArcOrElse, Because, OrElse, OrElseHelper},
     },
     ir::{
         indices::{FromInfer, InferVarIndex},
@@ -15,6 +15,12 @@ use crate::{
 };
 
 use super::terms::{require_sub_red_terms, require_sub_terms};
+
+#[derive(Copy, Clone, Debug)]
+pub enum Direction {
+    FromBelow,
+    FromAbove,
+}
 
 /// Require that `lower <: ?X`.
 ///
@@ -25,23 +31,21 @@ use super::terms::{require_sub_red_terms, require_sub_terms};
 ///
 /// If `?X` already has a lower bound,
 /// then
-async fn require_infer_has_lower_bound<'a, 'db>(
+async fn require_infer_has_bounding_red_ty<'a, 'db>(
     env: &'a Env<'db>,
-    lower_red_ty: RedTy<'db>,
+    direction: Direction,
+    bound: RedTy<'db>,
     infer: InferVarIndex,
     or_else: &dyn OrElse<'db>,
 ) -> Errors<()> {
-    let Some((generalized_red_ty, _generalized_or_else)) = env
-        .runtime()
-        .with_inference_var_data(infer, |data| data.lower_red_ty().clone())
+    let Some((generalized_red_ty, _generalized_or_else)) = bounding_red_ty(env, direction, infer)
     else {
         let span = env
             .runtime()
             .with_inference_var_data(infer, |data| data.span());
-        let (lower_generalized, relate_pairs) = generalize(env, lower_red_ty, span)?;
-        let or_else = env
-            .runtime()
-            .set_lower_red_ty(infer, lower_generalized, or_else);
+        let (generalized, relate_pairs) = generalize(env, bound, span)?;
+
+        let or_else = set_bounding_red_ty(env, direction, infer, generalized, or_else);
 
         for RelatePair {
             variance,
@@ -53,11 +57,25 @@ async fn require_infer_has_lower_bound<'a, 'db>(
             match variance {
                 Variance::Covariant => {
                     // Term `$Li` in `lower` must be less than term `$Gi` in `generalized`
-                    require_sub_terms(env, original_term, generalized_term, &or_else).await?
+                    relate_term_from_bound(
+                        env,
+                        direction,
+                        original_term,
+                        generalized_term,
+                        &or_else,
+                    )
+                    .await?
                 }
                 Variance::Contravariant => {
                     // Reverse of above
-                    require_sub_terms(env, generalized_term, original_term, &or_else).await?
+                    relate_term_from_bound(
+                        env,
+                        direction,
+                        generalized_term,
+                        original_term,
+                        &or_else,
+                    )
+                    .await?
                 }
                 Variance::Invariant => {
                     // Must be equal
@@ -75,11 +93,63 @@ async fn require_infer_has_lower_bound<'a, 'db>(
 
     // We want `lower[$L0...$LN] <= generalized[$G0...$GN] <= ?X` -- for that to happen...
     let db = env.db();
-    let lower_red_term = RedTerm::new(db, VecSet::default(), lower_red_ty);
-    let geeneralized_red_term = RedTerm::new(db, VecSet::default(), generalized_red_ty);
-    require_sub_red_terms(env, lower_red_term, geeneralized_red_term, or_else).await?;
+    let new_bound_red_term = RedTerm::new(db, VecSet::default(), bound);
+    let old_bound_red_term = RedTerm::new(db, VecSet::default(), generalized_red_ty);
+    match direction {
+        Direction::FromBelow => {
+            require_sub_red_terms(env, new_bound_red_term, old_bound_red_term, or_else).await?
+        }
+        Direction::FromAbove => {
+            require_sub_red_terms(env, old_bound_red_term, new_bound_red_term, or_else).await?
+        }
+    }
 
     Ok(())
+}
+
+fn bounding_red_ty<'db>(
+    env: &Env<'db>,
+    direction: Direction,
+    infer: InferVarIndex,
+) -> Option<(RedTy<'db>, ArcOrElse<'db>)> {
+    match direction {
+        Direction::FromBelow => env
+            .runtime()
+            .with_inference_var_data(infer, |data| data.lower_red_ty().clone()),
+        Direction::FromAbove => env
+            .runtime()
+            .with_inference_var_data(infer, |data| data.upper_red_ty().clone()),
+    }
+}
+
+fn set_bounding_red_ty<'db>(
+    env: &Env<'db>,
+    direction: Direction,
+    infer: InferVarIndex,
+    red_ty: RedTy<'db>,
+    or_else: &dyn OrElse<'db>,
+) -> ArcOrElse<'db> {
+    match direction {
+        Direction::FromBelow => env.runtime().set_lower_red_ty(infer, red_ty, or_else),
+        Direction::FromAbove => env.runtime().set_upper_red_ty(infer, red_ty, or_else),
+    }
+}
+
+async fn relate_term_from_bound<'db>(
+    env: &Env<'db>,
+    direction: Direction,
+    original_term: SymGenericTerm<'db>,
+    generalized_term: SymGenericTerm<'db>,
+    or_else: &dyn OrElse<'db>,
+) -> Errors<()> {
+    match direction {
+        Direction::FromBelow => {
+            require_sub_terms(env, original_term, generalized_term, or_else).await
+        }
+        Direction::FromAbove => {
+            require_sub_terms(env, generalized_term, original_term, or_else).await
+        }
+    }
 }
 
 struct RelatePair<'db> {

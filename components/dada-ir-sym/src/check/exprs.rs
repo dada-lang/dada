@@ -5,7 +5,6 @@ use crate::{
         member_lookup::MemberLookup,
         scope::{NameResolution, NameResolutionSym},
         scope_tree::ScopeTreeNode,
-        subtype_require::{Expected, require_subtype},
     },
     ir::{
         binder::Binder,
