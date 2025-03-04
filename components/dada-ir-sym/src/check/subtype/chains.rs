@@ -271,7 +271,7 @@ async fn require_lower_chain<'db>(
     // there is at least one *upper bound* on the variable (either one
     // that currently exists or one that may be added in the future)
     // that is a superchain of this lower bound.
-    env.runtime().defer(env, async move |ref env| {
+    env.runtime().spawn(env, async move |ref env| {
         require(
             exists_infer_bound(
                 env,

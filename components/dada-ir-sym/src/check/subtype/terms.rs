@@ -23,7 +23,10 @@ use crate::{
     },
 };
 
-use super::chains::require_sub_red_perms;
+use super::{
+    chains::require_sub_red_perms,
+    var_infer::{require_infer_has_lower_bound, require_infer_has_upper_bound},
+};
 
 pub async fn require_assignable_type<'db>(
     env: &Env<'db>,
@@ -121,18 +124,42 @@ async fn propagate_bounds<'db>(
     .await
 }
 
+#[boxed_async_fn]
 pub async fn require_sub_red_terms<'a, 'db>(
     env: &'a Env<'db>,
     lower: RedTerm<'db>,
     upper: RedTerm<'db>,
     or_else: &dyn OrElse<'db>,
 ) -> Errors<()> {
+    let db = env.db();
     match (lower.ty(), upper.ty()) {
         (&RedTy::Error(reported), _) | (_, &RedTy::Error(reported)) => Err(reported),
 
         (&RedTy::Infer(infer_lower), &RedTy::Infer(infer_upper)) => todo!(),
-        (&RedTy::Infer(infer_lower), _) => todo!(),
-        (_, &RedTy::Infer(infer_lower)) => todo!(),
+
+        (&RedTy::Infer(infer_lower), _) => {
+            let generalized_ty =
+                require_infer_has_upper_bound(env, infer_lower, upper.ty(), or_else).await?;
+            require_sub_red_terms(
+                env,
+                RedTerm::new(db, lower.into_chains(), generalized_ty),
+                upper,
+                or_else,
+            )
+            .await
+        }
+
+        (_, &RedTy::Infer(infer_upper)) => {
+            let generalized_ty =
+                require_infer_has_lower_bound(env, lower.ty(), infer_upper, or_else).await?;
+            require_sub_red_terms(
+                env,
+                lower,
+                RedTerm::new(db, upper.into_chains(), generalized_ty),
+                or_else,
+            )
+            .await
+        }
 
         (
             &RedTy::Named(name_lower, ref lower_generics),

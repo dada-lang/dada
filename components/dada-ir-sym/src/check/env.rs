@@ -288,7 +288,7 @@ impl<'db> Env<'db> {
     ) {
         debug!("defer require_assignable_object_type", value_ty, place_ty);
         let or_else = or_else.to_arc();
-        self.runtime.defer(self, async move |env| {
+        self.runtime.spawn(self, async move |env| {
             debug!("require_assignable_object_type", value_ty, place_ty);
 
             match require_assignable_type(&env, value_ty, place_ty, &or_else).await {
@@ -307,7 +307,7 @@ impl<'db> Env<'db> {
     ) {
         debug!("defer require_equal_object_types", expected_ty, found_ty);
         let or_else = or_else.to_arc();
-        self.runtime.defer(self, move |env| async move {
+        self.runtime.spawn(self, move |env| async move {
             debug!("require_equal_object_types", expected_ty, found_ty);
 
             match require_sub_terms(&env, expected_ty.into(), found_ty.into(), &or_else).await {
@@ -324,7 +324,7 @@ impl<'db> Env<'db> {
 
     pub(super) fn require_numeric_type(&self, ty: SymTy<'db>, or_else: &dyn OrElse<'db>) {
         let or_else = or_else.to_arc();
-        self.runtime.defer(self, move |env| async move {
+        self.runtime.spawn(self, move |env| async move {
             require_numeric_type(&env, ty, &or_else).await
         })
     }
@@ -334,7 +334,7 @@ impl<'db> Env<'db> {
     /// Otherwise, if no type in `tys` is known to be never, invoke `op` (asynchronously).
     pub fn if_not_never(&self, tys: &[SymTy<'db>], op: impl AsyncFnOnce(Env<'db>) + 'db) {
         let _tys = tys.to_vec();
-        self.runtime.defer(self, move |env: Env<'db>| async move {
+        self.runtime.spawn(self, move |env: Env<'db>| async move {
             // FIXME: check for never
             op(env).await
         })
@@ -348,7 +348,7 @@ impl<'db> Env<'db> {
     where
         R: DeferResult,
     {
-        self.runtime.defer(self, async move |env| op(&env).await)
+        self.runtime.spawn(self, async move |env| op(&env).await)
     }
 
     pub(crate) fn require_expr_has_bool_ty(&self, expr: SymExpr<'db>) {
@@ -389,10 +389,15 @@ impl<'db> Env<'db> {
         false // FIXME
     }
 
+    /// Kind of inference variable `v`.
     pub(crate) fn infer_var_kind(&self, v: InferVarIndex) -> SymGenericKind {
         self.runtime.with_inference_var_data(v, |data| data.kind())
     }
 
+    /// Span for code that prompted creation of inference variable `v`.
+    pub(crate) fn infer_var_span(&self, v: InferVarIndex) -> Span<'db> {
+        self.runtime.with_inference_var_data(v, |data| data.span())
+    }
     pub(crate) fn variances(&self, n: SymTyName<'db>) -> Vec<Variance> {
         match n {
             SymTyName::Primitive(_) => vec![],

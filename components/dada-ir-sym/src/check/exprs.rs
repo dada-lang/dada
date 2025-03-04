@@ -627,7 +627,7 @@ async fn check_expr<'db>(expr: &AstExpr<'db>, env: &Env<'db>) -> ExprResult<'db>
 
             let awaited_ty = env.fresh_ty_inference_var(await_span);
 
-            env.defer(await_span, async move |env| {
+            env.spawn(await_span, async move |env| {
                 require_future(&env, future_span, await_span, future_ty, awaited_ty).await
             });
 
@@ -874,7 +874,7 @@ async fn require_future<'db>(
             }
             SymTyKind::Perm(perm, ty) => {
                 require_owned(env, await_span, perm);
-                env.defer(await_span, async move |ref env| {
+                env.spawn(await_span, async move |ref env| {
                     require_future(env, future_span, await_span, ty, awaited_ty).await;
                 });
             }

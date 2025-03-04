@@ -7,19 +7,18 @@ use std::{
     task::{Context, Poll, Waker},
 };
 
-use crate::ir::{indices::InferVarIndex, types::SymGenericKind};
+use crate::ir::indices::InferVarIndex;
 use check_task::CheckTask;
 use dada_ir_ast::{
     diagnostic::{Diagnostic, Err, Errors, Level},
     span::Span,
 };
-use dada_util::{Map, vecext::VecExt};
+use dada_util::{Map, Set, vecext::VecExt};
 
-use crate::{check::env::Env, check::inference::InferenceVarData, check::universe::Universe};
+use crate::{check::env::Env, check::inference::InferenceVarData};
 
 use super::{
     chains::{Chain, RedTy},
-    inference::InferenceVarBounds,
     predicates::Predicate,
     report::{ArcOrElse, OrElse},
 };
@@ -36,7 +35,15 @@ pub(crate) struct RuntimeData<'db> {
     waiting_on_inference_var: Mutex<Map<InferVarIndex, Vec<EqWaker>>>,
     complete: AtomicBool,
     next_task_id: AtomicU64,
+
+    /// There are some kind of tasks that we need to spawn only once.
+    /// This set records the cases where we have already done so.
+    spawn_once: Mutex<Set<SpawnOnceKey>>,
 }
+
+/// There are some kind of tasks that we need to spawn only once.
+/// This type describes the key that we use to identify if we have already done so.
+pub(crate) type SpawnOnceKey = (InferVarIndex, InferVarIndex);
 
 /// Wrapper around waker to compare its data/vtable fields by pointer equality.
 /// This suffices to identify the waker for one of our tasks,
@@ -82,7 +89,7 @@ impl<'db> Runtime<'db> {
     {
         let runtime = Runtime::new(db);
         let (channel_tx, channel_rx) = std::sync::mpsc::channel();
-        runtime.spawn({
+        runtime.spawn_future({
             let runtime = runtime.clone();
             async move {
                 let result = constrain(&runtime).await;
@@ -111,6 +118,7 @@ impl<'db> Runtime<'db> {
                 ready_to_execute: Default::default(),
                 waiting_on_inference_var: Default::default(),
                 next_task_id: Default::default(),
+                spawn_once: Default::default(),
             }),
         }
     }
@@ -120,7 +128,7 @@ impl<'db> Runtime<'db> {
     }
 
     /// Spawn a new check-task.
-    fn spawn(&self, future: impl Future<Output = ()> + 'db) {
+    fn spawn_future(&self, future: impl Future<Output = ()> + 'db) {
         let task = CheckTask::new(self, future);
         self.ready_to_execute.lock().unwrap().push(task);
     }
@@ -146,7 +154,7 @@ impl<'db> Runtime<'db> {
     /// Creates a fresh inference variable of the given kind and universe.
     ///
     /// Low-level routine not to be directly invoked.
-    pub fn fresh_inference_var(&self, data: InferenceVarData) -> InferVarIndex {
+    pub fn fresh_inference_var(&self, data: InferenceVarData<'db>) -> InferVarIndex {
         assert!(!self.check_complete());
         let mut inference_vars = self.inference_vars.write().unwrap();
         let var_index = InferVarIndex::from(inference_vars.len());
@@ -285,12 +293,31 @@ impl<'db> Runtime<'db> {
 
     /// Execute the given future asynchronously from the main execution.
     /// It must execute to completion eventually or an error will be reported.
-    pub fn defer<R>(&self, env: &Env<'db>, check: impl 'db + AsyncFnOnce(Env<'db>) -> R)
+    pub fn spawn<R>(&self, env: &Env<'db>, check: impl 'db + AsyncFnOnce(Env<'db>) -> R)
     where
         R: DeferResult,
     {
         let future = check(env.clone());
-        self.spawn(async move { future.await.finish() });
+        self.spawn_future(async move { future.await.finish() });
+    }
+
+    /// Spawn the given check, but only if we have never spawned a check for `key` before.
+    pub fn spawn_once<R>(
+        &self,
+        key: SpawnOnceKey,
+        env: &Env<'db>,
+        check: impl 'db + AsyncFnOnce(Env<'db>) -> R,
+    ) where
+        R: DeferResult,
+    {
+        let inserted = {
+            let mut spawn_once = self.data.spawn_once.lock().unwrap();
+            spawn_once.insert(key)
+        };
+
+        if inserted {
+            self.spawn(env, check);
+        }
     }
 
     /// Block the current task on changes to the given inference variable.

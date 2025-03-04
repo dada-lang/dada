@@ -189,7 +189,7 @@ fn defer_require_bounds_provably_predicate<'db>(
     predicate: Predicate,
     or_else: Arc<dyn OrElse<'db> + 'db>,
 ) {
-    env.defer(async move |ref env| match predicate {
+    env.spawn(async move |ref env| match predicate {
         Predicate::Copy => {
             require_for_all_infer_bounds(
                 env,
@@ -235,7 +235,7 @@ fn defer_require_bounds_not_provably_predicate<'db>(
     predicate: Predicate,
     or_else: Arc<dyn OrElse<'db> + 'db>,
 ) {
-    env.defer(async move |ref env| match predicate {
+    env.spawn(async move |ref env| match predicate {
         Predicate::Copy => {
             require_for_all_infer_bounds(
                 env,

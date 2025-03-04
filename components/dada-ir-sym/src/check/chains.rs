@@ -56,6 +56,10 @@ impl<'db> RedTerm<'db> {
     pub fn chains(&self) -> &VecSet<Chain<'db>> {
         &self.chains
     }
+
+    pub fn into_chains(self) -> VecSet<Chain<'db>> {
+        self.chains
+    }
 }
 
 impl<'db> Err<'db> for RedTerm<'db> {
