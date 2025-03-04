@@ -1,6 +1,7 @@
 //! Implement object-level subtyping.
 
 use dada_ir_ast::diagnostic::Errors;
+use dada_util::boxed_async_fn;
 
 use crate::{
     check::{
