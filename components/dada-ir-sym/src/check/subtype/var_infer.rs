@@ -95,7 +95,6 @@ fn set_bounding_red_ty<'db>(
 
 fn generalize<'db>(env: &Env<'db>, red_ty: &RedTy<'db>, span: Span<'db>) -> Errors<RedTy<'db>> {
     let db = env.db();
-    let mut relate_pairs = vec![];
     let red_ty_generalized = match red_ty {
         RedTy::Error(reported) => return Err(*reported),
         RedTy::Never => RedTy::Never,
