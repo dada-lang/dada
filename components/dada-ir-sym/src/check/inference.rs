@@ -2,7 +2,10 @@ use std::sync::Arc;
 
 use dada_ir_ast::span::Span;
 
-use crate::{check::universe::Universe, ir::types::SymGenericKind};
+use crate::{
+    check::universe::Universe,
+    ir::{indices::InferVarIndex, types::SymGenericKind},
+};
 
 use super::{
     chains::{Chain, RedTy},
@@ -11,8 +14,6 @@ use super::{
 };
 
 pub(crate) struct InferenceVarData<'db> {
-    kind: SymGenericKind,
-
     #[expect(dead_code)]
     universe: Universe,
 
@@ -32,26 +33,37 @@ pub(crate) struct InferenceVarData<'db> {
     /// imply that it is `is (known to be) move`. It means "you will never be able to prove this is copy".
     isnt: [Option<ArcOrElse<'db>>; Predicate::LEN],
 
-    lower_chains: Vec<(Chain<'db>, ArcOrElse<'db>)>,
-    upper_chains: Vec<(Chain<'db>, ArcOrElse<'db>)>,
-
-    lower_red_ty: Option<(RedTy<'db>, ArcOrElse<'db>)>,
-    upper_red_ty: Option<(RedTy<'db>, ArcOrElse<'db>)>,
+    /// Bounds on this variable suitable for its kind.
+    bounds: InferenceVarBounds<'db>,
 }
 
 impl<'db> InferenceVarData<'db> {
-    pub fn new(kind: SymGenericKind, universe: Universe, span: Span<'db>) -> Self {
+    fn new(universe: Universe, span: Span<'db>, bounds: InferenceVarBounds<'db>) -> Self {
         Self {
-            kind,
             universe,
             span,
+            bounds,
             is: [None, None, None, None],
             isnt: [None, None, None, None],
-            lower_chains: Default::default(),
-            upper_chains: Default::default(),
-            lower_red_ty: None,
-            upper_red_ty: None,
         }
+    }
+
+    /// Create the data for a new permission inference variable.
+    pub fn new_perm(universe: Universe, span: Span<'db>) -> Self {
+        Self::new(universe, span, InferenceVarBounds::Perm {
+            lower: Default::default(),
+            upper: Default::default(),
+        })
+    }
+
+    /// Create the data for a new type inference variable.
+    /// Requires the index `perm` of a corresponding permission variable.
+    pub fn new_ty(universe: Universe, span: Span<'db>, perm: InferVarIndex) -> Self {
+        Self::new(universe, span, InferenceVarBounds::Ty {
+            perm,
+            lower: Default::default(),
+            upper: Default::default(),
+        })
     }
 
     /// Returns the span of code which triggered the inference variable to be created.
@@ -61,7 +73,10 @@ impl<'db> InferenceVarData<'db> {
 
     /// Returns the kind of the inference variable.
     pub fn kind(&self) -> SymGenericKind {
-        self.kind
+        match self.bounds {
+            InferenceVarBounds::Perm { .. } => SymGenericKind::Perm,
+            InferenceVarBounds::Ty { .. } => SymGenericKind::Type,
+        }
     }
 
     /// Returns `Some(s)` if the predicate is known to be true (where `s` is the span of code
@@ -85,30 +100,14 @@ impl<'db> InferenceVarData<'db> {
         self.isnt[predicate.index()].clone()
     }
 
-    /// Returns the set of lower bounding chains and the
-    /// [`ArcOrElse`][] objects representing the reasons they were added.
-    /// The ordering of the chains represents the order they were added.
-    pub fn lower_chains(&self) -> &[(Chain<'db>, ArcOrElse<'db>)] {
-        &self.lower_chains
+    /// Access to the bounds on the inference variable.
+    pub fn bounds(&self) -> &InferenceVarBounds<'db> {
+        &self.bounds
     }
 
-    /// Returns the set of upper bounding chains and the
-    /// [`ArcOrElse`][] objects representing the reasons they were added.
-    /// The ordering of the chains represents the order they were added.
-    pub fn upper_chains(&self) -> &[(Chain<'db>, ArcOrElse<'db>)] {
-        &self.upper_chains
-    }
-
-    /// Returns the lower bounding red-ty and the
-    /// [`ArcOrElse`][] object representing the reasons it were added.
-    pub fn lower_red_ty(&self) -> &Option<(RedTy<'db>, ArcOrElse<'db>)> {
-        &self.lower_red_ty
-    }
-
-    /// Returns the upper bounding red-ty and the
-    /// [`ArcOrElse`][] object representing the reasons it were added.
-    pub fn upper_red_ty(&self) -> &Option<(RedTy<'db>, ArcOrElse<'db>)> {
-        &self.upper_red_ty
+    /// Mutable access to the bounds on the inference variable.
+    pub fn bounds_mut(&mut self) -> &mut InferenceVarBounds<'db> {
+        &mut self.bounds
     }
 
     /// Insert a predicate into the `is` set and its invert into the `isnt` set.
@@ -179,6 +178,66 @@ impl<'db> InferenceVarData<'db> {
         }
     }
 
+    /// Returns the lower bounds on this permission variable.
+    ///
+    /// # Panics
+    ///
+    /// If this is not a permission variable.
+    pub fn lower_chains(&self) -> &[(Chain<'db>, ArcOrElse<'db>)] {
+        match &self.bounds {
+            InferenceVarBounds::Perm { lower, .. } => lower,
+            _ => panic!("lower_chains invoked on a var of kind `{:?}`", self.kind()),
+        }
+    }
+
+    /// Returns the upper bounds on this permission variable.
+    ///
+    /// # Panics
+    ///
+    /// If this is not a permission variable.
+    pub fn upper_chains(&self) -> &[(Chain<'db>, ArcOrElse<'db>)] {
+        match &self.bounds {
+            InferenceVarBounds::Perm { upper, .. } => upper,
+            _ => panic!("lower_chains invoked on a var of kind `{:?}`", self.kind()),
+        }
+    }
+
+    /// Returns the permission variable corresponding to this type variable.
+    ///
+    /// # Panics
+    ///
+    /// If this is not a type variable.
+    pub fn perm(&self) -> InferVarIndex {
+        match &self.bounds {
+            InferenceVarBounds::Ty { perm, .. } => *perm,
+            _ => panic!("perm invoked on a var of kind `{:?}`", self.kind()),
+        }
+    }
+
+    /// Returns the lower bound on this type variable.
+    ///
+    /// # Panics
+    ///
+    /// If this is not a type variable.
+    pub fn lower_red_ty(&self) -> Option<(RedTy<'db>, ArcOrElse<'db>)> {
+        match &self.bounds {
+            InferenceVarBounds::Ty { lower, .. } => lower.clone(),
+            _ => panic!("lower_red_ty invoked on a var of kind `{:?}`", self.kind()),
+        }
+    }
+
+    /// Returns the upper bound on this type variable.
+    ///
+    /// # Panics
+    ///
+    /// If this is not a type variable.
+    pub fn upper_red_ty(&self) -> Option<(RedTy<'db>, ArcOrElse<'db>)> {
+        match &self.bounds {
+            InferenceVarBounds::Ty { upper, .. } => upper.clone(),
+            _ => panic!("upper_red_ty invoked on a var of kind `{:?}`", self.kind()),
+        }
+    }
+
     /// Insert a chain as a lower bound.
     /// Returns `Some(or_else.to_arc())` if this is a new upper bound.
     pub fn insert_lower_chain(
@@ -186,11 +245,18 @@ impl<'db> InferenceVarData<'db> {
         chain: &Chain<'db>,
         or_else: &dyn OrElse<'db>,
     ) -> Option<ArcOrElse<'db>> {
-        if self.lower_chains.iter().any(|pair| pair.0 == *chain) {
+        let lower_chains = match &mut self.bounds {
+            InferenceVarBounds::Perm { lower, .. } => lower,
+            _ => panic!(
+                "insert_lower_chain invoked on a var of kind `{:?}`",
+                self.kind()
+            ),
+        };
+        if lower_chains.iter().any(|pair| pair.0 == *chain) {
             return None;
         }
         let or_else = or_else.to_arc();
-        self.lower_chains.push((chain.clone(), or_else.clone()));
+        lower_chains.push((chain.clone(), or_else.clone()));
         Some(or_else)
     }
 
@@ -201,11 +267,18 @@ impl<'db> InferenceVarData<'db> {
         chain: &Chain<'db>,
         or_else: &dyn OrElse<'db>,
     ) -> Option<ArcOrElse<'db>> {
-        if self.upper_chains.iter().any(|pair| pair.0 == *chain) {
+        let upper_chains = match &mut self.bounds {
+            InferenceVarBounds::Perm { upper, .. } => upper,
+            _ => panic!(
+                "insert_upper_chain invoked on a var of kind `{:?}`",
+                self.kind()
+            ),
+        };
+        if upper_chains.iter().any(|pair| pair.0 == *chain) {
             return None;
         }
         let or_else = or_else.to_arc();
-        self.upper_chains.push((chain.clone(), or_else.clone()));
+        upper_chains.push((chain.clone(), or_else.clone()));
         Some(or_else)
     }
 
@@ -220,9 +293,16 @@ impl<'db> InferenceVarData<'db> {
         red_ty: RedTy<'db>,
         or_else: &dyn OrElse<'db>,
     ) -> ArcOrElse<'db> {
-        assert!(self.lower_red_ty.is_none());
+        let lower_red_ty = match &mut self.bounds {
+            InferenceVarBounds::Ty { lower, .. } => lower,
+            _ => panic!(
+                "set_lower_red_ty invoked on a var of kind `{:?}`",
+                self.kind()
+            ),
+        };
+        assert!(lower_red_ty.is_none());
         let or_else = or_else.to_arc();
-        self.lower_red_ty = Some((red_ty, or_else.clone()));
+        *lower_red_ty = Some((red_ty, or_else.clone()));
         or_else
     }
 
@@ -237,9 +317,29 @@ impl<'db> InferenceVarData<'db> {
         red_ty: RedTy<'db>,
         or_else: &dyn OrElse<'db>,
     ) -> ArcOrElse<'db> {
-        assert!(self.upper_red_ty.is_none());
+        let upper_red_ty = match &mut self.bounds {
+            InferenceVarBounds::Ty { upper, .. } => upper,
+            _ => panic!(
+                "set_upper_red_ty invoked on a var of kind `{:?}`",
+                self.kind()
+            ),
+        };
+        assert!(upper_red_ty.is_none());
         let or_else = or_else.to_arc();
-        self.upper_red_ty = Some((red_ty, or_else.clone()));
+        *upper_red_ty = Some((red_ty, or_else.clone()));
         or_else
     }
+}
+
+enum InferenceVarBounds<'db> {
+    Perm {
+        lower: Vec<(Chain<'db>, ArcOrElse<'db>)>,
+        upper: Vec<(Chain<'db>, ArcOrElse<'db>)>,
+    },
+
+    Ty {
+        perm: InferVarIndex,
+        lower: Option<(RedTy<'db>, ArcOrElse<'db>)>,
+        upper: Option<(RedTy<'db>, ArcOrElse<'db>)>,
+    },
 }

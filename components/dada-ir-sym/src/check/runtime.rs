@@ -19,6 +19,7 @@ use crate::{check::env::Env, check::inference::InferenceVarData, check::universe
 
 use super::{
     chains::{Chain, RedTy},
+    inference::InferenceVarBounds,
     predicates::Predicate,
     report::{ArcOrElse, OrElse},
 };
@@ -145,16 +146,11 @@ impl<'db> Runtime<'db> {
     /// Creates a fresh inference variable of the given kind and universe.
     ///
     /// Low-level routine not to be directly invoked.
-    pub fn fresh_inference_var(
-        &self,
-        kind: SymGenericKind,
-        universe: Universe,
-        span: Span<'db>,
-    ) -> InferVarIndex {
+    pub fn fresh_inference_var(&self, data: InferenceVarData) -> InferVarIndex {
         assert!(!self.check_complete());
         let mut inference_vars = self.inference_vars.write().unwrap();
         let var_index = InferVarIndex::from(inference_vars.len());
-        inference_vars.push(InferenceVarData::new(kind, universe, span));
+        inference_vars.push(data);
         var_index
     }
 

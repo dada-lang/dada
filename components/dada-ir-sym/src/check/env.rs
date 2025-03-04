@@ -27,6 +27,7 @@ use crate::{check::runtime::Runtime, check::universe::Universe, ir::exprs::SymEx
 
 use super::{
     CheckInEnv,
+    inference::InferenceVarData,
     predicates::Predicate,
     report::{BooleanTypeRequired, OrElse},
     runtime::DeferResult,
@@ -239,7 +240,15 @@ impl<'db> Env<'db> {
 
     /// Create a fresh inference variable of the given kind.
     pub fn fresh_inference_var(&self, kind: SymGenericKind, span: Span<'db>) -> InferVarIndex {
-        let infer = self.runtime.fresh_inference_var(kind, self.universe, span);
+        let data = match kind {
+            SymGenericKind::Type => {
+                let perm = self.fresh_inference_var(SymGenericKind::Perm, span);
+                InferenceVarData::new_ty(self.universe, span, perm)
+            }
+            SymGenericKind::Perm => InferenceVarData::new_perm(self.universe, span),
+            SymGenericKind::Place => panic!("inference variable of kind `Place` not supported"),
+        };
+        let infer = self.runtime.fresh_inference_var(data);
         infer
     }
 
@@ -391,6 +400,12 @@ impl<'db> Env<'db> {
             SymTyName::Tuple { arity } => vec![Variance::Covariant; arity],
             SymTyName::Aggregate(aggr) => aggr.variances(self.db()),
         }
+    }
+
+    /// Given a type inference variable, return the corresponding permission inference variable.
+    pub fn perm_infer_for_ty_infer(&self, infer: InferVarIndex) -> InferVarIndex {
+        self.runtime()
+            .with_inference_var_data(infer, |data| data.perm())
     }
 }
 

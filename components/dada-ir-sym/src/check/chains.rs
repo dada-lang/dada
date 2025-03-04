@@ -461,7 +461,10 @@ impl<'db> ToChains<'db> for SymTy<'db> {
                     }
                 }
             }
-            SymTyKind::Never | SymTyKind::Named(..) | SymTyKind::Infer(_) | SymTyKind::Var(_) => {
+            SymTyKind::Infer(infer) => {
+                output.insert(Chain::infer(db, env.perm_infer_for_ty_infer(infer)));
+            }
+            SymTyKind::Never | SymTyKind::Named(..) | SymTyKind::Var(_) => {
                 output.insert(Chain::my(db));
             }
             SymTyKind::Error(reported) => return Err(reported),
