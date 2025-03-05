@@ -126,11 +126,6 @@ async fn sub_chains1<'a, 'db>(
     ) {
         (Lien::Error(reported), _, _, _) | (_, _, Lien::Error(reported), _) => Err(reported),
 
-        (Lien::Infer(v0), [], Lien::Infer(v1), []) => {
-            // XXX relate v0 and v1
-            todo!("{v0:?} {v1:?}")
-        }
-
         (Lien::Infer(v0), c0, _, _) => {
             if c0.is_empty() {
                 alternative

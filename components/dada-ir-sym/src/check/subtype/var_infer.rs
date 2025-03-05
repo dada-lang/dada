@@ -1,5 +1,5 @@
 use dada_ir_ast::{diagnostic::Errors, span::Span};
-use dada_util::vecset::VecSet;
+use dada_util::{Error, vecset::VecSet};
 
 use crate::{
     check::{
@@ -121,4 +121,35 @@ fn generalize<'db>(env: &Env<'db>, red_ty: &RedTy<'db>, span: Span<'db>) -> Erro
         }
     };
     Ok(red_ty_generalized)
+}
+
+/// Require that `?X <= upper`.
+pub async fn for_each_lower_bound<'db>(
+    env: &Env<'db>,
+    infer: InferVarIndex,
+    mut op: impl AsyncFnMut(&RedTy<'db>) -> Errors<()>,
+) -> Errors<()> {
+    let mut previous_ty = None;
+    loop {
+        let new_lower_red_ty = env
+            .runtime()
+            .loop_on_inference_var(infer, |data| {
+                let (lower_red_ty, _or_else) = data.lower_red_ty()?;
+                if let Some(previous_ty) = &previous_ty {
+                    if lower_red_ty == *previous_ty {
+                        return None;
+                    }
+                }
+                Some(lower_red_ty)
+            })
+            .await;
+
+        match new_lower_red_ty {
+            None => return Ok(()),
+            Some(lower_red_ty) => {
+                previous_ty = Some(lower_red_ty);
+                op(previous_ty.as_ref().unwrap()).await?;
+            }
+        }
+    }
 }

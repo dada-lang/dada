@@ -30,7 +30,7 @@ use super::{
     inference::InferenceVarData,
     predicates::Predicate,
     report::{BooleanTypeRequired, OrElse},
-    runtime::DeferResult,
+    runtime::{DeferResult, SpawnOnceKey},
     subtype::numeric::require_numeric_type,
 };
 
@@ -344,11 +344,19 @@ impl<'db> Env<'db> {
         format!("{ty:?}") // FIXME
     }
 
-    pub(crate) fn defer<R>(&self, op: impl AsyncFnOnce(&Self) -> R + 'db)
+    pub(crate) fn spawn<R>(&self, op: impl AsyncFnOnce(&Self) -> R + 'db)
     where
         R: DeferResult,
     {
         self.runtime.spawn(self, async move |env| op(&env).await)
+    }
+
+    pub(crate) fn spawn_once<R>(&self, key: SpawnOnceKey, op: impl AsyncFnOnce(&Self) -> R + 'db)
+    where
+        R: DeferResult,
+    {
+        self.runtime
+            .spawn_once(key, self, async move |env| op(&env).await)
     }
 
     pub(crate) fn require_expr_has_bool_ty(&self, expr: SymExpr<'db>) {

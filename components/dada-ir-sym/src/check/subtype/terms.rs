@@ -20,13 +20,15 @@ use crate::{
     },
     ir::{
         classes::SymAggregateStyle,
-        types::{SymGenericTerm, SymTy, SymTyKind},
+        types::{SymGenericTerm, SymTy, SymTyKind, Variance},
     },
 };
 
 use super::{
     chains::require_sub_red_perms,
-    var_infer::{require_infer_has_lower_bound, require_infer_has_upper_bound},
+    var_infer::{
+        for_each_lower_bound, require_infer_has_lower_bound, require_infer_has_upper_bound,
+    },
 };
 
 pub async fn require_assignable_type<'db>(
@@ -136,7 +138,18 @@ pub async fn require_sub_red_terms<'a, 'db>(
     match (lower.ty(), upper.ty()) {
         (&RedTy::Error(reported), _) | (_, &RedTy::Error(reported)) => Err(reported),
 
-        (&RedTy::Infer(infer_lower), &RedTy::Infer(infer_upper)) => todo!(),
+        (&RedTy::Infer(infer_lower), &RedTy::Infer(_)) => {
+            for_each_lower_bound(env, infer_lower, async |lower_bound| {
+                require_sub_red_terms(
+                    env,
+                    RedTerm::new(db, lower.chains().clone(), lower_bound.clone()),
+                    upper.clone(),
+                    or_else,
+                )
+                .await
+            })
+            .await
+        }
 
         (&RedTy::Infer(infer_lower), _) => {
             let generalized_ty =
@@ -167,8 +180,25 @@ pub async fn require_sub_red_terms<'a, 'db>(
             &RedTy::Named(name_upper, ref upper_generics),
         ) => {
             if name_lower == name_upper {
-                // relate generics
-                // XXX
+                let variances = env.variances(name_lower);
+                assert_eq!(lower_generics.len(), upper_generics.len());
+                for (&variance, (&lower_generic, &upper_generic)) in variances
+                    .iter()
+                    .zip(lower_generics.iter().zip(upper_generics))
+                {
+                    match variance {
+                        Variance::Covariant => {
+                            require_sub_terms(env, lower_generic, upper_generic, or_else).await?
+                        }
+                        Variance::Contravariant => {
+                            require_sub_terms(env, upper_generic, lower_generic, or_else).await?
+                        }
+                        Variance::Invariant => {
+                            require_sub_terms(env, lower_generic, upper_generic, or_else).await?;
+                            require_sub_terms(env, upper_generic, lower_generic, or_else).await?;
+                        }
+                    }
+                }
 
                 match name_lower.style(env.db()) {
                     SymAggregateStyle::Struct => {}

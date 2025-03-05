@@ -105,6 +105,9 @@ impl<'db> OrElseHelper<'db> for &dyn OrElse<'db> {
 
 /// Reason that a low-level typing operation failed.
 pub enum Because<'db> {
+    /// Miscellaneous
+    JustSo,
+
     /// This type is not numeric
     NotNumeric(RedTy<'db>),
 
