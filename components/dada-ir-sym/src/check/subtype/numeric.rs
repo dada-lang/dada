@@ -8,18 +8,18 @@ use crate::{
     },
     ir::{
         primitive::SymPrimitiveKind,
-        types::{SymTy, SymTyKind, SymTyName},
+        types::{SymTy, SymTyName},
     },
 };
 
 pub async fn require_numeric_type<'db>(
     env: &Env<'db>,
-    mut ty: SymTy<'db>,
+    ty: SymTy<'db>,
     or_else: &dyn OrElse<'db>,
 ) -> Errors<()> {
     let db = env.db();
     loop {
-        let mut red_ty = ty.to_red_ty(db);
+        let (red_ty, _) = ty.to_red_ty(env);
         match red_ty {
             RedTy::Error(reported) => return Err(reported),
             RedTy::Named(sym_ty_name, _) => match sym_ty_name {

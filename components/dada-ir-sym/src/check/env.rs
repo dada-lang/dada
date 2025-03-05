@@ -27,6 +27,7 @@ use crate::{check::runtime::Runtime, check::universe::Universe, ir::exprs::SymEx
 
 use super::{
     CheckInEnv,
+    chains::ToRedTy,
     inference::InferenceVarData,
     predicates::Predicate,
     report::{BooleanTypeRequired, OrElse},
@@ -63,11 +64,7 @@ pub(crate) struct Env<'db> {
 
 impl<'db> Env<'db> {
     /// Create an empty environment
-    pub(crate) fn new(
-        runtime: &Runtime<'db>,
-        scope: Scope<'db, 'db>,
-        assumptions: Vec<Assumption<'db>>,
-    ) -> Self {
+    pub(crate) fn new(runtime: &Runtime<'db>, scope: Scope<'db, 'db>) -> Self {
         Self {
             universe: Universe::ROOT,
             runtime: runtime.clone(),
@@ -75,7 +72,7 @@ impl<'db> Env<'db> {
             variable_tys: Default::default(),
             variable_universes: Default::default(),
             return_ty: Default::default(),
-            assumptions,
+            assumptions: vec![], // FIXME
         }
     }
 

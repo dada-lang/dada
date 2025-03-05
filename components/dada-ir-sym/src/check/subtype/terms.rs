@@ -46,13 +46,12 @@ pub async fn require_sub_terms<'a, 'db>(
     upper: SymGenericTerm<'db>,
     or_else: &dyn OrElse<'db>,
 ) -> Errors<()> {
-    let db = env.db();
     combinator::require_all!(
         propagate_bounds(env, lower.into(), upper.into(), or_else),
         async {
             // Reduce and relate chains
-            let red_term_lower = lower.to_red_term(db, env).await;
-            let red_term_upper = upper.to_red_term(db, env).await;
+            let red_term_lower = lower.to_red_term(env).await;
+            let red_term_upper = upper.to_red_term(env).await;
             require_sub_red_terms(env, red_term_lower, red_term_upper, or_else).await
         },
     )

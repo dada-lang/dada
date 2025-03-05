@@ -157,13 +157,13 @@ impl<'db> Chain<'db> {
     }
 
     /// Concatenate two lien chains; if `other` is copy, just returns `other`.
-    async fn concat(&self, db: &'db dyn crate::Db, env: &Env<'db>, other: &Self) -> Errors<Self> {
+    async fn concat(&self, env: &Env<'db>, other: &Self) -> Errors<Self> {
         if other.is_copy(env).await? {
             Ok(other.clone())
         } else {
             let mut links = self.liens.clone();
             links.extend(other.liens.iter());
-            Ok(Self::new(db, links))
+            Ok(Self::new(env.db(), links))
         }
     }
 
@@ -308,89 +308,95 @@ impl<'db> Err<'db> for RedTy<'db> {
 
 /// Convert something to a [`RedTerm`].
 pub trait ToRedTerm<'db> {
-    async fn to_red_term(&self, db: &'db dyn crate::Db, env: &Env<'db>) -> RedTerm<'db>;
+    async fn to_red_term(&self, env: &Env<'db>) -> RedTerm<'db>;
 }
 
-/// Convert something to a [`RedTy`].
+/// Convert something to a [`RedTy`] and an (optional) permission that is applied to that [`RedTy`][].
 pub trait ToRedTy<'db> {
-    fn to_red_ty(&self, db: &'db dyn crate::Db) -> RedTy<'db>;
+    fn to_red_ty(&self, env: &Env<'db>) -> (RedTy<'db>, Option<SymPerm<'db>>);
 }
 
 impl<'db, T: ToRedTerm<'db>> ToRedTerm<'db> for &T {
-    async fn to_red_term(&self, db: &'db dyn crate::Db, env: &Env<'db>) -> RedTerm<'db> {
-        T::to_red_term(self, db, env).await
+    async fn to_red_term(&self, env: &Env<'db>) -> RedTerm<'db> {
+        T::to_red_term(self, env).await
     }
 }
 
 impl<'db> ToRedTerm<'db> for SymGenericTerm<'db> {
-    async fn to_red_term(&self, db: &'db dyn crate::Db, env: &Env<'db>) -> RedTerm<'db> {
+    async fn to_red_term(&self, env: &Env<'db>) -> RedTerm<'db> {
         match *self {
-            SymGenericTerm::Type(ty) => ty.to_red_term(db, env).await,
-            SymGenericTerm::Perm(perm) => perm.to_red_term(db, env).await,
+            SymGenericTerm::Type(ty) => ty.to_red_term(env).await,
+            SymGenericTerm::Perm(perm) => perm.to_red_term(env).await,
             SymGenericTerm::Place(_) => panic!("cannot create a red term from a place"),
-            SymGenericTerm::Error(reported) => RedTerm::err(db, reported),
+            SymGenericTerm::Error(reported) => RedTerm::err(env.db(), reported),
         }
     }
 }
 
 impl<'db> ToRedTerm<'db> for SymTy<'db> {
-    async fn to_red_term(&self, db: &'db dyn crate::Db, env: &Env<'db>) -> RedTerm<'db> {
-        match self.to_chains(db, env).await {
+    async fn to_red_term(&self, env: &Env<'db>) -> RedTerm<'db> {
+        match self.to_chains(env).await {
             Ok(chains) => RedTerm {
                 chains,
-                ty: self.to_red_ty(db),
+                ty: self.to_red_ty(env).0,
             },
-            Err(reported) => RedTerm::err(db, reported),
+            Err(reported) => RedTerm::err(env.db(), reported),
         }
     }
 }
 
 impl<'db> ToRedTy<'db> for SymTy<'db> {
-    fn to_red_ty(&self, db: &'db dyn crate::Db) -> RedTy<'db> {
+    fn to_red_ty(&self, env: &Env<'db>) -> (RedTy<'db>, Option<SymPerm<'db>>) {
+        let db = env.db();
         match *self.kind(db) {
-            SymTyKind::Perm(_, sym_ty) => sym_ty.to_red_ty(db),
-            SymTyKind::Named(n, ref g) => RedTy::Named(n, g.clone()),
-            SymTyKind::Infer(infer) => RedTy::Infer(infer),
-            SymTyKind::Var(v) => RedTy::Var(v),
-            SymTyKind::Never => RedTy::Never,
-            SymTyKind::Error(reported) => RedTy::err(db, reported),
+            SymTyKind::Perm(perm0, sym_ty) => match sym_ty.to_red_ty(env) {
+                (red_ty, None) => (red_ty, Some(perm0)),
+                (red_ty, Some(perm1)) => (red_ty, Some(SymPerm::apply(db, perm0, perm1))),
+            },
+            SymTyKind::Named(n, ref g) => (RedTy::Named(n, g.clone()), None),
+            SymTyKind::Infer(infer) => {
+                // every type inference variable has an associated permission inference variable,
+                // so split that off
+                let perm_infer = env.perm_infer_for_ty_infer(infer);
+                (RedTy::Infer(infer), Some(SymPerm::infer(db, perm_infer)))
+            }
+            SymTyKind::Var(v) => (RedTy::Var(v), None),
+            SymTyKind::Never => (RedTy::Never, None),
+            SymTyKind::Error(reported) => (RedTy::err(db, reported), None),
         }
     }
 }
 
 impl<'db> ToRedTerm<'db> for SymPerm<'db> {
-    async fn to_red_term(&self, db: &'db dyn crate::Db, env: &Env<'db>) -> RedTerm<'db> {
-        match self.to_chains(db, env).await {
+    async fn to_red_term(&self, env: &Env<'db>) -> RedTerm<'db> {
+        match self.to_chains(env).await {
             Ok(chains) => RedTerm {
                 chains,
                 ty: RedTy::Perm,
             },
-            Err(reported) => RedTerm::err(db, reported),
+            Err(reported) => RedTerm::err(env.db(), reported),
         }
     }
 }
 
 impl<'db> ToRedTy<'db> for SymPerm<'db> {
-    fn to_red_ty(&self, db: &'db dyn crate::Db) -> RedTy<'db> {
+    fn to_red_ty(&self, env: &Env<'db>) -> (RedTy<'db>, Option<SymPerm<'db>>) {
+        let db = env.db();
         match *self.kind(db) {
-            SymPermKind::Error(reported) => RedTy::err(db, reported),
-            _ => RedTy::Perm,
+            SymPermKind::Error(reported) => (RedTy::err(db, reported), None),
+            _ => (RedTy::Perm, Some(*self)),
         }
     }
 }
 
 trait ToChains<'db> {
-    async fn to_chains(&self, db: &'db dyn crate::Db, env: &Env<'db>)
-    -> Errors<VecSet<Chain<'db>>>;
+    async fn to_chains(&self, env: &Env<'db>) -> Errors<VecSet<Chain<'db>>>;
 }
 
 impl<'db> ToChains<'db> for SymPerm<'db> {
-    async fn to_chains(
-        &self,
-        db: &'db dyn crate::Db,
-        env: &Env<'db>,
-    ) -> Errors<VecSet<Chain<'db>>> {
+    async fn to_chains(&self, env: &Env<'db>) -> Errors<VecSet<Chain<'db>>> {
         let mut output = VecSet::new();
+        let db = env.db();
         match *self.kind(db) {
             SymPermKind::My => {
                 output.insert(Chain::my(db));
@@ -401,27 +407,27 @@ impl<'db> ToChains<'db> for SymPerm<'db> {
             SymPermKind::Shared(ref places) => {
                 for &place in places {
                     if place_is_provably_copy(env, place).await.is_ok() {
-                        output.extend(place.to_chains(db, env).await?);
+                        output.extend(place.to_chains(env).await?);
                     } else {
-                        output.insert(Chain::shared(db, place));
+                        output.insert(Chain::shared(env.db(), place));
                     }
                 }
             }
             SymPermKind::Leased(ref places) => {
                 for &place in places {
                     if place_is_provably_copy(env, place).await.is_ok() {
-                        output.extend(place.to_chains(db, env).await?);
+                        output.extend(place.to_chains(env).await?);
                     } else {
                         output.insert(Chain::leased(db, place));
                     }
                 }
             }
             SymPermKind::Apply(lhs, rhs) => {
-                let lhs_chains = lhs.to_chains(db, env).await?;
-                let rhs_chains = rhs.to_chains(db, env).await?;
+                let lhs_chains = lhs.to_chains(env).await?;
+                let rhs_chains = rhs.to_chains(env).await?;
                 for lhs_chain in &lhs_chains {
                     for rhs_chain in &rhs_chains {
-                        output.insert(lhs_chain.concat(db, env, rhs_chain).await?);
+                        output.insert(lhs_chain.concat(env, rhs_chain).await?);
                     }
                 }
             }
@@ -438,30 +444,23 @@ impl<'db> ToChains<'db> for SymPerm<'db> {
 }
 
 impl<'db> ToChains<'db> for SymPlace<'db> {
-    async fn to_chains(
-        &self,
-        db: &'db dyn crate::Db,
-        env: &Env<'db>,
-    ) -> Errors<VecSet<Chain<'db>>> {
+    async fn to_chains(&self, env: &Env<'db>) -> Errors<VecSet<Chain<'db>>> {
         let ty = self.place_ty(env).await;
-        Ok(ty.to_chains(db, env).await?)
+        Ok(ty.to_chains(env).await?)
     }
 }
 
 impl<'db> ToChains<'db> for SymTy<'db> {
-    async fn to_chains(
-        &self,
-        db: &'db dyn crate::Db,
-        env: &Env<'db>,
-    ) -> Errors<VecSet<Chain<'db>>> {
+    async fn to_chains(&self, env: &Env<'db>) -> Errors<VecSet<Chain<'db>>> {
         let mut output = VecSet::new();
+        let db = env.db();
         match *self.kind(db) {
             SymTyKind::Perm(lhs, rhs) => {
-                let lhs_chains = lhs.to_chains(db, env).await?;
-                let rhs_chains = rhs.to_chains(db, env).await?;
+                let lhs_chains = lhs.to_chains(env).await?;
+                let rhs_chains = rhs.to_chains(env).await?;
                 for lhs_chain in &lhs_chains {
                     for rhs_chain in &rhs_chains {
-                        output.insert(lhs_chain.concat(db, env, rhs_chain).await?);
+                        output.insert(lhs_chain.concat(env, rhs_chain).await?);
                     }
                 }
             }
