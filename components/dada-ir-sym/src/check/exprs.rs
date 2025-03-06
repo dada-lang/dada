@@ -30,7 +30,6 @@ use dada_ir_ast::{
 };
 use dada_parser::prelude::*;
 use dada_util::{FromImpls, boxed_async_fn};
-use futures::StreamExt;
 
 use super::{
     report::{
@@ -236,8 +235,8 @@ async fn check_expr<'db>(expr: &AstExpr<'db>, env: &Env<'db>) -> ExprResult<'db>
                         op: span_op,
                         expr: rhs,
                     });
-                    env.if_not_never(&[lhs.ty(db), rhs.ty(db)], async move |env| {
-                        env.require_equal_types(
+                    env.spawn_if_not_never(&[lhs.ty(db), rhs.ty(db)], async move |env| {
+                        env.spawn_require_equal_types(
                             lhs.ty(db),
                             rhs.ty(db),
                             &OperatorArgumentsMustHaveSameType {
@@ -352,8 +351,8 @@ async fn check_expr<'db>(expr: &AstExpr<'db>, env: &Env<'db>) -> ExprResult<'db>
                         op: span_op,
                         expr: rhs,
                     });
-                    env.if_not_never(&[lhs.ty(db), rhs.ty(db)], async move |env| {
-                        env.require_equal_types(
+                    env.spawn_if_not_never(&[lhs.ty(db), rhs.ty(db)], async move |env| {
+                        env.spawn_require_equal_types(
                             lhs.ty(db),
                             rhs.ty(db),
                             &OperatorArgumentsMustHaveSameType {
@@ -658,7 +657,6 @@ async fn check_expr<'db>(expr: &AstExpr<'db>, env: &Env<'db>) -> ExprResult<'db>
             future,
             await_keyword,
         } => {
-            let future_span = future.span;
             let await_span = *await_keyword;
 
             let mut temporaries = vec![];

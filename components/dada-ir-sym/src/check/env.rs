@@ -340,7 +340,7 @@ impl<'db> Env<'db> {
     /// Check whether any type in `tys` is known to be never (or error).
     /// If so, do nothing.
     /// Otherwise, if no type in `tys` is known to be never, invoke `op` (asynchronously).
-    pub fn if_not_never(&self, tys: &[SymTy<'db>], op: impl AsyncFnOnce(Env<'db>) + 'db) {
+    pub fn spawn_if_not_never(&self, tys: &[SymTy<'db>], op: impl AsyncFnOnce(Env<'db>) + 'db) {
         let _tys = tys.to_vec();
         self.runtime.spawn(self, move |env: Env<'db>| async move {
             // FIXME: check for never
