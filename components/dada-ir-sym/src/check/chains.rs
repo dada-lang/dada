@@ -4,7 +4,6 @@
 
 use dada_ir_ast::diagnostic::{Err, Errors, Reported};
 use dada_util::vecset::VecSet;
-use either::Either;
 use salsa::Update;
 
 use crate::ir::{
@@ -36,17 +35,6 @@ impl<'db> RedTerm<'db> {
         Self { ty, chains }
     }
 
-    /// Yield an iterator of [`TyChain`]s, pairing each [`Chain`] with the [`RedTy`].
-    pub fn ty_chains(&self) -> Vec<TyChain<'_, 'db>> {
-        self.chains
-            .iter()
-            .map(|chain| TyChain {
-                liens: &chain.liens,
-                ty: &self.ty,
-            })
-            .collect()
-    }
-
     /// Get the type of the term.
     pub fn ty(&self) -> &RedTy<'db> {
         &self.ty
@@ -68,31 +56,6 @@ impl<'db> Err<'db> for RedTerm<'db> {
     }
 }
 
-/// Combination of a [`Chain`] and a [`RedTy`].
-#[derive(Debug, PartialEq, Eq, Copy, Clone, PartialOrd, Ord)]
-pub struct TyChain<'l, 'db> {
-    pub liens: &'l [Lien<'db>],
-    pub ty: &'l RedTy<'db>,
-}
-
-impl<'l, 'db> TyChain<'l, 'db> {
-    /// Get the first lien in the chain.
-    pub fn head(self) -> Either<Lien<'db>, &'l RedTy<'db>> {
-        match self.liens.first() {
-            Some(&lien) => Either::Left(lien),
-            None => Either::Right(self.ty),
-        }
-    }
-
-    /// Get the tail of the chain.
-    pub fn tail(self) -> Self {
-        Self {
-            liens: &self.liens[1..],
-            ty: self.ty,
-        }
-    }
-}
-
 /// A "lien chain" is a list of permissions by which some data may have been reached.
 /// An empty lien chain corresponds to owned data (`my`, in surface Dada syntax).
 /// A lien chain like `shared[p] leased[q]` would correspond to data shared from a variable `p`
@@ -106,12 +69,6 @@ impl<'db> Chain<'db> {
     /// Create a new [`Chain`].
     fn new(_db: &'db dyn crate::Db, links: Vec<Lien<'db>>) -> Self {
         Self { liens: links }
-    }
-
-    pub fn from_links(_db: &'db dyn crate::Db, links: &[Lien<'db>]) -> Self {
-        Self {
-            liens: links.to_vec(),
-        }
     }
 
     pub fn from_head_tail(_db: &'db dyn crate::Db, head: Lien<'db>, tail: &[Lien<'db>]) -> Self {
@@ -175,11 +132,6 @@ impl<'db> Chain<'db> {
             }
         }
         Ok(false)
-    }
-
-    /// Convert this chain to an equivalent [`SymPerm`].
-    fn to_perm(&self, db: &'db dyn crate::Db) -> SymPerm<'db> {
-        Lien::chain_to_perm(db, &self.liens)
     }
 
     pub fn extend(&mut self, liens: &[Lien<'db>]) {
@@ -297,6 +249,7 @@ impl<'db> RedTy<'db> {
     pub fn display<'a>(&'a self, env: &'a Env<'db>) -> impl std::fmt::Display {
         struct Wrapper<'a, 'db> {
             ty: &'a RedTy<'db>,
+            #[expect(dead_code)] // FIXME?
             env: &'a Env<'db>,
         }
 
@@ -319,13 +272,6 @@ impl<'db> RedTy<'db> {
         }
 
         Wrapper { ty: self, env }
-    }
-}
-
-impl<'db> RedTy<'db> {
-    /// Return ty chain kind for unit (0-arity tuple).
-    pub fn unit(_db: &'db dyn crate::Db) -> Self {
-        Self::Named(SymTyName::Tuple { arity: 0 }, vec![])
     }
 }
 

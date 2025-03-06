@@ -12,7 +12,6 @@ pub(crate) mod require_owned;
 mod var_infer;
 
 use dada_ir_ast::diagnostic::Errors;
-use is_provably_copy::term_is_provably_copy;
 use is_provably_lent::term_is_provably_lent;
 use is_provably_move::term_is_provably_move;
 use is_provably_owned::term_is_provably_owned;
@@ -24,9 +23,9 @@ pub(crate) use var_infer::{test_infer_is_known_to_be, test_var_is_provably};
 use crate::ir::types::SymGenericTerm;
 
 use super::{
-    combinator::{both, either, require, require_both},
+    combinator::{both, require_both},
     env::Env,
-    report::{Because, OrElse},
+    report::OrElse,
 };
 
 #[derive(Copy, Clone, Debug, Eq, PartialEq, Hash, Ord, PartialOrd)]
@@ -98,21 +97,6 @@ pub(crate) async fn require_term_is_leased<'db>(
     require_both(
         require_term_is_move(env, term, or_else),
         require_term_is_lent(env, term, or_else),
-    )
-    .await
-}
-
-pub(crate) async fn require_term_is_not_leased<'db>(
-    env: &Env<'db>,
-    term: SymGenericTerm<'db>,
-    or_else: &dyn OrElse<'db>,
-) -> Errors<()> {
-    require(
-        either(
-            term_is_provably_copy(env, term),
-            term_is_provably_owned(env, term),
-        ),
-        || or_else.report(env, Because::JustSo),
     )
     .await
 }

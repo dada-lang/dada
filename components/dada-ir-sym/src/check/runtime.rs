@@ -13,7 +13,7 @@ use dada_ir_ast::{
     diagnostic::{Diagnostic, Err, Errors, Level},
     span::Span,
 };
-use dada_util::{Map, Set, vecext::VecExt};
+use dada_util::{Map, vecext::VecExt};
 
 use crate::{check::env::Env, check::inference::InferenceVarData};
 
@@ -35,15 +35,7 @@ pub(crate) struct RuntimeData<'db> {
     waiting_on_inference_var: Mutex<Map<InferVarIndex, Vec<EqWaker>>>,
     complete: AtomicBool,
     next_task_id: AtomicU64,
-
-    /// There are some kind of tasks that we need to spawn only once.
-    /// This set records the cases where we have already done so.
-    spawn_once: Mutex<Set<SpawnOnceKey>>,
 }
-
-/// There are some kind of tasks that we need to spawn only once.
-/// This type describes the key that we use to identify if we have already done so.
-pub(crate) type SpawnOnceKey = (InferVarIndex, InferVarIndex);
 
 /// Wrapper around waker to compare its data/vtable fields by pointer equality.
 /// This suffices to identify the waker for one of our tasks,
@@ -118,7 +110,6 @@ impl<'db> Runtime<'db> {
                 ready_to_execute: Default::default(),
                 waiting_on_inference_var: Default::default(),
                 next_task_id: Default::default(),
-                spawn_once: Default::default(),
             }),
         }
     }
@@ -301,25 +292,6 @@ impl<'db> Runtime<'db> {
         self.spawn_future(async move { future.await.finish() });
     }
 
-    /// Spawn the given check, but only if we have never spawned a check for `key` before.
-    pub fn spawn_once<R>(
-        &self,
-        key: SpawnOnceKey,
-        env: &Env<'db>,
-        check: impl 'db + AsyncFnOnce(Env<'db>) -> R,
-    ) where
-        R: DeferResult,
-    {
-        let inserted = {
-            let mut spawn_once = self.data.spawn_once.lock().unwrap();
-            spawn_once.insert(key)
-        };
-
-        if inserted {
-            self.spawn(env, check);
-        }
-    }
-
     /// Block the current task on changes to the given inference variable.
     ///
     /// # Panics
@@ -355,16 +327,6 @@ impl<'db> Runtime<'db> {
             );
         }
         diag.report(db)
-    }
-
-    /// Execute `output` synchronously after type check constraints are gathered.
-    /// Since type check constraints are gathered, we know it will never block.
-    pub(crate) fn assert_check_complete<T>(&self, output: impl Future<Output = T>) -> T {
-        assert!(
-            self.check_complete(),
-            "type inference constraints not yet complete"
-        );
-        futures::executor::block_on(output)
     }
 }
 

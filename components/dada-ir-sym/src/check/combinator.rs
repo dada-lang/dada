@@ -22,12 +22,7 @@ pub(crate) use require_all;
 
 use crate::ir::indices::InferVarIndex;
 
-use super::{
-    chains::{Chain, RedTy},
-    env::Env,
-    inference::InferenceVarData,
-    report::ArcOrElse,
-};
+use super::{chains::Chain, env::Env, inference::InferenceVarData, report::ArcOrElse};
 
 pub async fn require<'db>(
     a: impl Future<Output = Errors<bool>>,
@@ -57,10 +52,6 @@ pub async fn require_all_<'db>(
 ) -> Errors<()> {
     futures::future::try_join_all(tasks).await?;
     Ok(())
-}
-
-pub async fn not(a: impl Future<Output = Errors<bool>>) -> Errors<bool> {
-    Ok(!a.await?)
 }
 
 pub async fn either(
@@ -132,35 +123,6 @@ pub async fn both(
     }
 }
 
-pub trait Extensions {
-    /// Logically equivalent to `both(self, not(other))` but meant for the
-    /// case where `self => !other`. Therefore, if `self` returns true,
-    /// we return `true` immediately and if `other` returns true, we return `false` immediately.
-    /// But if `other` returns false, we need to wait for `self` to complete.
-    async fn and_not(self, other: impl Future<Output = Errors<bool>>) -> Errors<bool>;
-}
-
-impl<F> Extensions for F
-where
-    F: Future<Output = Errors<bool>>,
-{
-    async fn and_not(self, other: impl Future<Output = Errors<bool>>) -> Errors<bool> {
-        match futures::future::select(pin!(self), pin!(other)).await {
-            Either::Left((Err(reported), _)) | Either::Right((Err(reported), _)) => Err(reported),
-
-            // If the LHS completed, we are done.
-            // We could in theory wait for the RHS but it should be entailed by LHS.
-            Either::Left((Ok(v), _)) => Ok(v),
-
-            // If the RHS completed and was true, LHS cannot be true.
-            Either::Right((Ok(true), _)) => Ok(false),
-
-            // If the RHS completed and was false, that tells us nothing, need to wait for the LHS.
-            Either::Right((Ok(false), f)) => f.await,
-        }
-    }
-}
-
 pub async fn exists_infer_bound<'db>(
     env: &Env<'db>,
     infer: InferVarIndex,
@@ -207,26 +169,6 @@ pub async fn require_for_all_infer_bounds<'db>(
     }
 }
 
-pub async fn require_for_all_infer_red_ty_bounds<'db>(
-    env: &Env<'db>,
-    infer: InferVarIndex,
-    direction: impl for<'a> Fn(&'a InferenceVarData<'db>) -> &'a Option<(RedTy<'db>, ArcOrElse<'db>)>,
-    mut op: impl AsyncFnMut(&RedTy<'db>) -> Errors<()>,
-) -> Errors<()> {
-    let mut red_ty = None;
-    loop {
-        red_ty = extract_red_ty(env, infer, red_ty, &direction).await;
-
-        match &red_ty {
-            Some(r) => op(r).await?,
-            None => {
-                // No further bounds, so `op` was true for all bounds.
-                return Ok(());
-            }
-        }
-    }
-}
-
 /// Monitor the inference variable `infer` and push new bounding chains (either upper or lower
 /// depending on `direction`) onto `stack`. The variable `observed` is used to track which
 /// chains have been observed from previous invocations; it should begin as `0` and it will be
@@ -251,29 +193,4 @@ pub async fn extract_bounding_chains<'db>(
             }
         })
         .await;
-}
-
-/// Monitor the red ty bounds on `infer`. Each time the fn is called, the result from any
-/// previous call should be passed as `previous_red_ty`; pass `None` if the fn has never
-/// been called before. This will return `Some(b)` if there is a new red ty bound on infer
-/// or `None` if no further refined bounds are forthcoming.
-pub async fn extract_red_ty<'db>(
-    env: &Env<'db>,
-    infer: InferVarIndex,
-    previous_red_ty: Option<RedTy<'db>>,
-    direction: &impl for<'a> Fn(&'a InferenceVarData<'db>) -> &'a Option<(RedTy<'db>, ArcOrElse<'db>)>,
-) -> Option<RedTy<'db>> {
-    env.runtime()
-        .loop_on_inference_var(infer, |data| {
-            let Some((next_red_ty, _or_else)) = direction(data) else {
-                return None;
-            };
-            let next_red_ty = Some(next_red_ty.clone());
-            if previous_red_ty == next_red_ty {
-                None
-            } else {
-                next_red_ty
-            }
-        })
-        .await
 }

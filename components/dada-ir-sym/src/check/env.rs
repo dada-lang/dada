@@ -30,7 +30,7 @@ use super::{
     inference::InferenceVarData,
     predicates::Predicate,
     report::{BooleanTypeRequired, OrElse},
-    runtime::{DeferResult, SpawnOnceKey},
+    runtime::DeferResult,
     subtype::{is_future::require_future_type, is_numeric::require_numeric_type},
 };
 
@@ -359,55 +359,16 @@ impl<'db> Env<'db> {
         self.runtime.spawn(self, async move |env| op(&env).await)
     }
 
-    pub(crate) fn spawn_once<R>(&self, key: SpawnOnceKey, op: impl AsyncFnOnce(&Self) -> R + 'db)
-    where
-        R: DeferResult,
-    {
-        self.runtime
-            .spawn_once(key, self, async move |env| op(&env).await)
-    }
-
     pub(crate) fn require_expr_has_bool_ty(&self, expr: SymExpr<'db>) {
         let db = self.db();
         let boolean_ty = SymTy::boolean(db);
         self.spawn_require_assignable_type(expr.ty(db), boolean_ty, &BooleanTypeRequired { expr });
     }
 
-    /// Check if the given (perm, type) variable is declared as copy.
-    pub fn is_copy_var(&self, _var: SymVariable<'db>) -> bool {
-        false // FIXME
-    }
-
-    /// Check if the given (perm, type) variable is declared as move.
-    pub fn is_move_var(&self, _var: SymVariable<'db>) -> bool {
-        false // FIXME
-    }
-
-    /// Check if the given (perm, type) variable is declared as lent.
-    #[expect(dead_code)]
-    pub fn is_lent_var(&self, _var: SymVariable<'db>) -> bool {
-        false // FIXME
-    }
-
-    /// Check if the given (perm, type) variable is declared as owned.
-    pub fn is_owned_var(&self, _var: SymVariable<'db>) -> bool {
-        false // FIXME
-    }
-
-    // /// Check if the given (perm, type) variable is declared as shared.
-    // pub fn is_shared_var(&self, var: SymVariable<'db>) -> bool {
-    //     false // FIXME
-    // }
-
     /// Check if the given (perm, type) variable is declared as leased.
     #[expect(dead_code)]
     pub fn is_leased_var(&self, _var: SymVariable<'db>) -> bool {
         false // FIXME
-    }
-
-    /// Kind of inference variable `v`.
-    pub(crate) fn infer_var_kind(&self, v: InferVarIndex) -> SymGenericKind {
-        self.runtime.with_inference_var_data(v, |data| data.kind())
     }
 
     /// Span for code that prompted creation of inference variable `v`.

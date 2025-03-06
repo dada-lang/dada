@@ -103,7 +103,6 @@ impl<'member, 'db> MemberLookup<'member, 'db> {
                     },
                 }
             }
-            SearchResult::Error(reported) => ExprResult::err(db, reported),
         }
     }
 
@@ -225,7 +224,6 @@ enum SearchResult<'db> {
         owner: SymAggregate<'db>,
         method: SymFunction<'db>,
     },
-    Error(Reported),
 }
 
 /// Convert `ty` to a [`RedTy`][]; if the result is an inference variable,

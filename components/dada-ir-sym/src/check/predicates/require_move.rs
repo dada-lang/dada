@@ -6,7 +6,6 @@ use crate::{
         chains::Lien,
         combinator::{exists, require, require_both},
         env::Env,
-        places::PlaceTy,
         predicates::{
             Predicate,
             var_infer::{require_infer_is, require_var_is},
@@ -15,7 +14,7 @@ use crate::{
     },
     ir::{
         classes::SymAggregateStyle,
-        types::{SymGenericTerm, SymPerm, SymPermKind, SymPlace, SymTy, SymTyKind, SymTyName},
+        types::{SymGenericTerm, SymPerm, SymPermKind, SymTy, SymTyKind, SymTyName},
     },
 };
 
@@ -155,13 +154,4 @@ async fn require_perm_is_move<'db>(
         SymPermKind::Var(var) => require_var_is(env, var, Predicate::Move, or_else),
         SymPermKind::Infer(infer) => require_infer_is(env, infer, Predicate::Move, or_else),
     }
-}
-
-pub(super) async fn require_place_is_move<'db>(
-    env: &Env<'db>,
-    place: SymPlace<'db>,
-    or_else: &dyn OrElse<'db>,
-) -> Errors<()> {
-    let ty = place.place_ty(env).await;
-    require_ty_is_move(env, ty, or_else).await
 }

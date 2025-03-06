@@ -14,7 +14,7 @@ use crate::{
             SymMatchArm, SymPlaceExpr, SymPlaceExprKind,
         },
         functions::{SymFunction, SymInputOutput},
-        types::{SymGenericKind, SymGenericTerm, SymPerm, SymTy, SymTyKind, SymTyName},
+        types::{SymGenericKind, SymGenericTerm, SymTy, SymTyKind, SymTyName},
         variables::{FromVar, SymVariable},
     },
     prelude::CheckedSignature,
@@ -876,10 +876,6 @@ fn report_no_new_method<'db>(
     }
 
     diag.report(db)
-}
-
-fn require_owned<'db>(_env: &Env<'db>, _await_span: Span<'db>, _perm: SymPerm<'db>) {
-    todo!()
 }
 
 #[boxed_async_fn]

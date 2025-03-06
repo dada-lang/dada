@@ -6,13 +6,12 @@ use crate::{
         chains::Lien,
         combinator::{exists, require, require_both},
         env::Env,
-        places::PlaceTy,
         predicates::Predicate,
         report::{Because, OrElse},
     },
     ir::{
         classes::SymAggregateStyle,
-        types::{SymGenericTerm, SymPerm, SymPermKind, SymPlace, SymTy, SymTyKind, SymTyName},
+        types::{SymGenericTerm, SymPerm, SymPermKind, SymTy, SymTyKind, SymTyName},
     },
 };
 
@@ -159,13 +158,4 @@ async fn require_perm_isnt_provably_copy<'db>(
         SymPermKind::Var(var) => require_var_isnt(env, var, Predicate::Copy, or_else),
         SymPermKind::Infer(infer) => require_infer_isnt(env, infer, Predicate::Copy, or_else),
     }
-}
-
-pub(super) async fn require_place_isnt_provably_copy<'db>(
-    env: &Env<'db>,
-    place: SymPlace<'db>,
-    or_else: &dyn OrElse<'db>,
-) -> Errors<()> {
-    let ty = place.place_ty(env).await;
-    require_ty_isnt_provably_copy(env, ty, or_else).await
 }

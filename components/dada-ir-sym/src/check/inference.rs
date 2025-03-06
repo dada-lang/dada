@@ -100,16 +100,6 @@ impl<'db> InferenceVarData<'db> {
         self.isnt[predicate.index()].clone()
     }
 
-    /// Access to the bounds on the inference variable.
-    pub fn bounds(&self) -> &InferenceVarBounds<'db> {
-        &self.bounds
-    }
-
-    /// Mutable access to the bounds on the inference variable.
-    pub fn bounds_mut(&mut self) -> &mut InferenceVarBounds<'db> {
-        &mut self.bounds
-    }
-
     /// Insert a predicate into the `is` set and its invert into the `isnt` set.
     /// Returns `None` if these are not new requirements.
     /// Otherwise, returns `Some(o)` where `o` is the Arc-ified version of `or_else`.
