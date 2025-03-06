@@ -34,8 +34,8 @@ use futures::StreamExt;
 
 use super::{
     report::{
-        BadSubtypeError, InvalidAssignmentType, InvalidReturnValue, NumericTypeExpected,
-        OperatorArgumentsMustHaveSameType, OperatorRequiresNumericType,
+        AwaitNonFuture, BadSubtypeError, InvalidAssignmentType, InvalidReturnValue,
+        NumericTypeExpected, OperatorArgumentsMustHaveSameType, OperatorRequiresNumericType,
     },
     temporaries::Temporary,
 };
@@ -101,7 +101,7 @@ async fn check_expr<'db>(expr: &AstExpr<'db>, env: &Env<'db>) -> ExprResult<'db>
                     ty,
                     SymExprKind::Primitive(SymLiteral::Integral { bits }),
                 );
-                env.require_numeric_type(ty, &NumericTypeExpected { expr: sym_expr, ty });
+                env.spawn_require_numeric_type(ty, &NumericTypeExpected { expr: sym_expr, ty });
                 ExprResult {
                     temporaries: vec![],
                     span: expr_span,
@@ -228,11 +228,11 @@ async fn check_expr<'db>(expr: &AstExpr<'db>, env: &Env<'db>) -> ExprResult<'db>
                     // For now, let's do a dumb rule that operands must be
                     // of the same primitive (and scalar) type.
 
-                    env.require_numeric_type(lhs.ty(db), &OperatorRequiresNumericType {
+                    env.spawn_require_numeric_type(lhs.ty(db), &OperatorRequiresNumericType {
                         op: span_op,
                         expr: lhs,
                     });
-                    env.require_numeric_type(rhs.ty(db), &OperatorRequiresNumericType {
+                    env.spawn_require_numeric_type(rhs.ty(db), &OperatorRequiresNumericType {
                         op: span_op,
                         expr: rhs,
                     });
@@ -344,11 +344,11 @@ async fn check_expr<'db>(expr: &AstExpr<'db>, env: &Env<'db>) -> ExprResult<'db>
                     // For now, let's do a dumb rule that operands must be
                     // of the same primitive (and scalar) type.
 
-                    env.require_numeric_type(lhs.ty(db), &OperatorRequiresNumericType {
+                    env.spawn_require_numeric_type(lhs.ty(db), &OperatorRequiresNumericType {
                         op: span_op,
                         expr: lhs,
                     });
-                    env.require_numeric_type(rhs.ty(db), &OperatorRequiresNumericType {
+                    env.spawn_require_numeric_type(rhs.ty(db), &OperatorRequiresNumericType {
                         op: span_op,
                         expr: rhs,
                     });
@@ -397,7 +397,7 @@ async fn check_expr<'db>(expr: &AstExpr<'db>, env: &Env<'db>) -> ExprResult<'db>
                     // For now, let's do a dumb rule that operands must be
                     // of the same primitive (and scalar) type.
 
-                    env.require_assignable_type(
+                    env.spawn_require_assignable_type(
                         value.ty(db),
                         place.ty(db),
                         &InvalidAssignmentType {
@@ -632,7 +632,7 @@ async fn check_expr<'db>(expr: &AstExpr<'db>, env: &Env<'db>) -> ExprResult<'db>
                 );
             };
 
-            env.require_assignable_type(
+            env.spawn_require_assignable_type(
                 return_expr.ty(db),
                 expected_return_ty,
                 &InvalidReturnValue {
@@ -671,12 +671,9 @@ async fn check_expr<'db>(expr: &AstExpr<'db>, env: &Env<'db>) -> ExprResult<'db>
 
             let awaited_ty = env.fresh_ty_inference_var(await_span);
 
-            env.spawn(async move |env| {
-                if true {
-                    // need to require that this is a future
-                    todo!()
-                }
-                ()
+            env.spawn_require_future_type(future_ty, awaited_ty, &AwaitNonFuture {
+                await_span,
+                future_expr,
             });
 
             ExprResult {
@@ -744,7 +741,7 @@ async fn check_expr<'db>(expr: &AstExpr<'db>, env: &Env<'db>) -> ExprResult<'db>
             };
 
             for arm in &arms {
-                env.require_assignable_type(arm.body.ty(db), if_ty, &BadSubtypeError {
+                env.spawn_require_assignable_type(arm.body.ty(db), if_ty, &BadSubtypeError {
                     span: arm.body.span(db),
                     lower: arm.body.ty(db),
                     upper: if_ty,
@@ -1161,11 +1158,15 @@ async fn check_call_common<'db>(
                 .await
                 .into_expr(env, &mut arg_temporaries)
         };
-        env.require_assignable_type(expr.ty(db), input_output.input_tys[i], &BadSubtypeError {
-            span: expr.span(db),
-            lower: expr.ty(db),
-            upper: input_output.input_tys[i],
-        });
+        env.spawn_require_assignable_type(
+            expr.ty(db),
+            input_output.input_tys[i],
+            &BadSubtypeError {
+                span: expr.span(db),
+                lower: expr.ty(db),
+                upper: input_output.input_tys[i],
+            },
+        );
         ExprResult::from_expr(env, expr, arg_temporaries)
     };
 

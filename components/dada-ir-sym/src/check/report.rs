@@ -612,6 +612,49 @@ impl<'db> OrElse<'db> for InvalidReturnValue<'db> {
 }
 
 #[derive(Copy, Clone, Debug)]
+pub struct AwaitNonFuture<'db> {
+    pub await_span: Span<'db>,
+    pub future_expr: SymExpr<'db>,
+}
+
+impl<'db> OrElse<'db> for AwaitNonFuture<'db> {
+    fn or_else(&self, env: &Env<'db>, because: Because<'db>) -> Diagnostic {
+        let Self {
+            await_span,
+            future_expr,
+        } = *self;
+        let db = env.db();
+        because.annotate_diagnostic(
+            env,
+            Diagnostic::error(
+                db,
+                await_span,
+                format!("`await` can only be used on futures"),
+            )
+            .label(
+                db,
+                Level::Error,
+                await_span,
+                "I expect `await` to be applied to a future",
+            )
+            .label(
+                db,
+                Level::Info,
+                future_expr.span(db),
+                format!(
+                    "this expression has type `{future_ty}`",
+                    future_ty = future_expr.ty(db),
+                ),
+            ),
+        )
+    }
+
+    fn to_arc(&self) -> ArcOrElse<'db> {
+        Arc::new(*self)
+    }
+}
+
+#[derive(Copy, Clone, Debug)]
 pub struct BooleanTypeRequired<'db> {
     pub expr: SymExpr<'db>,
 }

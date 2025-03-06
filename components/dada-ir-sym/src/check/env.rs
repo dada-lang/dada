@@ -31,7 +31,7 @@ use super::{
     predicates::Predicate,
     report::{BooleanTypeRequired, OrElse},
     runtime::{DeferResult, SpawnOnceKey},
-    subtype::is_numeric::require_numeric_type,
+    subtype::{is_future::require_future_type, is_numeric::require_numeric_type},
 };
 
 #[derive(Clone)]
@@ -276,7 +276,7 @@ impl<'db> Env<'db> {
     }
 
     /// Spawn a subtask that will require `value_ty` be assignable to `place_ty`.
-    pub(super) fn require_assignable_type(
+    pub(super) fn spawn_require_assignable_type(
         &self,
         value_ty: SymTy<'db>,
         place_ty: SymTy<'db>,
@@ -295,7 +295,7 @@ impl<'db> Env<'db> {
     }
 
     /// Spawn a subtask that will require `expected_ty` be equal to `found_ty`.
-    pub(super) fn require_equal_types(
+    pub(super) fn spawn_require_equal_types(
         &self,
         expected_ty: SymTy<'db>,
         found_ty: SymTy<'db>,
@@ -318,10 +318,22 @@ impl<'db> Env<'db> {
         })
     }
 
-    pub(super) fn require_numeric_type(&self, ty: SymTy<'db>, or_else: &dyn OrElse<'db>) {
+    pub(super) fn spawn_require_numeric_type(&self, ty: SymTy<'db>, or_else: &dyn OrElse<'db>) {
         let or_else = or_else.to_arc();
         self.runtime.spawn(self, move |env| async move {
             require_numeric_type(&env, ty, &or_else).await
+        })
+    }
+
+    pub(super) fn spawn_require_future_type(
+        &self,
+        ty: SymTy<'db>,
+        awaited_ty: SymTy<'db>,
+        or_else: &dyn OrElse<'db>,
+    ) {
+        let or_else = or_else.to_arc();
+        self.runtime.spawn(self, move |env| async move {
+            require_future_type(&env, ty, awaited_ty, &or_else).await
         })
     }
 
@@ -358,7 +370,7 @@ impl<'db> Env<'db> {
     pub(crate) fn require_expr_has_bool_ty(&self, expr: SymExpr<'db>) {
         let db = self.db();
         let boolean_ty = SymTy::boolean(db);
-        self.require_assignable_type(expr.ty(db), boolean_ty, &BooleanTypeRequired { expr });
+        self.spawn_require_assignable_type(expr.ty(db), boolean_ty, &BooleanTypeRequired { expr });
     }
 
     /// Check if the given (perm, type) variable is declared as copy.
