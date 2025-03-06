@@ -27,12 +27,11 @@ use crate::{check::runtime::Runtime, check::universe::Universe, ir::exprs::SymEx
 
 use super::{
     CheckInEnv,
-    chains::ToRedTy,
     inference::InferenceVarData,
     predicates::Predicate,
     report::{BooleanTypeRequired, OrElse},
     runtime::{DeferResult, SpawnOnceKey},
-    subtype::numeric::require_numeric_type,
+    subtype::is_numeric::require_numeric_type,
 };
 
 #[derive(Clone)]

@@ -1,4 +1,4 @@
-use dada_ir_ast::{diagnostic::Errors, span::Span};
+use dada_ir_ast::diagnostic::Errors;
 use dada_util::boxed_async_fn;
 
 use crate::{
@@ -88,8 +88,8 @@ async fn require_ty_is_move<'db>(
 
         // Named types
         SymTyKind::Named(sym_ty_name, ref generics) => match sym_ty_name {
-            SymTyName::Primitive(_sym_primitive) => {
-                Err(or_else.report(env.db(), Because::StructIsCopy(term)))
+            SymTyName::Primitive(prim) => {
+                Err(or_else.report(env.db(), Because::PrimitiveIsCopy(prim)))
             }
 
             SymTyName::Aggregate(sym_aggregate) => match sym_aggregate.style(db) {
@@ -99,7 +99,7 @@ async fn require_ty_is_move<'db>(
                         exists(generics, async |&generic| {
                             term_is_provably_move(env, generic).await
                         }),
-                        || or_else.report(env.db(), Because::StructIsCopy(term)),
+                        || or_else.report(env.db(), Because::JustSo),
                     )
                     .await
                 }
@@ -113,7 +113,7 @@ async fn require_ty_is_move<'db>(
                     exists(generics, async |&generic| {
                         term_is_provably_move(env, generic).await
                     }),
-                    || or_else.report(env.db(), Because::StructIsCopy(term)),
+                    || or_else.report(env.db(), Because::JustSo),
                 )
                 .await
             }
@@ -133,9 +133,9 @@ async fn require_perm_is_move<'db>(
 
         SymPermKind::My => Ok(()),
 
-        SymPermKind::Our => Err(or_else.report(env.db(), Because::OurIsCopy)),
+        SymPermKind::Our => Err(or_else.report(env.db(), Because::JustSo)),
 
-        SymPermKind::Shared(_) => Err(or_else.report(env.db(), Because::SharedIsCopy(perm))),
+        SymPermKind::Shared(_) => Err(or_else.report(env.db(), Because::JustSo)),
 
         SymPermKind::Leased(ref places) => {
             // If there is at least one place `p` that is move, this will result in a `leased[p]` chain.
@@ -143,7 +143,7 @@ async fn require_perm_is_move<'db>(
                 exists(places, async |&place| {
                     place_is_provably_move(env, place).await
                 }),
-                || or_else.report(env.db(), Because::LeasedFromCopyIsCopy(perm)),
+                || or_else.report(env.db(), Because::LeasedFromCopyIsCopy(places.to_vec())),
             )
             .await
         }

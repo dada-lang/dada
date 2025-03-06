@@ -64,7 +64,7 @@ async fn require_application_is_lent<'db>(
                 term_is_provably_lent(env, lhs),
             ),
         ),
-        || or_else.report(env.db(), Because::ApplicationNotLent(lhs, rhs)),
+        || or_else.report(env.db(), Because::JustSo),
     )
     .await
 }
@@ -97,23 +97,19 @@ async fn require_ty_is_lent<'db>(
             SymTyName::Primitive(_sym_primitive) => Ok(()),
 
             SymTyName::Aggregate(sym_aggregate) => match sym_aggregate.style(db) {
-                SymAggregateStyle::Class => {
-                    Err(or_else.report(env.db(), Because::ClassIsNotLent(sym_ty_name)))
-                }
+                SymAggregateStyle::Class => Err(or_else.report(env.db(), Because::JustSo)),
                 SymAggregateStyle::Struct => {
                     require(
                         exists(generics, async |&generic| {
                             term_is_provably_lent(env, generic).await
                         }),
-                        || or_else.report(env.db(), Because::NoLentComponent(term.into())),
+                        || or_else.report(env.db(), Because::JustSo),
                     )
                     .await
                 }
             },
 
-            SymTyName::Future => {
-                Err(or_else.report(env.db(), Because::ClassIsNotLent(sym_ty_name)))
-            }
+            SymTyName::Future => Err(or_else.report(env.db(), Because::JustSo)),
 
             SymTyName::Tuple { arity } => {
                 assert_eq!(arity, generics.len());
@@ -121,7 +117,7 @@ async fn require_ty_is_lent<'db>(
                     exists(generics, async |&generic| {
                         term_is_provably_lent(env, generic).await
                     }),
-                    || or_else.report(env.db(), Because::NoLentComponent(term.into())),
+                    || or_else.report(env.db(), Because::JustSo),
                 )
                 .await
             }
@@ -141,10 +137,10 @@ async fn require_perm_is_lent<'db>(
         SymPermKind::Error(reported) => Err(reported),
 
         // My = Move & Owned
-        SymPermKind::My => Err(or_else.report(env.db(), Because::MyIsOwned)),
+        SymPermKind::My => Err(or_else.report(env.db(), Because::JustSo)),
 
         // Our = Copy & Owned
-        SymPermKind::Our => Err(or_else.report(env.db(), Because::OurIsOwned)),
+        SymPermKind::Our => Err(or_else.report(env.db(), Because::JustSo)),
 
         // Shared = Copy & Lent, Leased = Move & Lent
         SymPermKind::Shared(ref places) | SymPermKind::Leased(ref places) => {
@@ -163,7 +159,7 @@ async fn require_perm_is_lent<'db>(
                     )
                     .await
                 }),
-                || or_else.report(env.db(), Because::NoLentComponent(perm.into())),
+                || or_else.report(env.db(), Because::JustSo),
             )
             .await
         }

@@ -66,12 +66,7 @@ async fn require_sub_some<'a, 'db>(
                 .await
             },
         ),
-        || {
-            or_else.report(
-                db,
-                Because::NotSubChain(lower_chain.clone(), upper_chains.clone()),
-            )
-        },
+        || or_else.report(db, Because::JustSo),
     )
     .await
 }
@@ -286,15 +281,7 @@ async fn require_lower_chain<'db>(
                     .await
                 },
             ),
-            || {
-                let upper_bounds = env
-                    .runtime()
-                    .with_inference_var_data(upper_head, |data| data.upper_chains().to_vec());
-                or_else.report(
-                    db,
-                    Because::NotSubChainInfer(lower_chain.clone(), upper_bounds),
-                )
-            },
+            || or_else.report(db, Because::JustSo),
         )
         .await
     });

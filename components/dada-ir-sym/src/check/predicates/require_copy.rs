@@ -11,7 +11,7 @@ use crate::{
             Predicate,
             var_infer::{require_infer_is, require_var_is},
         },
-        report::{Because, OrElse, OrElseHelper},
+        report::{Because, OrElse},
     },
     ir::{
         classes::SymAggregateStyle,
@@ -100,7 +100,7 @@ async fn require_ty_is_copy<'db>(
 
         // Named types
         SymTyKind::Named(sym_ty_name, ref generics) => match sym_ty_name {
-            SymTyName::Primitive(_sym_primitive) => Ok(()),
+            SymTyName::Primitive(_) => Ok(()),
 
             SymTyName::Aggregate(sym_aggregate) => match sym_aggregate.style(db) {
                 SymAggregateStyle::Class => {
@@ -108,14 +108,7 @@ async fn require_ty_is_copy<'db>(
                 }
                 SymAggregateStyle::Struct => {
                     require_for_all(generics, async |&generic| {
-                        require_term_is_copy(
-                            env,
-                            generic,
-                            &or_else.map_because(move |because| {
-                                because.struct_component_not_copy(sym_ty_name, generic)
-                            }),
-                        )
-                        .await
+                        require_term_is_copy(env, generic, or_else).await
                     })
                     .await
                 }
@@ -128,14 +121,7 @@ async fn require_ty_is_copy<'db>(
             SymTyName::Tuple { arity } => {
                 assert_eq!(arity, generics.len());
                 require_for_all(generics, async |&generic| {
-                    require_term_is_copy(
-                        env,
-                        generic,
-                        &or_else.map_because(move |because| {
-                            because.struct_component_not_copy(sym_ty_name, generic)
-                        }),
-                    )
-                    .await
+                    require_term_is_copy(env, generic, or_else).await
                 })
                 .await
             }
@@ -153,7 +139,7 @@ async fn require_perm_is_copy<'db>(
     match *perm.kind(db) {
         SymPermKind::Error(reported) => Err(reported),
 
-        SymPermKind::My => Err(or_else.report(env.db(), Because::MyIsMove)),
+        SymPermKind::My => Err(or_else.report(env.db(), Because::JustSo)),
 
         SymPermKind::Our => Ok(()),
 

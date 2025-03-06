@@ -6,7 +6,7 @@ use dada_util::boxed_async_fn;
 use crate::{
     check::{
         chains::{RedTerm, RedTy, ToRedTerm},
-        combinator,
+        combinator::{self, require_both, require_for_all},
         env::Env,
         predicates::{
             is_provably_copy::term_is_provably_copy, is_provably_lent::term_is_provably_lent,
@@ -176,23 +176,27 @@ pub async fn require_sub_red_terms<'a, 'db>(
             if name_lower == name_upper {
                 let variances = env.variances(name_lower);
                 assert_eq!(lower_generics.len(), upper_generics.len());
-                for (&variance, (&lower_generic, &upper_generic)) in variances
-                    .iter()
-                    .zip(lower_generics.iter().zip(upper_generics))
-                {
-                    match variance {
+                require_for_all(
+                    variances
+                        .iter()
+                        .zip(lower_generics.iter().zip(upper_generics)),
+                    async |(&variance, (&lower_generic, &upper_generic))| match variance {
                         Variance::Covariant => {
-                            require_sub_terms(env, lower_generic, upper_generic, or_else).await?
+                            require_sub_terms(env, lower_generic, upper_generic, or_else).await
                         }
                         Variance::Contravariant => {
-                            require_sub_terms(env, upper_generic, lower_generic, or_else).await?
+                            require_sub_terms(env, upper_generic, lower_generic, or_else).await
                         }
                         Variance::Invariant => {
-                            require_sub_terms(env, lower_generic, upper_generic, or_else).await?;
-                            require_sub_terms(env, upper_generic, lower_generic, or_else).await?;
+                            require_both(
+                                require_sub_terms(env, lower_generic, upper_generic, or_else),
+                                require_sub_terms(env, upper_generic, lower_generic, or_else),
+                            )
+                            .await
                         }
-                    }
-                }
+                    },
+                )
+                .await?;
 
                 match name_lower.style(env.db()) {
                     SymAggregateStyle::Struct => {}
@@ -207,15 +211,13 @@ pub async fn require_sub_red_terms<'a, 'db>(
             }
         }
         (&RedTy::Named(..), _) | (_, &RedTy::Named(..)) => {
-            Err(or_else.report(env.db(), Because::NotSubRedTys(lower, upper)))
+            Err(or_else.report(env.db(), Because::JustSo))
         }
 
         (&RedTy::Never, &RedTy::Never) => {
             require_sub_red_perms(env, lower.chains(), upper.chains(), or_else).await
         }
-        (&RedTy::Never, _) | (_, &RedTy::Never) => {
-            Err(or_else.report(env.db(), Because::NotSubRedTys(lower, upper)))
-        }
+        (&RedTy::Never, _) | (_, &RedTy::Never) => Err(or_else.report(env.db(), Because::JustSo)),
 
         (&RedTy::Var(var_lower), &RedTy::Var(var_upper)) => {
             if var_lower == var_upper {
@@ -224,9 +226,7 @@ pub async fn require_sub_red_terms<'a, 'db>(
                 Err(or_else.report(env.db(), Because::UniversalMismatch(var_lower, var_upper)))
             }
         }
-        (&RedTy::Var(_), _) | (_, &RedTy::Var(_)) => {
-            Err(or_else.report(env.db(), Because::NotSubRedTys(lower, upper)))
-        }
+        (&RedTy::Var(_), _) | (_, &RedTy::Var(_)) => Err(or_else.report(env.db(), Because::JustSo)),
 
         (&RedTy::Perm, &RedTy::Perm) => {
             require_sub_red_perms(env, lower.chains(), upper.chains(), or_else).await

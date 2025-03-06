@@ -142,6 +142,25 @@ pub enum AstBinaryOp {
     Assign,
 }
 
+impl std::fmt::Display for AstBinaryOp {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        match self {
+            AstBinaryOp::Add => write!(f, "+"),
+            AstBinaryOp::Sub => write!(f, "-"),
+            AstBinaryOp::Mul => write!(f, "*"),
+            AstBinaryOp::Div => write!(f, "/"),
+            AstBinaryOp::AndAnd => write!(f, "&&"),
+            AstBinaryOp::OrOr => write!(f, "||"),
+            AstBinaryOp::GreaterThan => write!(f, ">"),
+            AstBinaryOp::LessThan => write!(f, "<"),
+            AstBinaryOp::GreaterEqual => write!(f, ">="),
+            AstBinaryOp::LessEqual => write!(f, "<="),
+            AstBinaryOp::EqualEqual => write!(f, "=="),
+            AstBinaryOp::Assign => write!(f, "="),
+        }
+    }
+}
+
 #[derive(Copy, Clone, PartialEq, Eq, PartialOrd, Ord, Hash, Update, Debug)]
 pub struct SpannedUnaryOp<'db> {
     pub span: Span<'db>,

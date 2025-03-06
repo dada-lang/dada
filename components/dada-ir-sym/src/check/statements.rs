@@ -3,7 +3,7 @@ use dada_util::boxed_async_fn;
 use futures::join;
 
 use crate::{
-    check::{CheckInEnv, env::Env, report::UnassignableType},
+    check::{CheckInEnv, env::Env, report::InvalidInitializerType},
     ir::{
         exprs::{SymExpr, SymExprKind},
         types::SymTy,
@@ -44,7 +44,7 @@ pub async fn check_block_statements<'a, 'db>(
                             env.require_assignable_type(
                                 initializer.ty(db),
                                 ty,
-                                &UnassignableType {
+                                &InvalidInitializerType {
                                     variable: lv,
                                     variable_span: s.name(db).span,
                                     variable_ty: ty,
