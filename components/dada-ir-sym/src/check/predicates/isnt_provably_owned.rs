@@ -17,9 +17,7 @@ use crate::{
     },
 };
 
-use super::{
-    is_provably_move::place_is_provably_move, isnt_provably_copy::place_isnt_provably_copy,
-};
+use super::isnt_provably_copy::place_isnt_provably_copy;
 
 pub(crate) async fn term_isnt_provably_owned<'db>(
     env: &Env<'db>,

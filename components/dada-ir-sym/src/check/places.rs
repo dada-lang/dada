@@ -1,12 +1,10 @@
-use std::borrow::Cow;
-
 use dada_ir_ast::diagnostic::Err;
 
 use crate::{
     check::env::Env,
     ir::{
         classes::SymField,
-        types::{SymGenericTerm, SymPlace, SymPlaceKind, SymTy, SymTyKind, SymTyName},
+        types::{SymGenericTerm, SymPlace, SymPlaceKind, SymTy, SymTyKind},
     },
     prelude::CheckedFieldTy,
 };

@@ -1,7 +1,6 @@
 use std::sync::Arc;
 
 use dada_ir_ast::{
-    Db,
     ast::SpannedBinaryOp,
     diagnostic::{Diagnostic, Level, Reported},
     span::Span,

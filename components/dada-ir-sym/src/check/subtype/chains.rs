@@ -48,8 +48,6 @@ async fn require_sub_some<'a, 'db>(
     upper_chains: &VecSet<Chain<'db>>,
     or_else: &dyn OrElse<'db>,
 ) -> Errors<()> {
-    let db = env.db();
-
     let mut root = Alternative::root();
     let children_alternatives = root.spawn_children(upper_chains.len());
     require(
@@ -247,7 +245,6 @@ async fn require_lower_chain<'db>(
     upper_head: InferVarIndex,
     or_else: &dyn OrElse<'db>,
 ) -> Errors<()> {
-    let db = env.db();
     let lower_chain = Chain::from_head_tail(env.db(), lower_head, lower_tail);
 
     let Some(or_else) = env
