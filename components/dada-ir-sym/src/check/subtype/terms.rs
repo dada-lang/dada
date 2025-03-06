@@ -207,26 +207,26 @@ pub async fn require_sub_red_terms<'a, 'db>(
 
                 Ok(())
             } else {
-                Err(or_else.report(env.db(), Because::NameMismatch(name_lower, name_upper)))
+                Err(or_else.report(env, Because::NameMismatch(name_lower, name_upper)))
             }
         }
         (&RedTy::Named(..), _) | (_, &RedTy::Named(..)) => {
-            Err(or_else.report(env.db(), Because::JustSo))
+            Err(or_else.report(env, Because::JustSo))
         }
 
         (&RedTy::Never, &RedTy::Never) => {
             require_sub_red_perms(env, lower.chains(), upper.chains(), or_else).await
         }
-        (&RedTy::Never, _) | (_, &RedTy::Never) => Err(or_else.report(env.db(), Because::JustSo)),
+        (&RedTy::Never, _) | (_, &RedTy::Never) => Err(or_else.report(env, Because::JustSo)),
 
         (&RedTy::Var(var_lower), &RedTy::Var(var_upper)) => {
             if var_lower == var_upper {
                 require_sub_red_perms(env, lower.chains(), upper.chains(), or_else).await
             } else {
-                Err(or_else.report(env.db(), Because::UniversalMismatch(var_lower, var_upper)))
+                Err(or_else.report(env, Because::UniversalMismatch(var_lower, var_upper)))
             }
         }
-        (&RedTy::Var(_), _) | (_, &RedTy::Var(_)) => Err(or_else.report(env.db(), Because::JustSo)),
+        (&RedTy::Var(_), _) | (_, &RedTy::Var(_)) => Err(or_else.report(env, Because::JustSo)),
 
         (&RedTy::Perm, &RedTy::Perm) => {
             require_sub_red_perms(env, lower.chains(), upper.chains(), or_else).await

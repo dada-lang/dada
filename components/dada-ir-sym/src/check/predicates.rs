@@ -112,7 +112,7 @@ pub(crate) async fn require_term_is_not_leased<'db>(
             term_is_provably_copy(env, term),
             term_is_provably_owned(env, term),
         ),
-        || or_else.report(env.db(), Because::JustSo),
+        || or_else.report(env, Because::JustSo),
     )
     .await
 }

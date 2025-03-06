@@ -294,6 +294,35 @@ pub enum RedTy<'db> {
 }
 
 impl<'db> RedTy<'db> {
+    pub fn display<'a>(&'a self, env: &'a Env<'db>) -> impl std::fmt::Display {
+        struct Wrapper<'a, 'db> {
+            ty: &'a RedTy<'db>,
+            env: &'a Env<'db>,
+        }
+
+        impl<'db> std::fmt::Display for Wrapper<'_, 'db> {
+            fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+                match &self.ty {
+                    RedTy::Error(_reported) => write!(f, "<error>"),
+                    RedTy::Named(sym_ty_name, sym_generic_terms) => {
+                        write!(f, "{}[{:?}]", sym_ty_name, sym_generic_terms)
+                    }
+                    RedTy::Never => write!(f, "!"),
+
+                    // FIXME: do better by querying the env state
+                    RedTy::Infer(v) => write!(f, "?{}", v.as_usize()),
+
+                    RedTy::Var(sym_variable) => write!(f, "{}", sym_variable),
+                    RedTy::Perm => write!(f, "<perm>"),
+                }
+            }
+        }
+
+        Wrapper { ty: self, env }
+    }
+}
+
+impl<'db> RedTy<'db> {
     /// Return ty chain kind for unit (0-arity tuple).
     pub fn unit(_db: &'db dyn crate::Db) -> Self {
         Self::Named(SymTyName::Tuple { arity: 0 }, vec![])

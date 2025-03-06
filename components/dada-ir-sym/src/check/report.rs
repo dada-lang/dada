@@ -32,8 +32,8 @@ use super::chains::RedTy;
 /// extract the reason for that original constraint.
 pub trait OrElse<'db> {
     /// Report the diagnostic created by [`OrElse::or_else`][].
-    fn report(&self, db: &'db dyn Db, because: Because<'db>) -> Reported {
-        self.or_else(db, because).report(db)
+    fn report(&self, env: &Env<'db>, because: Because<'db>) -> Reported {
+        self.or_else(env, because).report(env.db())
     }
 
     /// Create a diagnostic representing the error.
@@ -43,7 +43,7 @@ pub trait OrElse<'db> {
     ///
     /// The `because` argument signals the reason the low-level operation failed
     /// and will be used to provide additional details, like "`our` is not assignable to `my`".
-    fn or_else(&self, db: &'db dyn Db, because: Because<'db>) -> Diagnostic;
+    fn or_else(&self, env: &Env<'db>, because: Because<'db>) -> Diagnostic;
 
     /// Convert a `&dyn OrElse<'db>` into an `ArcOrElse<'db>` so that it can be
     /// stored in an [`InferenceVarData`](`crate::check::inference::InferenceVarData`)
@@ -56,8 +56,8 @@ pub trait OrElse<'db> {
 pub type ArcOrElse<'db> = Arc<dyn OrElse<'db> + 'db>;
 
 impl<'db> OrElse<'db> for ArcOrElse<'db> {
-    fn or_else(&self, db: &'db dyn Db, because: Because<'db>) -> Diagnostic {
-        <dyn OrElse<'db>>::or_else(self, db, because)
+    fn or_else(&self, env: &Env<'db>, because: Because<'db>) -> Diagnostic {
+        <dyn OrElse<'db>>::or_else(self, env, because)
     }
 
     fn to_arc(&self) -> ArcOrElse<'db> {
@@ -91,8 +91,8 @@ impl<'db> OrElseHelper<'db> for &dyn OrElse<'db> {
             F: 'db + Clone + Fn(Because<'db>) -> Because<'db>,
             G: std::ops::Deref<Target: OrElse<'db>>,
         {
-            fn or_else(&self, db: &'db dyn Db, because: Because<'db>) -> Diagnostic {
-                self.1.or_else(db, (self.0)(because))
+            fn or_else(&self, env: &Env<'db>, because: Because<'db>) -> Diagnostic {
+                self.1.or_else(env, (self.0)(because))
             }
 
             fn to_arc(&self) -> Arc<dyn OrElse<'db> + 'db> {
@@ -153,16 +153,18 @@ pub enum Because<'db> {
 }
 
 impl<'db> Because<'db> {
-    pub fn annotate_diagnostic(self, db: &'db dyn Db, diagnostic: Diagnostic) -> Diagnostic {
+    pub fn annotate_diagnostic(self, env: &Env<'db>, diagnostic: Diagnostic) -> Diagnostic {
+        let db = env.db();
         let span = diagnostic.span.into_span(db);
-        if let Some(child) = self.to_annotation(db, span) {
+        if let Some(child) = self.to_annotation(env, span) {
             diagnostic.child(child)
         } else {
             diagnostic
         }
     }
 
-    fn to_annotation(&self, db: &'db dyn Db, span: Span<'db>) -> Option<Diagnostic> {
+    fn to_annotation(&self, env: &Env<'db>, span: Span<'db>) -> Option<Diagnostic> {
+        let db = env.db();
         match self {
             Because::JustSo => None,
             Because::VarNotDeclaredToBe(v, predicate) => Some(Diagnostic::info(
@@ -230,27 +232,44 @@ impl<'db> Because<'db> {
                 format!("`{n1}` and `{n2}` are distinct types"),
             )),
             Because::InferredIs(predicate, or_else) => {
-                let or_else_diagnostic = or_else.or_else(db, Because::JustSo);
+                let or_else_diagnostic = or_else.or_else(env, Because::JustSo);
                 Some(Diagnostic::info(
-                    db,
-                    span,
-                    format!(
-                        "I inferred that `{predicate}` must be true because otherwise it would cause this error"
-                    ),
-                )
-                .child(or_else_diagnostic))
+                            db,
+                            span,
+                            format!(
+                                "I inferred that `{predicate}` must be true because otherwise it would cause this error"
+                            ),
+                        )
+                        .child(or_else_diagnostic))
             }
             Because::InferredIsnt(predicate, or_else) => {
-                let or_else_diagnostic = or_else.or_else(db, Because::JustSo);
+                let or_else_diagnostic = or_else.or_else(env, Because::JustSo);
                 Some(Diagnostic::info(
-                db,
-                span,
-                format!(
-                    "I inferred that `{predicate}` must not be true because otherwise it would cause this error"
-                ),
-            )
-            .child(or_else_diagnostic))
+                        db,
+                        span,
+                        format!(
+                            "I inferred that `{predicate}` must not be true because otherwise it would cause this error"
+                        ),
+                    )
+                    .child(or_else_diagnostic))
             }
+            Because::InferredLowerBound(red_ty, or_else) => {
+                let or_else_diagnostic = or_else.or_else(env, Because::JustSo);
+                Some(Diagnostic::info(
+                        db,
+                        span,
+                        format!(
+                            "I inferred that the type `{red_ty}` is required because otherwise it would cause this error",
+                            red_ty = red_ty.display(env),
+                        ),
+                    )
+                    .child(or_else_diagnostic))
+            }
+            Because::UnconstrainedInfer(span) => Some(Diagnostic::info(
+                db,
+                *span,
+                format!("this error might well be bogus, I just can't infer the type here"),
+            )),
         }
     }
 }
@@ -458,10 +477,11 @@ pub struct BadSubtypeError<'db> {
 }
 
 impl<'db> OrElse<'db> for BadSubtypeError<'db> {
-    fn or_else(&self, db: &'db dyn Db, because: Because<'db>) -> Diagnostic {
+    fn or_else(&self, env: &Env<'db>, because: Because<'db>) -> Diagnostic {
+        let db = env.db();
         let Self { span, lower, upper } = *self;
         because.annotate_diagnostic(
-            db,
+            env,
             Diagnostic::error(db, span, format!("subtype expected")).label(
                 db,
                 Level::Error,
@@ -485,10 +505,11 @@ pub struct InvalidInitializerType<'db> {
 }
 
 impl<'db> OrElse<'db> for InvalidInitializerType<'db> {
-    fn or_else(&self, db: &'db dyn Db, because: Because<'db>) -> Diagnostic {
+    fn or_else(&self, env: &Env<'db>, because: Because<'db>) -> Diagnostic {
+        let db = env.db();
         let initializer_ty = self.initializer.ty(db);
         because.annotate_diagnostic(
-            db,
+            env,
             Diagnostic::error(
                 db,
                 self.initializer.span(db),
@@ -524,11 +545,12 @@ pub struct InvalidAssignmentType<'db> {
 }
 
 impl<'db> OrElse<'db> for InvalidAssignmentType<'db> {
-    fn or_else(&self, db: &'db dyn Db, because: Because<'db>) -> Diagnostic {
+    fn or_else(&self, env: &Env<'db>, because: Because<'db>) -> Diagnostic {
+        let db = env.db();
         let lhs_ty = self.lhs.ty(db);
         let rhs_ty = self.rhs.ty(db);
         because.annotate_diagnostic(
-            db,
+            env,
             Diagnostic::error(db, self.rhs.span(db), format!("wrong type in assignment"))
                 .label(
                     db,
@@ -557,10 +579,11 @@ pub struct InvalidReturnValue<'db> {
 }
 
 impl<'db> OrElse<'db> for InvalidReturnValue<'db> {
-    fn or_else(&self, db: &'db dyn Db, because: Because<'db>) -> Diagnostic {
+    fn or_else(&self, env: &Env<'db>, because: Because<'db>) -> Diagnostic {
+        let db = env.db();
         let value_ty = self.value.ty(db);
         because.annotate_diagnostic(
-            db,
+            env,
             Diagnostic::error(db, self.value.span(db), format!("invalid return value"))
                 .label(
                     db,
@@ -594,9 +617,10 @@ pub struct BooleanTypeRequired<'db> {
 }
 
 impl<'db> OrElse<'db> for BooleanTypeRequired<'db> {
-    fn or_else(&self, db: &'db dyn Db, because: Because<'db>) -> Diagnostic {
+    fn or_else(&self, env: &Env<'db>, because: Because<'db>) -> Diagnostic {
+        let db = env.db();
         because.annotate_diagnostic(
-            db,
+            env,
             Diagnostic::error(
                 db,
                 self.expr.span(db),
@@ -626,12 +650,16 @@ pub struct NumericTypeExpected<'db> {
 }
 
 impl<'db> OrElse<'db> for NumericTypeExpected<'db> {
-    fn or_else(&self, db: &'db dyn Db, _because: Because<'db>) -> Diagnostic {
-        Diagnostic::error(db, self.expr.span(db), "numeric type expected").label(
-            db,
-            Level::Error,
-            self.expr.span(db),
-            format!("I expected a numeric type but I found `{}`", self.ty),
+    fn or_else(&self, env: &Env<'db>, because: Because<'db>) -> Diagnostic {
+        let db = env.db();
+        because.annotate_diagnostic(
+            env,
+            Diagnostic::error(db, self.expr.span(db), "numeric type expected").label(
+                db,
+                Level::Error,
+                self.expr.span(db),
+                format!("I expected a numeric type but I found `{}`", self.ty),
+            ),
         )
     }
 
@@ -647,14 +675,15 @@ pub struct OperatorRequiresNumericType<'db> {
 }
 
 impl<'db> OrElse<'db> for OperatorRequiresNumericType<'db> {
-    fn or_else(&self, db: &'db dyn Db, because: Because<'db>) -> Diagnostic {
+    fn or_else(&self, env: &Env<'db>, because: Because<'db>) -> Diagnostic {
+        let db = env.db();
         let Self {
             op: SpannedBinaryOp { span: op_span, op },
             expr,
         } = *self;
 
         because.annotate_diagnostic(
-            db,
+            env,
             Diagnostic::error(db, expr.span(db), "numeric type expected")
                 .label(
                     db,
@@ -687,7 +716,8 @@ pub struct OperatorArgumentsMustHaveSameType<'db> {
 }
 
 impl<'db> OrElse<'db> for OperatorArgumentsMustHaveSameType<'db> {
-    fn or_else(&self, db: &'db dyn Db, because: Because<'db>) -> Diagnostic {
+    fn or_else(&self, env: &Env<'db>, because: Because<'db>) -> Diagnostic {
+        let db = env.db();
         let Self {
             op: SpannedBinaryOp { span: op_span, op },
             lhs,
@@ -695,7 +725,7 @@ impl<'db> OrElse<'db> for OperatorArgumentsMustHaveSameType<'db> {
         } = *self;
 
         because.annotate_diagnostic(
-            db,
+            env,
             Diagnostic::error(db, op_span, "same types expected")
                 .label(
                     db,

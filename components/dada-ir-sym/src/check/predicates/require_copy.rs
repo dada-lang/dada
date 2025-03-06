@@ -90,7 +90,7 @@ async fn require_ty_is_copy<'db>(
         }
 
         // Never
-        SymTyKind::Never => Err(or_else.report(env.db(), Because::NeverIsNotCopy)),
+        SymTyKind::Never => Err(or_else.report(env, Because::NeverIsNotCopy)),
 
         // Inference variables
         SymTyKind::Infer(infer) => require_infer_is(env, infer, Predicate::Copy, or_else),
@@ -104,7 +104,7 @@ async fn require_ty_is_copy<'db>(
 
             SymTyName::Aggregate(sym_aggregate) => match sym_aggregate.style(db) {
                 SymAggregateStyle::Class => {
-                    Err(or_else.report(env.db(), Because::ClassIsNotCopy(sym_ty_name)))
+                    Err(or_else.report(env, Because::ClassIsNotCopy(sym_ty_name)))
                 }
                 SymAggregateStyle::Struct => {
                     require_for_all(generics, async |&generic| {
@@ -115,7 +115,7 @@ async fn require_ty_is_copy<'db>(
             },
 
             SymTyName::Future => {
-                Err(or_else.report(env.db(), Because::ClassIsNotCopy(sym_ty_name)))
+                Err(or_else.report(env, Because::ClassIsNotCopy(sym_ty_name)))
             }
 
             SymTyName::Tuple { arity } => {
@@ -139,7 +139,7 @@ async fn require_perm_is_copy<'db>(
     match *perm.kind(db) {
         SymPermKind::Error(reported) => Err(reported),
 
-        SymPermKind::My => Err(or_else.report(env.db(), Because::JustSo)),
+        SymPermKind::My => Err(or_else.report(env, Because::JustSo)),
 
         SymPermKind::Our => Ok(()),
 

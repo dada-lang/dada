@@ -37,7 +37,7 @@ pub(super) fn require_var_is<'db>(
     if env.var_is_declared_to_be(var, predicate) {
         Ok(())
     } else {
-        Err(or_else.report(env.db(), Because::VarNotDeclaredToBe(var, predicate)))
+        Err(or_else.report(env, Because::VarNotDeclaredToBe(var, predicate)))
     }
 }
 
@@ -50,7 +50,7 @@ pub(super) fn require_var_isnt<'db>(
     if !env.var_is_declared_to_be(var, predicate) {
         Ok(())
     } else {
-        Err(or_else.report(env.db(), Because::VarDeclaredToBe(var, predicate)))
+        Err(or_else.report(env, Because::VarDeclaredToBe(var, predicate)))
     }
 }
 
@@ -77,7 +77,7 @@ pub(super) fn require_infer_is<'db>(
     // Check if were already required to not be the predicate
     // and report an error if so.
     if let Some(prev_or_else) = isnt_already {
-        return Err(or_else.report(env.db(), Because::InferredIsnt(predicate, prev_or_else)));
+        return Err(or_else.report(env, Because::InferredIsnt(predicate, prev_or_else)));
     }
 
     // Record the requirement in the runtime, awakening any tasks that may be impacted.
@@ -136,7 +136,7 @@ pub(super) fn require_infer_isnt<'db>(
     // Check if were already required to be the predicate
     // and report an error if so.
     if let Some(prev_or_else) = is_already {
-        return Err(or_else.report(env.db(), Because::InferredIs(predicate, prev_or_else)));
+        return Err(or_else.report(env, Because::InferredIs(predicate, prev_or_else)));
     }
 
     // Record the requirement in the runtime, awakening any tasks that may be impacted.

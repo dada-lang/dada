@@ -34,7 +34,7 @@ async fn require_numeric_red_type<'db>(
         RedTy::Named(sym_ty_name, _) => match sym_ty_name {
             SymTyName::Primitive(sym_primitive) => match sym_primitive.kind(db) {
                 SymPrimitiveKind::Bool | SymPrimitiveKind::Char => {
-                    Err(or_else.report(db, Because::JustSo))
+                    Err(or_else.report(env, Because::JustSo))
                 }
                 SymPrimitiveKind::Int { bits: _ }
                 | SymPrimitiveKind::Isize
@@ -43,11 +43,11 @@ async fn require_numeric_red_type<'db>(
                 | SymPrimitiveKind::Float { bits: _ } => Ok(()),
             },
             SymTyName::Aggregate(_) | SymTyName::Future | SymTyName::Tuple { arity: _ } => {
-                Err(or_else.report(db, Because::JustSo))
+                Err(or_else.report(env, Because::JustSo))
             }
         },
 
-        RedTy::Var(_) | RedTy::Never => Err(or_else.report(db, Because::JustSo)),
+        RedTy::Var(_) | RedTy::Never => Err(or_else.report(env, Because::JustSo)),
 
         RedTy::Infer(infer) => {
             // For inference variables: find the current lower bound
@@ -59,7 +59,7 @@ async fn require_numeric_red_type<'db>(
                 .await
             else {
                 return Err(
-                    or_else.report(db, Because::UnconstrainedInfer(env.infer_var_span(infer)))
+                    or_else.report(env, Because::UnconstrainedInfer(env.infer_var_span(infer)))
                 );
             };
             require_numeric_red_type(

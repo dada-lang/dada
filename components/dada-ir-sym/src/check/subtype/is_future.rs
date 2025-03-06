@@ -41,11 +41,11 @@ async fn require_future_red_type<'db>(
                 require_sub_terms(env, future_ty_arg.into(), awaited_ty.into(), or_else).await
             }
             SymTyName::Primitive(_) | SymTyName::Aggregate(_) | SymTyName::Tuple { arity: _ } => {
-                Err(or_else.report(db, Because::JustSo))
+                Err(or_else.report(env, Because::JustSo))
             }
         },
 
-        RedTy::Var(_) | RedTy::Never => Err(or_else.report(db, Because::JustSo)),
+        RedTy::Var(_) | RedTy::Never => Err(or_else.report(env, Because::JustSo)),
 
         RedTy::Infer(infer) => {
             // For inference variables: find the current lower bound
@@ -57,7 +57,7 @@ async fn require_future_red_type<'db>(
                 .await
             else {
                 return Err(
-                    or_else.report(db, Because::UnconstrainedInfer(env.infer_var_span(infer)))
+                    or_else.report(env, Because::UnconstrainedInfer(env.infer_var_span(infer)))
                 );
             };
             require_future_red_type(

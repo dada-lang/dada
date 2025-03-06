@@ -66,7 +66,7 @@ async fn require_sub_some<'a, 'db>(
                 .await
             },
         ),
-        || or_else.report(db, Because::JustSo),
+        || or_else.report(env, Because::JustSo),
     )
     .await
 }
@@ -281,7 +281,7 @@ async fn require_lower_chain<'db>(
                     .await
                 },
             ),
-            || or_else.report(db, Because::JustSo),
+            || or_else.report(env, Because::JustSo),
         )
         .await
     });
