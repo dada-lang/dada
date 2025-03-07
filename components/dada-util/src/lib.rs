@@ -1,5 +1,3 @@
-#![feature(trait_upcasting)]
-
 use std::ops::AsyncFnOnce;
 
 pub use fxhash::FxHashMap as Map;

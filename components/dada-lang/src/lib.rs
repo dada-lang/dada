@@ -1,4 +1,3 @@
-#![feature(trait_upcasting)]
 #![feature(panic_payload_as_str)]
 
 use dada_ir_ast::diagnostic::RenderOptions;

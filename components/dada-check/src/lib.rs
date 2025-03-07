@@ -1,5 +1,3 @@
-#![feature(trait_upcasting)]
-
 use dada_ir_ast::{
     ast::Identifier,
     diagnostic::{Diagnostic, Level},

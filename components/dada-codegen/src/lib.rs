@@ -1,10 +1,8 @@
-#![feature(trait_upcasting)]
-
 use dada_ir_ast::{ast::Identifier, diagnostic::Diagnostic, inputs::SourceFile};
 use dada_ir_sym::{
+    Db,
     ir::{functions::SymFunction, types::SymGenericTerm},
     prelude::Symbol,
-    Db,
 };
 
 mod cx;
