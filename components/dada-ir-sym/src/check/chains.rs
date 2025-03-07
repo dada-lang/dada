@@ -370,51 +370,54 @@ trait ToChains<'db> {
 
 impl<'db> ToChains<'db> for SymPerm<'db> {
     async fn to_chains(&self, env: &Env<'db>) -> Errors<VecSet<Chain<'db>>> {
-        let mut output = VecSet::new();
-        let db = env.db();
-        match *self.kind(db) {
-            SymPermKind::My => {
-                output.insert(Chain::my(db));
-            }
-            SymPermKind::Our => {
-                output.insert(Chain::our(db));
-            }
-            SymPermKind::Shared(ref places) => {
-                for &place in places {
-                    if place_is_provably_copy(env, place).await.is_ok() {
-                        output.extend(place.to_chains(env).await?);
-                    } else {
-                        output.insert(Chain::shared(env.db(), place));
+        Box::pin(async move {
+            let mut output = VecSet::new();
+            let db = env.db();
+            match *self.kind(db) {
+                SymPermKind::My => {
+                    output.insert(Chain::my(db));
+                }
+                SymPermKind::Our => {
+                    output.insert(Chain::our(db));
+                }
+                SymPermKind::Shared(ref places) => {
+                    for &place in places {
+                        if place_is_provably_copy(env, place).await.is_ok() {
+                            output.extend(place.to_chains(env).await?);
+                        } else {
+                            output.insert(Chain::shared(env.db(), place));
+                        }
                     }
                 }
-            }
-            SymPermKind::Leased(ref places) => {
-                for &place in places {
-                    if place_is_provably_copy(env, place).await.is_ok() {
-                        output.extend(place.to_chains(env).await?);
-                    } else {
-                        output.insert(Chain::leased(db, place));
+                SymPermKind::Leased(ref places) => {
+                    for &place in places {
+                        if place_is_provably_copy(env, place).await.is_ok() {
+                            output.extend(place.to_chains(env).await?);
+                        } else {
+                            output.insert(Chain::leased(db, place));
+                        }
                     }
                 }
-            }
-            SymPermKind::Apply(lhs, rhs) => {
-                let lhs_chains = lhs.to_chains(env).await?;
-                let rhs_chains = rhs.to_chains(env).await?;
-                for lhs_chain in &lhs_chains {
-                    for rhs_chain in &rhs_chains {
-                        output.insert(lhs_chain.concat(env, rhs_chain).await?);
+                SymPermKind::Apply(lhs, rhs) => {
+                    let lhs_chains = lhs.to_chains(env).await?;
+                    let rhs_chains = rhs.to_chains(env).await?;
+                    for lhs_chain in &lhs_chains {
+                        for rhs_chain in &rhs_chains {
+                            output.insert(lhs_chain.concat(env, rhs_chain).await?);
+                        }
                     }
                 }
+                SymPermKind::Infer(v) => {
+                    output.insert(Chain::infer(db, v));
+                }
+                SymPermKind::Var(v) => {
+                    output.insert(Chain::var(db, v));
+                }
+                SymPermKind::Error(reported) => return Err(reported),
             }
-            SymPermKind::Infer(v) => {
-                output.insert(Chain::infer(db, v));
-            }
-            SymPermKind::Var(v) => {
-                output.insert(Chain::var(db, v));
-            }
-            SymPermKind::Error(reported) => return Err(reported),
-        }
-        Ok(output)
+            Ok(output)
+        })
+        .await
     }
 }
 
@@ -427,26 +430,29 @@ impl<'db> ToChains<'db> for SymPlace<'db> {
 
 impl<'db> ToChains<'db> for SymTy<'db> {
     async fn to_chains(&self, env: &Env<'db>) -> Errors<VecSet<Chain<'db>>> {
-        let mut output = VecSet::new();
-        let db = env.db();
-        match *self.kind(db) {
-            SymTyKind::Perm(lhs, rhs) => {
-                let lhs_chains = lhs.to_chains(env).await?;
-                let rhs_chains = rhs.to_chains(env).await?;
-                for lhs_chain in &lhs_chains {
-                    for rhs_chain in &rhs_chains {
-                        output.insert(lhs_chain.concat(env, rhs_chain).await?);
+        Box::pin(async move {
+            let mut output = VecSet::new();
+            let db = env.db();
+            match *self.kind(db) {
+                SymTyKind::Perm(lhs, rhs) => {
+                    let lhs_chains = lhs.to_chains(env).await?;
+                    let rhs_chains = rhs.to_chains(env).await?;
+                    for lhs_chain in &lhs_chains {
+                        for rhs_chain in &rhs_chains {
+                            output.insert(lhs_chain.concat(env, rhs_chain).await?);
+                        }
                     }
                 }
+                SymTyKind::Infer(infer) => {
+                    output.insert(Chain::infer(db, env.perm_infer_for_ty_infer(infer)));
+                }
+                SymTyKind::Never | SymTyKind::Named(..) | SymTyKind::Var(_) => {
+                    output.insert(Chain::my(db));
+                }
+                SymTyKind::Error(reported) => return Err(reported),
             }
-            SymTyKind::Infer(infer) => {
-                output.insert(Chain::infer(db, env.perm_infer_for_ty_infer(infer)));
-            }
-            SymTyKind::Never | SymTyKind::Named(..) | SymTyKind::Var(_) => {
-                output.insert(Chain::my(db));
-            }
-            SymTyKind::Error(reported) => return Err(reported),
-        }
-        Ok(output)
+            Ok(output)
+        })
+        .await
     }
 }
