@@ -16,7 +16,7 @@ USER vscode
 # Install Rust and the wasm32-wasip1-threads target
 RUN curl --proto '=https' --tlsv1.2 -sSf https://sh.rustup.rs | sh -s -- -y
 ENV PATH="/home/vscode/.cargo/bin:${PATH}"
-RUN rustup install nightly
+RUN rustup install nightly-2025-03-01
 RUN rustup target add wasm32-wasip1-threads
 
 

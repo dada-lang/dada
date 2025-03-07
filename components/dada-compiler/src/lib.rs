@@ -1,5 +1,3 @@
-#![feature(trait_upcasting)]
-
 use std::{
     str::FromStr,
     sync::{Arc, Mutex},
@@ -10,7 +8,7 @@ use dada_ir_ast::{
     diagnostic::Diagnostic,
     inputs::{CompilationRoot, Krate, SourceFile},
 };
-use dada_util::{bail, debug, Fallible, FromImpls, Map, Set};
+use dada_util::{Fallible, FromImpls, Map, Set, bail, debug};
 use salsa::{Database as _, Durability, Event, EventKind, Setter};
 use url::Url;
 
