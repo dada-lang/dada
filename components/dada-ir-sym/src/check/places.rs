@@ -15,23 +15,19 @@ pub trait PlaceTy<'db> {
 }
 
 impl<'db> PlaceTy<'db> for SymPlace<'db> {
+    #[boxed_async_fn]
     async fn place_ty(&self, env: &Env<'db>) -> SymTy<'db> {
-        #[boxed_async_fn]
-        async fn sym_place_ty<'db>(place: SymPlace<'db>, env: &Env<'db>) -> SymTy<'db> {
-            match *place.kind(env.db()) {
-                SymPlaceKind::Var(sym_variable) => env.variable_ty(sym_variable).await,
-                SymPlaceKind::Field(sym_place, sym_field) => {
-                    let owner_ty = sym_place.place_ty(env).await;
-                    field_ty(env, place, owner_ty, sym_field)
-                }
-                SymPlaceKind::Index(_sym_place) => {
-                    todo!()
-                }
-                SymPlaceKind::Error(reported) => SymTy::err(env.db(), reported),
+        match *self.kind(env.db()) {
+            SymPlaceKind::Var(sym_variable) => env.variable_ty(sym_variable).await,
+            SymPlaceKind::Field(sym_place, sym_field) => {
+                let owner_ty = sym_place.place_ty(env).await;
+                field_ty(env, *self, sym_field)
             }
+            SymPlaceKind::Index(_sym_place) => {
+                todo!()
+            }
+            SymPlaceKind::Error(reported) => SymTy::err(env.db(), reported),
         }
-
-        sym_place_ty(*self, env).await
     }
 }
 
