@@ -3,7 +3,7 @@
 //! They are used in borrow checking and for producing the final version of each inference variable.
 
 use dada_ir_ast::diagnostic::{Err, Errors, Reported};
-use dada_util::vecset::VecSet;
+use dada_util::{boxed_async_fn, vecset::VecSet};
 use salsa::Update;
 
 use crate::ir::{
