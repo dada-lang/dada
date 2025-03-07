@@ -332,7 +332,7 @@ impl<'db> ToRedTy<'db> for SymTy<'db> {
             SymTyKind::Infer(infer) => {
                 // every type inference variable has an associated permission inference variable,
                 // so split that off
-                let perm_infer = env.perm_infer_for_ty_infer(infer);
+                let perm_infer = env.perm_infer(infer);
                 (RedTy::Infer(infer), Some(SymPerm::infer(db, perm_infer)))
             }
             SymTyKind::Var(v) => (RedTy::Var(v), None),
@@ -444,7 +444,7 @@ impl<'db> ToChains<'db> for SymTy<'db> {
                     }
                 }
                 SymTyKind::Infer(infer) => {
-                    output.insert(Chain::infer(db, env.perm_infer_for_ty_infer(infer)));
+                    output.insert(Chain::infer(db, env.perm_infer(infer)));
                 }
                 SymTyKind::Never | SymTyKind::Named(..) | SymTyKind::Var(_) => {
                     output.insert(Chain::my(db));

@@ -189,11 +189,12 @@ fn defer_require_bounds_provably_predicate<'db>(
     predicate: Predicate,
     or_else: Arc<dyn OrElse<'db> + 'db>,
 ) {
+    let perm_infer = env.perm_infer(infer);
     env.spawn(async move |ref env| match predicate {
         Predicate::Copy => {
             require_for_all_infer_bounds(
                 env,
-                infer,
+                perm_infer,
                 InferenceVarData::upper_chains,
                 async |chain| require_chain_is_copy(env, &chain, &or_else).await,
             )
@@ -202,7 +203,7 @@ fn defer_require_bounds_provably_predicate<'db>(
         Predicate::Move => {
             require_for_all_infer_bounds(
                 env,
-                infer,
+                perm_infer,
                 InferenceVarData::lower_chains,
                 async |chain| require_chain_is_move(env, &chain, &or_else).await,
             )
@@ -211,7 +212,7 @@ fn defer_require_bounds_provably_predicate<'db>(
         Predicate::Owned => {
             require_for_all_infer_bounds(
                 env,
-                infer,
+                perm_infer,
                 InferenceVarData::lower_chains,
                 async |chain| require_chain_is_owned(env, &chain, &or_else).await,
             )
@@ -220,7 +221,7 @@ fn defer_require_bounds_provably_predicate<'db>(
         Predicate::Lent => {
             require_for_all_infer_bounds(
                 env,
-                infer,
+                perm_infer,
                 InferenceVarData::upper_chains,
                 async |chain| require_chain_is_lent(env, &chain, &or_else).await,
             )

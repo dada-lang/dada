@@ -50,20 +50,28 @@ impl<'db> InferenceVarData<'db> {
 
     /// Create the data for a new permission inference variable.
     pub fn new_perm(universe: Universe, span: Span<'db>) -> Self {
-        Self::new(universe, span, InferenceVarBounds::Perm {
-            lower: Default::default(),
-            upper: Default::default(),
-        })
+        Self::new(
+            universe,
+            span,
+            InferenceVarBounds::Perm {
+                lower: Default::default(),
+                upper: Default::default(),
+            },
+        )
     }
 
     /// Create the data for a new type inference variable.
     /// Requires the index `perm` of a corresponding permission variable.
     pub fn new_ty(universe: Universe, span: Span<'db>, perm: InferVarIndex) -> Self {
-        Self::new(universe, span, InferenceVarBounds::Ty {
-            perm,
-            lower: Default::default(),
-            upper: Default::default(),
-        })
+        Self::new(
+            universe,
+            span,
+            InferenceVarBounds::Ty {
+                perm,
+                lower: Default::default(),
+                upper: Default::default(),
+            },
+        )
     }
 
     /// Returns the span of code which triggered the inference variable to be created.
@@ -173,6 +181,7 @@ impl<'db> InferenceVarData<'db> {
     /// # Panics
     ///
     /// If this is not a permission variable.
+    #[track_caller]
     pub fn lower_chains(&self) -> &[(Chain<'db>, ArcOrElse<'db>)] {
         match &self.bounds {
             InferenceVarBounds::Perm { lower, .. } => lower,
@@ -185,6 +194,7 @@ impl<'db> InferenceVarData<'db> {
     /// # Panics
     ///
     /// If this is not a permission variable.
+    #[track_caller]
     pub fn upper_chains(&self) -> &[(Chain<'db>, ArcOrElse<'db>)] {
         match &self.bounds {
             InferenceVarBounds::Perm { upper, .. } => upper,
@@ -193,14 +203,12 @@ impl<'db> InferenceVarData<'db> {
     }
 
     /// Returns the permission variable corresponding to this type variable.
-    ///
-    /// # Panics
-    ///
-    /// If this is not a type variable.
-    pub fn perm(&self) -> InferVarIndex {
+    /// Returns `None` if this is a permission variable.
+    #[track_caller]
+    pub fn perm(&self) -> Option<InferVarIndex> {
         match &self.bounds {
-            InferenceVarBounds::Ty { perm, .. } => *perm,
-            _ => panic!("perm invoked on a var of kind `{:?}`", self.kind()),
+            InferenceVarBounds::Ty { perm, .. } => Some(*perm),
+            InferenceVarBounds::Perm { .. } => None,
         }
     }
 
@@ -209,6 +217,7 @@ impl<'db> InferenceVarData<'db> {
     /// # Panics
     ///
     /// If this is not a type variable.
+    #[track_caller]
     pub fn lower_red_ty(&self) -> Option<(RedTy<'db>, ArcOrElse<'db>)> {
         match &self.bounds {
             InferenceVarBounds::Ty { lower, .. } => lower.clone(),
@@ -221,6 +230,7 @@ impl<'db> InferenceVarData<'db> {
     /// # Panics
     ///
     /// If this is not a type variable.
+    #[track_caller]
     pub fn upper_red_ty(&self) -> Option<(RedTy<'db>, ArcOrElse<'db>)> {
         match &self.bounds {
             InferenceVarBounds::Ty { upper, .. } => upper.clone(),
