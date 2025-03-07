@@ -659,7 +659,16 @@ impl<'db> SymPlace<'db> {
 
 impl<'db> std::fmt::Display for SymPlace<'db> {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
-        write!(f, "{self:?}") // FIXME
+        salsa::with_attached_database(|db| {
+            let db: &dyn crate::Db = db.as_view();
+            match self.kind(db) {
+                SymPlaceKind::Var(var) => write!(f, "{var}"),
+                SymPlaceKind::Field(place, field) => write!(f, "{}.{}", place, field),
+                SymPlaceKind::Index(place) => write!(f, "{}[_]", place),
+                SymPlaceKind::Error(_) => write!(f, "<error>"),
+            }
+        })
+        .unwrap_or_else(|| write!(f, "{self:?}"))
     }
 }
 
@@ -735,10 +744,21 @@ impl<'db> AnonymousPermSymbol<'db> for AstPerm<'db> {
     #[salsa::tracked]
     fn anonymous_perm_symbol(self, db: &'db dyn crate::Db) -> SymVariable<'db> {
         match self.kind(db) {
-            AstPermKind::Shared(None) | AstPermKind::Leased(None) | AstPermKind::Given(None) => {
+            AstPermKind::ImplicitShared
+            | AstPermKind::Shared(None)
+            | AstPermKind::Leased(None)
+            | AstPermKind::Given(None) => {
                 SymVariable::new(db, SymGenericKind::Perm, None, self.span(db)).into()
             }
-            _ => panic!("`anonymous_perm_symbol` invoked on inappropriate perm: {self:?}"),
+            AstPermKind::Our
+            | AstPermKind::Variable(_)
+            | AstPermKind::GenericDecl(_)
+            | AstPermKind::Shared(Some(_))
+            | AstPermKind::Leased(Some(_))
+            | AstPermKind::Given(Some(_))
+            | AstPermKind::My => {
+                panic!("`anonymous_perm_symbol` invoked on inappropriate perm: {self:?}")
+            }
         }
     }
 }

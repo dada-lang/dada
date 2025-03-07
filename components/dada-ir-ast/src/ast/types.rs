@@ -45,14 +45,28 @@ impl<'db> Spanned<'db> for AstPerm<'db> {
 
 #[derive(Clone, PartialEq, Eq, PartialOrd, Ord, Hash, Update, Debug)]
 pub enum AstPermKind<'db> {
+    /// User wrote nothing but in a context where the default is `shared`
+    ImplicitShared,
+
+    /// User wrote `shared` or `shared[place1, place2]`
     Shared(Option<SpanVec<'db, AstPath<'db>>>),
+
+    /// User wrote `leased` or `leased[place1, place2]`
     Leased(Option<SpanVec<'db, AstPath<'db>>>),
+
+    /// User wrote `given` or `given[place1, place2]`
     Given(Option<SpanVec<'db, AstPath<'db>>>),
+
+    /// User wrote `my`
     My,
+
+    /// User wrote `our`
     Our,
+
+    /// User wrote `P`
     Variable(SpannedIdentifier<'db>),
 
-    /// `perm P`
+    /// User wrote `perm P`
     GenericDecl(AstGenericDecl<'db>),
 }
 

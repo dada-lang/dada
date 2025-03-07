@@ -250,30 +250,31 @@ impl<'db> CheckInEnv<'db> for AstPerm<'db> {
         let db = env.db();
         match *self.kind(db) {
             AstPermKind::Shared(Some(ref paths)) => {
-                let places = paths_to_sym_places(env, paths).await;
-                SymPerm::new(db, SymPermKind::Shared(places))
-            }
+                        let places = paths_to_sym_places(env, paths).await;
+                        SymPerm::new(db, SymPermKind::Shared(places))
+                    }
             AstPermKind::Leased(Some(ref paths)) => {
-                let places = paths_to_sym_places(env, paths).await;
-                SymPerm::new(db, SymPermKind::Leased(places))
-            }
+                        let places = paths_to_sym_places(env, paths).await;
+                        SymPerm::new(db, SymPermKind::Leased(places))
+                    }
             AstPermKind::Given(Some(ref _span_vec)) => todo!(),
+            AstPermKind::ImplicitShared |
             AstPermKind::Shared(None) | AstPermKind::Leased(None) | AstPermKind::Given(None) => {
-                let sym_var = self.anonymous_perm_symbol(db);
-                SymPerm::var(db, sym_var)
-            }
+                        let sym_var = self.anonymous_perm_symbol(db);
+                        SymPerm::var(db, sym_var)
+                    }
             AstPermKind::My => SymPerm::my(db),
             AstPermKind::Our => SymPerm::our(db),
             AstPermKind::Variable(id) => {
-                match id.resolve_in(env).await {
-                    Ok(r) => name_resolution_to_sym_perm(db, r, id),
-                    Err(r) => SymPerm::err(db, r),
-                }
-            }
+                        match id.resolve_in(env).await {
+                            Ok(r) => name_resolution_to_sym_perm(db, r, id),
+                            Err(r) => SymPerm::err(db, r),
+                        }
+                    }
             AstPermKind::GenericDecl(ast_generic_decl) => {
-                let symbol = ast_generic_decl.symbol(db);
-                SymPerm::var(db, symbol)
-            }
+                        let symbol = ast_generic_decl.symbol(db);
+                        SymPerm::var(db, symbol)
+                    }      
         }
     }
 }

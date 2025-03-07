@@ -332,3 +332,10 @@ impl<'db> Spanned<'db> for SymField<'db> {
         self.name_span(db)
     }
 }
+
+impl<'db> std::fmt::Display for SymField<'db> {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        salsa::with_attached_database(|db| write!(f, "{}", self.name(db)))
+            .unwrap_or_else(|| std::fmt::Debug::fmt(self, f))
+    }
+}

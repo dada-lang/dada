@@ -55,11 +55,16 @@ impl<'db> PopulateSignatureSymbols<'db> for AstPerm<'db> {
             AstPermKind::Shared(Some(_))
             | AstPermKind::Leased(Some(_))
             | AstPermKind::Given(Some(_)) => (),
-            AstPermKind::Shared(None) | AstPermKind::Leased(None) | AstPermKind::Given(None) => {
+
+            AstPermKind::ImplicitShared
+            | AstPermKind::Shared(None)
+            | AstPermKind::Leased(None)
+            | AstPermKind::Given(None) => {
                 symbols
                     .generic_variables
                     .push(self.anonymous_perm_symbol(db));
             }
+
             AstPermKind::My => (),
             AstPermKind::Our => (),
             AstPermKind::Variable(_) => (),
@@ -119,9 +124,9 @@ impl<'db> PopulateSignatureSymbols<'db> for AstFunctionInput<'db> {
     ) {
         match self {
             AstFunctionInput::SelfArg(ast_self_arg) => {
-                if let Some(perm) = ast_self_arg.perm(db) {
-                    perm.populate_signature_symbols(db, symbols);
-                }
+                ast_self_arg
+                    .perm(db)
+                    .populate_signature_symbols(db, symbols);
                 symbols.input_variables.push(ast_self_arg.symbol(db));
             }
             AstFunctionInput::Variable(variable_decl) => {

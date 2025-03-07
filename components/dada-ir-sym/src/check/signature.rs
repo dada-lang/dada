@@ -69,10 +69,14 @@ pub async fn prepare_env<'db>(
     }
     env.set_return_ty(output_ty);
 
-    (env, input_symbols, SymInputOutput {
-        input_tys,
-        output_ty,
-    })
+    (
+        env,
+        input_symbols,
+        SymInputOutput {
+            input_tys,
+            output_ty,
+        },
+    )
 }
 
 async fn set_variable_ty_from_input<'db>(env: &mut Env<'db>, input: &AstFunctionInput<'db>) {
@@ -82,13 +86,9 @@ async fn set_variable_ty_from_input<'db>(env: &mut Env<'db>, input: &AstFunction
         AstFunctionInput::SelfArg(arg) => {
             let self_ty = if let Some(aggregate) = env.scope.class() {
                 let aggr_ty = aggregate.self_ty(db, &env.scope);
-                match arg.perm(db) {
-                    Some(ast_perm) => {
-                        let sym_perm = ast_perm.check_in_env(env).await;
-                        SymTy::perm(db, sym_perm, aggr_ty)
-                    }
-                    None => aggr_ty,
-                }
+                let ast_perm = arg.perm(db);
+                let sym_perm = ast_perm.check_in_env(env).await;
+                SymTy::perm(db, sym_perm, aggr_ty)
             } else {
                 SymTy::err(
                     db,

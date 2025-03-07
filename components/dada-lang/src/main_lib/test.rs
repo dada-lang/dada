@@ -20,7 +20,7 @@ mod expected;
 mod timeout_warning;
 
 #[derive(thiserror::Error, Debug)]
-#[error("{} test failures", failed_tests.len())]
+#[error("{} test failure(s)", failed_tests.len())]
 struct FailedTests {
     failed_tests: Vec<FailedTest>,
 }
@@ -138,7 +138,11 @@ impl Main {
             match &result {
                 Ok(None) => {}
                 Ok(Some(error)) => {
-                    progress_bar.println(format!("{}: {}", input.display(), error.summarize()))
+                    progress_bar.println(format!("{}: {}", input.display(), error.summarize()));
+                    if options.verbose {
+                        let test_report = std::fs::read_to_string(error.test_report_path())?;
+                        progress_bar.println(test_report);
+                    }
                 }
                 Err(error) => progress_bar.println(format!(
                     "{}: test harness errored, {}",
@@ -206,11 +210,15 @@ impl FailedTest {
         }
     }
 
+    fn test_report_path(&self) -> PathBuf {
+        test_report_path(&self.path)
+    }
+
     fn summarize(&self) -> String {
         format!(
             "{} failures, see {}",
             self.failures.len(),
-            test_report_path(&self.path).display()
+            self.test_report_path().display()
         )
     }
 

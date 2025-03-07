@@ -70,14 +70,13 @@ impl<'db> Spanned<'db> for AstFunctionInput<'db> {
 
 #[salsa::tracked]
 pub struct AstSelfArg<'db> {
-    pub perm: Option<AstPerm<'db>>,
+    pub perm: AstPerm<'db>,
     pub self_span: Span<'db>,
 }
 
 impl<'db> Spanned<'db> for AstSelfArg<'db> {
     fn span(&self, db: &'db dyn crate::Db) -> Span<'db> {
-        self.self_span(db)
-            .start_from(self.perm(db).map(|p| p.span(db)))
+        self.self_span(db).start_from(self.perm(db).span(db))
     }
 }
 
