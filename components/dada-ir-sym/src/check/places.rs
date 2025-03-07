@@ -21,7 +21,7 @@ impl<'db> PlaceTy<'db> for SymPlace<'db> {
             SymPlaceKind::Var(sym_variable) => env.variable_ty(sym_variable).await,
             SymPlaceKind::Field(sym_place, sym_field) => {
                 let owner_ty = sym_place.place_ty(env).await;
-                field_ty(env, *self, sym_field)
+                field_ty(env, *self, owner_ty, sym_field)
             }
             SymPlaceKind::Index(_sym_place) => {
                 todo!()
