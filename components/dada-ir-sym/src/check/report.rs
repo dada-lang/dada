@@ -55,7 +55,7 @@ pub type ArcOrElse<'db> = Arc<dyn OrElse<'db> + 'db>;
 
 impl<'db> OrElse<'db> for ArcOrElse<'db> {
     fn or_else(&self, env: &Env<'db>, because: Because<'db>) -> Diagnostic {
-        <dyn OrElse<'db>>::or_else(self, env, because)
+        <dyn OrElse<'db>>::or_else(&**self, env, because)
     }
 
     fn to_arc(&self) -> ArcOrElse<'db> {

@@ -67,6 +67,10 @@ pub struct RunOptions {
 
 #[derive(Debug, StructOpt)]
 pub struct TestOptions {
+    /// Print each test as we run it
+    #[structopt(long, short)]
+    verbose: bool,
+
     /// Test file(s) or directory
     inputs: Vec<String>,
 }

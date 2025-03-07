@@ -353,7 +353,11 @@ impl std::fmt::Display for SymTy<'_> {
                     )
                 }
             }
-            _ => write!(f, "{:?}", self.kind(db)),
+            SymTyKind::Perm(sym_perm, sym_ty) => write!(f, "{sym_perm} {sym_ty}"),
+            SymTyKind::Infer(infer_var_index) => write!(f, "?{}", infer_var_index.as_usize()),
+            SymTyKind::Var(sym_variable) => write!(f, "{sym_variable}"),
+            SymTyKind::Never => write!(f, "!"),
+            SymTyKind::Error(_) => write!(f, "<error>"),
         })
         .unwrap_or_else(|| std::fmt::Debug::fmt(self, f))
     }
@@ -527,7 +531,38 @@ impl<'db> FromInfer<'db> for SymPerm<'db> {
 
 impl<'db> std::fmt::Display for SymPerm<'db> {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
-        write!(f, "{self:?}") // FIXME
+        salsa::with_attached_database(|db| {
+            let db: &dyn crate::Db = db.as_view();
+            match self.kind(db) {
+                SymPermKind::My => write!(f, "my"),
+                SymPermKind::Our => write!(f, "our"),
+                SymPermKind::Shared(places) => {
+                    write!(f, "shared[")?;
+                    for (i, place) in places.iter().enumerate() {
+                        if i > 0 {
+                            write!(f, ", ")?;
+                        }
+                        write!(f, "{place}")?;
+                    }
+                    write!(f, "]")
+                }
+                SymPermKind::Leased(places) => {
+                    write!(f, "leased[")?;
+                    for (i, place) in places.iter().enumerate() {
+                        if i > 0 {
+                            write!(f, ", ")?;
+                        }
+                        write!(f, "{place}")?;
+                    }
+                    write!(f, "]")
+                }
+                SymPermKind::Apply(perm1, perm2) => write!(f, "{} {}", perm1, perm2),
+                SymPermKind::Infer(infer_var_index) => write!(f, "?{}", infer_var_index.as_usize()),
+                SymPermKind::Var(sym_variable) => write!(f, "{sym_variable}"),
+                SymPermKind::Error(_) => write!(f, "<error>"),
+            }
+        })
+        .unwrap_or_else(|| write!(f, "{self:?}"))
     }
 }
 
