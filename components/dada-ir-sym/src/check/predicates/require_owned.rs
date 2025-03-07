@@ -51,6 +51,10 @@ async fn require_both_are_owned<'db>(
     or_else: &dyn OrElse<'db>,
 ) -> Errors<()> {
     require_both(require_term_is_owned(env, rhs, or_else), async {
+        // this isn't *perfect* -- if we can prove that the `lhs` is owned, we don't
+        // need to be able to conclude whether `rhs` is copy or not.
+        //
+        // not sure if I have the right combinator for this =)
         if !term_is_provably_copy(env, rhs).await? {
             require_term_is_owned(env, lhs, or_else).await
         } else {
