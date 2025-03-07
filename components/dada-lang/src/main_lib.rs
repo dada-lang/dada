@@ -19,7 +19,7 @@ impl Main {
     pub fn run(mut self, command: Command) -> Fallible<()> {
         match command {
             Command::Compile { compile_options } => self.compile(&compile_options)?,
-            Command::Test { test_options } => self.test(&test_options)?,
+            Command::Test { test_options } => self.test(test_options)?,
             Command::Run { run_options } => self.run_command(&run_options)?,
         }
         Ok(())

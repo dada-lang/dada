@@ -57,11 +57,11 @@ impl Failure {}
 mod panic_hook;
 
 impl Main {
-    pub(super) fn test(&mut self, options: &TestOptions) -> Fallible<()> {
+    pub(super) fn test(&mut self, mut options: TestOptions) -> Fallible<()> {
         let tests = if options.inputs.is_empty() {
-            self.assemble_tests(&["tests"])?
+            self.assemble_tests(&["tests"], &mut false)?
         } else {
-            self.assemble_tests(&options.inputs)?
+            self.assemble_tests(&options.inputs, &mut options.verbose)?
         };
 
         let progress_bar = ProgressBar::new(tests.len() as u64);
@@ -71,12 +71,12 @@ impl Main {
                 if options.verbose {
                     tests
                         .iter()
-                        .map(|input| self.run_test_with_progress(options, input, &progress_bar))
+                        .map(|input| self.run_test_with_progress(&options, input, &progress_bar))
                         .collect()
                 } else {
                     tests
                         .par_iter()
-                        .map(|input| self.run_test_with_progress(options, input, &progress_bar))
+                        .map(|input| self.run_test_with_progress(&options, input, &progress_bar))
                         .collect()
                 }
             });
@@ -95,8 +95,18 @@ impl Main {
         }
     }
 
-    fn assemble_tests(&self, inputs: &[impl AsRef<Path>]) -> Fallible<Vec<PathBuf>> {
+    fn assemble_tests(
+        &self,
+        inputs: &[impl AsRef<Path>],
+        verbose: &mut bool,
+    ) -> Fallible<Vec<PathBuf>> {
         let mut result = vec![];
+
+        // If there is exactly one input specified and it is a file (not a directory),
+        // set verbose to true.
+        if inputs.len() == 1 && inputs[0].as_ref().is_file() {
+            *verbose = true;
+        }
 
         for input in inputs {
             let input: &Path = input.as_ref();
