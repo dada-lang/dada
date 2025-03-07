@@ -16,7 +16,7 @@ use crate::{
     ir::types::{SymGenericTerm, SymPerm, SymPermKind, SymPlace, SymTy, SymTyKind},
 };
 
-use super::require_copy::require_place_is_copy;
+use super::{is_provably_copy::term_is_provably_copy, require_copy::require_place_is_copy};
 
 pub(crate) async fn require_term_is_owned<'db>(
     env: &Env<'db>,
@@ -50,13 +50,13 @@ async fn require_both_are_owned<'db>(
     rhs: SymGenericTerm<'db>,
     or_else: &dyn OrElse<'db>,
 ) -> Errors<()> {
-    // Simultaneously test for whether LHS/RHS is `predicate`.
-    // If either is, we are done.
-    // If either is *not*, the other must be.
-    require_both(
-        require_term_is_owned(env, lhs, or_else),
-        require_term_is_owned(env, rhs, or_else),
-    )
+    require_both(require_term_is_owned(env, rhs, or_else), async {
+        if !term_is_provably_copy(env, rhs).await? {
+            require_term_is_owned(env, lhs, or_else).await
+        } else {
+            Ok(())
+        }
+    })
     .await
 }
 
