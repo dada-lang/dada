@@ -5,7 +5,7 @@ use std::{
 
 use dada_compiler::{Compiler, RealFs};
 use dada_ir_ast::diagnostic::Diagnostic;
-use dada_util::{bail, Fallible};
+use dada_util::{Fallible, bail};
 use expected::ExpectedDiagnostic;
 use indicatif::ProgressBar;
 use panic_hook::CapturedPanic;
@@ -68,29 +68,17 @@ impl Main {
 
         let failed_or_errored_tests: Vec<Fallible<Option<FailedTest>>> =
             panic_hook::recording_panics(|| {
-                tests
-                    .par_iter()
-                    .map(|input| {
-                        timeout_warning::timeout_warning(input, || {
-                            let result = self.run_test(input);
-                            match &result {
-                                Ok(None) => {}
-                                Ok(Some(error)) => progress_bar.println(format!(
-                                    "{}: {}",
-                                    input.display(),
-                                    error.summarize()
-                                )),
-                                Err(error) => progress_bar.println(format!(
-                                    "{}: test harness errored, {}",
-                                    input.display(),
-                                    error
-                                )),
-                            }
-                            progress_bar.inc(1);
-                            result
-                        })
-                    })
-                    .collect()
+                if options.verbose {
+                    tests
+                        .iter()
+                        .map(|input| self.run_test_with_progress(options, input, &progress_bar))
+                        .collect()
+                } else {
+                    tests
+                        .par_iter()
+                        .map(|input| self.run_test_with_progress(options, input, &progress_bar))
+                        .collect()
+                }
             });
 
         let mut failed_tests = vec![];
@@ -133,6 +121,34 @@ impl Main {
         }
 
         Ok(result)
+    }
+
+    fn run_test_with_progress(
+        &self,
+        options: &TestOptions,
+        input: &Path,
+        progress_bar: &ProgressBar,
+    ) -> Fallible<Option<FailedTest>> {
+        timeout_warning::timeout_warning(input, || {
+            if options.verbose {
+                progress_bar.println(format!("{}: beginning test", input.display(),));
+            }
+
+            let result = self.run_test(input);
+            match &result {
+                Ok(None) => {}
+                Ok(Some(error)) => {
+                    progress_bar.println(format!("{}: {}", input.display(), error.summarize()))
+                }
+                Err(error) => progress_bar.println(format!(
+                    "{}: test harness errored, {}",
+                    input.display(),
+                    error
+                )),
+            }
+            progress_bar.inc(1);
+            result
+        })
     }
 
     /// Run a single test found at the given path.
