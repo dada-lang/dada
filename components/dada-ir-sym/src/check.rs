@@ -6,7 +6,6 @@ use runtime::Runtime;
 use crate::ir::types::SymTy;
 
 pub(crate) mod blocks;
-mod chains;
 mod combinator;
 mod env;
 mod exprs;
@@ -26,6 +25,7 @@ mod statements;
 mod subst_impls;
 mod subtype;
 mod temporaries;
+mod to_red;
 mod types;
 mod universe;
 

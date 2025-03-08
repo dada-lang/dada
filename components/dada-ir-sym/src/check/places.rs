@@ -10,7 +10,7 @@ use crate::{
     prelude::CheckedFieldTy,
 };
 
-use super::chains::{RedTy, ToRedTy};
+use super::to_red::{RedTy, ToRedTy};
 
 pub trait PlaceTy<'db> {
     async fn place_ty(&self, env: &Env<'db>) -> SymTy<'db>;

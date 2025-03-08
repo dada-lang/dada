@@ -3,7 +3,7 @@ use dada_util::boxed_async_fn;
 
 use crate::{
     check::{
-        chains::Lien,
+        to_red::Lien,
         combinator::{both, either, exists, for_all, require},
         env::Env,
         predicates::{

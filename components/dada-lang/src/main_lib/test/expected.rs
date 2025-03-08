@@ -6,7 +6,7 @@ use dada_ir_ast::{
     inputs::SourceFile,
     span::{AbsoluteOffset, AbsoluteSpan},
 };
-use dada_util::{bail, Context, Fallible};
+use dada_util::{Context, Fallible, bail};
 use prettydiff::text::ContextConfig;
 use regex::Regex;
 
@@ -194,7 +194,7 @@ impl TestExpectations {
             Self::generate_fn_asts,
         )?);
 
-        let actual_diagnostics: Vec<Diagnostic> = compiler.check_all(self.source_file);
+        let (_wasm_bytes, actual_diagnostics) = compiler.codegen_main_fn(self.source_file);
 
         for diagnostic in &actual_diagnostics {
             writeln!(

@@ -16,7 +16,7 @@ use crate::{
     },
 };
 
-use super::chains::RedTy;
+use super::to_red::RedTy;
 
 /// The `OrElse` trait captures error reporting context.
 /// Primitive type operations like subtyping are given an `&dyn OrElse<'db>`

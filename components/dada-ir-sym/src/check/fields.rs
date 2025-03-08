@@ -5,7 +5,7 @@ use crate::{
     ir::types::SymTy,
 };
 
-use super::CheckInEnv;
+use super::{CheckInEnv, to_red::RedInfers};
 
 /// Check the type of a field.
 /// The returned type has two binders, the outer binder is the class,
@@ -13,7 +13,7 @@ use super::CheckInEnv;
 pub(crate) fn check_field<'db>(
     db: &'db dyn crate::Db,
     field: SymField<'db>,
-) -> Errors<Binder<'db, Binder<'db, SymTy<'db>>>> {
+) -> (Errors<Binder<'db, Binder<'db, SymTy<'db>>>>, RedInfers<'db>) {
     Runtime::execute(
         db,
         field.name_span(db),

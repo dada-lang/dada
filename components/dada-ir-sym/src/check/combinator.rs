@@ -22,7 +22,7 @@ pub(crate) use require_all;
 
 use crate::ir::indices::InferVarIndex;
 
-use super::{chains::Chain, env::Env, inference::InferenceVarData, report::ArcOrElse};
+use super::{to_red::Chain, env::Env, inference::InferenceVarData, report::ArcOrElse};
 
 pub async fn require<'db>(
     a: impl Future<Output = Errors<bool>>,

@@ -19,6 +19,7 @@ use super::{
         Predicate, is_provably_copy::place_is_provably_copy, test_infer_is_known_to_be,
         test_var_is_provably,
     },
+    runtime::Runtime,
 };
 
 /// A "red(uced) term" combines the possible permissions (a [`VecSet`] of [`Chain`])
@@ -224,7 +225,7 @@ impl<'db> Err<'db> for Lien<'db> {
     }
 }
 
-#[derive(Debug, PartialEq, Eq, Clone, PartialOrd, Ord, Update)]
+#[derive(Debug, PartialEq, Eq, Clone, PartialOrd, Ord, Hash, Update)]
 pub enum RedTy<'db> {
     /// An error occurred while processing this type.
     Error(Reported),
@@ -281,6 +282,49 @@ impl<'db> Err<'db> for RedTy<'db> {
     }
 }
 
+#[derive(Default)]
+pub struct RedInfers<'db> {
+    red_infers: Vec<RedInfer<'db>>,
+}
+
+impl<'db> RedInfers<'db> {
+    pub fn new(red_infers: Vec<RedInfer<'db>>) -> Self {
+        Self { red_infers }
+    }
+
+    pub fn red_infer(&self, infer: InferVarIndex) -> &RedInfer<'db> {
+        &self.red_infers[infer.as_usize()]
+    }
+}
+
+/// The "reduced" value of an inference variable.
+#[derive(Clone, PartialEq, Eq, PartialOrd, Ord, Update)]
+pub enum RedInfer<'db> {
+    Perm {
+        lower: Vec<Chain<'db>>,
+        upper: Vec<Chain<'db>>,
+    },
+
+    Ty {
+        perm: InferVarIndex,
+        red_ty: RedTy<'db>,
+    },
+}
+
+/// Encodes whether a value is stored "flat" (by value)
+/// or "pointer" (by reference).
+#[derive(Clone, PartialEq, Eq, PartialOrd, Ord, Hash, Update)]
+pub enum Layout<'db> {
+    /// By value -- my/our/shared
+    Flat,
+
+    /// By reference -- leased
+    Pointer,
+
+    /// Depends on the results of substitution
+    Var(Vec<SymVariable<'db>>),
+}
+
 /// Convert something to a [`RedTerm`].
 pub trait ToRedTerm<'db> {
     async fn to_red_term(&self, env: &Env<'db>) -> RedTerm<'db>;
@@ -322,23 +366,33 @@ impl<'db> ToRedTerm<'db> for SymTy<'db> {
 
 impl<'db> ToRedTy<'db> for SymTy<'db> {
     fn to_red_ty(&self, env: &Env<'db>) -> (RedTy<'db>, Option<SymPerm<'db>>) {
-        let db = env.db();
-        match *self.kind(db) {
-            SymTyKind::Perm(perm0, sym_ty) => match sym_ty.to_red_ty(env) {
-                (red_ty, None) => (red_ty, Some(perm0)),
-                (red_ty, Some(perm1)) => (red_ty, Some(SymPerm::apply(db, perm0, perm1))),
-            },
-            SymTyKind::Named(n, ref g) => (RedTy::Named(n, g.clone()), None),
-            SymTyKind::Infer(infer) => {
-                // every type inference variable has an associated permission inference variable,
-                // so split that off
-                let perm_infer = env.perm_infer(infer);
-                (RedTy::Infer(infer), Some(SymPerm::infer(db, perm_infer)))
-            }
-            SymTyKind::Var(v) => (RedTy::Var(v), None),
-            SymTyKind::Never => (RedTy::Never, None),
-            SymTyKind::Error(reported) => (RedTy::err(db, reported), None),
+        to_red_ty_with_runtime(*self, env.runtime())
+    }
+}
+
+/// Convert `ty` to a red-ty given a runtime.
+///
+/// See [`ToRedTy`][].
+pub fn to_red_ty_with_runtime<'db>(
+    ty: SymTy<'db>,
+    runtime: &Runtime<'db>,
+) -> (RedTy<'db>, Option<SymPerm<'db>>) {
+    let db = runtime.db;
+    match *ty.kind(db) {
+        SymTyKind::Perm(perm0, sym_ty) => match to_red_ty_with_runtime(sym_ty, runtime) {
+            (red_ty, None) => (red_ty, Some(perm0)),
+            (red_ty, Some(perm1)) => (red_ty, Some(SymPerm::apply(db, perm0, perm1))),
+        },
+        SymTyKind::Named(n, ref g) => (RedTy::Named(n, g.clone()), None),
+        SymTyKind::Infer(infer) => {
+            // every type inference variable has an associated permission inference variable,
+            // so split that off
+            let perm_infer = runtime.perm_infer(infer);
+            (RedTy::Infer(infer), Some(SymPerm::infer(db, perm_infer)))
         }
+        SymTyKind::Var(v) => (RedTy::Var(v), None),
+        SymTyKind::Never => (RedTy::Never, None),
+        SymTyKind::Error(reported) => (RedTy::err(db, reported), None),
     }
 }
 

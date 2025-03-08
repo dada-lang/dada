@@ -3,7 +3,7 @@ use dada_util::boxed_async_fn;
 
 use crate::{
     check::{
-        chains::{RedTy, ToRedTy},
+        to_red::{RedTy, ToRedTy},
         env::Env,
         report::{Because, OrElse, OrElseHelper},
     },

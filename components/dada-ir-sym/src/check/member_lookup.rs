@@ -18,7 +18,7 @@ use crate::{
     prelude::CheckedFieldTy,
 };
 
-use super::chains::{RedTy, ToRedTy};
+use super::to_red::{RedTy, ToRedTy};
 
 #[derive(Copy, Clone)]
 pub(crate) struct MemberLookup<'member, 'db> {

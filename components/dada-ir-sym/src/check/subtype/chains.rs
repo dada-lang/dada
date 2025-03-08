@@ -3,7 +3,7 @@ use dada_util::{boxed_async_fn, vecset::VecSet};
 
 use crate::{
     check::{
-        chains::{Chain, Lien},
+        to_red::{Chain, Lien},
         combinator::{self, exists, exists_infer_bound, require, require_for_all},
         env::Env,
         inference::InferenceVarData,

@@ -14,18 +14,18 @@ use crate::{
     ir::exprs::{SymExpr, SymExprKind, SymPlaceExpr, SymPlaceExprKind},
 };
 
-use super::CheckInEnv;
+use super::{CheckInEnv, to_red::RedInfers};
 
 pub(crate) fn check_function_body<'db>(
     db: &'db dyn crate::Db,
     function: SymFunction<'db>,
-) -> Option<SymExpr<'db>> {
+) -> Option<(SymExpr<'db>, RedInfers<'db>)> {
     match function.source(db) {
         SymFunctionSource::Function(ast_function) => {
             let Some(block) = ast_function.body_block(db) else {
                 return None;
             };
-            check_function_body_ast_block(db, function, block)
+            Some(check_function_body_ast_block(db, function, block))
         }
         SymFunctionSource::Constructor(sym_class, ast_class_item) => Some(
             check_function_body_class_constructor(db, function, sym_class, ast_class_item),
@@ -39,7 +39,7 @@ fn check_function_body_class_constructor<'db>(
     function: SymFunction<'db>,
     sym_class: SymAggregate<'db>,
     ast_class_item: AstAggregate<'db>,
-) -> SymExpr<'db> {
+) -> (SymExpr<'db>, RedInfers<'db>) {
     Runtime::execute(
         db,
         function.name_span(db),
@@ -108,13 +108,13 @@ fn check_function_body_ast_block<'db>(
     db: &'db dyn crate::Db,
     function: SymFunction<'db>,
     body: AstBlock<'db>,
-) -> Option<SymExpr<'db>> {
-    Some(Runtime::execute(
+) -> (SymExpr<'db>, RedInfers<'db>) {
+    Runtime::execute(
         db,
         function.name_span(db),
         async move |runtime| -> SymExpr<'db> {
             let (env, _, _) = prepare_env(db, runtime, function).await;
             body.check_in_env(&env).await
         },
-    ))
+    )
 }

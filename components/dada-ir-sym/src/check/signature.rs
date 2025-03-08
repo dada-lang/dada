@@ -13,12 +13,12 @@ use crate::{
     prelude::Symbol,
 };
 
-use super::CheckInEnv;
+use super::{CheckInEnv, to_red::RedInfers};
 
 pub fn check_function_signature<'db>(
     db: &'db dyn crate::Db,
     function: SymFunction<'db>,
-) -> Errors<SymFunctionSignature<'db>> {
+) -> (Errors<SymFunctionSignature<'db>>, RedInfers<'db>) {
     Runtime::execute(
         db,
         function.name_span(db),

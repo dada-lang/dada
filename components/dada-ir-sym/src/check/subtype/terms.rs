@@ -5,7 +5,7 @@ use dada_util::boxed_async_fn;
 
 use crate::{
     check::{
-        chains::{RedTerm, RedTy, ToRedTerm},
+        to_red::{RedTerm, RedTy, ToRedTerm},
         combinator::{self, require_both, require_for_all},
         env::Env,
         predicates::{

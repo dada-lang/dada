@@ -387,9 +387,7 @@ impl<'db> Env<'db> {
     /// If `infer` is a type variable, returns the permission variable associated with `infer`.
     /// If `infer` is a permission variable, just returns `infer`.
     pub fn perm_infer(&self, infer: InferVarIndex) -> InferVarIndex {
-        self.runtime()
-            .with_inference_var_data(infer, |data| data.perm())
-            .unwrap_or(infer)
+        self.runtime().perm_infer(infer)
     }
 }
 

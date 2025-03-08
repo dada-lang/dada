@@ -1,6 +1,7 @@
 use std::sync::Arc;
 
 use dada_ir_ast::span::Span;
+use salsa::Runtime;
 
 use crate::{
     check::universe::Universe,
@@ -8,9 +9,9 @@ use crate::{
 };
 
 use super::{
-    chains::{Chain, RedTy},
     predicates::Predicate,
     report::{ArcOrElse, OrElse},
+    to_red::{Chain, RedTy},
 };
 
 pub(crate) struct InferenceVarData<'db> {
@@ -329,9 +330,13 @@ impl<'db> InferenceVarData<'db> {
         *upper_red_ty = Some((red_ty, or_else.clone()));
         or_else
     }
+
+    pub fn bounds(&self) -> &InferenceVarBounds<'db> {
+        &self.bounds
+    }
 }
 
-enum InferenceVarBounds<'db> {
+pub enum InferenceVarBounds<'db> {
     Perm {
         lower: Vec<(Chain<'db>, ArcOrElse<'db>)>,
         upper: Vec<(Chain<'db>, ArcOrElse<'db>)>,

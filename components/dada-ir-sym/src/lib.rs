@@ -35,7 +35,7 @@ pub mod prelude {
     #[salsa::tracked]
     impl<'db> CheckedBody<'db> for SymFunction<'db> {
         #[salsa::tracked]
-        fn checked_body(self, db: &'db dyn crate::Db) -> Option<SymExpr<'db>> {
+        fn checked_body(self, db: &'db dyn crate::Db) -> Option<(SymExpr<'db>, RedInfers<'db>)> {
             crate::check::functions::check_function_body(db, self)
         }
     }
