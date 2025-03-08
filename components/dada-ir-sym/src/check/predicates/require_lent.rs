@@ -3,7 +3,6 @@ use dada_util::boxed_async_fn;
 
 use crate::{
     check::{
-        to_red::Lien,
         combinator::{both, either, exists, for_all, require},
         env::Env,
         predicates::{
@@ -14,6 +13,7 @@ use crate::{
     },
     ir::{
         classes::SymAggregateStyle,
+        red::Lien,
         types::{SymGenericTerm, SymPerm, SymPermKind, SymTy, SymTyKind, SymTyName},
     },
 };

@@ -3,11 +3,14 @@ use dada_util::boxed_async_fn;
 
 use crate::{
     check::{
-        to_red::{RedTy, ToRedTy},
         env::Env,
         report::{Because, OrElse, OrElseHelper},
+        to_red::ToRedTy,
     },
-    ir::types::{SymTy, SymTyName},
+    ir::{
+        red::RedTy,
+        types::{SymTy, SymTyName},
+    },
 };
 
 use super::terms::require_sub_terms;

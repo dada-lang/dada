@@ -3,7 +3,6 @@ use dada_util::boxed_async_fn;
 
 use crate::{
     check::{
-        to_red::Lien,
         combinator::{require_both, require_for_all},
         env::Env,
         places::PlaceTy,
@@ -13,7 +12,10 @@ use crate::{
         },
         report::OrElse,
     },
-    ir::types::{SymGenericTerm, SymPerm, SymPermKind, SymPlace, SymTy, SymTyKind},
+    ir::{
+        red::Lien,
+        types::{SymGenericTerm, SymPerm, SymPermKind, SymPlace, SymTy, SymTyKind},
+    },
 };
 
 use super::{is_provably_copy::term_is_provably_copy, require_copy::require_place_is_copy};

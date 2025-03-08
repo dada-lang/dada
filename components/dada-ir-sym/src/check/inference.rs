@@ -1,17 +1,19 @@
 use std::sync::Arc;
 
 use dada_ir_ast::span::Span;
-use salsa::Runtime;
 
 use crate::{
     check::universe::Universe,
-    ir::{indices::InferVarIndex, types::SymGenericKind},
+    ir::{
+        indices::InferVarIndex,
+        red::{Chain, RedTy},
+        types::SymGenericKind,
+    },
 };
 
 use super::{
     predicates::Predicate,
     report::{ArcOrElse, OrElse},
-    to_red::{Chain, RedTy},
 };
 
 pub(crate) struct InferenceVarData<'db> {

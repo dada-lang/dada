@@ -3,7 +3,6 @@ use dada_util::{boxed_async_fn, vecset::VecSet};
 
 use crate::{
     check::{
-        to_red::{Chain, Lien},
         combinator::{self, exists, exists_infer_bound, require, require_for_all},
         env::Env,
         inference::InferenceVarData,
@@ -13,7 +12,10 @@ use crate::{
         },
         report::{Because, OrElse},
     },
-    ir::indices::InferVarIndex,
+    ir::{
+        indices::InferVarIndex,
+        red::{Chain, Lien},
+    },
 };
 
 use super::alternatives::Alternative;
@@ -57,8 +59,8 @@ async fn require_sub_some<'a, 'db>(
                 sub_chains(
                     env,
                     &mut child_alternative,
-                    lower_chain.links(),
-                    upper_chain.links(),
+                    &lower_chain,
+                    &upper_chain,
                     or_else,
                 )
                 .await
@@ -266,14 +268,7 @@ async fn require_lower_chain<'db>(
                 InferenceVarData::upper_chains,
                 async |upper_chain| {
                     Alternative::the_future_never_comes(async |alternative| {
-                        sub_chains(
-                            env,
-                            alternative,
-                            lower_chain.links(),
-                            upper_chain.links(),
-                            &or_else,
-                        )
-                        .await
+                        sub_chains(env, alternative, &lower_chain, &upper_chain, &or_else).await
                     })
                     .await
                 },

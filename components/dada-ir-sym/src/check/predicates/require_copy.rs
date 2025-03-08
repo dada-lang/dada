@@ -3,7 +3,6 @@ use dada_util::boxed_async_fn;
 
 use crate::{
     check::{
-        to_red::Lien,
         combinator::{require_both, require_for_all},
         env::Env,
         places::PlaceTy,
@@ -15,6 +14,7 @@ use crate::{
     },
     ir::{
         classes::SymAggregateStyle,
+        red::Lien,
         types::{SymGenericTerm, SymPerm, SymPermKind, SymPlace, SymTy, SymTyKind, SymTyName},
     },
 };
@@ -114,9 +114,7 @@ async fn require_ty_is_copy<'db>(
                 }
             },
 
-            SymTyName::Future => {
-                Err(or_else.report(env, Because::ClassIsNotCopy(sym_ty_name)))
-            }
+            SymTyName::Future => Err(or_else.report(env, Because::ClassIsNotCopy(sym_ty_name))),
 
             SymTyName::Tuple { arity } => {
                 assert_eq!(arity, generics.len());

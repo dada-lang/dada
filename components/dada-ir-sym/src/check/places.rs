@@ -5,12 +5,13 @@ use crate::{
     check::env::Env,
     ir::{
         classes::SymField,
+        red::RedTy,
         types::{SymGenericTerm, SymPerm, SymPlace, SymPlaceKind, SymTy},
     },
     prelude::CheckedFieldTy,
 };
 
-use super::to_red::{RedTy, ToRedTy};
+use super::to_red::ToRedTy;
 
 pub trait PlaceTy<'db> {
     async fn place_ty(&self, env: &Env<'db>) -> SymTy<'db>;

@@ -1,11 +1,11 @@
 use dada_ir_ast::diagnostic::{Err, Errors, Reported};
 
 use crate::{
-    check::env::Env, check::runtime::Runtime, ir::binder::Binder, ir::classes::SymField,
-    ir::types::SymTy,
+    check::{env::Env, runtime::Runtime},
+    ir::{binder::Binder, classes::SymField, red::RedInfers, types::SymTy},
 };
 
-use super::{CheckInEnv, to_red::RedInfers};
+use super::CheckInEnv;
 
 /// Check the type of a field.
 /// The returned type has two binders, the outer binder is the class,

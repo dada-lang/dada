@@ -5,7 +5,6 @@ use dada_util::boxed_async_fn;
 
 use crate::{
     check::{
-        to_red::{RedTerm, RedTy, ToRedTerm},
         combinator::{self, require_both, require_for_all},
         env::Env,
         predicates::{
@@ -18,10 +17,12 @@ use crate::{
         },
         report::{ArcOrElse, Because, OrElse},
         subtype::chains::require_sub_red_perms,
+        to_red::ToRedTerm,
     },
     ir::{
         classes::SymAggregateStyle,
         indices::{FromInfer, InferVarIndex},
+        red::{RedTerm, RedTy},
         types::{SymGenericKind, SymGenericTerm, SymPerm, SymTy, SymTyKind, Variance},
     },
 };
@@ -129,14 +130,14 @@ pub async fn require_sub_red_terms<'a, 'db>(
     or_else: &dyn OrElse<'db>,
 ) -> Errors<()> {
     let db = env.db();
-    match (lower.ty(), upper.ty()) {
+    match (&lower.ty, &upper.ty) {
         (&RedTy::Error(reported), _) | (_, &RedTy::Error(reported)) => Err(reported),
 
         (&RedTy::Infer(infer_lower), &RedTy::Infer(_)) => {
             for_each_lower_bound(env, infer_lower, async |lower_bound| {
                 require_sub_red_terms(
                     env,
-                    RedTerm::new(db, lower.chains().clone(), lower_bound.clone()),
+                    RedTerm::new(db, lower.chains.clone(), lower_bound.clone()),
                     upper.clone(),
                     or_else,
                 )
@@ -147,10 +148,10 @@ pub async fn require_sub_red_terms<'a, 'db>(
 
         (&RedTy::Infer(infer_lower), _) => {
             let generalized_ty =
-                require_infer_has_upper_bound(env, infer_lower, upper.ty(), or_else).await?;
+                require_infer_has_upper_bound(env, infer_lower, &upper.ty, or_else).await?;
             require_sub_red_terms(
                 env,
-                RedTerm::new(db, lower.into_chains(), generalized_ty),
+                RedTerm::new(db, lower.chains, generalized_ty),
                 upper,
                 or_else,
             )
@@ -159,11 +160,11 @@ pub async fn require_sub_red_terms<'a, 'db>(
 
         (_, &RedTy::Infer(infer_upper)) => {
             let generalized_ty =
-                require_infer_has_lower_bound(env, lower.ty(), infer_upper, or_else).await?;
+                require_infer_has_lower_bound(env, &lower.ty, infer_upper, or_else).await?;
             require_sub_red_terms(
                 env,
                 lower,
-                RedTerm::new(db, upper.into_chains(), generalized_ty),
+                RedTerm::new(db, upper.chains, generalized_ty),
                 or_else,
             )
             .await
@@ -201,7 +202,7 @@ pub async fn require_sub_red_terms<'a, 'db>(
                 match name_lower.style(env.db()) {
                     SymAggregateStyle::Struct => {}
                     SymAggregateStyle::Class => {
-                        require_sub_red_perms(env, lower.chains(), upper.chains(), or_else).await?;
+                        require_sub_red_perms(env, &lower.chains, &upper.chains, or_else).await?;
                     }
                 }
 
@@ -215,13 +216,13 @@ pub async fn require_sub_red_terms<'a, 'db>(
         }
 
         (&RedTy::Never, &RedTy::Never) => {
-            require_sub_red_perms(env, lower.chains(), upper.chains(), or_else).await
+            require_sub_red_perms(env, &lower.chains, &upper.chains, or_else).await
         }
         (&RedTy::Never, _) | (_, &RedTy::Never) => Err(or_else.report(env, Because::JustSo)),
 
         (&RedTy::Var(var_lower), &RedTy::Var(var_upper)) => {
             if var_lower == var_upper {
-                require_sub_red_perms(env, lower.chains(), upper.chains(), or_else).await
+                require_sub_red_perms(env, &lower.chains, &upper.chains, or_else).await
             } else {
                 Err(or_else.report(env, Because::UniversalMismatch(var_lower, var_upper)))
             }
@@ -229,7 +230,7 @@ pub async fn require_sub_red_terms<'a, 'db>(
         (&RedTy::Var(_), _) | (_, &RedTy::Var(_)) => Err(or_else.report(env, Because::JustSo)),
 
         (&RedTy::Perm, &RedTy::Perm) => {
-            require_sub_red_perms(env, lower.chains(), upper.chains(), or_else).await
+            require_sub_red_perms(env, &lower.chains, &upper.chains, or_else).await
         }
     }
 }

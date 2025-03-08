@@ -13,6 +13,7 @@ pub mod prelude {
     use crate::ir::classes::SymField;
     use crate::ir::exprs::SymExpr;
     use crate::ir::functions::{SymFunction, SymFunctionSignature};
+    use crate::ir::red::RedInfers;
     use crate::ir::types::SymTy;
     use dada_ir_ast::diagnostic::Errors;
 
@@ -29,7 +30,7 @@ pub mod prelude {
     }
 
     pub trait CheckedBody<'db> {
-        fn checked_body(self, db: &'db dyn crate::Db) -> Option<SymExpr<'db>>;
+        fn checked_body(self, db: &'db dyn crate::Db) -> Option<(SymExpr<'db>, RedInfers<'db>)>;
     }
 
     #[salsa::tracked]
@@ -50,8 +51,11 @@ pub mod prelude {
         #[salsa::tracked]
         fn checked_field_ty(self, db: &'db dyn crate::Db) -> Binder<'db, Binder<'db, SymTy<'db>>> {
             match crate::check::fields::check_field(db, self) {
-                Ok(v) => v,
-                Err(reported) => crate::check::fields::field_err_ty(db, self, reported),
+                (Ok(v), infers) => {
+                    assert!(infers.is_empty());
+                    v
+                }
+                (Err(reported), _) => crate::check::fields::field_err_ty(db, self, reported),
             }
         }
     }
@@ -63,7 +67,13 @@ pub mod prelude {
     impl<'db> CheckedSignature<'db> for SymFunction<'db> {
         #[salsa::tracked]
         fn checked_signature(self, db: &'db dyn crate::Db) -> Errors<SymFunctionSignature<'db>> {
-            crate::check::signature::check_function_signature(db, self)
+            match crate::check::signature::check_function_signature(db, self) {
+                (Ok(s), infers) => {
+                    assert!(infers.is_empty());
+                    Ok(s)
+                }
+                (Err(e), _) => Err(e),
+            }
         }
     }
 }

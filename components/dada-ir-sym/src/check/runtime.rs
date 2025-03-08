@@ -7,7 +7,10 @@ use std::{
     task::{Context, Poll, Waker},
 };
 
-use crate::ir::indices::InferVarIndex;
+use crate::ir::{
+    indices::InferVarIndex,
+    red::{Chain, RedInfer, RedInfers, RedTy},
+};
 use check_task::CheckTask;
 use dada_ir_ast::{
     diagnostic::{Diagnostic, Err, Errors, Level},
@@ -21,7 +24,6 @@ use super::{
     inference::InferenceVarBounds,
     predicates::Predicate,
     report::{ArcOrElse, OrElse},
-    to_red::{Chain, RedInfer, RedInfers, RedTy},
 };
 
 #[derive(Clone)]

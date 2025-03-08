@@ -8,7 +8,7 @@ use dada_ir_sym::{
 use dada_util::Map;
 use wasm_encoder::ValType;
 
-use super::{generate_expr::ExprCodegen, wasm_repr::WasmReprCx, Cx, FnIndex, FnKey};
+use super::{Cx, FnIndex, FnKey, generate_expr::ExprCodegen, wasm_repr::WasmReprCx};
 
 impl<'db> Cx<'db> {
     /// Declares an instantiation of a function with a given set of arguments and returns its index.
@@ -71,7 +71,7 @@ impl<'db> Cx<'db> {
     pub(crate) fn codegen_fn(&mut self, FnKey(function, generics): FnKey<'db>) {
         let db = self.db;
 
-        let object_check_body = match function.checked_body(self.db) {
+        let (object_check_body, infers) = match function.checked_body(self.db) {
             Some(body) => body,
             None => panic!("asked to codegen function with no body: {function:?}"),
         };
@@ -84,7 +84,7 @@ impl<'db> Cx<'db> {
 
         // Generate the function body.
         let function = {
-            let mut ecx = ExprCodegen::new(self, generics);
+            let mut ecx = ExprCodegen::new(self, generics, infers);
             ecx.pop_arguments(inputs, &input_output.input_tys);
             ecx.push_expr(object_check_body);
             ecx.pop_and_return(object_check_body.ty(db));

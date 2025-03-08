@@ -5,15 +5,17 @@ use dada_ir_ast::{
 };
 
 use crate::{
-    check::env::Env,
-    check::runtime::Runtime,
-    ir::functions::{SymFunction, SymFunctionSignature, SymFunctionSource, SymInputOutput},
-    ir::types::{SymTy, SymTyName},
-    ir::variables::SymVariable,
+    check::{env::Env, runtime::Runtime},
+    ir::{
+        functions::{SymFunction, SymFunctionSignature, SymFunctionSource, SymInputOutput},
+        red::RedInfers,
+        types::{SymTy, SymTyName},
+        variables::SymVariable,
+    },
     prelude::Symbol,
 };
 
-use super::{CheckInEnv, to_red::RedInfers};
+use super::CheckInEnv;
 
 pub fn check_function_signature<'db>(
     db: &'db dyn crate::Db,

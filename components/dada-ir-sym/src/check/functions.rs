@@ -1,6 +1,7 @@
-use crate::{
-    ir::classes::SymAggregate,
-    ir::functions::{SymFunction, SymFunctionSource, SymInputOutput},
+use crate::ir::{
+    classes::SymAggregate,
+    functions::{SymFunction, SymFunctionSource, SymInputOutput},
+    red::RedInfers,
 };
 use dada_ir_ast::{
     ast::{AstAggregate, AstBlock},
@@ -14,7 +15,7 @@ use crate::{
     ir::exprs::{SymExpr, SymExprKind, SymPlaceExpr, SymPlaceExprKind},
 };
 
-use super::{CheckInEnv, to_red::RedInfers};
+use super::CheckInEnv;
 
 pub(crate) fn check_function_body<'db>(
     db: &'db dyn crate::Db,

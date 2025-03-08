@@ -2,6 +2,7 @@ use std::sync::Arc;
 
 use dada_ir_ast::{ast::PermissionOp, diagnostic::Reported};
 use dada_ir_sym::ir::exprs::{SymBinaryOp, SymExpr, SymExprKind, SymLiteral, SymMatchArm};
+use dada_ir_sym::ir::red::RedInfers;
 use dada_ir_sym::ir::types::{SymGenericTerm, SymTy, SymTyKind};
 use dada_ir_sym::{
     ir::primitive::SymPrimitiveKind, ir::subst::Subst, ir::types::SymTyName,
@@ -12,14 +13,18 @@ use wasm_encoder::{Instruction, ValType};
 use wasm_place_repr::{WasmLocal, WasmPlaceRepr};
 
 use super::wasm_repr::WasmReprCx;
-use super::{wasm_repr::WasmRepr, Cx};
+use super::{Cx, wasm_repr::WasmRepr};
 
 pub(crate) mod wasm_place_repr;
 
 pub(crate) struct ExprCodegen<'cx, 'db> {
     cx: &'cx mut Cx<'db>,
 
+    /// Values of any generic variables
     generics: Map<SymVariable<'db>, SymGenericTerm<'db>>,
+
+    /// Values for any inference variables
+    infers: RedInfers<'db>,
 
     /// Accumulates wasm locals. We make no effort to reduce the number of local variables created.
     wasm_locals: Vec<wasm_encoder::ValType>,
@@ -38,11 +43,16 @@ pub(crate) struct ExprCodegen<'cx, 'db> {
 }
 
 impl<'cx, 'db> ExprCodegen<'cx, 'db> {
-    pub fn new(cx: &'cx mut Cx<'db>, generics: Map<SymVariable<'db>, SymGenericTerm<'db>>) -> Self {
+    pub fn new(
+        cx: &'cx mut Cx<'db>,
+        generics: Map<SymVariable<'db>, SymGenericTerm<'db>>,
+        infers: RedInfers<'db>,
+    ) -> Self {
         // Initially there is one local variable, the stack pointer.
         Self {
             cx,
             generics,
+            infers,
             wasm_locals: vec![ValType::I32],
             variables: Default::default(),
             instructions: Default::default(),
