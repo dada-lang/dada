@@ -218,6 +218,7 @@ impl<'db> SymGenericTerm<'db> {
             },
             SymGenericTerm::Place(place) => match place.kind(db) {
                 SymPlaceKind::Var(_)
+                | SymPlaceKind::Erased
                 | SymPlaceKind::Field(..)
                 | SymPlaceKind::Index(..)
                 | SymPlaceKind::Error(..) => None,
@@ -625,6 +626,10 @@ impl<'db> SymPlace<'db> {
         SymPlace::new(db, SymPlaceKind::Field(self, field))
     }
 
+    pub fn erased(db: &'db dyn crate::Db) -> Self {
+        SymPlace::new(db, SymPlaceKind::Erased)
+    }
+
     /// True if `self` contains no inference variables.
     pub fn no_inference_vars(self, db: &'db dyn crate::Db) -> bool {
         match self.kind(db) {
@@ -632,6 +637,7 @@ impl<'db> SymPlace<'db> {
             SymPlaceKind::Field(sym_place, _) => sym_place.no_inference_vars(db),
             SymPlaceKind::Index(sym_place) => sym_place.no_inference_vars(db),
             SymPlaceKind::Error(..) => true,
+            SymPlaceKind::Erased => true,
         }
     }
 
@@ -666,6 +672,7 @@ impl<'db> std::fmt::Display for SymPlace<'db> {
                 SymPlaceKind::Field(place, field) => write!(f, "{}.{}", place, field),
                 SymPlaceKind::Index(place) => write!(f, "{}[_]", place),
                 SymPlaceKind::Error(_) => write!(f, "<error>"),
+                SymPlaceKind::Erased => write!(f, "_"),
             }
         })
         .unwrap_or_else(|| write!(f, "{self:?}"))
@@ -697,6 +704,10 @@ pub enum SymPlaceKind<'db> {
 
     /// `x[_]`
     Index(SymPlace<'db>),
+
+    /// Erased place, used during codegen.
+    /// Should never see it during type checking.
+    Erased,
 
     /// An error occurred and has been reported to the user.
     Error(Reported),

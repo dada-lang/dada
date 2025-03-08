@@ -31,6 +31,7 @@ impl<'db> PlaceTy<'db> for SymPlace<'db> {
                 todo!()
             }
             SymPlaceKind::Error(reported) => SymTy::err(env.db(), reported),
+            SymPlaceKind::Erased => panic!("cannot compute type of an erased place"),
         }
     }
 }

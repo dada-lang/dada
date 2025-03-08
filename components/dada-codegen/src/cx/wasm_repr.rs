@@ -4,7 +4,7 @@ use dada_ir_sym::{
         indices::InferVarIndex,
         primitive::SymPrimitiveKind,
         red::{RedInfer, RedInfers, RedTy},
-        types::{SymGenericTerm, SymPerm, SymPermKind, SymTy, SymTyKind, SymTyName},
+        types::{SymGenericTerm, SymPerm, SymPermKind, SymPlace, SymTy, SymTyKind, SymTyName},
         variables::SymVariable,
     },
     prelude::CheckedFieldTy,
@@ -227,8 +227,7 @@ impl<'g, 'db> WasmReprCx<'g, 'db> {
             .map(|f| f.checked_field_ty(db))
             .map(|ty| {
                 let ty = ty.substitute(db, ty_args);
-                #[expect(unreachable_code)]
-                ty.substitute(db, &[SymGenericTerm::Place(todo!())])
+                ty.substitute(db, &[SymGenericTerm::Place(SymPlace::erased(db))])
             })
             .collect()
     }

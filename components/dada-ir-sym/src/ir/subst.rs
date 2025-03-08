@@ -50,10 +50,14 @@ pub trait Subst<'db>: SubstWith<'db, Self::GenericTerm> + Debug {
                 .all(|(&var, term)| term.has_kind(db, var.kind(db)))
         );
 
-        self.subst_with(db, &mut Default::default(), &mut SubstitutionFns {
-            free_var: &mut |var| map.get(&var).copied(),
-            infer_var: &mut |_| None,
-        })
+        self.subst_with(
+            db,
+            &mut Default::default(),
+            &mut SubstitutionFns {
+                free_var: &mut |var| map.get(&var).copied(),
+                infer_var: &mut |_| None,
+            },
+        )
     }
 
     /// Replace the variable `var` with `term`.
@@ -65,10 +69,14 @@ pub trait Subst<'db>: SubstWith<'db, Self::GenericTerm> + Debug {
     ) -> Self::Output {
         debug_assert!(term.has_kind(db, var.kind(db)));
 
-        self.subst_with(db, &mut Default::default(), &mut SubstitutionFns {
-            free_var: &mut |v| if v == var { Some(term) } else { None },
-            infer_var: &mut |_| None,
-        })
+        self.subst_with(
+            db,
+            &mut Default::default(),
+            &mut SubstitutionFns {
+                free_var: &mut |v| if v == var { Some(term) } else { None },
+                infer_var: &mut |_| None,
+            },
+        )
     }
 
     /// Replace all inference variables with whatever is returned by `op`;
@@ -78,10 +86,14 @@ pub trait Subst<'db>: SubstWith<'db, Self::GenericTerm> + Debug {
         db: &'db dyn crate::Db,
         mut op: impl FnMut(InferVarIndex) -> Option<Self::GenericTerm>,
     ) -> Self::Output {
-        self.subst_with(db, &mut Default::default(), &mut SubstitutionFns {
-            free_var: &mut |_| None,
-            infer_var: &mut op,
-        })
+        self.subst_with(
+            db,
+            &mut Default::default(),
+            &mut SubstitutionFns {
+                free_var: &mut |_| None,
+                infer_var: &mut op,
+            },
+        )
     }
 }
 
@@ -327,10 +339,7 @@ impl<'db> SubstWith<'db, SymGenericTerm<'db>> for SymPlace<'db> {
         subst_fns: &mut SubstitutionFns<'_, 'db, SymGenericTerm<'db>>,
     ) -> Self::Output {
         match self.kind(db) {
-            // Variables
             SymPlaceKind::Var(var) => subst_var(db, bound_vars, subst_fns, *var),
-
-            // Structural cases
             SymPlaceKind::Field(sym_place, identifier) => SymPlace::new(
                 db,
                 SymPlaceKind::Field(sym_place.subst_with(db, bound_vars, subst_fns), *identifier),
@@ -343,6 +352,7 @@ impl<'db> SubstWith<'db, SymGenericTerm<'db>> for SymPlace<'db> {
                 db,
                 SymPlaceKind::Error(reported.subst_with(db, bound_vars, subst_fns)),
             ),
+            SymPlaceKind::Erased => SymPlace::new(db, SymPlaceKind::Erased),
         }
     }
 }
