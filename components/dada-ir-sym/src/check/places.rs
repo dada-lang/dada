@@ -13,12 +13,12 @@ use crate::{
 use super::{red::RedTy, to_red::ToRedTy};
 
 pub trait PlaceTy<'db> {
-    async fn place_ty(&self, env: &Env<'db>) -> SymTy<'db>;
+    async fn place_ty(&self, env: &mut Env<'db>) -> SymTy<'db>;
 }
 
 impl<'db> PlaceTy<'db> for SymPlace<'db> {
     #[boxed_async_fn]
-    async fn place_ty(&self, env: &Env<'db>) -> SymTy<'db> {
+    async fn place_ty(&self, env: &mut Env<'db>) -> SymTy<'db> {
         match *self.kind(env.db()) {
             SymPlaceKind::Var(sym_variable) => env.variable_ty(sym_variable).await,
             SymPlaceKind::Field(owner_place, sym_field) => {
@@ -36,7 +36,7 @@ impl<'db> PlaceTy<'db> for SymPlace<'db> {
 }
 
 fn field_ty<'db>(
-    env: &Env<'db>,
+    env: &mut Env<'db>,
     owner_place: SymPlace<'db>,
     owner_perm: Option<SymPerm<'db>>,
     owner_red_ty: RedTy<'db>,

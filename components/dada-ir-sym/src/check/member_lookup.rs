@@ -20,18 +20,17 @@ use crate::{
 
 use super::{red::RedTy, to_red::ToRedTy};
 
-#[derive(Copy, Clone)]
 pub(crate) struct MemberLookup<'member, 'db> {
-    env: &'member Env<'db>,
+    env: &'member mut Env<'db>,
 }
 
 impl<'member, 'db> MemberLookup<'member, 'db> {
-    pub fn new(env: &'member Env<'db>) -> Self {
+    pub fn new(env: &'member mut Env<'db>) -> Self {
         Self { env }
     }
 
     pub async fn lookup_member(
-        self,
+        &mut self,
         owner: ExprResult<'db>,
         id: SpannedIdentifier<'db>,
     ) -> ExprResult<'db> {
@@ -53,7 +52,7 @@ impl<'member, 'db> MemberLookup<'member, 'db> {
     }
 
     fn confirm_member(
-        self,
+        &mut self,
         owner: ExprResult<'db>,
         owner_perm: Option<SymPerm<'db>>,
         member: SearchResult<'db>,
@@ -87,7 +86,7 @@ impl<'member, 'db> MemberLookup<'member, 'db> {
                     field_ty_with_perm,
                     SymPlaceExprKind::Field(owner_place_expr, field),
                 );
-                ExprResult::from_place_expr(self.env, place_expr, temporaries)
+                ExprResult::from_place_expr(db, place_expr, temporaries)
             }
             SearchResult::Method { owner: _, method } => {
                 let mut temporaries = vec![];
@@ -107,7 +106,7 @@ impl<'member, 'db> MemberLookup<'member, 'db> {
     }
 
     fn no_such_member_result(
-        self,
+        &mut self,
         id: SpannedIdentifier<'db>,
         owner_span: Span<'db>,
         owner_ty: SymTy<'db>,
@@ -116,7 +115,7 @@ impl<'member, 'db> MemberLookup<'member, 'db> {
     }
 
     fn no_such_member(
-        self,
+        &mut self,
         id: SpannedIdentifier<'db>,
         owner_span: Span<'db>,
         owner_ty: SymTy<'db>,
@@ -147,7 +146,7 @@ impl<'member, 'db> MemberLookup<'member, 'db> {
     }
 
     fn search_lower_bound_for_member(
-        self,
+        &mut self,
         lower_bound: RedTy<'db>,
         id: Identifier<'db>,
     ) -> Errors<Option<SearchResult<'db>>> {
@@ -175,7 +174,7 @@ impl<'member, 'db> MemberLookup<'member, 'db> {
     }
 
     fn search_aggr_for_member(
-        self,
+        &mut self,
         owner: SymAggregate<'db>,
         generics: &[SymGenericTerm<'db>],
         id: Identifier<'db>,
@@ -233,7 +232,7 @@ enum SearchResult<'db> {
 ///
 /// A [`RedTy`][] that is a lower bound for `ty` and which is not an inference variable.
 async fn non_infer_lower_bound<'db>(
-    env: &Env<'db>,
+    env: &mut Env<'db>,
     ty: SymTy<'db>,
 ) -> (RedTy<'db>, Option<SymPerm<'db>>) {
     let (red_ty, perm) = ty.to_red_ty(env);

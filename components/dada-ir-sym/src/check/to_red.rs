@@ -23,15 +23,15 @@ use super::{
 
 trait ChainExt<'db>: Sized {
     /// Concatenate two lien chains; if `other` is copy, just returns `other`.
-    async fn concat(&self, env: &Env<'db>, other: &Self) -> Errors<Self>;
+    async fn concat(&self, env: &mut Env<'db>, other: &Self) -> Errors<Self>;
 
     /// Check if the chain is copy. Will block if this chain contains an inference variable.
-    async fn is_copy(&self, env: &Env<'db>) -> Errors<bool>;
+    async fn is_copy(&self, env: &mut Env<'db>) -> Errors<bool>;
 }
 
 impl<'db> ChainExt<'db> for Chain<'db> {
     /// See [`ChainExt::concat`][].
-    async fn concat(&self, env: &Env<'db>, other: &Self) -> Errors<Self> {
+    async fn concat(&self, env: &mut Env<'db>, other: &Self) -> Errors<Self> {
         if other.is_copy(env).await? {
             Ok(other.clone())
         } else {
@@ -42,7 +42,7 @@ impl<'db> ChainExt<'db> for Chain<'db> {
     }
 
     /// See [`ChainExt::is_copy`][].
-    async fn is_copy(&self, env: &Env<'db>) -> Errors<bool> {
+    async fn is_copy(&self, env: &mut Env<'db>) -> Errors<bool> {
         for lien in &self.liens {
             if lien.is_copy(env).await? {
                 return Ok(true);
@@ -54,12 +54,12 @@ impl<'db> ChainExt<'db> for Chain<'db> {
 
 trait LienExt<'db>: Sized {
     /// Check if the lien is copy, blocking if inference info is needed.
-    async fn is_copy(&self, env: &Env<'db>) -> Errors<bool>;
+    async fn is_copy(&self, env: &mut Env<'db>) -> Errors<bool>;
 }
 
 impl<'db> LienExt<'db> for Lien<'db> {
     /// See [`LienExt::is_copy`][].
-    async fn is_copy(&self, env: &Env<'db>) -> Errors<bool> {
+    async fn is_copy(&self, env: &mut Env<'db>) -> Errors<bool> {
         match *self {
             Lien::Our | Lien::Shared(_) => Ok(true),
             Lien::Leased(_) => Ok(false),
@@ -106,22 +106,22 @@ impl<'db> RedTyExt<'db> for RedTy<'db> {
 
 /// Convert something to a [`RedTerm`].
 pub trait ToRedTerm<'db> {
-    async fn to_red_term(&self, env: &Env<'db>) -> RedTerm<'db>;
+    async fn to_red_term(&self, env: &mut Env<'db>) -> RedTerm<'db>;
 }
 
 /// Convert something to a [`RedTy`] and an (optional) permission that is applied to that [`RedTy`][].
 pub trait ToRedTy<'db> {
-    fn to_red_ty(&self, env: &Env<'db>) -> (RedTy<'db>, Option<SymPerm<'db>>);
+    fn to_red_ty(&self, env: &mut Env<'db>) -> (RedTy<'db>, Option<SymPerm<'db>>);
 }
 
 impl<'db, T: ToRedTerm<'db>> ToRedTerm<'db> for &T {
-    async fn to_red_term(&self, env: &Env<'db>) -> RedTerm<'db> {
+    async fn to_red_term(&self, env: &mut Env<'db>) -> RedTerm<'db> {
         T::to_red_term(self, env).await
     }
 }
 
 impl<'db> ToRedTerm<'db> for SymGenericTerm<'db> {
-    async fn to_red_term(&self, env: &Env<'db>) -> RedTerm<'db> {
+    async fn to_red_term(&self, env: &mut Env<'db>) -> RedTerm<'db> {
         match *self {
             SymGenericTerm::Type(ty) => ty.to_red_term(env).await,
             SymGenericTerm::Perm(perm) => perm.to_red_term(env).await,
@@ -132,7 +132,7 @@ impl<'db> ToRedTerm<'db> for SymGenericTerm<'db> {
 }
 
 impl<'db> ToRedTerm<'db> for SymTy<'db> {
-    async fn to_red_term(&self, env: &Env<'db>) -> RedTerm<'db> {
+    async fn to_red_term(&self, env: &mut Env<'db>) -> RedTerm<'db> {
         match self.to_chains(env).await {
             Ok(chains) => RedTerm {
                 chains,
@@ -144,7 +144,7 @@ impl<'db> ToRedTerm<'db> for SymTy<'db> {
 }
 
 impl<'db> ToRedTy<'db> for SymTy<'db> {
-    fn to_red_ty(&self, env: &Env<'db>) -> (RedTy<'db>, Option<SymPerm<'db>>) {
+    fn to_red_ty(&self, env: &mut Env<'db>) -> (RedTy<'db>, Option<SymPerm<'db>>) {
         to_red_ty_with_runtime(*self, env.runtime())
     }
 }
@@ -176,7 +176,7 @@ pub fn to_red_ty_with_runtime<'db>(
 }
 
 impl<'db> ToRedTerm<'db> for SymPerm<'db> {
-    async fn to_red_term(&self, env: &Env<'db>) -> RedTerm<'db> {
+    async fn to_red_term(&self, env: &mut Env<'db>) -> RedTerm<'db> {
         match self.to_chains(env).await {
             Ok(chains) => RedTerm {
                 chains,
@@ -188,7 +188,7 @@ impl<'db> ToRedTerm<'db> for SymPerm<'db> {
 }
 
 impl<'db> ToRedTy<'db> for SymPerm<'db> {
-    fn to_red_ty(&self, env: &Env<'db>) -> (RedTy<'db>, Option<SymPerm<'db>>) {
+    fn to_red_ty(&self, env: &mut Env<'db>) -> (RedTy<'db>, Option<SymPerm<'db>>) {
         let db = env.db();
         match *self.kind(db) {
             SymPermKind::Error(reported) => (RedTy::err(db, reported), None),
@@ -198,12 +198,12 @@ impl<'db> ToRedTy<'db> for SymPerm<'db> {
 }
 
 trait ToChains<'db> {
-    async fn to_chains(&self, env: &Env<'db>) -> Errors<VecSet<Chain<'db>>>;
+    async fn to_chains(&self, env: &mut Env<'db>) -> Errors<VecSet<Chain<'db>>>;
 }
 
 impl<'db> ToChains<'db> for SymPerm<'db> {
     #[boxed_async_fn]
-    async fn to_chains(&self, env: &Env<'db>) -> Errors<VecSet<Chain<'db>>> {
+    async fn to_chains(&self, env: &mut Env<'db>) -> Errors<VecSet<Chain<'db>>> {
         let mut output = VecSet::new();
         let db = env.db();
         match *self.kind(db) {
@@ -253,7 +253,7 @@ impl<'db> ToChains<'db> for SymPerm<'db> {
 }
 
 impl<'db> ToChains<'db> for SymPlace<'db> {
-    async fn to_chains(&self, env: &Env<'db>) -> Errors<VecSet<Chain<'db>>> {
+    async fn to_chains(&self, env: &mut Env<'db>) -> Errors<VecSet<Chain<'db>>> {
         let ty = self.place_ty(env).await;
         Ok(ty.to_chains(env).await?)
     }
@@ -261,7 +261,7 @@ impl<'db> ToChains<'db> for SymPlace<'db> {
 
 impl<'db> ToChains<'db> for SymTy<'db> {
     #[boxed_async_fn]
-    async fn to_chains(&self, env: &Env<'db>) -> Errors<VecSet<Chain<'db>>> {
+    async fn to_chains(&self, env: &mut Env<'db>) -> Errors<VecSet<Chain<'db>>> {
         let mut output = VecSet::new();
         let db = env.db();
         match *self.kind(db) {

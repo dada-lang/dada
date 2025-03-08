@@ -1,7 +1,4 @@
-use std::{cell::Cell, task::Poll};
-
-use dada_ir_ast::diagnostic::Errors;
-use futures::FutureExt;
+use std::cell::Cell;
 
 /// This struct helps to manage tracking how many viable alternatives
 /// there are for proving subtypes. Once the number of viable alternatives
@@ -75,7 +72,7 @@ impl<'p> Alternative<'p> {
     }
 
     /// Returns true if this node is required.
-    fn is_required(&self) -> bool {
+    pub fn is_required(&self) -> bool {
         match self.parent {
             None => true,
             Some(p) => p.is_required() && p.counter.get() == 1,
@@ -92,32 +89,6 @@ impl<'p> Alternative<'p> {
     pub fn spawn_children<'me>(&'me mut self, count: usize) -> Vec<Alternative<'me>> {
         assert_eq!(self.counter.get(), 0, "node already has children");
         (0..count).map(|_| Alternative::child(self)).collect()
-    }
-
-    /// Choose between two options:
-    ///
-    /// * If the current node is required, then execute `if_required`. This is preferred
-    ///   because it will generate stronger inference constraints.
-    /// * If the current node is not required, execute `not_required` until it returns
-    ///   true or false.
-    pub fn if_required(
-        &mut self,
-        is_required: impl Future<Output = Errors<()>>,
-        not_required: impl Future<Output = Errors<bool>>,
-    ) -> impl Future<Output = Errors<bool>> {
-        let mut not_required = Box::pin(not_required);
-        let mut is_required = Box::pin(is_required);
-        std::future::poll_fn(move |cx| {
-            if self.is_required() {
-                match is_required.poll_unpin(cx) {
-                    Poll::Ready(Ok(())) => Poll::Ready(Ok(true)),
-                    Poll::Ready(Err(reported)) => Poll::Ready(Err(reported)),
-                    Poll::Pending => Poll::Pending,
-                }
-            } else {
-                not_required.poll_unpin(cx)
-            }
-        })
     }
 }
 

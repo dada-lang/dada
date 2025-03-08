@@ -7,7 +7,7 @@ use super::CheckInEnv;
 impl<'db> CheckInEnv<'db> for AstBlock<'db> {
     type Output = SymExpr<'db>;
 
-    async fn check_in_env(&self, env: &Env<'db>) -> Self::Output {
+    async fn check_in_env(&self, env: &mut Env<'db>) -> Self::Output {
         let db = env.db();
 
         let statements = self.statements(db);

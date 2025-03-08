@@ -3,7 +3,6 @@ use dada_util::boxed_async_fn;
 
 use crate::{
     check::{
-        combinator::{require_both, require_for_all},
         env::Env,
         places::PlaceTy,
         predicates::{
@@ -22,7 +21,7 @@ use crate::{
 use super::is_provably_copy::term_is_provably_copy;
 
 pub(crate) async fn require_term_is_copy<'db>(
-    env: &Env<'db>,
+    env: &mut Env<'db>,
     term: SymGenericTerm<'db>,
     or_else: &dyn OrElse<'db>,
 ) -> Errors<()> {
@@ -36,7 +35,7 @@ pub(crate) async fn require_term_is_copy<'db>(
 
 /// Requires that the given chain is `copy`.
 pub(crate) async fn require_chain_is_copy<'db>(
-    env: &Env<'db>,
+    env: &mut Env<'db>,
     chain: &[Lien<'db>],
     or_else: &dyn OrElse<'db>,
 ) -> Errors<()> {
@@ -48,7 +47,7 @@ pub(crate) async fn require_chain_is_copy<'db>(
 /// Requires that `(lhs rhs)` satisfies the given predicate.
 /// The semantics of `(lhs rhs)` is: `rhs` if `rhs is copy` or `lhs union rhs` otherwise.
 async fn require_either_is_copy<'db>(
-    env: &Env<'db>,
+    env: &mut Env<'db>,
     lhs: SymGenericTerm<'db>,
     rhs: SymGenericTerm<'db>,
     or_else: &dyn OrElse<'db>,
@@ -56,14 +55,14 @@ async fn require_either_is_copy<'db>(
     // Simultaneously test for whether LHS/RHS is `predicate`.
     // If either is, we are done.
     // If either is *not*, the other must be.
-    require_both(
-        async {
+    env.require_both(
+        async |env| {
             if !term_is_provably_copy(env, rhs).await? {
                 require_term_is_copy(env, lhs, or_else).await?;
             }
             Ok(())
         },
-        async {
+        async |env| {
             if !term_is_provably_copy(env, lhs).await? {
                 require_term_is_copy(env, rhs, or_else).await?;
             }
@@ -75,7 +74,7 @@ async fn require_either_is_copy<'db>(
 
 #[boxed_async_fn]
 async fn require_ty_is_copy<'db>(
-    env: &Env<'db>,
+    env: &mut Env<'db>,
     term: SymTy<'db>,
     or_else: &dyn OrElse<'db>,
 ) -> Errors<()> {
@@ -107,7 +106,7 @@ async fn require_ty_is_copy<'db>(
                     Err(or_else.report(env, Because::ClassIsNotCopy(sym_ty_name)))
                 }
                 SymAggregateStyle::Struct => {
-                    require_for_all(generics, async |&generic| {
+                    env.require_for_all(generics, async |env, &generic| {
                         require_term_is_copy(env, generic, or_else).await
                     })
                     .await
@@ -118,7 +117,7 @@ async fn require_ty_is_copy<'db>(
 
             SymTyName::Tuple { arity } => {
                 assert_eq!(arity, generics.len());
-                require_for_all(generics, async |&generic| {
+                env.require_for_all(generics, async |env, &generic| {
                     require_term_is_copy(env, generic, or_else).await
                 })
                 .await
@@ -129,7 +128,7 @@ async fn require_ty_is_copy<'db>(
 
 #[boxed_async_fn]
 async fn require_perm_is_copy<'db>(
-    env: &Env<'db>,
+    env: &mut Env<'db>,
     perm: SymPerm<'db>,
     or_else: &dyn OrElse<'db>,
 ) -> Errors<()> {
@@ -145,7 +144,7 @@ async fn require_perm_is_copy<'db>(
 
         SymPermKind::Leased(ref places) => {
             // For a leased[p] to be copy, all the places in `p` must have copy permission.
-            require_for_all(places, async |&place| {
+            env.require_for_all(places, async |env, &place| {
                 require_place_is_copy(env, place, or_else).await
             })
             .await
@@ -163,7 +162,7 @@ async fn require_perm_is_copy<'db>(
 }
 
 pub(crate) async fn require_place_is_copy<'db>(
-    env: &Env<'db>,
+    env: &mut Env<'db>,
     place: SymPlace<'db>,
     or_else: &dyn OrElse<'db>,
 ) -> Errors<()> {

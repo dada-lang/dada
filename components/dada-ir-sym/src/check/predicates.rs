@@ -22,11 +22,7 @@ pub(crate) use var_infer::{test_infer_is_known_to_be, test_var_is_provably};
 
 use crate::ir::types::SymGenericTerm;
 
-use super::{
-    combinator::{both, require_both},
-    env::Env,
-    report::OrElse,
-};
+use super::{env::Env, report::OrElse};
 
 #[derive(Copy, Clone, Debug, Eq, PartialEq, Hash, Ord, PartialOrd)]
 pub enum Predicate {
@@ -79,47 +75,47 @@ impl std::fmt::Display for Predicate {
 }
 
 pub(crate) async fn term_is_provably_leased<'db>(
-    env: &Env<'db>,
+    env: &mut Env<'db>,
     term: SymGenericTerm<'db>,
 ) -> Errors<bool> {
-    both(
-        term_is_provably_move(env, term),
-        term_is_provably_lent(env, term),
+    env.both(
+        async |env| term_is_provably_move(env, term).await,
+        async |env| term_is_provably_lent(env, term).await,
     )
     .await
 }
 
 pub(crate) async fn require_term_is_leased<'db>(
-    env: &Env<'db>,
+    env: &mut Env<'db>,
     term: SymGenericTerm<'db>,
     or_else: &dyn OrElse<'db>,
 ) -> Errors<()> {
-    require_both(
-        require_term_is_move(env, term, or_else),
-        require_term_is_lent(env, term, or_else),
+    env.require_both(
+        async |env| require_term_is_move(env, term, or_else).await,
+        async |env| require_term_is_lent(env, term, or_else).await,
     )
     .await
 }
 
 pub(crate) async fn require_term_is_my<'db>(
-    env: &Env<'db>,
+    env: &mut Env<'db>,
     term: SymGenericTerm<'db>,
     or_else: &dyn OrElse<'db>,
 ) -> Errors<()> {
-    require_both(
-        require_term_is_move(env, term, or_else),
-        require_term_is_owned(env, term, or_else),
+    env.require_both(
+        async |env| require_term_is_move(env, term, or_else).await,
+        async |env| require_term_is_owned(env, term, or_else).await,
     )
     .await
 }
 
 pub(crate) async fn term_is_provably_my<'db>(
-    env: &Env<'db>,
+    env: &mut Env<'db>,
     term: SymGenericTerm<'db>,
 ) -> Errors<bool> {
-    both(
-        term_is_provably_move(env, term),
-        term_is_provably_owned(env, term),
+    env.both(
+        async |env| term_is_provably_move(env, term).await,
+        async |env| term_is_provably_owned(env, term).await,
     )
     .await
 }

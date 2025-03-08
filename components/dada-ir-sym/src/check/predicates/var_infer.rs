@@ -4,7 +4,6 @@ use dada_ir_ast::diagnostic::Errors;
 
 use crate::{
     check::{
-        combinator::require_for_all_infer_bounds,
         env::Env,
         inference::InferenceVarData,
         predicates::Predicate,
@@ -21,7 +20,7 @@ use super::{
 };
 
 pub(crate) fn test_var_is_provably<'db>(
-    env: &Env<'db>,
+    env: &mut Env<'db>,
     var: SymVariable<'db>,
     predicate: Predicate,
 ) -> bool {
@@ -29,7 +28,7 @@ pub(crate) fn test_var_is_provably<'db>(
 }
 
 pub(super) fn require_var_is<'db>(
-    env: &Env<'db>,
+    env: &mut Env<'db>,
     var: SymVariable<'db>,
     predicate: Predicate,
     or_else: &dyn OrElse<'db>,
@@ -42,7 +41,7 @@ pub(super) fn require_var_is<'db>(
 }
 
 pub(super) fn require_var_isnt<'db>(
-    env: &Env<'db>,
+    env: &mut Env<'db>,
     var: SymVariable<'db>,
     predicate: Predicate,
     or_else: &dyn OrElse<'db>,
@@ -57,7 +56,7 @@ pub(super) fn require_var_isnt<'db>(
 /// Requires the inference variable to meet the given predicate (possibly reporting an error
 /// if that is contradictory).
 pub(super) fn require_infer_is<'db>(
-    env: &Env<'db>,
+    env: &mut Env<'db>,
     infer: InferVarIndex,
     predicate: Predicate,
     or_else: &dyn OrElse<'db>,
@@ -116,7 +115,7 @@ pub(super) fn require_infer_is<'db>(
 /// Requires the inference variable to meet the given predicate (possibly reporting an error
 /// if that is contradictory).
 pub(super) fn require_infer_isnt<'db>(
-    env: &Env<'db>,
+    env: &mut Env<'db>,
     infer: InferVarIndex,
     predicate: Predicate,
     or_else: &dyn OrElse<'db>,
@@ -152,7 +151,7 @@ pub(super) fn require_infer_isnt<'db>(
 
 /// Wait until we know that the inference variable IS (or IS NOT) the given predicate.
 pub(crate) async fn test_infer_is_known_to_be<'db>(
-    env: &Env<'db>,
+    env: &mut Env<'db>,
     infer: InferVarIndex,
     predicate: Predicate,
 ) -> bool {
@@ -184,46 +183,42 @@ pub(crate) async fn test_infer_is_known_to_be<'db>(
 }
 
 fn defer_require_bounds_provably_predicate<'db>(
-    env: &Env<'db>,
+    env: &mut Env<'db>,
     infer: InferVarIndex,
     predicate: Predicate,
     or_else: Arc<dyn OrElse<'db> + 'db>,
 ) {
     let perm_infer = env.perm_infer(infer);
-    env.spawn(async move |ref env| match predicate {
+    env.spawn(async move |env| match predicate {
         Predicate::Copy => {
-            require_for_all_infer_bounds(
-                env,
+            env.require_for_all_infer_bounds(
                 perm_infer,
                 InferenceVarData::upper_chains,
-                async |chain| require_chain_is_copy(env, &chain, &or_else).await,
+                async |env, chain| require_chain_is_copy(env, &chain, &or_else).await,
             )
             .await
         }
         Predicate::Move => {
-            require_for_all_infer_bounds(
-                env,
+            env.require_for_all_infer_bounds(
                 perm_infer,
                 InferenceVarData::lower_chains,
-                async |chain| require_chain_is_move(env, &chain, &or_else).await,
+                async |env, chain| require_chain_is_move(env, &chain, &or_else).await,
             )
             .await
         }
         Predicate::Owned => {
-            require_for_all_infer_bounds(
-                env,
+            env.require_for_all_infer_bounds(
                 perm_infer,
                 InferenceVarData::lower_chains,
-                async |chain| require_chain_is_owned(env, &chain, &or_else).await,
+                async |env, chain| require_chain_is_owned(env, &chain, &or_else).await,
             )
             .await
         }
         Predicate::Lent => {
-            require_for_all_infer_bounds(
-                env,
+            env.require_for_all_infer_bounds(
                 perm_infer,
                 InferenceVarData::upper_chains,
-                async |chain| require_chain_is_lent(env, &chain, &or_else).await,
+                async |env, chain| require_chain_is_lent(env, &chain, &or_else).await,
             )
             .await
         }
@@ -231,18 +226,17 @@ fn defer_require_bounds_provably_predicate<'db>(
 }
 
 fn defer_require_bounds_not_provably_predicate<'db>(
-    env: &Env<'db>,
+    env: &mut Env<'db>,
     infer: InferVarIndex,
     predicate: Predicate,
     or_else: Arc<dyn OrElse<'db> + 'db>,
 ) {
-    env.spawn(async move |ref env| match predicate {
+    env.spawn(async move |env| match predicate {
         Predicate::Copy => {
-            require_for_all_infer_bounds(
-                env,
+            env.require_for_all_infer_bounds(
                 infer,
                 InferenceVarData::upper_chains,
-                async |chain| require_chain_isnt_provably_copy(env, &chain, &or_else).await,
+                async |env, chain| require_chain_isnt_provably_copy(env, &chain, &or_else).await,
             )
             .await
         }

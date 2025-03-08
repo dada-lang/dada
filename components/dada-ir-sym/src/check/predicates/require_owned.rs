@@ -3,7 +3,6 @@ use dada_util::boxed_async_fn;
 
 use crate::{
     check::{
-        combinator::{require_both, require_for_all},
         env::Env,
         places::PlaceTy,
         predicates::{
@@ -19,7 +18,7 @@ use crate::{
 use super::{is_provably_copy::term_is_provably_copy, require_copy::require_place_is_copy};
 
 pub(crate) async fn require_term_is_owned<'db>(
-    env: &Env<'db>,
+    env: &mut Env<'db>,
     term: SymGenericTerm<'db>,
     or_else: &dyn OrElse<'db>,
 ) -> Errors<()> {
@@ -33,7 +32,7 @@ pub(crate) async fn require_term_is_owned<'db>(
 
 /// Requires that the given chain is `owned`.
 pub(crate) async fn require_chain_is_owned<'db>(
-    env: &Env<'db>,
+    env: &mut Env<'db>,
     chain: &[Lien<'db>],
     or_else: &dyn OrElse<'db>,
 ) -> Errors<()> {
@@ -45,28 +44,31 @@ pub(crate) async fn require_chain_is_owned<'db>(
 /// Requires that `(lhs rhs)` satisfies the given predicate.
 /// The semantics of `(lhs rhs)` is: `rhs` if `rhs is copy` or `lhs union rhs` otherwise.
 async fn require_both_are_owned<'db>(
-    env: &Env<'db>,
+    env: &mut Env<'db>,
     lhs: SymGenericTerm<'db>,
     rhs: SymGenericTerm<'db>,
     or_else: &dyn OrElse<'db>,
 ) -> Errors<()> {
-    require_both(require_term_is_owned(env, rhs, or_else), async {
-        // this isn't *perfect* -- if we can prove that the `lhs` is owned, we don't
-        // need to be able to conclude whether `rhs` is copy or not.
-        //
-        // not sure if I have the right combinator for this =)
-        if !term_is_provably_copy(env, rhs).await? {
-            require_term_is_owned(env, lhs, or_else).await
-        } else {
-            Ok(())
-        }
-    })
+    env.require_both(
+        async |env| require_term_is_owned(env, rhs, or_else).await,
+        async |env| {
+            // this isn't *perfect* -- if we can prove that the `lhs` is owned, we don't
+            // need to be able to conclude whether `rhs` is copy or not.
+            //
+            // not sure if I have the right combinator for this =)
+            if !term_is_provably_copy(env, rhs).await? {
+                require_term_is_owned(env, lhs, or_else).await
+            } else {
+                Ok(())
+            }
+        },
+    )
     .await
 }
 
 #[boxed_async_fn]
 async fn require_ty_is_owned<'db>(
-    env: &Env<'db>,
+    env: &mut Env<'db>,
     term: SymTy<'db>,
     or_else: &dyn OrElse<'db>,
 ) -> Errors<()> {
@@ -89,7 +91,7 @@ async fn require_ty_is_owned<'db>(
 
         // Named types: owned if all their generics are owned
         SymTyKind::Named(_sym_ty_name, ref generics) => {
-            require_for_all(generics, async |&generic| {
+            env.require_for_all(generics, async |env, &generic| {
                 require_term_is_owned(env, generic, or_else).await
             })
             .await
@@ -99,7 +101,7 @@ async fn require_ty_is_owned<'db>(
 
 #[boxed_async_fn]
 async fn require_perm_is_owned<'db>(
-    env: &Env<'db>,
+    env: &mut Env<'db>,
     perm: SymPerm<'db>,
     or_else: &dyn OrElse<'db>,
 ) -> Errors<()> {
@@ -119,10 +121,10 @@ async fn require_perm_is_owned<'db>(
             // In order for a shared[p] or leased[p] type to be owned,
             // the `p` values must be `our` -- copy so that the shared/leased
             // doesn't apply, and then themselves owned.
-            require_for_all(places, async |&place| {
-                require_both(
-                    require_place_is_copy(env, place, or_else),
-                    require_place_is_owned(env, place, or_else),
+            env.require_for_all(places, async |env, &place| {
+                env.require_both(
+                    async |env| require_place_is_copy(env, place, or_else).await,
+                    async |env| require_place_is_owned(env, place, or_else).await,
                 )
                 .await
             })
@@ -141,7 +143,7 @@ async fn require_perm_is_owned<'db>(
 }
 
 async fn require_place_is_owned<'db>(
-    env: &Env<'db>,
+    env: &mut Env<'db>,
     place: SymPlace<'db>,
     or_else: &dyn OrElse<'db>,
 ) -> Errors<()> {

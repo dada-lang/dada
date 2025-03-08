@@ -15,7 +15,7 @@ use crate::{
 };
 
 pub async fn require_numeric_type<'db>(
-    env: &Env<'db>,
+    env: &mut Env<'db>,
     ty: SymTy<'db>,
     or_else: &dyn OrElse<'db>,
 ) -> Errors<()> {
@@ -25,7 +25,7 @@ pub async fn require_numeric_type<'db>(
 
 #[boxed_async_fn]
 async fn require_numeric_red_type<'db>(
-    env: &Env<'db>,
+    env: &mut Env<'db>,
     red_ty: RedTy<'db>,
     or_else: &dyn OrElse<'db>,
 ) -> Errors<()> {

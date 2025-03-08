@@ -3,7 +3,6 @@ use dada_util::boxed_async_fn;
 
 use crate::{
     check::{
-        combinator::{both, either, exists, for_all, require},
         env::Env,
         predicates::{
             Predicate,
@@ -24,7 +23,7 @@ use super::{
 };
 
 pub(crate) async fn require_term_is_lent<'db>(
-    env: &Env<'db>,
+    env: &mut Env<'db>,
     term: SymGenericTerm<'db>,
     or_else: &dyn OrElse<'db>,
 ) -> Errors<()> {
@@ -38,7 +37,7 @@ pub(crate) async fn require_term_is_lent<'db>(
 
 /// Requires that the given chain is `lent`.
 pub(crate) async fn require_chain_is_lent<'db>(
-    env: &Env<'db>,
+    env: &mut Env<'db>,
     chain: &[Lien<'db>],
     or_else: &dyn OrElse<'db>,
 ) -> Errors<()> {
@@ -50,27 +49,33 @@ pub(crate) async fn require_chain_is_lent<'db>(
 /// Requires that `(lhs rhs)` satisfies the given predicate.
 /// The semantics of `(lhs rhs)` is: `rhs` if `rhs is copy` or `lhs union rhs` otherwise.
 async fn require_application_is_lent<'db>(
-    env: &Env<'db>,
+    env: &mut Env<'db>,
     lhs: SymGenericTerm<'db>,
     rhs: SymGenericTerm<'db>,
     or_else: &dyn OrElse<'db>,
 ) -> Errors<()> {
-    require(
-        either(
-            term_is_provably_lent(env, rhs),
-            both(
-                term_is_provably_move(env, rhs),
-                term_is_provably_lent(env, lhs),
-            ),
-        ),
-        || or_else.report(env, Because::JustSo),
+    env.require(
+        async |env| {
+            env.either(
+                async |env| term_is_provably_lent(env, rhs).await,
+                async |env| {
+                    env.both(
+                        async |env| term_is_provably_move(env, rhs).await,
+                        async |env| term_is_provably_lent(env, lhs).await,
+                    )
+                    .await
+                },
+            )
+            .await
+        },
+        |env| or_else.report(env, Because::JustSo),
     )
     .await
 }
 
 #[boxed_async_fn]
 async fn require_ty_is_lent<'db>(
-    env: &Env<'db>,
+    env: &mut Env<'db>,
     term: SymTy<'db>,
     or_else: &dyn OrElse<'db>,
 ) -> Errors<()> {
@@ -98,11 +103,14 @@ async fn require_ty_is_lent<'db>(
             SymTyName::Aggregate(sym_aggregate) => match sym_aggregate.style(db) {
                 SymAggregateStyle::Class => Err(or_else.report(env, Because::JustSo)),
                 SymAggregateStyle::Struct => {
-                    require(
-                        exists(generics, async |&generic| {
-                            term_is_provably_lent(env, generic).await
-                        }),
-                        || or_else.report(env, Because::JustSo),
+                    env.require(
+                        async |env| {
+                            env.exists(generics, async |env, &generic| {
+                                term_is_provably_lent(env, generic).await
+                            })
+                            .await
+                        },
+                        |env| or_else.report(env, Because::JustSo),
                     )
                     .await
                 }
@@ -112,11 +120,14 @@ async fn require_ty_is_lent<'db>(
 
             SymTyName::Tuple { arity } => {
                 assert_eq!(arity, generics.len());
-                require(
-                    exists(generics, async |&generic| {
-                        term_is_provably_lent(env, generic).await
-                    }),
-                    || or_else.report(env, Because::JustSo),
+                env.require(
+                    async |env| {
+                        env.exists(generics, async |env, &generic| {
+                            term_is_provably_lent(env, generic).await
+                        })
+                        .await
+                    },
+                    |env| or_else.report(env, Because::JustSo),
                 )
                 .await
             }
@@ -126,7 +137,7 @@ async fn require_ty_is_lent<'db>(
 
 #[boxed_async_fn]
 async fn require_perm_is_lent<'db>(
-    env: &Env<'db>,
+    env: &mut Env<'db>,
     perm: SymPerm<'db>,
     or_else: &dyn OrElse<'db>,
 ) -> Errors<()> {
@@ -147,18 +158,21 @@ async fn require_perm_is_lent<'db>(
             // then we will reduce to their chains, but then
             // we would be lent if they are lent; but if they are not
             // copy, we are lent.
-            require(
-                for_all(places, async |&place| {
-                    either(
-                        // If the place `p` is move, then the result will be `shared[p]` or `leased[p]` perm,
-                        // which is lent.
-                        place_is_provably_move(env, place),
-                        // Or, if the place `p` is not move and hence may be copy, then it must itself be `lent`.
-                        place_is_provably_lent(env, place),
-                    )
+            env.require(
+                async |env| {
+                    env.for_all(places, async |env, &place| {
+                        env.either(
+                            // If the place `p` is move, then the result will be `shared[p]` or `leased[p]` perm,
+                            // which is lent.
+                            async |env| place_is_provably_move(env, place).await,
+                            // Or, if the place `p` is not move and hence may be copy, then it must itself be `lent`.
+                            async |env| place_is_provably_lent(env, place).await,
+                        )
+                        .await
+                    })
                     .await
-                }),
-                || or_else.report(env, Because::JustSo),
+                },
+                |env| or_else.report(env, Because::JustSo),
             )
             .await
         }

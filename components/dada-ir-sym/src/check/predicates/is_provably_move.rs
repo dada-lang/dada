@@ -3,7 +3,6 @@ use dada_util::boxed_async_fn;
 
 use crate::{
     check::{
-        combinator::{both, exists},
         env::Env,
         places::PlaceTy,
         predicates::{
@@ -18,7 +17,7 @@ use crate::{
 };
 
 pub(crate) async fn term_is_provably_move<'db>(
-    env: &Env<'db>,
+    env: &mut Env<'db>,
     term: SymGenericTerm<'db>,
 ) -> Errors<bool> {
     match term {
@@ -30,7 +29,7 @@ pub(crate) async fn term_is_provably_move<'db>(
 }
 
 #[boxed_async_fn]
-async fn ty_is_provably_move<'db>(env: &Env<'db>, ty: SymTy<'db>) -> Errors<bool> {
+async fn ty_is_provably_move<'db>(env: &mut Env<'db>, ty: SymTy<'db>) -> Errors<bool> {
     let db = env.db();
     match *ty.kind(db) {
         SymTyKind::Perm(sym_perm, sym_ty) => {
@@ -44,7 +43,7 @@ async fn ty_is_provably_move<'db>(env: &Env<'db>, ty: SymTy<'db>) -> Errors<bool
             SymTyName::Primitive(_) => Ok(false),
             SymTyName::Aggregate(sym_aggregate) => match sym_aggregate.style(db) {
                 SymAggregateStyle::Struct => {
-                    exists(generics, async |&generic| {
+                    env.exists(generics, async |env, &generic| {
                         term_is_provably_move(env, generic).await
                     })
                     .await
@@ -53,7 +52,7 @@ async fn ty_is_provably_move<'db>(env: &Env<'db>, ty: SymTy<'db>) -> Errors<bool
             },
             SymTyName::Future => Ok(false),
             SymTyName::Tuple { arity: _ } => {
-                exists(generics, async |&generic| {
+                env.exists(generics, async |env, &generic| {
                     term_is_provably_move(env, generic).await
                 })
                 .await
@@ -63,22 +62,32 @@ async fn ty_is_provably_move<'db>(env: &Env<'db>, ty: SymTy<'db>) -> Errors<bool
 }
 
 async fn application_is_provably_move<'db>(
-    env: &Env<'db>,
+    env: &mut Env<'db>,
     lhs: SymGenericTerm<'db>,
     rhs: SymGenericTerm<'db>,
 ) -> Errors<bool> {
-    both(term_is_provably_move(env, lhs), term_is_provably_move(env, rhs)).await
+    env.both(
+        async |env| term_is_provably_move(env, lhs).await,
+        async |env| term_is_provably_move(env, rhs).await,
+    )
+    .await
 }
 
 #[boxed_async_fn]
-pub(crate) async fn perm_is_provably_move<'db>(env: &Env<'db>, perm: SymPerm<'db>) -> Errors<bool> {
+pub(crate) async fn perm_is_provably_move<'db>(
+    env: &mut Env<'db>,
+    perm: SymPerm<'db>,
+) -> Errors<bool> {
     let db = env.db();
     match *perm.kind(db) {
         SymPermKind::Error(reported) => Err(reported),
         SymPermKind::My => Ok(true),
         SymPermKind::Our | SymPermKind::Shared(_) => Ok(false),
         SymPermKind::Leased(ref places) => {
-            exists(places, async |&place| place_is_provably_move(env, place).await).await
+            env.exists(places, async |env, &place| {
+                place_is_provably_move(env, place).await
+            })
+            .await
         }
 
         SymPermKind::Apply(lhs, rhs) => {
@@ -93,7 +102,10 @@ pub(crate) async fn perm_is_provably_move<'db>(env: &Env<'db>, perm: SymPerm<'db
     }
 }
 
-pub(crate) async fn place_is_provably_move<'db>(env: &Env<'db>, place: SymPlace<'db>) -> Errors<bool> {
+pub(crate) async fn place_is_provably_move<'db>(
+    env: &mut Env<'db>,
+    place: SymPlace<'db>,
+) -> Errors<bool> {
     let ty = place.place_ty(env).await;
     ty_is_provably_move(env, ty).await
 }

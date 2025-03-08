@@ -291,12 +291,12 @@ impl<'db> Runtime<'db> {
 
     /// Execute the given future asynchronously from the main execution.
     /// It must execute to completion eventually or an error will be reported.
-    pub fn spawn<R>(&self, env: &Env<'db>, check: impl 'db + AsyncFnOnce(Env<'db>) -> R)
+    pub fn spawn<R>(&self, env: &Env<'db>, check: impl 'db + AsyncFnOnce(&mut Env<'db>) -> R)
     where
         R: DeferResult,
     {
-        let future = check(env.clone());
-        self.spawn_future(async move { future.await.finish() });
+        let mut env = env.clone();
+        self.spawn_future(async move { check(&mut env).await.finish() });
     }
 
     /// Block the current task on changes to the given inference variable.

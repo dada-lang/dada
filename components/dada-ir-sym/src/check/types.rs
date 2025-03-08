@@ -11,7 +11,7 @@ use super::{exprs::ExprResult, member_lookup::MemberLookup, CheckInEnv};
 impl<'db> CheckInEnv<'db> for AstTy<'db> {
     type Output = SymTy<'db>;
 
-    async fn check_in_env(&self, env: &Env<'db>) -> Self::Output {
+    async fn check_in_env(&self, env: &mut Env<'db>) -> Self::Output {
         let db = env.db();
         indirect(async || {
             match self.kind(db) {
@@ -219,7 +219,7 @@ fn name_resolution_to_sym_ty<'db>(
 impl<'db> CheckInEnv<'db> for AstGenericTerm<'db> {
     type Output = SymGenericTerm<'db>;
 
-    async fn check_in_env(&self, env: &Env<'db>) -> Self::Output {
+    async fn check_in_env(&self, env: &mut Env<'db>) -> Self::Output {
         match *self {
             AstGenericTerm::Ty(ast_ty) => ast_ty.check_in_env(env).await.into(),
             AstGenericTerm::Perm(ast_perm) => ast_perm.check_in_env(env).await.into(),
@@ -246,7 +246,7 @@ fn name_resolution_to_generic_term<'db>(db: &'db dyn crate::Db, name_resolution:
 impl<'db> CheckInEnv<'db> for AstPerm<'db> {
     type Output = SymPerm<'db>;
 
-    async fn check_in_env(&self, env: &Env<'db>) -> Self::Output {
+    async fn check_in_env(&self, env: &mut Env<'db>) -> Self::Output {
         let db = env.db();
         match *self.kind(db) {
             AstPermKind::Shared(Some(ref paths)) => {
@@ -308,7 +308,7 @@ fn name_resolution_to_sym_perm<'db>(db: &'db dyn crate::Db, name_resolution: Nam
     }
 }
 
-async fn paths_to_sym_places<'db>(env: &Env<'db>, paths: &[AstPath<'db>]) -> Vec<SymPlace<'db>> {
+async fn paths_to_sym_places<'db>(env: &mut Env<'db>, paths: &[AstPath<'db>]) -> Vec<SymPlace<'db>> {
     let mut places = vec![];
     for &path in paths {
         places.push(path_to_sym_place(env, path).await);
@@ -316,7 +316,7 @@ async fn paths_to_sym_places<'db>(env: &Env<'db>, paths: &[AstPath<'db>]) -> Vec
     places
 }
 
-async fn path_to_sym_place<'db>(env: &Env<'db>, path: AstPath<'db>) -> SymPlace<'db> {
+async fn path_to_sym_place<'db>(env: &mut Env<'db>, path: AstPath<'db>) -> SymPlace<'db> {
     let db = env.db();
     let ExprResult { temporaries, span, kind } = path_to_expr_result(env, path).await;
     
@@ -338,7 +338,7 @@ async fn path_to_sym_place<'db>(env: &Env<'db>, path: AstPath<'db>) -> SymPlace<
 }
 
 #[boxed_async_fn]
-async fn path_to_expr_result<'a, 'db>(env: &'a Env<'db>, path: AstPath<'db>) -> ExprResult<'db> {
+async fn path_to_expr_result<'db>(env: &mut Env<'db>, path: AstPath<'db>) -> ExprResult<'db> {
     let db = env.db();
     match *path.kind(env.db()) {
         AstPathKind::Identifier(id) => {

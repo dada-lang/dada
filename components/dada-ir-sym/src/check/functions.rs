@@ -45,7 +45,7 @@ fn check_function_body_class_constructor<'db>(
         function.name_span(db),
         async move |runtime| -> SymExpr<'db> {
             let (
-                env,
+                ref mut env,
                 input_symbols,
                 SymInputOutput {
                     input_tys,
@@ -54,7 +54,7 @@ fn check_function_body_class_constructor<'db>(
             ) = prepare_env(db, runtime, function).await;
 
             let scope = env.scope.clone();
-            let self_ty = sym_class.self_ty(db, &scope).check_in_env(&env).await;
+            let self_ty = sym_class.self_ty(db, &scope).check_in_env(env).await;
             let span = ast_class_item.inputs(db).as_ref().unwrap().span;
             let fields = sym_class.fields(db).collect::<Vec<_>>();
             assert_eq!(input_symbols.len(), input_tys.len());
@@ -114,10 +114,10 @@ fn check_function_body_ast_block<'db>(
         db,
         function.name_span(db),
         async move |runtime| {
-            let (env, _, _) = prepare_env(db, runtime, function).await;
-            let expr = body.check_in_env(&env).await;
+            let (mut env, _, _) = prepare_env(db, runtime, function).await;
+            let expr = body.check_in_env(&mut env).await;
             (env, expr)
         },
-        |(env, expr)| Resolver::new(&env).resolve(expr),
+        |(mut env, expr)| Resolver::new(&mut env).resolve(expr),
     )
 }

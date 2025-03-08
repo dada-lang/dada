@@ -3,7 +3,6 @@ use dada_util::boxed_async_fn;
 
 use crate::{
     check::{
-        combinator::{exists, require, require_both},
         env::Env,
         predicates::Predicate,
         red::Lien,
@@ -21,7 +20,7 @@ use super::{
 };
 
 pub(crate) async fn require_term_isnt_provably_copy<'db>(
-    env: &Env<'db>,
+    env: &mut Env<'db>,
     term: SymGenericTerm<'db>,
     or_else: &dyn OrElse<'db>,
 ) -> Errors<()> {
@@ -37,7 +36,7 @@ pub(crate) async fn require_term_isnt_provably_copy<'db>(
 
 /// Requires that the given chain is `copy`.
 pub(crate) async fn require_chain_isnt_provably_copy<'db>(
-    env: &Env<'db>,
+    env: &mut Env<'db>,
     chain: &[Lien<'db>],
     or_else: &dyn OrElse<'db>,
 ) -> Errors<()> {
@@ -49,7 +48,7 @@ pub(crate) async fn require_chain_isnt_provably_copy<'db>(
 /// Requires that `(lhs rhs)` is `move`.
 /// This requires both `lhs` and `rhs` to be `move` independently.
 async fn require_application_isnt_provably_copy<'db>(
-    env: &Env<'db>,
+    env: &mut Env<'db>,
     lhs: SymGenericTerm<'db>,
     rhs: SymGenericTerm<'db>,
     or_else: &dyn OrElse<'db>,
@@ -57,16 +56,16 @@ async fn require_application_isnt_provably_copy<'db>(
     // Simultaneously test for whether LHS/RHS is `predicate`.
     // If either is, we are done.
     // If either is *not*, the other must be.
-    require_both(
-        require_term_isnt_provably_copy(env, lhs, or_else),
-        require_term_isnt_provably_copy(env, rhs, or_else),
+    env.require_both(
+        async |env| require_term_isnt_provably_copy(env, lhs, or_else).await,
+        async |env| require_term_isnt_provably_copy(env, rhs, or_else).await,
     )
     .await
 }
 
 #[boxed_async_fn]
 async fn require_ty_isnt_provably_copy<'db>(
-    env: &Env<'db>,
+    env: &mut Env<'db>,
     term: SymTy<'db>,
     or_else: &dyn OrElse<'db>,
 ) -> Errors<()> {
@@ -96,11 +95,14 @@ async fn require_ty_isnt_provably_copy<'db>(
             SymTyName::Aggregate(sym_aggregate) => match sym_aggregate.style(db) {
                 SymAggregateStyle::Class => Ok(()),
                 SymAggregateStyle::Struct => {
-                    require(
-                        exists(generics, async |&generic| {
-                            term_isnt_provably_copy(env, generic).await
-                        }),
-                        || or_else.report(env, Because::JustSo),
+                    env.require(
+                        async |env| {
+                            env.exists(generics, async |env, &generic| {
+                                term_isnt_provably_copy(env, generic).await
+                            })
+                            .await
+                        },
+                        |env| or_else.report(env, Because::JustSo),
                     )
                     .await
                 }
@@ -110,11 +112,14 @@ async fn require_ty_isnt_provably_copy<'db>(
 
             SymTyName::Tuple { arity } => {
                 assert_eq!(arity, generics.len());
-                require(
-                    exists(generics, async |&generic| {
-                        term_isnt_provably_copy(env, generic).await
-                    }),
-                    || or_else.report(env, Because::JustSo),
+                env.require(
+                    async |env| {
+                        env.exists(generics, async |env, &generic| {
+                            term_isnt_provably_copy(env, generic).await
+                        })
+                        .await
+                    },
+                    |env| or_else.report(env, Because::JustSo),
                 )
                 .await
             }
@@ -124,7 +129,7 @@ async fn require_ty_isnt_provably_copy<'db>(
 
 #[boxed_async_fn]
 async fn require_perm_isnt_provably_copy<'db>(
-    env: &Env<'db>,
+    env: &mut Env<'db>,
     perm: SymPerm<'db>,
     or_else: &dyn OrElse<'db>,
 ) -> Errors<()> {
@@ -140,11 +145,14 @@ async fn require_perm_isnt_provably_copy<'db>(
 
         SymPermKind::Leased(ref places) => {
             // If there is at least one place `p` that is move, this will result in a `leased[p]` chain.
-            require(
-                exists(places, async |&place| {
-                    place_isnt_provably_copy(env, place).await
-                }),
-                || or_else.report(env, Because::LeasedFromCopyIsCopy(places.to_vec())),
+            env.require(
+                async |env| {
+                    env.exists(places, async |env, &place| {
+                        place_isnt_provably_copy(env, place).await
+                    })
+                    .await
+                },
+                |env| or_else.report(env, Because::LeasedFromCopyIsCopy(places.to_vec())),
             )
             .await
         }

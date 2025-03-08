@@ -3,7 +3,6 @@ use dada_util::boxed_async_fn;
 
 use crate::{
     check::{
-        combinator::{either, for_all},
         env::Env,
         places::PlaceTy,
         predicates::{
@@ -18,7 +17,7 @@ use crate::{
 };
 
 pub(crate) async fn term_is_provably_copy<'db>(
-    env: &Env<'db>,
+    env: &mut Env<'db>,
     term: SymGenericTerm<'db>,
 ) -> Errors<bool> {
     match term {
@@ -30,7 +29,7 @@ pub(crate) async fn term_is_provably_copy<'db>(
 }
 
 #[boxed_async_fn]
-async fn ty_is_provably_copy<'db>(env: &Env<'db>, ty: SymTy<'db>) -> Errors<bool> {
+async fn ty_is_provably_copy<'db>(env: &mut Env<'db>, ty: SymTy<'db>) -> Errors<bool> {
     let db = env.db();
     match *ty.kind(db) {
         SymTyKind::Perm(sym_perm, sym_ty) => {
@@ -44,7 +43,7 @@ async fn ty_is_provably_copy<'db>(env: &Env<'db>, ty: SymTy<'db>) -> Errors<bool
             SymTyName::Primitive(_) => Ok(true),
             SymTyName::Aggregate(sym_aggregate) => match sym_aggregate.style(db) {
                 SymAggregateStyle::Struct => {
-                    for_all(generics, async |&generic| {
+                    env.for_all(generics, async |env, &generic| {
                         term_is_provably_copy(env, generic).await
                     })
                     .await
@@ -53,7 +52,7 @@ async fn ty_is_provably_copy<'db>(env: &Env<'db>, ty: SymTy<'db>) -> Errors<bool
             },
             SymTyName::Future => Ok(false),
             SymTyName::Tuple { arity: _ } => {
-                for_all(generics, async |&generic| {
+                env.for_all(generics, async |env, &generic| {
                     term_is_provably_copy(env, generic).await
                 })
                 .await
@@ -63,15 +62,22 @@ async fn ty_is_provably_copy<'db>(env: &Env<'db>, ty: SymTy<'db>) -> Errors<bool
 }
 
 async fn application_is_provably_copy<'db>(
-    env: &Env<'db>,
+    env: &mut Env<'db>,
     lhs: SymGenericTerm<'db>,
     rhs: SymGenericTerm<'db>,
 ) -> Errors<bool> {
-    either(term_is_provably_copy(env, lhs), term_is_provably_copy(env, rhs)).await
+    env.either(
+        async |env| term_is_provably_copy(env, lhs).await,
+        async |env| term_is_provably_copy(env, rhs).await,
+    )
+    .await
 }
 
 #[boxed_async_fn]
-pub(crate) async fn perm_is_provably_copy<'db>(env: &Env<'db>, perm: SymPerm<'db>) -> Errors<bool> {
+pub(crate) async fn perm_is_provably_copy<'db>(
+    env: &mut Env<'db>,
+    perm: SymPerm<'db>,
+) -> Errors<bool> {
     let db = env.db();
     match *perm.kind(db) {
         SymPermKind::Error(reported) => Err(reported),
@@ -89,11 +95,17 @@ pub(crate) async fn perm_is_provably_copy<'db>(env: &Env<'db>, perm: SymPerm<'db
 }
 
 #[boxed_async_fn]
-async fn places_are_ktb_copy<'db>(env: &Env<'db>, places: &[SymPlace<'db>]) -> Errors<bool> {
-    for_all(places, async |&place| place_is_provably_copy(env, place).await).await
+async fn places_are_ktb_copy<'db>(env: &mut Env<'db>, places: &[SymPlace<'db>]) -> Errors<bool> {
+    env.for_all(places, async |env, &place| {
+        place_is_provably_copy(env, place).await
+    })
+    .await
 }
 
-pub(crate) async fn place_is_provably_copy<'db>(env: &Env<'db>, place: SymPlace<'db>) -> Errors<bool> {
+pub(crate) async fn place_is_provably_copy<'db>(
+    env: &mut Env<'db>,
+    place: SymPlace<'db>,
+) -> Errors<bool> {
     let ty = place.place_ty(env).await;
     ty_is_provably_copy(env, ty).await
 }

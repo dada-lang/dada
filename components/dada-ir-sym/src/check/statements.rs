@@ -1,6 +1,5 @@
 use dada_ir_ast::{ast::AstStatement, span::Span};
 use dada_util::boxed_async_fn;
-use futures::join;
 
 use crate::{
     check::{CheckInEnv, env::Env, report::InvalidInitializerType},
@@ -12,10 +11,10 @@ use crate::{
 };
 
 #[boxed_async_fn]
-pub async fn check_block_statements<'a, 'db>(
-    env: &'a Env<'db>,
+pub async fn check_block_statements<'db>(
+    env: &mut Env<'db>,
     block_span: Span<'db>,
-    statements: &'a [AstStatement<'db>],
+    statements: &[AstStatement<'db>],
 ) -> SymExpr<'db> {
     let db = env.db();
 
@@ -33,14 +32,14 @@ pub async fn check_block_statements<'a, 'db>(
                 None => env.fresh_ty_inference_var(s.name(db).span),
             };
 
-            let (initializer, body) = join!(
-                async {
-                    match s.initializer(db) {
+            let (initializer, body) = env
+                .join(
+                    async |env| match s.initializer(db) {
                         Some(initializer) => {
                             let initializer = initializer
                                 .check_in_env(env)
                                 .await
-                                .into_expr_with_enclosed_temporaries(&env);
+                                .into_expr_with_enclosed_temporaries(env);
                             env.spawn_require_assignable_type(
                                 initializer.ty(db),
                                 ty,
@@ -55,37 +54,45 @@ pub async fn check_block_statements<'a, 'db>(
                         }
 
                         None => None,
-                    }
-                },
-                async {
-                    let mut env = env.clone();
-                    env.push_program_variable_with_ty(lv, ty);
-                    check_block_statements(&env, block_span, rest).await
-                },
-            );
+                    },
+                    async |env| {
+                        let mut env = env.clone();
+                        env.push_program_variable_with_ty(lv, ty);
+                        check_block_statements(&mut env, block_span, rest).await
+                    },
+                )
+                .await;
 
             // Create `let lv: ty = lv = initializer; remainder`
-            SymExpr::new(db, s.name(db).span, body.ty(db), SymExprKind::LetIn {
-                lv,
-                ty,
-                initializer,
-                body,
-            })
+            SymExpr::new(
+                db,
+                s.name(db).span,
+                body.ty(db),
+                SymExprKind::LetIn {
+                    lv,
+                    ty,
+                    initializer,
+                    body,
+                },
+            )
         }
 
         AstStatement::Expr(e) => {
-            let check_e = async {
+            let check_e = async |env: &mut Env<'db>| {
                 e.check_in_env(env)
                     .await
-                    .into_expr_with_enclosed_temporaries(&env)
+                    .into_expr_with_enclosed_temporaries(env)
             };
             if rest.is_empty() {
                 // Subtle-ish: if this is the last statement in the block,
                 // it becomes the result of the block.
-                check_e.await
+                check_e(env).await
             } else {
-                let (ce, re) =
-                    futures::join!(check_e, check_block_statements(env, block_span, rest));
+                let (ce, re) = env
+                    .join(check_e, async |env| {
+                        check_block_statements(env, block_span, rest).await
+                    })
+                    .await;
                 SymExpr::new(
                     db,
                     ce.span(db).to(db, re.span(db)),

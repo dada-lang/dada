@@ -2,7 +2,6 @@ use std::{cell::Cell, ops::AsyncFnOnce, sync::Arc};
 
 use crate::{
     check::{
-        combinator::require_both,
         scope::Scope,
         subtype::terms::{require_assignable_type, require_sub_terms},
     },
@@ -34,6 +33,8 @@ use super::{
     runtime::DeferResult,
     subtype::{is_future::require_future_type, is_numeric::require_numeric_type},
 };
+
+pub mod combinator;
 
 #[derive(Clone)]
 pub(crate) struct Env<'db> {
@@ -161,7 +162,7 @@ impl<'db> Env<'db> {
 
     /// Create a substitution for `binder` consisting of inference variables
     pub fn existential_substitution(
-        &self,
+        &mut self,
         span: Span<'db>,
         variables: &[SymVariable<'db>],
     ) -> Vec<SymGenericTerm<'db>> {
@@ -227,8 +228,9 @@ impl<'db> Env<'db> {
     /// # Panics
     ///
     /// If the variable is not present.
-    pub async fn variable_ty(&self, lv: SymVariable<'db>) -> SymTy<'db> {
-        self.variable_tys
+    pub async fn variable_ty(&mut self, lv: SymVariable<'db>) -> SymTy<'db> {
+        let variable_tys = self.variable_tys.clone();
+        variable_tys
             .get(&lv)
             .expect("variable not in scope")
             .get(self)
@@ -236,7 +238,7 @@ impl<'db> Env<'db> {
     }
 
     /// Create a fresh inference variable of the given kind.
-    pub fn fresh_inference_var(&self, kind: SymGenericKind, span: Span<'db>) -> InferVarIndex {
+    pub fn fresh_inference_var(&mut self, kind: SymGenericKind, span: Span<'db>) -> InferVarIndex {
         let data = match kind {
             SymGenericKind::Type => {
                 let perm = self.fresh_inference_var(SymGenericKind::Perm, span);
@@ -251,7 +253,7 @@ impl<'db> Env<'db> {
 
     /// A fresh term with an inference variable of the given kind.
     pub fn fresh_inference_var_term(
-        &self,
+        &mut self,
         kind: SymGenericKind,
         span: Span<'db>,
     ) -> SymGenericTerm<'db> {
@@ -269,7 +271,7 @@ impl<'db> Env<'db> {
     }
 
     /// Create a fresh type inference variable.
-    pub fn fresh_ty_inference_var(&self, span: Span<'db>) -> SymTy<'db> {
+    pub fn fresh_ty_inference_var(&mut self, span: Span<'db>) -> SymTy<'db> {
         SymTy::infer(
             self.db(),
             self.fresh_inference_var(SymGenericKind::Type, span),
@@ -278,17 +280,17 @@ impl<'db> Env<'db> {
 
     /// Spawn a subtask that will require `value_ty` be assignable to `place_ty`.
     pub(super) fn spawn_require_assignable_type(
-        &self,
+        &mut self,
         value_ty: SymTy<'db>,
         place_ty: SymTy<'db>,
         or_else: &dyn OrElse<'db>,
     ) {
         debug!("defer require_assignable_object_type", value_ty, place_ty);
         let or_else = or_else.to_arc();
-        self.runtime.spawn(self, async move |env| {
+        self.runtime.spawn(self, async move |ref mut env| {
             debug!("require_assignable_object_type", value_ty, place_ty);
 
-            match require_assignable_type(&env, value_ty, place_ty, &or_else).await {
+            match require_assignable_type(env, value_ty, place_ty, &or_else).await {
                 Ok(()) => (),
                 Err(Reported(_)) => (),
             }
@@ -304,21 +306,25 @@ impl<'db> Env<'db> {
     ) {
         debug!("defer require_equal_object_types", expected_ty, found_ty);
         let or_else = or_else.to_arc();
-        self.runtime.spawn(self, move |env| async move {
+        self.runtime.spawn(self, async move |ref mut env| {
             debug!("require_equal_object_types", expected_ty, found_ty);
 
-            require_both(
-                require_sub_terms(&env, expected_ty.into(), found_ty.into(), &or_else),
-                require_sub_terms(&env, found_ty.into(), expected_ty.into(), &or_else),
+            env.require_both(
+                async |env| {
+                    require_sub_terms(env, expected_ty.into(), found_ty.into(), &or_else).await
+                },
+                async |env| {
+                    require_sub_terms(env, found_ty.into(), expected_ty.into(), &or_else).await
+                },
             )
             .await
         })
     }
 
-    pub(super) fn spawn_require_numeric_type(&self, ty: SymTy<'db>, or_else: &dyn OrElse<'db>) {
+    pub(super) fn spawn_require_numeric_type(&mut self, ty: SymTy<'db>, or_else: &dyn OrElse<'db>) {
         let or_else = or_else.to_arc();
-        self.runtime.spawn(self, move |env| async move {
-            require_numeric_type(&env, ty, &or_else).await
+        self.runtime.spawn(self, async move |ref mut env| {
+            require_numeric_type(env, ty, &or_else).await
         })
     }
 
@@ -329,17 +335,21 @@ impl<'db> Env<'db> {
         or_else: &dyn OrElse<'db>,
     ) {
         let or_else = or_else.to_arc();
-        self.runtime.spawn(self, move |env| async move {
-            require_future_type(&env, ty, awaited_ty, &or_else).await
+        self.runtime.spawn(self, async move |ref mut env| {
+            require_future_type(env, ty, awaited_ty, &or_else).await
         })
     }
 
     /// Check whether any type in `tys` is known to be never (or error).
     /// If so, do nothing.
     /// Otherwise, if no type in `tys` is known to be never, invoke `op` (asynchronously).
-    pub fn spawn_if_not_never(&self, tys: &[SymTy<'db>], op: impl AsyncFnOnce(Env<'db>) + 'db) {
+    pub fn spawn_if_not_never(
+        &mut self,
+        tys: &[SymTy<'db>],
+        op: impl AsyncFnOnce(&mut Env<'db>) + 'db,
+    ) {
         let _tys = tys.to_vec();
-        self.runtime.spawn(self, move |env: Env<'db>| async move {
+        self.runtime.spawn(self, async move |env| {
             // FIXME: check for never
             op(env).await
         })
@@ -349,14 +359,14 @@ impl<'db> Env<'db> {
         format!("{ty:?}") // FIXME
     }
 
-    pub(crate) fn spawn<R>(&self, op: impl AsyncFnOnce(&Self) -> R + 'db)
+    pub(crate) fn spawn<R>(&mut self, op: impl AsyncFnOnce(&mut Self) -> R + 'db)
     where
         R: DeferResult,
     {
-        self.runtime.spawn(self, async move |env| op(&env).await)
+        self.runtime.spawn(self, async move |env| op(env).await)
     }
 
-    pub(crate) fn require_expr_has_bool_ty(&self, expr: SymExpr<'db>) {
+    pub(crate) fn require_expr_has_bool_ty(&mut self, expr: SymExpr<'db>) {
         let db = self.db();
         let boolean_ty = SymTy::boolean(db);
         self.spawn_require_assignable_type(expr.ty(db), boolean_ty, &BooleanTypeRequired { expr });
@@ -415,7 +425,7 @@ impl<'db> VariableTypeCell<'db> {
         }
     }
 
-    async fn get(&self, env: &Env<'db>) -> SymTy<'db> {
+    async fn get(&self, env: &mut Env<'db>) -> SymTy<'db> {
         match self.state.get() {
             VariableType::Ast(ast_ty) => {
                 self.state.set(VariableType::InProgress(ast_ty));

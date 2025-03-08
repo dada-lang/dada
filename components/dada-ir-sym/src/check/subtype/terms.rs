@@ -5,7 +5,6 @@ use dada_util::boxed_async_fn;
 
 use crate::{
     check::{
-        combinator::{self, require_both, require_for_all},
         env::Env,
         predicates::{
             is_provably_copy::term_is_provably_copy, is_provably_lent::term_is_provably_lent,
@@ -28,7 +27,7 @@ use crate::{
 };
 
 pub async fn require_assignable_type<'db>(
-    env: &Env<'db>,
+    env: &mut Env<'db>,
     value_ty: SymTy<'db>,
     place_ty: SymTy<'db>,
     or_else: &dyn OrElse<'db>,
@@ -41,15 +40,15 @@ pub async fn require_assignable_type<'db>(
     }
 }
 
-pub async fn require_sub_terms<'a, 'db>(
-    env: &'a Env<'db>,
+pub async fn require_sub_terms<'db>(
+    env: &mut Env<'db>,
     lower: SymGenericTerm<'db>,
     upper: SymGenericTerm<'db>,
     or_else: &dyn OrElse<'db>,
 ) -> Errors<()> {
-    combinator::require_all!(
-        propagate_bounds(env, lower.into(), upper.into(), or_else),
-        async {
+    env.require_both(
+        async |env| propagate_bounds(env, lower.into(), upper.into(), or_else).await,
+        async |env| {
             // Reduce and relate chains
             let red_term_lower = lower.to_red_term(env).await;
             let red_term_upper = upper.to_red_term(env).await;
@@ -63,68 +62,82 @@ pub async fn require_sub_terms<'a, 'db>(
 /// such as copy/lent and owned/move, from lower-to-upper and upper-to-lower.
 /// This can unblock inference.
 async fn propagate_bounds<'db>(
-    env: &Env<'db>,
+    env: &mut Env<'db>,
     lower: SymGenericTerm<'db>,
     upper: SymGenericTerm<'db>,
     or_else: &dyn OrElse<'db>,
 ) -> Errors<()> {
-    combinator::require_all!(
-        // If subtype is copy, supertype must be
-        async {
-            if term_is_provably_copy(env, lower).await? {
-                require_term_is_copy(env, upper, or_else).await?;
-            }
-            Ok(())
-        },
-        // If subtype is lent, supertype must be
-        async {
-            if term_is_provably_lent(env, lower).await? {
-                require_term_is_lent(env, upper, or_else).await?;
-            }
-            Ok(())
-        },
-        // Can only be a subtype of something move if you are move
-        async {
-            if term_is_provably_move(env, upper).await? {
-                require_term_is_move(env, lower, or_else).await?;
-            }
-            Ok(())
-        },
-        // Can only be a subtype of something that isn't copy if you aren't copy
-        async {
-            if term_isnt_provably_copy(env, upper).await? {
-                require_term_isnt_provably_copy(env, lower, or_else).await?;
-            }
-            Ok(())
-        },
-        // Can only be a subtype of something owned if you are owned
-        async {
-            if term_is_provably_owned(env, upper).await? {
-                require_term_is_owned(env, lower, or_else).await?;
-            }
-            Ok(())
-        },
-        // Can only be a supertype of something leased if you are leased
-        async {
-            if term_is_provably_leased(env, lower).await? {
-                require_term_is_leased(env, upper, or_else).await?;
-            }
-            Ok(())
-        },
-        // Can only be a subtype of something leased if you are leased
-        async {
-            if term_is_provably_leased(env, upper).await? {
-                require_term_is_leased(env, lower, or_else).await?;
-            }
-            Ok(())
-        },
-    )
-    .await
+    env.require_all()
+        .require(
+            // If subtype is copy, supertype must be
+            async |env| {
+                if term_is_provably_copy(env, lower).await? {
+                    require_term_is_copy(env, upper, or_else).await?;
+                }
+                Ok(())
+            },
+        )
+        .require(
+            // If subtype is lent, supertype must be
+            async |env| {
+                if term_is_provably_lent(env, lower).await? {
+                    require_term_is_lent(env, upper, or_else).await?;
+                }
+                Ok(())
+            },
+        )
+        .require(
+            // Can only be a subtype of something move if you are move
+            async |env| {
+                if term_is_provably_move(env, upper).await? {
+                    require_term_is_move(env, lower, or_else).await?;
+                }
+                Ok(())
+            },
+        )
+        .require(
+            // Can only be a subtype of something that isn't copy if you aren't copy
+            async |env| {
+                if term_isnt_provably_copy(env, upper).await? {
+                    require_term_isnt_provably_copy(env, lower, or_else).await?;
+                }
+                Ok(())
+            },
+        )
+        .require(
+            // Can only be a subtype of something owned if you are owned
+            async |env| {
+                if term_is_provably_owned(env, upper).await? {
+                    require_term_is_owned(env, lower, or_else).await?;
+                }
+                Ok(())
+            },
+        )
+        .require(
+            // Can only be a supertype of something leased if you are leased
+            async |env| {
+                if term_is_provably_leased(env, lower).await? {
+                    require_term_is_leased(env, upper, or_else).await?;
+                }
+                Ok(())
+            },
+        )
+        .require(
+            // Can only be a subtype of something leased if you are leased
+            async |env| {
+                if term_is_provably_leased(env, upper).await? {
+                    require_term_is_leased(env, lower, or_else).await?;
+                }
+                Ok(())
+            },
+        )
+        .finish()
+        .await
 }
 
 #[boxed_async_fn]
-pub async fn require_sub_red_terms<'a, 'db>(
-    env: &'a Env<'db>,
+pub async fn require_sub_red_terms<'db>(
+    env: &mut Env<'db>,
     lower: RedTerm<'db>,
     upper: RedTerm<'db>,
     or_else: &dyn OrElse<'db>,
@@ -134,7 +147,7 @@ pub async fn require_sub_red_terms<'a, 'db>(
         (&RedTy::Error(reported), _) | (_, &RedTy::Error(reported)) => Err(reported),
 
         (&RedTy::Infer(infer_lower), &RedTy::Infer(_)) => {
-            for_each_lower_bound(env, infer_lower, async |lower_bound| {
+            for_each_lower_bound(env, infer_lower, async |env, lower_bound| {
                 require_sub_red_terms(
                     env,
                     RedTerm::new(db, lower.chains.clone(), lower_bound.clone()),
@@ -177,11 +190,11 @@ pub async fn require_sub_red_terms<'a, 'db>(
             if name_lower == name_upper {
                 let variances = env.variances(name_lower);
                 assert_eq!(lower_generics.len(), upper_generics.len());
-                require_for_all(
+                env.require_for_all(
                     variances
                         .iter()
                         .zip(lower_generics.iter().zip(upper_generics)),
-                    async |(&variance, (&lower_generic, &upper_generic))| match variance {
+                    async |env, (&variance, (&lower_generic, &upper_generic))| match variance {
                         Variance::Covariant => {
                             require_sub_terms(env, lower_generic, upper_generic, or_else).await
                         }
@@ -189,9 +202,15 @@ pub async fn require_sub_red_terms<'a, 'db>(
                             require_sub_terms(env, upper_generic, lower_generic, or_else).await
                         }
                         Variance::Invariant => {
-                            require_both(
-                                require_sub_terms(env, lower_generic, upper_generic, or_else),
-                                require_sub_terms(env, upper_generic, lower_generic, or_else),
+                            env.require_both(
+                                async |env| {
+                                    require_sub_terms(env, lower_generic, upper_generic, or_else)
+                                        .await
+                                },
+                                async |env| {
+                                    require_sub_terms(env, upper_generic, lower_generic, or_else)
+                                        .await
+                                },
                             )
                             .await
                         }
@@ -243,7 +262,7 @@ pub enum Direction {
 
 /// Require that `lower <= ?X`.
 pub async fn require_infer_has_lower_bound<'db>(
-    env: &Env<'db>,
+    env: &mut Env<'db>,
     bound: &RedTy<'db>,
     infer: InferVarIndex,
     or_else: &dyn OrElse<'db>,
@@ -253,7 +272,7 @@ pub async fn require_infer_has_lower_bound<'db>(
 
 /// Require that `?X <= upper`.
 pub async fn require_infer_has_upper_bound<'db>(
-    env: &Env<'db>,
+    env: &mut Env<'db>,
     infer: InferVarIndex,
     bound: &RedTy<'db>,
     or_else: &dyn OrElse<'db>,
@@ -262,7 +281,7 @@ pub async fn require_infer_has_upper_bound<'db>(
 }
 
 async fn require_infer_has_bound<'db>(
-    env: &Env<'db>,
+    env: &mut Env<'db>,
     direction: Direction,
     bound: &RedTy<'db>,
     infer: InferVarIndex,
@@ -288,7 +307,7 @@ async fn require_infer_has_bound<'db>(
 }
 
 fn bounding_red_ty<'db>(
-    env: &Env<'db>,
+    env: &mut Env<'db>,
     direction: Direction,
     infer: InferVarIndex,
 ) -> Option<(RedTy<'db>, ArcOrElse<'db>)> {
@@ -303,7 +322,7 @@ fn bounding_red_ty<'db>(
 }
 
 fn set_bounding_red_ty<'db>(
-    env: &Env<'db>,
+    env: &mut Env<'db>,
     direction: Direction,
     infer: InferVarIndex,
     red_ty: RedTy<'db>,
@@ -315,7 +334,7 @@ fn set_bounding_red_ty<'db>(
     }
 }
 
-fn generalize<'db>(env: &Env<'db>, red_ty: &RedTy<'db>, span: Span<'db>) -> Errors<RedTy<'db>> {
+fn generalize<'db>(env: &mut Env<'db>, red_ty: &RedTy<'db>, span: Span<'db>) -> Errors<RedTy<'db>> {
     let db = env.db();
     let red_ty_generalized = match red_ty {
         RedTy::Error(reported) => return Err(*reported),
@@ -347,9 +366,9 @@ fn generalize<'db>(env: &Env<'db>, red_ty: &RedTy<'db>, span: Span<'db>) -> Erro
 
 /// Require that `?X <= upper`.
 pub async fn for_each_lower_bound<'db>(
-    env: &Env<'db>,
+    env: &mut Env<'db>,
     infer: InferVarIndex,
-    mut op: impl AsyncFnMut(&RedTy<'db>) -> Errors<()>,
+    mut op: impl AsyncFnMut(&mut Env<'db>, &RedTy<'db>) -> Errors<()>,
 ) -> Errors<()> {
     let mut previous_ty = None;
     loop {
@@ -370,7 +389,7 @@ pub async fn for_each_lower_bound<'db>(
             None => return Ok(()),
             Some(lower_red_ty) => {
                 previous_ty = Some(lower_red_ty);
-                op(previous_ty.as_ref().unwrap()).await?;
+                op(env, previous_ty.as_ref().unwrap()).await?;
             }
         }
     }

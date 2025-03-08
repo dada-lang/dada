@@ -3,7 +3,6 @@ use dada_util::boxed_async_fn;
 
 use crate::{
     check::{
-        combinator::{both, exists, for_all},
         env::Env,
         places::PlaceTy,
         predicates::{
@@ -18,7 +17,7 @@ use crate::{
 };
 
 pub(crate) async fn term_is_provably_owned<'db>(
-    env: &Env<'db>,
+    env: &mut Env<'db>,
     term: SymGenericTerm<'db>,
 ) -> Errors<bool> {
     match term {
@@ -30,7 +29,7 @@ pub(crate) async fn term_is_provably_owned<'db>(
 }
 
 #[boxed_async_fn]
-async fn ty_is_provably_owned<'db>(env: &Env<'db>, ty: SymTy<'db>) -> Errors<bool> {
+async fn ty_is_provably_owned<'db>(env: &mut Env<'db>, ty: SymTy<'db>) -> Errors<bool> {
     let db = env.db();
     match *ty.kind(db) {
         SymTyKind::Perm(sym_perm, sym_ty) => {
@@ -46,7 +45,7 @@ async fn ty_is_provably_owned<'db>(env: &Env<'db>, ty: SymTy<'db>) -> Errors<boo
             SymTyName::Primitive(_) => Ok(true),
             SymTyName::Aggregate(sym_aggregate) => match sym_aggregate.style(db) {
                 SymAggregateStyle::Struct => {
-                    for_all(generics, async |&generic| {
+                    env.for_all(generics, async |env, &generic| {
                         term_is_provably_owned(env, generic).await
                     })
                     .await
@@ -55,7 +54,7 @@ async fn ty_is_provably_owned<'db>(env: &Env<'db>, ty: SymTy<'db>) -> Errors<boo
             },
             SymTyName::Future => Ok(false),
             SymTyName::Tuple { arity: _ } => {
-                for_all(generics, async |&generic| {
+                env.for_all(generics, async |env, &generic| {
                     term_is_provably_owned(env, generic).await
                 })
                 .await
@@ -65,20 +64,20 @@ async fn ty_is_provably_owned<'db>(env: &Env<'db>, ty: SymTy<'db>) -> Errors<boo
 }
 
 async fn application_is_provably_owned<'db>(
-    env: &Env<'db>,
+    env: &mut Env<'db>,
     lhs: SymGenericTerm<'db>,
     rhs: SymGenericTerm<'db>,
 ) -> Errors<bool> {
-    both(
-        term_is_provably_owned(env, lhs),
-        term_is_provably_owned(env, rhs),
+    env.both(
+        async |env| term_is_provably_owned(env, lhs).await,
+        async |env| term_is_provably_owned(env, rhs).await,
     )
     .await
 }
 
 #[boxed_async_fn]
 pub(crate) async fn perm_is_provably_owned<'db>(
-    env: &Env<'db>,
+    env: &mut Env<'db>,
     perm: SymPerm<'db>,
 ) -> Errors<bool> {
     let db = env.db();
@@ -87,7 +86,7 @@ pub(crate) async fn perm_is_provably_owned<'db>(
         SymPermKind::My => Ok(true),
         SymPermKind::Our | SymPermKind::Shared(_) => Ok(false),
         SymPermKind::Leased(ref places) => {
-            exists(places, async |&place| {
+            env.exists(places, async |env, &place| {
                 place_is_provably_owned(env, place).await
             })
             .await
@@ -106,7 +105,7 @@ pub(crate) async fn perm_is_provably_owned<'db>(
 }
 
 pub(crate) async fn place_is_provably_owned<'db>(
-    env: &Env<'db>,
+    env: &mut Env<'db>,
     place: SymPlace<'db>,
 ) -> Errors<bool> {
     let ty = place.place_ty(env).await;

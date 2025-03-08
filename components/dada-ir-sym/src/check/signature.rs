@@ -64,7 +64,7 @@ pub async fn prepare_env<'db>(
     }
 
     // Symbolify the output type.
-    let mut output_ty: SymTy<'db> = output_ty(&env, &function).await;
+    let mut output_ty: SymTy<'db> = output_ty(&mut env, &function).await;
     if function.effects(db).async_effect {
         output_ty = SymTy::named(db, SymTyName::Future, vec![output_ty.into()]);
     }
@@ -109,7 +109,7 @@ async fn set_variable_ty_from_input<'db>(env: &mut Env<'db>, input: &AstFunction
     }
 }
 
-async fn output_ty<'db>(env: &Env<'db>, function: &SymFunction<'db>) -> SymTy<'db> {
+async fn output_ty<'db>(env: &mut Env<'db>, function: &SymFunction<'db>) -> SymTy<'db> {
     let db = env.db();
     match function.source(db) {
         SymFunctionSource::Function(ast_function) => match ast_function.output_ty(db) {

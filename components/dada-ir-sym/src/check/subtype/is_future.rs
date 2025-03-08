@@ -16,7 +16,7 @@ use super::terms::require_sub_terms;
 /// Requires that `ty` resolves to a future type
 /// that awaits a value of type `awaited_ty`.
 pub async fn require_future_type<'db>(
-    env: &Env<'db>,
+    env: &mut Env<'db>,
     ty: SymTy<'db>,
     awaited_ty: SymTy<'db>,
     or_else: &dyn OrElse<'db>,
@@ -27,7 +27,7 @@ pub async fn require_future_type<'db>(
 
 #[boxed_async_fn]
 async fn require_future_red_type<'db>(
-    env: &Env<'db>,
+    env: &mut Env<'db>,
     red_ty: RedTy<'db>,
     awaited_ty: SymTy<'db>,
     or_else: &dyn OrElse<'db>,

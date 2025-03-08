@@ -5,8 +5,8 @@ use runtime::Runtime;
 
 use crate::ir::types::SymTy;
 
+mod alternatives;
 pub(crate) mod blocks;
-mod combinator;
 mod env;
 mod exprs;
 pub(crate) mod fields;
@@ -36,13 +36,13 @@ mod universe;
 trait CheckInEnv<'db> {
     type Output;
 
-    async fn check_in_env(&self, env: &Env<'db>) -> Self::Output;
+    async fn check_in_env(&self, env: &mut Env<'db>) -> Self::Output;
 }
 
 impl<'db> CheckInEnv<'db> for SymTy<'db> {
     type Output = SymTy<'db>;
 
-    async fn check_in_env(&self, _env: &Env<'db>) -> Self::Output {
+    async fn check_in_env(&self, _env: &mut Env<'db>) -> Self::Output {
         *self
     }
 }

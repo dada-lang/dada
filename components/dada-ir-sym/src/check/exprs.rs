@@ -76,13 +76,13 @@ pub(crate) enum ExprResultKind<'db> {
 impl<'db> CheckInEnv<'db> for AstExpr<'db> {
     type Output = ExprResult<'db>;
 
-    async fn check_in_env(&self, env: &Env<'db>) -> Self::Output {
+    async fn check_in_env(&self, env: &mut Env<'db>) -> Self::Output {
         check_expr(self, env).await
     }
 }
 
 #[boxed_async_fn]
-async fn check_expr<'db>(expr: &AstExpr<'db>, env: &Env<'db>) -> ExprResult<'db> {
+async fn check_expr<'db>(expr: &AstExpr<'db>, env: &mut Env<'db>) -> ExprResult<'db> {
     let db = env.db();
     let expr_span = expr.span;
 
@@ -146,14 +146,19 @@ async fn check_expr<'db>(expr: &AstExpr<'db>, env: &Env<'db>) -> ExprResult<'db>
                         Ok(v) => v,
                         Err(reported) => return ExprResult::err(db, reported),
                     };
-                    SymExpr::new(db, expr_span, SymTy::string(db), SymExprKind::Call {
-                        function: literal_fn,
-                        substitution: vec![],
-                        arg_temps: vec![
-                            byte_literal_expr.into_temporary_var(db, &mut temporaries),
-                            len_literal_expr.into_temporary_var(db, &mut temporaries),
-                        ],
-                    })
+                    SymExpr::new(
+                        db,
+                        expr_span,
+                        SymTy::string(db),
+                        SymExprKind::Call {
+                            function: literal_fn,
+                            substitution: vec![],
+                            arg_temps: vec![
+                                byte_literal_expr.into_temporary_var(db, &mut temporaries),
+                                len_literal_expr.into_temporary_var(db, &mut temporaries),
+                            ],
+                        },
+                    )
                 };
                 ExprResult {
                     temporaries,
@@ -227,14 +232,20 @@ async fn check_expr<'db>(expr: &AstExpr<'db>, env: &Env<'db>) -> ExprResult<'db>
                     // For now, let's do a dumb rule that operands must be
                     // of the same primitive (and scalar) type.
 
-                    env.spawn_require_numeric_type(lhs.ty(db), &OperatorRequiresNumericType {
-                        op: span_op,
-                        expr: lhs,
-                    });
-                    env.spawn_require_numeric_type(rhs.ty(db), &OperatorRequiresNumericType {
-                        op: span_op,
-                        expr: rhs,
-                    });
+                    env.spawn_require_numeric_type(
+                        lhs.ty(db),
+                        &OperatorRequiresNumericType {
+                            op: span_op,
+                            expr: lhs,
+                        },
+                    );
+                    env.spawn_require_numeric_type(
+                        rhs.ty(db),
+                        &OperatorRequiresNumericType {
+                            op: span_op,
+                            expr: rhs,
+                        },
+                    );
                     env.spawn_if_not_never(&[lhs.ty(db), rhs.ty(db)], async move |env| {
                         env.spawn_require_equal_types(
                             lhs.ty(db),
@@ -253,7 +264,7 @@ async fn check_expr<'db>(expr: &AstExpr<'db>, env: &Env<'db>) -> ExprResult<'db>
                     // want `!`, right?
 
                     ExprResult::from_expr(
-                        env,
+                        env.db(),
                         SymExpr::new(
                             db,
                             expr_span,
@@ -280,7 +291,7 @@ async fn check_expr<'db>(expr: &AstExpr<'db>, env: &Env<'db>) -> ExprResult<'db>
                     // construct an expression like
                     // if lhs { if rhs { true } else { false } } else { false }
                     ExprResult::from_expr(
-                        env,
+                        env.db(),
                         SymExpr::if_then_else(
                             db,
                             expr_span,
@@ -311,7 +322,7 @@ async fn check_expr<'db>(expr: &AstExpr<'db>, env: &Env<'db>) -> ExprResult<'db>
                     // construct an expression like
                     // if lhs { true } else { if rhs { true } else { false } }
                     ExprResult::from_expr(
-                        env,
+                        env.db(),
                         SymExpr::if_then_else(
                             db,
                             expr_span,
@@ -343,14 +354,20 @@ async fn check_expr<'db>(expr: &AstExpr<'db>, env: &Env<'db>) -> ExprResult<'db>
                     // For now, let's do a dumb rule that operands must be
                     // of the same primitive (and scalar) type.
 
-                    env.spawn_require_numeric_type(lhs.ty(db), &OperatorRequiresNumericType {
-                        op: span_op,
-                        expr: lhs,
-                    });
-                    env.spawn_require_numeric_type(rhs.ty(db), &OperatorRequiresNumericType {
-                        op: span_op,
-                        expr: rhs,
-                    });
+                    env.spawn_require_numeric_type(
+                        lhs.ty(db),
+                        &OperatorRequiresNumericType {
+                            op: span_op,
+                            expr: lhs,
+                        },
+                    );
+                    env.spawn_require_numeric_type(
+                        rhs.ty(db),
+                        &OperatorRequiresNumericType {
+                            op: span_op,
+                            expr: rhs,
+                        },
+                    );
                     env.spawn_if_not_never(&[lhs.ty(db), rhs.ty(db)], async move |env| {
                         env.spawn_require_equal_types(
                             lhs.ty(db),
@@ -369,7 +386,7 @@ async fn check_expr<'db>(expr: &AstExpr<'db>, env: &Env<'db>) -> ExprResult<'db>
                     // want `!`, right?
 
                     ExprResult::from_expr(
-                        env,
+                        env.db(),
                         SymExpr::new(
                             db,
                             expr_span,
@@ -406,11 +423,13 @@ async fn check_expr<'db>(expr: &AstExpr<'db>, env: &Env<'db>) -> ExprResult<'db>
                     );
 
                     ExprResult::from_expr(
-                        env,
-                        SymExpr::new(db, expr_span, SymTy::unit(db), SymExprKind::Assign {
-                            place,
-                            value,
-                        }),
+                        env.db(),
+                        SymExpr::new(
+                            db,
+                            expr_span,
+                            SymTy::unit(db),
+                            SymExprKind::Assign { place, value },
+                        ),
                         temporaries,
                     )
                 }
@@ -428,7 +447,7 @@ async fn check_expr<'db>(expr: &AstExpr<'db>, env: &Env<'db>) -> ExprResult<'db>
             let mut owner_result = owner.check_in_env(env).await;
             match owner_result.kind {
                 ExprResultKind::PlaceExpr(_) | ExprResultKind::Expr(_) => {
-                    MemberLookup::new(&env)
+                    MemberLookup::new(env)
                         .lookup_member(owner_result, *id)
                         .await
                 }
@@ -444,7 +463,7 @@ async fn check_expr<'db>(expr: &AstExpr<'db>, env: &Env<'db>) -> ExprResult<'db>
                         // Otherwise, try type-dependent lookup.
                         Ok(Err(name_resolution)) => {
                             owner_result.kind = name_resolution.into();
-                            MemberLookup::new(&env)
+                            MemberLookup::new(env)
                                 .lookup_member(owner_result, *id)
                                 .await
                         }
@@ -669,18 +688,27 @@ async fn check_expr<'db>(expr: &AstExpr<'db>, env: &Env<'db>) -> ExprResult<'db>
 
             let awaited_ty = env.fresh_ty_inference_var(await_span);
 
-            env.spawn_require_future_type(future_ty, awaited_ty, &AwaitNonFuture {
-                await_span,
-                future_expr,
-            });
+            env.spawn_require_future_type(
+                future_ty,
+                awaited_ty,
+                &AwaitNonFuture {
+                    await_span,
+                    future_expr,
+                },
+            );
 
             ExprResult {
                 temporaries,
                 span: expr_span,
-                kind: SymExpr::new(db, expr_span, awaited_ty, SymExprKind::Await {
-                    future: future_expr,
-                    await_keyword: await_span,
-                })
+                kind: SymExpr::new(
+                    db,
+                    expr_span,
+                    awaited_ty,
+                    SymExprKind::Await {
+                        future: future_expr,
+                        await_keyword: await_span,
+                    },
+                )
                 .into(),
             }
         }
@@ -696,10 +724,15 @@ async fn check_expr<'db>(expr: &AstExpr<'db>, env: &Env<'db>) -> ExprResult<'db>
                 ExprResult {
                     temporaries,
                     span: expr_span,
-                    kind: SymExpr::new(db, expr_span, SymTy::boolean(db), SymExprKind::Not {
-                        operand,
-                        op_span: spanned_unary_op.span,
-                    })
+                    kind: SymExpr::new(
+                        db,
+                        expr_span,
+                        SymTy::boolean(db),
+                        SymExprKind::Not {
+                            operand,
+                            op_span: spanned_unary_op.span,
+                        },
+                    )
                     .into(),
                 }
             }
@@ -739,11 +772,15 @@ async fn check_expr<'db>(expr: &AstExpr<'db>, env: &Env<'db>) -> ExprResult<'db>
             };
 
             for arm in &arms {
-                env.spawn_require_assignable_type(arm.body.ty(db), if_ty, &BadSubtypeError {
-                    span: arm.body.span(db),
-                    lower: arm.body.ty(db),
-                    upper: if_ty,
-                });
+                env.spawn_require_assignable_type(
+                    arm.body.ty(db),
+                    if_ty,
+                    &BadSubtypeError {
+                        span: arm.body.span(db),
+                        lower: arm.body.ty(db),
+                        upper: if_ty,
+                    },
+                );
             }
 
             ExprResult {
@@ -779,7 +816,7 @@ async fn check_expr<'db>(expr: &AstExpr<'db>, env: &Env<'db>) -> ExprResult<'db>
 
 #[boxed_async_fn]
 async fn check_class_call<'db>(
-    env: &Env<'db>,
+    env: &mut Env<'db>,
     class_span: Span<'db>,
     expr_span: Span<'db>,
     name_resolution: NameResolution<'db>,
@@ -880,7 +917,7 @@ fn report_no_new_method<'db>(
 
 #[boxed_async_fn]
 async fn check_function_call<'db>(
-    env: &Env<'db>,
+    env: &mut Env<'db>,
     function_span: Span<'db>,
     expr_span: Span<'db>,
     function: SymFunction<'db>,
@@ -930,7 +967,7 @@ async fn check_function_call<'db>(
 /// type arguments are handled.
 #[boxed_async_fn]
 async fn check_method_call<'db>(
-    env: &Env<'db>,
+    env: &mut Env<'db>,
     id_span: Span<'db>,
     expr_span: Span<'db>,
     function: SymFunction<'db>,
@@ -1074,7 +1111,7 @@ async fn check_method_call<'db>(
 
 #[boxed_async_fn]
 async fn check_call_common<'db>(
-    env: &Env<'db>,
+    env: &mut Env<'db>,
     function: SymFunction<'db>,
     expr_span: Span<'db>,
     callee_span: Span<'db>,
@@ -1142,15 +1179,16 @@ async fn check_call_common<'db>(
 
     // Function to type check a single argument and check it has the correct type.
     let check_arg = async |i: usize| -> ExprResult<'db> {
+        let mut env = env.clone();
         let mut arg_temporaries = vec![];
         let expr = if i < self_args {
             self_expr.unwrap()
         } else {
             let ast_arg = &ast_args[i - self_args];
             ast_arg
-                .check_in_env(env)
+                .check_in_env(&mut env)
                 .await
-                .into_expr(env, &mut arg_temporaries)
+                .into_expr(&mut env, &mut arg_temporaries)
         };
         env.spawn_require_assignable_type(
             expr.ty(db),
@@ -1161,7 +1199,7 @@ async fn check_call_common<'db>(
                 upper: input_output.input_tys[i],
             },
         );
-        ExprResult::from_expr(env, expr, arg_temporaries)
+        ExprResult::from_expr(env.db(), expr, arg_temporaries)
     };
 
     // Type check the arguments; these can proceed concurrently.
@@ -1177,11 +1215,16 @@ async fn check_call_common<'db>(
     //     let tmp2 = arg2 in
     //     ...
     //     call(tmp1, tmp2, ...)
-    let mut call_expr = SymExpr::new(db, expr_span, input_output.output_ty, SymExprKind::Call {
-        function,
-        substitution,
-        arg_temps: arg_temp_symbols.clone(),
-    });
+    let mut call_expr = SymExpr::new(
+        db,
+        expr_span,
+        input_output.output_ty,
+        SymExprKind::Call {
+            function,
+            substitution,
+            arg_temps: arg_temp_symbols.clone(),
+        },
+    );
     for (arg_temp_symbol, arg_expr) in arg_temp_symbols
         .into_iter()
         .rev()
@@ -1201,7 +1244,7 @@ async fn check_call_common<'db>(
     }
 
     // Create the final result.
-    ExprResult::from_expr(env, call_expr, temporaries)
+    ExprResult::from_expr(env.db(), call_expr, temporaries)
 }
 
 impl<'db> Err<'db> for ExprResult<'db> {
@@ -1217,7 +1260,7 @@ impl<'db> Err<'db> for ExprResult<'db> {
 impl<'db> ExprResult<'db> {
     /// Create a result based on lexical name resolution.
     pub async fn from_name_resolution(
-        env: &Env<'db>,
+        env: &mut Env<'db>,
         res: NameResolution<'db>,
         span: Span<'db>,
     ) -> Self {
@@ -1247,11 +1290,10 @@ impl<'db> ExprResult<'db> {
     }
 
     pub fn from_place_expr(
-        env: &Env<'db>,
+        db: &'db dyn crate::Db,
         expr: SymPlaceExpr<'db>,
         temporaries: Vec<Temporary<'db>>,
     ) -> Self {
-        let db = env.db();
         Self {
             temporaries,
             span: expr.span(db),
@@ -1259,8 +1301,11 @@ impl<'db> ExprResult<'db> {
         }
     }
 
-    pub fn from_expr(env: &Env<'db>, expr: SymExpr<'db>, temporaries: Vec<Temporary<'db>>) -> Self {
-        let db = env.db();
+    pub fn from_expr(
+        db: &'db dyn crate::Db,
+        expr: SymExpr<'db>,
+        temporaries: Vec<Temporary<'db>>,
+    ) -> Self {
         Self {
             temporaries,
             span: expr.span(db),
@@ -1269,17 +1314,22 @@ impl<'db> ExprResult<'db> {
     }
 
     /// Convert this result into an expression, with `let ... in` statements inserted for temporaries.
-    pub fn into_expr_with_enclosed_temporaries(self, env: &Env<'db>) -> SymExpr<'db> {
+    pub fn into_expr_with_enclosed_temporaries(self, env: &mut Env<'db>) -> SymExpr<'db> {
         let db = env.db();
         let mut temporaries = vec![];
         let mut expr = self.into_expr(env, &mut temporaries);
         for temporary in temporaries.into_iter().rev() {
-            expr = SymExpr::new(db, expr.span(db), expr.ty(db), SymExprKind::LetIn {
-                lv: temporary.lv,
-                ty: temporary.ty,
-                initializer: temporary.initializer,
-                body: expr,
-            });
+            expr = SymExpr::new(
+                db,
+                expr.span(db),
+                expr.ty(db),
+                SymExprKind::LetIn {
+                    lv: temporary.lv,
+                    ty: temporary.ty,
+                    initializer: temporary.initializer,
+                    body: expr,
+                },
+            );
         }
 
         expr
@@ -1287,7 +1337,7 @@ impl<'db> ExprResult<'db> {
 
     /// Computes the type of this, treating it as an expression.
     /// Reports an error if this names something that cannot be made into an expression.
-    pub fn ty(&self, env: &Env<'db>) -> SymTy<'db> {
+    pub fn ty(&self, env: &mut Env<'db>) -> SymTy<'db> {
         let db = env.db();
         match &self.kind {
             &ExprResultKind::PlaceExpr(place_expr) => place_expr.ty(db),
@@ -1308,7 +1358,7 @@ impl<'db> ExprResult<'db> {
 
     pub fn into_place_expr(
         self,
-        env: &Env<'db>,
+        env: &mut Env<'db>,
         temporaries: &mut Vec<Temporary<'db>>,
     ) -> SymPlaceExpr<'db> {
         let db = env.db();
@@ -1335,7 +1385,11 @@ impl<'db> ExprResult<'db> {
         }
     }
 
-    pub fn into_expr(self, env: &Env<'db>, temporaries: &mut Vec<Temporary<'db>>) -> SymExpr<'db> {
+    pub fn into_expr(
+        self,
+        env: &mut Env<'db>,
+        temporaries: &mut Vec<Temporary<'db>>,
+    ) -> SymExpr<'db> {
         let db = env.db();
         temporaries.extend(self.temporaries);
         match self.kind {

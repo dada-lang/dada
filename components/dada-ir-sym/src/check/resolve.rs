@@ -19,12 +19,12 @@ use super::{
 
 pub struct Resolver<'env, 'db> {
     db: &'db dyn crate::Db,
-    env: &'env Env<'db>,
+    env: &'env mut Env<'db>,
     var_stack: Set<InferVarIndex>,
 }
 
 impl<'env, 'db> Resolver<'env, 'db> {
-    pub fn new(env: &'env Env<'db>) -> Self {
+    pub fn new(env: &'env mut Env<'db>) -> Self {
         assert!(
             env.runtime().check_complete(),
             "resolution is only possible once type constraints are known"
@@ -177,7 +177,8 @@ impl<'env, 'db> Resolver<'env, 'db> {
         infer: InferVarIndex,
         direction: Direction,
     ) -> Result<SymPerm<'db>, ResolverError<'db>> {
-        self.env.runtime().with_inference_var_data(infer, |data| {
+        let runtime = self.env.runtime().clone();
+        runtime.with_inference_var_data(infer, |data| {
             let chains = match direction {
                 Direction::FromBelow => data.lower_chains(),
                 Direction::FromAbove => data.upper_chains(),
