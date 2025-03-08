@@ -9,7 +9,7 @@ use std::{
 
 use crate::ir::{
     indices::InferVarIndex,
-    red::{Chain, RedInfer, RedInfers, RedTy},
+    red::{Chain, RedTy},
 };
 use check_task::CheckTask;
 use dada_ir_ast::{
@@ -21,7 +21,6 @@ use dada_util::{Map, vecext::VecExt};
 use crate::{check::env::Env, check::inference::InferenceVarData};
 
 use super::{
-    inference::InferenceVarBounds,
     predicates::Predicate,
     report::{ArcOrElse, OrElse},
 };
@@ -73,11 +72,12 @@ impl<'db> std::ops::Deref for Runtime<'db> {
 }
 
 impl<'db> Runtime<'db> {
-    pub(crate) fn execute<R: 'db>(
+    pub(crate) fn execute<T: 'db, R: 'db>(
         db: &'db dyn crate::Db,
         span: Span<'db>,
-        constrain: impl AsyncFnOnce(&Runtime<'db>) -> R + 'db,
-    ) -> (R, RedInfers<'db>)
+        constrain: impl AsyncFnOnce(&Runtime<'db>) -> T + 'db,
+        cleanup: impl FnOnce(T) -> R + 'db,
+    ) -> R
     where
         R: Err<'db>,
     {
@@ -96,13 +96,10 @@ impl<'db> Runtime<'db> {
         // Once we have reached the "complete" state, we should awaken all remaining tasks (?).
 
         match channel_rx.try_recv() {
-            Ok(v) => (v, runtime.red_infers()),
+            Ok(v) => cleanup(v),
 
             // FIXME: Obviously we need a better error message than this!
-            Err(_) => (
-                R::err(db, runtime.report_type_annotations_needed(span)),
-                RedInfers::default(),
-            ),
+            Err(_) => R::err(db, runtime.report_type_annotations_needed(span)),
         }
     }
 
@@ -186,55 +183,6 @@ impl<'db> Runtime<'db> {
     pub fn perm_infer(&self, infer: InferVarIndex) -> InferVarIndex {
         self.with_inference_var_data(infer, |data| data.perm())
             .unwrap_or(infer)
-    }
-
-    /// Compute the reduced values for the inference variables.
-    fn red_infers(&self) -> RedInfers<'db> {
-        RedInfers::new(
-            self.inference_vars
-                .read()
-                .unwrap()
-                .iter()
-                .map(|data| self.red_infer(data))
-                .collect(),
-        )
-    }
-
-    /// Compute the reduced values for a given inference variable.
-    fn red_infer(&self, data: &InferenceVarData<'db>) -> RedInfer<'db> {
-        match data.bounds() {
-            InferenceVarBounds::Perm { lower, upper } => RedInfer::Perm {
-                lower: lower.iter().map(|pair| pair.0.clone()).collect(),
-                upper: upper.iter().map(|pair| pair.0.clone()).collect(),
-            },
-
-            InferenceVarBounds::Ty {
-                perm,
-                lower: Some((red_ty, _)),
-                upper: _,
-            } => RedInfer::Ty {
-                perm: *perm,
-                red_ty: red_ty.clone(),
-            },
-
-            InferenceVarBounds::Ty {
-                perm,
-                lower: None,
-                upper: Some((red_ty, _)),
-            } => RedInfer::Ty {
-                perm: *perm,
-                red_ty: red_ty.clone(),
-            },
-
-            InferenceVarBounds::Ty {
-                perm,
-                lower: None,
-                upper: None,
-            } => RedInfer::Ty {
-                perm: *perm,
-                red_ty: RedTy::Never,
-            },
-        }
     }
 
     /// Read the current data for the given inference variable.

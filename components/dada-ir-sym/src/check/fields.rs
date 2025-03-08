@@ -2,7 +2,7 @@ use dada_ir_ast::diagnostic::{Err, Errors, Reported};
 
 use crate::{
     check::{env::Env, runtime::Runtime},
-    ir::{binder::Binder, classes::SymField, red::RedInfers, types::SymTy},
+    ir::{binder::Binder, classes::SymField, types::SymTy},
 };
 
 use super::CheckInEnv;
@@ -13,7 +13,7 @@ use super::CheckInEnv;
 pub(crate) fn check_field<'db>(
     db: &'db dyn crate::Db,
     field: SymField<'db>,
-) -> (Errors<Binder<'db, Binder<'db, SymTy<'db>>>>, RedInfers<'db>) {
+) -> Errors<Binder<'db, Binder<'db, SymTy<'db>>>> {
     Runtime::execute(
         db,
         field.name_span(db),
@@ -25,6 +25,7 @@ pub(crate) fn check_field<'db>(
             let bound_ty = env.into_scope().into_bound_value(db, ty);
             Ok(bound_ty)
         },
+        |bound_ty| bound_ty,
     )
 }
 

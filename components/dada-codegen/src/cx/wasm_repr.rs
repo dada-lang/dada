@@ -1,9 +1,7 @@
 use dada_ir_sym::{
     ir::{
         classes::{SymAggregate, SymAggregateStyle},
-        indices::InferVarIndex,
         primitive::SymPrimitiveKind,
-        red::{RedInfer, RedInfers, RedTy},
         types::{SymGenericTerm, SymPerm, SymPermKind, SymPlace, SymTy, SymTyKind, SymTyName},
         variables::SymVariable,
     },
@@ -54,20 +52,11 @@ type Generics<'db> = Map<SymVariable<'db>, SymGenericTerm<'db>>;
 pub(super) struct WasmReprCx<'g, 'db> {
     db: &'db dyn crate::Db,
     generics: &'g Generics<'db>,
-    red_infers: &'g RedInfers<'db>,
 }
 
 impl<'g, 'db> WasmReprCx<'g, 'db> {
-    pub(super) fn new(
-        db: &'db dyn crate::Db,
-        generics: &'g Generics<'db>,
-        red_infers: &'g RedInfers<'db>,
-    ) -> Self {
-        Self {
-            db,
-            generics,
-            red_infers,
-        }
+    pub(super) fn new(db: &'db dyn crate::Db, generics: &'g Generics<'db>) -> Self {
+        Self { db, generics }
     }
 
     /// Returns the [`WasmRepr`][] that describes how `of_type` will be represented in WASM.
@@ -78,22 +67,9 @@ impl<'g, 'db> WasmReprCx<'g, 'db> {
                 self.wasm_repr_of_named_type(ty_name, ty_args)
             }
             SymTyKind::Var(sym_variable) => self.wasm_repr_of_variable(sym_variable),
-            SymTyKind::Infer(infer) => self.wasm_repr_of_infer(infer),
+            SymTyKind::Infer(_) => panic!("unexpected inference variable"),
             SymTyKind::Never | SymTyKind::Error(_) => WasmRepr::Nothing,
             SymTyKind::Perm(sym_perm, sym_ty) => self.wasm_repr_of_perm_type(sym_perm, sym_ty),
-        }
-    }
-
-    fn wasm_repr_of_red_ty(&mut self, red_ty: &RedTy<'db>) -> WasmRepr {
-        // Not ideal: Kind of annoying to have this *and* [`Self::wasm_repr_of_type`].
-        // Not sure what to do about it though.
-        match *red_ty {
-            RedTy::Error(_) => WasmRepr::Nothing,
-            RedTy::Named(ty_name, ref ty_args) => self.wasm_repr_of_named_type(ty_name, ty_args),
-            RedTy::Never => WasmRepr::Nothing,
-            RedTy::Infer(infer) => self.wasm_repr_of_infer(infer),
-            RedTy::Var(var) => self.wasm_repr_of_variable(var),
-            RedTy::Perm => panic!("cannot compute representation of a permission"),
         }
     }
 
@@ -104,15 +80,6 @@ impl<'g, 'db> WasmReprCx<'g, 'db> {
             .expect("expected value for each generic type")
             .assert_type(self.db);
         self.wasm_repr_of_type(result)
-    }
-
-    fn wasm_repr_of_infer(&mut self, infer: InferVarIndex) -> WasmRepr {
-        match self.red_infers.red_infer(infer) {
-            RedInfer::Perm { .. } => {
-                panic!("cannot compute representation of a permission inference variable")
-            }
-            RedInfer::Ty { perm: _, red_ty } => self.wasm_repr_of_red_ty(red_ty),
-        }
     }
 
     fn wasm_repr_of_perm_type(&mut self, sym_perm: SymPerm<'db>, sym_ty: SymTy<'db>) -> WasmRepr {

@@ -8,7 +8,6 @@ use crate::{
     check::{env::Env, runtime::Runtime},
     ir::{
         functions::{SymFunction, SymFunctionSignature, SymFunctionSource, SymInputOutput},
-        red::RedInfers,
         types::{SymTy, SymTyName},
         variables::SymVariable,
     },
@@ -20,7 +19,7 @@ use super::CheckInEnv;
 pub fn check_function_signature<'db>(
     db: &'db dyn crate::Db,
     function: SymFunction<'db>,
-) -> (Errors<SymFunctionSignature<'db>>, RedInfers<'db>) {
+) -> Errors<SymFunctionSignature<'db>> {
     Runtime::execute(
         db,
         function.name_span(db),
@@ -34,6 +33,7 @@ pub fn check_function_signature<'db>(
                 scope.into_bound_value(db, input_output),
             ))
         },
+        |v| v,
     )
 }
 

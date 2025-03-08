@@ -27,7 +27,7 @@ use crate::{check::runtime::Runtime, check::universe::Universe, ir::exprs::SymEx
 
 use super::{
     CheckInEnv,
-    inference::InferenceVarData,
+    inference::{InferVarKind, InferenceVarData},
     predicates::Predicate,
     report::{BooleanTypeRequired, OrElse},
     runtime::DeferResult,
@@ -375,6 +375,12 @@ impl<'db> Env<'db> {
     pub(crate) fn infer_var_span(&self, v: InferVarIndex) -> Span<'db> {
         self.runtime.with_inference_var_data(v, |data| data.span())
     }
+
+    /// Kind of this inference variable.
+    pub(crate) fn infer_var_kind(&self, v: InferVarIndex) -> InferVarKind {
+        self.runtime.with_inference_var_data(v, |data| data.kind())
+    }
+
     pub(crate) fn variances(&self, n: SymTyName<'db>) -> Vec<Variance> {
         match n {
             SymTyName::Primitive(_) => vec![],

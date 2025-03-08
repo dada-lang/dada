@@ -3,10 +3,7 @@ use dada_util::{boxed_async_fn, vecset::VecSet};
 
 use crate::{
     check::{
-        combinator::{
-            self, exists, exists_infer_bound, require, require_for_all,
-            require_for_all_infer_bounds,
-        },
+        combinator::{self, exists, require, require_for_all, require_for_all_infer_bounds},
         env::Env,
         inference::InferenceVarData,
         predicates::{

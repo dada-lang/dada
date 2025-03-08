@@ -1,7 +1,6 @@
 use crate::ir::{
     classes::SymAggregate,
     functions::{SymFunction, SymFunctionSource, SymInputOutput},
-    red::RedInfers,
 };
 use dada_ir_ast::{
     ast::{AstAggregate, AstBlock},
@@ -15,12 +14,12 @@ use crate::{
     ir::exprs::{SymExpr, SymExprKind, SymPlaceExpr, SymPlaceExprKind},
 };
 
-use super::CheckInEnv;
+use super::{CheckInEnv, resolve::Resolver};
 
 pub(crate) fn check_function_body<'db>(
     db: &'db dyn crate::Db,
     function: SymFunction<'db>,
-) -> Option<(SymExpr<'db>, RedInfers<'db>)> {
+) -> Option<SymExpr<'db>> {
     match function.source(db) {
         SymFunctionSource::Function(ast_function) => {
             let Some(block) = ast_function.body_block(db) else {
@@ -40,7 +39,7 @@ fn check_function_body_class_constructor<'db>(
     function: SymFunction<'db>,
     sym_class: SymAggregate<'db>,
     ast_class_item: AstAggregate<'db>,
-) -> (SymExpr<'db>, RedInfers<'db>) {
+) -> SymExpr<'db> {
     Runtime::execute(
         db,
         function.name_span(db),
@@ -102,6 +101,7 @@ fn check_function_body_class_constructor<'db>(
                 },
             )
         },
+        |expr| expr,
     )
 }
 
@@ -109,13 +109,15 @@ fn check_function_body_ast_block<'db>(
     db: &'db dyn crate::Db,
     function: SymFunction<'db>,
     body: AstBlock<'db>,
-) -> (SymExpr<'db>, RedInfers<'db>) {
+) -> SymExpr<'db> {
     Runtime::execute(
         db,
         function.name_span(db),
-        async move |runtime| -> SymExpr<'db> {
+        async move |runtime| {
             let (env, _, _) = prepare_env(db, runtime, function).await;
-            body.check_in_env(&env).await
+            let expr = body.check_in_env(&env).await;
+            (env, expr)
         },
+        |(env, expr)| Resolver::new(&env).resolve(expr),
     )
 }

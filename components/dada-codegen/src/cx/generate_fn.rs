@@ -2,7 +2,6 @@ use dada_ir_ast::diagnostic::Err;
 use dada_ir_sym::{
     ir::{
         functions::{SymFunction, SymInputOutput},
-        red::RedInfers,
         types::{SymGenericTerm, SymTy},
         variables::SymVariable,
     },
@@ -43,8 +42,7 @@ impl<'db> Cx<'db> {
 
         // Create the type for this function
         let ty_index = {
-            let infers = &RedInfers::default(); // no inference variables expected in signature
-            let mut wrcx = WasmReprCx::new(self.db, generics, infers);
+            let mut wrcx = WasmReprCx::new(self.db, generics);
             // The first input is the stack pointer.
             // The remainder are the values given by the user.
             let input_val_types = std::iter::once(ValType::I32)
@@ -75,7 +73,7 @@ impl<'db> Cx<'db> {
     pub(crate) fn codegen_fn(&mut self, FnKey(function, generics): FnKey<'db>) {
         let db = self.db;
 
-        let (object_check_body, infers) = match function.checked_body(self.db) {
+        let object_check_body = match function.checked_body(self.db) {
             Some(body) => body,
             None => panic!("asked to codegen function with no body: {function:?}"),
         };
@@ -88,7 +86,7 @@ impl<'db> Cx<'db> {
 
         // Generate the function body.
         let function = {
-            let mut ecx = ExprCodegen::new(self, generics, infers);
+            let mut ecx = ExprCodegen::new(self, generics);
             ecx.pop_arguments(inputs, &input_output.input_tys);
             ecx.push_expr(object_check_body);
             ecx.pop_and_return(object_check_body.ty(db));

@@ -1,6 +1,7 @@
 use std::sync::Arc;
 
 use dada_ir_ast::span::Span;
+use salsa::Update;
 
 use crate::{
     check::universe::Universe,
@@ -83,10 +84,10 @@ impl<'db> InferenceVarData<'db> {
     }
 
     /// Returns the kind of the inference variable.
-    pub fn kind(&self) -> SymGenericKind {
+    pub fn kind(&self) -> InferVarKind {
         match self.bounds {
-            InferenceVarBounds::Perm { .. } => SymGenericKind::Perm,
-            InferenceVarBounds::Ty { .. } => SymGenericKind::Type,
+            InferenceVarBounds::Perm { .. } => InferVarKind::Perm,
+            InferenceVarBounds::Ty { .. } => InferVarKind::Type,
         }
     }
 
@@ -332,9 +333,20 @@ impl<'db> InferenceVarData<'db> {
         *upper_red_ty = Some((red_ty, or_else.clone()));
         or_else
     }
+}
 
-    pub fn bounds(&self) -> &InferenceVarBounds<'db> {
-        &self.bounds
+#[derive(Copy, Clone, PartialEq, Eq, PartialOrd, Ord, Hash, Update, Debug)]
+pub enum InferVarKind {
+    Type,
+    Perm,
+}
+
+impl From<InferVarKind> for SymGenericKind {
+    fn from(value: InferVarKind) -> Self {
+        match value {
+            InferVarKind::Type => SymGenericKind::Type,
+            InferVarKind::Perm => SymGenericKind::Perm,
+        }
     }
 }
 
