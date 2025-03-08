@@ -12,7 +12,8 @@ impl Main {
         let mut compiler = Compiler::new(RealFs::default());
         let source_url = Path::new(&run_options.compile_options.input);
         let source_file = compiler.load_source_file(source_url)?;
-        let (bytes, diagnostics) = compiler.codegen_main_fn(source_file);
+        let bytes = compiler.codegen_main_fn(source_file);
+        let diagnostics = compiler.check_all(source_file);
 
         for diagnostic in &diagnostics {
             eprintln!(

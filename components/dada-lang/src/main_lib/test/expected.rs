@@ -194,7 +194,8 @@ impl TestExpectations {
             Self::generate_fn_asts,
         )?);
 
-        let (_wasm_bytes, actual_diagnostics) = compiler.codegen_main_fn(self.source_file);
+        let actual_diagnostics = compiler.check_all(self.source_file);
+        let _wasm_bytes = compiler.codegen_main_fn(self.source_file);
 
         for diagnostic in &actual_diagnostics {
             writeln!(

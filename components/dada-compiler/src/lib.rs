@@ -146,15 +146,12 @@ impl Compiler {
         Ok(self.add_crate(crate_name.to_string(), root_dir_path.url())?)
     }
 
-    /// Codegen the main function of a source file and return associated diagnostics.
-    pub fn codegen_main_fn(&self, source_file: SourceFile) -> (&Option<Vec<u8>>, Vec<Diagnostic>) {
-        let bytes = dada_codegen::codegen_main_fn(self, source_file);
-        let diagnostics =
-            dada_codegen::codegen_main_fn::accumulated::<Diagnostic>(self, source_file);
-        (bytes, Self::deduplicated(diagnostics))
+    /// Codegen the main function of a source file.
+    pub fn codegen_main_fn(&self, source_file: SourceFile) -> &Option<Vec<u8>> {
+        dada_codegen::codegen_main_fn(self, source_file)
     }
 
-    /// Compute all diagnostics for a source file
+    /// Compute all diagnostics for a source file.
     pub fn check_all(&self, source_file: SourceFile) -> Vec<Diagnostic> {
         Self::deduplicated(check_all::accumulated::<Diagnostic>(self, source_file))
     }
