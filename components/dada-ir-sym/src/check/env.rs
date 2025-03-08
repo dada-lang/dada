@@ -59,7 +59,7 @@ pub(crate) struct Env<'db> {
     pub return_ty: Option<SymTy<'db>>,
 
     /// Assumptions declared
-    assumptions: Vec<Assumption<'db>>,
+    assumptions: Arc<Vec<Assumption<'db>>>,
 }
 
 impl<'db> Env<'db> {
@@ -72,7 +72,7 @@ impl<'db> Env<'db> {
             variable_tys: Default::default(),
             variable_universes: Default::default(),
             return_ty: Default::default(),
-            assumptions: vec![], // FIXME
+            assumptions: Arc::new(vec![]), // FIXME
         }
     }
 
