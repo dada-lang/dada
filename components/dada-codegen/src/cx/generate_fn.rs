@@ -1,8 +1,11 @@
 use dada_ir_ast::diagnostic::Err;
 use dada_ir_sym::{
-    ir::functions::{SymFunction, SymInputOutput},
-    ir::types::{SymGenericTerm, SymTy},
-    ir::variables::SymVariable,
+    ir::{
+        functions::{SymFunction, SymInputOutput},
+        red::RedInfers,
+        types::{SymGenericTerm, SymTy},
+        variables::SymVariable,
+    },
     prelude::{CheckedBody, CheckedSignature},
 };
 use dada_util::Map;
@@ -40,7 +43,8 @@ impl<'db> Cx<'db> {
 
         // Create the type for this function
         let ty_index = {
-            let mut wrcx = WasmReprCx::new(self.db, generics);
+            let infers = &RedInfers::default(); // no inference variables expected in signature
+            let mut wrcx = WasmReprCx::new(self.db, generics, infers);
             // The first input is the stack pointer.
             // The remainder are the values given by the user.
             let input_val_types = std::iter::once(ValType::I32)

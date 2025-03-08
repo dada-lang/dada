@@ -24,7 +24,7 @@ pub(crate) struct ExprCodegen<'cx, 'db> {
     generics: Map<SymVariable<'db>, SymGenericTerm<'db>>,
 
     /// Values for any inference variables
-    infers: RedInfers<'db>,
+    red_infers: RedInfers<'db>,
 
     /// Accumulates wasm locals. We make no effort to reduce the number of local variables created.
     wasm_locals: Vec<wasm_encoder::ValType>,
@@ -46,13 +46,13 @@ impl<'cx, 'db> ExprCodegen<'cx, 'db> {
     pub fn new(
         cx: &'cx mut Cx<'db>,
         generics: Map<SymVariable<'db>, SymGenericTerm<'db>>,
-        infers: RedInfers<'db>,
+        red_infers: RedInfers<'db>,
     ) -> Self {
         // Initially there is one local variable, the stack pointer.
         Self {
             cx,
             generics,
-            infers,
+            red_infers,
             wasm_locals: vec![ValType::I32],
             variables: Default::default(),
             instructions: Default::default(),
@@ -72,7 +72,7 @@ impl<'cx, 'db> ExprCodegen<'cx, 'db> {
     /// Returns the [`WasmRepr`][] for a Dada type.
     pub fn wasm_repr_of_type(&self, ty: SymTy<'db>) -> WasmRepr {
         let db = self.cx.db;
-        let mut wrcx = WasmReprCx::new(db, &self.generics);
+        let mut wrcx = WasmReprCx::new(db, &self.generics, &self.red_infers);
         wrcx.wasm_repr_of_type(ty)
     }
 
