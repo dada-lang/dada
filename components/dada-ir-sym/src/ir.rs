@@ -10,7 +10,6 @@ pub mod indices;
 pub mod module;
 mod populate;
 pub mod primitive;
-pub mod red;
 pub mod subst;
 pub mod types;
 pub mod variables;

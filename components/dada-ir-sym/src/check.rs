@@ -16,6 +16,7 @@ mod member_lookup;
 mod modules;
 mod places;
 mod predicates;
+mod red;
 mod report;
 mod resolve;
 mod runtime;

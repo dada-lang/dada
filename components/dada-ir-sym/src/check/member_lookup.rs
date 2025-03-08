@@ -2,7 +2,6 @@ use crate::ir::{
     binder::Binder,
     classes::{SymAggregate, SymClassMember, SymField},
     functions::SymFunction,
-    red::RedTy,
     types::{SymGenericTerm, SymPerm, SymTy, SymTyName},
 };
 use dada_ir_ast::{
@@ -19,7 +18,7 @@ use crate::{
     prelude::CheckedFieldTy,
 };
 
-use super::to_red::ToRedTy;
+use super::{red::RedTy, to_red::ToRedTy};
 
 #[derive(Copy, Clone)]
 pub(crate) struct MemberLookup<'member, 'db> {

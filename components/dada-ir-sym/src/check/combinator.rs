@@ -20,9 +20,9 @@ macro_rules! require_all {
 }
 pub(crate) use require_all;
 
-use crate::ir::{indices::InferVarIndex, red::Chain};
+use crate::ir::indices::InferVarIndex;
 
-use super::{env::Env, inference::InferenceVarData, report::ArcOrElse};
+use super::{env::Env, inference::InferenceVarData, red::Chain, report::ArcOrElse};
 
 pub async fn require<'db>(
     a: impl Future<Output = Errors<bool>>,

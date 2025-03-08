@@ -10,11 +10,11 @@ use crate::{
             Predicate,
             var_infer::{require_infer_is, require_var_is},
         },
+        red::Lien,
         report::{Because, OrElse},
     },
     ir::{
         classes::SymAggregateStyle,
-        red::Lien,
         types::{SymGenericTerm, SymPerm, SymPermKind, SymPlace, SymTy, SymTyKind, SymTyName},
     },
 };

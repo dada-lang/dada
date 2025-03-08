@@ -15,6 +15,7 @@ use crate::{
             require_lent::require_term_is_lent, require_move::require_term_is_move,
             require_owned::require_term_is_owned, require_term_is_leased, term_is_provably_leased,
         },
+        red::{RedTerm, RedTy},
         report::{ArcOrElse, Because, OrElse},
         subtype::chains::require_sub_red_perms,
         to_red::ToRedTerm,
@@ -22,7 +23,6 @@ use crate::{
     ir::{
         classes::SymAggregateStyle,
         indices::{FromInfer, InferVarIndex},
-        red::{RedTerm, RedTy},
         types::{SymGenericKind, SymGenericTerm, SymPerm, SymTy, SymTyKind, Variance},
     },
 };

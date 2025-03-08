@@ -7,10 +7,7 @@ use std::{
     task::{Context, Poll, Waker},
 };
 
-use crate::ir::{
-    indices::InferVarIndex,
-    red::{Chain, RedTy},
-};
+use crate::ir::indices::InferVarIndex;
 use check_task::CheckTask;
 use dada_ir_ast::{
     diagnostic::{Diagnostic, Err, Errors, Level},
@@ -22,6 +19,7 @@ use crate::{check::env::Env, check::inference::InferenceVarData};
 
 use super::{
     predicates::Predicate,
+    red::{Chain, RedTy},
     report::{ArcOrElse, OrElse},
 };
 

@@ -11,13 +11,12 @@ use crate::{
     ir::{
         exprs::{SymExpr, SymPlaceExpr},
         primitive::SymPrimitive,
-        red::RedTy,
         types::{SymPlace, SymTy, SymTyName},
         variables::SymVariable,
     },
 };
 
-use super::to_red::RedTyExt;
+use super::{red::RedTy, to_red::RedTyExt};
 
 /// The `OrElse` trait captures error reporting context.
 /// Primitive type operations like subtyping are given an `&dyn OrElse<'db>`

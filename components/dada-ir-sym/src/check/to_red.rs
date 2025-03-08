@@ -7,7 +7,6 @@ use dada_util::{boxed_async_fn, vecset::VecSet};
 
 use crate::ir::{
     indices::FromInfer,
-    red::{Chain, Lien, RedTerm, RedTy},
     types::{SymGenericTerm, SymPerm, SymPermKind, SymPlace, SymTy, SymTyKind},
 };
 
@@ -18,6 +17,7 @@ use super::{
         Predicate, is_provably_copy::place_is_provably_copy, test_infer_is_known_to_be,
         test_var_is_provably,
     },
+    red::{Chain, Lien, RedTerm, RedTy},
     runtime::Runtime,
 };
 

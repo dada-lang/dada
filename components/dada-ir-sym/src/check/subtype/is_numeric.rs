@@ -4,12 +4,12 @@ use dada_util::boxed_async_fn;
 use crate::{
     check::{
         env::Env,
+        red::RedTy,
         report::{Because, OrElse, OrElseHelper},
         to_red::ToRedTy,
     },
     ir::{
         primitive::SymPrimitiveKind,
-        red::RedTy,
         types::{SymTy, SymTyName},
     },
 };

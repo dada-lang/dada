@@ -10,12 +10,10 @@ use crate::{
             Predicate,
             var_infer::{require_infer_is, require_var_is},
         },
+        red::Lien,
         report::OrElse,
     },
-    ir::{
-        red::Lien,
-        types::{SymGenericTerm, SymPerm, SymPermKind, SymPlace, SymTy, SymTyKind},
-    },
+    ir::types::{SymGenericTerm, SymPerm, SymPermKind, SymPlace, SymTy, SymTyKind},
 };
 
 use super::{is_provably_copy::term_is_provably_copy, require_copy::require_place_is_copy};

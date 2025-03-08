@@ -5,15 +5,12 @@ use salsa::Update;
 
 use crate::{
     check::universe::Universe,
-    ir::{
-        indices::InferVarIndex,
-        red::{Chain, RedTy},
-        types::SymGenericKind,
-    },
+    ir::{indices::InferVarIndex, types::SymGenericKind},
 };
 
 use super::{
     predicates::Predicate,
+    red::{Chain, RedTy},
     report::{ArcOrElse, OrElse},
 };
 

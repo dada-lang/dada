@@ -6,11 +6,11 @@ use crate::{
         combinator::{exists, require, require_both},
         env::Env,
         predicates::Predicate,
+        red::Lien,
         report::{Because, OrElse},
     },
     ir::{
         classes::SymAggregateStyle,
-        red::Lien,
         types::{SymGenericTerm, SymPerm, SymPermKind, SymTy, SymTyKind, SymTyName},
     },
 };

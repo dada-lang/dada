@@ -5,12 +5,17 @@ use dada_util::Set;
 
 use crate::ir::{
     indices::{FromInfer, InferVarIndex},
-    red::{Chain, Lien, RedTy},
     subst::Subst,
     types::{SymGenericTerm, SymPerm, SymPermKind, SymPlace, SymTy, SymTyKind},
 };
 
-use super::{Env, inference::InferVarKind, predicates::Predicate, subtype::terms::Direction};
+use super::{
+    Env,
+    inference::InferVarKind,
+    predicates::Predicate,
+    red::{Chain, Lien, RedTy},
+    subtype::terms::Direction,
+};
 
 pub struct Resolver<'env, 'db> {
     db: &'db dyn crate::Db,

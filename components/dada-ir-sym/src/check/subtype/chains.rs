@@ -10,12 +10,10 @@ use crate::{
             Predicate, is_provably_copy::term_is_provably_copy, require_copy::require_term_is_copy,
             require_term_is_my, term_is_provably_my,
         },
+        red::{Chain, Lien},
         report::{Because, OrElse},
     },
-    ir::{
-        indices::InferVarIndex,
-        red::{Chain, Lien},
-    },
+    ir::indices::InferVarIndex,
 };
 
 use super::alternatives::Alternative;
