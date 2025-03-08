@@ -2,6 +2,7 @@ use std::{cell::Cell, ops::AsyncFnOnce, sync::Arc};
 
 use crate::{
     check::{
+        combinator::require_both,
         scope::Scope,
         subtype::terms::{require_assignable_type, require_sub_terms},
     },
@@ -306,15 +307,11 @@ impl<'db> Env<'db> {
         self.runtime.spawn(self, move |env| async move {
             debug!("require_equal_object_types", expected_ty, found_ty);
 
-            match require_sub_terms(&env, expected_ty.into(), found_ty.into(), &or_else).await {
-                Ok(()) => (),
-                Err(Reported(_)) => return,
-            }
-
-            match require_sub_terms(&env, found_ty.into(), expected_ty.into(), &or_else).await {
-                Ok(()) => (),
-                Err(Reported(_)) => return,
-            }
+            require_both(
+                require_sub_terms(&env, expected_ty.into(), found_ty.into(), &or_else),
+                require_sub_terms(&env, found_ty.into(), expected_ty.into(), &or_else),
+            )
+            .await
         })
     }
 
