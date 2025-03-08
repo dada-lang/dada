@@ -2,7 +2,7 @@ use dada_ir_ast::diagnostic::Err;
 use dada_ir_sym::{
     ir::{
         functions::{SymFunction, SymInputOutput},
-        types::{SymGenericTerm, SymTy},
+        types::{SymGenericTerm, SymPlace, SymTy},
         variables::SymVariable,
     },
     prelude::{CheckedBody, CheckedSignature},
@@ -108,11 +108,10 @@ impl<'db> Cx<'db> {
                 let input_output = signature
                     .input_output(self.db)
                     .substitute(self.db, generics);
-                #[expect(unreachable_code)]
                 let dummy_places = symbols
                     .input_variables
                     .iter()
-                    .map(|_| SymGenericTerm::Place(todo!()))
+                    .map(|_| SymGenericTerm::Place(SymPlace::erased(self.db)))
                     .collect::<Vec<_>>();
                 let input_output = input_output.substitute(self.db, &dummy_places);
 
