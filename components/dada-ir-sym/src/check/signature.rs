@@ -32,7 +32,6 @@ pub fn check_function_signature<'db>(
                 scope.into_bound_value(db, input_output),
             ))
         },
-        |v| v,
     )
 }
 

@@ -91,12 +91,16 @@ fn check_function_body_class_constructor<'db>(
                 )
             });
 
-            SymExpr::new(db, span, self_ty, SymExprKind::Aggregate {
-                ty: self_ty,
-                fields: parameter_exprs.chain(other_exprs).collect(),
-            })
+            SymExpr::new(
+                db,
+                span,
+                self_ty,
+                SymExprKind::Aggregate {
+                    ty: self_ty,
+                    fields: parameter_exprs.chain(other_exprs).collect(),
+                },
+            )
         },
-        |expr| expr,
     )
 }
 
@@ -112,6 +116,5 @@ fn check_function_body_ast_block<'db>(
             let (env, _, _) = prepare_env(db, runtime, function).await;
             body.check_in_env(&env).await
         },
-        |expr| expr,
     ))
 }

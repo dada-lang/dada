@@ -8,17 +8,12 @@ use super::{Env, Runtime, scope::Resolve};
 /// simply to force errors to be reported.
 impl<'db> CheckUseItems<'db> for SymModule<'db> {
     fn check_use_items(self, db: &'db dyn crate::Db) {
-        let _: Errors<()> = Runtime::execute(
-            db,
-            self.span(db),
-            async move |runtime| {
-                let env = Env::new(runtime, self.mod_scope(db));
-                for item in self.ast_use_map(db).values() {
-                    let _ = item.path(db).resolve_in(&env);
-                }
-                Ok(())
-            },
-            |v| v,
-        );
+        let _: Errors<()> = Runtime::execute(db, self.span(db), async move |runtime| {
+            let env = Env::new(runtime, self.mod_scope(db));
+            for item in self.ast_use_map(db).values() {
+                let _ = item.path(db).resolve_in(&env);
+            }
+            Ok(())
+        });
     }
 }

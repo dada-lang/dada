@@ -70,11 +70,10 @@ impl<'db> std::ops::Deref for Runtime<'db> {
 }
 
 impl<'db> Runtime<'db> {
-    pub(crate) fn execute<T: 'db, R: 'db>(
+    pub(crate) fn execute<R: 'db>(
         db: &'db dyn crate::Db,
         span: Span<'db>,
-        constrain: impl AsyncFnOnce(&Runtime<'db>) -> T + 'db,
-        cleanup: impl FnOnce(T) -> R + 'db,
+        constrain: impl AsyncFnOnce(&Runtime<'db>) -> R + 'db,
     ) -> R
     where
         R: Err<'db>,
@@ -94,7 +93,7 @@ impl<'db> Runtime<'db> {
         // Once we have reached the "complete" state, we should awaken all remaining tasks (?).
 
         match channel_rx.try_recv() {
-            Ok(v) => cleanup(v),
+            Ok(v) => v,
 
             // FIXME: Obviously we need a better error message than this!
             Err(_) => R::err(db, runtime.report_type_annotations_needed(span)),
