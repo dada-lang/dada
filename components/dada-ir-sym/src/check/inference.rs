@@ -339,11 +339,29 @@ impl<'db> InferenceVarData<'db> {
 }
 
 pub enum InferenceVarBounds<'db> {
+    /// Bounds for a permission:
+    ///
+    /// The inferred permission `?P` must meet
+    ///
+    /// * `L <: ?P` for each `L` in `lower`
+    /// * `U <: ?P` for each `U` in `upper`
+    ///
+    /// This in turn implies that `L <: U`
+    /// for all `L in lower`, `U in upper`.
     Perm {
         lower: Vec<(Chain<'db>, ArcOrElse<'db>)>,
         upper: Vec<(Chain<'db>, ArcOrElse<'db>)>,
     },
 
+    /// Bounds for a type:
+    ///
+    /// The inferred type `?T` must
+    ///
+    /// * have a red-perm of `perm`
+    ///   (we always create an associated permission
+    ///   variable for every type variable)
+    /// * have a red-ty `R` where `lower <= R`
+    /// * have a red-ty `R` where `R <= upper`
     Ty {
         perm: InferVarIndex,
         lower: Option<(RedTy<'db>, ArcOrElse<'db>)>,

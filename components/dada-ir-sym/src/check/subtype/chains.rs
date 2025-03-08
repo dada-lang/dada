@@ -3,7 +3,10 @@ use dada_util::{boxed_async_fn, vecset::VecSet};
 
 use crate::{
     check::{
-        combinator::{self, exists, exists_infer_bound, require, require_for_all},
+        combinator::{
+            self, exists, exists_infer_bound, require, require_for_all,
+            require_for_all_infer_bounds,
+        },
         env::Env,
         inference::InferenceVarData,
         predicates::{
@@ -126,7 +129,7 @@ async fn sub_chains1<'a, 'db>(
                 alternative
                     .if_required(
                         require_upper_chain(env, v0, upper_chain_head, upper_chain_tail, or_else),
-                        splice_upper_bound(
+                        splice_lower_bound(
                             env,
                             v0,
                             c0,
@@ -137,7 +140,7 @@ async fn sub_chains1<'a, 'db>(
                     )
                     .await
             } else {
-                splice_upper_bound(env, v0, c0, upper_chain_head, upper_chain_tail, or_else).await
+                splice_lower_bound(env, v0, c0, upper_chain_head, upper_chain_tail, or_else).await
             }
         }
 
@@ -146,7 +149,7 @@ async fn sub_chains1<'a, 'db>(
                 alternative
                     .if_required(
                         require_lower_chain(env, upper_chain_head, upper_chain_tail, v1, or_else),
-                        splice_lower_bound(
+                        splice_upper_bound(
                             env,
                             lower_chain_head,
                             lower_chain_tail,
@@ -157,7 +160,7 @@ async fn sub_chains1<'a, 'db>(
                     )
                     .await
             } else {
-                splice_lower_bound(env, lower_chain_head, lower_chain_tail, v1, c1, or_else).await
+                splice_upper_bound(env, lower_chain_head, lower_chain_tail, v1, c1, or_else).await
             }
         }
 
@@ -261,19 +264,20 @@ async fn require_lower_chain<'db>(
     // that currently exists or one that may be added in the future)
     // that is a superchain of this lower bound.
     env.runtime().spawn(env, async move |ref env| {
-        require(
-            exists_infer_bound(
-                env,
-                upper_head,
-                InferenceVarData::upper_chains,
-                async |upper_chain| {
-                    Alternative::the_future_never_comes(async |alternative| {
-                        sub_chains(env, alternative, &lower_chain, &upper_chain, &or_else).await
-                    })
+        require_for_all_infer_bounds(
+            env,
+            upper_head,
+            InferenceVarData::upper_chains,
+            async |upper_chain| {
+                Alternative::the_future_never_comes(async |alternative| {
+                    require(
+                        sub_chains(env, alternative, &lower_chain, &upper_chain, &or_else),
+                        || or_else.report(env, Because::JustSo),
+                    )
                     .await
-                },
-            ),
-            || or_else.report(env, Because::JustSo),
+                })
+                .await
+            },
         )
         .await
     });
@@ -291,9 +295,18 @@ async fn require_lower_chain<'db>(
 /// and the first lien `?U0` of the upper chain is an inference variable,
 /// followed by the remaining liens `Un`.
 ///
-/// It works by "splicing" any lower bounds `B` of `?U0` in front of `Un`
-/// and searching for a case where the `L0 Ln <= B Un`.
-async fn splice_lower_bound<'db>(
+/// It works by "splicing" any upper bounds `B` of `?U0` in front of `Un`
+/// and searching for a case where the `L0 Ln <= B Un`. It's enough to find
+/// *any* upper bound because the final permission must be smaller
+/// than all of them.
+///
+/// It's a bit counterintuive that we splice the UPPER bounds of `?U0`.
+/// But think about it, if we have a lower bound `LB <= ?U0`, there is
+/// no necessary relation between that and `L0 Ln` (*). But if we have an
+/// upper bound `?0 <= UB`, then by transitivity `L0 Ln <= UB` must hold.
+///
+/// (*) This is true but we ought to be propagating "layout".
+async fn splice_upper_bound<'db>(
     env: &Env<'db>,
     lower_head: Lien<'db>,
     lower_tail: &[Lien<'db>],
@@ -305,7 +318,7 @@ async fn splice_lower_bound<'db>(
     combinator::exists_infer_bound(
         env,
         upper_head,
-        InferenceVarData::lower_chains,
+        InferenceVarData::upper_chains,
         async |mut upper_chain| {
             Alternative::the_future_never_comes(async |alternative| {
                 upper_chain.extend(upper_tail);
@@ -337,19 +350,13 @@ async fn require_upper_chain<'db>(
 
     // Interesting observation: We don't actually need to check for
     // consistency with lower-bounds here. If there are any lower-bounds,
-    // they will have spawned a task that is
-
-    //
-
-    // IDEA: no work is needed here, I think?
-    // IDEA: but we do want to check at some point that
-    // overall we can reconstruct a real type...?
+    // they will have spawned a task that is checking upper chains.
 
     Ok(())
 }
 
-/// Like [`splice_lower_bound`][] but covers the case `?L0 Ln <= U0 Un`.
-async fn splice_upper_bound<'db>(
+/// Like [`splice_upper_bound`][] but covers the case `?L0 Ln <= U0 Un`.
+async fn splice_lower_bound<'db>(
     env: &Env<'db>,
     lower_head: InferVarIndex,
     lower_tail: &[Lien<'db>],
@@ -361,7 +368,7 @@ async fn splice_upper_bound<'db>(
     combinator::exists_infer_bound(
         env,
         lower_head,
-        InferenceVarData::upper_chains,
+        InferenceVarData::lower_chains,
         async |mut lower_chain| {
             Alternative::the_future_never_comes(async |alternative| {
                 lower_chain.extend(lower_tail);
