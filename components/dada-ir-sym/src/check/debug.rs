@@ -1,11 +1,13 @@
 #![expect(dead_code)]
 
 use std::{
+    collections::HashMap,
     panic::Location,
     sync::{Arc, Mutex},
 };
 
 use dada_ir_ast::{diagnostic::Errors, span::Span};
+use export::TaskId;
 
 use crate::ir::{
     exprs::SymExpr,
@@ -17,6 +19,8 @@ use super::{
     predicates::Predicate,
     red::{Chain, Lien},
 };
+
+mod export;
 
 pub struct LogHandle<'db> {
     log: Option<Arc<Mutex<Log<'db>>>>,
@@ -131,6 +135,109 @@ impl<'db> LogHandle<'db> {
             task: self.task_index,
             kind: kind(message, argument),
         });
+    }
+
+    pub fn export(&self) -> export::Log {
+        let Some(log) = &self.log else {
+            return export::Log {
+                events_flat: vec![export::Event {
+                    kind: "disabled",
+                    value: serde_json::Value::Null,
+                    spawns: None,
+                }],
+                nested_event: export::NestedEvent {
+                    timestamp: export::TimeStamp { index: 0 },
+                    children: vec![],
+                },
+                tasks: vec![],
+            };
+        };
+
+        let log = log.lock().unwrap();
+
+        // First: assemble the flat list of events, which is relatively straightforward.
+        let events_flat: Vec<export::Event> = log
+            .events
+            .iter()
+            .map(|event| export::Event {
+                kind: match &event.kind {
+                    EventKind::Root => "root",
+                    EventKind::Spawned(..) => "spawned",
+                    EventKind::Indent(message, _) => message,
+                    EventKind::Undent(_) => "end",
+                    EventKind::Log(message, _) => message,
+                },
+                value: match &event.kind {
+                    EventKind::Root => serde_json::Value::Null,
+                    EventKind::Spawned(_) => serde_json::Value::Null,
+                    EventKind::Indent(_, event_argument) => self.export_value(event_argument),
+                    EventKind::Undent(_) => serde_json::Value::Null,
+                    EventKind::Log(_, event_argument) => self.export_value(event_argument),
+                },
+                spawns: match &event.kind {
+                    EventKind::Root => None,
+                    EventKind::Spawned(task_index) => Some(export::TaskId {
+                        index: task_index.0,
+                    }),
+                    EventKind::Indent(..) => None,
+                    EventKind::Undent(_) => None,
+                    EventKind::Log(..) => None,
+                },
+            })
+            .collect();
+
+        // Next: assemble the list of events by task.
+        let mut events_by_task: Vec<Vec<usize>> = (0..log.tasks.len()).map(|_| vec![]).collect();
+        for (event, index) in log.events.iter().zip(0..) {
+            events_by_task[event.task.0].push(index);
+        }
+
+        // Next: assemble the nested events.
+        let root_task = TaskIndex::root();
+        let nested_event = self.nest_events(root_task, &events_by_task, &events_flat);
+
+        // Next: assemble tasks
+        let tasks = vec![ /* TODO */];
+
+        export::Log {
+            events_flat,
+            nested_event,
+            tasks,
+        }
+    }
+
+    fn nest_events(
+        &self,
+        task: TaskIndex,
+        events_by_task: &[Vec<usize>],
+        events_flat: &[export::Event],
+    ) -> export::NestedEvent {
+        let task_events = &events_by_task[task];
+    }
+
+    fn export_value(&self, event_argument: &EventArgument<'db>) -> serde_json::Value {
+        match event_argument {
+            EventArgument::Many(event_arguments) => event_arguments
+                .iter()
+                .map(|a| self.export_value(a))
+                .collect(),
+            EventArgument::Unit(v) => serde_json::to_value(v).unwrap(),
+            EventArgument::Usize(v) => serde_json::to_value(v).unwrap(),
+            EventArgument::Bool(v) => serde_json::to_value(v).unwrap(),
+            EventArgument::Lien(v) => serde_json::to_value(format!("{v:?}")).unwrap(),
+            EventArgument::SymExpr(v) => serde_json::to_value(format!("{v:?}")).unwrap(),
+            EventArgument::OptSymExpr(v) => serde_json::to_value(format!("{v:?}")).unwrap(),
+            EventArgument::SymTerm(v) => serde_json::to_value(format!("{v:?}")).unwrap(),
+            EventArgument::SymTy(v) => serde_json::to_value(format!("{v:?}")).unwrap(),
+            EventArgument::SymPerm(v) => serde_json::to_value(format!("{v:?}")).unwrap(),
+            EventArgument::InferVarIndex(v) => serde_json::to_value(export::InferId {
+                index: v.as_usize(),
+            })
+            .unwrap(),
+            EventArgument::Errors(v) => serde_json::to_value(format!("{v:?}")).unwrap(),
+            EventArgument::Trivalue(v) => serde_json::to_value(format!("{v:?}")).unwrap(),
+            EventArgument::Chain(v) => serde_json::to_value(format!("{v:?}")).unwrap(),
+        }
     }
 }
 
