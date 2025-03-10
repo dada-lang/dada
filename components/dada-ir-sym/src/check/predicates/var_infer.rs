@@ -4,6 +4,7 @@ use dada_ir_ast::diagnostic::Errors;
 
 use crate::{
     check::{
+        debug::TaskDescription,
         env::Env,
         inference::InferenceVarData,
         predicates::Predicate,
@@ -189,40 +190,43 @@ fn defer_require_bounds_provably_predicate<'db>(
     or_else: Arc<dyn OrElse<'db> + 'db>,
 ) {
     let perm_infer = env.perm_infer(infer);
-    env.spawn(async move |env| match predicate {
-        Predicate::Copy => {
-            env.require_for_all_infer_bounds(
-                perm_infer,
-                InferenceVarData::upper_chains,
-                async |env, chain| require_chain_is_copy(env, &chain, &or_else).await,
-            )
-            .await
-        }
-        Predicate::Move => {
-            env.require_for_all_infer_bounds(
-                perm_infer,
-                InferenceVarData::lower_chains,
-                async |env, chain| require_chain_is_move(env, &chain, &or_else).await,
-            )
-            .await
-        }
-        Predicate::Owned => {
-            env.require_for_all_infer_bounds(
-                perm_infer,
-                InferenceVarData::lower_chains,
-                async |env, chain| require_chain_is_owned(env, &chain, &or_else).await,
-            )
-            .await
-        }
-        Predicate::Lent => {
-            env.require_for_all_infer_bounds(
-                perm_infer,
-                InferenceVarData::upper_chains,
-                async |env, chain| require_chain_is_lent(env, &chain, &or_else).await,
-            )
-            .await
-        }
-    });
+    env.spawn(
+        TaskDescription::RequireBoundsProvablyPredicate(infer, predicate),
+        async move |env| match predicate {
+            Predicate::Copy => {
+                env.require_for_all_infer_bounds(
+                    perm_infer,
+                    InferenceVarData::upper_chains,
+                    async |env, chain| require_chain_is_copy(env, &chain, &or_else).await,
+                )
+                .await
+            }
+            Predicate::Move => {
+                env.require_for_all_infer_bounds(
+                    perm_infer,
+                    InferenceVarData::lower_chains,
+                    async |env, chain| require_chain_is_move(env, &chain, &or_else).await,
+                )
+                .await
+            }
+            Predicate::Owned => {
+                env.require_for_all_infer_bounds(
+                    perm_infer,
+                    InferenceVarData::lower_chains,
+                    async |env, chain| require_chain_is_owned(env, &chain, &or_else).await,
+                )
+                .await
+            }
+            Predicate::Lent => {
+                env.require_for_all_infer_bounds(
+                    perm_infer,
+                    InferenceVarData::upper_chains,
+                    async |env, chain| require_chain_is_lent(env, &chain, &or_else).await,
+                )
+                .await
+            }
+        },
+    );
 }
 
 fn defer_require_bounds_not_provably_predicate<'db>(
@@ -231,23 +235,28 @@ fn defer_require_bounds_not_provably_predicate<'db>(
     predicate: Predicate,
     or_else: Arc<dyn OrElse<'db> + 'db>,
 ) {
-    env.spawn(async move |env| match predicate {
-        Predicate::Copy => {
-            env.require_for_all_infer_bounds(
-                infer,
-                InferenceVarData::upper_chains,
-                async |env, chain| require_chain_isnt_provably_copy(env, &chain, &or_else).await,
-            )
-            .await
-        }
-        Predicate::Move => {
-            todo!()
-        }
-        Predicate::Owned => {
-            todo!()
-        }
-        Predicate::Lent => {
-            todo!()
-        }
-    });
+    env.spawn(
+        TaskDescription::RequireBoundsNotProvablyPredicate(infer, predicate),
+        async move |env| match predicate {
+            Predicate::Copy => {
+                env.require_for_all_infer_bounds(
+                    infer,
+                    InferenceVarData::upper_chains,
+                    async |env, chain| {
+                        require_chain_isnt_provably_copy(env, &chain, &or_else).await
+                    },
+                )
+                .await
+            }
+            Predicate::Move => {
+                todo!()
+            }
+            Predicate::Owned => {
+                todo!()
+            }
+            Predicate::Lent => {
+                todo!()
+            }
+        },
+    );
 }

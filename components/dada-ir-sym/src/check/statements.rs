@@ -56,9 +56,8 @@ pub async fn check_block_statements<'db>(
                         None => None,
                     },
                     async |env| {
-                        let mut env = env.clone();
                         env.push_program_variable_with_ty(lv, ty);
-                        check_block_statements(&mut env, block_span, rest).await
+                        check_block_statements(env, block_span, rest).await
                     },
                 )
                 .await;

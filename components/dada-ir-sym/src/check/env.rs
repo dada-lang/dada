@@ -1,7 +1,8 @@
-use std::{cell::Cell, ops::AsyncFnOnce, sync::Arc};
+use std::{cell::Cell, ops::AsyncFnOnce, panic::Location, sync::Arc};
 
 use crate::{
     check::{
+        debug::TaskDescription,
         scope::Scope,
         subtype::terms::{require_assignable_type, require_sub_terms},
     },
@@ -27,6 +28,7 @@ use crate::{check::runtime::Runtime, check::universe::Universe, ir::exprs::SymEx
 
 use super::{
     CheckInEnv,
+    debug::{LogHandle, ToEventArgument},
     inference::{InferVarKind, InferenceVarData},
     predicates::Predicate,
     report::{BooleanTypeRequired, OrElse},
@@ -36,8 +38,9 @@ use super::{
 
 pub mod combinator;
 
-#[derive(Clone)]
 pub(crate) struct Env<'db> {
+    pub log: LogHandle<'db>,
+
     universe: Universe,
 
     /// Reference to the runtime
@@ -67,6 +70,7 @@ impl<'db> Env<'db> {
     /// Create an empty environment
     pub(crate) fn new(runtime: &Runtime<'db>, scope: Scope<'db, 'db>) -> Self {
         Self {
+            log: runtime.root_log(),
             universe: Universe::ROOT,
             runtime: runtime.clone(),
             scope: Arc::new(scope),
@@ -88,7 +92,7 @@ impl<'db> Env<'db> {
     }
 
     #[expect(dead_code)]
-    pub(crate) fn universe(&self) -> Universe {
+    pub fn universe(&self) -> Universe {
         self.universe
     }
 
@@ -100,6 +104,21 @@ impl<'db> Env<'db> {
     /// Access the lower-level type checking runtime
     pub fn runtime(&self) -> &Runtime<'db> {
         &self.runtime
+    }
+
+    /// Create a new environment from this environment.
+    /// The log will be adjusted per the `log` function.
+    pub fn fork(&self, log: impl FnOnce(&LogHandle<'db>) -> LogHandle<'db>) -> Env<'db> {
+        Env {
+            log: log(&self.log),
+            universe: self.universe,
+            runtime: self.runtime.clone(),
+            scope: self.scope.clone(),
+            variable_universes: self.variable_universes.clone(),
+            variable_tys: self.variable_tys.clone(),
+            return_ty: self.return_ty,
+            assumptions: self.assumptions.clone(),
+        }
     }
 
     /// True if the given variable is declared to meet the given predicate.
@@ -279,6 +298,7 @@ impl<'db> Env<'db> {
     }
 
     /// Spawn a subtask that will require `value_ty` be assignable to `place_ty`.
+    #[track_caller]
     pub(super) fn spawn_require_assignable_type(
         &mut self,
         value_ty: SymTy<'db>,
@@ -287,17 +307,22 @@ impl<'db> Env<'db> {
     ) {
         debug!("defer require_assignable_object_type", value_ty, place_ty);
         let or_else = or_else.to_arc();
-        self.runtime.spawn(self, async move |ref mut env| {
-            debug!("require_assignable_object_type", value_ty, place_ty);
+        self.runtime.spawn(
+            self,
+            TaskDescription::RequireAssignableType(value_ty, place_ty),
+            async move |env| {
+                debug!("require_assignable_object_type", value_ty, place_ty);
 
-            match require_assignable_type(env, value_ty, place_ty, &or_else).await {
-                Ok(()) => (),
-                Err(Reported(_)) => (),
-            }
-        })
+                match require_assignable_type(env, value_ty, place_ty, &or_else).await {
+                    Ok(()) => (),
+                    Err(Reported(_)) => (),
+                }
+            },
+        )
     }
 
     /// Spawn a subtask that will require `expected_ty` be equal to `found_ty`.
+    #[track_caller]
     pub(super) fn spawn_require_equal_types(
         &self,
         expected_ty: SymTy<'db>,
@@ -306,28 +331,36 @@ impl<'db> Env<'db> {
     ) {
         debug!("defer require_equal_object_types", expected_ty, found_ty);
         let or_else = or_else.to_arc();
-        self.runtime.spawn(self, async move |ref mut env| {
-            debug!("require_equal_object_types", expected_ty, found_ty);
+        self.runtime.spawn(
+            self,
+            TaskDescription::RequireEqualTypes(expected_ty, found_ty),
+            async move |env| {
+                debug!("require_equal_object_types", expected_ty, found_ty);
 
-            env.require_both(
-                async |env| {
-                    require_sub_terms(env, expected_ty.into(), found_ty.into(), &or_else).await
-                },
-                async |env| {
-                    require_sub_terms(env, found_ty.into(), expected_ty.into(), &or_else).await
-                },
-            )
-            .await
-        })
+                env.require_both(
+                    async |env| {
+                        require_sub_terms(env, expected_ty.into(), found_ty.into(), &or_else).await
+                    },
+                    async |env| {
+                        require_sub_terms(env, found_ty.into(), expected_ty.into(), &or_else).await
+                    },
+                )
+                .await
+            },
+        )
     }
 
+    #[track_caller]
     pub(super) fn spawn_require_numeric_type(&mut self, ty: SymTy<'db>, or_else: &dyn OrElse<'db>) {
         let or_else = or_else.to_arc();
-        self.runtime.spawn(self, async move |ref mut env| {
-            require_numeric_type(env, ty, &or_else).await
-        })
+        self.runtime.spawn(
+            self,
+            TaskDescription::RequireNumericType(ty),
+            async move |env| require_numeric_type(env, ty, &or_else).await,
+        )
     }
 
+    #[track_caller]
     pub(super) fn spawn_require_future_type(
         &self,
         ty: SymTy<'db>,
@@ -335,35 +368,44 @@ impl<'db> Env<'db> {
         or_else: &dyn OrElse<'db>,
     ) {
         let or_else = or_else.to_arc();
-        self.runtime.spawn(self, async move |ref mut env| {
-            require_future_type(env, ty, awaited_ty, &or_else).await
-        })
+        self.runtime.spawn(
+            self,
+            TaskDescription::RequireFutureType(ty),
+            async move |env| require_future_type(env, ty, awaited_ty, &or_else).await,
+        )
     }
 
     /// Check whether any type in `tys` is known to be never (or error).
     /// If so, do nothing.
     /// Otherwise, if no type in `tys` is known to be never, invoke `op` (asynchronously).
+    #[track_caller]
     pub fn spawn_if_not_never(
         &mut self,
         tys: &[SymTy<'db>],
         op: impl AsyncFnOnce(&mut Env<'db>) + 'db,
     ) {
         let _tys = tys.to_vec();
-        self.runtime.spawn(self, async move |env| {
-            // FIXME: check for never
-            op(env).await
-        })
+        self.runtime
+            .spawn(self, TaskDescription::IfNotNever, async move |env| {
+                // FIXME: check for never
+                op(env).await
+            })
     }
 
     pub fn describe_ty<'a, 'chk>(&'a self, ty: SymTy<'db>) -> impl std::fmt::Display + 'a {
         format!("{ty:?}") // FIXME
     }
 
-    pub(crate) fn spawn<R>(&mut self, op: impl AsyncFnOnce(&mut Self) -> R + 'db)
-    where
+    #[track_caller]
+    pub fn spawn<R>(
+        &mut self,
+        task_description: TaskDescription<'db>,
+        op: impl AsyncFnOnce(&mut Self) -> R + 'db,
+    ) where
         R: DeferResult,
     {
-        self.runtime.spawn(self, async move |env| op(env).await)
+        self.runtime
+            .spawn(self, task_description, async move |env| op(env).await)
     }
 
     pub(crate) fn require_expr_has_bool_ty(&mut self, expr: SymExpr<'db>) {
@@ -401,6 +443,50 @@ impl<'db> Env<'db> {
     /// If `infer` is a permission variable, just returns `infer`.
     pub fn perm_infer(&self, infer: InferVarIndex) -> InferVarIndex {
         self.runtime().perm_infer(infer)
+    }
+
+    #[track_caller]
+    pub fn log(&mut self, message: &'static str, values: &[&dyn ToEventArgument<'db>]) {
+        self.log.log(Location::caller(), message, values)
+    }
+
+    #[track_caller]
+    pub fn indent<R>(
+        &mut self,
+        message: &'static str,
+        values: &[&dyn ToEventArgument<'db>],
+        op: impl AsyncFnOnce(&mut Self) -> R,
+    ) -> impl Future<Output = R>
+    where
+        R: ToEventArgument<'db>,
+    {
+        let source_location = Location::caller();
+        self.indent_with_source_location(source_location, message, values, op)
+    }
+
+    pub async fn indent_with_source_location<R>(
+        &mut self,
+        source_location: &'static Location<'static>,
+        message: &'static str,
+        values: &[&dyn ToEventArgument<'db>],
+        op: impl AsyncFnOnce(&mut Self) -> R,
+    ) -> R
+    where
+        R: ToEventArgument<'db>,
+    {
+        self.log.indent(source_location, message, values);
+        let result = op(self).await;
+        self.log.log(source_location, "result", &[&result]);
+        self.log.undent(source_location, message);
+        result
+    }
+
+    pub fn log_result<T>(&mut self, source_location: &'static Location<'static>, value: T) -> T
+    where
+        T: ToEventArgument<'db>,
+    {
+        self.log.log(source_location, "result", &[&value]);
+        value
     }
 }
 

@@ -1,5 +1,6 @@
 use std::{
     future::Future,
+    panic::Location,
     sync::{
         Arc, Mutex, RwLock,
         atomic::{AtomicBool, AtomicU64, Ordering},
@@ -18,6 +19,7 @@ use dada_util::{Map, vecext::VecExt};
 use crate::{check::env::Env, check::inference::InferenceVarData};
 
 use super::{
+    debug::{LogHandle, RootTaskDescription, TaskDescription},
     predicates::Predicate,
     red::{Chain, RedTy},
     report::{ArcOrElse, OrElse},
@@ -35,6 +37,7 @@ pub(crate) struct RuntimeData<'db> {
     waiting_on_inference_var: Mutex<Map<InferVarIndex, Vec<EqWaker>>>,
     complete: AtomicBool,
     next_task_id: AtomicU64,
+    root_log: LogHandle<'db>,
 }
 
 /// Wrapper around waker to compare its data/vtable fields by pointer equality.
@@ -70,6 +73,7 @@ impl<'db> std::ops::Deref for Runtime<'db> {
 }
 
 impl<'db> Runtime<'db> {
+    #[track_caller]
     pub(crate) fn execute<T: 'db, R: 'db>(
         db: &'db dyn crate::Db,
         span: Span<'db>,
@@ -79,7 +83,8 @@ impl<'db> Runtime<'db> {
     where
         R: Err<'db>,
     {
-        let runtime = Runtime::new(db);
+        let source_location = Location::caller();
+        let runtime = Runtime::new(db, source_location, span);
         let (channel_tx, channel_rx) = std::sync::mpsc::channel();
         runtime.spawn_future({
             let runtime = runtime.clone();
@@ -101,7 +106,11 @@ impl<'db> Runtime<'db> {
         }
     }
 
-    fn new(db: &'db dyn crate::Db) -> Self {
+    fn new(
+        db: &'db dyn crate::Db,
+        source_location: &'static Location<'static>,
+        span: Span<'db>,
+    ) -> Self {
         Self {
             data: Arc::new(RuntimeData {
                 db,
@@ -110,8 +119,14 @@ impl<'db> Runtime<'db> {
                 ready_to_execute: Default::default(),
                 waiting_on_inference_var: Default::default(),
                 next_task_id: Default::default(),
+                root_log: LogHandle::root(db, source_location, RootTaskDescription { span }),
             }),
         }
+    }
+
+    /// Get a duplicate of the root log handle.
+    pub fn root_log(&self) -> LogHandle<'db> {
+        self.root_log.duplicate_root_handle()
     }
 
     fn next_task_id(&self) -> u64 {
@@ -291,11 +306,17 @@ impl<'db> Runtime<'db> {
 
     /// Execute the given future asynchronously from the main execution.
     /// It must execute to completion eventually or an error will be reported.
-    pub fn spawn<R>(&self, env: &Env<'db>, check: impl 'db + AsyncFnOnce(&mut Env<'db>) -> R)
-    where
+    #[track_caller]
+    pub fn spawn<R>(
+        &self,
+        env: &Env<'db>,
+        task_description: TaskDescription<'db>,
+        check: impl 'db + AsyncFnOnce(&mut Env<'db>) -> R,
+    ) where
         R: DeferResult,
     {
-        let mut env = env.clone();
+        let source_location = Location::caller();
+        let mut env = env.fork(|log| log.spawn(source_location, task_description));
         self.spawn_future(async move { check(&mut env).await.finish() });
     }
 

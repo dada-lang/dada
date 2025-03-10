@@ -4,6 +4,7 @@ use dada_util::{boxed_async_fn, vecset::VecSet};
 use crate::{
     check::{
         alternatives::Alternative,
+        debug::TaskDescription,
         env::Env,
         inference::InferenceVarData,
         predicates::{
@@ -78,27 +79,30 @@ async fn sub_chains<'db>(
     upper_chain: &[Lien<'db>],
     or_else: &dyn OrElse<'db>,
 ) -> Errors<bool> {
-    let db = env.db();
-    match (lower_chain.split_first(), upper_chain.split_first()) {
-        (None, _) => {
-            // `my <= C`
-            Ok(true)
-        }
+    env.indent("sub_chains", &[&lower_chain, &upper_chain], async |env| {
+        let db = env.db();
+        match (lower_chain.split_first(), upper_chain.split_first()) {
+            (None, _) => {
+                // `my <= C`
+                Ok(true)
+            }
 
-        (Some(_), None) => {
-            let lower_term = Lien::chain_to_perm(db, lower_chain);
-            env.if_required(
-                alternative,
-                async |env| require_term_is_my(env, lower_term.into(), or_else).await,
-                async |env| term_is_provably_my(env, lower_term.into()).await,
-            )
-            .await
-        }
+            (Some(_), None) => {
+                let lower_term = Lien::chain_to_perm(db, lower_chain);
+                env.if_required(
+                    alternative,
+                    async |env| require_term_is_my(env, lower_term.into(), or_else).await,
+                    async |env| term_is_provably_my(env, lower_term.into()).await,
+                )
+                .await
+            }
 
-        (Some((&lien0, c0)), Some((&lien1, c1))) => {
-            sub_chains1(env, alternative, lien0, c0, lien1, c1, or_else).await
+            (Some((&lien0, c0)), Some((&lien1, c1))) => {
+                sub_chains1(env, alternative, lien0, c0, lien1, c1, or_else).await
+            }
         }
-    }
+    })
+    .await
 }
 
 #[boxed_async_fn]
@@ -257,25 +261,29 @@ async fn require_lower_chain<'db>(
     // there is at least one *upper bound* on the variable (either one
     // that currently exists or one that may be added in the future)
     // that is a superchain of this lower bound.
-    env.runtime().spawn(env, async move |env| {
-        env.require_for_all_infer_bounds(
-            upper_head,
-            InferenceVarData::upper_chains,
-            async |env, upper_chain| {
-                Alternative::the_future_never_comes(async |alternative| {
-                    env.require(
-                        async |env| {
-                            sub_chains(env, alternative, &lower_chain, &upper_chain, &or_else).await
-                        },
-                        |env| or_else.report(env, Because::JustSo),
-                    )
+    env.runtime()
+        .spawn(env, TaskDescription::RequireLowerChain, async move |env| {
+            env.log("RequireLowerChain", &[&lower_chain, &upper_head]);
+
+            env.require_for_all_infer_bounds(
+                upper_head,
+                InferenceVarData::upper_chains,
+                async |env, upper_chain| {
+                    Alternative::the_future_never_comes(async |alternative| {
+                        env.require(
+                            async |env| {
+                                sub_chains(env, alternative, &lower_chain, &upper_chain, &or_else)
+                                    .await
+                            },
+                            |env| or_else.report(env, Because::JustSo),
+                        )
+                        .await
+                    })
                     .await
-                })
-                .await
-            },
-        )
-        .await
-    });
+                },
+            )
+            .await
+        });
 
     Ok(())
 }

@@ -1,0 +1,306 @@
+#![expect(dead_code)]
+
+use std::{
+    panic::Location,
+    sync::{Arc, Mutex},
+};
+
+use dada_ir_ast::{diagnostic::Errors, span::Span};
+
+use crate::ir::{
+    exprs::SymExpr,
+    indices::InferVarIndex,
+    types::{SymGenericTerm, SymPerm, SymTy},
+};
+
+use super::{
+    predicates::Predicate,
+    red::{Chain, Lien},
+};
+
+pub struct LogHandle<'db> {
+    log: Option<Arc<Mutex<Log<'db>>>>,
+    task_index: TaskIndex,
+}
+
+impl<'db> LogHandle<'db> {
+    pub fn root(
+        db: &'db dyn crate::Db,
+        source_location: &'static Location<'static>,
+        root: RootTaskDescription<'db>,
+    ) -> Self {
+        LogHandle {
+            log: Some(Arc::new(Mutex::new(Log::new(db, source_location, root)))),
+            task_index: TaskIndex::root(),
+        }
+    }
+
+    const DISABLED: Self = LogHandle {
+        log: None,
+        task_index: TaskIndex::root(),
+    };
+
+    pub fn spawn(
+        &self,
+        source_location: &'static Location<'static>,
+        task_description: TaskDescription<'db>,
+    ) -> Self {
+        let Some(log) = &self.log else {
+            return Self::DISABLED;
+        };
+
+        let mut locked_log = log.lock().unwrap();
+        let task_index = locked_log.next_task_index();
+        let event_index = locked_log.next_event_index();
+        locked_log.push_task(Task {
+            task_description,
+            started_at: event_index,
+        });
+        locked_log.push_event(Event {
+            task: self.task_index,
+            source_location,
+            kind: EventKind::Spawned(task_index),
+        });
+        std::mem::drop(locked_log);
+
+        LogHandle {
+            log: Some(log.clone()),
+            task_index,
+        }
+    }
+
+    /// Duplicate this log handle. We assert that it is the root handle.
+    /// This is because there is no *good* reason to duplicate any other handle;
+    /// when new tasks are created you should use the `spawn` or other such methods
+    /// to access them.
+    pub fn duplicate_root_handle(&self) -> Self {
+        assert_eq!(self.task_index, TaskIndex::root());
+        Self {
+            log: self.log.clone(),
+            task_index: self.task_index,
+        }
+    }
+
+    /// Push an "indenting" log, which causes subsequent log messages to be indented
+    /// until `undent` is called.
+    pub fn indent(
+        &self,
+        source_location: &'static Location<'static>,
+        message: &'static str,
+        values: &[&dyn ToEventArgument<'db>],
+    ) {
+        self.push_event(source_location, message, values, EventKind::Indent)
+    }
+
+    /// Remove one layer of indent
+    pub fn undent(&self, source_location: &'static Location<'static>, message: &'static str) {
+        self.push_event(source_location, message, &[], |m, _| EventKind::Undent(m))
+    }
+
+    /// Log a message with argument(s).
+    pub fn log(
+        &self,
+        source_location: &'static Location<'static>,
+        message: &'static str,
+        values: &[&dyn ToEventArgument<'db>],
+    ) {
+        self.push_event(source_location, message, values, EventKind::Log)
+    }
+
+    fn push_event(
+        &self,
+        source_location: &'static Location<'static>,
+        message: &'static str,
+        values: &[&dyn ToEventArgument<'db>],
+        kind: impl FnOnce(&'static str, EventArgument<'db>) -> EventKind<'db>,
+    ) {
+        let Some(log) = &self.log else {
+            return;
+        };
+
+        let argument = if values.len() == 0 {
+            EventArgument::Unit(())
+        } else if values.len() == 1 {
+            values[0].to_event_argument()
+        } else {
+            EventArgument::Many(values.iter().map(|v| v.to_event_argument()).collect())
+        };
+
+        log.lock().unwrap().push_event(Event {
+            source_location,
+            task: self.task_index,
+            kind: kind(message, argument),
+        });
+    }
+}
+
+pub struct Log<'db> {
+    db: &'db dyn crate::Db,
+    tasks: Vec<Task<'db>>,
+    events: Vec<Event<'db>>,
+    inference_variables: Vec<InferenceVariable<'db>>,
+}
+
+impl<'db> Log<'db> {
+    fn new(
+        db: &'db dyn crate::Db,
+        source_location: &'static Location<'static>,
+        root: RootTaskDescription<'db>,
+    ) -> Self {
+        let tasks = vec![Task {
+            task_description: TaskDescription::Root(root),
+            started_at: EventIndex(0),
+        }];
+
+        let events = vec![Event {
+            task: TaskIndex::root(),
+            source_location,
+            kind: EventKind::Root,
+        }];
+
+        Self {
+            db,
+            tasks,
+            events,
+            inference_variables: Default::default(),
+        }
+    }
+
+    fn next_task_index(&self) -> TaskIndex {
+        TaskIndex(self.events.len())
+    }
+
+    fn next_event_index(&self) -> EventIndex {
+        EventIndex(self.events.len())
+    }
+
+    fn push_task(&mut self, task: Task<'db>) {
+        self.tasks.push(task);
+    }
+
+    fn push_event(&mut self, event: Event<'db>) {
+        self.events.push(event);
+    }
+}
+
+#[derive(Copy, Clone, PartialEq, Eq, PartialOrd, Ord, Hash, Debug)]
+pub struct TaskIndex(usize);
+
+impl TaskIndex {
+    pub const fn root() -> Self {
+        TaskIndex(0)
+    }
+}
+
+pub struct Task<'db> {
+    pub task_description: TaskDescription<'db>,
+    pub started_at: EventIndex,
+}
+
+#[derive(Copy, Clone, PartialEq, Eq, PartialOrd, Ord, Hash, Debug)]
+pub struct EventIndex(usize);
+
+pub struct Event<'db> {
+    pub task: TaskIndex,
+    pub source_location: &'static Location<'static>,
+    pub kind: EventKind<'db>,
+}
+
+pub enum EventKind<'db> {
+    Root,
+    Spawned(TaskIndex),
+    Indent(&'static str, EventArgument<'db>),
+    Undent(&'static str),
+    Log(&'static str, EventArgument<'db>),
+}
+
+pub struct RootTaskDescription<'db> {
+    pub span: Span<'db>,
+}
+
+pub enum TaskDescription<'db> {
+    Root(RootTaskDescription<'db>),
+    Require(usize),
+    Join(usize),
+    All(usize),
+    Any(usize),
+    IfRequired,
+    IfNotRequired,
+    RequireAssignableType(SymTy<'db>, SymTy<'db>),
+    RequireEqualTypes(SymTy<'db>, SymTy<'db>),
+    RequireNumericType(SymTy<'db>),
+    RequireFutureType(SymTy<'db>),
+    RequireBoundsProvablyPredicate(InferVarIndex, Predicate),
+    RequireBoundsNotProvablyPredicate(InferVarIndex, Predicate),
+    RequireLowerChain,
+    IfNotNever,
+    Misc,
+    CheckArg(usize),
+}
+
+pub trait ToEventArgument<'db> {
+    fn to_event_argument(&self) -> EventArgument<'db>;
+}
+
+impl<'db, T: ?Sized + ToEventArgument<'db>> ToEventArgument<'db> for &T {
+    fn to_event_argument(&self) -> EventArgument<'db> {
+        T::to_event_argument(self)
+    }
+}
+
+macro_rules! to_event_argument_impls {
+    (
+        $(#[$attr:meta])*
+        $v:vis enum $EventArgument:ident<$db:lifetime> {
+            $($variant:ident($ty:ty),)*
+        }
+    ) => {
+        $(#[$attr])*
+        $v enum $EventArgument<$db> {
+            $($variant($ty),)*
+        }
+
+        $(
+            impl<$db> ToEventArgument<$db> for $ty {
+                fn to_event_argument(&self) -> $EventArgument<$db> {
+                    $EventArgument::$variant(
+                        <$ty>::clone(self)
+                    )
+                }
+            }
+        )*
+    };
+}
+
+to_event_argument_impls! {
+    #[derive(Debug, Clone)]
+    pub enum EventArgument<'db> {
+        Many(Vec<EventArgument<'db>>),
+        Unit(()),
+        Usize(usize),
+        Bool(bool),
+        Lien(Lien<'db>),
+        SymExpr(SymExpr<'db>),
+        OptSymExpr(Option<SymExpr<'db>>),
+        SymTerm(SymGenericTerm<'db>),
+        SymTy(SymTy<'db>),
+        SymPerm(SymPerm<'db>),
+        InferVarIndex(InferVarIndex),
+        Errors(Errors<()>),
+        Trivalue(Errors<bool>),
+        Chain(Chain<'db>),
+    }
+}
+
+impl<'db, T> ToEventArgument<'db> for [T]
+where
+    T: ToEventArgument<'db>,
+{
+    fn to_event_argument(&self) -> EventArgument<'db> {
+        EventArgument::Many(self.iter().map(|v| v.to_event_argument()).collect())
+    }
+}
+
+pub struct InferenceVariable<'db> {
+    span: Span<'db>,
+}

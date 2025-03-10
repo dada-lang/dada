@@ -1,3 +1,5 @@
+use std::panic::Location;
+
 use crate::{
     check::{
         CheckInEnv,
@@ -32,6 +34,7 @@ use dada_parser::prelude::*;
 use dada_util::{FromImpls, boxed_async_fn};
 
 use super::{
+    debug::TaskDescription,
     report::{
         AwaitNonFuture, BadSubtypeError, InvalidAssignmentType, InvalidReturnValue,
         NumericTypeExpected, OperatorArgumentsMustHaveSameType, OperatorRequiresNumericType,
@@ -1179,7 +1182,7 @@ async fn check_call_common<'db>(
 
     // Function to type check a single argument and check it has the correct type.
     let check_arg = async |i: usize| -> ExprResult<'db> {
-        let mut env = env.clone();
+        let mut env = env.fork(|log| log.spawn(Location::caller(), TaskDescription::CheckArg(i)));
         let mut arg_temporaries = vec![];
         let expr = if i < self_args {
             self_expr.unwrap()

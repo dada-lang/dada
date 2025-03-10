@@ -6,16 +6,16 @@ use dada_ir_ast::{
     inputs::Krate,
     span::{Span, Spanned},
 };
-use dada_util::{indirect, FromImpls};
+use dada_util::{FromImpls, indirect};
 
 use crate::{
-    check::{scope_tree::ScopeTreeNode, CheckInEnv},
+    check::{CheckInEnv, scope_tree::ScopeTreeNode},
     ir::{
         binder::BoundTerm,
         classes::{SymAggregate, SymClassMember},
         functions::SymFunction,
         module::SymModule,
-        primitive::{primitives, SymPrimitive},
+        primitive::{SymPrimitive, primitives},
         types::{SymGenericKind, SymGenericTerm},
         variables::{FromVar, SymVariable},
     },
@@ -27,12 +27,14 @@ use super::Env;
 /// Name resolution scope, used when converting types/function-bodies etc into symbols.
 #[derive(Clone, Debug, PartialEq, Eq)]
 pub struct Scope<'scope, 'db> {
+    span: Span<'db>,
     chain: ScopeChain<'scope, 'db>,
 }
 impl<'scope, 'db> Scope<'scope, 'db> {
     /// A base scope containing only the primitive names.
     pub(crate) fn new(db: &'db dyn crate::Db, span: Span<'db>) -> Self {
         let mut this = Scope {
+            span,
             chain: ScopeChain::primitives(),
         };
 
@@ -54,6 +56,10 @@ impl<'scope, 'db> Scope<'scope, 'db> {
         let mut this: Scope<'scope1, 'db> = self;
         this.push_link(link);
         this
+    }
+
+    pub fn span(&self) -> Span<'db> {
+        self.span
     }
 
     /// Extend this scope with the prelude from a crate.
