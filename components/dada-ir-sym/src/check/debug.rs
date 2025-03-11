@@ -1,13 +1,11 @@
 #![expect(dead_code)]
 
 use std::{
-    collections::HashMap,
     panic::Location,
     sync::{Arc, Mutex},
 };
 
 use dada_ir_ast::{diagnostic::Errors, span::Span};
-use export::TaskId;
 
 use crate::ir::{
     exprs::SymExpr,
@@ -194,7 +192,7 @@ impl<'db> LogHandle<'db> {
 
         // Next: assemble the nested events.
         let root_task = TaskIndex::root();
-        let nested_event = self.nest_events(root_task, &events_by_task, &events_flat);
+        let nested_event = log.export_nested_event_for_task(root_task, &events_by_task);
 
         // Next: assemble tasks
         let tasks = vec![ /* TODO */];
@@ -204,15 +202,6 @@ impl<'db> LogHandle<'db> {
             nested_event,
             tasks,
         }
-    }
-
-    fn nest_events(
-        &self,
-        task: TaskIndex,
-        events_by_task: &[Vec<usize>],
-        events_flat: &[export::Event],
-    ) -> export::NestedEvent {
-        let task_events = &events_by_task[task];
     }
 
     fn export_value(&self, event_argument: &EventArgument<'db>) -> serde_json::Value {
@@ -287,6 +276,75 @@ impl<'db> Log<'db> {
 
     fn push_event(&mut self, event: Event<'db>) {
         self.events.push(event);
+    }
+
+    fn export_nested_event_for_task(
+        &self,
+        task: TaskIndex,
+        events_by_task: &[Vec<usize>],
+    ) -> export::NestedEvent {
+        let Some((event_first, mut events_rest)) = events_by_task[task.0].split_first() else {
+            panic!("no root event")
+        };
+
+        export::NestedEvent {
+            timestamp: export::TimeStamp {
+                index: *event_first,
+            },
+            children: self.export_child_nested_events(task, &mut events_rest, events_by_task),
+        }
+    }
+
+    fn export_child_nested_events(
+        &self,
+        task: TaskIndex,
+        task_events: &mut &[usize],
+        events_by_task: &[Vec<usize>],
+    ) -> Vec<export::NestedEvent> {
+        let mut output = vec![];
+
+        loop {
+            let Some((event_first, events_rest)) = task_events.split_first() else {
+                return output;
+            };
+            *task_events = events_rest;
+            let event_kind = &self.events[*event_first];
+            match &event_kind.kind {
+                EventKind::Undent(_) => {
+                    return output;
+                }
+                EventKind::Spawned(spawned_task) => {
+                    output.push(export::NestedEvent {
+                        timestamp: export::TimeStamp {
+                            index: *event_first,
+                        },
+                        children: vec![
+                            self.export_nested_event_for_task(*spawned_task, events_by_task),
+                        ],
+                    });
+                }
+                EventKind::Indent(..) => {
+                    output.push(export::NestedEvent {
+                        timestamp: export::TimeStamp {
+                            index: *event_first,
+                        },
+                        children: self.export_child_nested_events(
+                            task,
+                            task_events,
+                            events_by_task,
+                        ),
+                    });
+                }
+                EventKind::Root | EventKind::Log(..) => {
+                    output.push(export::NestedEvent {
+                        timestamp: export::TimeStamp {
+                            index: *event_first,
+                        },
+                        children: Default::default(),
+                    });
+                }
+            }
+        }
     }
 }
 
