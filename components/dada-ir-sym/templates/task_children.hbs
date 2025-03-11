@@ -1,0 +1,11 @@
+{{#each children}}
+<li class="event">
+    {{> render_event this ../events_flat}}
+    {{#if children}}
+    <span class="caret"></span>
+    <ul class="nested">
+        {{> task_children this ../events_flat}}
+    </ul>
+    {{/if}}
+</li>
+{{/each}}

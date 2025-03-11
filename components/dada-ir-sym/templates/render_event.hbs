@@ -1,0 +1,6 @@
+{{#with (index events_flat timestamp.index)}}
+<span class="event-kind">{{kind}}</span>
+{{#if value}}
+<span class="event-value">{{value}}</span>
+{{/if}}
+{{/with}}

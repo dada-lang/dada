@@ -20,6 +20,7 @@ use super::{
 };
 
 mod export;
+mod hbs;
 
 pub struct LogHandle<'db> {
     log: Option<Arc<Mutex<Log<'db>>>>,
@@ -165,14 +166,23 @@ impl<'db> LogHandle<'db> {
         let line_col = absolute_span
             .source_file
             .line_col(log.db, absolute_span.start);
-        let path = PathBuf::from(format!(
-            "dada_debug/{}.{}.json",
+        let base_path = PathBuf::from(format!(
+            "dada_debug/{}:{}",
             file_path.display(),
             line_col.0.as_usize() + 1,
         ));
 
-        std::fs::create_dir_all(path.parent().unwrap()).unwrap();
-        std::fs::write(path, serde_json::to_string_pretty(&export).unwrap()).unwrap();
+        std::fs::create_dir_all(base_path.parent().unwrap()).unwrap();
+
+        let json_path = base_path.with_extension("json");
+        std::fs::write(json_path, serde_json::to_string_pretty(&export).unwrap()).unwrap();
+
+        let html_path = base_path.with_extension("html");
+        std::fs::write(html_path, self.render_html(&export)).unwrap();
+    }
+
+    fn render_html(&self, export: &export::Log) -> String {
+        hbs::render(export)
     }
 
     fn export(&self) -> export::Log {
