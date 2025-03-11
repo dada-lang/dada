@@ -2,6 +2,7 @@
 
 use std::{
     panic::Location,
+    path::PathBuf,
     sync::{Arc, Mutex},
 };
 
@@ -52,7 +53,7 @@ impl<'db> LogHandle<'db> {
         };
 
         let mut locked_log = log.lock().unwrap();
-        let task_index = locked_log.next_task_index();
+        let spawned_task_index = locked_log.next_task_index();
         let event_index = locked_log.next_event_index();
         locked_log.push_task(Task {
             task_description,
@@ -61,13 +62,18 @@ impl<'db> LogHandle<'db> {
         locked_log.push_event(Event {
             task: self.task_index,
             source_location,
-            kind: EventKind::Spawned(task_index),
+            kind: EventKind::Spawned(spawned_task_index),
+        });
+        locked_log.push_event(Event {
+            task: spawned_task_index,
+            source_location,
+            kind: EventKind::TaskStart,
         });
         std::mem::drop(locked_log);
 
         LogHandle {
             log: Some(log.clone()),
-            task_index,
+            task_index: spawned_task_index,
         }
     }
 
@@ -128,14 +134,48 @@ impl<'db> LogHandle<'db> {
             EventArgument::Many(values.iter().map(|v| v.to_event_argument()).collect())
         };
 
-        log.lock().unwrap().push_event(Event {
+        let mut log = log.lock().unwrap();
+        assert!(self.task_index.0 < log.tasks.len(), "task index {} is out of bounds", self.task_index.0);  
+        log.push_event(Event {
             source_location,
             task: self.task_index,
             kind: kind(message, argument),
         });
     }
 
-    pub fn export(&self) -> export::Log {
+    pub fn dump(&self, span: Span<'db>) {
+        let Some(log) = &self.log else {
+            return;
+        };
+
+        let export = self.export();
+
+        let log= log.lock().unwrap();
+        let absolute_span = span.absolute_span(log.db);
+
+        // find the path to dump the debug log by stripping the current directory
+        let pwd = std::env::current_dir().unwrap();
+        let file_path = PathBuf::from(absolute_span.source_file.url(log.db).path());
+        let file_path = if file_path.starts_with(&pwd) {
+            file_path.strip_prefix(&pwd).unwrap().to_path_buf()
+        } else {
+            file_path
+        };
+
+        let line_col = absolute_span
+            .source_file
+            .line_col(log.db, absolute_span.start);
+        let path = PathBuf::from(format!(
+            "dada_debug/{}.{}.json",
+            file_path.display(),
+            line_col.0.as_usize() + 1,
+        ));
+
+        std::fs::create_dir_all(path.parent().unwrap()).unwrap();
+        std::fs::write(path, serde_json::to_string_pretty(&export).unwrap()).unwrap();
+    }
+
+    fn export(&self) -> export::Log {
         let Some(log) = &self.log else {
             return export::Log {
                 events_flat: vec![export::Event {
@@ -161,12 +201,14 @@ impl<'db> LogHandle<'db> {
                 kind: match &event.kind {
                     EventKind::Root => "root",
                     EventKind::Spawned(..) => "spawned",
+                    EventKind::TaskStart => "task_start",
                     EventKind::Indent(message, _) => message,
                     EventKind::Undent(_) => "end",
                     EventKind::Log(message, _) => message,
                 },
                 value: match &event.kind {
                     EventKind::Root => serde_json::Value::Null,
+                    EventKind::TaskStart => serde_json::Value::Null,
                     EventKind::Spawned(_) => serde_json::Value::Null,
                     EventKind::Indent(_, event_argument) => self.export_value(event_argument),
                     EventKind::Undent(_) => serde_json::Value::Null,
@@ -174,6 +216,7 @@ impl<'db> LogHandle<'db> {
                 },
                 spawns: match &event.kind {
                     EventKind::Root => None,
+                    EventKind::TaskStart => None,
                     EventKind::Spawned(task_index) => Some(export::TaskId {
                         index: task_index.0,
                     }),
@@ -263,7 +306,7 @@ impl<'db> Log<'db> {
     }
 
     fn next_task_index(&self) -> TaskIndex {
-        TaskIndex(self.events.len())
+        TaskIndex(self.tasks.len())
     }
 
     fn next_event_index(&self) -> EventIndex {
@@ -335,7 +378,7 @@ impl<'db> Log<'db> {
                         ),
                     });
                 }
-                EventKind::Root | EventKind::Log(..) => {
+                EventKind::Root | EventKind::Log(..) | EventKind::TaskStart => {
                     output.push(export::NestedEvent {
                         timestamp: export::TimeStamp {
                             index: *event_first,
@@ -373,6 +416,7 @@ pub struct Event<'db> {
 
 pub enum EventKind<'db> {
     Root,
+    TaskStart,
     Spawned(TaskIndex),
     Indent(&'static str, EventArgument<'db>),
     Undent(&'static str),

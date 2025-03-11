@@ -98,6 +98,9 @@ impl<'db> Runtime<'db> {
 
         // Once we have reached the "complete" state, we should awaken all remaining tasks (?).
 
+        // Dump debug info
+        runtime.root_log.dump(span);
+
         match channel_rx.try_recv() {
             Ok(v) => cleanup(v),
 
