@@ -9,11 +9,11 @@ mod watch;
 /// Command line options for the debug server
 #[derive(Debug, StructOpt)]
 pub struct DebugOptions {
-    #[structopt(short, long, default_value = "2222")]
+    #[structopt(long, default_value = "2222")]
     pub port: u32,
 
-    #[structopt(short, long, default_value = "dada_debug")]
-    pub path: PathBuf,
+    #[structopt(long, default_value = "dada_debug")]
+    pub serve_path: PathBuf,
 }
 
 impl DebugOptions {
@@ -21,7 +21,7 @@ impl DebugOptions {
     pub fn to_server(&self) -> DebugServer {
         DebugServer {
             port: self.port,
-            path: self.path.clone(),
+            path: self.serve_path.clone(),
             thread: None,
         }
     }

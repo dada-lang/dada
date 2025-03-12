@@ -23,7 +23,7 @@ impl Main {
             Command::Run { run_options } => self.run_command(&run_options)?,
             Command::Debug { debug_options, compile_options } => {
                 let debug_server = debug_options.to_server().launch();
-                self.compile(&compile_options, Some(&debug_options.path))?;
+                self.compile(&compile_options, Some(&debug_options.serve_path))?;
                 debug_server.block_on()?;
             }
         }
