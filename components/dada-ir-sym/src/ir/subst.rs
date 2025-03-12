@@ -84,11 +84,12 @@ pub trait Subst<'db>: SubstWith<'db, Self::GenericTerm> + Debug {
     fn resolve_infer_var(
         &self,
         db: &'db dyn crate::Db,
+        bound_vars: &mut Vec<SymVariable<'db>>,
         mut op: impl FnMut(InferVarIndex) -> Option<Self::GenericTerm>,
     ) -> Self::Output {
         self.subst_with(
             db,
-            &mut Default::default(),
+            bound_vars,
             &mut SubstitutionFns {
                 free_var: &mut |_| None,
                 infer_var: &mut op,

@@ -42,7 +42,8 @@ impl<'env, 'db> Resolver<'env, 'db> {
     where
         T: Subst<'db, GenericTerm = SymGenericTerm<'db>>,
     {
-        term.resolve_infer_var(self.db, |infer| match self.resolve_infer_var(infer) {
+        let mut bound_vars = self.env.bound_vars();
+        term.resolve_infer_var(self.db, &mut bound_vars, |infer| match self.resolve_infer_var(infer) {
             Ok(v) => Some(v),
             Result::Err(error) => Some(SymGenericTerm::err(self.db, self.report(infer, error))),
         })

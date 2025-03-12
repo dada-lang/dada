@@ -1,5 +1,6 @@
 #![feature(panic_payload_as_str)]
 
+use dada_debug::DebugOptions;
 use dada_ir_ast::diagnostic::RenderOptions;
 use dada_util::Fallible;
 use structopt::StructOpt;
@@ -51,6 +52,14 @@ pub enum Command {
         #[structopt(flatten)]
         test_options: TestOptions,
     },
+
+    Debug {
+        #[structopt(flatten)]
+        debug_options: DebugOptions,
+
+        #[structopt(flatten)]
+        compile_options: CompileOptions,
+    }
 }
 
 #[derive(Debug, StructOpt)]

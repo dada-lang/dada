@@ -1,5 +1,7 @@
 #![allow(clippy::unused_unit)] // FIXME: salsa bug it seems
 
+use std::path::Path;
+
 use ast::Identifier;
 use inputs::{CompilationRoot, Krate, SourceFile};
 use url::Url;
@@ -23,4 +25,11 @@ pub trait Db: salsa::Database {
 
     /// Convert the url into a string suitable for showing the user.
     fn url_display(&self, url: &Url) -> String;
+
+    /// Controls whether type-checking and other parts of the compiler will dump debug logs.
+    /// If `None` is returned, no debugging output is emitted.
+    /// If `Some` is returned, it should supply a directory where `.json` files will be created.
+    /// The `dada_debug` crate will monitor this directory
+    /// and serve up the information for use in debugging.
+    fn debug_path(&self) -> Option<&Path>;
 }

@@ -41,7 +41,7 @@ impl lsp::Lsp for Server {
 
     fn new(_params: InitializeParams) -> Fallible<Self> {
         Ok(Server {
-            db: Compiler::new(RealFs::new()),
+            db: Compiler::new(RealFs::new(), None),
             diagnostics: Default::default(),
         })
     }

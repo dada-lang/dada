@@ -174,7 +174,7 @@ impl Main {
     /// * `Ok(None)` if the test passed.
     fn run_test(&self, input: &Path) -> Fallible<Option<FailedTest>> {
         assert!(is_dada_file(input));
-        let mut compiler = Compiler::new(RealFs::default());
+        let mut compiler = Compiler::new(RealFs::default(), None);
 
         // Run the test and capture panics
         let result = std::panic::catch_unwind(AssertUnwindSafe(|| {

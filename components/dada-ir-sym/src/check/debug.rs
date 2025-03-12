@@ -20,7 +20,6 @@ use super::{
 };
 
 mod export;
-mod hbs;
 
 pub struct LogHandle<'db> {
     log: Option<Arc<Mutex<Log<'db>>>>,
@@ -33,9 +32,16 @@ impl<'db> LogHandle<'db> {
         source_location: &'static Location<'static>,
         root: RootTaskDescription<'db>,
     ) -> Self {
-        LogHandle {
-            log: Some(Arc::new(Mutex::new(Log::new(db, source_location, root)))),
-            task_index: TaskIndex::root(),
+        if let Some(debug_path) = db.debug_path() {
+            LogHandle {
+                log: Some(Arc::new(Mutex::new(Log::new(db, source_location, root, debug_path.to_path_buf())))),
+                task_index: TaskIndex::root(),
+            }
+        } else {
+            LogHandle {
+                log: None,
+                task_index: TaskIndex::root(),
+            }
         }
     }
 
@@ -159,6 +165,8 @@ impl<'db> LogHandle<'db> {
         let file_path = PathBuf::from(absolute_span.source_file.url(log.db).path());
         let file_path = if file_path.starts_with(&pwd) {
             file_path.strip_prefix(&pwd).unwrap().to_path_buf()
+        } else if file_path.is_absolute() {
+            file_path.strip_prefix("/").unwrap().to_path_buf()
         } else {
             file_path
         };
@@ -166,23 +174,17 @@ impl<'db> LogHandle<'db> {
         let line_col = absolute_span
             .source_file
             .line_col(log.db, absolute_span.start);
-        let base_path = PathBuf::from(format!(
-            "dada_debug/{}:{}",
+        let base_path = log.debug_path.join(PathBuf::from(format!(
+            "{}:{}:{}",
             file_path.display(),
             line_col.0.as_usize() + 1,
-        ));
+            line_col.1.as_usize() + 1,
+        )));
 
         std::fs::create_dir_all(base_path.parent().unwrap()).unwrap();
 
         let json_path = base_path.with_extension("json");
         std::fs::write(json_path, serde_json::to_string_pretty(&export).unwrap()).unwrap();
-
-        let html_path = base_path.with_extension("html");
-        std::fs::write(html_path, self.render_html(&export)).unwrap();
-    }
-
-    fn render_html(&self, export: &export::Log) -> String {
-        hbs::render(export)
     }
 
     fn export(&self) -> export::Log {
@@ -288,6 +290,7 @@ pub struct Log<'db> {
     tasks: Vec<Task<'db>>,
     events: Vec<Event<'db>>,
     inference_variables: Vec<InferenceVariable<'db>>,
+    debug_path: PathBuf,
 }
 
 impl<'db> Log<'db> {
@@ -295,6 +298,7 @@ impl<'db> Log<'db> {
         db: &'db dyn crate::Db,
         source_location: &'static Location<'static>,
         root: RootTaskDescription<'db>,
+        debug_path: PathBuf,
     ) -> Self {
         let tasks = vec![Task {
             task_description: TaskDescription::Root(root),
@@ -312,6 +316,7 @@ impl<'db> Log<'db> {
             tasks,
             events,
             inference_variables: Default::default(),
+            debug_path,
         }
     }
 

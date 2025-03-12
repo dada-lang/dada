@@ -488,6 +488,12 @@ impl<'db> Env<'db> {
         self.log.log(source_location, "result", &[&value]);
         value
     }
+
+    /// Return a vector with all variables that are "bound" in the environment.
+    /// These correspond to in-scope function parameters, generic types, etc.
+    pub(crate) fn bound_vars(&self) -> Vec<SymVariable<'db>> {
+        self.scope.all_binders().into_iter().flatten().collect()
+    }
 }
 
 #[derive(Clone)]

@@ -203,7 +203,7 @@ impl<'scope, 'db> Scope<'scope, 'db> {
     /// Convert `self` into a vec-of-vecs containing the bound generic symbols
     /// in outermost-to-innermost order. e.g. if you have `class[type A] { fn foo[type B]() }`,
     /// this will return `[[A], [B]]`.
-    fn all_binders(&self) -> Vec<Vec<SymVariable<'db>>> {
+    pub fn all_binders(&self) -> Vec<Vec<SymVariable<'db>>> {
         let mut vec = vec![];
         for link in self.chain.iter() {
             match &link.kind {

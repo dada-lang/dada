@@ -1,0 +1,18 @@
+[package]
+name = "dada-debug"
+version.workspace = true
+repository.workspace = true
+edition.workspace = true
+
+[dependencies]
+anyhow.workspace = true
+axum = "0.8.1"
+handlebars = { version = "6.3.1", features = ["rust-embed"] }
+notify = "8.0.0"
+rust-embed = "8.6.0"
+serde = "1.0.219"
+serde_json = "1.0.140"
+structopt = "0.3.26"
+tokio = { version = "1.44.0", features = ["full"] }
+tracing-subscriber = "0.3.19"
+walkdir = "2.5.0"

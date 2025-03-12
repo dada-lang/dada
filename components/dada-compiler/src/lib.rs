@@ -1,6 +1,5 @@
 use std::{
-    str::FromStr,
-    sync::{Arc, Mutex},
+    path::{Path, PathBuf}, str::FromStr, sync::{Arc, Mutex}
 };
 
 use dada_ir_ast::{
@@ -35,14 +34,18 @@ pub struct Compiler {
 
     /// Mediates all access to the file system.
     vfs: Arc<dyn VirtualFileSystem>,
+
+    /// Directory where debug logs are written.
+    debug_path: Option<PathBuf>,
 }
 
 impl Compiler {
-    pub fn new(vfs: impl VirtualFileSystem) -> Self {
+    pub fn new(vfs: impl VirtualFileSystem, debug_path: Option<&Path>) -> Self {
         Self {
             storage: Default::default(),
             inputs: Default::default(),
             vfs: Arc::new(vfs),
+            debug_path: debug_path.map(PathBuf::from),
         }
     }
 
@@ -53,6 +56,7 @@ impl Compiler {
             storage: self.storage.clone(),
             inputs: self.inputs.clone(),
             vfs: self.vfs.clone(),
+            debug_path: self.debug_path.clone(),
         })
     }
 
@@ -348,6 +352,10 @@ impl dada_ir_ast::Db for Compiler {
                 result
             }
         }
+    }
+
+    fn debug_path(&self) -> Option<&Path> {
+        self.debug_path.as_deref()
     }
 }
 
