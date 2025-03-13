@@ -1,4 +1,3 @@
-use std::path::Path;
 
 use handlebars::handlebars_helper;
 use rust_embed::Embed;
@@ -6,17 +5,18 @@ use rust_embed::Embed;
 use crate::server::State;
 
 pub async fn try_view(
-    path: &Path,
+    event_index: usize,
     state: &State,
 ) -> anyhow::Result<String> {
-    let json_path = state.path.join(path);   
-    let json_str = std::fs::read_to_string(json_path)?;
-    let json: serde_json::Value = serde_json::from_str(&json_str)?;
-
-    let mut handlers = handlebars::Handlebars::new();
-    handlers.register_embed_templates_with_extension::<Assets>(".hbs").unwrap();
-    handlers.register_helper("index", Box::new(index));
-    Ok(handlers.render("log", &json)?)
+    let event_data = state.debug_events.lock().unwrap().get(event_index).cloned();
+    match event_data {
+        Some(d) => {
+            Ok(crate::hbs::render("log", &d.payload)?)
+        }
+        None => {
+            Err(anyhow::anyhow!("Event not found"))
+        }
+    }
 }
 
 #[derive(Embed)]

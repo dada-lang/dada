@@ -2,11 +2,10 @@
 
 use std::{
     panic::Location,
-    path::PathBuf,
-    sync::{Arc, Mutex},
+    sync::{mpsc::Sender, Arc, Mutex},
 };
 
-use dada_ir_ast::{diagnostic::Errors, span::Span};
+use dada_ir_ast::{diagnostic::Errors, span::Span, DebugEvent};
 
 use crate::ir::{
     exprs::SymExpr,
@@ -32,9 +31,9 @@ impl<'db> LogHandle<'db> {
         source_location: &'static Location<'static>,
         root: RootTaskDescription<'db>,
     ) -> Self {
-        if let Some(debug_path) = db.debug_path() {
+        if let Some(debug_tx) = db.debug_tx() {
             LogHandle {
-                log: Some(Arc::new(Mutex::new(Log::new(db, source_location, root, debug_path.to_path_buf())))),
+                log: Some(Arc::new(Mutex::new(Log::new(db, source_location, root, debug_tx)))),
                 task_index: TaskIndex::root(),
             }
         } else {
@@ -159,32 +158,12 @@ impl<'db> LogHandle<'db> {
 
         let log= log.lock().unwrap();
         let absolute_span = span.absolute_span(log.db);
-
-        // find the path to dump the debug log by stripping the current directory
-        let pwd = std::env::current_dir().unwrap();
-        let file_path = PathBuf::from(absolute_span.source_file.url(log.db).path());
-        let file_path = if file_path.starts_with(&pwd) {
-            file_path.strip_prefix(&pwd).unwrap().to_path_buf()
-        } else if file_path.is_absolute() {
-            file_path.strip_prefix("/").unwrap().to_path_buf()
-        } else {
-            file_path
-        };
-
-        let line_col = absolute_span
-            .source_file
-            .line_col(log.db, absolute_span.start);
-        let base_path = log.debug_path.join(PathBuf::from(format!(
-            "{}:{}:{}",
-            file_path.display(),
-            line_col.0.as_usize() + 1,
-            line_col.1.as_usize() + 1,
-        )));
-
-        std::fs::create_dir_all(base_path.parent().unwrap()).unwrap();
-
-        let json_path = base_path.with_extension("json");
-        std::fs::write(json_path, serde_json::to_string_pretty(&export).unwrap()).unwrap();
+        log.debug_tx.send(DebugEvent {
+            url: absolute_span.source_file.url(log.db).clone(),
+            start: absolute_span.start,
+            end: absolute_span.end,
+            payload: serde_json::to_value(export).unwrap(),
+        }).unwrap();
     }
 
     fn export(&self) -> export::Log {
@@ -290,7 +269,7 @@ pub struct Log<'db> {
     tasks: Vec<Task<'db>>,
     events: Vec<Event<'db>>,
     inference_variables: Vec<InferenceVariable<'db>>,
-    debug_path: PathBuf,
+    debug_tx: Sender<DebugEvent>,
 }
 
 impl<'db> Log<'db> {
@@ -298,7 +277,7 @@ impl<'db> Log<'db> {
         db: &'db dyn crate::Db,
         source_location: &'static Location<'static>,
         root: RootTaskDescription<'db>,
-        debug_path: PathBuf,
+        debug_tx: Sender<DebugEvent>,
     ) -> Self {
         let tasks = vec![Task {
             task_description: TaskDescription::Root(root),
@@ -316,7 +295,7 @@ impl<'db> Log<'db> {
             tasks,
             events,
             inference_variables: Default::default(),
-            debug_path,
+            debug_tx,
         }
     }
 

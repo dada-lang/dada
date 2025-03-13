@@ -1,6 +1,6 @@
 use std::fmt::Display;
 
-use crate::span::{AbsoluteSpan, Span};
+use crate::{span::{AbsoluteSpan, Span}, DebugEvent};
 use dada_util::debug;
 use salsa::{Accumulator, Update};
 
@@ -102,7 +102,13 @@ impl Diagnostic {
     pub fn report(self, db: &dyn crate::Db) -> Reported {
         debug!("reporting diagnostic", self);
         let span = self.span;
+
+        if let Some(debug_tx) = db.debug_tx() {
+            debug_tx.send(DebugEvent::Diagnostic(self.clone())).unwrap();
+        }
+
         self.accumulate(db);
+
         Reported(span)
     }
 

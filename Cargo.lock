@@ -401,6 +401,7 @@ version = "0.1.0"
 dependencies = [
  "anyhow",
  "axum",
+ "dada-ir-ast",
  "handlebars",
  "notify",
  "rust-embed",
@@ -409,6 +410,7 @@ dependencies = [
  "structopt",
  "tokio",
  "tracing-subscriber",
+ "url",
  "walkdir",
 ]
 
@@ -419,6 +421,7 @@ dependencies = [
  "annotate-snippets",
  "dada-util",
  "salsa",
+ "serde_json",
  "url",
 ]
 

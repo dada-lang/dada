@@ -1,11 +1,11 @@
 use std::{
-    path::{Path, PathBuf}, str::FromStr, sync::{Arc, Mutex}
+    str::FromStr, sync::{mpsc::Sender, Arc, Mutex}
 };
 
 use dada_ir_ast::{
     ast::{AstFunction, AstItem, AstMember, Identifier},
     diagnostic::Diagnostic,
-    inputs::{CompilationRoot, Krate, SourceFile},
+    inputs::{CompilationRoot, Krate, SourceFile}, DebugEvent,
 };
 use dada_util::{Fallible, FromImpls, Map, Set, bail, debug};
 use salsa::{Database as _, Durability, Event, EventKind, Setter};
@@ -36,16 +36,16 @@ pub struct Compiler {
     vfs: Arc<dyn VirtualFileSystem>,
 
     /// Directory where debug logs are written.
-    debug_path: Option<PathBuf>,
+    debug_tx: Option<Sender<DebugEvent>>,
 }
 
 impl Compiler {
-    pub fn new(vfs: impl VirtualFileSystem, debug_path: Option<&Path>) -> Self {
+    pub fn new(vfs: impl VirtualFileSystem, debug_tx: Option<Sender<DebugEvent>>) -> Self {
         Self {
             storage: Default::default(),
             inputs: Default::default(),
             vfs: Arc::new(vfs),
-            debug_path: debug_path.map(PathBuf::from),
+            debug_tx,
         }
     }
 
@@ -56,7 +56,7 @@ impl Compiler {
             storage: self.storage.clone(),
             inputs: self.inputs.clone(),
             vfs: self.vfs.clone(),
-            debug_path: self.debug_path.clone(),
+            debug_tx: self.debug_tx.clone(),
         })
     }
 
@@ -354,8 +354,8 @@ impl dada_ir_ast::Db for Compiler {
         }
     }
 
-    fn debug_path(&self) -> Option<&Path> {
-        self.debug_path.as_deref()
+    fn debug_tx(&self) -> Option<Sender<DebugEvent>> {
+        self.debug_tx.clone()
     }
 }
 

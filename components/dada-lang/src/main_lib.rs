@@ -22,9 +22,11 @@ impl Main {
             Command::Test { test_options } => self.test(test_options)?,
             Command::Run { run_options } => self.run_command(&run_options)?,
             Command::Debug { debug_options, compile_options } => {
-                let debug_server = debug_options.to_server().launch();
-                self.compile(&compile_options, Some(&debug_options.serve_path))?;
+                let mut debug_server = debug_options.to_server();
+                let debug_tx = debug_server.launch();
+                let result = self.compile(&compile_options, Some(debug_tx));
                 debug_server.block_on()?;
+                result?;
             }
         }
         Ok(())

@@ -1,9 +1,11 @@
 #![allow(clippy::unused_unit)] // FIXME: salsa bug it seems
 
-use std::path::Path;
+use std::sync::mpsc::Sender;
 
 use ast::Identifier;
+use diagnostic::Diagnostic;
 use inputs::{CompilationRoot, Krate, SourceFile};
+use span::AbsoluteOffset;
 use url::Url;
 
 #[macro_use]
@@ -31,5 +33,30 @@ pub trait Db: salsa::Database {
     /// If `Some` is returned, it should supply a directory where `.json` files will be created.
     /// The `dada_debug` crate will monitor this directory
     /// and serve up the information for use in debugging.
-    fn debug_path(&self) -> Option<&Path>;
+    fn debug_tx(&self) -> Option<Sender<DebugEvent>>;
+}
+
+/// A debug event
+pub struct DebugEvent {
+    /// URL from the source code the event is associated with
+    pub url: Url,
+
+    /// Start of span from the source code the event is associated with
+    pub start: AbsoluteOffset,
+
+    /// End of span from the source code the event is associated with
+    pub end: AbsoluteOffset,
+
+    /// Data associated with the event
+    pub payload: DebugEventPayload,
+}
+
+/// ata associated with debug events
+pub enum DebugEventPayload {
+    /// A diagnostic was reported
+    Diagnostic(Diagnostic),
+
+    /// A log of the results from type-checking the code at the given url.
+/// The payload will be a `dada_ir_sym::check::debug::export::Log`.
+CheckLog(serde_json::Value),
 }

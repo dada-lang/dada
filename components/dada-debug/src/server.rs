@@ -1,28 +1,33 @@
-use std::{path::{Path, PathBuf}, sync::Arc};
+use std::{sync::{mpsc::Receiver, Arc, Mutex}, time::Duration};
 
 use axum::{routing::get, Router};
+use dada_ir_ast::DebugEvent;
 
-pub fn main(port: u32, path: &Path) -> anyhow::Result<()> {
+pub fn main(port: u32, debug_rx: Receiver<DebugEvent>) -> anyhow::Result<()> {
     tokio::runtime::Builder::new_current_thread()
         .enable_all()
         .build()?
-        .block_on(main_async(port, path))?;
+        .block_on(main_async(port, debug_rx))?;
     Ok(())
 }
 
-async fn main_async(port: u32, path: &Path) -> anyhow::Result<()> {
-    let _events = crate::watch::EventStream::new(path)?;
-    let path = path.to_path_buf();
-
+async fn main_async(port: u32, debug_rx: Receiver<DebugEvent>) -> anyhow::Result<()> {
     // initialize tracing
     tracing_subscriber::fmt::init();
+
+    let state = Arc::new(State { debug_events: Default::default(), shutdown: Default::default() });
+
+    std::thread::spawn({
+        let state = state.clone();
+        move || record_events(debug_rx, state)
+    });
 
     // build our application with a route
     let app = Router::new()
         // `GET /` goes to `root`
         .route("/", get(root))
-        .route("/view/{*path}", get(view))
-        .with_state(Arc::new(State { path: path.to_path_buf() }));
+        .route("/view/{event_index}", get(view))
+        .with_state(state.clone());
 
     // run our app with hyper, listening globally on port 3000
     let listener = tokio::net::TcpListener::bind(format!("0.0.0.0:{port}"))
@@ -31,24 +36,34 @@ async fn main_async(port: u32, path: &Path) -> anyhow::Result<()> {
     
     axum::serve(listener, app).await?;
 
+    *state.shutdown.lock().unwrap() = true;
+
     Ok(())
 }
 
-pub struct State {
-    pub path: PathBuf,
-}
-
-// basic handler that responds with a static string
 async fn root(
     axum::extract::State(state): axum::extract::State<Arc<State>>,
-) -> &'static str {
-    "Hello, World!"
+) -> String {
+    crate::error::maybe_error(crate::root::root(&state).await)
+}
+
+pub struct State {
+    pub debug_events: Mutex<Vec<Arc<DebugEvent>>>,
+    pub shutdown: Mutex<bool>,
 }
 
 // basic handler that responds with a static string
 async fn view(
-    axum::extract::Path(path): axum::extract::Path<PathBuf>,
+    axum::extract::Path(event_index): axum::extract::Path<usize>,
     axum::extract::State(state): axum::extract::State<Arc<State>>,
 ) -> String {
-    crate::view::try_view(&path, &*state).await.unwrap()
+    crate::error::maybe_error(crate::view::try_view(event_index, &*state).await)
+}
+
+fn record_events(debug_rx: Receiver<DebugEvent>, state: Arc<State>) {
+    while !*state.shutdown.lock().unwrap() {
+        if let Ok(event) = debug_rx.recv_timeout(Duration::from_secs(1)) {
+            state.debug_events.lock().unwrap().push(Arc::new(event));
+        }
+    }
 }
