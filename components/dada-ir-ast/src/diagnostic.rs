@@ -3,11 +3,12 @@ use std::fmt::Display;
 use crate::{span::{AbsoluteSpan, Span}, DebugEvent, DebugEventPayload};
 use dada_util::debug;
 use salsa::{Accumulator, Update};
+use serde::Serialize;
 
 mod render;
 
 /// Signals that a diagnostic was reported at the given span.
-#[derive(Copy, Clone, PartialEq, Eq, PartialOrd, Ord, Hash, Update, Debug)]
+#[derive(Copy, Clone, PartialEq, Eq, PartialOrd, Ord, Hash, Update, Debug, Serialize)]
 pub struct Reported(pub AbsoluteSpan);
 
 impl Reported {
@@ -22,7 +23,7 @@ pub type Errors<T> = Result<T, Reported>;
 
 /// A diagnostic to be reported to the user.
 #[salsa::accumulator]
-#[derive(PartialEq, Eq, Hash)]
+#[derive(PartialEq, Eq, Hash, Serialize)]
 #[must_use]
 pub struct Diagnostic {
     /// Level of the message.
@@ -42,7 +43,7 @@ pub struct Diagnostic {
     pub children: Vec<Diagnostic>,
 }
 
-#[derive(Copy, Clone, Debug, PartialEq, Eq, Hash, PartialOrd, Ord)]
+#[derive(Copy, Clone, Debug, PartialEq, Eq, Hash, PartialOrd, Ord, Serialize)]
 pub enum Level {
     Note,
     Help,
@@ -52,7 +53,7 @@ pub enum Level {
 }
 
 /// A label to be included in the diagnostic.
-#[derive(Clone, Debug, PartialEq, Eq, Hash)]
+#[derive(Clone, Debug, PartialEq, Eq, Hash, Serialize)]
 pub struct DiagnosticLabel {
     /// Level of the label.
     pub level: Level,
@@ -65,7 +66,7 @@ pub struct DiagnosticLabel {
     pub message: String,
 }
 
-#[derive(Copy, Clone, Default, Debug, PartialEq, Eq, Hash)]
+#[derive(Copy, Clone, Default, Debug, PartialEq, Eq, Hash, Serialize)]
 pub struct RenderOptions {
     pub no_color: bool,
 }

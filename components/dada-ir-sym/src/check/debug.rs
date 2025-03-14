@@ -5,7 +5,7 @@ use std::{
     sync::{mpsc::Sender, Arc, Mutex},
 };
 
-use dada_ir_ast::{diagnostic::Errors, span::Span, DebugEvent, DebugEventPayload};
+use dada_ir_ast::{ast::AstExpr, diagnostic::Errors, span::Span, DebugEvent, DebugEventPayload};
 
 use crate::ir::{
     exprs::SymExpr,
@@ -101,7 +101,7 @@ impl<'db> LogHandle<'db> {
         &self,
         source_location: &'static Location<'static>,
         message: &'static str,
-        values: &[&dyn ToEventArgument<'db>],
+        values: &[&dyn erased_serde::Serialize<'db>],
     ) {
         self.push_event(source_location, message, values, EventKind::Indent)
     }
@@ -116,7 +116,7 @@ impl<'db> LogHandle<'db> {
         &self,
         source_location: &'static Location<'static>,
         message: &'static str,
-        values: &[&dyn ToEventArgument<'db>],
+        values: &[&dyn erased_serde::Serialize<'db>],
     ) {
         self.push_event(source_location, message, values, EventKind::Log)
     }
@@ -132,13 +132,7 @@ impl<'db> LogHandle<'db> {
             return;
         };
 
-        let argument = if values.len() == 0 {
-            EventArgument::Unit(())
-        } else if values.len() == 1 {
-            values[0].to_event_argument()
-        } else {
-            EventArgument::Many(values.iter().map(|v| v.to_event_argument()).collect())
-        };
+        let argument = self.event_argument(values);
 
         let mut log = log.lock().unwrap();
         assert!(self.task_index.0 < log.tasks.len(), "task index {} is out of bounds", self.task_index.0);  
@@ -238,30 +232,13 @@ impl<'db> LogHandle<'db> {
         }
     }
 
-    fn export_value(&self, event_argument: &EventArgument<'db>) -> serde_json::Value {
-        match event_argument {
-            EventArgument::Many(event_arguments) => event_arguments
-                        .iter()
-                        .map(|a| self.export_value(a))
-                        .collect(),
-            EventArgument::Unit(v) => serde_json::to_value(v).unwrap(),
-            EventArgument::Usize(v) => serde_json::to_value(v).unwrap(),
-            EventArgument::Bool(v) => serde_json::to_value(v).unwrap(),
-            EventArgument::Lien(v) => serde_json::to_value(format!("{v:?}")).unwrap(),
-            EventArgument::SymExpr(v) => serde_json::to_value(format!("{v:?}")).unwrap(),
-            EventArgument::OptSymExpr(v) => serde_json::to_value(format!("{v:?}")).unwrap(),
-            EventArgument::SymTerm(v) => serde_json::to_value(format!("{v:?}")).unwrap(),
-            EventArgument::SymTy(v) => serde_json::to_value(format!("{v:?}")).unwrap(),
-            EventArgument::SymPerm(v) => serde_json::to_value(format!("{v:?}")).unwrap(),
-            EventArgument::InferVarIndex(v) => serde_json::to_value(export::InferId {
-                        index: v.as_usize(),
-                    })
-                    .unwrap(),
-            EventArgument::Errors(v) => serde_json::to_value(format!("{v:?}")).unwrap(),
-            EventArgument::Trivalue(v) => serde_json::to_value(format!("{v:?}")).unwrap(),
-            EventArgument::Chain(v) => serde_json::to_value(format!("{v:?}")).unwrap(),
-            EventArgument::Span(span) => serde_json::to_value(format!("{span:?}")).unwrap(),
-            EventArgument::SymGenericKind(sym_generic_kind) => serde_json::to_value(format!("{sym_generic_kind:?}")).unwrap(),
+    fn event_argument(&self, values: &[&dyn erased_serde::Serialize<'db>]) -> serde_json::Value {
+        if values.len() == 0 {
+            serde_json::Value::Null
+        } else if values.len() == 1 {
+            dada_ir_ast::ast::util::fixed_depth_json::to_json_value_max_depth(values[0], 3)
+        } else {
+            dada_ir_ast::ast::util::fixed_depth_json::to_json_value_max_depth(values, 3)
         }
     }
 }
@@ -414,9 +391,9 @@ pub enum EventKind<'db> {
     Root,
     TaskStart,
     Spawned(TaskIndex),
-    Indent(&'static str, EventArgument<'db>),
+    Indent(&'static str, serde_json::Value),
     Undent(&'static str),
-    Log(&'static str, EventArgument<'db>),
+    Log(&'static str, serde_json::Value),
 }
 
 pub struct RootTaskDescription<'db> {
@@ -441,71 +418,6 @@ pub enum TaskDescription<'db> {
     IfNotNever,
     Misc,
     CheckArg(usize),
-}
-
-pub trait ToEventArgument<'db> {
-    fn to_event_argument(&self) -> EventArgument<'db>;
-}
-
-impl<'db, T: ?Sized + ToEventArgument<'db>> ToEventArgument<'db> for &T {
-    fn to_event_argument(&self) -> EventArgument<'db> {
-        T::to_event_argument(self)
-    }
-}
-
-macro_rules! to_event_argument_impls {
-    (
-        $(#[$attr:meta])*
-        $v:vis enum $EventArgument:ident<$db:lifetime> {
-            $($variant:ident($ty:ty),)*
-        }
-    ) => {
-        $(#[$attr])*
-        $v enum $EventArgument<$db> {
-            $($variant($ty),)*
-        }
-
-        $(
-            impl<$db> ToEventArgument<$db> for $ty {
-                fn to_event_argument(&self) -> $EventArgument<$db> {
-                    $EventArgument::$variant(
-                        <$ty>::clone(self)
-                    )
-                }
-            }
-        )*
-    };
-}
-
-to_event_argument_impls! {
-    #[derive(Debug, Clone)]
-    pub enum EventArgument<'db> {
-        Many(Vec<EventArgument<'db>>),
-        Unit(()),
-        Usize(usize),
-        Bool(bool),
-        Lien(Lien<'db>),
-        SymExpr(SymExpr<'db>),
-        OptSymExpr(Option<SymExpr<'db>>),
-        SymTerm(SymGenericTerm<'db>),
-        SymTy(SymTy<'db>),
-        SymPerm(SymPerm<'db>),
-        InferVarIndex(InferVarIndex),
-        Errors(Errors<()>),
-        Trivalue(Errors<bool>),
-        Chain(Chain<'db>),
-        Span(Span<'db>),
-        SymGenericKind(SymGenericKind),
-    }
-}
-
-impl<'db, T> ToEventArgument<'db> for [T]
-where
-    T: ToEventArgument<'db>,
-{
-    fn to_event_argument(&self) -> EventArgument<'db> {
-        EventArgument::Many(self.iter().map(|v| v.to_event_argument()).collect())
-    }
 }
 
 pub struct InferenceVariable<'db> {

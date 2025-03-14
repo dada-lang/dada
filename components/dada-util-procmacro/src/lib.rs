@@ -3,8 +3,10 @@ use quote::quote;
 use synstructure::decl_derive;
 
 mod boxed_async_fn;
+mod salsa_serialize;
 
 decl_derive!([FromImpls, attributes(no_from_impl)] => from_impls_derive);
+decl_derive!([SalsaSerialize] => salsa_serialize::salsa_serialize_derive);
 
 fn from_impls_derive(s: synstructure::Structure) -> TokenStream {
     let result = s

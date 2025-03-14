@@ -1,5 +1,6 @@
-use dada_util::FromImpls;
+use dada_util::{FromImpls, SalsaSerialize};
 use salsa::Update;
+use serde::Serialize;
 
 use super::{AstGenericDecl, AstPerm, AstTy, SpanVec, SpannedIdentifier};
 use crate::{
@@ -8,6 +9,7 @@ use crate::{
 };
 
 /// `fn foo() { }`
+#[derive(SalsaSerialize)]
 #[salsa::tracked]
 pub struct AstFunction<'db> {
     /// Overall span of the function declaration
@@ -41,7 +43,7 @@ pub struct AstFunction<'db> {
     pub body: Option<DeferredParse<'db>>,
 }
 
-#[derive(Copy, Clone, Default, PartialEq, Eq, PartialOrd, Ord, Hash, Update, Debug)]
+#[derive(Copy, Clone, Default, PartialEq, Eq, PartialOrd, Ord, Hash, Update, Debug, Serialize)]
 pub struct AstFunctionEffects<'db> {
     pub async_effect: Option<Span<'db>>,
     pub unsafe_effect: Option<Span<'db>>,
@@ -53,7 +55,7 @@ impl<'db> Spanned<'db> for AstFunction<'db> {
     }
 }
 
-#[derive(Copy, Clone, PartialEq, Eq, PartialOrd, Ord, Hash, Update, Debug, FromImpls)]
+#[derive(Copy, Clone, PartialEq, Eq, PartialOrd, Ord, Hash, Update, Debug, FromImpls, Serialize)]
 pub enum AstFunctionInput<'db> {
     SelfArg(AstSelfArg<'db>),
     Variable(VariableDecl<'db>),
@@ -68,6 +70,7 @@ impl<'db> Spanned<'db> for AstFunctionInput<'db> {
     }
 }
 
+#[derive(SalsaSerialize)]
 #[salsa::tracked]
 pub struct AstSelfArg<'db> {
     pub perm: AstPerm<'db>,
@@ -81,6 +84,7 @@ impl<'db> Spanned<'db> for AstSelfArg<'db> {
 }
 
 /// `[mut] x: T`
+#[derive(SalsaSerialize)]
 #[salsa::tracked]
 pub struct VariableDecl<'db> {
     /// Span of the `mut` keyword, if present.

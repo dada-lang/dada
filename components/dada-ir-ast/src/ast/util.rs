@@ -1,10 +1,11 @@
 use std::ops::Deref;
 
 use salsa::Update;
+use serde::Serialize;
 
 use crate::span::Span;
 
-#[derive(Clone, PartialEq, Eq, PartialOrd, Ord, Hash, Update, Debug)]
+#[derive(Clone, PartialEq, Eq, PartialOrd, Ord, Hash, Update, Debug, Serialize)]
 pub struct SpanVec<'db, T: Update> {
     //                    ------ FIXME: Bug in the derive?
     pub span: Span<'db>,

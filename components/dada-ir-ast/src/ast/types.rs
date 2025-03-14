@@ -1,10 +1,12 @@
-use dada_util::FromImpls;
+use dada_util::{FromImpls, SalsaSerialize};
 use salsa::Update;
+use serde::Serialize;
 
 use crate::span::{Span, Spanned};
 
 use super::{AstPath, SpanVec, SpannedIdentifier};
 
+#[derive(SalsaSerialize)]
 #[salsa::tracked]
 pub struct AstTy<'db> {
     pub span: Span<'db>,
@@ -17,7 +19,7 @@ impl<'db> Spanned<'db> for AstTy<'db> {
     }
 }
 
-#[derive(Clone, PartialEq, Eq, PartialOrd, Ord, Hash, Update, Debug)]
+#[derive(Clone, PartialEq, Eq, PartialOrd, Ord, Hash, Update, Debug, Serialize)]
 pub enum AstTyKind<'db> {
     /// `$Perm $Ty`, e.g., `shared String`
     Perm(AstPerm<'db>, AstTy<'db>),
@@ -29,6 +31,7 @@ pub enum AstTyKind<'db> {
     GenericDecl(AstGenericDecl<'db>),
 }
 
+#[derive(SalsaSerialize)]
 #[salsa::tracked]
 pub struct AstPerm<'db> {
     pub span: Span<'db>,
@@ -43,7 +46,7 @@ impl<'db> Spanned<'db> for AstPerm<'db> {
     }
 }
 
-#[derive(Clone, PartialEq, Eq, PartialOrd, Ord, Hash, Update, Debug)]
+#[derive(Clone, PartialEq, Eq, PartialOrd, Ord, Hash, Update, Debug, Serialize)]
 pub enum AstPermKind<'db> {
     /// User wrote nothing but in a context where the default is `shared`
     ImplicitShared,
@@ -70,7 +73,7 @@ pub enum AstPermKind<'db> {
     GenericDecl(AstGenericDecl<'db>),
 }
 
-#[derive(Copy, Clone, PartialEq, Eq, PartialOrd, Ord, Hash, Update, Debug, FromImpls)]
+#[derive(Copy, Clone, PartialEq, Eq, PartialOrd, Ord, Hash, Update, Debug, FromImpls, Serialize)]
 pub enum AstGenericTerm<'db> {
     /// Something clearly a type
     Ty(AstTy<'db>),
@@ -92,7 +95,7 @@ impl<'db> Spanned<'db> for AstGenericTerm<'db> {
     }
 }
 
-#[derive(Copy, Clone, PartialEq, Eq, PartialOrd, Ord, Hash, Update, Debug)]
+#[derive(Copy, Clone, PartialEq, Eq, PartialOrd, Ord, Hash, Update, Debug, Serialize)]
 pub enum AstGenericKind<'db> {
     Type(Span<'db>),
     Perm(Span<'db>),
@@ -109,6 +112,7 @@ impl<'db> Spanned<'db> for AstGenericKind<'db> {
 
 /// `type T? (: bounds)?`
 /// `perm T? (: bounds)?`
+#[derive(SalsaSerialize)]
 #[salsa::tracked]
 pub struct AstGenericDecl<'db> {
     pub kind: AstGenericKind<'db>,

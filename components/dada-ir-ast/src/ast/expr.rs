@@ -1,23 +1,26 @@
-use dada_util::FromImpls;
+use dada_util::{FromImpls, SalsaSerialize};
 use salsa::Update;
+use serde::Serialize;
 
 use crate::span::Span;
 
 use super::{AstGenericTerm, AstPath, AstTy, DeferredParse, SpanVec, SpannedIdentifier};
 
+#[derive(SalsaSerialize)]
 #[salsa::tracked]
 pub struct AstBlock<'db> {
     #[return_ref]
     pub statements: SpanVec<'db, AstStatement<'db>>,
 }
 
-#[derive(Clone, PartialEq, Eq, PartialOrd, Ord, Hash, Update, Debug, FromImpls)]
+#[derive(Clone, PartialEq, Eq, PartialOrd, Ord, Hash, Update, Debug, FromImpls, Serialize)]
 pub enum AstStatement<'db> {
     Let(AstLetStatement<'db>),
     Expr(AstExpr<'db>),
 }
 
 /// `let x = v`, `let x: t = v`, etc
+#[derive(SalsaSerialize)]
 #[salsa::tracked]
 pub struct AstLetStatement<'db> {
     pub mutable: Option<Span<'db>>,
@@ -26,7 +29,7 @@ pub struct AstLetStatement<'db> {
     pub initializer: Option<AstExpr<'db>>,
 }
 
-#[derive(Clone, PartialEq, Eq, PartialOrd, Ord, Hash, Update, Debug)]
+#[derive(Clone, PartialEq, Eq, PartialOrd, Ord, Hash, Update, Debug, Serialize)]
 pub struct AstExpr<'db> {
     pub span: Span<'db>,
     pub kind: Box<AstExprKind<'db>>,
@@ -41,7 +44,7 @@ impl<'db> AstExpr<'db> {
     }
 }
 
-#[derive(Clone, PartialEq, Eq, PartialOrd, Ord, Hash, Update, Debug)]
+#[derive(Clone, PartialEq, Eq, PartialOrd, Ord, Hash, Update, Debug, Serialize)]
 pub enum AstExprKind<'db> {
     /// `{ ... }`
     Block(AstBlock<'db>),
@@ -104,14 +107,14 @@ pub enum AstExprKind<'db> {
     If(Vec<IfArm<'db>>),
 }
 
-#[derive(Copy, Clone, PartialEq, Eq, PartialOrd, Ord, Hash, Update, Debug)]
+#[derive(Copy, Clone, PartialEq, Eq, PartialOrd, Ord, Hash, Update, Debug, Serialize)]
 pub enum PermissionOp {
     Lease,
     Share,
     Give,
 }
 
-#[derive(Clone, PartialEq, Eq, PartialOrd, Ord, Hash, Update, Debug)]
+#[derive(Clone, PartialEq, Eq, PartialOrd, Ord, Hash, Update, Debug, Serialize)]
 pub struct IfArm<'db> {
     /// if None, this is an `else` (and should come last)
     pub condition: Option<AstExpr<'db>>,
@@ -120,13 +123,13 @@ pub struct IfArm<'db> {
     pub result: AstBlock<'db>,
 }
 
-#[derive(Copy, Clone, PartialEq, Eq, PartialOrd, Ord, Hash, Update, Debug)]
+#[derive(Copy, Clone, PartialEq, Eq, PartialOrd, Ord, Hash, Update, Debug, Serialize)]
 pub struct SpannedBinaryOp<'db> {
     pub span: Span<'db>,
     pub op: AstBinaryOp,
 }
 
-#[derive(Copy, Clone, PartialEq, Eq, PartialOrd, Ord, Hash, Update, Debug)]
+#[derive(Copy, Clone, PartialEq, Eq, PartialOrd, Ord, Hash, Update, Debug, Serialize)]
 pub enum AstBinaryOp {
     Add,
     Sub,
@@ -161,13 +164,13 @@ impl std::fmt::Display for AstBinaryOp {
     }
 }
 
-#[derive(Copy, Clone, PartialEq, Eq, PartialOrd, Ord, Hash, Update, Debug)]
+#[derive(Copy, Clone, PartialEq, Eq, PartialOrd, Ord, Hash, Update, Debug, Serialize)]
 pub struct SpannedUnaryOp<'db> {
     pub span: Span<'db>,
     pub op: UnaryOp,
 }
 
-#[derive(Copy, Clone, PartialEq, Eq, PartialOrd, Ord, Hash, Update, Debug)]
+#[derive(Copy, Clone, PartialEq, Eq, PartialOrd, Ord, Hash, Update, Debug, Serialize)]
 pub enum UnaryOp {
     Not,
     Negate,
@@ -176,18 +179,20 @@ pub enum UnaryOp {
 /// Created when we parse `x[..]` expressions or paths to store the `..` contents.
 /// We can't eagerly parse it because we don't yet know whether to parse it
 /// as types or expressions.
+#[derive(SalsaSerialize)]
 #[salsa::tracked]
 pub struct SquareBracketArgs<'db> {
     #[return_ref]
     pub deferred: DeferredParse<'db>,
 }
 
-#[derive(Clone, PartialEq, Eq, PartialOrd, Ord, Hash, Update, Debug)]
+#[derive(Clone, PartialEq, Eq, PartialOrd, Ord, Hash, Update, Debug, Serialize)]
 pub struct AstConstructorField<'db> {
     pub name: SpannedIdentifier<'db>,
     pub value: AstExpr<'db>,
 }
 
+#[derive(SalsaSerialize)]
 #[salsa::interned]
 pub struct Literal<'db> {
     pub kind: LiteralKind,
@@ -195,14 +200,14 @@ pub struct Literal<'db> {
     pub text: String,
 }
 
-#[derive(Clone, Copy, PartialEq, Eq, PartialOrd, Ord, Hash, Update, Debug)]
+#[derive(Clone, Copy, PartialEq, Eq, PartialOrd, Ord, Hash, Update, Debug, Serialize)]
 pub enum LiteralKind {
     Boolean,
     Integer,
     String,
 }
 
-#[derive(Clone, PartialEq, Eq, PartialOrd, Ord, Hash, Update, Debug)]
+#[derive(Clone, PartialEq, Eq, PartialOrd, Ord, Hash, Update, Debug, Serialize)]
 pub struct AstParenExpr<'db> {
     pub callee: AstExpr<'db>,
     pub generic_args: Option<SpanVec<'db, AstGenericTerm<'db>>>,

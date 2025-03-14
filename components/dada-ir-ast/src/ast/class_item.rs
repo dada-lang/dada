@@ -1,3 +1,6 @@
+use dada_util::SalsaSerialize;
+use serde::Serialize;
+
 use crate::{
     ast::{AstFieldDecl, AstVisibility, DeferredParse},
     span::{Span, Spanned},
@@ -8,6 +11,7 @@ use super::{AstGenericDecl, Identifier, SpanVec};
 /// Some kind of aggregate, like a class, struct, etc.
 ///
 /// `class $name[$generics] { ... }` or `class $name[$generics](...) { ... }`
+#[derive(SalsaSerialize)]
 #[salsa::tracked]
 pub struct AstAggregate<'db> {
     pub span: Span<'db>,
@@ -44,7 +48,7 @@ impl<'db> Spanned<'db> for AstAggregate<'db> {
     }
 }
 
-#[derive(Copy, Clone, PartialEq, Eq, PartialOrd, Ord, Hash, Debug)]
+#[derive(Copy, Clone, PartialEq, Eq, PartialOrd, Ord, Hash, Debug, Serialize)]
 pub enum AstAggregateKind {
     Class,
     Struct,

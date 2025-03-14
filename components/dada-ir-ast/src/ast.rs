@@ -2,6 +2,8 @@
 
 use dada_util::FromImpls;
 use salsa::Update;
+use serde::Serialize;
+use dada_util::SalsaSerialize;
 
 use crate::{
     inputs::SourceFile,
@@ -23,6 +25,7 @@ pub use util::*;
 mod expr;
 pub use expr::*;
 
+#[derive(SalsaSerialize)]
 #[salsa::interned]
 pub struct Identifier<'db> {
     #[return_ref]
@@ -64,6 +67,7 @@ impl<'db> std::fmt::Display for Identifier<'db> {
     }
 }
 
+#[derive(SalsaSerialize)]
 #[salsa::tracked]
 pub struct AstModule<'db> {
     pub name: Identifier<'db>,
@@ -78,7 +82,7 @@ impl<'db> Spanned<'db> for AstModule<'db> {
     }
 }
 
-#[derive(Copy, Clone, PartialEq, Eq, Hash, PartialOrd, Ord, Debug, Update, FromImpls)]
+#[derive(Copy, Clone, PartialEq, Eq, Hash, PartialOrd, Ord, Debug, Update, FromImpls, Serialize)]
 pub enum AstItem<'db> {
     SourceFile(SourceFile),
     Use(AstUse<'db>),
@@ -87,13 +91,14 @@ pub enum AstItem<'db> {
 }
 
 /// A "path" identifies an item and a partial set of substitutions.
+#[derive(SalsaSerialize)]
 #[salsa::tracked]
 pub struct AstPath<'db> {
     #[return_ref]
     pub kind: AstPathKind<'db>,
 }
 
-#[derive(Clone, PartialEq, Eq, Hash, PartialOrd, Ord, Debug, Update)]
+#[derive(Clone, PartialEq, Eq, Hash, PartialOrd, Ord, Debug, Update, Serialize)]
 pub enum AstPathKind<'db> {
     /// `$id` that starts a path
     Identifier(SpannedIdentifier<'db>),
@@ -147,7 +152,7 @@ impl<'db> Spanned<'db> for AstPath<'db> {
     }
 }
 
-#[derive(Copy, Clone, PartialEq, Eq, PartialOrd, Ord, Hash, Update, Debug)]
+#[derive(Copy, Clone, PartialEq, Eq, PartialOrd, Ord, Hash, Update, Debug, Serialize)]
 pub struct SpannedIdentifier<'db> {
     pub span: Span<'db>,
     pub id: Identifier<'db>,
@@ -162,13 +167,13 @@ impl<'db> Spanned<'db> for SpannedIdentifier<'db> {
 /// For functions, classes, and other items we often defer parsing their contents.
 /// This struct captures the contents and the span at which they appeared.
 /// It can then be used to parse the contents later.
-#[derive(Clone, PartialEq, Eq, PartialOrd, Ord, Hash, Update, Debug)]
+#[derive(Clone, PartialEq, Eq, PartialOrd, Ord, Hash, Update, Debug, Serialize)]
 pub struct DeferredParse<'db> {
     pub span: Span<'db>,
     pub contents: String,
 }
 
-#[derive(Clone, PartialEq, Eq, PartialOrd, Ord, Hash, Update, Debug)]
+#[derive(Clone, PartialEq, Eq, PartialOrd, Ord, Hash, Update, Debug, Serialize)]
 pub struct AstVisibility<'db> {
     pub span: Span<'db>,
     pub kind: VisibilityKind,
@@ -180,7 +185,7 @@ impl<'db> Spanned<'db> for AstVisibility<'db> {
     }
 }
 
-#[derive(Copy, Clone, PartialEq, Eq, PartialOrd, Ord, Hash, Update, Debug)]
+#[derive(Copy, Clone, PartialEq, Eq, PartialOrd, Ord, Hash, Update, Debug, Serialize)]
 pub enum VisibilityKind {
     Export,
     Pub,

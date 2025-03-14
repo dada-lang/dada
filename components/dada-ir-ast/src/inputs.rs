@@ -1,5 +1,6 @@
 use std::ops::Range;
 
+use dada_util::SalsaSerialize;
 use url::Url;
 
 use crate::{
@@ -7,6 +8,7 @@ use crate::{
     span::{AbsoluteOffset, AbsoluteSpan, Anchor, Offset, Span, Spanned, ZeroColumn, ZeroLine},
 };
 
+#[derive(SalsaSerialize)]
 #[salsa::input]
 pub struct CompilationRoot {
     #[return_ref]
@@ -48,12 +50,14 @@ impl CompilationRoot {
     }
 }
 
+#[derive(SalsaSerialize)]
 #[salsa::input]
 pub struct Krate {
     #[return_ref]
     pub name: String,
 }
 
+#[derive(SalsaSerialize)]
 #[salsa::input]
 pub struct SourceFile {
     #[return_ref]

@@ -1,12 +1,13 @@
 use dada_util::FromImpls;
 use salsa::Update;
+use serde::Serialize;
 
 use crate::{
     ast::{AstAggregate, AstFunction},
     inputs::SourceFile,
 };
 
-#[derive(Copy, Clone, PartialEq, Eq, Hash, PartialOrd, Ord, Debug, Update, FromImpls)]
+#[derive(Copy, Clone, PartialEq, Eq, Hash, PartialOrd, Ord, Debug, Update, FromImpls, Serialize)]
 pub enum Anchor<'db> {
     SourceFile(SourceFile),
     Class(AstAggregate<'db>),
@@ -51,7 +52,7 @@ impl<'db> Anchor<'db> {
 /// The offsets are stored relative to the start of the **anchor**,
 /// which is some item (e.g., a class, function, etc). The use of relative offsets avoids
 /// incremental churn if lines or content is added before/after the definition.
-#[derive(Copy, Clone, PartialEq, Eq, Hash, PartialOrd, Ord, Update)]
+#[derive(Copy, Clone, PartialEq, Eq, Hash, PartialOrd, Ord, Update, Serialize)]
 pub struct Span<'db> {
     pub anchor: Anchor<'db>,
     pub start: Offset,
@@ -71,7 +72,7 @@ impl<'db> std::fmt::Debug for Span<'db> {
 /// An absolute span within the input. The offsets are stored as absolute offsets
 /// within a given source file. These are used for diagnostics or outputs but not
 /// internally during compilation.
-#[derive(Copy, Clone, PartialEq, Eq, Hash, Debug)]
+#[derive(Copy, Clone, PartialEq, Eq, Hash, Debug, Serialize)]
 pub struct AbsoluteSpan {
     pub source_file: SourceFile,
     pub start: AbsoluteOffset,
@@ -200,7 +201,7 @@ impl<'db> IntoOptionSpan<'db> for Option<Span<'db>> {
     }
 }
 
-#[derive(Copy, Clone, PartialEq, Eq, Hash, PartialOrd, Ord, Debug)]
+#[derive(Copy, Clone, PartialEq, Eq, Hash, PartialOrd, Ord, Debug, Serialize)]
 pub struct Offset(u32);
 
 impl From<usize> for Offset {
@@ -260,7 +261,7 @@ impl std::ops::Sub<Offset> for Offset {
     }
 }
 
-#[derive(Copy, Clone, PartialEq, Eq, Hash, PartialOrd, Ord, Debug)]
+#[derive(Copy, Clone, PartialEq, Eq, Hash, PartialOrd, Ord, Debug, Serialize)]
 pub struct AbsoluteOffset(u32);
 
 impl AbsoluteOffset {
@@ -387,19 +388,19 @@ impl Ord for AbsoluteSpan {
 }
 
 /// A zero-based line number
-#[derive(Copy, Clone, PartialEq, Eq, Hash, PartialOrd, Ord, Debug)]
+#[derive(Copy, Clone, PartialEq, Eq, Hash, PartialOrd, Ord, Debug, Serialize)]
 pub struct ZeroLine(u32);
 
 /// A one-based line number
-#[derive(Copy, Clone, PartialEq, Eq, Hash, PartialOrd, Ord, Debug)]
+#[derive(Copy, Clone, PartialEq, Eq, Hash, PartialOrd, Ord, Debug, Serialize)]
 pub struct OneLine(u32);
 
 /// A zero-based column number
-#[derive(Copy, Clone, PartialEq, Eq, Hash, PartialOrd, Ord, Debug)]
+#[derive(Copy, Clone, PartialEq, Eq, Hash, PartialOrd, Ord, Debug, Serialize)]
 pub struct ZeroColumn(u32);
 
 /// A one-based column number
-#[derive(Copy, Clone, PartialEq, Eq, Hash, PartialOrd, Ord, Debug)]
+#[derive(Copy, Clone, PartialEq, Eq, Hash, PartialOrd, Ord, Debug, Serialize)]
 pub struct OneColumn(u32);
 
 macro_rules! methods {

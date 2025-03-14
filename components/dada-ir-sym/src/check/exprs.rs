@@ -86,643 +86,582 @@ impl<'db> CheckInEnv<'db> for AstExpr<'db> {
 
 #[boxed_async_fn]
 async fn check_expr<'db>(expr: &AstExpr<'db>, env: &mut Env<'db>) -> ExprResult<'db> {
-    let db = env.db();
-    let expr_span = expr.span;
+    env.indent("check_expr", &[expr], async |env| {
+        let db = env.db();
+        let expr_span = expr.span;
 
-    match &*expr.kind {
-        AstExprKind::Literal(literal) => match literal.kind(db) {
-            LiteralKind::Integer => {
-                let ty = env.fresh_ty_inference_var(expr_span);
-                let bits = match u64::from_str_radix(literal.text(db), 10) {
-                    Ok(v) => v,
-                    Err(e) => panic!("error: {e:?}"),
-                };
-                let sym_expr = SymExpr::new(
-                    db,
-                    expr_span,
-                    ty,
-                    SymExprKind::Primitive(SymLiteral::Integral { bits }),
-                );
-                env.spawn_require_numeric_type(ty, &NumericTypeExpected { expr: sym_expr, ty });
-                ExprResult {
-                    temporaries: vec![],
-                    span: expr_span,
-                    kind: sym_expr.into(),
-                }
-            }
-
-            LiteralKind::String => {
-                // Generate `String.literal(b"...", length)`
-
-                // Generate `b"..."`
-                let bytes = literal.text(db).as_bytes();
-                let byte_literal_expr = {
-                    let pointer_struct = match well_known::pointer_struct(db) {
+        match &*expr.kind {
+            AstExprKind::Literal(literal) => match literal.kind(db) {
+                LiteralKind::Integer => {
+                    let ty = env.fresh_ty_inference_var(expr_span);
+                    let bits = match u64::from_str_radix(literal.text(db), 10) {
                         Ok(v) => v,
-                        Err(reported) => return ExprResult::err(db, reported),
+                        Err(e) => panic!("error: {e:?}"),
                     };
-                    let data = SymByteLiteralData::new(db, bytes);
-                    let byte_literal = SymByteLiteral::new(db, expr_span, data);
-                    SymExpr::new(
+                    let sym_expr = SymExpr::new(
                         db,
                         expr_span,
-                        SymTy::named(db, pointer_struct.into(), vec![SymTy::u8(db).into()]),
-                        SymExprKind::ByteLiteral(byte_literal),
-                    )
-                };
-
-                // Generate `length`
-                let len_literal_expr = {
-                    let value = bytes.len() as u64;
-                    SymExpr::new(
-                        db,
-                        expr_span,
-                        SymTy::u32(db),
-                        SymExprKind::Primitive(SymLiteral::Integral { bits: value }),
-                    )
-                };
-
-                // Generate and return `String.literal(b"...", length)`
-                let mut temporaries = vec![];
-                let ctor_call_expr = {
-                    let literal_fn = match well_known::string_literal_fn(db) {
-                        Ok(v) => v,
-                        Err(reported) => return ExprResult::err(db, reported),
-                    };
-                    SymExpr::new(
-                        db,
-                        expr_span,
-                        SymTy::string(db),
-                        SymExprKind::Call {
-                            function: literal_fn,
-                            substitution: vec![],
-                            arg_temps: vec![
-                                byte_literal_expr.into_temporary_var(db, &mut temporaries),
-                                len_literal_expr.into_temporary_var(db, &mut temporaries),
-                            ],
-                        },
-                    )
-                };
-                ExprResult {
-                    temporaries,
-                    span: expr_span,
-                    kind: ctor_call_expr.into(),
-                }
-            }
-
-            LiteralKind::Boolean => {
-                let bits = match &literal.text(db)[..] {
-                    "true" => 1,
-                    "false" => 0,
-                    t => panic!("unrecognized boolean literal {t:?}"),
-                };
-                ExprResult {
-                    temporaries: vec![],
-                    span: expr_span,
-                    kind: SymExpr::new(
-                        db,
-                        expr_span,
-                        SymTy::boolean(db),
+                        ty,
                         SymExprKind::Primitive(SymLiteral::Integral { bits }),
-                    )
-                    .into(),
+                    );
+                    env.spawn_require_numeric_type(ty, &NumericTypeExpected { expr: sym_expr, ty });
+                    ExprResult {
+                        temporaries: vec![],
+                        span: expr_span,
+                        kind: sym_expr.into(),
+                    }
                 }
-            }
-        },
 
-        AstExprKind::Tuple(span_vec) => {
-            let mut temporaries = vec![];
-            let mut exprs = vec![];
-            for element in &span_vec.values {
-                exprs.push(
-                    element
-                        .check_in_env(env)
-                        .await
-                        .into_expr(env, &mut temporaries),
-                );
-            }
+                LiteralKind::String => {
+                    // Generate `String.literal(b"...", length)`
 
-            let ty = SymTy::new(
-                db,
-                SymTyKind::Named(
-                    SymTyName::Tuple { arity: exprs.len() },
-                    exprs.iter().map(|e| e.ty(db).into()).collect(),
-                ),
-            );
-
-            ExprResult {
-                temporaries,
-                span: expr_span,
-                kind: ExprResultKind::Expr(SymExpr::new(
-                    db,
-                    expr_span,
-                    ty,
-                    SymExprKind::Tuple(exprs),
-                )),
-            }
-        }
-
-        AstExprKind::BinaryOp(span_op, lhs, rhs) => {
-            let span_op: SpannedBinaryOp<'db> = *span_op;
-            match span_op.op {
-                AstBinaryOp::Add | AstBinaryOp::Sub | AstBinaryOp::Mul | AstBinaryOp::Div => {
-                    let mut temporaries: Vec<Temporary<'db>> = vec![];
-                    let lhs: SymExpr<'db> =
-                        lhs.check_in_env(env).await.into_expr(env, &mut temporaries);
-                    let rhs: SymExpr<'db> =
-                        rhs.check_in_env(env).await.into_expr(env, &mut temporaries);
-
-                    // For now, let's do a dumb rule that operands must be
-                    // of the same primitive (and scalar) type.
-
-                    env.spawn_require_numeric_type(
-                        lhs.ty(db),
-                        &OperatorRequiresNumericType {
-                            op: span_op,
-                            expr: lhs,
-                        },
-                    );
-                    env.spawn_require_numeric_type(
-                        rhs.ty(db),
-                        &OperatorRequiresNumericType {
-                            op: span_op,
-                            expr: rhs,
-                        },
-                    );
-                    env.spawn_if_not_never(&[lhs.ty(db), rhs.ty(db)], async move |env| {
-                        env.spawn_require_equal_types(
-                            lhs.ty(db),
-                            rhs.ty(db),
-                            &OperatorArgumentsMustHaveSameType {
-                                op: span_op,
-                                lhs,
-                                rhs,
-                            },
-                        );
-                    });
-
-                    // What type do we want these operators to have?
-                    // For now I'll just take the LHS, but that seems
-                    // wrong if e.g. one side is `!`, then we probably
-                    // want `!`, right?
-
-                    ExprResult::from_expr(
-                        env.db(),
+                    // Generate `b"..."`
+                    let bytes = literal.text(db).as_bytes();
+                    let byte_literal_expr = {
+                        let pointer_struct = match well_known::pointer_struct(db) {
+                            Ok(v) => v,
+                            Err(reported) => return ExprResult::err(db, reported),
+                        };
+                        let data = SymByteLiteralData::new(db, bytes);
+                        let byte_literal = SymByteLiteral::new(db, expr_span, data);
                         SymExpr::new(
                             db,
                             expr_span,
-                            lhs.ty(db),
-                            SymExprKind::BinaryOp(
-                                SymBinaryOp::try_from(span_op.op).expect("invalid binary op"),
-                                lhs,
-                                rhs,
-                            ),
-                        ),
-                        temporaries,
-                    )
-                }
+                            SymTy::named(db, pointer_struct.into(), vec![SymTy::u8(db).into()]),
+                            SymExprKind::ByteLiteral(byte_literal),
+                        )
+                    };
 
-                AstBinaryOp::AndAnd => {
-                    let mut temporaries: Vec<Temporary<'db>> = vec![];
-                    let lhs: SymExpr<'db> =
-                        lhs.check_in_env(env).await.into_expr(env, &mut temporaries);
-                    let rhs: SymExpr<'db> =
-                        rhs.check_in_env(env).await.into_expr(env, &mut temporaries);
-                    env.require_expr_has_bool_ty(lhs);
-                    env.require_expr_has_bool_ty(rhs);
-
-                    // construct an expression like
-                    // if lhs { if rhs { true } else { false } } else { false }
-                    ExprResult::from_expr(
-                        env.db(),
-                        SymExpr::if_then_else(
-                            db,
-                            expr_span,
-                            lhs,
-                            SymExpr::if_then_else(
-                                db,
-                                expr_span,
-                                rhs,
-                                SymExpr::true_literal(db, expr_span),
-                                SymExpr::false_literal(db, expr_span),
-                            ),
-                            SymExpr::false_literal(db, expr_span),
-                        ),
-                        temporaries,
-                    )
-                }
-
-                AstBinaryOp::OrOr => {
-                    let mut temporaries: Vec<Temporary<'db>> = vec![];
-                    let lhs: SymExpr<'db> =
-                        lhs.check_in_env(env).await.into_expr(env, &mut temporaries);
-                    let rhs: SymExpr<'db> =
-                        rhs.check_in_env(env).await.into_expr(env, &mut temporaries);
-
-                    env.require_expr_has_bool_ty(lhs);
-                    env.require_expr_has_bool_ty(rhs);
-
-                    // construct an expression like
-                    // if lhs { true } else { if rhs { true } else { false } }
-                    ExprResult::from_expr(
-                        env.db(),
-                        SymExpr::if_then_else(
-                            db,
-                            expr_span,
-                            lhs,
-                            SymExpr::true_literal(db, expr_span),
-                            SymExpr::if_then_else(
-                                db,
-                                expr_span,
-                                rhs,
-                                SymExpr::true_literal(db, expr_span),
-                                SymExpr::false_literal(db, expr_span),
-                            ),
-                        ),
-                        temporaries,
-                    )
-                }
-
-                AstBinaryOp::GreaterThan
-                | AstBinaryOp::LessThan
-                | AstBinaryOp::GreaterEqual
-                | AstBinaryOp::LessEqual
-                | AstBinaryOp::EqualEqual => {
-                    let mut temporaries: Vec<Temporary<'db>> = vec![];
-                    let lhs: SymExpr<'db> =
-                        lhs.check_in_env(env).await.into_expr(env, &mut temporaries);
-                    let rhs: SymExpr<'db> =
-                        rhs.check_in_env(env).await.into_expr(env, &mut temporaries);
-
-                    // For now, let's do a dumb rule that operands must be
-                    // of the same primitive (and scalar) type.
-
-                    env.spawn_require_numeric_type(
-                        lhs.ty(db),
-                        &OperatorRequiresNumericType {
-                            op: span_op,
-                            expr: lhs,
-                        },
-                    );
-                    env.spawn_require_numeric_type(
-                        rhs.ty(db),
-                        &OperatorRequiresNumericType {
-                            op: span_op,
-                            expr: rhs,
-                        },
-                    );
-                    env.spawn_if_not_never(&[lhs.ty(db), rhs.ty(db)], async move |env| {
-                        env.spawn_require_equal_types(
-                            lhs.ty(db),
-                            rhs.ty(db),
-                            &OperatorArgumentsMustHaveSameType {
-                                op: span_op,
-                                lhs,
-                                rhs,
-                            },
-                        );
-                    });
-
-                    // What type do we want these operators to have?
-                    // For now I'll just take the LHS, but that seems
-                    // wrong if e.g. one side is `!`, then we probably
-                    // want `!`, right?
-
-                    ExprResult::from_expr(
-                        env.db(),
+                    // Generate `length`
+                    let len_literal_expr = {
+                        let value = bytes.len() as u64;
                         SymExpr::new(
+                            db,
+                            expr_span,
+                            SymTy::u32(db),
+                            SymExprKind::Primitive(SymLiteral::Integral { bits: value }),
+                        )
+                    };
+
+                    // Generate and return `String.literal(b"...", length)`
+                    let mut temporaries = vec![];
+                    let ctor_call_expr = {
+                        let literal_fn = match well_known::string_literal_fn(db) {
+                            Ok(v) => v,
+                            Err(reported) => return ExprResult::err(db, reported),
+                        };
+                        SymExpr::new(
+                            db,
+                            expr_span,
+                            SymTy::string(db),
+                            SymExprKind::Call {
+                                function: literal_fn,
+                                substitution: vec![],
+                                arg_temps: vec![
+                                    byte_literal_expr.into_temporary_var(db, &mut temporaries),
+                                    len_literal_expr.into_temporary_var(db, &mut temporaries),
+                                ],
+                            },
+                        )
+                    };
+                    ExprResult {
+                        temporaries,
+                        span: expr_span,
+                        kind: ctor_call_expr.into(),
+                    }
+                }
+
+                LiteralKind::Boolean => {
+                    let bits = match &literal.text(db)[..] {
+                        "true" => 1,
+                        "false" => 0,
+                        t => panic!("unrecognized boolean literal {t:?}"),
+                    };
+                    ExprResult {
+                        temporaries: vec![],
+                        span: expr_span,
+                        kind: SymExpr::new(
                             db,
                             expr_span,
                             SymTy::boolean(db),
-                            SymExprKind::BinaryOp(
-                                SymBinaryOp::try_from(span_op.op).expect("invalid binary op"),
-                                lhs,
-                                rhs,
-                            ),
-                        ),
-                        temporaries,
-                    )
+                            SymExprKind::Primitive(SymLiteral::Integral { bits }),
+                        )
+                        .into(),
+                    }
                 }
+            },
 
-                AstBinaryOp::Assign => {
-                    let mut temporaries: Vec<Temporary<'db>> = vec![];
-                    let place: SymPlaceExpr<'db> = lhs
-                        .check_in_env(env)
-                        .await
-                        .into_place_expr(env, &mut temporaries);
-                    let value: SymExpr<'db> =
-                        rhs.check_in_env(env).await.into_expr(env, &mut temporaries);
-
-                    // For now, let's do a dumb rule that operands must be
-                    // of the same primitive (and scalar) type.
-
-                    env.spawn_require_assignable_type(
-                        value.ty(db),
-                        place.ty(db),
-                        &InvalidAssignmentType {
-                            lhs: place,
-                            rhs: value,
-                        },
+            AstExprKind::Tuple(span_vec) => {
+                let mut temporaries = vec![];
+                let mut exprs = vec![];
+                for element in &span_vec.values {
+                    exprs.push(
+                        element
+                            .check_in_env(env)
+                            .await
+                            .into_expr(env, &mut temporaries),
                     );
-
-                    ExprResult::from_expr(
-                        env.db(),
-                        SymExpr::new(
-                            db,
-                            expr_span,
-                            SymTy::unit(db),
-                            SymExprKind::Assign { place, value },
-                        ),
-                        temporaries,
-                    )
-                }
-            }
-        }
-
-        AstExprKind::Id(SpannedIdentifier { span: id_span, id }) => {
-            match env.scope.resolve_name(db, *id, *id_span) {
-                Err(reported) => ExprResult::err(db, reported),
-                Ok(res) => ExprResult::from_name_resolution(env, res, expr_span).await,
-            }
-        }
-
-        AstExprKind::DotId(owner, id) => {
-            let mut owner_result = owner.check_in_env(env).await;
-            match owner_result.kind {
-                ExprResultKind::PlaceExpr(_) | ExprResultKind::Expr(_) => {
-                    MemberLookup::new(env)
-                        .lookup_member(owner_result, *id)
-                        .await
                 }
 
-                ExprResultKind::Other(name_resolution) => {
-                    match name_resolution.resolve_relative_id(db, *id) {
-                        // Got an error? Bail out.
-                        Err(reported) => ExprResult::err(db, reported),
-
-                        // Found something with lexical resolution? Continue.
-                        Ok(Ok(r)) => ExprResult::from_name_resolution(env, r, expr_span).await,
-
-                        // Otherwise, try type-dependent lookup.
-                        Ok(Err(name_resolution)) => {
-                            owner_result.kind = name_resolution.into();
-                            MemberLookup::new(env)
-                                .lookup_member(owner_result, *id)
-                                .await
-                        }
-                    }
-                }
-
-                ExprResultKind::Method {
-                    self_expr: owner,
-                    function: method,
-                    ..
-                } => ExprResult::err(
+                let ty = SymTy::new(
                     db,
-                    report_missing_call_to_method(db, owner.span(db), method),
-                ),
-            }
-        }
+                    SymTyKind::Named(
+                        SymTyName::Tuple { arity: exprs.len() },
+                        exprs.iter().map(|e| e.ty(db).into()).collect(),
+                    ),
+                );
 
-        AstExprKind::SquareBracketOp(owner, square_bracket_args) => {
-            let owner_result = owner.check_in_env(env).await;
-            match owner_result.kind {
-                ExprResultKind::Method {
-                    self_expr: owner,
-                    function: method,
-                    generics: None,
-                    id_span,
-                } => {
-                    let ast_terms = square_bracket_args.parse_as_generics(db);
-
-                    ExprResult {
-                        kind: ExprResultKind::Method {
-                            self_expr: owner,
-                            function: method,
-                            generics: Some(ast_terms),
-                            id_span,
-                        },
-                        ..owner_result
-                    }
-                }
-
-                ExprResultKind::PlaceExpr(_) | ExprResultKind::Expr(_) => ExprResult::err(
-                    db,
-                    report_not_implemented(db, expr_span, "indexing expressions"),
-                ),
-
-                // We see something like `foo.bar[][]` where `bar` is a method.
-                // The only correct thing here would be `foo.bar[]()[]`, i.e., call the method and then index.
-                // We give an error under that assumption.
-                // It seems likely we can do a better job.
-                ExprResultKind::Method {
-                    self_expr: owner,
-                    function: method,
-                    generics: Some(_),
-                    ..
-                } => ExprResult::err(
-                    db,
-                    report_missing_call_to_method(db, owner.span(db), method),
-                ),
-
-                ExprResultKind::Other(name_resolution) => {
-                    let generics = square_bracket_args.parse_as_generics(db);
-                    match name_resolution
-                        .resolve_relative_generic_args(env, &generics)
-                        .await
-                    {
-                        Ok(name_resolution) => ExprResult {
-                            temporaries: owner_result.temporaries,
-                            span: expr_span,
-                            kind: name_resolution.into(),
-                        },
-                        Err(r) => ExprResult::err(db, r),
-                    }
-                }
-            }
-        }
-
-        AstExprKind::ParenthesisOp(owner, ast_args) => {
-            let owner_result = owner.check_in_env(env).await;
-            match owner_result {
                 ExprResult {
                     temporaries,
                     span: expr_span,
-                    kind:
-                        ExprResultKind::Method {
-                            self_expr,
-                            id_span,
-                            function,
-                            generics,
-                        },
-                } => {
-                    check_method_call(
-                        env,
-                        id_span,
+                    kind: ExprResultKind::Expr(SymExpr::new(
+                        db,
                         expr_span,
-                        function,
-                        Some(self_expr),
-                        ast_args,
-                        generics,
-                        temporaries,
-                    )
-                    .await
+                        ty,
+                        SymExprKind::Tuple(exprs),
+                    )),
                 }
+            }
 
-                ExprResult {
-                    temporaries,
-                    span: function_span,
-                    kind:
-                        ExprResultKind::Other(NameResolution {
-                            generics,
-                            sym: NameResolutionSym::SymFunction(sym),
-                            ..
-                        }),
-                } => {
-                    check_function_call(
-                        env,
-                        function_span,
-                        expr_span,
-                        sym,
-                        ast_args,
-                        generics,
-                        temporaries,
-                    )
-                    .await
-                }
+            AstExprKind::BinaryOp(span_op, lhs, rhs) => {
+                let span_op: SpannedBinaryOp<'db> = *span_op;
+                match span_op.op {
+                    AstBinaryOp::Add | AstBinaryOp::Sub | AstBinaryOp::Mul | AstBinaryOp::Div => {
+                        let mut temporaries: Vec<Temporary<'db>> = vec![];
+                        let lhs: SymExpr<'db> =
+                            lhs.check_in_env(env).await.into_expr(env, &mut temporaries);
+                        let rhs: SymExpr<'db> =
+                            rhs.check_in_env(env).await.into_expr(env, &mut temporaries);
 
-                // Calling a class like `Class(a, b)`: convert to
-                // `Class.new(a, b)`.
-                ExprResult {
-                    temporaries,
-                    span: class_span,
-                    kind:
-                        ExprResultKind::Other(
-                            name_resolution @ NameResolution {
-                                sym: NameResolutionSym::SymClass(class_sym),
-                                ..
+                        // For now, let's do a dumb rule that operands must be
+                        // of the same primitive (and scalar) type.
+
+                        env.spawn_require_numeric_type(
+                            lhs.ty(db),
+                            &OperatorRequiresNumericType {
+                                op: span_op,
+                                expr: lhs,
                             },
-                        ),
-                } => {
-                    check_class_call(
-                        env,
-                        class_span,
-                        expr_span,
-                        name_resolution,
-                        class_sym,
-                        ast_args,
-                        temporaries,
-                    )
-                    .await
-                }
+                        );
+                        env.spawn_require_numeric_type(
+                            rhs.ty(db),
+                            &OperatorRequiresNumericType {
+                                op: span_op,
+                                expr: rhs,
+                            },
+                        );
+                        env.spawn_if_not_never(&[lhs.ty(db), rhs.ty(db)], async move |env| {
+                            env.spawn_require_equal_types(
+                                lhs.ty(db),
+                                rhs.ty(db),
+                                &OperatorArgumentsMustHaveSameType {
+                                    op: span_op,
+                                    lhs,
+                                    rhs,
+                                },
+                            );
+                        });
 
-                ExprResult {
-                    span: owner_span, ..
-                } => {
-                    // FIXME: we probably want to support functions and function typed values?
-                    ExprResult::err(db, report_not_callable(db, owner_span))
-                }
-            }
-        }
+                        // What type do we want these operators to have?
+                        // For now I'll just take the LHS, but that seems
+                        // wrong if e.g. one side is `!`, then we probably
+                        // want `!`, right?
 
-        AstExprKind::Constructor(_ast_path, _span_vec) => todo!(),
-        AstExprKind::Return(ast_expr) => {
-            let mut temporaries = vec![];
-
-            let return_expr = if let Some(ast_expr) = ast_expr {
-                ast_expr
-                    .check_in_env(env)
-                    .await
-                    .into_expr(env, &mut temporaries)
-            } else {
-                // the default is `return ()`
-                SymExpr::new(db, expr_span, SymTy::unit(db), SymExprKind::Tuple(vec![]))
-            };
-
-            let Some(expected_return_ty) = env.return_ty else {
-                return ExprResult::err(
-                    db,
-                    Diagnostic::error(db, expr_span, format!("unexpected `return` statement"))
-                        .label(
-                            db,
-                            Level::Error,
-                            expr_span,
-                            format!("I did not expect to see a `return` statement here"),
+                        ExprResult::from_expr(
+                            env.db(),
+                            SymExpr::new(
+                                db,
+                                expr_span,
+                                lhs.ty(db),
+                                SymExprKind::BinaryOp(
+                                    SymBinaryOp::try_from(span_op.op).expect("invalid binary op"),
+                                    lhs,
+                                    rhs,
+                                ),
+                            ),
+                            temporaries,
                         )
-                        .report(db),
-                );
-            };
+                    }
 
-            env.spawn_require_assignable_type(
-                return_expr.ty(db),
-                expected_return_ty,
-                &InvalidReturnValue {
-                    value: return_expr,
-                    return_ty: expected_return_ty,
-                },
-            );
+                    AstBinaryOp::AndAnd => {
+                        let mut temporaries: Vec<Temporary<'db>> = vec![];
+                        let lhs: SymExpr<'db> =
+                            lhs.check_in_env(env).await.into_expr(env, &mut temporaries);
+                        let rhs: SymExpr<'db> =
+                            rhs.check_in_env(env).await.into_expr(env, &mut temporaries);
+                        env.require_expr_has_bool_ty(lhs);
+                        env.require_expr_has_bool_ty(rhs);
 
-            ExprResult {
-                temporaries,
-                span: expr_span,
-                kind: SymExpr::new(
-                    db,
-                    expr_span,
-                    SymTy::never(db),
-                    SymExprKind::Return(return_expr),
-                )
-                .into(),
+                        // construct an expression like
+                        // if lhs { if rhs { true } else { false } } else { false }
+                        ExprResult::from_expr(
+                            env.db(),
+                            SymExpr::if_then_else(
+                                db,
+                                expr_span,
+                                lhs,
+                                SymExpr::if_then_else(
+                                    db,
+                                    expr_span,
+                                    rhs,
+                                    SymExpr::true_literal(db, expr_span),
+                                    SymExpr::false_literal(db, expr_span),
+                                ),
+                                SymExpr::false_literal(db, expr_span),
+                            ),
+                            temporaries,
+                        )
+                    }
+
+                    AstBinaryOp::OrOr => {
+                        let mut temporaries: Vec<Temporary<'db>> = vec![];
+                        let lhs: SymExpr<'db> =
+                            lhs.check_in_env(env).await.into_expr(env, &mut temporaries);
+                        let rhs: SymExpr<'db> =
+                            rhs.check_in_env(env).await.into_expr(env, &mut temporaries);
+
+                        env.require_expr_has_bool_ty(lhs);
+                        env.require_expr_has_bool_ty(rhs);
+
+                        // construct an expression like
+                        // if lhs { true } else { if rhs { true } else { false } }
+                        ExprResult::from_expr(
+                            env.db(),
+                            SymExpr::if_then_else(
+                                db,
+                                expr_span,
+                                lhs,
+                                SymExpr::true_literal(db, expr_span),
+                                SymExpr::if_then_else(
+                                    db,
+                                    expr_span,
+                                    rhs,
+                                    SymExpr::true_literal(db, expr_span),
+                                    SymExpr::false_literal(db, expr_span),
+                                ),
+                            ),
+                            temporaries,
+                        )
+                    }
+
+                    AstBinaryOp::GreaterThan
+                    | AstBinaryOp::LessThan
+                    | AstBinaryOp::GreaterEqual
+                    | AstBinaryOp::LessEqual
+                    | AstBinaryOp::EqualEqual => {
+                        let mut temporaries: Vec<Temporary<'db>> = vec![];
+                        let lhs: SymExpr<'db> =
+                            lhs.check_in_env(env).await.into_expr(env, &mut temporaries);
+                        let rhs: SymExpr<'db> =
+                            rhs.check_in_env(env).await.into_expr(env, &mut temporaries);
+
+                        // For now, let's do a dumb rule that operands must be
+                        // of the same primitive (and scalar) type.
+
+                        env.spawn_require_numeric_type(
+                            lhs.ty(db),
+                            &OperatorRequiresNumericType {
+                                op: span_op,
+                                expr: lhs,
+                            },
+                        );
+                        env.spawn_require_numeric_type(
+                            rhs.ty(db),
+                            &OperatorRequiresNumericType {
+                                op: span_op,
+                                expr: rhs,
+                            },
+                        );
+                        env.spawn_if_not_never(&[lhs.ty(db), rhs.ty(db)], async move |env| {
+                            env.spawn_require_equal_types(
+                                lhs.ty(db),
+                                rhs.ty(db),
+                                &OperatorArgumentsMustHaveSameType {
+                                    op: span_op,
+                                    lhs,
+                                    rhs,
+                                },
+                            );
+                        });
+
+                        // What type do we want these operators to have?
+                        // For now I'll just take the LHS, but that seems
+                        // wrong if e.g. one side is `!`, then we probably
+                        // want `!`, right?
+
+                        ExprResult::from_expr(
+                            env.db(),
+                            SymExpr::new(
+                                db,
+                                expr_span,
+                                SymTy::boolean(db),
+                                SymExprKind::BinaryOp(
+                                    SymBinaryOp::try_from(span_op.op).expect("invalid binary op"),
+                                    lhs,
+                                    rhs,
+                                ),
+                            ),
+                            temporaries,
+                        )
+                    }
+
+                    AstBinaryOp::Assign => {
+                        let mut temporaries: Vec<Temporary<'db>> = vec![];
+                        let place: SymPlaceExpr<'db> = lhs
+                            .check_in_env(env)
+                            .await
+                            .into_place_expr(env, &mut temporaries);
+                        let value: SymExpr<'db> =
+                            rhs.check_in_env(env).await.into_expr(env, &mut temporaries);
+
+                        // For now, let's do a dumb rule that operands must be
+                        // of the same primitive (and scalar) type.
+
+                        env.spawn_require_assignable_type(
+                            value.ty(db),
+                            place.ty(db),
+                            &InvalidAssignmentType {
+                                lhs: place,
+                                rhs: value,
+                            },
+                        );
+
+                        ExprResult::from_expr(
+                            env.db(),
+                            SymExpr::new(
+                                db,
+                                expr_span,
+                                SymTy::unit(db),
+                                SymExprKind::Assign { place, value },
+                            ),
+                            temporaries,
+                        )
+                    }
+                }
             }
-        }
 
-        AstExprKind::Await {
-            future,
-            await_keyword,
-        } => {
-            let await_span = *await_keyword;
-
-            let mut temporaries = vec![];
-
-            let future_expr = future
-                .check_in_env(env)
-                .await
-                .into_expr(env, &mut temporaries);
-            let future_ty = future_expr.ty(db);
-
-            let awaited_ty = env.fresh_ty_inference_var(await_span);
-
-            env.spawn_require_future_type(
-                future_ty,
-                awaited_ty,
-                &AwaitNonFuture {
-                    await_span,
-                    future_expr,
-                },
-            );
-
-            ExprResult {
-                temporaries,
-                span: expr_span,
-                kind: SymExpr::new(
-                    db,
-                    expr_span,
-                    awaited_ty,
-                    SymExprKind::Await {
-                        future: future_expr,
-                        await_keyword: await_span,
-                    },
-                )
-                .into(),
+            AstExprKind::Id(SpannedIdentifier { span: id_span, id }) => {
+                match env.scope.resolve_name(db, *id, *id_span) {
+                    Err(reported) => ExprResult::err(db, reported),
+                    Ok(res) => ExprResult::from_name_resolution(env, res, expr_span).await,
+                }
             }
-        }
-        AstExprKind::UnaryOp(spanned_unary_op, ast_expr) => match spanned_unary_op.op {
-            UnaryOp::Not => {
+
+            AstExprKind::DotId(owner, id) => {
+                let mut owner_result = owner.check_in_env(env).await;
+                match owner_result.kind {
+                    ExprResultKind::PlaceExpr(_) | ExprResultKind::Expr(_) => {
+                        MemberLookup::new(env)
+                            .lookup_member(owner_result, *id)
+                            .await
+                    }
+
+                    ExprResultKind::Other(name_resolution) => {
+                        match name_resolution.resolve_relative_id(db, *id) {
+                            // Got an error? Bail out.
+                            Err(reported) => ExprResult::err(db, reported),
+
+                            // Found something with lexical resolution? Continue.
+                            Ok(Ok(r)) => ExprResult::from_name_resolution(env, r, expr_span).await,
+
+                            // Otherwise, try type-dependent lookup.
+                            Ok(Err(name_resolution)) => {
+                                owner_result.kind = name_resolution.into();
+                                MemberLookup::new(env)
+                                    .lookup_member(owner_result, *id)
+                                    .await
+                            }
+                        }
+                    }
+
+                    ExprResultKind::Method {
+                        self_expr: owner,
+                        function: method,
+                        ..
+                    } => ExprResult::err(
+                        db,
+                        report_missing_call_to_method(db, owner.span(db), method),
+                    ),
+                }
+            }
+
+            AstExprKind::SquareBracketOp(owner, square_bracket_args) => {
+                let owner_result = owner.check_in_env(env).await;
+                match owner_result.kind {
+                    ExprResultKind::Method {
+                        self_expr: owner,
+                        function: method,
+                        generics: None,
+                        id_span,
+                    } => {
+                        let ast_terms = square_bracket_args.parse_as_generics(db);
+
+                        ExprResult {
+                            kind: ExprResultKind::Method {
+                                self_expr: owner,
+                                function: method,
+                                generics: Some(ast_terms),
+                                id_span,
+                            },
+                            ..owner_result
+                        }
+                    }
+
+                    ExprResultKind::PlaceExpr(_) | ExprResultKind::Expr(_) => ExprResult::err(
+                        db,
+                        report_not_implemented(db, expr_span, "indexing expressions"),
+                    ),
+
+                    // We see something like `foo.bar[][]` where `bar` is a method.
+                    // The only correct thing here would be `foo.bar[]()[]`, i.e., call the method and then index.
+                    // We give an error under that assumption.
+                    // It seems likely we can do a better job.
+                    ExprResultKind::Method {
+                        self_expr: owner,
+                        function: method,
+                        generics: Some(_),
+                        ..
+                    } => ExprResult::err(
+                        db,
+                        report_missing_call_to_method(db, owner.span(db), method),
+                    ),
+
+                    ExprResultKind::Other(name_resolution) => {
+                        let generics = square_bracket_args.parse_as_generics(db);
+                        match name_resolution
+                            .resolve_relative_generic_args(env, &generics)
+                            .await
+                        {
+                            Ok(name_resolution) => ExprResult {
+                                temporaries: owner_result.temporaries,
+                                span: expr_span,
+                                kind: name_resolution.into(),
+                            },
+                            Err(r) => ExprResult::err(db, r),
+                        }
+                    }
+                }
+            }
+
+            AstExprKind::ParenthesisOp(owner, ast_args) => {
+                let owner_result = owner.check_in_env(env).await;
+                match owner_result {
+                    ExprResult {
+                        temporaries,
+                        span: expr_span,
+                        kind:
+                            ExprResultKind::Method {
+                                self_expr,
+                                id_span,
+                                function,
+                                generics,
+                            },
+                    } => {
+                        check_method_call(
+                            env,
+                            id_span,
+                            expr_span,
+                            function,
+                            Some(self_expr),
+                            ast_args,
+                            generics,
+                            temporaries,
+                        )
+                        .await
+                    }
+
+                    ExprResult {
+                        temporaries,
+                        span: function_span,
+                        kind:
+                            ExprResultKind::Other(NameResolution {
+                                generics,
+                                sym: NameResolutionSym::SymFunction(sym),
+                                ..
+                            }),
+                    } => {
+                        check_function_call(
+                            env,
+                            function_span,
+                            expr_span,
+                            sym,
+                            ast_args,
+                            generics,
+                            temporaries,
+                        )
+                        .await
+                    }
+
+                    // Calling a class like `Class(a, b)`: convert to
+                    // `Class.new(a, b)`.
+                    ExprResult {
+                        temporaries,
+                        span: class_span,
+                        kind:
+                            ExprResultKind::Other(
+                                name_resolution @ NameResolution {
+                                    sym: NameResolutionSym::SymClass(class_sym),
+                                    ..
+                                },
+                            ),
+                    } => {
+                        check_class_call(
+                            env,
+                            class_span,
+                            expr_span,
+                            name_resolution,
+                            class_sym,
+                            ast_args,
+                            temporaries,
+                        )
+                        .await
+                    }
+
+                    ExprResult {
+                        span: owner_span, ..
+                    } => {
+                        // FIXME: we probably want to support functions and function typed values?
+                        ExprResult::err(db, report_not_callable(db, owner_span))
+                    }
+                }
+            }
+
+            AstExprKind::Constructor(_ast_path, _span_vec) => todo!(),
+            AstExprKind::Return(ast_expr) => {
                 let mut temporaries = vec![];
-                let operand = ast_expr
-                    .check_in_env(env)
-                    .await
-                    .into_expr(env, &mut temporaries);
-                env.require_expr_has_bool_ty(operand);
+
+                let return_expr = if let Some(ast_expr) = ast_expr {
+                    ast_expr
+                        .check_in_env(env)
+                        .await
+                        .into_expr(env, &mut temporaries)
+                } else {
+                    // the default is `return ()`
+                    SymExpr::new(db, expr_span, SymTy::unit(db), SymExprKind::Tuple(vec![]))
+                };
+
+                let Some(expected_return_ty) = env.return_ty else {
+                    return ExprResult::err(
+                        db,
+                        Diagnostic::error(db, expr_span, format!("unexpected `return` statement"))
+                            .label(
+                                db,
+                                Level::Error,
+                                expr_span,
+                                format!("I did not expect to see a `return` statement here"),
+                            )
+                            .report(db),
+                    );
+                };
+
+                env.spawn_require_assignable_type(
+                    return_expr.ty(db),
+                    expected_return_ty,
+                    &InvalidReturnValue {
+                        value: return_expr,
+                        return_ty: expected_return_ty,
+                    },
+                );
 
                 ExprResult {
                     temporaries,
@@ -730,91 +669,155 @@ async fn check_expr<'db>(expr: &AstExpr<'db>, env: &mut Env<'db>) -> ExprResult<
                     kind: SymExpr::new(
                         db,
                         expr_span,
-                        SymTy::boolean(db),
-                        SymExprKind::Not {
-                            operand,
-                            op_span: spanned_unary_op.span,
+                        SymTy::never(db),
+                        SymExprKind::Return(return_expr),
+                    )
+                    .into(),
+                }
+            }
+
+            AstExprKind::Await {
+                future,
+                await_keyword,
+            } => {
+                let await_span = *await_keyword;
+
+                let mut temporaries = vec![];
+
+                let future_expr = future
+                    .check_in_env(env)
+                    .await
+                    .into_expr(env, &mut temporaries);
+                let future_ty = future_expr.ty(db);
+
+                let awaited_ty = env.fresh_ty_inference_var(await_span);
+
+                env.spawn_require_future_type(
+                    future_ty,
+                    awaited_ty,
+                    &AwaitNonFuture {
+                        await_span,
+                        future_expr,
+                    },
+                );
+
+                ExprResult {
+                    temporaries,
+                    span: expr_span,
+                    kind: SymExpr::new(
+                        db,
+                        expr_span,
+                        awaited_ty,
+                        SymExprKind::Await {
+                            future: future_expr,
+                            await_keyword: await_span,
                         },
                     )
                     .into(),
                 }
             }
-            UnaryOp::Negate => todo!(),
-        },
-        AstExprKind::Block(ast_block) => ExprResult {
-            temporaries: vec![],
-            span: expr_span,
-            kind: ast_block.check_in_env(env).await.into(),
-        },
-
-        AstExprKind::If(ast_arms) => {
-            let mut arms = vec![];
-            let mut has_else = false;
-            for arm in ast_arms {
-                let condition = if let Some(c) = &arm.condition {
-                    let expr = c
+            AstExprKind::UnaryOp(spanned_unary_op, ast_expr) => match spanned_unary_op.op {
+                UnaryOp::Not => {
+                    let mut temporaries = vec![];
+                    let operand = ast_expr
                         .check_in_env(env)
                         .await
-                        .into_expr_with_enclosed_temporaries(env);
-                    env.require_expr_has_bool_ty(expr);
-                    Some(expr)
-                } else {
-                    has_else = true;
-                    None
-                };
+                        .into_expr(env, &mut temporaries);
+                    env.require_expr_has_bool_ty(operand);
 
-                let body = arm.result.check_in_env(env).await;
-
-                arms.push(SymMatchArm { condition, body });
-            }
-
-            let if_ty = if !has_else {
-                SymTy::unit(db)
-            } else {
-                env.fresh_ty_inference_var(expr_span)
-            };
-
-            for arm in &arms {
-                env.spawn_require_assignable_type(
-                    arm.body.ty(db),
-                    if_ty,
-                    &BadSubtypeError {
-                        span: arm.body.span(db),
-                        lower: arm.body.ty(db),
-                        upper: if_ty,
-                    },
-                );
-            }
-
-            ExprResult {
+                    ExprResult {
+                        temporaries,
+                        span: expr_span,
+                        kind: SymExpr::new(
+                            db,
+                            expr_span,
+                            SymTy::boolean(db),
+                            SymExprKind::Not {
+                                operand,
+                                op_span: spanned_unary_op.span,
+                            },
+                        )
+                        .into(),
+                    }
+                }
+                UnaryOp::Negate => todo!(),
+            },
+            AstExprKind::Block(ast_block) => ExprResult {
                 temporaries: vec![],
                 span: expr_span,
-                kind: SymExpr::new(db, expr_span, if_ty, SymExprKind::Match { arms }).into(),
-            }
-        }
+                kind: ast_block.check_in_env(env).await.into(),
+            },
 
-        AstExprKind::PermissionOp { value, op } => {
-            let mut temporaries = vec![];
-            let value_result = value.check_in_env(env).await;
-            let place_expr = value_result.into_place_expr(env, &mut temporaries);
-            let sym_place = place_expr.into_sym_place(db);
-            ExprResult {
-                temporaries,
-                span: expr_span,
-                kind: SymExpr::new(
-                    db,
-                    expr_span,
-                    match op {
-                        PermissionOp::Lease => place_expr.ty(db).leased(db, sym_place),
-                        PermissionOp::Share => place_expr.ty(db).shared(db, sym_place),
-                        PermissionOp::Give => place_expr.ty(db),
-                    },
-                    SymExprKind::PermissionOp(*op, place_expr),
-                )
-                .into(),
+            AstExprKind::If(ast_arms) => {
+                let mut arms = vec![];
+                let mut has_else = false;
+                for arm in ast_arms {
+                    let condition = if let Some(c) = &arm.condition {
+                        let expr = c
+                            .check_in_env(env)
+                            .await
+                            .into_expr_with_enclosed_temporaries(env);
+                        env.require_expr_has_bool_ty(expr);
+                        Some(expr)
+                    } else {
+                        has_else = true;
+                        None
+                    };
+
+                    let body = arm.result.check_in_env(env).await;
+
+                    arms.push(SymMatchArm { condition, body });
+                }
+
+                let if_ty = if !has_else {
+                    SymTy::unit(db)
+                } else {
+                    env.fresh_ty_inference_var(expr_span)
+                };
+
+                for arm in &arms {
+                    env.spawn_require_assignable_type(
+                        arm.body.ty(db),
+                        if_ty,
+                        &BadSubtypeError {
+                            span: arm.body.span(db),
+                            lower: arm.body.ty(db),
+                            upper: if_ty,
+                        },
+                    );
+                }
+
+                ExprResult {
+                    temporaries: vec![],
+                    span: expr_span,
+                    kind: SymExpr::new(db, expr_span, if_ty, SymExprKind::Match { arms }).into(),
+                }
+            }
+
+            AstExprKind::PermissionOp { value, op } => {
+                let mut temporaries = vec![];
+                let value_result = value.check_in_env(env).await;
+                let place_expr = value_result.into_place_expr(env, &mut temporaries);
+                let sym_place = place_expr.into_sym_place(db);
+                ExprResult {
+                    temporaries,
+                    span: expr_span,
+                    kind: SymExpr::new(
+                        db,
+                        expr_span,
+                        match op {
+                            PermissionOp::Lease => place_expr.ty(db).leased(db, sym_place),
+                            PermissionOp::Share => place_expr.ty(db).shared(db, sym_place),
+                            PermissionOp::Give => place_expr.ty(db),
+                        },
+                        SymExprKind::PermissionOp(*op, place_expr),
+                    )
+                    .into(),
+                }
             }
         }
-    }
+    })
+    .await
 }
 
 #[boxed_async_fn]

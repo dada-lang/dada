@@ -17,6 +17,8 @@ pub use dada_util_procmacro::*;
 pub mod typedvec;
 pub mod vecset;
 
+pub mod fixed_depth_json;
+
 #[derive(Clone, Copy, PartialEq, Eq, PartialOrd, Ord, Hash, Debug)]
 pub enum Never {}
 
