@@ -10,7 +10,7 @@ use dada_ir_ast::{diagnostic::Errors, span::Span, DebugEvent, DebugEventPayload}
 use crate::ir::{
     exprs::SymExpr,
     indices::InferVarIndex,
-    types::{SymGenericTerm, SymPerm, SymTy},
+    types::{SymGenericKind, SymGenericTerm, SymPerm, SymTy},
 };
 
 use super::{
@@ -241,9 +241,9 @@ impl<'db> LogHandle<'db> {
     fn export_value(&self, event_argument: &EventArgument<'db>) -> serde_json::Value {
         match event_argument {
             EventArgument::Many(event_arguments) => event_arguments
-                .iter()
-                .map(|a| self.export_value(a))
-                .collect(),
+                        .iter()
+                        .map(|a| self.export_value(a))
+                        .collect(),
             EventArgument::Unit(v) => serde_json::to_value(v).unwrap(),
             EventArgument::Usize(v) => serde_json::to_value(v).unwrap(),
             EventArgument::Bool(v) => serde_json::to_value(v).unwrap(),
@@ -254,12 +254,14 @@ impl<'db> LogHandle<'db> {
             EventArgument::SymTy(v) => serde_json::to_value(format!("{v:?}")).unwrap(),
             EventArgument::SymPerm(v) => serde_json::to_value(format!("{v:?}")).unwrap(),
             EventArgument::InferVarIndex(v) => serde_json::to_value(export::InferId {
-                index: v.as_usize(),
-            })
-            .unwrap(),
+                        index: v.as_usize(),
+                    })
+                    .unwrap(),
             EventArgument::Errors(v) => serde_json::to_value(format!("{v:?}")).unwrap(),
             EventArgument::Trivalue(v) => serde_json::to_value(format!("{v:?}")).unwrap(),
             EventArgument::Chain(v) => serde_json::to_value(format!("{v:?}")).unwrap(),
+            EventArgument::Span(span) => serde_json::to_value(format!("{span:?}")).unwrap(),
+            EventArgument::SymGenericKind(sym_generic_kind) => serde_json::to_value(format!("{sym_generic_kind:?}")).unwrap(),
         }
     }
 }
@@ -492,6 +494,8 @@ to_event_argument_impls! {
         Errors(Errors<()>),
         Trivalue(Errors<bool>),
         Chain(Chain<'db>),
+        Span(Span<'db>),
+        SymGenericKind(SymGenericKind),
     }
 }
 

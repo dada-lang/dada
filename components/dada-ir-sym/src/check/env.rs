@@ -257,6 +257,7 @@ impl<'db> Env<'db> {
     }
 
     /// Create a fresh inference variable of the given kind.
+    #[track_caller]
     pub fn fresh_inference_var(&mut self, kind: SymGenericKind, span: Span<'db>) -> InferVarIndex {
         let data = match kind {
             SymGenericKind::Type => {
@@ -267,6 +268,7 @@ impl<'db> Env<'db> {
             SymGenericKind::Place => panic!("inference variable of kind `Place` not supported"),
         };
         let infer = self.runtime.fresh_inference_var(data);
+        self.log.log(Location::caller(), "created inference variable", &[&infer, &kind, &span]);
         infer
     }
 
