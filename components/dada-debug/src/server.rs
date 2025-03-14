@@ -41,23 +41,37 @@ async fn main_async(port: u32, debug_rx: Receiver<DebugEvent>) -> anyhow::Result
     Ok(())
 }
 
+async fn respond_ok_or_500<B: Into<String>>(
+    body: anyhow::Result<B>,
+) -> axum::http::Response<String> {
+    match body {
+        Ok(body) => axum::http::Response::builder()
+            .status(200)
+            .body(body.into())
+            .unwrap(),
+        Err(err) => axum::http::Response::builder()
+            .status(500)
+            .body(crate::error::error(err))
+            .unwrap(),
+    }
+}
+
 async fn root(
     axum::extract::State(state): axum::extract::State<Arc<State>>,
-) -> String {
-    crate::error::maybe_error(crate::root::root(&state).await)
+) -> axum::http::Response<String> {
+    respond_ok_or_500(crate::root::root(&state).await).await
+}
+
+async fn view(
+    axum::extract::Path(event_index): axum::extract::Path<usize>,
+    axum::extract::State(state): axum::extract::State<Arc<State>>,
+) -> axum::http::Response<String> {
+    respond_ok_or_500(crate::view::try_view(event_index, &*state).await).await
 }
 
 pub struct State {
     pub debug_events: Mutex<Vec<Arc<DebugEvent>>>,
     pub shutdown: Mutex<bool>,
-}
-
-// basic handler that responds with a static string
-async fn view(
-    axum::extract::Path(event_index): axum::extract::Path<usize>,
-    axum::extract::State(state): axum::extract::State<Arc<State>>,
-) -> String {
-    crate::error::maybe_error(crate::view::try_view(event_index, &*state).await)
 }
 
 fn record_events(debug_rx: Receiver<DebugEvent>, state: Arc<State>) {
