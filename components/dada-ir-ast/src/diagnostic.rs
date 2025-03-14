@@ -1,6 +1,6 @@
 use std::fmt::Display;
 
-use crate::{span::{AbsoluteSpan, Span}, DebugEvent};
+use crate::{span::{AbsoluteSpan, Span}, DebugEvent, DebugEventPayload};
 use dada_util::debug;
 use salsa::{Accumulator, Update};
 
@@ -104,7 +104,12 @@ impl Diagnostic {
         let span = self.span;
 
         if let Some(debug_tx) = db.debug_tx() {
-            debug_tx.send(DebugEvent::Diagnostic(self.clone())).unwrap();
+            debug_tx.send(DebugEvent {
+                url: span.source_file.url(db).clone(),
+                start: span.start,
+                end: span.end,
+                payload: DebugEventPayload::Diagnostic(self.clone()),
+            }).unwrap();
         }
 
         self.accumulate(db);

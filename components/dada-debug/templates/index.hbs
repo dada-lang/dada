@@ -8,7 +8,20 @@
 <h1>Dada Debug Log</h1>
 <ul>
 {{#each this}}
-    <li><a href="/view/{{index}}">{{{descr}}}</a></li>
+{{#if payload.CheckLog}}
+    <li>
+        <a href="/view/{{payload.CheckLog.index}}">
+            Type check log from {{url}}:{{line_start}}:{{col_start}}:{{line_end}}:{{col_end}}<br>
+            <code>{{text}}</code>
+        </a>
+    </li>
+{{else if payload.Diagnostic}}
+    <li>
+        Diagnostic from {{url}}:{{line_start}}:{{col_start}}:{{line_end}}:{{col_end}}<br>
+        <code>{{text}}</code><br>
+        {{payload.Diagnostic.message}}
+    </li>
+{{/if}}
 {{/each}}
 </ul>
 </body>

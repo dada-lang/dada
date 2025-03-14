@@ -5,7 +5,7 @@ use std::{
     sync::{mpsc::Sender, Arc, Mutex},
 };
 
-use dada_ir_ast::{diagnostic::Errors, span::Span, DebugEvent};
+use dada_ir_ast::{diagnostic::Errors, span::Span, DebugEvent, DebugEventPayload};
 
 use crate::ir::{
     exprs::SymExpr,
@@ -162,7 +162,7 @@ impl<'db> LogHandle<'db> {
             url: absolute_span.source_file.url(log.db).clone(),
             start: absolute_span.start,
             end: absolute_span.end,
-            payload: serde_json::to_value(export).unwrap(),
+            payload: DebugEventPayload::CheckLog(serde_json::to_value(export).unwrap()),
         }).unwrap();
     }
 

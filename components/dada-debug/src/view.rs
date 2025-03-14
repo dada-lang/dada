@@ -1,4 +1,5 @@
 
+use dada_ir_ast::{DebugEvent, DebugEventPayload};
 use handlebars::handlebars_helper;
 use rust_embed::Embed;
 
@@ -8,13 +9,18 @@ pub async fn try_view(
     event_index: usize,
     state: &State,
 ) -> anyhow::Result<String> {
-    let event_data = state.debug_events.lock().unwrap().get(event_index).cloned();
-    match event_data {
-        Some(d) => {
-            Ok(crate::hbs::render("log", &d.payload)?)
-        }
-        None => {
-            Err(anyhow::anyhow!("Event not found"))
+    let Some(event_data) = state.debug_events.lock().unwrap().get(event_index).cloned() else {
+        anyhow::bail!("Event not found");
+    };
+
+    match &*event_data {
+        DebugEvent { payload, .. } => match payload {
+            DebugEventPayload::CheckLog(log) => {
+                Ok(crate::hbs::render("log", &log)?)
+            }
+            DebugEventPayload::Diagnostic(_) => {
+                anyhow::bail!("not implemented: view diagnostics")
+            }
         }
     }
 }
