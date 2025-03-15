@@ -1,4 +1,5 @@
 use dada_ir_ast::span::Span;
+use serde::Serialize;
 
 use crate::ir::{
     exprs::{SymExpr, SymPlaceExpr, SymPlaceExprKind},
@@ -12,7 +13,7 @@ use crate::ir::{
 /// and will eventually be translated into `let-in` expressions
 /// when we reach the surrounding statement, block, or other
 /// terminating context.
-#[derive(Clone)]
+#[derive(Clone, Serialize)]
 pub(crate) struct Temporary<'db> {
     pub lv: SymVariable<'db>,
     pub ty: SymTy<'db>,

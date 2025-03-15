@@ -1,9 +1,10 @@
 use salsa::Update;
+use serde::Serialize;
 
 use crate::ir::types::SymGenericKind;
 
 /// Identifies a particular inference variable during type checking.
-#[derive(Copy, Clone, PartialEq, Eq, PartialOrd, Ord, Hash, Update, Debug)]
+#[derive(Copy, Clone, PartialEq, Eq, PartialOrd, Ord, Hash, Update, Debug, Serialize)]
 pub struct InferVarIndex(usize);
 
 /// Create an instance of `Self` from an inference variable

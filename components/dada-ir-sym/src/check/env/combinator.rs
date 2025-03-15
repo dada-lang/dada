@@ -10,7 +10,7 @@ use futures::{
 use crate::{
     check::{
         alternatives::Alternative,
-        debug::{TaskDescription, ToEventArgument},
+        debug::{TaskDescription},
     },
     ir::indices::InferVarIndex,
 };
@@ -92,8 +92,8 @@ impl<'db> Env<'db> {
         b: impl AsyncFnOnce(&mut Self) -> B,
     ) -> impl Future<Output = (A, B)>
     where
-        A: ToEventArgument<'db>,
-        B: ToEventArgument<'db>,
+        A: erased_serde::Serialize,
+        B: erased_serde::Serialize,
     {
         let caller = Location::caller();
         futures::future::join(

@@ -32,6 +32,7 @@ use dada_ir_ast::{
 };
 use dada_parser::prelude::*;
 use dada_util::{FromImpls, boxed_async_fn};
+use serde::Serialize;
 
 use super::{
     debug::TaskDescription,
@@ -42,7 +43,7 @@ use super::{
     temporaries::Temporary,
 };
 
-#[derive(Clone)]
+#[derive(Clone, Serialize)]
 pub(crate) struct ExprResult<'db> {
     /// List of [`Temporary`][] variables created by this expression.
     pub temporaries: Vec<Temporary<'db>>,
@@ -55,7 +56,7 @@ pub(crate) struct ExprResult<'db> {
     pub kind: ExprResultKind<'db>,
 }
 
-#[derive(Clone, Debug, FromImpls)]
+#[derive(Clone, Debug, FromImpls, Serialize)]
 pub(crate) enum ExprResultKind<'db> {
     /// An expression identifying a place in memory (e.g., a local variable).
     PlaceExpr(SymPlaceExpr<'db>),

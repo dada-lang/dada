@@ -5,6 +5,7 @@
 use dada_ir_ast::diagnostic::{Err, Reported};
 use dada_util::vecset::VecSet;
 use salsa::Update;
+use serde::Serialize;
 
 use crate::ir::{
     indices::{FromInfer, InferVarIndex},
@@ -14,7 +15,7 @@ use crate::ir::{
 
 /// A "red(uced) term" combines the possible permissions (a [`VecSet`] of [`Chain`])
 /// with the type of the term (a [`RedTy`]). It can be used to represent either permissions or types.
-#[derive(Debug, PartialEq, Eq, Clone, PartialOrd, Ord, Update)]
+#[derive(Debug, PartialEq, Eq, Clone, PartialOrd, Ord, Update, Serialize)]
 pub struct RedTerm<'db> {
     pub chains: VecSet<Chain<'db>>,
     pub ty: RedTy<'db>,
@@ -37,7 +38,7 @@ impl<'db> Err<'db> for RedTerm<'db> {
 /// An empty lien chain corresponds to owned data (`my`, in surface Dada syntax).
 /// A lien chain like `shared[p] leased[q]` would correspond to data shared from a variable `p`
 /// which in turn had data leased from `q` (which in turn owned the data).
-#[derive(Debug, PartialEq, Eq, Clone, PartialOrd, Ord, Update)]
+#[derive(Debug, PartialEq, Eq, Clone, PartialOrd, Ord, Update, Serialize)]
 pub struct Chain<'db> {
     pub liens: Vec<Lien<'db>>,
 }
@@ -105,7 +106,7 @@ impl<'db> Err<'db> for Chain<'db> {
 }
 
 /// An individual unit in a [`Chain`][], representing a particular way of reaching data.
-#[derive(Debug, PartialEq, Eq, Copy, Clone, PartialOrd, Ord, Update)]
+#[derive(Debug, PartialEq, Eq, Copy, Clone, PartialOrd, Ord, Update, Serialize)]
 pub enum Lien<'db> {
     /// Data mutually owned by many variables. This lien is always first in a chain.
     Our,
@@ -166,7 +167,7 @@ impl<'db> Err<'db> for Lien<'db> {
 
 /// A "red(uced) type"-- captures just the
 /// type layout part of a [`SymGenericTerm`][].
-#[derive(Debug, PartialEq, Eq, Clone, PartialOrd, Ord, Hash, Update)]
+#[derive(Debug, PartialEq, Eq, Clone, PartialOrd, Ord, Hash, Update, Serialize)]
 pub enum RedTy<'db> {
     /// An error occurred while processing this type.
     Error(Reported),

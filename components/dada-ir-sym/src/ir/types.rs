@@ -15,19 +15,20 @@ use dada_ir_ast::{
     diagnostic::{Err, Errors, Reported},
     span::Spanned,
 };
-use dada_util::FromImpls;
+use dada_util::{FromImpls, SalsaSerialize};
 use salsa::Update;
+use serde::Serialize;
 
 use super::classes::SymAggregateStyle;
 
-#[derive(Copy, Clone, PartialEq, Eq, PartialOrd, Ord, Hash, Debug)]
+#[derive(Copy, Clone, PartialEq, Eq, PartialOrd, Ord, Hash, Debug, Serialize)]
 pub enum Variance {
     Covariant,
     Contravariant,
     Invariant,
 }
 
-#[derive(Copy, Clone, PartialEq, Eq, PartialOrd, Ord, Hash, Update, Debug)]
+#[derive(Copy, Clone, PartialEq, Eq, PartialOrd, Ord, Hash, Update, Debug, Serialize)]
 pub enum SymGenericKind {
     Type,
     Perm,
@@ -58,7 +59,7 @@ pub trait AssertKind<'db, R> {
 }
 
 /// Value of a generic parameter
-#[derive(Copy, Clone, PartialEq, Eq, PartialOrd, Ord, Hash, Update, Debug, FromImpls)]
+#[derive(Copy, Clone, PartialEq, Eq, PartialOrd, Ord, Hash, Update, Debug, FromImpls, Serialize)]
 pub enum SymGenericTerm<'db> {
     Type(SymTy<'db>),
     Perm(SymPerm<'db>),
@@ -238,6 +239,7 @@ impl<'db> SymGenericTerm<'db> {
     }
 }
 
+#[derive(SalsaSerialize)]
 #[salsa::interned]
 pub struct SymTy<'db> {
     #[return_ref]
@@ -385,7 +387,7 @@ impl<'db> FromVar<'db> for SymTy<'db> {
     }
 }
 
-#[derive(Clone, PartialEq, Eq, PartialOrd, Ord, Hash, Update, Debug)]
+#[derive(Clone, PartialEq, Eq, PartialOrd, Ord, Hash, Update, Debug, Serialize)]
 pub enum SymTyKind<'db> {
     /// `$Perm $Ty`, e.g., `shared String
     Perm(SymPerm<'db>, SymTy<'db>),
@@ -408,7 +410,7 @@ pub enum SymTyKind<'db> {
     Error(Reported),
 }
 
-#[derive(Copy, Clone, PartialEq, Eq, PartialOrd, Ord, Hash, Update, Debug, FromImpls)]
+#[derive(Copy, Clone, PartialEq, Eq, PartialOrd, Ord, Hash, Update, Debug, FromImpls, Serialize)]
 pub enum SymTyName<'db> {
     Primitive(SymPrimitive<'db>),
 
@@ -451,6 +453,7 @@ impl std::fmt::Display for SymTyName<'_> {
     }
 }
 
+#[derive(SalsaSerialize)]
 #[salsa::interned]
 pub struct SymPerm<'db> {
     #[return_ref]
@@ -588,7 +591,7 @@ impl<'db> Err<'db> for SymPerm<'db> {
     }
 }
 
-#[derive(Clone, PartialEq, Eq, PartialOrd, Ord, Hash, Update, Debug)]
+#[derive(Clone, PartialEq, Eq, PartialOrd, Ord, Hash, Update, Debug, Serialize)]
 pub enum SymPermKind<'db> {
     /// `my`
     My,
@@ -615,6 +618,7 @@ pub enum SymPermKind<'db> {
     Error(Reported),
 }
 
+#[derive(SalsaSerialize)]
 #[salsa::tracked]
 pub struct SymPlace<'db> {
     #[return_ref]
@@ -694,7 +698,7 @@ impl<'db> FromVar<'db> for SymPlace<'db> {
     }
 }
 
-#[derive(Clone, PartialEq, Eq, PartialOrd, Ord, Hash, Update, Debug)]
+#[derive(Clone, PartialEq, Eq, PartialOrd, Ord, Hash, Update, Debug, Serialize)]
 pub enum SymPlaceKind<'db> {
     /// `x`
     Var(SymVariable<'db>),

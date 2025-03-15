@@ -2,6 +2,7 @@ use dada_ir_ast::{
     ast::{AstFunctionInput, AstSelfArg, Identifier, VariableDecl},
     span::{Span, Spanned},
 };
+use dada_util::SalsaSerialize;
 
 use crate::{
     check::scope::Scope,
@@ -12,6 +13,7 @@ use crate::{
 use super::types::HasKind;
 
 /// Symbol for a generic parameter or local variable.
+#[derive(SalsaSerialize)]
 #[salsa::tracked]
 pub struct SymVariable<'db> {
     pub kind: SymGenericKind,

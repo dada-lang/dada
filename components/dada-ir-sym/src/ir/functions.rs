@@ -7,8 +7,9 @@ use dada_ir_ast::{
     },
     span::{Span, Spanned},
 };
-use dada_util::FromImpls;
+use dada_util::{FromImpls, SalsaSerialize};
 use salsa::Update;
+use serde::Serialize;
 
 use crate::{
     check::scope::Scope,
@@ -22,6 +23,7 @@ use crate::{
 
 use super::types::{HasKind, SymGenericKind};
 
+#[derive(SalsaSerialize)]
 #[salsa::tracked]
 pub struct SymFunction<'db> {
     pub super_scope_item: ScopeItem<'db>,
@@ -90,7 +92,7 @@ impl<'db> SymFunction<'db> {
     }
 }
 
-#[derive(Copy, Clone, PartialEq, Eq, PartialOrd, Ord, Debug, Update, FromImpls)]
+#[derive(Copy, Clone, PartialEq, Eq, PartialOrd, Ord, Debug, Update, FromImpls, Serialize)]
 pub enum SymFunctionSource<'db> {
     Function(AstFunction<'db>),
 

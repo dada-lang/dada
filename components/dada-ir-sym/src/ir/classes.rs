@@ -5,7 +5,7 @@ use dada_ir_ast::{
     span::{Span, Spanned},
 };
 use dada_parser::prelude::*;
-use dada_util::FromImpls;
+use dada_util::{FromImpls, SalsaSerialize};
 
 use crate::{
     check::scope::Scope,
@@ -19,6 +19,7 @@ use crate::{
 
 use super::types::Variance;
 
+#[derive(SalsaSerialize)]
 #[salsa::tracked]
 pub struct SymAggregate<'db> {
     /// The scope in which this class is declared.
@@ -285,6 +286,7 @@ impl<'db> Spanned<'db> for SymClassMember<'db> {
 }
 
 /// Symbol for a field of a class, struct, or enum
+#[derive(SalsaSerialize)]
 #[salsa::tracked]
 pub struct SymField<'db> {
     /// The item in which this field is declared.

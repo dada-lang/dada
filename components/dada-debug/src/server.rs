@@ -27,6 +27,7 @@ async fn main_async(port: u32, debug_rx: Receiver<DebugEvent>) -> anyhow::Result
         // `GET /` goes to `root`
         .route("/", get(root))
         .route("/view/{event_index}", get(view))
+        .route("/assets/{file}", get(assets))
         .with_state(state.clone());
 
     // run our app with hyper, listening globally on port 3000
@@ -67,6 +68,12 @@ async fn view(
     axum::extract::State(state): axum::extract::State<Arc<State>>,
 ) -> axum::http::Response<String> {
     respond_ok_or_500(crate::view::try_view(event_index, &*state).await).await
+}
+
+async fn assets(
+    axum::extract::Path(file): axum::extract::Path<String>,
+) -> axum::http::Response<String> {
+    respond_ok_or_500(crate::assets::try_asset(&file)).await
 }
 
 pub struct State {

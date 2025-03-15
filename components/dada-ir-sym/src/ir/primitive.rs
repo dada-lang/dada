@@ -1,5 +1,7 @@
 use dada_ir_ast::ast::Identifier;
+use dada_util::SalsaSerialize;
 use salsa::Update;
+use serde::Serialize;
 
 /// Returns the standard primitives available in Dada.
 #[salsa::tracked(return_ref)]
@@ -24,6 +26,7 @@ pub fn primitives<'db>(db: &'db dyn crate::Db) -> Vec<SymPrimitive<'db>> {
 
 /// A "primitive" is a scalar type that is built-in to Dada and cannot be defined as an aggregate
 /// type like a struct, enum, or class.
+#[derive(SalsaSerialize)]
 #[salsa::interned]
 pub struct SymPrimitive<'db> {
     pub kind: SymPrimitiveKind,
@@ -40,7 +43,7 @@ impl std::fmt::Display for SymPrimitive<'_> {
 }
 
 /// A "primitive" is a scalar type that is built-in to Dada and cannot be defined as a struct.
-#[derive(Copy, Clone, PartialEq, Eq, PartialOrd, Ord, Hash, Update, Debug)]
+#[derive(Copy, Clone, PartialEq, Eq, PartialOrd, Ord, Hash, Update, Debug, Serialize)]
 pub enum SymPrimitiveKind {
     Bool,
     Char,

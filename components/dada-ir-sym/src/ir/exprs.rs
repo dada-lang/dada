@@ -24,9 +24,12 @@ use dada_ir_ast::{
     diagnostic::{Err, Reported},
     span::Span,
 };
+use dada_util::SalsaSerialize;
 use ordered_float::OrderedFloat;
 use salsa::Update;
+use serde::Serialize;
 
+#[derive(SalsaSerialize)]
 #[salsa::tracked]
 pub struct SymExpr<'db> {
     pub span: Span<'db>,
@@ -91,7 +94,7 @@ impl<'db> Err<'db> for SymExpr<'db> {
     }
 }
 
-#[derive(Clone, PartialEq, Eq, PartialOrd, Ord, Hash, Debug, Update)]
+#[derive(Clone, PartialEq, Eq, PartialOrd, Ord, Hash, Debug, Update, Serialize)]
 pub enum SymExprKind<'db> {
     /// `$expr1; $expr2`
     Semi(SymExpr<'db>, SymExpr<'db>),
@@ -163,18 +166,20 @@ pub enum SymExprKind<'db> {
     Error(Reported),
 }
 
+#[derive(SalsaSerialize)]
 #[salsa::tracked]
 pub struct SymByteLiteral<'db> {
     pub span: Span<'db>,
     pub data: SymByteLiteralData<'db>,
 }
 
+#[derive(SalsaSerialize)]
 #[salsa::interned]
 pub struct SymByteLiteralData<'db> {
     pub value: Vec<u8>,
 }
 
-#[derive(Copy, Clone, PartialEq, Eq, PartialOrd, Ord, Hash, Debug, Update)]
+#[derive(Copy, Clone, PartialEq, Eq, PartialOrd, Ord, Hash, Debug, Update, Serialize)]
 pub enum SymLiteral {
     /// Have to check the type of the expression to determine how to interpret these bits
     Integral { bits: u64 },
@@ -183,7 +188,7 @@ pub enum SymLiteral {
     Float { bits: OrderedFloat<f64> },
 }
 
-#[derive(Copy, Clone, PartialEq, Eq, PartialOrd, Ord, Hash, Update, Debug)]
+#[derive(Copy, Clone, PartialEq, Eq, PartialOrd, Ord, Hash, Update, Debug, Serialize)]
 pub enum SymBinaryOp {
     Add,
     Sub,
@@ -218,7 +223,7 @@ impl TryFrom<AstBinaryOp> for SymBinaryOp {
 }
 
 /// A match arm is one part of a match statement.
-#[derive(Clone, PartialEq, Eq, PartialOrd, Ord, Hash, Debug, Update)]
+#[derive(Clone, PartialEq, Eq, PartialOrd, Ord, Hash, Debug, Update, Serialize)]
 pub struct SymMatchArm<'db> {
     // FIXME: patterns
     /// Condition to evaluate; if `None` then it always applies
@@ -228,6 +233,7 @@ pub struct SymMatchArm<'db> {
     pub body: SymExpr<'db>,
 }
 
+#[derive(SalsaSerialize)]
 #[salsa::tracked]
 pub struct SymPlaceExpr<'db> {
     pub span: Span<'db>,
@@ -267,7 +273,7 @@ impl<'db> SymPlaceExpr<'db> {
     }
 }
 
-#[derive(Clone, PartialEq, Eq, PartialOrd, Ord, Hash, Debug, Update)]
+#[derive(Clone, PartialEq, Eq, PartialOrd, Ord, Hash, Debug, Update, Serialize)]
 pub enum SymPlaceExprKind<'db> {
     Var(SymVariable<'db>),
     Field(SymPlaceExpr<'db>, SymField<'db>),

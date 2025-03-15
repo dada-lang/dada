@@ -8,6 +8,7 @@ mod view;
 mod server;
 mod error;
 mod root;
+mod assets;
 
 /// Command line options for the debug server
 #[derive(Debug, StructOpt)]

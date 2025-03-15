@@ -28,7 +28,7 @@ use crate::{check::runtime::Runtime, check::universe::Universe, ir::exprs::SymEx
 
 use super::{
     CheckInEnv,
-    debug::{LogHandle, ToEventArgument},
+    debug::LogHandle,
     inference::{InferVarKind, InferenceVarData},
     predicates::Predicate,
     report::{BooleanTypeRequired, OrElse},
@@ -448,7 +448,7 @@ impl<'db> Env<'db> {
     }
 
     #[track_caller]
-    pub fn log(&mut self, message: &'static str, values: &[&dyn ToEventArgument<'db>]) {
+    pub fn log(&mut self, message: &'static str, values: &[&dyn erased_serde::Serialize]) {
         self.log.log(Location::caller(), message, values)
     }
 
@@ -456,11 +456,11 @@ impl<'db> Env<'db> {
     pub fn indent<R>(
         &mut self,
         message: &'static str,
-        values: &[&dyn ToEventArgument<'db>],
+        values: &[&dyn erased_serde::Serialize],
         op: impl AsyncFnOnce(&mut Self) -> R,
     ) -> impl Future<Output = R>
     where
-        R: ToEventArgument<'db>,
+        R: erased_serde::Serialize,
     {
         let source_location = Location::caller();
         self.indent_with_source_location(source_location, message, values, op)
@@ -470,11 +470,11 @@ impl<'db> Env<'db> {
         &mut self,
         source_location: &'static Location<'static>,
         message: &'static str,
-        values: &[&dyn ToEventArgument<'db>],
+        values: &[&dyn erased_serde::Serialize],
         op: impl AsyncFnOnce(&mut Self) -> R,
     ) -> R
     where
-        R: ToEventArgument<'db>,
+        R: erased_serde::Serialize,
     {
         self.log.indent(source_location, message, values);
         let result = op(self).await;
@@ -485,7 +485,7 @@ impl<'db> Env<'db> {
 
     pub fn log_result<T>(&mut self, source_location: &'static Location<'static>, value: T) -> T
     where
-        T: ToEventArgument<'db>,
+        T: erased_serde::Serialize,
     {
         self.log.log(source_location, "result", &[&value]);
         value

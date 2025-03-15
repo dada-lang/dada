@@ -5,7 +5,7 @@ use dada_ir_ast::{
     span::{Span, Spanned},
 };
 use dada_parser::prelude::SourceFileParse;
-use dada_util::{FromImpls, Map};
+use dada_util::{FromImpls, Map, SalsaSerialize};
 
 use crate::{
     check::{
@@ -20,6 +20,7 @@ use crate::{
     well_known,
 };
 
+#[derive(SalsaSerialize)]
 #[salsa::tracked]
 pub struct SymModule<'db> {
     pub source: AstModule<'db>,

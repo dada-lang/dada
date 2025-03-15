@@ -1,12 +1,13 @@
 use std::{ops::Deref, vec};
 
 use salsa::Update;
+use serde::Serialize;
 
 /// A set of elements, stored in a sorted vector.
 ///
 /// This is more efficient than a `HashSet` for small sets, and allows for
 /// efficient iteration.
-#[derive(Clone, Debug, PartialEq, Eq, PartialOrd, Ord, Hash)]
+#[derive(Clone, Debug, PartialEq, Eq, PartialOrd, Ord, Hash, Serialize)]
 pub struct VecSet<T: Ord> {
     /// Elements in the set, always sorted.
     sorted_elements: Vec<T>,

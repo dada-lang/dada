@@ -7,6 +7,7 @@ use dada_ir_ast::{
     span::{Span, Spanned},
 };
 use dada_util::{FromImpls, indirect};
+use serde::Serialize;
 
 use crate::{
     check::{CheckInEnv, scope_tree::ScopeTreeNode},
@@ -255,7 +256,7 @@ impl<'db> From<SymVariable<'db>> for ScopeChainKind<'_, 'db> {
     }
 }
 
-#[derive(Clone, Debug, PartialEq, Eq)]
+#[derive(Clone, Debug, PartialEq, Eq, Serialize)]
 pub(crate) struct NameResolution<'db> {
     pub generics: Vec<SymGenericTerm<'db>>,
     pub sym: NameResolutionSym<'db>,
@@ -388,7 +389,7 @@ impl<'db> NameResolution<'db> {
 }
 
 /// Result of name resolution.
-#[derive(Copy, Clone, Debug, PartialEq, Eq, FromImpls)]
+#[derive(Copy, Clone, Debug, PartialEq, Eq, FromImpls, Serialize)]
 pub enum NameResolutionSym<'db> {
     SymModule(SymModule<'db>),
     SymClass(SymAggregate<'db>),

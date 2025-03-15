@@ -1,0 +1,77 @@
+ul.jstList {
+  padding-left: 15px;
+  list-style: none;
+  margin-top: 0;
+  margin-bottom: 0;
+}
+li.jstItem {
+  padding-left: 0px;
+  list-style: none;
+}
+
+.jstTree {
+  font-size: 12px;
+  font-weight: 400;
+  font-family: monospace;
+}
+
+.jstProperty {
+  color: #68bb97;
+}
+
+.jstBool {
+  color: #1CA8DD;
+}
+
+.jstNum {
+  color: #9F85FF;
+}
+
+.jstNull {
+  color: #D0D0D0;
+}
+
+.jstStr {
+  color: #9cc966;
+}
+
+.jstComma {
+}
+
+.jstColon {
+}
+
+.jstCollapse {
+  margin-left: -15px;
+  position: absolute;
+  -webkit-user-select: none;
+  user-select: none;
+  text-decoration: none;
+  color: inherit;
+  cursor: pointer;
+}
+
+.jstExpand {
+  margin-left: -15px;
+  position: absolute;
+  -webkit-user-select: none;
+  user-select: none;
+  text-decoration: none;
+  color: inherit;
+  cursor: pointer;
+}
+
+.jstCollapse::before {
+  content: '-';
+}
+
+.jstExpand::before {
+  content: '+'
+}
+
+.jstBracket {
+}
+
+.jstHiddenBlock {
+  display: none;
+}

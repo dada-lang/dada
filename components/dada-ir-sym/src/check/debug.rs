@@ -5,18 +5,17 @@ use std::{
     sync::{mpsc::Sender, Arc, Mutex},
 };
 
-use dada_ir_ast::{ast::AstExpr, diagnostic::Errors, span::Span, DebugEvent, DebugEventPayload};
+use dada_ir_ast::{span::Span, DebugEvent, DebugEventPayload};
+use dada_util::fixed_depth_json;
 
 use crate::ir::{
-    exprs::SymExpr,
     indices::InferVarIndex,
-    types::{SymGenericKind, SymGenericTerm, SymPerm, SymTy},
+    types::SymTy,
 };
 
-use super::{
-    predicates::Predicate,
-    red::{Chain, Lien},
-};
+use super::
+    predicates::Predicate
+;
 
 mod export;
 
@@ -101,7 +100,7 @@ impl<'db> LogHandle<'db> {
         &self,
         source_location: &'static Location<'static>,
         message: &'static str,
-        values: &[&dyn erased_serde::Serialize<'db>],
+        values: &[&dyn erased_serde::Serialize],
     ) {
         self.push_event(source_location, message, values, EventKind::Indent)
     }
@@ -116,7 +115,7 @@ impl<'db> LogHandle<'db> {
         &self,
         source_location: &'static Location<'static>,
         message: &'static str,
-        values: &[&dyn erased_serde::Serialize<'db>],
+        values: &[&dyn erased_serde::Serialize],
     ) {
         self.push_event(source_location, message, values, EventKind::Log)
     }
@@ -125,8 +124,8 @@ impl<'db> LogHandle<'db> {
         &self,
         source_location: &'static Location<'static>,
         message: &'static str,
-        values: &[&dyn ToEventArgument<'db>],
-        kind: impl FnOnce(&'static str, EventArgument<'db>) -> EventKind<'db>,
+        values: &[&dyn erased_serde::Serialize],
+        kind: impl FnOnce(&'static str, serde_json::Value) -> EventKind,
     ) {
         let Some(log) = &self.log else {
             return;
@@ -195,9 +194,9 @@ impl<'db> LogHandle<'db> {
                     EventKind::Root => serde_json::Value::Null,
                     EventKind::TaskStart => serde_json::Value::Null,
                     EventKind::Spawned(_) => serde_json::Value::Null,
-                    EventKind::Indent(_, event_argument) => self.export_value(event_argument),
+                    EventKind::Indent(_, event_argument) => event_argument.clone(),
                     EventKind::Undent(_) => serde_json::Value::Null,
-                    EventKind::Log(_, event_argument) => self.export_value(event_argument),
+                    EventKind::Log(_, event_argument) => event_argument.clone(),
                 },
                 spawns: match &event.kind {
                     EventKind::Root => None,
@@ -232,13 +231,13 @@ impl<'db> LogHandle<'db> {
         }
     }
 
-    fn event_argument(&self, values: &[&dyn erased_serde::Serialize<'db>]) -> serde_json::Value {
+    fn event_argument(&self, values: &[&dyn erased_serde::Serialize]) -> serde_json::Value {
         if values.len() == 0 {
             serde_json::Value::Null
         } else if values.len() == 1 {
-            dada_ir_ast::ast::util::fixed_depth_json::to_json_value_max_depth(values[0], 3)
+fixed_depth_json::to_json_value_max_depth(values[0], 3)
         } else {
-            dada_ir_ast::ast::util::fixed_depth_json::to_json_value_max_depth(values, 3)
+            fixed_depth_json::to_json_value_max_depth(&values, 3)
         }
     }
 }
@@ -246,7 +245,7 @@ impl<'db> LogHandle<'db> {
 pub struct Log<'db> {
     db: &'db dyn crate::Db,
     tasks: Vec<Task<'db>>,
-    events: Vec<Event<'db>>,
+    events: Vec<Event>,
     inference_variables: Vec<InferenceVariable<'db>>,
     debug_tx: Sender<DebugEvent>,
 }
@@ -290,7 +289,7 @@ impl<'db> Log<'db> {
         self.tasks.push(task);
     }
 
-    fn push_event(&mut self, event: Event<'db>) {
+    fn push_event(&mut self, event: Event) {
         self.events.push(event);
     }
 
@@ -381,13 +380,13 @@ pub struct Task<'db> {
 #[derive(Copy, Clone, PartialEq, Eq, PartialOrd, Ord, Hash, Debug)]
 pub struct EventIndex(usize);
 
-pub struct Event<'db> {
+pub struct Event {
     pub task: TaskIndex,
     pub source_location: &'static Location<'static>,
-    pub kind: EventKind<'db>,
+    pub kind: EventKind,
 }
 
-pub enum EventKind<'db> {
+pub enum EventKind {
     Root,
     TaskStart,
     Spawned(TaskIndex),
