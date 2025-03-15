@@ -115,6 +115,7 @@ fn check_function_body_ast_block<'db>(
         function.name_span(db),
         async move |runtime| {
             let (mut env, _, _) = prepare_env(db, runtime, function).await;
+            env.log("check_function_body_ast_block", &[&function, &body]);
             let expr = body.check_in_env(&mut env).await;
             (env, expr)
         },

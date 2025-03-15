@@ -2,6 +2,7 @@ use std::{sync::{mpsc::Receiver, Arc, Mutex}, time::Duration};
 
 use axum::{routing::get, Router};
 use dada_ir_ast::DebugEvent;
+use serde::Deserialize;
 
 pub fn main(port: u32, debug_rx: Receiver<DebugEvent>) -> anyhow::Result<()> {
     tokio::runtime::Builder::new_current_thread()
@@ -28,6 +29,7 @@ async fn main_async(port: u32, debug_rx: Receiver<DebugEvent>) -> anyhow::Result
         .route("/", get(root))
         .route("/view/{event_index}", get(view))
         .route("/assets/{file}", get(assets))
+        .route("/source/{*path}", get(source))
         .with_state(state.clone());
 
     // run our app with hyper, listening globally on port 3000
@@ -74,6 +76,19 @@ async fn assets(
     axum::extract::Path(file): axum::extract::Path<String>,
 ) -> axum::http::Response<String> {
     respond_ok_or_500(crate::assets::try_asset(&file)).await
+}
+
+#[derive(Deserialize, Debug)]
+struct SourceQueryArgs {
+    line: u32,
+    column: u32,
+}
+
+async fn source(
+    axum::extract::Path(path): axum::extract::Path<String>,
+    axum::extract::Query(line_col): axum::extract::Query<SourceQueryArgs>,
+) -> axum::http::Response<String> {
+    respond_ok_or_500(crate::source::try_source(&path, line_col.line, line_col.column)).await
 }
 
 pub struct State {

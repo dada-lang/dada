@@ -1,0 +1,14 @@
+<li class="event">
+    {{#with (index events_flat timestamp.index)}}
+    {{> render_event this=this}}
+    {{/with}}
+
+    {{#if children}}
+    <span class="caret"></span>
+    <ul class="nested">
+        {{#each children}}
+        {{>render_nested_event this=this events_flat=../events_flat}}
+        {{/each}}
+    </ul>
+    {{/if}}
+</li>

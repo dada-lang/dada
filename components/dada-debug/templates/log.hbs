@@ -50,16 +50,23 @@
     <h1>By task</h1>
     
     <div id="tasks">
-        {{#with nested_event}}
-        <div class="event">
-            {{> render_event this=this events_flat=../events_flat}}
-            {{#if children}}
-            <ul class="nested">
-                {{> task_children this=this events_flat=../events_flat}}
-            </ul>
-            {{/if}}
-        </div>
-        {{/with}}
+        <ul>
+            {{#with nested_event}}
+            {{> render_nested_event this=this events_flat=../events_flat}}
+            {{/with}}
+        </ul>
+    </div>
+
+    <h1>By time</h1>
+
+    <div id="time">
+        <ul>
+            {{#each events_flat}}
+            <li class="event">
+                {{> render_event this=this}}
+            </li>
+            {{/each}}
+        </ul>
     </div>
 
     <script>

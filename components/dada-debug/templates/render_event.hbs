@@ -1,6 +1,5 @@
-{{#with (index events_flat timestamp.index)}}
 <span class="event-kind">{{kind}}</span>
+<span class="event-source">{{{(source_snippet source_location.file source_location.line source_location.column)}}}</span>
 {{#if value}}
-<span class="event-value">{{value}}</span>
+<span class="event-value jsontree">{{value}}</span>
 {{/if}}
-{{/with}}

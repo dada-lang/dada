@@ -2,20 +2,16 @@
 
 use std::{
     panic::Location,
-    sync::{mpsc::Sender, Arc, Mutex},
+    sync::{Arc, Mutex, mpsc::Sender},
 };
 
-use dada_ir_ast::{span::Span, DebugEvent, DebugEventPayload};
+use dada_ir_ast::{DebugEvent, DebugEventPayload, span::Span};
 use dada_util::fixed_depth_json;
+use export::SourceLocation;
 
-use crate::ir::{
-    indices::InferVarIndex,
-    types::SymTy,
-};
+use crate::ir::{indices::InferVarIndex, types::SymTy};
 
-use super::
-    predicates::Predicate
-;
+use super::predicates::Predicate;
 
 mod export;
 
@@ -32,7 +28,12 @@ impl<'db> LogHandle<'db> {
     ) -> Self {
         if let Some(debug_tx) = db.debug_tx() {
             LogHandle {
-                log: Some(Arc::new(Mutex::new(Log::new(db, source_location, root, debug_tx)))),
+                log: Some(Arc::new(Mutex::new(Log::new(
+                    db,
+                    source_location,
+                    root,
+                    debug_tx,
+                )))),
                 task_index: TaskIndex::root(),
             }
         } else {
@@ -102,12 +103,19 @@ impl<'db> LogHandle<'db> {
         message: &'static str,
         values: &[&dyn erased_serde::Serialize],
     ) {
-        self.push_event(source_location, message, values, EventKind::Indent)
+        self.push_event(source_location, message, values, |message, json_value| {
+            EventKind::Indent {
+                message,
+                json_value,
+            }
+        })
     }
 
     /// Remove one layer of indent
     pub fn undent(&self, source_location: &'static Location<'static>, message: &'static str) {
-        self.push_event(source_location, message, &[], |m, _| EventKind::Undent(m))
+        self.push_event(source_location, message, &[], |message, _| {
+            EventKind::Undent { message }
+        })
     }
 
     /// Log a message with argument(s).
@@ -117,7 +125,12 @@ impl<'db> LogHandle<'db> {
         message: &'static str,
         values: &[&dyn erased_serde::Serialize],
     ) {
-        self.push_event(source_location, message, values, EventKind::Log)
+        self.push_event(source_location, message, values, |message, json_value| {
+            EventKind::Log {
+                message,
+                json_value,
+            }
+        })
     }
 
     fn push_event(
@@ -125,16 +138,21 @@ impl<'db> LogHandle<'db> {
         source_location: &'static Location<'static>,
         message: &'static str,
         values: &[&dyn erased_serde::Serialize],
-        kind: impl FnOnce(&'static str, serde_json::Value) -> EventKind,
+        kind: impl FnOnce(&'static str, String) -> EventKind,
     ) {
         let Some(log) = &self.log else {
             return;
         };
 
-        let argument = self.event_argument(values);
-
         let mut log = log.lock().unwrap();
-        assert!(self.task_index.0 < log.tasks.len(), "task index {} is out of bounds", self.task_index.0);  
+        assert!(
+            self.task_index.0 < log.tasks.len(),
+            "task index {} is out of bounds",
+            self.task_index.0
+        );
+        
+        let argument = event_argument(values);
+
         log.push_event(Event {
             source_location,
             task: self.task_index,
@@ -147,98 +165,8 @@ impl<'db> LogHandle<'db> {
             return;
         };
 
-        let export = self.export();
-
-        let log= log.lock().unwrap();
-        let absolute_span = span.absolute_span(log.db);
-        log.debug_tx.send(DebugEvent {
-            url: absolute_span.source_file.url(log.db).clone(),
-            start: absolute_span.start,
-            end: absolute_span.end,
-            payload: DebugEventPayload::CheckLog(serde_json::to_value(export).unwrap()),
-        }).unwrap();
-    }
-
-    fn export(&self) -> export::Log {
-        let Some(log) = &self.log else {
-            return export::Log {
-                events_flat: vec![export::Event {
-                    kind: "disabled",
-                    value: serde_json::Value::Null,
-                    spawns: None,
-                }],
-                nested_event: export::NestedEvent {
-                    timestamp: export::TimeStamp { index: 0 },
-                    children: vec![],
-                },
-                tasks: vec![],
-            };
-        };
-
         let log = log.lock().unwrap();
-
-        // First: assemble the flat list of events, which is relatively straightforward.
-        let events_flat: Vec<export::Event> = log
-            .events
-            .iter()
-            .map(|event| export::Event {
-                kind: match &event.kind {
-                    EventKind::Root => "root",
-                    EventKind::Spawned(..) => "spawned",
-                    EventKind::TaskStart => "task_start",
-                    EventKind::Indent(message, _) => message,
-                    EventKind::Undent(_) => "end",
-                    EventKind::Log(message, _) => message,
-                },
-                value: match &event.kind {
-                    EventKind::Root => serde_json::Value::Null,
-                    EventKind::TaskStart => serde_json::Value::Null,
-                    EventKind::Spawned(_) => serde_json::Value::Null,
-                    EventKind::Indent(_, event_argument) => event_argument.clone(),
-                    EventKind::Undent(_) => serde_json::Value::Null,
-                    EventKind::Log(_, event_argument) => event_argument.clone(),
-                },
-                spawns: match &event.kind {
-                    EventKind::Root => None,
-                    EventKind::TaskStart => None,
-                    EventKind::Spawned(task_index) => Some(export::TaskId {
-                        index: task_index.0,
-                    }),
-                    EventKind::Indent(..) => None,
-                    EventKind::Undent(_) => None,
-                    EventKind::Log(..) => None,
-                },
-            })
-            .collect();
-
-        // Next: assemble the list of events by task.
-        let mut events_by_task: Vec<Vec<usize>> = (0..log.tasks.len()).map(|_| vec![]).collect();
-        for (event, index) in log.events.iter().zip(0..) {
-            events_by_task[event.task.0].push(index);
-        }
-
-        // Next: assemble the nested events.
-        let root_task = TaskIndex::root();
-        let nested_event = log.export_nested_event_for_task(root_task, &events_by_task);
-
-        // Next: assemble tasks
-        let tasks = vec![ /* TODO */];
-
-        export::Log {
-            events_flat,
-            nested_event,
-            tasks,
-        }
-    }
-
-    fn event_argument(&self, values: &[&dyn erased_serde::Serialize]) -> serde_json::Value {
-        if values.len() == 0 {
-            serde_json::Value::Null
-        } else if values.len() == 1 {
-fixed_depth_json::to_json_value_max_depth(values[0], 3)
-        } else {
-            fixed_depth_json::to_json_value_max_depth(&values, 3)
-        }
+        log.dump(span);
     }
 }
 
@@ -293,6 +221,82 @@ impl<'db> Log<'db> {
         self.events.push(event);
     }
 
+    fn dump(&self, span: Span<'db>) {
+        let export = self.export();
+        let absolute_span = span.absolute_span(self.db);
+        
+        self.debug_tx
+            .send(DebugEvent {
+                url: absolute_span.source_file.url(self.db).clone(),
+                start: absolute_span.start,
+                end: absolute_span.end,
+                payload: DebugEventPayload::CheckLog(serde_json::to_value(export).unwrap()),
+            })
+            .unwrap();
+    }
+
+    fn export(&self) -> export::Log<'_> {
+        // First: assemble the flat list of events, which is relatively straightforward.
+        let events_flat: Vec<export::Event<'_>> = self
+            .events
+            .iter()
+            .map(|event| export::Event {
+                source_location: SourceLocation::from(event.source_location),
+                kind: match &event.kind {
+                    EventKind::Root => "root",
+                    EventKind::Spawned(..) => "spawned",
+                    EventKind::TaskStart => "task_start",
+                    EventKind::Indent { message, .. } => message,
+                    EventKind::Undent { .. } => "end",
+                    EventKind::Log { message, .. } => message,
+                },
+                value: match &event.kind {
+                    EventKind::Root => "null",
+                    EventKind::TaskStart => "null",
+                    EventKind::Spawned(_) => "null",
+                    EventKind::Indent {
+                        message: _,
+                        json_value,
+                    } => json_value,
+                    EventKind::Undent { message: _ } => "null",
+                    EventKind::Log {
+                        message: _,
+                        json_value,
+                    } => json_value,
+                },
+                spawns: match &event.kind {
+                    EventKind::Root => None,
+                    EventKind::TaskStart => None,
+                    EventKind::Spawned(task_index) => Some(export::TaskId {
+                        index: task_index.0,
+                    }),
+                    EventKind::Indent { .. } => None,
+                    EventKind::Undent { .. } => None,
+                    EventKind::Log { .. } => None,
+                },
+            })
+            .collect();
+
+        // Next: assemble the list of events by task.
+        let mut events_by_task: Vec<Vec<usize>> = (0..self.tasks.len()).map(|_| vec![]).collect();
+        for (event, index) in self.events.iter().zip(0..) {
+            events_by_task[event.task.0].push(index);
+        }
+
+        // Next: assemble the nested events.
+        let root_task = TaskIndex::root();
+        let nested_event = self.export_nested_event_for_task(root_task, &events_by_task);
+
+        // Next: assemble tasks
+        let tasks = vec![ /* TODO */];
+
+        export::Log {
+            events_flat,
+            nested_event,
+            tasks,
+        }
+    }
+
     fn export_nested_event_for_task(
         &self,
         task: TaskIndex,
@@ -325,7 +329,7 @@ impl<'db> Log<'db> {
             *task_events = events_rest;
             let event_kind = &self.events[*event_first];
             match &event_kind.kind {
-                EventKind::Undent(_) => {
+                EventKind::Undent { .. } => {
                     return output;
                 }
                 EventKind::Spawned(spawned_task) => {
@@ -338,7 +342,7 @@ impl<'db> Log<'db> {
                         ],
                     });
                 }
-                EventKind::Indent(..) => {
+                EventKind::Indent { .. } => {
                     output.push(export::NestedEvent {
                         timestamp: export::TimeStamp {
                             index: *event_first,
@@ -350,7 +354,7 @@ impl<'db> Log<'db> {
                         ),
                     });
                 }
-                EventKind::Root | EventKind::Log(..) | EventKind::TaskStart => {
+                EventKind::Root | EventKind::Log { .. } | EventKind::TaskStart => {
                     output.push(export::NestedEvent {
                         timestamp: export::TimeStamp {
                             index: *event_first,
@@ -361,6 +365,20 @@ impl<'db> Log<'db> {
             }
         }
     }
+}
+
+fn event_argument(values: &[&dyn erased_serde::Serialize]) -> String {
+    // FIXME: rewrite `fixed_depth_json` to not create a value
+
+    let value = if values.len() == 0 {
+        serde_json::Value::Null
+    } else if values.len() == 1 {
+        fixed_depth_json::to_json_value_max_depth(values[0], 3)
+    } else {
+        fixed_depth_json::to_json_value_max_depth(&values, 3)
+    };
+
+    serde_json::to_string(&value).unwrap()
 }
 
 #[derive(Copy, Clone, PartialEq, Eq, PartialOrd, Ord, Hash, Debug)]
@@ -387,12 +405,29 @@ pub struct Event {
 }
 
 pub enum EventKind {
+    /// Root event of type checking
     Root,
+
+    /// Start event for a task spawned during type checking
     TaskStart,
+
+    /// Current task spawned the child with the given index
     Spawned(TaskIndex),
-    Indent(&'static str, serde_json::Value),
-    Undent(&'static str),
-    Log(&'static str, serde_json::Value),
+
+    /// Display hint: indent further logs until `Undent` encountered
+    Indent {
+        message: &'static str,
+        json_value: String,
+    },
+
+    /// End indenting
+    Undent { message: &'static str },
+
+    /// Add a log item with the given header + (JSON-encoded) argument
+    Log {
+        message: &'static str,
+        json_value: String,
+    },
 }
 
 pub struct RootTaskDescription<'db> {

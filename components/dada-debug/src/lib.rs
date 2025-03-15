@@ -5,6 +5,7 @@ use structopt::StructOpt;
 
 mod hbs;
 mod view;
+mod source;
 mod server;
 mod error;
 mod root;
