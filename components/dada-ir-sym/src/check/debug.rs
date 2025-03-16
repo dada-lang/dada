@@ -8,6 +8,7 @@ use std::{
 use dada_ir_ast::{DebugEvent, DebugEventPayload, span::Span};
 use dada_util::fixed_depth_json;
 use export::SourceLocation;
+use serde::Serialize;
 
 use crate::ir::{indices::InferVarIndex, types::SymTy};
 
@@ -150,7 +151,7 @@ impl<'db> LogHandle<'db> {
             "task index {} is out of bounds",
             self.task_index.0
         );
-        
+
         let argument = event_argument(values);
 
         log.push_event(Event {
@@ -224,7 +225,7 @@ impl<'db> Log<'db> {
     fn dump(&self, span: Span<'db>) {
         let export = self.export();
         let absolute_span = span.absolute_span(self.db);
-        
+
         self.debug_tx
             .send(DebugEvent {
                 url: absolute_span.source_file.url(self.db).clone(),
@@ -251,18 +252,19 @@ impl<'db> Log<'db> {
                     EventKind::Log { message, .. } => message,
                 },
                 value: match &event.kind {
-                    EventKind::Root => "null",
-                    EventKind::TaskStart => "null",
-                    EventKind::Spawned(_) => "null",
+                    EventKind::Root => "null".into(),
+                    EventKind::TaskStart => "null".into(),
+                    EventKind::Spawned(task_index) =>
+                        event_argument(&[&self.tasks[task_index.0].task_description]).into(),
                     EventKind::Indent {
                         message: _,
                         json_value,
-                    } => json_value,
-                    EventKind::Undent { message: _ } => "null",
+                    } => json_value.into(),
+                    EventKind::Undent { message: _ } => "null".into(),
                     EventKind::Log {
                         message: _,
                         json_value,
-                    } => json_value,
+                    } => json_value.into(),
                 },
                 spawns: match &event.kind {
                     EventKind::Root => None,
@@ -288,7 +290,16 @@ impl<'db> Log<'db> {
         let nested_event = self.export_nested_event_for_task(root_task, &events_by_task);
 
         // Next: assemble tasks
-        let tasks = vec![ /* TODO */];
+        let tasks = self
+            .tasks
+            .iter()
+            .map(|task| export::Task {
+                spawned_at: export::TimeStamp {
+                    index: task.started_at.0,
+                },
+                description: event_argument(&[&task.task_description]),
+            })
+            .collect();
 
         export::Log {
             events_flat,
@@ -430,10 +441,12 @@ pub enum EventKind {
     },
 }
 
+#[derive(Serialize)]
 pub struct RootTaskDescription<'db> {
     pub span: Span<'db>,
 }
 
+#[derive(Serialize)]
 pub enum TaskDescription<'db> {
     Root(RootTaskDescription<'db>),
     Require(usize),

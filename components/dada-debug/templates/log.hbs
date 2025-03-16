@@ -57,18 +57,6 @@
         </ul>
     </div>
 
-    <h1>By time</h1>
-
-    <div id="time">
-        <ul>
-            {{#each events_flat}}
-            <li class="event">
-                {{> render_event this=this}}
-            </li>
-            {{/each}}
-        </ul>
-    </div>
-
     <script>
         document.addEventListener('DOMContentLoaded', function () {
             var toggler = document.getElementsByClassName("caret");

@@ -1,5 +1,3 @@
-use std::borrow::Cow;
-
 use camino::Utf8Path;
 use handlebars::handlebars_helper;
 use html_escape::encode_safe;

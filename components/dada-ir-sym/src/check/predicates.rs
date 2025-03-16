@@ -18,13 +18,14 @@ use is_provably_owned::term_is_provably_owned;
 use require_lent::require_term_is_lent;
 use require_move::require_term_is_move;
 use require_owned::require_term_is_owned;
+use serde::Serialize;
 pub(crate) use var_infer::{test_infer_is_known_to_be, test_var_is_provably};
 
 use crate::ir::types::SymGenericTerm;
 
 use super::{env::Env, report::OrElse};
 
-#[derive(Copy, Clone, Debug, Eq, PartialEq, Hash, Ord, PartialOrd)]
+#[derive(Copy, Clone, Debug, Eq, PartialEq, Hash, Ord, PartialOrd, Serialize)]
 pub enum Predicate {
     Copy,
     Move,

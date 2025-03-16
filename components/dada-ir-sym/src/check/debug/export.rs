@@ -1,6 +1,6 @@
 //! Prepare the debug log for export as JSON.
 
-use std::panic::Location;
+use std::{borrow::Cow, panic::Location};
 
 use serde::Serialize;
 
@@ -20,7 +20,7 @@ pub struct Event<'a> {
     pub kind: &'a str,
 
     /// Embedded JSON containing the value.
-    pub value: &'a str,
+    pub value: Cow<'a, str>,
 
     /// If this event spawns a task, this is its id.
     pub spawns: Option<TaskId>,
