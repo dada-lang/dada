@@ -1,4 +1,5 @@
 <li class="event">
+    <div>
     {{#with (index events_flat timestamp.index)}}
     {{> render_event this=this}}
     {{/with}}
@@ -11,4 +12,5 @@
         {{/each}}
     </ul>
     {{/if}}
+    </div>
 </li>
