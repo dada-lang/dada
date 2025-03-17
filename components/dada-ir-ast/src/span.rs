@@ -54,11 +54,24 @@ impl<'db> Anchor<'db> {
 /// The offsets are stored relative to the start of the **anchor**,
 /// which is some item (e.g., a class, function, etc). The use of relative offsets avoids
 /// incremental churn if lines or content is added before/after the definition.
-#[derive(Copy, Clone, PartialEq, Eq, Hash, PartialOrd, Ord, Update, Serialize)]
+#[derive(Copy, Clone, PartialEq, Eq, Hash, PartialOrd, Ord, Update)]
 pub struct Span<'db> {
     pub anchor: Anchor<'db>,
     pub start: Offset,
     pub end: Offset,
+}
+
+impl serde::Serialize for Span<'_> {
+    fn serialize<S>(&self, serializer: S) -> Result<S::Ok, S::Error>
+    where
+        S: serde::Serializer,
+    {
+        salsa::with_attached_database(|db| {
+            let db: &dyn crate::Db = db.as_view();
+            serde::Serialize::serialize(&self.absolute_span(db), serializer)
+        })
+        .unwrap_or_else(|| panic!("cannot serialize without attached database"))
+    }
 }
 
 impl std::fmt::Debug for Span<'_> {

@@ -6,7 +6,9 @@ use super::{Env, Runtime, scope::Resolve};
 /// Resolve all use items found in this module.
 /// This is executed by `dada-ir-check` crate
 /// simply to force errors to be reported.
+#[salsa::tracked]
 impl<'db> CheckUseItems<'db> for SymModule<'db> {
+    #[salsa::tracked]
     fn check_use_items(self, db: &'db dyn crate::Db) {
         let _: Errors<()> = Runtime::execute(
             db,

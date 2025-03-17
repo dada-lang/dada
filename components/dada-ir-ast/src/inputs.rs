@@ -1,6 +1,7 @@
 use std::ops::Range;
 
 use dada_util::SalsaSerialize;
+use serde::Serialize;
 use url::Url;
 
 use crate::{
@@ -57,7 +58,6 @@ pub struct Krate {
     pub name: String,
 }
 
-#[derive(SalsaSerialize)]
 #[salsa::input]
 pub struct SourceFile {
     #[return_ref]
@@ -66,6 +66,23 @@ pub struct SourceFile {
     /// Contents of the source file or an error message if it was not possible to read it.
     #[return_ref]
     pub contents: Result<String, String>,
+}
+
+impl serde::Serialize for SourceFile {
+    fn serialize<S>(&self, serializer: S) -> Result<S::Ok, S::Error>
+    where
+        S: serde::Serializer,
+    {
+        salsa::with_attached_database(|db| {
+            #[derive(Serialize)]
+            struct SourceFileExport<'a> {
+                url: &'a Url,
+            }
+
+            serde::Serialize::serialize(&SourceFileExport { url: self.url(db) }, serializer)
+        })
+        .unwrap_or_else(|| panic!("cannot serialize without an attached database"))
+    }
 }
 
 impl<'db> Spanned<'db> for SourceFile {
