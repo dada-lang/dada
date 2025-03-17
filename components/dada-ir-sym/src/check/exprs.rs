@@ -949,7 +949,7 @@ async fn check_function_call<'db>(
     };
     let input_output = signature.input_output(db);
 
-    // Create inference vairables for any generic arguments not provided.
+    // Create inference variables for any generic arguments not provided.
     let expected_generics = function.transitive_generic_parameters(db);
     let mut substitution = generics.clone();
     substitution.extend(
@@ -1453,7 +1453,7 @@ fn report_non_expr<'db>(
             Level::Error,
             owner_span,
             format!(
-                "I expected to find an expresison but I found {}",
+                "I expected to find an expression but I found {}",
                 name_resolution.categorize(db),
             ),
         )

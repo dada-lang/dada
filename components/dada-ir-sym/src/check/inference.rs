@@ -140,7 +140,7 @@ impl<'db> InferenceVarData<'db> {
             "require_is: {predicate_invert} already required to be is"
         );
 
-        // If these constraints are alreayd recorded, just return.
+        // If these constraints are already recorded, just return.
         if predicate_is && inverted_isnt {
             return None;
         }

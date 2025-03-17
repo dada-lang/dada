@@ -9,7 +9,7 @@ pub struct Arena {
     /// The use of Box is needed to ensure the address of the value is stable.
     /// The `Pin` and `dyn Any` parts are just for fun and/or convenience.
     /// The pin is expressing the "don't move" constraint but is neither necessary
-    /// nor sufficient for soundness (it doens't prevent drops),
+    /// nor sufficient for soundness (it doesn't prevent drops),
     /// and the `dyn Any` is just to capture the destructor but we don't do
     /// any downcasting.
     data: RefCell<Vec<Pin<Box<dyn Any>>>>,
