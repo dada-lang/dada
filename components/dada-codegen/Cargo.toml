@@ -1,0 +1,11 @@
+[package]
+name = "dada-codegen"
+version.workspace = true
+edition.workspace = true
+
+[dependencies]
+dada-ir-sym = { version = "0.1.0", path = "../dada-ir-sym" }
+wasm-encoder = "0.220.0"
+salsa = { workspace = true }
+dada-util = { version = "0.1.0", path = "../dada-util" }
+dada-ir-ast = { version = "0.1.0", path = "../dada-ir-ast" }

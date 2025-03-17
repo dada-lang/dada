@@ -4,10 +4,11 @@
     // For more information, visit: https://go.microsoft.com/fwlink/?linkid=830387
     "version": "0.2.0",
     "configurations": [
+      
         {
             "type": "lldb",
             "request": "launch",
-            "name": "Debug executable 'dada' on hello-world",
+            "name": "Debug executable 'dada' on a test",
             "cargo": {
                 "args": [
                     "build",
@@ -20,8 +21,8 @@
                 }
             },
             "args": [
-                "check",
-                "dada_tests/hello_world.dada"
+                "compile",
+                "${input:enterProgram}"
             ],
             "cwd": "${workspaceFolder}"
         },
@@ -46,5 +47,13 @@
               "__DADA_LSP_SERVER_DEBUG": "${workspaceFolder}/target/debug/dada"
             }
           },
+    ],
+    "inputs": [
+      {
+        "id": "enterProgram",
+        "type": "promptString",
+        "description": "Program to compile",
+        "default": "tests/"
+      }
     ]
 }

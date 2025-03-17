@@ -1,9 +1,11 @@
 target
 .vscode
 playground
+dada_debug
 
 # Internal IR files used for debugging
 syntax.debug
 validated.debug
 bir.debug
 lsp.debug
+dada_debug.*

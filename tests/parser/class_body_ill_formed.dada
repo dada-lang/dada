@@ -1,0 +1,5 @@
+class Foo {
+    a b c d e f g
+#!  ^ expected `:` to come next
+#!    ^ extra input
+}

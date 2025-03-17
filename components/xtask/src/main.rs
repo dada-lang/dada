@@ -1,9 +1,10 @@
 use structopt::StructOpt;
-use tracing_subscriber::{prelude::*, EnvFilter};
+use tracing_subscriber::{EnvFilter, prelude::*};
 
+mod build;
 mod deploy;
 
-fn main() -> eyre::Result<()> {
+fn main() -> anyhow::Result<()> {
     Options::from_args().main()
 }
 
@@ -18,11 +19,18 @@ pub struct Options {
 
 #[derive(StructOpt)]
 pub enum Command {
-    Deploy(deploy::Deploy),
+    Build {
+        #[structopt(flatten)]
+        options: build::Build,
+    },
+    Deploy {
+        #[structopt(flatten)]
+        options: deploy::Deploy,
+    },
 }
 
 impl Options {
-    fn main(&self) -> eyre::Result<()> {
+    fn main(&self) -> anyhow::Result<()> {
         let subscriber = tracing_subscriber::Registry::default()
             .with({
                 // Configure which modules/level/etc using `DADA_LOG`
@@ -45,7 +53,8 @@ impl Options {
         tracing::subscriber::set_global_default(subscriber).unwrap();
 
         match &self.command {
-            Command::Deploy(c) => c.main(),
+            Command::Build { options } => options.main(),
+            Command::Deploy { options } => options.main(),
         }
     }
 }

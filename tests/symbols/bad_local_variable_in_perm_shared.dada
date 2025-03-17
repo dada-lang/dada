@@ -1,0 +1,10 @@
+class Data {}
+
+fn take_ok(d: shared[x] Data, x: Data) {}
+
+fn take_bad1(d: shared[x] Data) {}
+#!                     ^ could not find anything named `x`
+
+fn take_bad2(d: shared[x, y] Data) {}
+#!                     ^ could not find anything named `x`
+#!                        ^ could not find anything named `y`

@@ -1,0 +1,124 @@
+# fn parse tree from tests/parser/operator_precedence.dada
+
+## fn `return_identifier`
+
+AstBlock {
+    [salsa id]: Id(2c00),
+    statements: SpanVec {
+        span: Span {
+            start: Offset(
+                41,
+            ),
+            end: Offset(
+                53,
+            ),
+            anchor: "...",
+        },
+        values: [
+            Expr(
+                AstExpr {
+                    span: Span {
+                        start: Offset(
+                            41,
+                        ),
+                        end: Offset(
+                            53,
+                        ),
+                        anchor: "...",
+                    },
+                    kind: BinaryOp(
+                        SpannedBinaryOp {
+                            span: Span {
+                                start: Offset(
+                                    44,
+                                ),
+                                end: Offset(
+                                    45,
+                                ),
+                                anchor: "...",
+                            },
+                            op: Add,
+                        },
+                        AstExpr {
+                            span: Span {
+                                start: Offset(
+                                    41,
+                                ),
+                                end: Offset(
+                                    45,
+                                ),
+                                anchor: "...",
+                            },
+                            kind: Literal(
+                                Literal {
+                                    kind: Integer,
+                                    text: "44",
+                                },
+                            ),
+                        },
+                        AstExpr {
+                            span: Span {
+                                start: Offset(
+                                    46,
+                                ),
+                                end: Offset(
+                                    53,
+                                ),
+                                anchor: "...",
+                            },
+                            kind: BinaryOp(
+                                SpannedBinaryOp {
+                                    span: Span {
+                                        start: Offset(
+                                            49,
+                                        ),
+                                        end: Offset(
+                                            50,
+                                        ),
+                                        anchor: "...",
+                                    },
+                                    op: Mul,
+                                },
+                                AstExpr {
+                                    span: Span {
+                                        start: Offset(
+                                            46,
+                                        ),
+                                        end: Offset(
+                                            50,
+                                        ),
+                                        anchor: "...",
+                                    },
+                                    kind: Literal(
+                                        Literal {
+                                            kind: Integer,
+                                            text: "22",
+                                        },
+                                    ),
+                                },
+                                AstExpr {
+                                    span: Span {
+                                        start: Offset(
+                                            51,
+                                        ),
+                                        end: Offset(
+                                            53,
+                                        ),
+                                        anchor: "...",
+                                    },
+                                    kind: Literal(
+                                        Literal {
+                                            kind: Integer,
+                                            text: "33",
+                                        },
+                                    ),
+                                },
+                            ),
+                        },
+                    ),
+                },
+            ),
+        ],
+    },
+}
+

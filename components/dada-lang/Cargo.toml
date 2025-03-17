@@ -1,34 +1,23 @@
 [package]
 name = "dada-lang"
-version = "0.1.0"
-edition = "2021"
-
-# See more keys and their definitions at https://doc.rust-lang.org/cargo/reference/manifest.html
+version.workspace = true
+edition.workspace = true
 
 [dependencies]
-async-trait = "0.1.57"
-dada-breakpoint = { path = "../dada-breakpoint" }
-dada-db = { path = "../dada-db" }
-dada-collections = { path = "../dada-collections" }
-dada-ir = { path = "../dada-ir" }
-dada-error-format = { path = "../dada-error-format" }
-dada-execute = { path = "../dada-execute" }
-dada-parse = { path = "../dada-parse" }
-dada-lex = { path = "../dada-lex" }
-dada-lsp = { path = "../dada-lsp" }
-ignore = "0.4.18"
-lsp-server = "0.6.0"
-lsp-types = "0.93.0"
-eyre = "0.6.8"
-parking_lot = "0.12.1"
-regex = "1.6.0"
-serde = "1.0.143"
-serde_json = "1.0.83"
-similar = "2.2.0"
-salsa = { path = "../salsa" }
-structopt = "0.3"
-tokio = { version = "1", features = ["full"] }
-tracing = "0.1.36"
-tracing-log = "0.1"
-tracing-tree = "0.2.1"
-tracing-subscriber = { version = "0.3.15", default-features = false, features = ["fmt", "env-filter", "smallvec", "parking_lot", "ansi"] }
+annotate-snippets = { workspace = true }
+dada-check = { version = "0.1.0", path = "../dada-check" }
+dada-compiler = { version = "0.1.0", path = "../dada-compiler" }
+dada-debug = { version = "0.1.0", path = "../dada-debug" }
+dada-ir-ast = { version = "0.1.0", path = "../dada-ir-ast" }
+dada-parser = { version = "0.1.0", path = "../dada-parser" }
+dada-util = { version = "0.1.0", path = "../dada-util" }
+indicatif = "0.17.8"
+lazy_static = "1.5.0"
+prettydiff = "0.7.0"
+rayon = "1.10.0"
+regex = "1.10.6"
+salsa = { workspace = true }
+structopt = "0.3.26" # derive doesn't work without this
+thiserror = "1.0.63"
+url = "2.5.3"
+walkdir = "2.5.0"

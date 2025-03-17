@@ -1,13 +1,15 @@
-fn main() -> eyre::Result<()> {
+fn main() -> dada_util::Fallible<()> {
     let status = std::process::Command::new(env!("CARGO_BIN_EXE_dada"))
         .arg("test")
+        .arg("--")
+        .arg("tests")
         .status()?;
     if status.success() {
         Ok(())
     } else {
-        Err(match status.code() {
-            Some(code) => eyre::format_err!("dada test exited with status code: {}", code),
-            None => eyre::format_err!("dada test terminated by signal"),
-        })
+        match status.code() {
+            Some(code) => dada_util::bail!("dada test exited with status code: {}", code),
+            None => dada_util::bail!("dada test terminated by signal"),
+        }
     }
 }

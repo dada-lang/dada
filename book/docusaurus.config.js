@@ -67,7 +67,6 @@ const config = {
             label: "Tutorials",
           },
           { to: "/blog", label: "Blog", position: "left" },
-          { to: "/playground", label: "Playground", position: "left" },
           {
             type: "doc",
             docId: "design_docs",
@@ -139,15 +138,15 @@ const config = {
     }),
 
   plugins: [
-    async function myPlugin(context, options) {
-      // ...
-      return {
-        name: "theme-dada-codeblock/components",
-        getThemePath() {
-          return "src/theme-dada-codeblock/components";
-        },
-      };
-    },
+    // async function myPlugin(context, options) {
+    //   // ...
+    //   return {
+    //     name: "theme-dada-codeblock/components",
+    //     getThemePath() {
+    //       return "src/theme-dada-codeblock/components";
+    //     },
+    //   };
+    // },
   ],
 };
 

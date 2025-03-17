@@ -1,0 +1,4 @@
+class Test(input: u32) {
+    field: u32
+    #! cannot have both explicit fields and an automatic constructor
+}

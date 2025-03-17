@@ -13,11 +13,7 @@ Dada is a thought experiment. What if we were making a language like Rust, but o
 
 ## To try it yourself...
 
-As of right now, Dada doesn't really exist, though we have some experimental prototypes. If you'd like to learn more...
-
-* Visit [dada-lang.org](https://dada-lang.org) and read the [tutorial](https://dada-lang.org/docs/dyn_tutorial.html) -- this will give you an idea what we're shooting for.
-* On the web, visit https://dada-lang.org/playground to see how things work today.
-* On your own computer, clone this repository and do `cargo dada run dada_tests/hello_world.dada` (requires [Rust and Cargo to be installed](https://doc.rust-lang.org/cargo/getting-started/installation.html)).
+As of right now, Dada doesn't really exist. Check back soon.
 
 ## License
 

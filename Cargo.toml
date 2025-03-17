@@ -1,17 +1,27 @@
 [workspace]
-members = [".", "components/*"]
-
-# Exclude xtask so it isn't installed with `cargo install`
-default-members = [
+members = [".", "components/dada-*", "components/xtask"]
+default-members = [ # Exclude xtask so it isn't installed with `cargo install`
   ".",
   "components/dada-*",
-  "components/salsa"
 ]
+
+[workspace.package]
+version = "0.1.0"
+repository = "https://github.com/dada-lang"
+edition = "2024"
+
+[workspace.dependencies]
+salsa = { git = "https://github.com/salsa-rs/salsa.git" }
+anyhow = "1.0.93"
+url = "2.5.3"
+annotate-snippets = "0.11.4"
+wasm-encoder = "0.220.0"
 
 [package]
 name = "dada"
-version = "0.1.0"
-edition = "2021"
+version.workspace = true
+edition.workspace = true
+repository.workspace = true
 default-run = "dada"
 
 # See more keys and their definitions at https://doc.rust-lang.org/cargo/reference/manifest.html
@@ -22,6 +32,7 @@ harness = false
 
 [dependencies]
 dada-lang = { path = "components/dada-lang" }
-eyre = "0.6.8"
-structopt = "0.3"
-tokio = { version = "1", features = ["full"] }
+dada-util = { version = "0.1.0", path = "components/dada-util" }
+structopt = "0.3.26"
+thiserror = "1.0.63"
+tokio = { version = "1.38.0", features = ["macros","rt"] }

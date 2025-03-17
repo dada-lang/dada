@@ -1,0 +1,74 @@
+<!DOCTYPE html>
+<html lang="en">
+
+<head>
+{{> header title="Debug log"}}
+    <style>
+        .nested {
+            display: none;
+            margin-left: 20px;
+        }
+
+        .active {
+            display: block;
+        }
+
+        .caret {
+            cursor: pointer;
+            user-select: none;
+        }
+
+        .caret::before {
+            content: "\25B6";
+            color: black;
+            display: inline-block;
+            margin-right: 6px;
+        }
+
+        .caret-down::before {
+            transform: rotate(90deg);
+        }
+
+        .event {
+            margin: 5px 0;
+            padding: 5px;
+            border-left: 2px solid #ccc;
+        }
+
+        .event-kind {
+            font-weight: bold;
+        }
+
+        .event-value {
+            color: #666;
+            margin-left: 10px;
+        }
+    </style>
+</head>
+
+<body>
+    <h1>By task</h1>
+    
+    <div id="tasks">
+        <ul>
+            {{#with nested_event}}
+            {{> render_nested_event this=this events_flat=../events_flat}}
+            {{/with}}
+        </ul>
+    </div>
+
+    <script>
+        document.addEventListener('DOMContentLoaded', function () {
+            var toggler = document.getElementsByClassName("caret");
+            for (var i = 0; i < toggler.length; i++) {
+                toggler[i].addEventListener("click", function () {
+                    this.parentElement.querySelector(".nested").classList.toggle("active");
+                    this.classList.toggle("caret-down");
+                });
+            }
+        });
+    </script>
+
+</body>
+
+</html>

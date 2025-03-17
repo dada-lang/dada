@@ -1,0 +1,5 @@
+#:fn_asts
+
+fn return_identifier(x: u32) -> u32 {
+    44 + 22 * 33
+}

@@ -1,0 +1,5 @@
+class Foo {
+    x: i32
+    22
+#!  ^^ extra input
+}
