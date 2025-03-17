@@ -73,7 +73,7 @@ impl<'db> Err<'db> for SymGenericTerm<'db> {
     }
 }
 
-impl<'db> std::fmt::Display for SymGenericTerm<'db> {
+impl std::fmt::Display for SymGenericTerm<'_> {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
         match self {
             SymGenericTerm::Type(ty) => write!(f, "{ty}"),
@@ -234,7 +234,7 @@ impl<'db> SymGenericTerm<'db> {
             SymGenericTerm::Type(sym_ty) => format!("type `{sym_ty}`"),
             SymGenericTerm::Perm(sym_perm) => format!("permission `{sym_perm}`"),
             SymGenericTerm::Place(sym_place) => format!("place `{sym_place}`"),
-            SymGenericTerm::Error(_) => format!("(error)"),
+            SymGenericTerm::Error(_) => "(error)".to_string(),
         }
     }
 }
@@ -533,7 +533,7 @@ impl<'db> FromInfer<'db> for SymPerm<'db> {
     }
 }
 
-impl<'db> std::fmt::Display for SymPerm<'db> {
+impl std::fmt::Display for SymPerm<'_> {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
         salsa::with_attached_database(|db| {
             let db: &dyn crate::Db = db.as_view();
@@ -667,7 +667,7 @@ impl<'db> SymPlace<'db> {
     }
 }
 
-impl<'db> std::fmt::Display for SymPlace<'db> {
+impl std::fmt::Display for SymPlace<'_> {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
         salsa::with_attached_database(|db| {
             let db: &dyn crate::Db = db.as_view();
@@ -763,7 +763,7 @@ impl<'db> AnonymousPermSymbol<'db> for AstPerm<'db> {
             | AstPermKind::Shared(None)
             | AstPermKind::Leased(None)
             | AstPermKind::Given(None) => {
-                SymVariable::new(db, SymGenericKind::Perm, None, self.span(db)).into()
+                SymVariable::new(db, SymGenericKind::Perm, None, self.span(db))
             }
             AstPermKind::Our
             | AstPermKind::Variable(_)

@@ -86,7 +86,7 @@ impl<'p> Alternative<'p> {
     /// because that way none of them are considered required yet. If we spawned them one by one
     /// and began executing a child before other children were spawned, then they would
     /// consider themselves required incorrectly.
-    pub fn spawn_children<'me>(&'me mut self, count: usize) -> Vec<Alternative<'me>> {
+    pub fn spawn_children(&mut self, count: usize) -> Vec<Alternative<'_>> {
         assert_eq!(self.counter.get(), 0, "node already has children");
         (0..count).map(|_| Alternative::child(self)).collect()
     }

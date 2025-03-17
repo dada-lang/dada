@@ -12,17 +12,17 @@ pub(super) struct CapturedPanic {
 }
 
 thread_local! {
-    static LAST_PANIC: std::cell::Cell<Option<CapturedPanic>> = std::cell::Cell::new(None);
+    static LAST_PANIC: std::cell::Cell<Option<CapturedPanic>> = const { std::cell::Cell::new(None) };
 }
 
 pub(super) fn recording_panics<R>(op: impl FnOnce() -> R) -> R {
     let _guard = ReplacePanicHook::new();
     std::panic::set_hook(Box::new(|panic_hook_info| {
         let mut panic_info = CapturedPanic {
-            file: format!("(unknown location)"),
+            file: "(unknown location)".to_string(),
             line: 0,
             column: 0,
-            message: format!("(unknown panic message)"),
+            message: "(unknown panic message)".to_string(),
         };
 
         if let Some(message) = panic_hook_info.payload_as_str() {
@@ -47,6 +47,7 @@ pub(super) fn captured_panic() -> Option<CapturedPanic> {
 }
 
 struct ReplacePanicHook {
+    #[allow(clippy::type_complexity)]
     old_hook: Option<Box<dyn Fn(&PanicHookInfo<'_>) + Sync + Send + 'static>>,
 }
 

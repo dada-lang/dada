@@ -82,7 +82,7 @@ impl<'db> RedTyExt<'db> for RedTy<'db> {
             env: &'a Env<'db>,
         }
 
-        impl<'db> std::fmt::Display for Wrapper<'_, 'db> {
+        impl std::fmt::Display for Wrapper<'_, '_> {
             fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
                 match &self.ty {
                     RedTy::Error(_reported) => write!(f, "<error>"),
@@ -255,7 +255,7 @@ impl<'db> ToChains<'db> for SymPerm<'db> {
 impl<'db> ToChains<'db> for SymPlace<'db> {
     async fn to_chains(&self, env: &mut Env<'db>) -> Errors<VecSet<Chain<'db>>> {
         let ty = self.place_ty(env).await;
-        Ok(ty.to_chains(env).await?)
+        ty.to_chains(env).await
     }
 }
 

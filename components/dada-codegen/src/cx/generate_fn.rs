@@ -38,7 +38,7 @@ impl<'db> Cx<'db> {
                     input_tys,
                     output_ty,
                 },
-        } = self.codegen_signature(function, &generics);
+        } = self.codegen_signature(function, generics);
 
         // Create the type for this function
         let ty_index = {
@@ -57,8 +57,7 @@ impl<'db> Cx<'db> {
         };
 
         // Add to the WASM function section
-        let fn_index =
-            FnIndex(u32::try_from(self.function_section.len()).expect("too many functions"));
+        let fn_index = FnIndex(self.function_section.len());
         self.function_section.function(u32::from(ty_index));
 
         // Record on the queue to generate code

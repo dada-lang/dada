@@ -7,7 +7,9 @@ use crate::{
     inputs::SourceFile,
 };
 
-#[derive(Copy, Clone, PartialEq, Eq, Hash, PartialOrd, Ord, Debug, Update, FromImpls, Serialize)]
+#[derive(
+    Copy, Clone, PartialEq, Eq, Hash, PartialOrd, Ord, Debug, Update, FromImpls, Serialize,
+)]
 pub enum Anchor<'db> {
     SourceFile(SourceFile),
     Class(AstAggregate<'db>),
@@ -59,7 +61,7 @@ pub struct Span<'db> {
     pub end: Offset,
 }
 
-impl<'db> std::fmt::Debug for Span<'db> {
+impl std::fmt::Debug for Span<'_> {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
         f.debug_struct("Span")
             .field("start", &self.start)
@@ -90,7 +92,7 @@ impl AbsoluteSpan {
     }
 
     /// Convert into a span anchored at the source file.
-    pub fn into_span<'db>(self, _db: &'db dyn crate::Db) -> Span<'db> {
+    pub fn into_span(self, _db: &dyn crate::Db) -> Span<'_> {
         Span {
             anchor: self.source_file.into(),
             start: Offset::from(self.start),

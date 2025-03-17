@@ -145,8 +145,8 @@ pub(super) fn require_infer_isnt<'db>(
 }
 
 /// Wait until we know that the inference variable IS (or IS NOT) the given predicate.
-pub async fn test_infer_is_known_to_be<'db>(
-    env: &mut Env<'db>,
+pub async fn test_infer_is_known_to_be(
+    env: &mut Env<'_>,
     infer: InferVarIndex,
     predicate: Predicate,
 ) -> bool {

@@ -1,9 +1,9 @@
 #![allow(clippy::unused_unit)] // FIXME: derive(Update) triggers these
 
 use dada_util::FromImpls;
+use dada_util::SalsaSerialize;
 use salsa::Update;
 use serde::Serialize;
-use dada_util::SalsaSerialize;
 
 use crate::{
     inputs::SourceFile,
@@ -60,7 +60,7 @@ impl<'db> Identifier<'db> {
     }
 }
 
-impl<'db> std::fmt::Display for Identifier<'db> {
+impl std::fmt::Display for Identifier<'_> {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
         salsa::with_attached_database(|db| write!(f, "{}", self.text(db)))
             .unwrap_or_else(|| std::fmt::Debug::fmt(self, f))
@@ -82,7 +82,9 @@ impl<'db> Spanned<'db> for AstModule<'db> {
     }
 }
 
-#[derive(Copy, Clone, PartialEq, Eq, Hash, PartialOrd, Ord, Debug, Update, FromImpls, Serialize)]
+#[derive(
+    Copy, Clone, PartialEq, Eq, Hash, PartialOrd, Ord, Debug, Update, FromImpls, Serialize,
+)]
 pub enum AstItem<'db> {
     SourceFile(SourceFile),
     Use(AstUse<'db>),

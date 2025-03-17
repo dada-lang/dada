@@ -215,7 +215,7 @@ impl FailedTest {
     fn ice(path: &Path, captured_panic: Option<CapturedPanic>) -> Self {
         FailedTest {
             path: path.to_path_buf(),
-            full_compiler_output: format!("(Internal Compiler Error)\n"),
+            full_compiler_output: "(Internal Compiler Error)\n".to_string(),
             failures: vec![Failure::InternalCompilerError(captured_panic)],
         }
     }

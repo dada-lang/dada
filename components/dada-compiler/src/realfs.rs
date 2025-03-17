@@ -25,9 +25,9 @@ impl RealFs {
         if url.scheme() != "file" {
             bail!("unsupported scheme: {}", url.scheme());
         }
-        Ok(url
+        url
             .to_file_path()
-            .map_err(|()| anyhow!("not a file path: {url}"))?)
+            .map_err(|()| anyhow!("not a file path: {url}"))
     }
 }
 

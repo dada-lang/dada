@@ -17,7 +17,7 @@ impl<'db> Parse<'db> for AstPath<'db> {
         let mut path = AstPath::new(db, AstPathKind::Identifier(id));
 
         loop {
-            if let Ok(_) = parser.eat_op(operator::DOT) {
+            if parser.eat_op(operator::DOT).is_ok() {
                 let id = parser.eat_id()?;
                 path = AstPath::new(db, AstPathKind::Member { path, id });
                 continue;

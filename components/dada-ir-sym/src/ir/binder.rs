@@ -21,6 +21,10 @@ impl<'db, T: BoundTerm<'db>> Binder<'db, T> {
         self.variables.len()
     }
 
+    pub fn is_empty(&self) -> bool {
+        self.variables.is_empty()
+    }
+
     pub fn kind(&self, db: &'db dyn crate::Db, index: usize) -> SymGenericKind {
         self.variables[index].kind(db)
     }
@@ -43,17 +47,19 @@ impl<'db, T: BoundTerm<'db>> Binder<'db, T> {
     {
         let mut cache = vec![None; self.len()];
 
-        self.bound_value
-            .subst_with(db, &mut Default::default(), &mut SubstitutionFns {
+        self.bound_value.subst_with(
+            db,
+            &mut Default::default(),
+            &mut SubstitutionFns {
                 free_var: &mut |var| {
-                    if let Some(index) = self.variables.iter().position(|v| *v == var) {
-                        Some(*cache[index].get_or_insert_with(|| func(index)))
-                    } else {
-                        None
-                    }
+                    self.variables
+                        .iter()
+                        .position(|v| *v == var)
+                        .map(|index| *cache[index].get_or_insert_with(|| func(index)))
                 },
                 infer_var: &mut |_| None,
-            })
+            },
+        )
     }
 
     /// Open the binder by replacing each variable with the corresponding term from `substitution`.
@@ -168,7 +174,7 @@ where
     }
 }
 
-impl<'db> LeafBoundTerm<'db> for Never {}
+impl LeafBoundTerm<'_> for Never {}
 
 impl<'db, T> BoundTerm<'db> for Binder<'db, T>
 where

@@ -273,7 +273,7 @@ impl<'input, 'db> Tokenizer<'input, 'db> {
                 '(' => self.delimited(index, Delimiter::Parentheses, ')'),
 
                 // Integers
-                _ if ch.is_digit(10) => self.integer(index, ch),
+                _ if ch.is_ascii_digit() => self.integer(index, ch),
 
                 // Strings
                 '"' => self.string_literal(index),
@@ -395,7 +395,7 @@ impl<'input, 'db> Tokenizer<'input, 'db> {
         let mut end = start + ch.len_utf8();
 
         while let Some(&(index, ch)) = self.chars.peek() {
-            if ch.is_digit(10) || ch == '_' {
+            if ch.is_ascii_digit() || ch == '_' {
                 end = index + ch.len_utf8();
                 self.chars.next();
             } else {

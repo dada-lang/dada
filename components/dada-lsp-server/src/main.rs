@@ -5,7 +5,7 @@ use dada_compiler::{Compiler, Fork, RealFs};
 use dada_ir_ast::diagnostic::{Diagnostic, DiagnosticLabel, Level};
 use dada_ir_ast::inputs::SourceFile;
 use dada_ir_ast::span::{AbsoluteOffset, AbsoluteSpan};
-use dada_util::{bail, Fallible, Map, Set};
+use dada_util::{Fallible, Map, Set, bail};
 use lsp::{Editor, Lsp, LspFork};
 use lsp_types::{
     DidChangeTextDocumentParams, DidOpenTextDocumentParams, HoverProviderCapability, MessageType,
@@ -149,10 +149,10 @@ impl LspFork for ServerFork {
     }
 }
 
+type CheckAllTask = Box<dyn FnOnce(&ServerFork, &mut dyn Editor<Server>) -> Fallible<()> + Send>;
+
 impl ServerFork {
-    fn check_all_task(
-        source_file: SourceFile,
-    ) -> Box<dyn FnOnce(&Self, &mut dyn Editor<Server>) -> Fallible<()> + Send> {
+    fn check_all_task(source_file: SourceFile) -> CheckAllTask {
         Box::new(move |this, editor| this.check_all(editor, source_file))
     }
 
@@ -180,7 +180,7 @@ impl EditorDiagnostics {
         for diagnostic in diagnostics {
             new_diagnostics
                 .entry(diagnostic.span.source_file)
-                .or_insert(vec![])
+                .or_default()
                 .push(diagnostic);
         }
 
@@ -203,7 +203,7 @@ impl EditorDiagnostics {
         let no_longer_have_diagnostics: Vec<SourceFile> = self
             .has_published_diagnostics
             .iter()
-            .filter(|source| !new_diagnostics.contains_key(&source))
+            .filter(|source| !new_diagnostics.contains_key(source))
             .copied()
             .collect();
         for source_file in no_longer_have_diagnostics {

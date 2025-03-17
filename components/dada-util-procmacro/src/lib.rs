@@ -22,7 +22,7 @@ fn from_impls_derive(s: synstructure::Structure) -> TokenStream {
                 .iter()
                 .filter(|a| a.meta.path().is_ident("no_from_impl"))
             {
-                if let Err(_) = attr.meta.require_path_only() {
+                if attr.meta.require_path_only().is_err() {
                     return Err(syn::Error::new_spanned(
                         attr,
                         "`no_from_impl` does not accept arguments",
@@ -41,7 +41,7 @@ fn from_impls_derive(s: synstructure::Structure) -> TokenStream {
 
             if fields.len() != 1 {
                 return Err(syn::Error::new_spanned(
-                    &variant.ast().ident,
+                    variant.ast().ident,
                     "each variant must have exactly one field",
                 ));
             }

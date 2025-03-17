@@ -190,7 +190,7 @@ impl<'member, 'db> MemberLookup<'member, 'db> {
                         return Ok(Some(SearchResult::Field {
                             owner,
                             field,
-                            field_ty: field.checked_field_ty(db).substitute(db, &generics),
+                            field_ty: field.checked_field_ty(db).substitute(db, generics),
                         }));
                     } else {
                         debug!("found field with wrong name", field.name(db));

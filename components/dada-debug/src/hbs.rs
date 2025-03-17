@@ -16,9 +16,9 @@ handlebars_helper!(source_snippet: |file: str, line: usize, column: usize| {
     let flc = file_line_col(file, line, column);
     match std::fs::read_to_string(file) {
         Ok(v) => {
-            match v.lines().skip(line - 1).next() {
+            match v.lines().nth(line - 1) {
                 Some(l) => {
-                    match l.char_indices().skip(column - 1).next() {
+                    match l.char_indices().nth(column - 1) {
                         Some((i, _)) => {
                             let prefix = &l[..i];
                             let (bold, suffix) = split_bolded_section(&l[i..]);

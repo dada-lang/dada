@@ -3,7 +3,7 @@ use std::{fs::File, thread::ThreadId};
 use serde::ser::SerializeStruct;
 
 thread_local! {
-    static INDENT_LEVEL: std::cell::Cell<usize> = std::cell::Cell::new(0);
+    static INDENT_LEVEL: std::cell::Cell<usize> = const { std::cell::Cell::new(0) };
 }
 
 /// A log state is a snapshot of the current indent level and other thread-sensitive state.
@@ -68,7 +68,7 @@ fn enabled() -> &'static Option<LogKind> {
             Err(_) => None,
         };
     }
-    &*ENABLED
+    &ENABLED
 }
 
 #[macro_export]
@@ -93,10 +93,7 @@ macro_rules! debug_heading {
 /// * `log_state`, the log state of the task when it was suspended.
 pub fn enter_task(id: u64, log_state: LogState) -> TaskUndent {
     let old_state = LogState::get();
-    match enabled() {
-        Some(kind) => debug_cold(kind, MessageKind::EnterTask(id), "", &[]),
-        None => (),
-    }
+    if let Some(kind) = enabled() { debug_cold(kind, MessageKind::EnterTask(id), "", &[]) }
     log_state.set();
     TaskUndent(id, old_state)
 }
@@ -105,21 +102,15 @@ pub struct TaskUndent(u64, LogState);
 
 impl Drop for TaskUndent {
     fn drop(&mut self) {
-        match enabled() {
-            Some(kind) => debug_cold(kind, MessageKind::LeaveTask(self.0), "", &[]),
-            None => (),
-        }
+        if let Some(kind) = enabled() { debug_cold(kind, MessageKind::LeaveTask(self.0), "", &[]) }
         self.1.set();
     }
 }
 
 #[inline]
 pub fn debug(message: &'static str, make_args: impl FnOnce(&dyn Fn(&[LogArgument<'_>]))) {
-    match enabled() {
-        Some(kind) => {
-            make_args(&|args| debug_cold(kind, MessageKind::Normal, message, args));
-        }
-        None => (),
+    if let Some(kind) = enabled() {
+        make_args(&|args| debug_cold(kind, MessageKind::Normal, message, args));
     }
 }
 

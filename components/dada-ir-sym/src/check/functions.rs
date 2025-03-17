@@ -22,9 +22,7 @@ pub(crate) fn check_function_body<'db>(
 ) -> Option<SymExpr<'db>> {
     match function.source(db) {
         SymFunctionSource::Function(ast_function) => {
-            let Some(block) = ast_function.body_block(db) else {
-                return None;
-            };
+            let block = ast_function.body_block(db)?;
             Some(check_function_body_ast_block(db, function, block))
         }
         SymFunctionSource::Constructor(sym_class, ast_class_item) => Some(
@@ -73,13 +71,13 @@ fn check_function_body_class_constructor<'db>(
                     Diagnostic::error(
                         db,
                         sym_field.name_span(db),
-                        format!("cannot have both explicit fields and an automatic constructor"),
+                        "cannot have both explicit fields and an automatic constructor".to_string(),
                     )
                     .label(
                         db,
                         Level::Error,
                         sym_field.name_span(db),
-                        format!("I found an explicit field declaration here"),
+                        "I found an explicit field declaration here".to_string(),
                     )
                     .label(
                         db,

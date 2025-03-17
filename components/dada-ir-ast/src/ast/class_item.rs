@@ -40,8 +40,6 @@ pub struct AstAggregate<'db> {
     pub contents: Option<DeferredParse<'db>>,
 }
 
-impl<'db> AstAggregate<'db> {}
-
 impl<'db> Spanned<'db> for AstAggregate<'db> {
     fn span(&self, db: &'db dyn crate::Db) -> Span<'db> {
         AstAggregate::span(*self, db)

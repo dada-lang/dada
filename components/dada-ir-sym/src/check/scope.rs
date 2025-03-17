@@ -78,7 +78,7 @@ impl<'scope, 'db> Scope<'scope, 'db> {
             Ok(NameResolutionSym::SymModule(sym)) => self.with_link(ScopeChainKind::SymModule(sym)),
             Ok(sym) => {
                 let span = sym.span(db).unwrap_or(span);
-                Diagnostic::error(db, span, format!("prelude is not a module"))
+                Diagnostic::error(db, span, "prelude is not a module".to_string())
                     .label(
                         db,
                         Level::Error,
@@ -359,9 +359,7 @@ impl<'db> NameResolution<'db> {
             return Err(Diagnostic::error(
                 db,
                 extra_span,
-                format!(
-                    "extra generic arguments provided",
-                ),
+                "extra generic arguments provided".to_string(),
             )
             .label(
                 db,
@@ -390,6 +388,7 @@ impl<'db> NameResolution<'db> {
 
 /// Result of name resolution.
 #[derive(Copy, Clone, Debug, PartialEq, Eq, FromImpls, Serialize)]
+#[allow(clippy::enum_variant_names)]
 pub enum NameResolutionSym<'db> {
     SymModule(SymModule<'db>),
     SymClass(SymAggregate<'db>),
@@ -428,7 +427,7 @@ impl<'db> NameResolutionSym<'db> {
             }
             NameResolutionSym::SymVariable(var) => match var.name(db) {
                 Some(n) => format!("{} named `{n}`", self.categorize(db)),
-                None => format!("an anonymous generic parameter"),
+                None => "an anonymous generic parameter".to_string(),
             },
             NameResolutionSym::SymPrimitive(sym_primitive) => {
                 format!("the primitive type `{}`", sym_primitive.name(db))
@@ -567,10 +566,8 @@ impl<'scope, 'db> ScopeChain<'scope, 'db> {
                             unreachable!()
                         }
                     }
-                } else if let Some(resolution) = sym.resolve_name_against_uses(db, id) {
-                    Some(resolution)
                 } else {
-                    None
+                    sym.resolve_name_against_uses(db, id)
                 }
             }
 
@@ -636,10 +633,7 @@ impl<'db> SymModule<'db> {
         db: &'db dyn crate::Db,
         id: Identifier<'db>,
     ) -> Option<NameResolution<'db>> {
-        let Some(ast_use) = self.ast_use_map(db).get(&id) else {
-            return None;
-        };
-
+        let ast_use = self.ast_use_map(db).get(&id)?;
         resolve_ast_use(db, *ast_use)
     }
 }

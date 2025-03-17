@@ -60,10 +60,7 @@ impl<'db> Parse<'db> for AstFunction<'db> {
 
         let return_ty = AstTy::opt_parse_guarded(operator::ARROW, db, parser)?;
 
-        let body = match parser.defer_delimited(Delimiter::CurlyBraces) {
-            Ok(b) => Some(b),
-            Err(_) => None,
-        };
+        let body = parser.defer_delimited(Delimiter::CurlyBraces).ok();
 
         Ok(Some(AstFunction::new(
             db,

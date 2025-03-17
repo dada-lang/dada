@@ -16,10 +16,7 @@ pub(crate) struct Universe(NonZeroU32);
 impl Universe {
     /// The universe containing the things the user themselves wrote.
     /// `ROOT` <= all other universes.
-    pub const ROOT: Universe = unsafe {
-        // SAFETY: 0 != 1
-        Universe(NonZeroU32::new_unchecked(1))
-    };
+    pub const ROOT: Universe = Universe(NonZeroU32::new(1).unwrap());
 
     /// Create a universe one larger than the current universe.
     pub fn next(self) -> Universe {

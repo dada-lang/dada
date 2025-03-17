@@ -26,7 +26,7 @@ pub enum WasmPlaceRepr {
     Nowhere,
 }
 
-impl<'cx, 'db> ExprCodegen<'cx, 'db> {
+impl<'db> ExprCodegen<'_, 'db> {
     /// Returns a [`WasmPointer`][] to the current start of a callee's stack frame.
     /// This value is only valid until [`Self::insert_variable`][] is next called.
     pub(super) fn next_stack_frame(&self) -> WasmPointer {
@@ -54,7 +54,7 @@ impl<'cx, 'db> ExprCodegen<'cx, 'db> {
     pub(super) fn place(&self, place: SymPlaceExpr<'db>) -> Arc<WasmPlaceRepr> {
         let db = self.cx.db;
         match *place.kind(db) {
-            SymPlaceExprKind::Var(v) => self.place_for_local(v).into(),
+            SymPlaceExprKind::Var(v) => self.place_for_local(v),
             SymPlaceExprKind::Error(_) => Arc::new(WasmPlaceRepr::Nowhere),
             SymPlaceExprKind::Field(owner, field) => {
                 let owner_place = self.place(owner);
@@ -142,7 +142,7 @@ impl<'cx, 'db> ExprCodegen<'cx, 'db> {
         match owner_ty.kind(db) {
             SymTyKind::Var(sym_variable) => self.field_place(
                 owner_place_repr,
-                self.generics[&sym_variable].assert_type(db),
+                self.generics[sym_variable].assert_type(db),
                 field,
             ),
             SymTyKind::Infer(_) => panic!("unresolved inference variable"),

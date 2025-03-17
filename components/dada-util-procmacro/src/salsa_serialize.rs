@@ -16,11 +16,7 @@ fn parse_serde_attrs(attrs: &[Attribute]) -> SerdeAttrs {
     for attr in attrs.iter().filter(|attr| attr.path().is_ident("serde")) {
         if let Ok(Meta::List(meta)) = attr.parse_args() {
             let nested = meta.tokens.into_iter().filter_map(|token| {
-                if let Ok(meta) = syn::parse2::<Meta>(token.into()) {
-                    Some(meta)
-                } else {
-                    None
-                }
+                syn::parse2::<Meta>(token.into()).ok()
             });
 
             for meta in nested {

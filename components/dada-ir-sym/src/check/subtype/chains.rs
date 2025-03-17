@@ -57,8 +57,8 @@ async fn require_sub_some<'db>(
                     sub_chains(
                         env,
                         &mut child_alternative,
-                        &lower_chain,
-                        &upper_chain,
+                        lower_chain,
+                        upper_chain,
                         or_else,
                     )
                     .await

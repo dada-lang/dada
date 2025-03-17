@@ -16,12 +16,12 @@ use crate::{
 
 /// Returns the span of the `libdada` prelude. Used when a span is needed for diagnostics
 /// for something built-in, like a primitive.
-pub fn prelude_span<'db>(db: &'db dyn crate::Db) -> Span<'db> {
+pub fn prelude_span(db: &dyn crate::Db) -> Span<'_> {
     prelude_module(db).span(db)
 }
 
 /// Returns the `libdada` prelude module. It must be present.
-fn prelude_module<'db>(db: &'db dyn crate::Db) -> SymModule<'db> {
+fn prelude_module(db: &dyn crate::Db) -> SymModule<'_> {
     let krate = db.root().libdada_crate(db);
     let identifier = Identifier::prelude(db);
     db.source_file(krate, &[identifier]).symbol(db)

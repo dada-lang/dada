@@ -19,7 +19,7 @@ use crate::{
 };
 use dada_ir_ast::{
     ast::AstTy,
-    diagnostic::{Diagnostic, Err, Reported},
+    diagnostic::{Diagnostic, Err},
     span::Span,
 };
 use dada_util::{Map, debug};
@@ -165,21 +165,19 @@ impl<'db> Env<'db> {
     /// Open the given symbols as universally quantified.
     /// Creates a new universe.
     #[allow(dead_code)]
-    pub fn open_universally<T>(&mut self, runtime: &Runtime<'db>, value: &T) -> T::LeafTerm
+    pub fn open_universally<T>(&mut self, value: &T) -> T::LeafTerm
     where
         T: BoundTerm<'db>,
     {
         match value.as_binder() {
-            Err(leaf) => {
-                return leaf.identity();
-            }
+            Err(leaf) => leaf.identity(),
 
             Ok(binder) => {
                 self.increment_universe();
                 Arc::make_mut(&mut self.variable_universes)
                     .extend(binder.variables.iter().map(|&v| (v, self.universe)));
 
-                self.open_universally(runtime, &binder.bound_value)
+                self.open_universally(&binder.bound_value)
             }
         }
     }
@@ -324,10 +322,7 @@ impl<'db> Env<'db> {
             async move |env| {
                 debug!("require_assignable_object_type", value_ty, place_ty);
 
-                match require_assignable_type(env, value_ty, place_ty, &or_else).await {
-                    Ok(()) => (),
-                    Err(Reported(_)) => (),
-                }
+                if let Ok(()) = require_assignable_type(env, value_ty, place_ty, &or_else).await {}
             },
         )
     }
@@ -403,7 +398,7 @@ impl<'db> Env<'db> {
             })
     }
 
-    pub fn describe_ty<'a, 'chk>(&'a self, ty: SymTy<'db>) -> impl std::fmt::Display + 'a {
+    pub fn describe_ty<'a>(&'a self, ty: SymTy<'db>) -> impl std::fmt::Display + 'a {
         format!("{ty:?}") // FIXME
     }
 

@@ -1,13 +1,13 @@
 use std::{
     marker::PhantomData,
     ops::ControlFlow,
-    sync::{mpsc::Sender, Arc},
+    sync::{Arc, mpsc::Sender},
     thread::Scope,
 };
 
 use dada_util::Fallible;
 use lsp_server::{Connection, Message, Notification};
-use lsp_types::{notification, PublishDiagnosticsParams};
+use lsp_types::{PublishDiagnosticsParams, notification};
 
 use super::{Editor, Lsp};
 
@@ -113,7 +113,7 @@ impl<'l, L: Lsp + 'l> LspDispatch<'l, L> {
                     });
                 }
 
-                while let Ok(err) = errors_rx.try_recv() {
+                if let Ok(err) = errors_rx.try_recv() {
                     return Err(err);
                 }
             }
@@ -186,7 +186,7 @@ impl<L: Lsp> Editor<L> for LspDispatchEditor<'_, L> {
     }
 
     fn publish_diagnostics(&mut self, params: PublishDiagnosticsParams) -> Fallible<()> {
-        Ok(self.send_notification::<notification::PublishDiagnostics>(params)?)
+        self.send_notification::<notification::PublishDiagnostics>(params)
     }
 
     fn spawn(
@@ -198,6 +198,7 @@ impl<L: Lsp> Editor<L> for LspDispatchEditor<'_, L> {
 }
 
 struct SpawnedTask<L: Lsp> {
+    #[allow(clippy::type_complexity)]
     task: Box<dyn FnOnce(&<L as Lsp>::Fork, &mut dyn Editor<L>) -> Fallible<()> + Send>,
 }
 

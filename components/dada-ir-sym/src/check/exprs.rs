@@ -95,7 +95,7 @@ async fn check_expr<'db>(expr: &AstExpr<'db>, env: &mut Env<'db>) -> ExprResult<
             AstExprKind::Literal(literal) => match literal.kind(db) {
                 LiteralKind::Integer => {
                     let ty = env.fresh_ty_inference_var(expr_span);
-                    let bits = match u64::from_str_radix(literal.text(db), 10) {
+                    let bits = match str::parse(literal.text(db)) {
                         Ok(v) => v,
                         Err(e) => panic!("error: {e:?}"),
                     };
@@ -644,14 +644,18 @@ async fn check_expr<'db>(expr: &AstExpr<'db>, env: &mut Env<'db>) -> ExprResult<
                 let Some(expected_return_ty) = env.return_ty else {
                     return ExprResult::err(
                         db,
-                        Diagnostic::error(db, expr_span, format!("unexpected `return` statement"))
-                            .label(
-                                db,
-                                Level::Error,
-                                expr_span,
-                                format!("I did not expect to see a `return` statement here"),
-                            )
-                            .report(db),
+                        Diagnostic::error(
+                            db,
+                            expr_span,
+                            "unexpected `return` statement".to_string(),
+                        )
+                        .label(
+                            db,
+                            Level::Error,
+                            expr_span,
+                            "I did not expect to see a `return` statement here".to_string(),
+                        )
+                        .report(db),
                     );
                 };
 
@@ -884,9 +888,8 @@ fn report_no_new_method<'db>(
                     db,
                     Level::Note,
                     class_sym.name_span(db),
-                    format!(
-                        "calling a class is equivalent to calling `new`, but `new` is not a method"
-                    ),
+                    "calling a class is equivalent to calling `new`, but `new` is not a method"
+                        .to_string(),
                 )
                 .label(
                     db,
@@ -913,7 +916,7 @@ fn report_no_new_method<'db>(
                     db,
                     Level::Note,
                     class_sym.name_span(db),
-                    format!("I could not find any class member named `new`"),
+                    "I could not find any class member named `new`".to_string(),
                 ),
             );
         }
@@ -972,6 +975,7 @@ async fn check_function_call<'db>(
 /// Check a call like `a.b()` where `b` is a method.
 /// These are somewhat different than calls like `b(a)` because of how
 /// type arguments are handled.
+#[allow(clippy::too_many_arguments)]
 #[boxed_async_fn]
 async fn check_method_call<'db>(
     env: &mut Env<'db>,
@@ -1116,6 +1120,7 @@ async fn check_method_call<'db>(
     .await
 }
 
+#[allow(clippy::too_many_arguments)]
 #[boxed_async_fn]
 async fn check_call_common<'db>(
     env: &mut Env<'db>,
@@ -1427,7 +1432,7 @@ impl<'db> ExprResult<'db> {
 }
 
 fn report_not_implemented<'db>(db: &'db dyn crate::Db, span: Span<'db>, what: &str) -> Reported {
-    Diagnostic::error(db, span, format!("not implemented yet :("))
+    Diagnostic::error(db, span, "not implemented yet :(".to_string())
         .label(
             db,
             Level::Error,
@@ -1442,7 +1447,7 @@ fn report_non_expr<'db>(
     owner_span: Span<'db>,
     name_resolution: &NameResolution<'db>,
 ) -> Reported {
-    Diagnostic::error(db, owner_span, format!("expected an expression"))
+    Diagnostic::error(db, owner_span, "expected an expression".to_string())
         .label(
             db,
             Level::Error,
@@ -1460,7 +1465,7 @@ fn report_missing_call_to_method<'db>(
     owner_span: Span<'db>,
     method: SymFunction<'db>,
 ) -> Reported {
-    Diagnostic::error(db, owner_span, format!("missing call to method"))
+    Diagnostic::error(db, owner_span, "missing call to method".to_string())
         .label(
             db,
             Level::Error,
@@ -1475,12 +1480,12 @@ fn report_missing_call_to_method<'db>(
 }
 
 fn report_not_callable<'db>(db: &'db dyn crate::Db, owner_span: Span<'db>) -> Reported {
-    Diagnostic::error(db, owner_span, format!("not callable"))
+    Diagnostic::error(db, owner_span, "not callable".to_string())
         .label(
             db,
             Level::Error,
             owner_span,
-            format!("this is not something you can call"),
+            "this is not something you can call".to_string(),
         )
         .report(db)
 }

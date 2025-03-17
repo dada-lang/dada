@@ -15,6 +15,12 @@ pub struct Arena {
     data: RefCell<Vec<Pin<Box<dyn Any>>>>,
 }
 
+impl Default for Arena {
+    fn default() -> Self {
+        Self::new()
+    }
+}
+
 impl Arena {
     pub fn new() -> Self {
         Self {
@@ -32,6 +38,6 @@ impl Arena {
 
         // UNSAFE: WE don't ever remove anything from `self.data` until self is dropped.
         // UNSAFE: The value is guaranteed to be valid for the lifetime of `self`
-        unsafe { &*(ptr as *const T) }
+        unsafe { &*ptr }
     }
 }

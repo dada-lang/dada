@@ -27,7 +27,7 @@ pub struct SubstitutionFns<'s, 'db, Term> {
     pub infer_var: &'s mut dyn FnMut(InferVarIndex) -> Option<Term>,
 }
 
-pub fn default_free_var<'db, Term>(_: SymVariable<'db>) -> Option<Term> {
+pub fn default_free_var<Term>(_: SymVariable<'_>) -> Option<Term> {
     None
 }
 
@@ -540,10 +540,7 @@ where
     type Output = Option<T::Output>;
 
     fn identity(&self) -> Self::Output {
-        match self {
-            Some(v) => Some(v.identity()),
-            None => None,
-        }
+        self.as_ref().map(|v| v.identity())
     }
 
     fn subst_with<'subst>(
@@ -552,10 +549,7 @@ where
         bound_vars: &mut Vec<SymVariable<'db>>,
         subst_fns: &mut SubstitutionFns<'_, 'db, Term>,
     ) -> Self::Output {
-        match self {
-            Some(v) => Some(v.subst_with(db, bound_vars, subst_fns)),
-            None => None,
-        }
+        self.as_ref().map(|v| v.subst_with(db, bound_vars, subst_fns))
     }
 }
 

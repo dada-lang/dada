@@ -69,7 +69,7 @@ async fn view(
     axum::extract::Path(event_index): axum::extract::Path<usize>,
     axum::extract::State(state): axum::extract::State<Arc<State>>,
 ) -> axum::http::Response<String> {
-    respond_ok_or_500(crate::view::try_view(event_index, &*state).await).await
+    respond_ok_or_500(crate::view::try_view(event_index, &state).await).await
 }
 
 async fn assets(

@@ -1,6 +1,9 @@
 use std::fmt::Display;
 
-use crate::{span::{AbsoluteSpan, Span}, DebugEvent, DebugEventPayload};
+use crate::{
+    DebugEvent, DebugEventPayload,
+    span::{AbsoluteSpan, Span},
+};
 use dada_util::debug;
 use salsa::{Accumulator, Update};
 use serde::Serialize;
@@ -12,7 +15,7 @@ mod render;
 pub struct Reported(pub AbsoluteSpan);
 
 impl Reported {
-    pub fn span<'db>(self, db: &'db dyn crate::Db) -> Span<'db> {
+    pub fn span(self, db: &dyn crate::Db) -> Span<'_> {
         self.0.into_span(db)
     }
 }
@@ -105,12 +108,14 @@ impl Diagnostic {
         let span = self.span;
 
         if let Some(debug_tx) = db.debug_tx() {
-            debug_tx.send(DebugEvent {
-                url: span.source_file.url(db).clone(),
-                start: span.start,
-                end: span.end,
-                payload: DebugEventPayload::Diagnostic(self.clone()),
-            }).unwrap();
+            debug_tx
+                .send(DebugEvent {
+                    url: span.source_file.url(db).clone(),
+                    start: span.start,
+                    end: span.end,
+                    payload: DebugEventPayload::Diagnostic(self.clone()),
+                })
+                .unwrap();
         }
 
         self.accumulate(db);

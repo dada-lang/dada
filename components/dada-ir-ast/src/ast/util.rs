@@ -12,7 +12,7 @@ pub struct SpanVec<'db, T: Update> {
     pub values: Vec<T>,
 }
 
-impl<'db, T: Update> Deref for SpanVec<'db, T> {
+impl<T: Update> Deref for SpanVec<'_, T> {
     type Target = Vec<T>;
 
     fn deref(&self) -> &Self::Target {

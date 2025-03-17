@@ -1,6 +1,9 @@
+#![allow(clippy::arc_with_non_send_sync)] // FIXME: we may want to do this later?
+
 use std::{
     future::Future,
     panic::Location,
+    rc::Rc,
     sync::{
         Arc, Mutex, RwLock,
         atomic::{AtomicBool, AtomicU64, Ordering},
@@ -27,7 +30,7 @@ use super::{
 
 #[derive(Clone)]
 pub(crate) struct Runtime<'db> {
-    data: Arc<RuntimeData<'db>>,
+    data: Rc<RuntimeData<'db>>,
 }
 
 pub(crate) struct RuntimeData<'db> {
@@ -74,14 +77,15 @@ impl<'db> std::ops::Deref for Runtime<'db> {
 
 impl<'db> Runtime<'db> {
     #[track_caller]
-    pub(crate) fn execute<T: 'db, R: 'db>(
+    pub(crate) fn execute<T, R>(
         db: &'db dyn crate::Db,
         span: Span<'db>,
         constrain: impl AsyncFnOnce(&Runtime<'db>) -> T + 'db,
         cleanup: impl FnOnce(T) -> R + 'db,
     ) -> R
     where
-        R: Err<'db>,
+        T: 'db,
+        R: 'db + Err<'db>,
     {
         let source_location = Location::caller();
         let runtime = Runtime::new(db, source_location, span);
@@ -115,7 +119,7 @@ impl<'db> Runtime<'db> {
         span: Span<'db>,
     ) -> Self {
         Self {
-            data: Arc::new(RuntimeData {
+            data: Rc::new(RuntimeData {
                 db,
                 complete: Default::default(),
                 inference_vars: Default::default(),
@@ -306,9 +310,7 @@ impl<'db> Runtime<'db> {
         assert!(!self.check_complete());
         let mut inference_vars = self.inference_vars.write().unwrap();
         let inference_var = &mut inference_vars[infer.as_usize()];
-        let Some(or_else) = op(inference_var) else {
-            return None;
-        };
+        let or_else = op(inference_var)?;
         log.log(
             Location::caller(),
             "mutate_inference_var_data",
@@ -373,7 +375,7 @@ impl<'db> Runtime<'db> {
                 db,
                 Level::Note,
                 var_span,
-                format!("need to know the type here"),
+                "need to know the type here".to_string(),
             );
         }
         diag.report(db)
@@ -385,6 +387,7 @@ mod check_task {
     use futures::{FutureExt, future::LocalBoxFuture};
     use std::{
         future::Future,
+        rc::Rc,
         sync::{Arc, Mutex},
         task::{Context, Poll, RawWaker, RawWakerVTable, Waker},
     };
@@ -441,7 +444,7 @@ mod check_task {
                 })
             };
 
-            this.set_to_wait_state(&runtime, future.boxed_local());
+            this.set_to_wait_state(runtime, future.boxed_local());
 
             this
         }
@@ -452,8 +455,8 @@ mod check_task {
 
         fn take_state<'db>(&self, from_check: &Runtime<'db>) -> CheckTaskState<'db> {
             assert!(std::ptr::addr_eq(
-                Arc::as_ptr(&self.runtime.data),
-                Arc::as_ptr(&from_check.data),
+                Rc::as_ptr(&self.runtime.data),
+                Rc::as_ptr(&from_check.data),
             ));
 
             let state = self.replace_state(CheckTaskState::Executing);
@@ -468,8 +471,8 @@ mod check_task {
             future: LocalBoxFuture<'db, ()>,
         ) {
             assert!(std::ptr::addr_eq(
-                Arc::as_ptr(&self.runtime.data),
-                Arc::as_ptr(&from_check.data),
+                Rc::as_ptr(&self.runtime.data),
+                Rc::as_ptr(&from_check.data),
             ));
 
             // UNSAFE: Hide the lifetimes as described in the safety notes for [`CheckTask`][].
@@ -517,12 +520,11 @@ mod check_task {
             ready_to_execute.push(self);
         }
 
-        pub(super) fn execute<'db>(self: Arc<Self>, from_check: &Runtime<'db>) {
+        pub(super) fn execute(self: Arc<Self>, from_check: &Runtime<'_>) {
             let state = self.take_state(from_check);
             match state {
                 CheckTaskState::Complete => {
                     *self.state.lock().unwrap() = CheckTaskState::Complete;
-                    return;
                 }
 
                 CheckTaskState::Waiting(mut future, log_state) => {

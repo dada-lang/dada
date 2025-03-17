@@ -10,7 +10,7 @@ impl From<FnTypeIndex> for u32 {
     }
 }
 
-impl<'db> Cx<'db> {
+impl Cx<'_> {
     /// Declares an instantiation of a function with a given set of arguments and returns its index.
     /// If the function is already declared, nothing happens.
     /// If the function is not already declared, it is enqueued for code-generation.

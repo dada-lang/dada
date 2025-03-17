@@ -53,7 +53,7 @@ fn name_resolution_to_sym_ty<'db>(
 ) -> SymTy<'db> {
     match name_resolution.sym {
         NameResolutionSym::SymPrimitive(sym_primitive) => {
-            if generics.len() != 0 {
+            if !generics.is_empty() {
                 return SymTy::err(
                     db,
                     Diagnostic::error(
@@ -154,7 +154,7 @@ fn name_resolution_to_sym_ty<'db>(
         }
 
         NameResolutionSym::SymVariable(var) => {
-            if generics.len() != 0 {
+            if !generics.is_empty() {
                 return SymTy::err(
                     db,
                     Diagnostic::error(db, source.span(db), "generic types do not expect generic arguments")

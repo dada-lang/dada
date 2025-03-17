@@ -113,9 +113,9 @@ impl ser::Serializer for MaxDepthSerializer {
         Ok(serde_json::Value::Null)
     }
 
-    fn serialize_some<T: ?Sized>(self, value: &T) -> Result<Self::Ok, Self::Error>
+    fn serialize_some<T>(self, value: &T) -> Result<Self::Ok, Self::Error>
     where
-        T: Serialize,
+        T: ?Sized + Serialize,
     {
         value.serialize(self)
     }
@@ -137,18 +137,18 @@ impl ser::Serializer for MaxDepthSerializer {
         Ok(serde_json::Value::String(variant.to_owned()))
     }
 
-    fn serialize_newtype_struct<T: ?Sized>(
+    fn serialize_newtype_struct<T>(
         self,
         _name: &'static str,
         value: &T,
     ) -> Result<Self::Ok, Self::Error>
     where
-        T: Serialize,
+        T: ?Sized + Serialize,
     {
         value.serialize(self)
     }
 
-    fn serialize_newtype_variant<T: ?Sized>(
+    fn serialize_newtype_variant<T>(
         self,
         _name: &'static str,
         _variant_index: u32,
@@ -156,7 +156,7 @@ impl ser::Serializer for MaxDepthSerializer {
         value: &T,
     ) -> Result<Self::Ok, Self::Error>
     where
-        T: Serialize,
+        T: ?Sized + Serialize,
     {
         let mut map = serde_json::Map::new();
         map.insert(variant.to_owned(), value.serialize(self)?);
@@ -273,9 +273,9 @@ impl SerializeSeq for MaxDepthSeq {
     type Ok = serde_json::Value;
     type Error = serde_json::Error;
 
-    fn serialize_element<T: ?Sized>(&mut self, value: &T) -> Result<(), Self::Error>
+    fn serialize_element<T>(&mut self, value: &T) -> Result<(), Self::Error>
     where
-        T: Serialize,
+        T: ?Sized + Serialize,
     {
         match self {
             MaxDepthSeq::Active { serializer, vec } => {
@@ -306,9 +306,9 @@ impl SerializeTuple for MaxDepthSeq {
     type Ok = serde_json::Value;
     type Error = serde_json::Error;
 
-    fn serialize_element<T: ?Sized>(&mut self, value: &T) -> Result<(), Self::Error>
+    fn serialize_element<T>(&mut self, value: &T) -> Result<(), Self::Error>
     where
-        T: Serialize,
+        T: ?Sized + Serialize,
     {
         match self {
             MaxDepthSeq::Active { serializer, vec } => {
@@ -339,9 +339,9 @@ impl SerializeTupleStruct for MaxDepthSeq {
     type Ok = serde_json::Value;
     type Error = serde_json::Error;
 
-    fn serialize_field<T: ?Sized>(&mut self, value: &T) -> Result<(), Self::Error>
+    fn serialize_field<T>(&mut self, value: &T) -> Result<(), Self::Error>
     where
-        T: Serialize,
+        T: ?Sized + Serialize,
     {
         match self {
             MaxDepthSeq::Active { serializer, vec } => {
@@ -372,9 +372,9 @@ impl SerializeTupleVariant for MaxDepthSeq {
     type Ok = serde_json::Value;
     type Error = serde_json::Error;
 
-    fn serialize_field<T: ?Sized>(&mut self, value: &T) -> Result<(), Self::Error>
+    fn serialize_field<T>(&mut self, value: &T) -> Result<(), Self::Error>
     where
-        T: Serialize,
+        T: ?Sized + Serialize,
     {
         match self {
             MaxDepthSeq::Active { serializer, vec } => {
@@ -420,9 +420,9 @@ impl SerializeMap for MaxDepthMap {
     type Ok = serde_json::Value;
     type Error = serde_json::Error;
 
-    fn serialize_key<T: ?Sized>(&mut self, key: &T) -> Result<(), Self::Error>
+    fn serialize_key<T>(&mut self, key: &T) -> Result<(), Self::Error>
     where
-        T: Serialize,
+        T: ?Sized + Serialize,
     {
         match self {
             MaxDepthMap::Active { next_key, .. } | MaxDepthMap::VariantActive { next_key, .. } => {
@@ -439,9 +439,9 @@ impl SerializeMap for MaxDepthMap {
         Ok(())
     }
 
-    fn serialize_value<T: ?Sized>(&mut self, value: &T) -> Result<(), Self::Error>
+    fn serialize_value<T>(&mut self, value: &T) -> Result<(), Self::Error>
     where
-        T: Serialize,
+        T: ?Sized + Serialize,
     {
         match self {
             MaxDepthMap::Active {
@@ -482,13 +482,9 @@ impl SerializeStruct for MaxDepthMap {
     type Ok = serde_json::Value;
     type Error = serde_json::Error;
 
-    fn serialize_field<T: ?Sized>(
-        &mut self,
-        key: &'static str,
-        value: &T,
-    ) -> Result<(), Self::Error>
+    fn serialize_field<T>(&mut self, key: &'static str, value: &T) -> Result<(), Self::Error>
     where
-        T: Serialize,
+        T: ?Sized + Serialize,
     {
         SerializeMap::serialize_key(self, key)?;
         SerializeMap::serialize_value(self, value)
@@ -503,13 +499,9 @@ impl SerializeStructVariant for MaxDepthMap {
     type Ok = serde_json::Value;
     type Error = serde_json::Error;
 
-    fn serialize_field<T: ?Sized>(
-        &mut self,
-        key: &'static str,
-        value: &T,
-    ) -> Result<(), Self::Error>
+    fn serialize_field<T>(&mut self, key: &'static str, value: &T) -> Result<(), Self::Error>
     where
-        T: Serialize,
+        T: ?Sized + Serialize,
     {
         match self {
             MaxDepthMap::Active {

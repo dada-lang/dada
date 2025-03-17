@@ -19,7 +19,7 @@ impl<'db> SubstWith<'db, SymGenericTerm<'db>> for SymExpr<'db> {
     type Output = SymExpr<'db>;
 
     fn identity(&self) -> Self::Output {
-        self.clone()
+        *self
     }
 
     fn subst_with<'subst>(
@@ -140,7 +140,7 @@ impl<'db> SubstWith<'db, SymGenericTerm<'db>> for SymPlaceExpr<'db> {
     type Output = SymPlaceExpr<'db>;
 
     fn identity(&self) -> Self::Output {
-        self.clone()
+        *self
     }
 
     fn subst_with<'subst>(
@@ -219,7 +219,7 @@ impl<'db> SubstWith<'db, SymGenericTerm<'db>> for SymFunctionSignature<'db> {
     type Output = SymFunctionSignature<'db>;
 
     fn identity(&self) -> Self::Output {
-        self.clone()
+        *self
     }
 
     fn subst_with<'subst>(

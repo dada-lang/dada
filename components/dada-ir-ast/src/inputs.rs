@@ -39,7 +39,7 @@ impl CompilationRoot {
 
     /// Returns the [`Krate`][] for the `libdada` crate.
     /// The creator of the [`CompilationRoot`][] is responsible for ensuring that this crate is present.
-    pub fn libdada_crate<'db>(self, db: &'db dyn crate::Db) -> Krate {
+    pub fn libdada_crate(self, db: &dyn crate::Db) -> Krate {
         #[salsa::tracked]
         fn inner<'db>(db: &'db dyn crate::Db, root: CompilationRoot) -> Krate {
             root.crate_source(db, Identifier::dada(db))
@@ -97,11 +97,11 @@ impl SourceFile {
         }
     }
 
-    pub fn module_name<'db>(self, db: &'db dyn crate::Db) -> Identifier<'db> {
+    pub fn module_name(self, db: &dyn crate::Db) -> Identifier<'_> {
         let url = self.url(db);
         let module_name = url
             .path_segments()
-            .and_then(|segments| segments.last())
+            .and_then(|mut segments| segments.next_back())
             .unwrap_or("<input>");
         Identifier::new(db, module_name)
     }
@@ -123,7 +123,7 @@ impl SourceFile {
                     .map(|(index, _)| index + 1),
             )
             .chain(std::iter::once(self.contents_if_ok(db).len()))
-            .map(|i| AbsoluteOffset::from(i))
+            .map(AbsoluteOffset::from)
             .collect()
     }
 

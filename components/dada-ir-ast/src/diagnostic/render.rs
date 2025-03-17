@@ -58,7 +58,7 @@ fn to_snippet<'a>(
     };
 
     let url = source_file.url(db);
-    let origin = arena.insert(db.url_display(&url));
+    let origin = arena.insert(db.url_display(url));
 
     Snippet::source(source_file.contents_if_ok(db))
         .line_start(1)

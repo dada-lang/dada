@@ -43,9 +43,11 @@ impl<'env, 'db> Resolver<'env, 'db> {
         T: Subst<'db, GenericTerm = SymGenericTerm<'db>>,
     {
         let mut bound_vars = self.env.bound_vars();
-        term.resolve_infer_var(self.db, &mut bound_vars, |infer| match self.resolve_infer_var(infer) {
-            Ok(v) => Some(v),
-            Result::Err(error) => Some(SymGenericTerm::err(self.db, self.report(infer, error))),
+        term.resolve_infer_var(self.db, &mut bound_vars, |infer| {
+            match self.resolve_infer_var(infer) {
+                Ok(v) => Some(v),
+                Result::Err(error) => Some(SymGenericTerm::err(self.db, self.report(infer, error))),
+            }
         })
     }
 
@@ -116,7 +118,7 @@ impl<'env, 'db> Resolver<'env, 'db> {
             InferVarKind::Type => "cannot infer a type due to conflicting constraints",
             InferVarKind::Perm => "cannot infer a permission due to conflicting constraints",
         };
-        return T::err(
+        T::err(
             self.db,
             Diagnostic::error(self.db, infer_var_span, message)
                 .label(
@@ -132,7 +134,7 @@ impl<'env, 'db> Resolver<'env, 'db> {
                     format!("constraint 2 is {right:?}"),
                 )
                 .report(self.db),
-        );
+        )
     }
 
     /// Return the bounding type on the type inference variable `v` from the given `direction`.
@@ -202,9 +204,9 @@ impl<'env, 'db> Resolver<'env, 'db> {
             return Ok(SymPerm::my(self.db));
         };
 
-        let mut merged_perm = self.lien_chain_to_perm(first, direction);
+        let mut merged_perm = self.lien_chain_to_perm(first);
         for unmerged_chain in lien_chains {
-            let unmerged_perm = self.lien_chain_to_perm(unmerged_chain, direction);
+            let unmerged_perm = self.lien_chain_to_perm(unmerged_chain);
             merged_perm = self.merge_resolved_perms(merged_perm, unmerged_perm, direction)?;
         }
 
@@ -396,7 +398,7 @@ impl<'env, 'db> Resolver<'env, 'db> {
             }
         }
 
-        assert!(merged_leaves.len() >= 1);
+        assert!(!merged_leaves.is_empty());
 
         Ok(merged_leaves
             .into_iter()
@@ -545,7 +547,7 @@ impl<'env, 'db> Resolver<'env, 'db> {
             }
         }
 
-        assert!(merged_leaves.len() >= 1);
+        assert!(!merged_leaves.is_empty());
 
         Ok(merged_leaves
             .into_iter()
@@ -591,16 +593,12 @@ impl<'env, 'db> Resolver<'env, 'db> {
     }
 
     /// Convert a `LienChain` into a `SymPerm`.
-    fn lien_chain_to_perm(
-        &mut self,
-        lien_chain: &Chain<'db>,
-        direction: Direction,
-    ) -> SymPerm<'db> {
-        self.liens_to_perm(lien_chain, direction)
+    fn lien_chain_to_perm(&mut self, lien_chain: &Chain<'db>) -> SymPerm<'db> {
+        self.liens_to_perm(lien_chain)
     }
 
     /// Convert a list of `Lien`s into a `SymPerm`.
-    fn liens_to_perm(&mut self, liens: &[Lien<'db>], direction: Direction) -> SymPerm<'db> {
+    fn liens_to_perm(&mut self, liens: &[Lien<'db>]) -> SymPerm<'db> {
         let Some((first, rest)) = liens.split_first() else {
             return SymPerm::my(self.db);
         };
@@ -620,7 +618,7 @@ impl<'env, 'db> Resolver<'env, 'db> {
         if rest.is_empty() {
             first_perm
         } else {
-            let rest_perms = self.liens_to_perm(rest, direction);
+            let rest_perms = self.liens_to_perm(rest);
             SymPerm::apply(self.db, first_perm, rest_perms)
         }
     }

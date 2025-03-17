@@ -47,7 +47,7 @@ pub async fn require_sub_terms<'db>(
     or_else: &dyn OrElse<'db>,
 ) -> Errors<()> {
     env.require_both(
-        async |env| propagate_bounds(env, lower.into(), upper.into(), or_else).await,
+        async |env| propagate_bounds(env, lower, upper, or_else).await,
         async |env| {
             // Reduce and relate chains
             let red_term_lower = lower.to_red_term(env).await;

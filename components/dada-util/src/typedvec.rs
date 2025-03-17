@@ -9,7 +9,7 @@ pub struct TypedVec<I: TypedVecIndex, T> {
 }
 
 pub trait TypedVecIndex {
-    fn as_usize(self) -> usize;
+    fn into_usize(self) -> usize;
     fn from_usize(v: usize) -> Self;
 }
 
@@ -42,10 +42,6 @@ impl<I: TypedVecIndex, T> TypedVec<I, T> {
         Self::default()
     }
 
-    pub fn len(&self) -> usize {
-        self.data.len()
-    }
-
     pub fn into_data(self) -> Vec<T> {
         self.data
     }
@@ -55,13 +51,13 @@ impl<I: TypedVecIndex, T> std::ops::Index<I> for TypedVec<I, T> {
     type Output = T;
 
     fn index(&self, index: I) -> &Self::Output {
-        &self.data[index.as_usize()]
+        &self.data[index.into_usize()]
     }
 }
 
 impl<I: TypedVecIndex, T> std::ops::IndexMut<I> for TypedVec<I, T> {
     fn index_mut(&mut self, index: I) -> &mut Self::Output {
-        &mut self.data[index.as_usize()]
+        &mut self.data[index.into_usize()]
     }
 }
 

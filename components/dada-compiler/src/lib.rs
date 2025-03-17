@@ -147,7 +147,7 @@ impl Compiler {
         // `foo/...`.
         let root_dir_path = url_path.make_directory();
 
-        Ok(self.add_crate(crate_name.to_string(), root_dir_path.url())?)
+        self.add_crate(crate_name.to_string(), root_dir_path.url())
     }
 
     /// Codegen the main function of a source file.
@@ -227,7 +227,7 @@ impl Compiler {
             .lock()
             .unwrap()
             .directories
-            .insert(krate, new_source.into());
+            .insert(krate, new_source);
 
         crates.push(krate);
         root.set_crates(self)
@@ -415,7 +415,7 @@ fn fn_asts(db: &dyn Db, source_file: SourceFile) -> String {
                         AstMember::Field(_field_decl) => (),
                         AstMember::Function(function) => {
                             writeln!(output, "### fn `{}`", function.name(db).id).unwrap();
-                            writeln!(output, "").unwrap();
+                            writeln!(output).unwrap();
                             writeln!(output, "{}", fn_asts_fn(db, *function)).unwrap();
                         }
                     }
@@ -423,7 +423,7 @@ fn fn_asts(db: &dyn Db, source_file: SourceFile) -> String {
             }
             AstItem::Function(function) => {
                 writeln!(output, "## fn `{}`", function.name(db).id).unwrap();
-                writeln!(output, "").unwrap();
+                writeln!(output).unwrap();
                 writeln!(output, "{}", fn_asts_fn(db, function)).unwrap();
             }
         }
@@ -435,7 +435,7 @@ fn fn_asts(db: &dyn Db, source_file: SourceFile) -> String {
         if let Some(block) = function.body_block(db) {
             format!("{block:#?}")
         } else {
-            format!("None")
+            "None".to_string()
         }
     }
 }

@@ -5,11 +5,11 @@ use dada_ir_ast::ast::{
 };
 
 use crate::{
-    tokenizer::{
-        operator::{self, Op},
-        Keyword, Token, TokenKind,
-    },
     Parse, Parser,
+    tokenizer::{
+        Keyword, Token, TokenKind,
+        operator::{self, Op},
+    },
 };
 
 impl<'db> Parse<'db> for AstExpr<'db> {
@@ -27,7 +27,7 @@ impl<'db> Parse<'db> for AstExpr<'db> {
     }
 }
 
-const SELECT_ALL: u32 = std::u32::MAX;
+const SELECT_ALL: u32 = u32::MAX;
 const SELECT_STRUCT: u32 = 1;
 
 fn eat_expr_with_precedence<'db>(
@@ -98,7 +98,7 @@ fn binary_expr_with_precedence_level<'db, const SELECT: u32>(
     let start_span = parser.peek_span();
 
     if precedence >= BINARY_OP_PRECEDENCE.len() {
-        return Ok(postfix_expr_precedence::<SELECT>(db, parser)?);
+        return postfix_expr_precedence::<SELECT>(db, parser);
     }
 
     // Parse the LHS at one higher level of precedence than
@@ -149,7 +149,7 @@ fn postfix_expr_precedence<'db, const SELECT: u32>(
         let mid_span = parser.last_span();
 
         // `.` can skip newlines
-        if let Ok(_) = parser.eat_op(operator::DOT) {
+        if parser.eat_op(operator::DOT).is_ok() {
             if let Ok(id) = parser.eat_id() {
                 let owner = AstExpr::new(start_span.to(db, mid_span), kind);
                 kind = AstExprKind::DotId(owner, id);
@@ -330,11 +330,11 @@ impl<'db> Parse<'db> for PermissionOp {
         _db: &'db dyn crate::Db,
         parser: &mut Parser<'_, 'db>,
     ) -> Result<Option<Self::Output>, crate::ParseFail<'db>> {
-        if let Ok(_) = parser.eat_keyword(Keyword::Give) {
+        if parser.eat_keyword(Keyword::Give).is_ok() {
             Ok(Some(PermissionOp::Give))
-        } else if let Ok(_) = parser.eat_keyword(Keyword::Lease) {
+        } else if parser.eat_keyword(Keyword::Lease).is_ok() {
             Ok(Some(PermissionOp::Lease))
-        } else if let Ok(_) = parser.eat_keyword(Keyword::Share) {
+        } else if parser.eat_keyword(Keyword::Share).is_ok() {
             Ok(Some(PermissionOp::Share))
         } else {
             Ok(None)
@@ -381,9 +381,7 @@ impl<'db> Parse<'db> for Literal<'db> {
                 Ok(Some(Literal::new(db, LiteralKind::Boolean, "false")))
             }
 
-            _ => {
-                return Ok(None);
-            }
+            _ => Ok(None),
         }
     }
 

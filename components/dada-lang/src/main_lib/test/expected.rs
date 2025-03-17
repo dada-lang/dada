@@ -90,8 +90,8 @@ impl TestExpectations {
         for (line, line_index) in source.lines().zip(0..) {
             // Allow `#:` configuration lines, but only at the start of the file.
             if in_header {
-                if line.starts_with("#:") {
-                    self.configuration(db, line_index, line[2..].trim())?;
+                if let Some(suffix) = line.strip_prefix("#:") {
+                    self.configuration(db, line_index, suffix.trim())?;
                     continue;
                 } else if line.starts_with("#") || line.trim().is_empty() {
                     continue;
@@ -267,7 +267,7 @@ impl TestExpectations {
     }
 
     fn write_file(&self, path: &Path, contents: &str) -> Fallible<()> {
-        std::fs::write(&path, contents)
+        std::fs::write(path, contents)
             .with_context(|| format!("writing to file `{}`", path.display()))?;
         Ok(())
     }

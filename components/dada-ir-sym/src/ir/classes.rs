@@ -198,7 +198,7 @@ impl<'db> SymAggregate<'db> {
         id: Identifier<'db>,
     ) -> Option<SymClassMember<'db>> {
         self.members(db)
-            .into_iter()
+            .iter()
             .copied()
             .find(|m| m.has_name(db, id))
     }
@@ -335,7 +335,7 @@ impl<'db> Spanned<'db> for SymField<'db> {
     }
 }
 
-impl<'db> std::fmt::Display for SymField<'db> {
+impl std::fmt::Display for SymField<'_> {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
         salsa::with_attached_database(|db| write!(f, "{}", self.name(db)))
             .unwrap_or_else(|| std::fmt::Debug::fmt(self, f))

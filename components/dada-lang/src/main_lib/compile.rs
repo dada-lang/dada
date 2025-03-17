@@ -28,10 +28,8 @@ impl Main {
         }
 
         // In debug mode, diagnostics get reported to the `debug_tx` and aren't considered errors.
-        if !debug_mode {
-            if diagnostics.iter().any(|d| d.level >= Level::Error) {
-                bail!("compilation failed due to errors");
-            }
+        if !debug_mode && diagnostics.iter().any(|d| d.level >= Level::Error) {
+            bail!("compilation failed due to errors");
         }
 
         Ok(())

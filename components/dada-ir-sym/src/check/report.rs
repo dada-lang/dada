@@ -266,7 +266,7 @@ impl<'db> Because<'db> {
             Because::UnconstrainedInfer(span) => Some(Diagnostic::info(
                 db,
                 *span,
-                format!("this error might well be bogus, I just can't infer the type here"),
+                "this error might well be bogus, I just can't infer the type here".to_string(),
             )),
         }
     }
@@ -307,7 +307,7 @@ impl<'db> OrElse<'db> for BadSubtypeError<'db> {
         let Self { span, lower, upper } = *self;
         because.annotate_diagnostic(
             env,
-            Diagnostic::error(db, span, format!("subtype expected")).label(
+            Diagnostic::error(db, span, "subtype expected".to_string()).label(
                 db,
                 Level::Error,
                 span,
@@ -380,7 +380,7 @@ impl<'db> OrElse<'db> for InvalidAssignmentType<'db> {
         let rhs_ty = self.rhs.ty(db);
         because.annotate_diagnostic(
             env,
-            Diagnostic::error(db, self.rhs.span(db), format!("wrong type in assignment"))
+            Diagnostic::error(db, self.rhs.span(db), "wrong type in assignment".to_string())
                 .label(
                     db,
                     Level::Error,
@@ -413,7 +413,7 @@ impl<'db> OrElse<'db> for InvalidReturnValue<'db> {
         let value_ty = self.value.ty(db);
         because.annotate_diagnostic(
             env,
-            Diagnostic::error(db, self.value.span(db), format!("invalid return value"))
+            Diagnostic::error(db, self.value.span(db), "invalid return value".to_string())
                 .label(
                     db,
                     Level::Error,
@@ -458,7 +458,7 @@ impl<'db> OrElse<'db> for AwaitNonFuture<'db> {
             Diagnostic::error(
                 db,
                 await_span,
-                format!("`await` can only be used on futures"),
+                "`await` can only be used on futures".to_string(),
             )
             .label(
                 db,
@@ -496,7 +496,7 @@ impl<'db> OrElse<'db> for BooleanTypeRequired<'db> {
             Diagnostic::error(
                 db,
                 self.expr.span(db),
-                format!("boolean expression required"),
+                "boolean expression required".to_string(),
             )
             .label(
                 db,

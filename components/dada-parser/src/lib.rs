@@ -637,15 +637,15 @@ pub enum Expected {
     Nonterminal(&'static str),
 }
 
-impl<'db> ParseFail<'db> {
+impl ParseFail<'_> {
     pub fn into_diagnostic(self, db: &dyn crate::Db) -> Diagnostic {
         return match self {
             ParseFail::Expected(span, Expected::EOF) => {
-                Diagnostic::error(db, span, format!("extra input")).label(
+                Diagnostic::error(db, span, "extra input".to_string()).label(
                     db,
                     Level::Error,
                     span,
-                    format!("I don't know what to do with this, it appears to be extra"),
+                    "I don't know what to do with this, it appears to be extra".to_string(),
                 )
             }
 
@@ -662,7 +662,7 @@ impl<'db> ParseFail<'db> {
                         db,
                         Level::Info,
                         next_span,
-                        format!("but instead I saw this"),
+                        "but instead I saw this".to_string(),
                     )
             }
 
@@ -685,7 +685,7 @@ impl<'db> ParseFail<'db> {
                 Expected::Operator(op) => format!("`{op}`"),
                 Expected::Keyword(k) => format!("`{k:?}`"),
                 Expected::Delimited(d) => format!("`{}`", d.open_char()),
-                Expected::Nonterminal(n) => format!("{n}"),
+                Expected::Nonterminal(n) => n.to_string(),
             }
         }
     }

@@ -4,8 +4,8 @@ use dada_util::Fallible;
 use dispatch::LspDispatch;
 use lsp_server::Connection;
 use lsp_types::{
-    notification, InitializeParams, InitializeResult, PublishDiagnosticsParams, ServerCapabilities,
-    ServerInfo,
+    InitializeParams, InitializeResult, PublishDiagnosticsParams, ServerCapabilities, ServerInfo,
+    notification,
 };
 
 mod dispatch;
@@ -67,6 +67,7 @@ pub trait Editor<L: Lsp> {
 
     /// Enqueue a task to execute in parallel. The task may not start executing immediately.
     /// The task will be given a fork of the lsp along with an editor of its own.
+    #[allow(clippy::type_complexity)]
     fn spawn(&mut self, task: Box<dyn FnOnce(&L::Fork, &mut dyn Editor<L>) -> Fallible<()> + Send>);
 }
 

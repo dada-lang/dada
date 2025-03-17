@@ -62,12 +62,12 @@ impl<'db> SymModule<'db> {
         self.class_map(db)
             .values()
             .copied()
-            .map(|i| SymItem::from(i))
+            .map(SymItem::from)
             .chain(
                 self.function_map(db)
                     .values()
                     .copied()
-                    .map(|i| SymItem::from(i)),
+                    .map(SymItem::from),
             )
     }
 
@@ -123,7 +123,7 @@ impl<'db> Symbol<'db> for AstModule<'db> {
                         None => ast_use.path(db).last_id(db).id,
                     };
 
-                    insert(db, &mut ast_use_map, id, ast_use.into());
+                    insert(db, &mut ast_use_map, id, ast_use);
                 }
                 AstItem::Aggregate(ast_class_item) => {
                     insert(

@@ -37,7 +37,7 @@ enum InferenceVarBoundsExport<'a, 'db> {
     },
 }
 
-impl<'db> Serialize for InferenceVarData<'db> {
+impl Serialize for InferenceVarData<'_> {
     fn serialize<S>(&self, serializer: S) -> Result<S::Ok, S::Error>
     where
         S: serde::Serializer,

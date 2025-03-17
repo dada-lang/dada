@@ -14,7 +14,7 @@ impl<'db> CheckUseItems<'db> for SymModule<'db> {
             async move |runtime| {
                 let mut env = Env::new(runtime, self.mod_scope(db));
                 for item in self.ast_use_map(db).values() {
-                    let _ = item.path(db).resolve_in(&mut env);
+                    let _ = item.path(db).resolve_in(&mut env).await;
                 }
                 Ok(())
             },

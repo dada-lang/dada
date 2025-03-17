@@ -2,7 +2,8 @@
 
 use std::{
     panic::Location,
-    sync::{Arc, Mutex, mpsc::Sender},
+    rc::Rc,
+    sync::{Mutex, mpsc::Sender},
 };
 
 use dada_ir_ast::{DebugEvent, DebugEventPayload, span::Span};
@@ -17,7 +18,7 @@ use super::predicates::Predicate;
 mod export;
 
 pub struct LogHandle<'db> {
-    log: Option<Arc<Mutex<Log<'db>>>>,
+    log: Option<Rc<Mutex<Log<'db>>>>,
     task_index: TaskIndex,
 }
 
@@ -29,7 +30,7 @@ impl<'db> LogHandle<'db> {
     ) -> Self {
         if let Some(debug_tx) = db.debug_tx() {
             LogHandle {
-                log: Some(Arc::new(Mutex::new(Log::new(
+                log: Some(Rc::new(Mutex::new(Log::new(
                     db,
                     source_location,
                     root,
@@ -254,8 +255,9 @@ impl<'db> Log<'db> {
                 value: match &event.kind {
                     EventKind::Root => "null".into(),
                     EventKind::TaskStart => "null".into(),
-                    EventKind::Spawned(task_index) =>
-                        event_argument(&[&self.tasks[task_index.0].task_description]).into(),
+                    EventKind::Spawned(task_index) => {
+                        event_argument(&[&self.tasks[task_index.0].task_description]).into()
+                    }
                     EventKind::Indent {
                         message: _,
                         json_value,
@@ -321,13 +323,12 @@ impl<'db> Log<'db> {
             timestamp: export::TimeStamp {
                 index: *event_first,
             },
-            children: self.export_child_nested_events(task, &mut events_rest, events_by_task),
+            children: self.export_child_nested_events(&mut events_rest, events_by_task),
         }
     }
 
     fn export_child_nested_events(
         &self,
-        task: TaskIndex,
         task_events: &mut &[usize],
         events_by_task: &[Vec<usize>],
     ) -> Vec<export::NestedEvent> {
@@ -358,11 +359,7 @@ impl<'db> Log<'db> {
                         timestamp: export::TimeStamp {
                             index: *event_first,
                         },
-                        children: self.export_child_nested_events(
-                            task,
-                            task_events,
-                            events_by_task,
-                        ),
+                        children: self.export_child_nested_events(task_events, events_by_task),
                     });
                 }
                 EventKind::Root | EventKind::Log { .. } | EventKind::TaskStart => {
@@ -381,7 +378,7 @@ impl<'db> Log<'db> {
 fn event_argument(values: &[&dyn erased_serde::Serialize]) -> String {
     // FIXME: rewrite `fixed_depth_json` to not create a value
 
-    let value = if values.len() == 0 {
+    let value = if values.is_empty() {
         serde_json::Value::Null
     } else if values.len() == 1 {
         fixed_depth_json::to_json_value_max_depth(values[0], 3)
