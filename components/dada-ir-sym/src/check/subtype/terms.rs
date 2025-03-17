@@ -373,7 +373,6 @@ pub async fn for_each_lower_bound<'db>(
     let mut previous_ty = None;
     loop {
         let new_lower_red_ty = env
-            .runtime()
             .loop_on_inference_var(infer, |data| {
                 let (lower_red_ty, _or_else) = data.lower_red_ty()?;
                 if let Some(previous_ty) = &previous_ty {
