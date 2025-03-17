@@ -53,7 +53,6 @@ async fn require_future_red_type<'db>(
             // and check if it is numeric. Since the bound can only get tighter,
             // that is sufficient (indeed, numeric types have no subtypes).
             let Some((lower_red_ty, arc_or_else)) = env
-                .runtime()
                 .loop_on_inference_var(infer, |data| data.lower_red_ty())
                 .await
             else {

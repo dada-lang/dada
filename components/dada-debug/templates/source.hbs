@@ -1,24 +1,28 @@
 <!DOCTYPE html>
 <html lang="en">
+
 <head>
-{{> header title="Dada source: {{path}}"}}
-<link rel="stylesheet" href="/assets/github.css">
-<script src="/assets/highlight.min.js"></script>
-<script src="/assets/highlightjs-line-numbers.min.js"></script>
-<style>
+  {{> header title="Dada source: {{path}}"}}
+  <link rel="stylesheet" href="/assets/github.css">
+  <script src="/assets/highlight.min.js"></script>
+  <script src="/assets/highlightjs-line-numbers.min.js"></script>
+  <style>
     .hljs-ln-line[data-line-number="{{line}}"]::before {
       background-color: rgba(255, 255, 0, 0.781) !important;
     }
-</style>
+  </style>
 </head>
+
 <body>
-<h1>{{path}}</h1>
-<pre><code class='language-rust'>{{source}}</code></pre>
-<script>
+  <h1>{{path}}</h1>
+  <pre><code class='language-rust'>{{source}}</code></pre>
+  <script>
     hljs.highlightAll();
-    hljs.initLineNumbersOnLoad();
-    window.onload = function() {
-      let line = {{line}};
+    hljs.initLineNumbersOnLoad({
+      startFrom: {{ startFrom }}
+    });
+    window.onload = function () {
+      let line = {{ line }};
       if (window.location.hash) {
         const line = window.location.hash.substring(1);
         const lineElement = document.querySelector(`hljs-ln-line[data-line-number="${line}"]`);
@@ -27,6 +31,7 @@
         }
       }
     };
-</script>
+  </script>
 </body>
+
 </html>

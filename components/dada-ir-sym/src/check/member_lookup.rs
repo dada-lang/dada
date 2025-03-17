@@ -238,7 +238,6 @@ async fn non_infer_lower_bound<'db>(
     let (red_ty, perm) = ty.to_red_ty(env);
     if let RedTy::Infer(infer_var_index) = red_ty {
         match env
-            .runtime()
             .loop_on_inference_var(infer_var_index, |data| data.lower_red_ty())
             .await
         {

@@ -331,19 +331,27 @@ impl<'db> Env<'db> {
         stack: &mut Vec<Chain<'db>>,
         direction: impl for<'a> Fn(&'a InferenceVarData<'db>) -> &'a [(Chain<'db>, ArcOrElse<'db>)],
     ) {
-        self.runtime()
-            .loop_on_inference_var(infer, |data| {
-                let chains = direction(data);
-                assert!(stack.is_empty());
-                if *observed == chains.len() {
-                    None
-                } else {
-                    stack.extend(chains.iter().skip(*observed).map(|pair| pair.0.clone()));
-                    *observed = chains.len();
-                    Some(())
-                }
-            })
-            .await;
+        self.loop_on_inference_var(infer, |data| {
+            let chains = direction(data);
+            assert!(stack.is_empty());
+            if *observed == chains.len() {
+                None
+            } else {
+                stack.extend(chains.iter().skip(*observed).map(|pair| pair.0.clone()));
+                *observed = chains.len();
+                Some(())
+            }
+        })
+        .await;
+    }
+
+    #[track_caller]
+    pub fn loop_on_inference_var<T>(
+        &self,
+        infer: InferVarIndex,
+        op: impl FnMut(&InferenceVarData<'db>) -> Option<T>,
+    ) -> impl Future<Output = Option<T>> {
+        self.runtime.loop_on_inference_var(infer, &self.log, op)
     }
 
     /// Choose between two options:

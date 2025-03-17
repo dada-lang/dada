@@ -150,31 +150,30 @@ pub async fn test_infer_is_known_to_be(
     infer: InferVarIndex,
     predicate: Predicate,
 ) -> bool {
-    env.runtime()
-        .loop_on_inference_var(infer, |data| {
-            let (is, isnt) = (
-                data.is_known_to_provably_be(predicate),
-                data.is_known_not_to_provably_be(predicate),
-            );
-            if is.is_some() {
-                Some(true)
-            } else if isnt.is_some() {
-                Some(false)
-            } else {
-                // We do not yet have a constraint on whether the inference variable
-                // is known to be `predicate`, so block to see what new constraints
-                // are added in the future.
-                None
-            }
-        })
-        .await
-        .unwrap_or({
-            // If `None` is returned, it indicates that we terminated without ever
-            // adding a constrain on the inference variable one way or the other.
-            // This implies that the variable is not KNOWN to be `predicate` (though of course
-            // it may be).
-            false
-        })
+    env.loop_on_inference_var(infer, |data| {
+        let (is, isnt) = (
+            data.is_known_to_provably_be(predicate),
+            data.is_known_not_to_provably_be(predicate),
+        );
+        if is.is_some() {
+            Some(true)
+        } else if isnt.is_some() {
+            Some(false)
+        } else {
+            // We do not yet have a constraint on whether the inference variable
+            // is known to be `predicate`, so block to see what new constraints
+            // are added in the future.
+            None
+        }
+    })
+    .await
+    .unwrap_or({
+        // If `None` is returned, it indicates that we terminated without ever
+        // adding a constrain on the inference variable one way or the other.
+        // This implies that the variable is not KNOWN to be `predicate` (though of course
+        // it may be).
+        false
+    })
 }
 
 fn defer_require_bounds_provably_predicate<'db>(
