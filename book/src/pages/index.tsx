@@ -22,14 +22,13 @@ function HomepageHeader() {
           <Col>
             <blockquote className="rectangle-speech-border">
               <h1 className="dada-left-justify">
-                Welcome to <b>Dada</b>, an experimental new programming
-                language for building WebAssembly components!
+                Welcome to <b>Dada</b>, an experimental new programming language
+                for building WebAssembly components!
               </h1>
 
               <h3 className="dada-left-justify">
-                You've come at a bit of an awkward time.
-                We're in the midst of renovating the place.
-                More info coming soon!
+                You've come at a bit of an awkward time. We're in the midst of
+                renovating the place. More info coming soon!
               </h3>
             </blockquote>
           </Col>
