@@ -1,11 +1,13 @@
 use std::{
-    str::FromStr, sync::{mpsc::Sender, Arc, Mutex}
+    str::FromStr,
+    sync::{Arc, Mutex, mpsc::Sender},
 };
 
 use dada_ir_ast::{
+    DebugEvent,
     ast::{AstFunction, AstItem, AstMember, Identifier},
     diagnostic::Diagnostic,
-    inputs::{CompilationRoot, Krate, SourceFile}, DebugEvent,
+    inputs::{CompilationRoot, Krate, SourceFile},
 };
 use dada_util::{Fallible, FromImpls, Map, Set, bail, debug};
 use salsa::{Database as _, Durability, Event, EventKind, Setter};

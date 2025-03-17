@@ -1,7 +1,7 @@
 use std::path::{Path, PathBuf};
 
 use crate::VirtualFileSystem;
-use dada_util::{anyhow, bail, Fallible};
+use dada_util::{Fallible, anyhow, bail};
 use url::Url;
 
 pub struct RealFs {
@@ -25,8 +25,7 @@ impl RealFs {
         if url.scheme() != "file" {
             bail!("unsupported scheme: {}", url.scheme());
         }
-        url
-            .to_file_path()
+        url.to_file_path()
             .map_err(|()| anyhow!("not a file path: {url}"))
     }
 }

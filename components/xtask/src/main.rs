@@ -1,5 +1,5 @@
 use structopt::StructOpt;
-use tracing_subscriber::{prelude::*, EnvFilter};
+use tracing_subscriber::{EnvFilter, prelude::*};
 
 mod build;
 mod deploy;
@@ -26,7 +26,7 @@ pub enum Command {
     Deploy {
         #[structopt(flatten)]
         options: deploy::Deploy,
-    }
+    },
 }
 
 impl Options {

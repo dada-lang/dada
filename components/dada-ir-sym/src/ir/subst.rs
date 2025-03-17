@@ -549,7 +549,8 @@ where
         bound_vars: &mut Vec<SymVariable<'db>>,
         subst_fns: &mut SubstitutionFns<'_, 'db, Term>,
     ) -> Self::Output {
-        self.as_ref().map(|v| v.subst_with(db, bound_vars, subst_fns))
+        self.as_ref()
+            .map(|v| v.subst_with(db, bound_vars, subst_fns))
     }
 }
 

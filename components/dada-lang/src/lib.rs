@@ -59,7 +59,7 @@ pub enum Command {
 
         #[structopt(flatten)]
         compile_options: CompileOptions,
-    }
+    },
 }
 
 #[derive(Debug, StructOpt)]

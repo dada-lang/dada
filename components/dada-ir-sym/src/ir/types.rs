@@ -59,7 +59,9 @@ pub trait AssertKind<'db, R> {
 }
 
 /// Value of a generic parameter
-#[derive(Copy, Clone, PartialEq, Eq, PartialOrd, Ord, Hash, Update, Debug, FromImpls, Serialize)]
+#[derive(
+    Copy, Clone, PartialEq, Eq, PartialOrd, Ord, Hash, Update, Debug, FromImpls, Serialize,
+)]
 pub enum SymGenericTerm<'db> {
     Type(SymTy<'db>),
     Perm(SymPerm<'db>),
@@ -410,7 +412,9 @@ pub enum SymTyKind<'db> {
     Error(Reported),
 }
 
-#[derive(Copy, Clone, PartialEq, Eq, PartialOrd, Ord, Hash, Update, Debug, FromImpls, Serialize)]
+#[derive(
+    Copy, Clone, PartialEq, Eq, PartialOrd, Ord, Hash, Update, Debug, FromImpls, Serialize,
+)]
 pub enum SymTyName<'db> {
     Primitive(SymPrimitive<'db>),
 

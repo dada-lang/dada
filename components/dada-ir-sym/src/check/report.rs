@@ -380,19 +380,23 @@ impl<'db> OrElse<'db> for InvalidAssignmentType<'db> {
         let rhs_ty = self.rhs.ty(db);
         because.annotate_diagnostic(
             env,
-            Diagnostic::error(db, self.rhs.span(db), "wrong type in assignment".to_string())
-                .label(
-                    db,
-                    Level::Error,
-                    self.rhs.span(db),
-                    format!("this expression has type `{rhs_ty}`"),
-                )
-                .label(
-                    db,
-                    Level::Info,
-                    self.lhs.span(db),
-                    format!("I expected something assignable to this, which has type `{lhs_ty}`",),
-                ),
+            Diagnostic::error(
+                db,
+                self.rhs.span(db),
+                "wrong type in assignment".to_string(),
+            )
+            .label(
+                db,
+                Level::Error,
+                self.rhs.span(db),
+                format!("this expression has type `{rhs_ty}`"),
+            )
+            .label(
+                db,
+                Level::Info,
+                self.lhs.span(db),
+                format!("I expected something assignable to this, which has type `{lhs_ty}`",),
+            ),
         )
     }
 

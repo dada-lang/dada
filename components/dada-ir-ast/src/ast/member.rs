@@ -9,7 +9,9 @@ use crate::{
 
 use super::{AstFunction, VariableDecl};
 
-#[derive(Copy, Clone, PartialEq, Eq, PartialOrd, Ord, Hash, Update, Debug, FromImpls, Serialize)]
+#[derive(
+    Copy, Clone, PartialEq, Eq, PartialOrd, Ord, Hash, Update, Debug, FromImpls, Serialize,
+)]
 pub enum AstMember<'db> {
     Field(AstFieldDecl<'db>),
     Function(AstFunction<'db>),

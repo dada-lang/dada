@@ -31,7 +31,7 @@ handlebars_helper!(source_snippet: |file: str, line: usize, column: usize| {
                         }
                         None => flc,
                     }
-                    
+
                 }
                 None => flc,
             }

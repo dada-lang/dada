@@ -8,10 +8,7 @@ use futures::{
 };
 
 use crate::{
-    check::{
-        alternatives::Alternative,
-        debug::{TaskDescription},
-    },
+    check::{alternatives::Alternative, debug::TaskDescription},
     ir::indices::InferVarIndex,
 };
 

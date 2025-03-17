@@ -7,12 +7,12 @@ use dada_ir_ast::{
 };
 use salsa::Update;
 
-use crate::{tokenizer::operator, ParseFail};
+use crate::{ParseFail, tokenizer::operator};
 
 use super::{
+    Expected, Parse, Parser,
     miscellaneous::OrOptParse,
     tokenizer::{Delimiter, Keyword},
-    Expected, Parse, Parser,
 };
 
 /// class Name { ... }
@@ -169,7 +169,7 @@ impl<'db> Parse<'db> for AstFieldDecl<'db> {
                     Err(tokens.illformed(VariableDecl::expected()))
                 } else {
                     Ok(None)
-                }
+                };
             }
             Err(e) => return Err(e),
         };

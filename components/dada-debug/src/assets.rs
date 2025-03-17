@@ -12,4 +12,3 @@ pub(crate) fn try_asset(path: &str) -> anyhow::Result<String> {
     let s = str::from_utf8(&result.data)?;
     Ok(s.to_string())
 }
-

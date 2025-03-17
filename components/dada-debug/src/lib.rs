@@ -3,13 +3,13 @@ use std::sync::mpsc::Sender;
 use dada_ir_ast::DebugEvent;
 use structopt::StructOpt;
 
-mod hbs;
-mod view;
-mod source;
-mod server;
-mod error;
-mod root;
 mod assets;
+mod error;
+mod hbs;
+mod root;
+mod server;
+mod source;
+mod view;
 
 /// Command line options for the debug server
 #[derive(Debug, StructOpt)]
@@ -36,7 +36,7 @@ pub struct DebugServer {
 
 impl DebugServer {
     /// Start the debug server, panicking if already launched.
-    /// 
+    ///
     /// Returns a port where you should send debug events.
     pub fn launch(&mut self) -> Sender<DebugEvent> {
         assert!(self.thread.is_none());

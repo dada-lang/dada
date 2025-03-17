@@ -15,9 +15,10 @@ fn parse_serde_attrs(attrs: &[Attribute]) -> SerdeAttrs {
 
     for attr in attrs.iter().filter(|attr| attr.path().is_ident("serde")) {
         if let Ok(Meta::List(meta)) = attr.parse_args() {
-            let nested = meta.tokens.into_iter().filter_map(|token| {
-                syn::parse2::<Meta>(token.into()).ok()
-            });
+            let nested = meta
+                .tokens
+                .into_iter()
+                .filter_map(|token| syn::parse2::<Meta>(token.into()).ok());
 
             for meta in nested {
                 match meta {
@@ -120,7 +121,7 @@ pub(crate) fn salsa_serialize_derive(s: Structure) -> TokenStream {
             quote! { & #struct_name ::#ident(*self, db) }
         };
         field_values.push(value);
-    
+
         field_count += 1;
     }
 

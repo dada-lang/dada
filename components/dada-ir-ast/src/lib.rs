@@ -57,6 +57,6 @@ pub enum DebugEventPayload {
     Diagnostic(Diagnostic),
 
     /// A log of the results from type-checking the code at the given url.
-/// The payload will be a `dada_ir_sym::check::debug::export::Log`.
-CheckLog(serde_json::Value),
+    /// The payload will be a `dada_ir_sym::check::debug::export::Log`.
+    CheckLog(serde_json::Value),
 }

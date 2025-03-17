@@ -63,12 +63,7 @@ impl<'db> SymModule<'db> {
             .values()
             .copied()
             .map(SymItem::from)
-            .chain(
-                self.function_map(db)
-                    .values()
-                    .copied()
-                    .map(SymItem::from),
-            )
+            .chain(self.function_map(db).values().copied().map(SymItem::from))
     }
 
     /// Returns the function named `name` in this module, if any.

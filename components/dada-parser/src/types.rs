@@ -9,8 +9,8 @@ use dada_ir_ast::{
 };
 
 use super::{
-    tokenizer::{Delimiter, Keyword},
     Expected, Parse, ParseFail, Parser,
+    tokenizer::{Delimiter, Keyword},
 };
 
 // Parsing types and permissions is annoying.

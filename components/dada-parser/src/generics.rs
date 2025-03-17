@@ -1,6 +1,6 @@
 use dada_ir_ast::ast::{AstGenericDecl, AstGenericKind};
 
-use super::{tokenizer::Keyword, Expected, Parse, ParseFail, Parser};
+use super::{Expected, Parse, ParseFail, Parser, tokenizer::Keyword};
 
 impl<'db> Parse<'db> for AstGenericDecl<'db> {
     type Output = Self;

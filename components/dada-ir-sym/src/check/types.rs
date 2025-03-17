@@ -1,47 +1,61 @@
-
 use dada_ir_ast::{
-    ast::{AstGenericTerm, AstPath, AstPathKind, AstPerm, AstPermKind, AstTy, AstTyKind}, diagnostic::{ordinal, Diagnostic, Err, Level}, span::{Span, Spanned}
+    ast::{AstGenericTerm, AstPath, AstPathKind, AstPerm, AstPermKind, AstTy, AstTyKind},
+    diagnostic::{Diagnostic, Err, Level, ordinal},
+    span::{Span, Spanned},
 };
 use dada_util::{boxed_async_fn, indirect};
 
-use crate::{check::{env::Env, exprs::ExprResultKind, scope::{NameResolution, NameResolutionSym, Resolve}}, ir::{types::{AnonymousPermSymbol, HasKind, SymGenericKind, SymGenericTerm, SymPerm, SymPermKind, SymPlace, SymTy}, variables::FromVar}, prelude::Symbol};
+use crate::{
+    check::{
+        env::Env,
+        exprs::ExprResultKind,
+        scope::{NameResolution, NameResolutionSym, Resolve},
+    },
+    ir::{
+        types::{
+            AnonymousPermSymbol, HasKind, SymGenericKind, SymGenericTerm, SymPerm, SymPermKind,
+            SymPlace, SymTy,
+        },
+        variables::FromVar,
+    },
+    prelude::Symbol,
+};
 
-use super::{exprs::ExprResult, member_lookup::MemberLookup, CheckInEnv};
+use super::{CheckInEnv, exprs::ExprResult, member_lookup::MemberLookup};
 
 impl<'db> CheckInEnv<'db> for AstTy<'db> {
     type Output = SymTy<'db>;
 
     async fn check_in_env(&self, env: &mut Env<'db>) -> Self::Output {
         let db = env.db();
-        indirect(async || {
-            match self.kind(db) {
-                AstTyKind::Perm(ast_perm, ast_ty) => {
-                    let sym_perm = ast_perm.check_in_env(env).await;
-                    let sym_ty = ast_ty.check_in_env(env).await;
-                    SymTy::perm(db, sym_perm, sym_ty)
-                }
+        indirect(async || match self.kind(db) {
+            AstTyKind::Perm(ast_perm, ast_ty) => {
+                let sym_perm = ast_perm.check_in_env(env).await;
+                let sym_ty = ast_ty.check_in_env(env).await;
+                SymTy::perm(db, sym_perm, sym_ty)
+            }
 
-                AstTyKind::Named(ast_path, ref opt_ast_generics) => {
-                    let mut generics = vec![];
-                    if let Some(ast_generics) = opt_ast_generics {
-                        for g in ast_generics {
-                            let span = g.span(db);
-                            let checked = g.check_in_env(env).await;
-                            generics.push((span, checked));
-                        }
-                    }
-                    match ast_path.resolve_in(env).await {
-                        Ok(r) => name_resolution_to_sym_ty(db, r, ast_path, generics),
-                        Err(r) => SymTy::err(db, r),
+            AstTyKind::Named(ast_path, ref opt_ast_generics) => {
+                let mut generics = vec![];
+                if let Some(ast_generics) = opt_ast_generics {
+                    for g in ast_generics {
+                        let span = g.span(db);
+                        let checked = g.check_in_env(env).await;
+                        generics.push((span, checked));
                     }
                 }
-
-                AstTyKind::GenericDecl(decl) => {
-                    let symbol = decl.symbol(db);
-                    SymTy::var(db, symbol)
+                match ast_path.resolve_in(env).await {
+                    Ok(r) => name_resolution_to_sym_ty(db, r, ast_path, generics),
+                    Err(r) => SymTy::err(db, r),
                 }
             }
-        }).await
+
+            AstTyKind::GenericDecl(decl) => {
+                let symbol = decl.symbol(db);
+                SymTy::var(db, symbol)
+            }
+        })
+        .await
     }
 }
 
@@ -97,8 +111,8 @@ fn name_resolution_to_sym_ty<'db>(
                         Level::Error,
                         source.span(db),
                         format!(
-                        "`{name}` expects {expected} generic arguments, but I found {found}"
-                    ),
+                            "`{name}` expects {expected} generic arguments, but I found {found}"
+                        ),
                     )
                     .label(
                         db,
@@ -144,13 +158,13 @@ fn name_resolution_to_sym_ty<'db>(
                                     ith = ordinal(index + 1),
                                 ),
                             )
-                            .report(db)    
+                            .report(db)
                         )
                     }
                 })
                 .collect();
 
-                SymTy::named(db, sym_class.into(), generics)
+            SymTy::named(db, sym_class.into(), generics)
         }
 
         NameResolutionSym::SymVariable(var) => {
@@ -172,14 +186,18 @@ fn name_resolution_to_sym_ty<'db>(
             if generic_kind != SymGenericKind::Type {
                 return SymTy::err(
                     db,
-                    Diagnostic::error(db, source.span(db), format!("expected `type`, found `{generic_kind}`"))
-                        .label(
-                            db,
-                            Level::Error,
-                            source.span(db),
-                            format!("I expected a type here, but I found a `{generic_kind}`"),
-                        )
-                        .report(db),
+                    Diagnostic::error(
+                        db,
+                        source.span(db),
+                        format!("expected `type`, found `{generic_kind}`"),
+                    )
+                    .label(
+                        db,
+                        Level::Error,
+                        source.span(db),
+                        format!("I expected a type here, but I found a `{generic_kind}`"),
+                    )
+                    .report(db),
                 );
             }
 
@@ -213,7 +231,7 @@ fn name_resolution_to_sym_ty<'db>(
                 )
                 .report(db),
         ),
-    }    
+    }
 }
 
 impl<'db> CheckInEnv<'db> for AstGenericTerm<'db> {
@@ -231,7 +249,11 @@ impl<'db> CheckInEnv<'db> for AstGenericTerm<'db> {
     }
 }
 
-fn name_resolution_to_generic_term<'db>(db: &'db dyn crate::Db, name_resolution: NameResolution<'db>, source: impl Spanned<'db>) -> SymGenericTerm<'db> {
+fn name_resolution_to_generic_term<'db>(
+    db: &'db dyn crate::Db,
+    name_resolution: NameResolution<'db>,
+    source: impl Spanned<'db>,
+) -> SymGenericTerm<'db> {
     if let NameResolutionSym::SymVariable(var) = name_resolution.sym {
         match var.kind(db) {
             SymGenericKind::Type => SymGenericTerm::Type(SymTy::var(db, var)),
@@ -250,65 +272,79 @@ impl<'db> CheckInEnv<'db> for AstPerm<'db> {
         let db = env.db();
         match *self.kind(db) {
             AstPermKind::Shared(Some(ref paths)) => {
-                        let places = paths_to_sym_places(env, paths).await;
-                        SymPerm::new(db, SymPermKind::Shared(places))
-                    }
+                let places = paths_to_sym_places(env, paths).await;
+                SymPerm::new(db, SymPermKind::Shared(places))
+            }
             AstPermKind::Leased(Some(ref paths)) => {
-                        let places = paths_to_sym_places(env, paths).await;
-                        SymPerm::new(db, SymPermKind::Leased(places))
-                    }
+                let places = paths_to_sym_places(env, paths).await;
+                SymPerm::new(db, SymPermKind::Leased(places))
+            }
             AstPermKind::Given(Some(ref _span_vec)) => todo!(),
-            AstPermKind::ImplicitShared |
-            AstPermKind::Shared(None) | AstPermKind::Leased(None) | AstPermKind::Given(None) => {
-                        let sym_var = self.anonymous_perm_symbol(db);
-                        SymPerm::var(db, sym_var)
-                    }
+            AstPermKind::ImplicitShared
+            | AstPermKind::Shared(None)
+            | AstPermKind::Leased(None)
+            | AstPermKind::Given(None) => {
+                let sym_var = self.anonymous_perm_symbol(db);
+                SymPerm::var(db, sym_var)
+            }
             AstPermKind::My => SymPerm::my(db),
             AstPermKind::Our => SymPerm::our(db),
-            AstPermKind::Variable(id) => {
-                        match id.resolve_in(env).await {
-                            Ok(r) => name_resolution_to_sym_perm(db, r, id),
-                            Err(r) => SymPerm::err(db, r),
-                        }
-                    }
+            AstPermKind::Variable(id) => match id.resolve_in(env).await {
+                Ok(r) => name_resolution_to_sym_perm(db, r, id),
+                Err(r) => SymPerm::err(db, r),
+            },
             AstPermKind::GenericDecl(ast_generic_decl) => {
-                        let symbol = ast_generic_decl.symbol(db);
-                        SymPerm::var(db, symbol)
-                    }      
+                let symbol = ast_generic_decl.symbol(db);
+                SymPerm::var(db, symbol)
+            }
         }
     }
 }
 
-fn name_resolution_to_sym_perm<'db>(db: &'db dyn crate::Db, name_resolution: NameResolution<'db>, source: impl Spanned<'db>) -> SymPerm<'db> {
+fn name_resolution_to_sym_perm<'db>(
+    db: &'db dyn crate::Db,
+    name_resolution: NameResolution<'db>,
+    source: impl Spanned<'db>,
+) -> SymPerm<'db> {
     match name_resolution.sym {
-        NameResolutionSym::SymVariable(sym_variable) if sym_variable.has_kind(db, SymGenericKind::Perm) =>
-            SymPerm::var(db, sym_variable),
+        NameResolutionSym::SymVariable(sym_variable)
+            if sym_variable.has_kind(db, SymGenericKind::Perm) =>
+        {
+            SymPerm::var(db, sym_variable)
+        }
 
-        NameResolutionSym::SymModule(_) | 
-        NameResolutionSym::SymClass(_) | 
-        NameResolutionSym::SymFunction(_) | 
-        NameResolutionSym::SymVariable(_) |
-        NameResolutionSym::SymPrimitive(_) => {
-            SymPerm::err(
-                db, 
-                Diagnostic::error(
-                    db, 
-                    source.span(db), 
-                    format!("expected permission, found {}", name_resolution.sym.categorize(db))
-                )
-                .label(
-                    db,
-                    Level::Error,
-                    source.span(db),
-                    format!("I expected a permission, but I found {}", name_resolution.sym.describe(db)),
-                )
-                .report(db)
+        NameResolutionSym::SymModule(_)
+        | NameResolutionSym::SymClass(_)
+        | NameResolutionSym::SymFunction(_)
+        | NameResolutionSym::SymVariable(_)
+        | NameResolutionSym::SymPrimitive(_) => SymPerm::err(
+            db,
+            Diagnostic::error(
+                db,
+                source.span(db),
+                format!(
+                    "expected permission, found {}",
+                    name_resolution.sym.categorize(db)
+                ),
             )
-        } 
+            .label(
+                db,
+                Level::Error,
+                source.span(db),
+                format!(
+                    "I expected a permission, but I found {}",
+                    name_resolution.sym.describe(db)
+                ),
+            )
+            .report(db),
+        ),
     }
 }
 
-async fn paths_to_sym_places<'db>(env: &mut Env<'db>, paths: &[AstPath<'db>]) -> Vec<SymPlace<'db>> {
+async fn paths_to_sym_places<'db>(
+    env: &mut Env<'db>,
+    paths: &[AstPath<'db>],
+) -> Vec<SymPlace<'db>> {
     let mut places = vec![];
     for &path in paths {
         places.push(path_to_sym_place(env, path).await);
@@ -318,22 +354,27 @@ async fn paths_to_sym_places<'db>(env: &mut Env<'db>, paths: &[AstPath<'db>]) ->
 
 async fn path_to_sym_place<'db>(env: &mut Env<'db>, path: AstPath<'db>) -> SymPlace<'db> {
     let db = env.db();
-    let ExprResult { temporaries, span, kind } = path_to_expr_result(env, path).await;
-    
+    let ExprResult {
+        temporaries,
+        span,
+        kind,
+    } = path_to_expr_result(env, path).await;
+
     assert!(temporaries.is_empty());
 
     match kind {
         ExprResultKind::PlaceExpr(expr) => expr.into_sym_place(db),
-        _ => {
-            SymPlace::err(db, Diagnostic::error(db, span, "expected a place, found something else")
+        _ => SymPlace::err(
+            db,
+            Diagnostic::error(db, span, "expected a place, found something else")
                 .label(
                     db,
                     Level::Error,
                     span,
                     "I expected a place, but I found something else",
                 )
-                .report(db))
-        }
+                .report(db),
+        ),
     }
 }
 
@@ -348,19 +389,20 @@ async fn path_to_expr_result<'db>(env: &mut Env<'db>, path: AstPath<'db>) -> Exp
             };
             ExprResult::from_name_resolution(env, nr, id.span(db)).await
         }
-        AstPathKind::GenericArgs { .. } => {
-            ExprResult::err(db, Diagnostic::error(db, path.span(db), "generic arguments are not valid places")
-                        .label(
-                            db,
-                            Level::Error,   
-                            path.span(db),
-                            "I expected a place, but I found generic arguments",
-                    )
-                    .report(db))
-            }
-            AstPathKind::Member { path, id } => {
-                let owner = path_to_expr_result(env, path).await;
-               MemberLookup::new(env).lookup_member(owner, id).await
+        AstPathKind::GenericArgs { .. } => ExprResult::err(
+            db,
+            Diagnostic::error(db, path.span(db), "generic arguments are not valid places")
+                .label(
+                    db,
+                    Level::Error,
+                    path.span(db),
+                    "I expected a place, but I found generic arguments",
+                )
+                .report(db),
+        ),
+        AstPathKind::Member { path, id } => {
+            let owner = path_to_expr_result(env, path).await;
+            MemberLookup::new(env).lookup_member(owner, id).await
         }
     }
 }

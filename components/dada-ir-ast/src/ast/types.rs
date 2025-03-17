@@ -73,7 +73,9 @@ pub enum AstPermKind<'db> {
     GenericDecl(AstGenericDecl<'db>),
 }
 
-#[derive(Copy, Clone, PartialEq, Eq, PartialOrd, Ord, Hash, Update, Debug, FromImpls, Serialize)]
+#[derive(
+    Copy, Clone, PartialEq, Eq, PartialOrd, Ord, Hash, Update, Debug, FromImpls, Serialize,
+)]
 pub enum AstGenericTerm<'db> {
     /// Something clearly a type
     Ty(AstTy<'db>),

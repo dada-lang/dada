@@ -1,8 +1,8 @@
 use salsa::Update;
 use tokenizer::{
-    is_op_char,
+    Delimiter, Keyword, Skipped, Token, TokenKind, is_op_char,
     operator::{self, Op},
-    tokenize, Delimiter, Keyword, Skipped, Token, TokenKind,
+    tokenize,
 };
 
 use dada_ir_ast::{

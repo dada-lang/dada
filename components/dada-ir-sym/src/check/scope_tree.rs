@@ -4,12 +4,14 @@ use salsa::Update;
 use serde::Serialize;
 
 use crate::{
-    ir::classes::SymAggregate, ir::functions::SymFunction, ir::variables::SymVariable,
-    ir::module::SymModule, check::scope::Scope,
+    check::scope::Scope, ir::classes::SymAggregate, ir::functions::SymFunction,
+    ir::module::SymModule, ir::variables::SymVariable,
 };
 
 /// A `ScopeItem` defines a name resolution scope.
-#[derive(Copy, Clone, PartialEq, Eq, Hash, PartialOrd, Ord, Debug, Update, FromImpls, Serialize)]
+#[derive(
+    Copy, Clone, PartialEq, Eq, Hash, PartialOrd, Ord, Debug, Update, FromImpls, Serialize,
+)]
 pub enum ScopeItem<'db> {
     /// A module; for phasing reasons, we sometimes add this to the scope tree as the ast node.
     AstModule(AstModule<'db>),

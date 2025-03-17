@@ -5,7 +5,7 @@ use dada_ir_ast::{
 
 use crate::tokenizer::operator;
 
-use super::{miscellaneous::OrOptParse, tokenizer::Keyword, Expected, Parse, ParseFail, Parser};
+use super::{Expected, Parse, ParseFail, Parser, miscellaneous::OrOptParse, tokenizer::Keyword};
 
 impl<'db> Parse<'db> for AstModule<'db> {
     type Output = Self;

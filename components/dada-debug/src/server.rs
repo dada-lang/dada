@@ -1,6 +1,9 @@
-use std::{sync::{mpsc::Receiver, Arc, Mutex}, time::Duration};
+use std::{
+    sync::{Arc, Mutex, mpsc::Receiver},
+    time::Duration,
+};
 
-use axum::{routing::get, Router};
+use axum::{Router, routing::get};
 use dada_ir_ast::DebugEvent;
 use serde::Deserialize;
 
@@ -16,7 +19,10 @@ async fn main_async(port: u32, debug_rx: Receiver<DebugEvent>) -> anyhow::Result
     // initialize tracing
     tracing_subscriber::fmt::init();
 
-    let state = Arc::new(State { debug_events: Default::default(), shutdown: Default::default() });
+    let state = Arc::new(State {
+        debug_events: Default::default(),
+        shutdown: Default::default(),
+    });
 
     std::thread::spawn({
         let state = state.clone();
@@ -36,7 +42,7 @@ async fn main_async(port: u32, debug_rx: Receiver<DebugEvent>) -> anyhow::Result
     let listener = tokio::net::TcpListener::bind(format!("0.0.0.0:{port}"))
         .await
         .unwrap();
-    
+
     axum::serve(listener, app).await?;
 
     *state.shutdown.lock().unwrap() = true;
@@ -88,7 +94,12 @@ async fn source(
     axum::extract::Path(path): axum::extract::Path<String>,
     axum::extract::Query(line_col): axum::extract::Query<SourceQueryArgs>,
 ) -> axum::http::Response<String> {
-    respond_ok_or_500(crate::source::try_source(&path, line_col.line, line_col.column)).await
+    respond_ok_or_500(crate::source::try_source(
+        &path,
+        line_col.line,
+        line_col.column,
+    ))
+    .await
 }
 
 pub struct State {

@@ -93,7 +93,9 @@ macro_rules! debug_heading {
 /// * `log_state`, the log state of the task when it was suspended.
 pub fn enter_task(id: u64, log_state: LogState) -> TaskUndent {
     let old_state = LogState::get();
-    if let Some(kind) = enabled() { debug_cold(kind, MessageKind::EnterTask(id), "", &[]) }
+    if let Some(kind) = enabled() {
+        debug_cold(kind, MessageKind::EnterTask(id), "", &[])
+    }
     log_state.set();
     TaskUndent(id, old_state)
 }
@@ -102,7 +104,9 @@ pub struct TaskUndent(u64, LogState);
 
 impl Drop for TaskUndent {
     fn drop(&mut self) {
-        if let Some(kind) = enabled() { debug_cold(kind, MessageKind::LeaveTask(self.0), "", &[]) }
+        if let Some(kind) = enabled() {
+            debug_cold(kind, MessageKind::LeaveTask(self.0), "", &[])
+        }
         self.1.set();
     }
 }
