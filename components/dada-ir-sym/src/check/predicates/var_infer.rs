@@ -20,7 +20,7 @@ use super::{
     require_owned::require_chain_is_owned,
 };
 
-pub(crate) fn test_var_is_provably<'db>(
+pub fn test_var_is_provably<'db>(
     env: &mut Env<'db>,
     var: SymVariable<'db>,
     predicate: Predicate,
@@ -56,7 +56,7 @@ pub(super) fn require_var_isnt<'db>(
 
 /// Requires the inference variable to meet the given predicate (possibly reporting an error
 /// if that is contradictory).
-pub(super) fn require_infer_is<'db>(
+pub fn require_infer_is<'db>(
     env: &mut Env<'db>,
     infer: InferVarIndex,
     predicate: Predicate,
@@ -81,10 +81,7 @@ pub(super) fn require_infer_is<'db>(
     }
 
     // Record the requirement in the runtime, awakening any tasks that may be impacted.
-    if let Some(or_else) = env
-        .runtime()
-        .require_inference_var_is(infer, predicate, or_else)
-    {
+    if let Some(or_else) = env.require_inference_var_is(infer, predicate, or_else) {
         defer_require_bounds_provably_predicate(env, infer, predicate, or_else);
 
         let (is_move, is_copy, is_owned) = env.runtime().with_inference_var_data(infer, |data| {
@@ -140,10 +137,7 @@ pub(super) fn require_infer_isnt<'db>(
     }
 
     // Record the requirement in the runtime, awakening any tasks that may be impacted.
-    if let Some(or_else) = env
-        .runtime()
-        .require_inference_var_isnt(infer, predicate, or_else)
-    {
+    if let Some(or_else) = env.require_inference_var_isnt(infer, predicate, or_else) {
         defer_require_bounds_not_provably_predicate(env, infer, predicate, or_else);
     }
 
@@ -151,7 +145,7 @@ pub(super) fn require_infer_isnt<'db>(
 }
 
 /// Wait until we know that the inference variable IS (or IS NOT) the given predicate.
-pub(crate) async fn test_infer_is_known_to_be<'db>(
+pub async fn test_infer_is_known_to_be<'db>(
     env: &mut Env<'db>,
     infer: InferVarIndex,
     predicate: Predicate,

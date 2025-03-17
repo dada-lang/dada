@@ -31,7 +31,8 @@ use super::{
     debug::LogHandle,
     inference::{InferVarKind, InferenceVarData},
     predicates::Predicate,
-    report::{BooleanTypeRequired, OrElse},
+    red::{Chain, RedTy},
+    report::{ArcOrElse, BooleanTypeRequired, OrElse},
     runtime::DeferResult,
     subtype::{is_future::require_future_type, is_numeric::require_numeric_type},
 };
@@ -123,7 +124,7 @@ impl<'db> Env<'db> {
 
     /// True if the given variable is declared to meet the given predicate.
     pub fn var_is_declared_to_be(&self, var: SymVariable<'db>, predicate: Predicate) -> bool {
-        match predicate {
+        let result = match predicate {
             Predicate::Copy => self.assumed(var, |kind| {
                 matches!(
                     kind,
@@ -148,7 +149,11 @@ impl<'db> Env<'db> {
                     AssumptionKind::Lent | AssumptionKind::Leased | AssumptionKind::Shared
                 )
             }),
-        }
+        };
+
+        self.log("var_is_declared_to_be", &[&var, &predicate, &result]);
+
+        result
     }
 
     fn assumed(&self, var: SymVariable<'db>, kind: impl Fn(AssumptionKind) -> bool) -> bool {
@@ -268,7 +273,11 @@ impl<'db> Env<'db> {
             SymGenericKind::Place => panic!("inference variable of kind `Place` not supported"),
         };
         let infer = self.runtime.fresh_inference_var(data);
-        self.log.log(Location::caller(), "created inference variable", &[&infer, &kind, &span]);
+        self.log.log(
+            Location::caller(),
+            "created inference variable",
+            &[&infer, &kind, &span],
+        );
         infer
     }
 
@@ -448,7 +457,7 @@ impl<'db> Env<'db> {
     }
 
     #[track_caller]
-    pub fn log(&mut self, message: &'static str, values: &[&dyn erased_serde::Serialize]) {
+    pub fn log(&self, message: &'static str, values: &[&dyn erased_serde::Serialize]) {
         self.log.log(Location::caller(), message, values)
     }
 
@@ -495,6 +504,72 @@ impl<'db> Env<'db> {
     /// These correspond to in-scope function parameters, generic types, etc.
     pub(crate) fn bound_vars(&self) -> Vec<SymVariable<'db>> {
         self.scope.all_binders().into_iter().flatten().collect()
+    }
+
+    #[track_caller]
+    pub fn require_inference_var_is(
+        &mut self,
+        infer: InferVarIndex,
+        predicate: Predicate,
+        or_else: &dyn OrElse<'db>,
+    ) -> Option<ArcOrElse<'db>> {
+        self.runtime
+            .require_inference_var_is(infer, &self.log, predicate, or_else)
+    }
+
+    #[track_caller]
+    pub fn require_inference_var_isnt(
+        &mut self,
+        infer: InferVarIndex,
+        predicate: Predicate,
+        or_else: &dyn OrElse<'db>,
+    ) -> Option<ArcOrElse<'db>> {
+        self.runtime
+            .require_inference_var_isnt(infer, &self.log, predicate, or_else)
+    }
+
+    #[track_caller]
+    pub fn insert_lower_chain(
+        &mut self,
+        infer: InferVarIndex,
+        chain: &Chain<'db>,
+        or_else: &dyn OrElse<'db>,
+    ) -> Option<ArcOrElse<'db>> {
+        self.runtime
+            .insert_lower_chain(infer, &self.log, chain, or_else)
+    }
+
+    #[track_caller]
+    pub fn insert_upper_chain(
+        &mut self,
+        infer: InferVarIndex,
+        chain: &Chain<'db>,
+        or_else: &dyn OrElse<'db>,
+    ) -> Option<ArcOrElse<'db>> {
+        self.runtime
+            .insert_upper_chain(infer, &self.log, chain, or_else)
+    }
+
+    #[track_caller]
+    pub fn set_lower_red_ty(
+        &mut self,
+        infer: InferVarIndex,
+        red_ty: RedTy<'db>,
+        or_else: &dyn OrElse<'db>,
+    ) -> ArcOrElse<'db> {
+        self.runtime
+            .set_lower_red_ty(infer, &self.log, red_ty, or_else)
+    }
+
+    #[track_caller]
+    pub fn set_upper_red_ty(
+        &mut self,
+        infer: InferVarIndex,
+        red_ty: RedTy<'db>,
+        or_else: &dyn OrElse<'db>,
+    ) -> ArcOrElse<'db> {
+        self.runtime
+            .set_upper_red_ty(infer, &self.log, red_ty, or_else)
     }
 }
 

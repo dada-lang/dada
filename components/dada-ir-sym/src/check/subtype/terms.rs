@@ -329,8 +329,8 @@ fn set_bounding_red_ty<'db>(
     or_else: &dyn OrElse<'db>,
 ) -> ArcOrElse<'db> {
     match direction {
-        Direction::FromBelow => env.runtime().set_lower_red_ty(infer, red_ty, or_else),
-        Direction::FromAbove => env.runtime().set_upper_red_ty(infer, red_ty, or_else),
+        Direction::FromBelow => env.set_lower_red_ty(infer, red_ty, or_else),
+        Direction::FromAbove => env.set_upper_red_ty(infer, red_ty, or_else),
     }
 }
 

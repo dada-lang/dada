@@ -215,33 +215,41 @@ impl<'db> Runtime<'db> {
     }
 
     /// See [`InferenceVarData::require_is`][]. Low-level function not to be casually invoked.
+    #[track_caller]
     pub fn require_inference_var_is(
         &self,
         infer: InferVarIndex,
+        log: &LogHandle,
         predicate: Predicate,
         or_else: &dyn OrElse<'db>,
     ) -> Option<Arc<dyn OrElse<'db> + 'db>> {
-        self.mutate_inference_var_data_and_wake(infer, |data| data.require_is(predicate, or_else))
+        self.mutate_inference_var_data_and_wake(infer, log, "require_inference_var_is", |data| {
+            data.require_is(predicate, or_else)
+        })
     }
 
     /// See [`InferenceVarData::require_isnt`][]. Low-level function not to be casually invoked.
     pub fn require_inference_var_isnt(
         &self,
         infer: InferVarIndex,
+        log: &LogHandle,
         predicate: Predicate,
         or_else: &dyn OrElse<'db>,
     ) -> Option<Arc<dyn OrElse<'db> + 'db>> {
-        self.mutate_inference_var_data_and_wake(infer, |data| data.require_isnt(predicate, or_else))
+        self.mutate_inference_var_data_and_wake(infer, log, "require_inference_var_isnt", |data| {
+            data.require_isnt(predicate, or_else)
+        })
     }
 
     /// See [`InferenceVarData::insert_lower_chain`][]. Low-level function not to be casually invoked.
     pub fn insert_lower_chain(
         &self,
         infer: InferVarIndex,
+        log: &LogHandle,
         chain: &Chain<'db>,
         or_else: &dyn OrElse<'db>,
     ) -> Option<ArcOrElse<'db>> {
-        self.mutate_inference_var_data_and_wake(infer, |data| {
+        self.mutate_inference_var_data_and_wake(infer, log, "insert_lower_chain", |data| {
             data.insert_lower_chain(chain, or_else)
         })
     }
@@ -250,10 +258,11 @@ impl<'db> Runtime<'db> {
     pub fn insert_upper_chain(
         &self,
         infer: InferVarIndex,
+        log: &LogHandle,
         chain: &Chain<'db>,
         or_else: &dyn OrElse<'db>,
     ) -> Option<ArcOrElse<'db>> {
-        self.mutate_inference_var_data_and_wake(infer, |data| {
+        self.mutate_inference_var_data_and_wake(infer, log, "insert_upper_chain", |data| {
             data.insert_upper_chain(chain, or_else)
         })
     }
@@ -262,10 +271,11 @@ impl<'db> Runtime<'db> {
     pub fn set_lower_red_ty(
         &self,
         infer: InferVarIndex,
+        log: &LogHandle,
         red_ty: RedTy<'db>,
         or_else: &dyn OrElse<'db>,
     ) -> ArcOrElse<'db> {
-        self.mutate_inference_var_data_and_wake(infer, |data| {
+        self.mutate_inference_var_data_and_wake(infer, log, "set_lower_red_ty", |data| {
             Some(data.set_lower_red_ty(red_ty, or_else))
         })
         .unwrap()
@@ -275,18 +285,22 @@ impl<'db> Runtime<'db> {
     pub fn set_upper_red_ty(
         &self,
         infer: InferVarIndex,
+        log: &LogHandle,
         red_ty: RedTy<'db>,
         or_else: &dyn OrElse<'db>,
     ) -> ArcOrElse<'db> {
-        self.mutate_inference_var_data_and_wake(infer, |data| {
+        self.mutate_inference_var_data_and_wake(infer, log, "set_upper_red_ty", |data| {
             Some(data.set_upper_red_ty(red_ty, or_else))
         })
         .unwrap()
     }
 
+    #[track_caller]
     fn mutate_inference_var_data_and_wake(
         &self,
         infer: InferVarIndex,
+        log: &LogHandle,
+        mutation_descr: &str,
         op: impl FnOnce(&mut InferenceVarData<'db>) -> Option<Arc<dyn OrElse<'db> + 'db>>,
     ) -> Option<Arc<dyn OrElse<'db> + 'db>> {
         assert!(!self.check_complete());
@@ -295,6 +309,11 @@ impl<'db> Runtime<'db> {
         let Some(or_else) = op(inference_var) else {
             return None;
         };
+        log.log(
+            Location::caller(),
+            "mutate_inference_var_data",
+            &[&infer, &mutation_descr, &*inference_var],
+        );
         self.wake_tasks_monitoring_inference_var(infer);
         Some(or_else)
     }

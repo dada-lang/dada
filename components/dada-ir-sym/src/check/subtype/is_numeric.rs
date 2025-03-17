@@ -4,6 +4,7 @@ use dada_util::boxed_async_fn;
 use crate::{
     check::{
         env::Env,
+        predicates::{Predicate, var_infer::require_infer_is},
         red::RedTy,
         report::{Because, OrElse, OrElseHelper},
         to_red::ToRedTy,
@@ -51,24 +52,29 @@ async fn require_numeric_red_type<'db>(
         RedTy::Var(_) | RedTy::Never => Err(or_else.report(env, Because::JustSo)),
 
         RedTy::Infer(infer) => {
-            // For inference variables: find the current lower bound
-            // and check if it is numeric. Since the bound can only get tighter,
-            // that is sufficient (indeed, numeric types have no subtypes).
-            let Some((lower_red_ty, arc_or_else)) = env
-                .runtime()
-                .loop_on_inference_var(infer, |data| data.lower_red_ty())
-                .await
-            else {
-                return Err(
-                    or_else.report(env, Because::UnconstrainedInfer(env.infer_var_span(infer)))
-                );
-            };
-            require_numeric_red_type(
-                env,
-                lower_red_ty.clone(),
-                &or_else.map_because(move |_| {
-                    Because::InferredLowerBound(lower_red_ty.clone(), arc_or_else.clone())
-                }),
+            env.require_both(
+                async |env| require_infer_is(env, infer, Predicate::Copy, or_else),
+                async |env| {
+                    // For inference variables: find the current lower bound
+                    // and check if it is numeric. Since the bound can only get tighter,
+                    // that is sufficient (indeed, numeric types have no subtypes).
+                    let Some((lower_red_ty, arc_or_else)) = env
+                        .runtime()
+                        .loop_on_inference_var(infer, |data| data.lower_red_ty())
+                        .await
+                    else {
+                        return Err(or_else
+                            .report(env, Because::UnconstrainedInfer(env.infer_var_span(infer))));
+                    };
+                    require_numeric_red_type(
+                        env,
+                        lower_red_ty.clone(),
+                        &or_else.map_because(move |_| {
+                            Because::InferredLowerBound(lower_red_ty.clone(), arc_or_else.clone())
+                        }),
+                    )
+                    .await
+                },
             )
             .await
         }

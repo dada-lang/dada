@@ -1,15 +1,15 @@
-pub(crate) mod is_provably_copy;
-pub(crate) mod is_provably_lent;
-pub(crate) mod is_provably_move;
-pub(crate) mod is_provably_owned;
-pub(crate) mod isnt_provably_copy;
-pub(crate) mod isnt_provably_owned;
-pub(crate) mod require_copy;
-pub(crate) mod require_isnt_provably_copy;
-pub(crate) mod require_lent;
-pub(crate) mod require_move;
-pub(crate) mod require_owned;
-mod var_infer;
+pub mod is_provably_copy;
+pub mod is_provably_lent;
+pub mod is_provably_move;
+pub mod is_provably_owned;
+pub mod isnt_provably_copy;
+pub mod isnt_provably_owned;
+pub mod require_copy;
+pub mod require_isnt_provably_copy;
+pub mod require_lent;
+pub mod require_move;
+pub mod require_owned;
+pub mod var_infer;
 
 use dada_ir_ast::diagnostic::Errors;
 use is_provably_lent::term_is_provably_lent;
@@ -19,7 +19,7 @@ use require_lent::require_term_is_lent;
 use require_move::require_term_is_move;
 use require_owned::require_term_is_owned;
 use serde::Serialize;
-pub(crate) use var_infer::{test_infer_is_known_to_be, test_var_is_provably};
+pub use var_infer::{test_infer_is_known_to_be, test_var_is_provably};
 
 use crate::ir::types::SymGenericTerm;
 

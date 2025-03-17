@@ -14,8 +14,9 @@ use super::{
     report::{ArcOrElse, OrElse},
 };
 
+mod serialize;
+
 pub(crate) struct InferenceVarData<'db> {
-    #[expect(dead_code)]
     universe: Universe,
 
     span: Span<'db>,

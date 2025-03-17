@@ -1,5 +1,7 @@
 use std::num::NonZeroU32;
 
+use serde::Serialize;
+
 /// A "universe" defines the set of all terms (types/permissions/etc) in a program.
 /// The root universe [`Universe::ROOT`][] consists of the terms the user wrote.
 /// We create other universes synthetically to create free universal variables.
@@ -8,7 +10,7 @@ use std::num::NonZeroU32;
 ///
 /// Universes are ordered. `U1 < U2` means that `U2` can contain strictly more terms than `U1`.
 /// `Universe::ROOT <= U` for all `U`.
-#[derive(Clone, Copy, Debug, PartialEq, Eq, PartialOrd, Ord, Hash)]
+#[derive(Clone, Copy, Debug, PartialEq, Eq, PartialOrd, Ord, Hash, Serialize)]
 pub(crate) struct Universe(NonZeroU32);
 
 impl Universe {

@@ -250,10 +250,7 @@ async fn require_lower_chain<'db>(
 ) -> Errors<()> {
     let lower_chain = Chain::from_head_tail(env.db(), lower_head, lower_tail);
 
-    let Some(or_else) = env
-        .runtime()
-        .insert_lower_chain(upper_head, &lower_chain, or_else)
-    else {
+    let Some(or_else) = env.insert_lower_chain(upper_head, &lower_chain, or_else) else {
         return Ok(());
     };
 
@@ -343,10 +340,7 @@ async fn require_upper_chain<'db>(
 ) -> Errors<()> {
     let upper_chain = Chain::from_head_tail(env.db(), upper_head, upper_tail);
 
-    let Some(_or_else) = env
-        .runtime()
-        .insert_upper_chain(lower_head, &upper_chain, or_else)
-    else {
+    let Some(_or_else) = env.insert_upper_chain(lower_head, &upper_chain, or_else) else {
         return Ok(());
     };
 
