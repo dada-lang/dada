@@ -67,7 +67,6 @@ const config = {
             label: "Tutorials",
           },
           { to: "/blog", label: "Blog", position: "left" },
-          { to: "/playground", label: "Playground", position: "left" },
           {
             type: "doc",
             docId: "design_docs",
