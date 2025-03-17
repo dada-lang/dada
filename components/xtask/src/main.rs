@@ -2,6 +2,7 @@ use structopt::StructOpt;
 use tracing_subscriber::{prelude::*, EnvFilter};
 
 mod build;
+mod deploy;
 
 fn main() -> anyhow::Result<()> {
     Options::from_args().main()
@@ -22,6 +23,10 @@ pub enum Command {
         #[structopt(flatten)]
         options: build::Build,
     },
+    Deploy {
+        #[structopt(flatten)]
+        options: deploy::Deploy,
+    }
 }
 
 impl Options {
@@ -49,6 +54,7 @@ impl Options {
 
         match &self.command {
             Command::Build { options } => options.main(),
+            Command::Deploy { options } => options.main(),
         }
     }
 }

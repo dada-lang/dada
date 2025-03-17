@@ -139,15 +139,15 @@ const config = {
     }),
 
   plugins: [
-    async function myPlugin(context, options) {
-      // ...
-      return {
-        name: "theme-dada-codeblock/components",
-        getThemePath() {
-          return "src/theme-dada-codeblock/components";
-        },
-      };
-    },
+    // async function myPlugin(context, options) {
+    //   // ...
+    //   return {
+    //     name: "theme-dada-codeblock/components",
+    //     getThemePath() {
+    //       return "src/theme-dada-codeblock/components";
+    //     },
+    //   };
+    // },
   ],
 };
 

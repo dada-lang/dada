@@ -1,3 +1,3 @@
 [alias]
-xtask = "run --package xtask --"
+xtask = "run -q --package xtask --"
 dada = "run -q --package dada --"
