@@ -17,15 +17,13 @@ use dada_ir_ast::{
     diagnostic::{Diagnostic, Err, Errors, Level},
     span::Span,
 };
-use dada_util::{Map, vecext::VecExt};
+use dada_util::{Map, Set, vecext::VecExt};
 
 use crate::{check::env::Env, check::inference::InferenceVarData};
 
 use super::{
     debug::{LogHandle, RootTaskDescription, TaskDescription},
-    predicates::Predicate,
-    red::{Chain, RedTy},
-    report::{ArcOrElse, OrElse},
+    inference::InferenceVarDataChanged,
 };
 
 #[derive(Clone)]
@@ -35,11 +33,32 @@ pub(crate) struct Runtime<'db> {
 
 pub(crate) struct RuntimeData<'db> {
     pub db: &'db dyn crate::Db,
+
+    /// Stores the data for each inference variable created thus far.
     inference_vars: RwLock<Vec<InferenceVarData<'db>>>,
+
+    /// Pairs `(a, b)` of inference variables where `a <: b` is required.
+    /// We insert into this set when we are relating two inference variables.
+    /// If it is a new relation, then we know we must propagate bounds.
+    sub_inference_var_pairs: Mutex<Set<(InferVarIndex, InferVarIndex)>>,
+
+    /// List of tasks that are ready to execute.
     ready_to_execute: Mutex<Vec<Arc<CheckTask>>>,
+
+    /// List of tasks that are blocked, keyed by the variable they are blocked on.
+    /// When the data for `InferVarIndex` changes, the tasks will be awoken.
     waiting_on_inference_var: Mutex<Map<InferVarIndex, Vec<EqWaker>>>,
+
+    /// If true, inference state is frozen and will not change further.
     complete: AtomicBool,
+
+    /// Integer indicating the next task id; each task gets a unique id.
     next_task_id: AtomicU64,
+
+    /// Root log handle for this check. This handle is not used to record
+    /// events, only to export the overall log. During the check, environments
+    /// carry a log handle that is specific to the current task.
+    /// This way when we log an event it is tied to the task that caused it.
     root_log: LogHandle<'db>,
 }
 
@@ -123,6 +142,7 @@ impl<'db> Runtime<'db> {
                 db,
                 complete: Default::default(),
                 inference_vars: Default::default(),
+                sub_inference_var_pairs: Default::default(),
                 ready_to_execute: Default::default(),
                 waiting_on_inference_var: Default::default(),
                 next_task_id: Default::default(),
@@ -184,8 +204,8 @@ impl<'db> Runtime<'db> {
         log: &LogHandle<'_>,
         mut op: impl FnMut(&InferenceVarData<'db>) -> Option<T>,
     ) -> impl Future<Output = Option<T>> {
-        log.log(Location::caller(), "loop_on_inference_var", &[&infer]);
         std::future::poll_fn(move |cx| {
+            log.log(Location::caller(), "loop_on_inference_var", &[&infer]);
             let data = self.with_inference_var_data(infer, |data| op(data));
             match data {
                 Some(v) => Poll::Ready(Some(v)),
@@ -221,106 +241,59 @@ impl<'db> Runtime<'db> {
         op(&inference_vars[infer.as_usize()])
     }
 
-    /// See [`InferenceVarData::require_is`][]. Low-level function not to be casually invoked.
+    /// Modify the data for the inference variable `infer`.
+    /// If the data actually changes (as indicated by the
+    /// return value of `op` via the [`InferenceVarDataChanged`][]
+    /// trait), then log the result and wake any tasks blocked on
+    /// this inference variable.
+    ///
+    /// `op` should invoke one of the mutation methods on [`InferenceVarData`][]
+    /// and nothing else. A write lock is held during the call so anything
+    /// more complex risks deadlock.
     #[track_caller]
-    pub fn require_inference_var_is(
+    pub fn mutate_inference_var_data<T>(
         &self,
         infer: InferVarIndex,
         log: &LogHandle,
-        predicate: Predicate,
-        or_else: &dyn OrElse<'db>,
-    ) -> Option<Arc<dyn OrElse<'db> + 'db>> {
-        self.mutate_inference_var_data_and_wake(infer, log, "require_inference_var_is", |data| {
-            data.require_is(predicate, or_else)
-        })
-    }
-
-    /// See [`InferenceVarData::require_isnt`][]. Low-level function not to be casually invoked.
-    pub fn require_inference_var_isnt(
-        &self,
-        infer: InferVarIndex,
-        log: &LogHandle,
-        predicate: Predicate,
-        or_else: &dyn OrElse<'db>,
-    ) -> Option<Arc<dyn OrElse<'db> + 'db>> {
-        self.mutate_inference_var_data_and_wake(infer, log, "require_inference_var_isnt", |data| {
-            data.require_isnt(predicate, or_else)
-        })
-    }
-
-    /// See [`InferenceVarData::insert_lower_chain`][]. Low-level function not to be casually invoked.
-    pub fn insert_lower_chain(
-        &self,
-        infer: InferVarIndex,
-        log: &LogHandle,
-        chain: &Chain<'db>,
-        or_else: &dyn OrElse<'db>,
-    ) -> Option<ArcOrElse<'db>> {
-        self.mutate_inference_var_data_and_wake(infer, log, "insert_lower_chain", |data| {
-            data.insert_lower_chain(chain, or_else)
-        })
-    }
-
-    /// See [`InferenceVarData::insert_upper_chain`][]. Low-level function not to be casually invoked.
-    pub fn insert_upper_chain(
-        &self,
-        infer: InferVarIndex,
-        log: &LogHandle,
-        chain: &Chain<'db>,
-        or_else: &dyn OrElse<'db>,
-    ) -> Option<ArcOrElse<'db>> {
-        self.mutate_inference_var_data_and_wake(infer, log, "insert_upper_chain", |data| {
-            data.insert_upper_chain(chain, or_else)
-        })
-    }
-
-    /// See [`InferenceVarData::set_lower_red_ty`][]. Low-level function not to be casually invoked.
-    pub fn set_lower_red_ty(
-        &self,
-        infer: InferVarIndex,
-        log: &LogHandle,
-        red_ty: RedTy<'db>,
-        or_else: &dyn OrElse<'db>,
-    ) -> ArcOrElse<'db> {
-        self.mutate_inference_var_data_and_wake(infer, log, "set_lower_red_ty", |data| {
-            Some(data.set_lower_red_ty(red_ty, or_else))
-        })
-        .unwrap()
-    }
-
-    /// See [`InferenceVarData::set_upper_red_ty`][]. Low-level function not to be casually invoked.
-    pub fn set_upper_red_ty(
-        &self,
-        infer: InferVarIndex,
-        log: &LogHandle,
-        red_ty: RedTy<'db>,
-        or_else: &dyn OrElse<'db>,
-    ) -> ArcOrElse<'db> {
-        self.mutate_inference_var_data_and_wake(infer, log, "set_upper_red_ty", |data| {
-            Some(data.set_upper_red_ty(red_ty, or_else))
-        })
-        .unwrap()
-    }
-
-    #[track_caller]
-    fn mutate_inference_var_data_and_wake(
-        &self,
-        infer: InferVarIndex,
-        log: &LogHandle,
-        mutation_descr: &str,
-        op: impl FnOnce(&mut InferenceVarData<'db>) -> Option<Arc<dyn OrElse<'db> + 'db>>,
-    ) -> Option<Arc<dyn OrElse<'db> + 'db>> {
+        op: impl FnOnce(&mut InferenceVarData<'db>) -> T,
+    ) -> T
+    where
+        T: InferenceVarDataChanged,
+    {
         assert!(!self.check_complete());
         let mut inference_vars = self.inference_vars.write().unwrap();
         let inference_var = &mut inference_vars[infer.as_usize()];
-        let or_else = op(inference_var)?;
+        let result = op(inference_var);
+        if result.did_change() {
+            log.log(
+                Location::caller(),
+                "mutate_inference_var_data",
+                &[&infer, &*inference_var],
+            );
+            self.wake_tasks_monitoring_inference_var(infer);
+        }
+        result
+    }
+
+    /// Record that `lower <: upper` must hold,
+    /// returning true if this is the first time that this has been recorded
+    /// or false if it has been recorded before.
+    #[track_caller]
+    pub fn insert_sub_infer_var_pair(
+        &self,
+        lower: InferVarIndex,
+        upper: InferVarIndex,
+        log: &LogHandle,
+    ) -> bool {
         log.log(
             Location::caller(),
-            "mutate_inference_var_data",
-            &[&infer, &mutation_descr, &*inference_var],
+            "insert_sub_infer_var_pair",
+            &[&lower, &upper],
         );
-        self.wake_tasks_monitoring_inference_var(infer);
-        Some(or_else)
+        self.sub_inference_var_pairs
+            .lock()
+            .unwrap()
+            .insert((lower, upper))
     }
 
     fn wake_tasks_monitoring_inference_var(&self, infer: InferVarIndex) {

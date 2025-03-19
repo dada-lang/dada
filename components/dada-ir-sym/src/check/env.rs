@@ -265,9 +265,9 @@ impl<'db> Env<'db> {
         let data = match kind {
             SymGenericKind::Type => {
                 let perm = self.fresh_inference_var(SymGenericKind::Perm, span);
-                InferenceVarData::new_ty(self.universe, span, perm)
+                InferenceVarData::new_ty(span, perm)
             }
-            SymGenericKind::Perm => InferenceVarData::new_perm(self.universe, span),
+            SymGenericKind::Perm => InferenceVarData::new_perm(span),
             SymGenericKind::Place => panic!("inference variable of kind `Place` not supported"),
         };
         let infer = self.runtime.fresh_inference_var(data);
@@ -501,6 +501,19 @@ impl<'db> Env<'db> {
         self.scope.all_binders().into_iter().flatten().collect()
     }
 
+    /// Record that `lower <: upper` must hold,
+    /// returning true if this is the first time that this has been recorded
+    /// or false if it has been recorded before.
+    #[track_caller]
+    pub fn insert_sub_infer_var_pair(
+        &mut self,
+        lower: InferVarIndex,
+        upper: InferVarIndex,
+    ) -> bool {
+        self.runtime
+            .insert_sub_infer_var_pair(lower, upper, &self.log)
+    }
+
     #[track_caller]
     pub fn require_inference_var_is(
         &mut self,
@@ -509,7 +522,7 @@ impl<'db> Env<'db> {
         or_else: &dyn OrElse<'db>,
     ) -> Option<ArcOrElse<'db>> {
         self.runtime
-            .require_inference_var_is(infer, &self.log, predicate, or_else)
+            .mutate_inference_var_data(infer, &self.log, |data| data.require_is(predicate, or_else))
     }
 
     #[track_caller]
@@ -520,7 +533,9 @@ impl<'db> Env<'db> {
         or_else: &dyn OrElse<'db>,
     ) -> Option<ArcOrElse<'db>> {
         self.runtime
-            .require_inference_var_isnt(infer, &self.log, predicate, or_else)
+            .mutate_inference_var_data(infer, &self.log, |data| {
+                data.require_isnt(predicate, or_else)
+            })
     }
 
     #[track_caller]
@@ -531,7 +546,9 @@ impl<'db> Env<'db> {
         or_else: &dyn OrElse<'db>,
     ) -> Option<ArcOrElse<'db>> {
         self.runtime
-            .insert_lower_chain(infer, &self.log, chain, or_else)
+            .mutate_inference_var_data(infer, &self.log, |data| {
+                data.insert_lower_chain(chain, or_else)
+            })
     }
 
     #[track_caller]
@@ -542,7 +559,21 @@ impl<'db> Env<'db> {
         or_else: &dyn OrElse<'db>,
     ) -> Option<ArcOrElse<'db>> {
         self.runtime
-            .insert_upper_chain(infer, &self.log, chain, or_else)
+            .mutate_inference_var_data(infer, &self.log, |data| {
+                data.insert_upper_chain(chain, or_else)
+            })
+    }
+
+    /// Return existing lower red-ty-bound on `infer`
+    pub fn lower_red_ty(&self, infer: InferVarIndex) -> Option<(RedTy<'db>, ArcOrElse<'db>)> {
+        self.runtime
+            .with_inference_var_data(infer, |data| data.lower_red_ty().clone())
+    }
+
+    /// Return existing upper red-ty-bound on `infer`
+    pub fn upper_red_ty(&self, infer: InferVarIndex) -> Option<(RedTy<'db>, ArcOrElse<'db>)> {
+        self.runtime
+            .with_inference_var_data(infer, |data| data.upper_red_ty().clone())
     }
 
     #[track_caller]
@@ -553,7 +584,9 @@ impl<'db> Env<'db> {
         or_else: &dyn OrElse<'db>,
     ) -> ArcOrElse<'db> {
         self.runtime
-            .set_lower_red_ty(infer, &self.log, red_ty, or_else)
+            .mutate_inference_var_data(infer, &self.log, |data| {
+                data.set_lower_red_ty(red_ty, or_else)
+            })
     }
 
     #[track_caller]
@@ -564,7 +597,9 @@ impl<'db> Env<'db> {
         or_else: &dyn OrElse<'db>,
     ) -> ArcOrElse<'db> {
         self.runtime
-            .set_upper_red_ty(infer, &self.log, red_ty, or_else)
+            .mutate_inference_var_data(infer, &self.log, |data| {
+                data.set_upper_red_ty(red_ty, or_else)
+            })
     }
 }
 

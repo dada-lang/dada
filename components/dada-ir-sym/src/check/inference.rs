@@ -3,10 +3,7 @@ use std::sync::Arc;
 use dada_ir_ast::span::Span;
 use salsa::Update;
 
-use crate::{
-    check::universe::Universe,
-    ir::{indices::InferVarIndex, types::SymGenericKind},
-};
+use crate::ir::{indices::InferVarIndex, types::SymGenericKind};
 
 use super::{
     predicates::Predicate,
@@ -17,8 +14,6 @@ use super::{
 mod serialize;
 
 pub(crate) struct InferenceVarData<'db> {
-    universe: Universe,
-
     span: Span<'db>,
 
     /// If the element for a given predicate is `Some`, then the predicate is known to be true
@@ -40,9 +35,8 @@ pub(crate) struct InferenceVarData<'db> {
 }
 
 impl<'db> InferenceVarData<'db> {
-    fn new(universe: Universe, span: Span<'db>, bounds: InferenceVarBounds<'db>) -> Self {
+    fn new(span: Span<'db>, bounds: InferenceVarBounds<'db>) -> Self {
         Self {
-            universe,
             span,
             bounds,
             is: [None, None, None, None],
@@ -51,9 +45,8 @@ impl<'db> InferenceVarData<'db> {
     }
 
     /// Create the data for a new permission inference variable.
-    pub fn new_perm(universe: Universe, span: Span<'db>) -> Self {
+    pub fn new_perm(span: Span<'db>) -> Self {
         Self::new(
-            universe,
             span,
             InferenceVarBounds::Perm {
                 lower: Default::default(),
@@ -64,9 +57,8 @@ impl<'db> InferenceVarData<'db> {
 
     /// Create the data for a new type inference variable.
     /// Requires the index `perm` of a corresponding permission variable.
-    pub fn new_ty(universe: Universe, span: Span<'db>, perm: InferVarIndex) -> Self {
+    pub fn new_ty(span: Span<'db>, perm: InferVarIndex) -> Self {
         Self::new(
-            universe,
             span,
             InferenceVarBounds::Ty {
                 perm,
@@ -377,4 +369,31 @@ pub enum InferenceVarBounds<'db> {
         lower: Option<(RedTy<'db>, ArcOrElse<'db>)>,
         upper: Option<(RedTy<'db>, ArcOrElse<'db>)>,
     },
+}
+
+/// Trait implemented by types returned by mutation methods
+/// like [`InferenceVarData::insert_lower_infer_bound`][]
+/// or [`InferenceVarData::set_lower_red_ty`][].
+/// Can be used to check if those return values indicate that
+/// the inference var data was actually changed.
+pub trait InferenceVarDataChanged {
+    fn did_change(&self) -> bool;
+}
+
+impl InferenceVarDataChanged for bool {
+    fn did_change(&self) -> bool {
+        *self
+    }
+}
+
+impl InferenceVarDataChanged for Option<ArcOrElse<'_>> {
+    fn did_change(&self) -> bool {
+        self.is_some()
+    }
+}
+
+impl InferenceVarDataChanged for ArcOrElse<'_> {
+    fn did_change(&self) -> bool {
+        true
+    }
 }
