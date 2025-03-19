@@ -6,7 +6,7 @@ use dada_util::{boxed_async_fn, vecset::VecSet};
 use crate::{
     check::{
         env::Env,
-        inference::InferVarKind,
+        inference::{Direction, InferVarKind},
         predicates::{
             is_provably_copy::term_is_provably_copy, is_provably_lent::term_is_provably_lent,
             is_provably_move::term_is_provably_move, is_provably_owned::term_is_provably_owned,
@@ -16,7 +16,7 @@ use crate::{
             require_owned::require_term_is_owned, require_term_is_leased, term_is_provably_leased,
         },
         red::{Chain, RedTerm, RedTy},
-        report::{ArcOrElse, Because, OrElse},
+        report::{Because, OrElse},
         subtype::chains::require_sub_red_perms,
         to_red::ToRedTerm,
     },
@@ -292,12 +292,6 @@ async fn require_infer_sub_infer<'db>(
     }
 }
 
-#[derive(Copy, Clone, Debug)]
-pub enum Direction {
-    FromBelow,
-    FromAbove,
-}
-
 /// Relate `lower_term` (not)
 async fn require_ty_sub_infer<'db>(
     env: &mut Env<'db>,
@@ -379,13 +373,14 @@ async fn require_infer_has_bound<'db>(
     infer: InferVarIndex,
     or_else: &dyn OrElse<'db>,
 ) -> Errors<RedTy<'db>> {
-    match bounding_red_ty(env, direction, infer) {
+    match env.red_ty_bound(infer, direction).peek() {
         None => {
             // Inference variable does not currently have a red-ty bound.
             // Create a generalized version of `bound` and use that.
             let span = env.infer_var_span(infer);
             let generalized = generalize(env, bound, span)?;
-            set_bounding_red_ty(env, direction, infer, generalized.clone(), or_else);
+            env.red_ty_bound(infer, direction)
+                .set(generalized.clone(), or_else);
             Ok(generalized)
         }
 
@@ -395,32 +390,6 @@ async fn require_infer_has_bound<'db>(
             // FIXME: We may need to adjust this bound once we introduce enum.
             Ok(generalized)
         }
-    }
-}
-
-/// Return existing red-ty bound (lower or upper depending on `direction`) from `infer`.
-fn bounding_red_ty<'db>(
-    env: &mut Env<'db>,
-    direction: Direction,
-    infer: InferVarIndex,
-) -> Option<(RedTy<'db>, ArcOrElse<'db>)> {
-    match direction {
-        Direction::FromBelow => env.lower_red_ty(infer),
-        Direction::FromAbove => env.upper_red_ty(infer),
-    }
-}
-
-/// Set the lower or upper red-ty bound (depending on `direction`) on `infer` to `red_ty`.
-fn set_bounding_red_ty<'db>(
-    env: &mut Env<'db>,
-    direction: Direction,
-    infer: InferVarIndex,
-    red_ty: RedTy<'db>,
-    or_else: &dyn OrElse<'db>,
-) -> ArcOrElse<'db> {
-    match direction {
-        Direction::FromBelow => env.set_lower_red_ty(infer, red_ty, or_else),
-        Direction::FromAbove => env.set_upper_red_ty(infer, red_ty, or_else),
     }
 }
 
@@ -467,10 +436,7 @@ pub async fn for_each_bound<'db>(
     loop {
         let new_red_ty = env
             .loop_on_inference_var(infer, |data| {
-                let (red_ty, _or_else) = match direction {
-                    Direction::FromBelow => data.lower_red_ty()?,
-                    Direction::FromAbove => data.upper_red_ty()?,
-                };
+                let (red_ty, _or_else) = data.red_ty_bound(direction)?;
                 if let Some(previous_ty) = &previous_red_ty {
                     if red_ty == *previous_ty {
                         return None;

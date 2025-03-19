@@ -23,13 +23,14 @@ use dada_ir_ast::{
     span::Span,
 };
 use dada_util::{Map, debug};
+use futures::task::LocalFutureObj;
 
 use crate::{check::runtime::Runtime, check::universe::Universe, ir::exprs::SymExpr};
 
 use super::{
     CheckInEnv,
     debug::LogHandle,
-    inference::{InferVarKind, InferenceVarData},
+    inference::{Direction, InferVarKind, InferenceVarData},
     predicates::Predicate,
     red::{Chain, RedTy},
     report::{ArcOrElse, BooleanTypeRequired, OrElse},
@@ -564,42 +565,65 @@ impl<'db> Env<'db> {
             })
     }
 
-    /// Return existing lower red-ty-bound on `infer`
-    pub fn lower_red_ty(&self, infer: InferVarIndex) -> Option<(RedTy<'db>, ArcOrElse<'db>)> {
-        self.runtime
-            .with_inference_var_data(infer, |data| data.lower_red_ty().clone())
-    }
-
-    /// Return existing upper red-ty-bound on `infer`
-    pub fn upper_red_ty(&self, infer: InferVarIndex) -> Option<(RedTy<'db>, ArcOrElse<'db>)> {
-        self.runtime
-            .with_inference_var_data(infer, |data| data.upper_red_ty().clone())
-    }
-
+    /// Return a struct that gives ability to peek, modify, or block on the lower or upper red-ty-bound
+    /// on the given inference variable.
     #[track_caller]
-    pub fn set_lower_red_ty(
-        &mut self,
-        infer: InferVarIndex,
-        red_ty: RedTy<'db>,
-        or_else: &dyn OrElse<'db>,
-    ) -> ArcOrElse<'db> {
-        self.runtime
-            .mutate_inference_var_data(infer, &self.log, |data| {
-                data.set_lower_red_ty(red_ty, or_else)
+    pub fn red_ty_bound(&self, infer: InferVarIndex, direction: Direction) -> RedTyBound<'_, 'db> {
+        RedTyBound {
+            env: self,
+            infer,
+            direction,
+            source_location: Location::caller(),
+        }
+    }
+}
+
+/// Accessor for the bounding red-ty on an inference variable.
+/// Can be used to [read](`Self::peek`) or [modify](`Self::set`)
+/// the current value but can also be awaited through the [`IntoFuture`][]
+/// impl, which will block until a value is set by another task.
+/// Note that red-ty bounds can be set more than once but must always
+/// get tighter each time they are modified.
+pub struct RedTyBound<'env, 'db> {
+    env: &'env Env<'db>,
+    infer: InferVarIndex,
+    direction: Direction,
+    source_location: &'static Location<'static>,
+}
+
+impl<'env, 'db> RedTyBound<'env, 'db> {
+    /// Read the current value of the bound
+    #[track_caller]
+    pub fn peek(self) -> Option<(RedTy<'db>, ArcOrElse<'db>)> {
+        self.env
+            .runtime
+            .with_inference_var_data(self.infer, |data| data.red_ty_bound(self.direction))
+    }
+
+    /// Modify the current value of the bound
+    #[track_caller]
+    pub fn set(self, red_ty: RedTy<'db>, or_else: &dyn OrElse<'db>) {
+        self.env
+            .runtime
+            .mutate_inference_var_data(self.infer, &self.env.log, |data| {
+                data.set_red_ty_bound(self.direction, red_ty, or_else)
             })
     }
+}
 
-    #[track_caller]
-    pub fn set_upper_red_ty(
-        &mut self,
-        infer: InferVarIndex,
-        red_ty: RedTy<'db>,
-        or_else: &dyn OrElse<'db>,
-    ) -> ArcOrElse<'db> {
-        self.runtime
-            .mutate_inference_var_data(infer, &self.log, |data| {
-                data.set_upper_red_ty(red_ty, or_else)
-            })
+/// Convert to a future that blocks until a bound is set
+impl<'env, 'db> IntoFuture for RedTyBound<'env, 'db> {
+    type Output = Option<(RedTy<'db>, ArcOrElse<'db>)>;
+
+    type IntoFuture = LocalFutureObj<'env, Option<(RedTy<'db>, ArcOrElse<'db>)>>;
+
+    fn into_future(self) -> Self::IntoFuture {
+        LocalFutureObj::new(Box::new(self.env.runtime.loop_on_inference_var(
+            self.infer,
+            self.source_location,
+            &self.env.log,
+            move |data| data.red_ty_bound(self.direction),
+        )))
     }
 }
 

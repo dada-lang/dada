@@ -197,15 +197,15 @@ impl<'db> Runtime<'db> {
 
     /// Returns a future that blocks the current task until `op` returns `Some`.
     /// `op` will be reinvoked each time the state of the inference variable may have changed.
-    #[track_caller]
     pub fn loop_on_inference_var<T>(
         &self,
         infer: InferVarIndex,
+        source_location: &'static Location<'static>,
         log: &LogHandle<'_>,
         mut op: impl FnMut(&InferenceVarData<'db>) -> Option<T>,
     ) -> impl Future<Output = Option<T>> {
         std::future::poll_fn(move |cx| {
-            log.log(Location::caller(), "loop_on_inference_var", &[&infer]);
+            log.log(source_location, "loop_on_inference_var", &[&infer]);
             let data = self.with_inference_var_data(infer, |data| op(data));
             match data {
                 Some(v) => Poll::Ready(Some(v)),

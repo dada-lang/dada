@@ -351,7 +351,9 @@ impl<'db> Env<'db> {
         infer: InferVarIndex,
         op: impl FnMut(&InferenceVarData<'db>) -> Option<T>,
     ) -> impl Future<Output = Option<T>> {
-        self.runtime.loop_on_inference_var(infer, &self.log, op)
+        let source_location = Location::caller();
+        self.runtime
+            .loop_on_inference_var(infer, source_location, &self.log, op)
     }
 
     /// Choose between two options:
