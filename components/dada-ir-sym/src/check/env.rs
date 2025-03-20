@@ -35,7 +35,10 @@ use super::{
     red::{Chain, RedTy},
     report::{ArcOrElse, BooleanTypeRequired, OrElse},
     runtime::DeferResult,
-    subtype::{is_future::require_future_type, is_numeric::require_numeric_type},
+    subtype::{
+        is_future::require_future_type, is_numeric::require_numeric_type,
+        terms::reconcile_ty_bounds,
+    },
 };
 
 pub mod combinator;
@@ -277,6 +280,17 @@ impl<'db> Env<'db> {
             "created inference variable",
             &[&infer, &kind, &span],
         );
+
+        match kind {
+            SymGenericKind::Type => {
+                self.spawn(TaskDescription::Misc, async move |env| {
+                    reconcile_ty_bounds(env, infer).await
+                });
+            }
+            SymGenericKind::Perm => {}
+            SymGenericKind::Place => {}
+        }
+
         infer
     }
 
@@ -505,12 +519,17 @@ impl<'db> Env<'db> {
     /// Record that `lower <: upper` must hold,
     /// returning true if this is the first time that this has been recorded
     /// or false if it has been recorded before.
+    ///
+    /// # Panics
+    ///
+    /// If `lower == upper`, as that is just always true, why record it?
     #[track_caller]
     pub fn insert_sub_infer_var_pair(
         &mut self,
         lower: InferVarIndex,
         upper: InferVarIndex,
     ) -> bool {
+        assert_ne!(lower, upper);
         self.runtime
             .insert_sub_infer_var_pair(lower, upper, &self.log)
     }

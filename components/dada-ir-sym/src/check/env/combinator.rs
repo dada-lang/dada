@@ -8,7 +8,7 @@ use futures::{
 };
 
 use crate::{
-    check::{alternatives::Alternative, debug::TaskDescription},
+    check::{alternatives::Alternative, debug::TaskDescription, inference::Direction, red::RedTy},
     ir::indices::InferVarIndex,
 };
 
@@ -394,6 +394,37 @@ impl<'db> Env<'db> {
                 not_required.poll_unpin(cx)
             }
         })
+    }
+
+    /// Invoke `op` for each new lower (or upper, depending on direction) bound on `?X`.
+    pub async fn for_each_bound(
+        &mut self,
+        direction: Direction,
+        infer: InferVarIndex,
+        mut op: impl AsyncFnMut(&mut Env<'db>, &RedTy<'db>, ArcOrElse<'db>) -> Errors<()>,
+    ) -> Errors<()> {
+        let mut previous_red_ty = None;
+        loop {
+            let new_pair = self
+                .loop_on_inference_var(infer, |data| {
+                    let (red_ty, or_else) = data.red_ty_bound(direction)?;
+                    if let Some(previous_ty) = &previous_red_ty {
+                        if red_ty == *previous_ty {
+                            return None;
+                        }
+                    }
+                    Some((red_ty, or_else))
+                })
+                .await;
+
+            match new_pair {
+                None => return Ok(()),
+                Some((lower_red_ty, or_else)) => {
+                    previous_red_ty = Some(lower_red_ty);
+                    op(self, previous_red_ty.as_ref().unwrap(), or_else).await?;
+                }
+            }
+        }
     }
 }
 

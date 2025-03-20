@@ -114,3 +114,9 @@ impl<'e, T: Ord> IntoIterator for &'e VecSet<T> {
         self.sorted_elements.iter()
     }
 }
+
+impl<T: Ord> From<T> for VecSet<T> {
+    fn from(value: T) -> Self {
+        VecSet::singleton(value)
+    }
+}
