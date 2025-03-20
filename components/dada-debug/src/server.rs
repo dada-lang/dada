@@ -3,9 +3,9 @@ use std::{
     time::Duration,
 };
 
-use axum::{Router, routing::get};
+use axum::{Json, Router, http::header::ACCEPT, routing::get};
 use dada_ir_ast::DebugEvent;
-use serde::Deserialize;
+use serde::{Deserialize, Serialize};
 
 pub fn main(port: u32, debug_rx: Receiver<DebugEvent>) -> anyhow::Result<()> {
     tokio::runtime::Builder::new_current_thread()
@@ -36,6 +36,7 @@ async fn main_async(port: u32, debug_rx: Receiver<DebugEvent>) -> anyhow::Result
         .route("/view/{event_index}", get(view))
         .route("/assets/{file}", get(assets))
         .route("/source/{*path}", get(source))
+        .route("/events", get(events))
         .with_state(state.clone());
 
     // run our app with hyper, listening globally on port 3000
@@ -65,6 +66,19 @@ async fn respond_ok_or_500<B: Into<String>>(
     }
 }
 
+async fn respond_json_or_500<T: Serialize>(
+    result: anyhow::Result<T>,
+) -> axum::response::Result<Json<T>> {
+    match result {
+        Ok(data) => Ok(Json(data)),
+        Err(err) => Err(axum::response::Response::builder()
+            .status(500)
+            .body(crate::error::error(err))
+            .unwrap()
+            .into()),
+    }
+}
+
 async fn root(
     axum::extract::State(state): axum::extract::State<Arc<State>>,
 ) -> axum::http::Response<String> {
@@ -82,6 +96,31 @@ async fn assets(
     axum::extract::Path(file): axum::extract::Path<String>,
 ) -> axum::http::Response<String> {
     respond_ok_or_500(crate::assets::try_asset(&file)).await
+}
+
+async fn events(
+    headers: axum::http::header::HeaderMap,
+    axum::extract::State(state): axum::extract::State<Arc<State>>,
+) -> axum::response::Result<Json<Vec<crate::root::RootEvent>>> {
+    // Check the request mime type
+    let accept_header = headers.get(&ACCEPT).map(|value| value.to_str());
+    match accept_header {
+        Some(Ok("application/json")) => {
+            respond_json_or_500(crate::root::root_data(&state).await).await
+        }
+        None | Some(Err(_)) => {
+            respond_json_or_500(Err(anyhow::anyhow!(
+                "This endpoint only returns application/json"
+            )))
+            .await
+        }
+        _ => {
+            respond_json_or_500(Err(anyhow::anyhow!(
+                "This endpoint only returns application/json"
+            )))
+            .await
+        }
+    }
 }
 
 #[derive(Deserialize, Debug)]
