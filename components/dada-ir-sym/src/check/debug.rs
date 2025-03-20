@@ -303,7 +303,7 @@ impl<'db> Log<'db> {
                     | EventKind::Spawned(..)
                     | EventKind::Indent { .. }
                     | EventKind::Undent { .. }
-                    | EventKind::Log { .. } => todo!(),
+                    | EventKind::Log { .. } => None,
                     EventKind::Infer { infer, .. } => Some(*infer),
                 },
             })
