@@ -271,7 +271,7 @@ impl<'db> Env<'db> {
             SymGenericKind::Perm => InferenceVarData::new_perm(span),
             SymGenericKind::Place => panic!("inference variable of kind `Place` not supported"),
         };
-        let infer = self.runtime.fresh_inference_var(data);
+        let infer = self.runtime.fresh_inference_var(&self.log, data);
         self.log.log(
             Location::caller(),
             "created inference variable",

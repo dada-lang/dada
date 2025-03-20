@@ -187,12 +187,17 @@ impl<'db> Runtime<'db> {
     /// Creates a fresh inference variable of the given kind and universe.
     ///
     /// Low-level routine not to be directly invoked.
-    pub fn fresh_inference_var(&self, data: InferenceVarData<'db>) -> InferVarIndex {
+    pub fn fresh_inference_var(
+        &self,
+        log: &LogHandle,
+        data: InferenceVarData<'db>,
+    ) -> InferVarIndex {
         assert!(!self.check_complete());
         let mut inference_vars = self.inference_vars.write().unwrap();
-        let var_index = InferVarIndex::from(inference_vars.len());
+        let infer = InferVarIndex::from(inference_vars.len());
+        log.infer(Location::caller(), "fresh_inference_var", infer, &[&data]);
         inference_vars.push(data);
-        var_index
+        infer
     }
 
     /// Returns a future that blocks the current task until `op` returns `Some`.
@@ -265,10 +270,11 @@ impl<'db> Runtime<'db> {
         let inference_var = &mut inference_vars[infer.as_usize()];
         let result = op(inference_var);
         if result.did_change() {
-            log.log(
+            log.infer(
                 Location::caller(),
                 "mutate_inference_var_data",
-                &[&infer, &*inference_var],
+                infer,
+                &[&*inference_var],
             );
             self.wake_tasks_monitoring_inference_var(infer);
         }
