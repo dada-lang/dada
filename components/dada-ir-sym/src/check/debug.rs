@@ -1,6 +1,7 @@
 #![expect(dead_code)]
 
 use std::{
+    collections::{BTreeMap, btree_map::Entry},
     panic::Location,
     rc::Rc,
     sync::{Mutex, mpsc::Sender},
@@ -8,7 +9,7 @@ use std::{
 
 use dada_ir_ast::{DebugEvent, DebugEventPayload, span::Span};
 use dada_util::fixed_depth_json;
-use export::SourceLocation;
+use export::{SourceLocation, TimeStamp};
 use serde::Serialize;
 
 use crate::ir::{indices::InferVarIndex, types::SymTy};
@@ -135,6 +136,23 @@ impl<'db> LogHandle<'db> {
         })
     }
 
+    /// Log a message with argument(s).
+    pub fn infer(
+        &self,
+        source_location: &'static Location<'static>,
+        message: &'static str,
+        infer: InferVarIndex,
+        values: &[&dyn erased_serde::Serialize],
+    ) {
+        self.push_event(source_location, message, values, |message, json_value| {
+            EventKind::Infer {
+                infer,
+                message,
+                json_value,
+            }
+        })
+    }
+
     fn push_event(
         &self,
         source_location: &'static Location<'static>,
@@ -176,7 +194,6 @@ pub struct Log<'db> {
     db: &'db dyn crate::Db,
     tasks: Vec<Task<'db>>,
     events: Vec<Event>,
-    inference_variables: Vec<InferenceVariable<'db>>,
     debug_tx: Sender<DebugEvent>,
 }
 
@@ -202,7 +219,6 @@ impl<'db> Log<'db> {
             db,
             tasks,
             events,
-            inference_variables: Default::default(),
             debug_tx,
         }
     }
@@ -251,6 +267,7 @@ impl<'db> Log<'db> {
                     EventKind::Indent { message, .. } => message,
                     EventKind::Undent { .. } => "end",
                     EventKind::Log { message, .. } => message,
+                    EventKind::Infer { message, .. } => message,
                 },
                 value: match &event.kind {
                     EventKind::Root => "null".into(),
@@ -267,6 +284,7 @@ impl<'db> Log<'db> {
                         message: _,
                         json_value,
                     } => json_value.into(),
+                    EventKind::Infer { json_value, .. } => json_value.into(),
                 },
                 spawns: match &event.kind {
                     EventKind::Root => None,
@@ -277,6 +295,16 @@ impl<'db> Log<'db> {
                     EventKind::Indent { .. } => None,
                     EventKind::Undent { .. } => None,
                     EventKind::Log { .. } => None,
+                    EventKind::Infer { .. } => None,
+                },
+                infer: match &event.kind {
+                    EventKind::Root
+                    | EventKind::TaskStart
+                    | EventKind::Spawned(..)
+                    | EventKind::Indent { .. }
+                    | EventKind::Undent { .. }
+                    | EventKind::Log { .. } => todo!(),
+                    EventKind::Infer { infer, .. } => Some(*infer),
                 },
             })
             .collect();
@@ -291,7 +319,10 @@ impl<'db> Log<'db> {
         let root_task = TaskIndex::root();
         let nested_event = self.export_nested_event_for_task(root_task, &events_by_task);
 
-        // Next: assemble tasks
+        // Assemble inference events
+        let infers = self.export_infers();
+
+        // Assemble tasks
         let tasks = self
             .tasks
             .iter()
@@ -307,7 +338,30 @@ impl<'db> Log<'db> {
             events_flat,
             nested_event,
             tasks,
+            infers,
         }
+    }
+
+    fn export_infers(&self) -> Vec<export::Infer> {
+        let mut events_by_infer_var: BTreeMap<InferVarIndex, export::Infer> = Default::default();
+
+        for (event, index) in self.events.iter().zip(0..) {
+            if let EventKind::Infer { infer, .. } = &event.kind {
+                match events_by_infer_var.entry(*infer) {
+                    Entry::Vacant(e) => {
+                        e.insert(export::Infer {
+                            created_at: TimeStamp { index },
+                            modifications: vec![],
+                        });
+                    }
+                    Entry::Occupied(mut e) => {
+                        e.get_mut().modifications.push(TimeStamp { index });
+                    }
+                }
+            }
+        }
+
+        events_by_infer_var.into_values().collect()
     }
 
     fn export_nested_event_for_task(
@@ -362,7 +416,10 @@ impl<'db> Log<'db> {
                         children: self.export_child_nested_events(task_events, events_by_task),
                     });
                 }
-                EventKind::Root | EventKind::Log { .. } | EventKind::TaskStart => {
+                EventKind::Infer { .. }
+                | EventKind::Root
+                | EventKind::Log { .. }
+                | EventKind::TaskStart => {
                     output.push(export::NestedEvent {
                         timestamp: export::TimeStamp {
                             index: *event_first,
@@ -434,6 +491,13 @@ pub enum EventKind {
     /// Add a log item with the given header + (JSON-encoded) argument
     Log {
         message: &'static str,
+        json_value: String,
+    },
+
+    /// A log message about an inference variable being created or modified
+    Infer {
+        message: &'static str,
+        infer: InferVarIndex,
         json_value: String,
     },
 }

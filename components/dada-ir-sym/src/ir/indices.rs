@@ -16,6 +16,10 @@ impl InferVarIndex {
     pub fn as_usize(self) -> usize {
         self.0
     }
+
+    pub fn range(max: InferVarIndex) -> impl Iterator<Item = InferVarIndex> {
+        (0..max.0).map(InferVarIndex)
+    }
 }
 
 impl From<usize> for InferVarIndex {

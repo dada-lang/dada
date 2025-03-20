@@ -4,10 +4,13 @@ use std::{borrow::Cow, panic::Location};
 
 use serde::Serialize;
 
+use crate::ir::indices::InferVarIndex;
+
 #[derive(Serialize, Debug)]
 pub struct Log<'a> {
     pub events_flat: Vec<Event<'a>>,
     pub nested_event: NestedEvent,
+    pub infers: Vec<Infer>,
     pub tasks: Vec<Task>,
 }
 
@@ -24,6 +27,9 @@ pub struct Event<'a> {
 
     /// If this event spawns a task, this is its id.
     pub spawns: Option<TaskId>,
+
+    /// If this event describes creation/change to an inference variable, this is its id.
+    pub infer: Option<InferVarIndex>,
 }
 
 #[derive(Serialize, Debug)]
@@ -73,4 +79,14 @@ pub struct NestedEvent {
 #[derive(Copy, Clone, Serialize, Debug)]
 pub struct InferId {
     pub index: usize,
+}
+
+/// Information about an inference variable
+#[derive(Serialize, Debug)]
+pub struct Infer {
+    /// Location of the event that created the value of the variable
+    pub created_at: TimeStamp,
+
+    /// Location of each event that modified the value of the variable
+    pub modifications: Vec<TimeStamp>,
 }
