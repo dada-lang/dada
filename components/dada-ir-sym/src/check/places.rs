@@ -10,7 +10,7 @@ use crate::{
     prelude::CheckedFieldTy,
 };
 
-use super::{red::RedTy, to_red::ToRedTy};
+use super::{inference::Direction, red::RedTy, to_red::ToRedTy};
 
 pub trait PlaceTy<'db> {
     async fn place_ty(&self, env: &mut Env<'db>) -> SymTy<'db>;
@@ -63,8 +63,8 @@ fn field_ty<'db>(
         RedTy::Infer(infer) => {
             // To have constructed this place there must have been a valid inference bound already
             let (infer_red_ty, _) = env
-                .runtime()
-                .with_inference_var_data(infer, |data| data.lower_red_ty())
+                .red_ty_bound(infer, Direction::FromBelow)
+                .peek()
                 .unwrap();
             field_ty(env, owner_place, owner_perm, infer_red_ty, sym_field)
         }

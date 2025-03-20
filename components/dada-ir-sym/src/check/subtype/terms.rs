@@ -1,11 +1,12 @@
 //! Implement object-level subtyping.
 
 use dada_ir_ast::{diagnostic::Errors, span::Span};
-use dada_util::boxed_async_fn;
+use dada_util::{boxed_async_fn, vecset::VecSet};
 
 use crate::{
     check::{
         env::Env,
+        inference::{Direction, InferVarKind},
         predicates::{
             is_provably_copy::term_is_provably_copy, is_provably_lent::term_is_provably_lent,
             is_provably_move::term_is_provably_move, is_provably_owned::term_is_provably_owned,
@@ -14,8 +15,8 @@ use crate::{
             require_lent::require_term_is_lent, require_move::require_term_is_move,
             require_owned::require_term_is_owned, require_term_is_leased, term_is_provably_leased,
         },
-        red::{RedTerm, RedTy},
-        report::{ArcOrElse, Because, OrElse},
+        red::{Chain, RedTerm, RedTy},
+        report::{Because, OrElse},
         subtype::chains::require_sub_red_perms,
         to_red::ToRedTerm,
     },
@@ -46,6 +47,7 @@ pub async fn require_sub_terms<'db>(
     upper: SymGenericTerm<'db>,
     or_else: &dyn OrElse<'db>,
 ) -> Errors<()> {
+    env.log("require_sub_terms", &[&lower, &upper]);
     env.require_both(
         async |env| propagate_bounds(env, lower, upper, or_else).await,
         async |env| {
@@ -67,6 +69,7 @@ async fn propagate_bounds<'db>(
     upper: SymGenericTerm<'db>,
     or_else: &dyn OrElse<'db>,
 ) -> Errors<()> {
+    env.log("propagate_bounds", &[&lower, &upper]);
     env.require_all()
         .require(
             // If subtype is copy, supertype must be
@@ -142,45 +145,20 @@ pub async fn require_sub_red_terms<'db>(
     upper: RedTerm<'db>,
     or_else: &dyn OrElse<'db>,
 ) -> Errors<()> {
-    let db = env.db();
+    env.log("require_sub_red_terms", &[&lower, &upper]);
     match (&lower.ty, &upper.ty) {
         (&RedTy::Error(reported), _) | (_, &RedTy::Error(reported)) => Err(reported),
 
-        (&RedTy::Infer(infer_lower), &RedTy::Infer(_)) => {
-            for_each_lower_bound(env, infer_lower, async |env, lower_bound| {
-                require_sub_red_terms(
-                    env,
-                    RedTerm::new(db, lower.chains.clone(), lower_bound.clone()),
-                    upper.clone(),
-                    or_else,
-                )
-                .await
-            })
-            .await
+        (&RedTy::Infer(lower_infer), &RedTy::Infer(upper_infer)) => {
+            require_infer_sub_infer(env, lower, lower_infer, upper, upper_infer, or_else).await
         }
 
-        (&RedTy::Infer(infer_lower), _) => {
-            let generalized_ty =
-                require_infer_has_upper_bound(env, infer_lower, &upper.ty, or_else).await?;
-            require_sub_red_terms(
-                env,
-                RedTerm::new(db, lower.chains, generalized_ty),
-                upper,
-                or_else,
-            )
-            .await
+        (&RedTy::Infer(lower_infer), _) => {
+            require_infer_sub_ty(env, lower.chains, lower_infer, upper, or_else).await
         }
 
-        (_, &RedTy::Infer(infer_upper)) => {
-            let generalized_ty =
-                require_infer_has_lower_bound(env, &lower.ty, infer_upper, or_else).await?;
-            require_sub_red_terms(
-                env,
-                lower,
-                RedTerm::new(db, upper.chains, generalized_ty),
-                or_else,
-            )
-            .await
+        (_, &RedTy::Infer(upper_infer)) => {
+            require_ty_sub_infer(env, lower, upper.chains, upper_infer, or_else).await
         }
 
         (
@@ -254,32 +232,140 @@ pub async fn require_sub_red_terms<'db>(
     }
 }
 
-#[derive(Copy, Clone, Debug)]
-pub enum Direction {
-    FromBelow,
-    FromAbove,
-}
-
-/// Require that `lower <= ?X`.
-pub async fn require_infer_has_lower_bound<'db>(
+/// Require that `lower <: upper`, where both are type inference variables.
+/// This will insert record `upper` as an upper bound of `lower`.
+/// If `upper` is a new upper bound, it will begin looping,
+/// taking each lower bound of `lower` and propagating it to `upper`
+/// (in this case it will not return).
+async fn require_infer_sub_infer<'db>(
     env: &mut Env<'db>,
-    bound: &RedTy<'db>,
-    infer: InferVarIndex,
+    lower: RedTerm<'db>,
+    lower_infer: InferVarIndex,
+    upper: RedTerm<'db>,
+    upper_infer: InferVarIndex,
     or_else: &dyn OrElse<'db>,
-) -> Errors<RedTy<'db>> {
-    require_infer_has_bound(env, Direction::FromBelow, bound, infer, or_else).await
+) -> Errors<()> {
+    let db = env.db();
+    debug_assert_eq!(env.infer_var_kind(lower_infer), InferVarKind::Type);
+    debug_assert_eq!(env.infer_var_kind(upper_infer), InferVarKind::Type);
+
+    if env.insert_sub_infer_var_pair(lower_infer, upper_infer) {
+        env.require_both(
+            async |env| {
+                for_each_bound(
+                    env,
+                    Direction::FromBelow,
+                    lower_infer,
+                    async |env, lower_bound| {
+                        require_sub_red_terms(
+                            env,
+                            RedTerm::new(db, lower.chains.clone(), lower_bound.clone()),
+                            upper.clone(),
+                            or_else,
+                        )
+                        .await
+                    },
+                )
+                .await
+            },
+            async |env| {
+                for_each_bound(
+                    env,
+                    Direction::FromAbove,
+                    upper_infer,
+                    async |env, upper_bound| {
+                        require_sub_red_terms(
+                            env,
+                            lower.clone(),
+                            RedTerm::new(db, upper.chains.clone(), upper_bound.clone()),
+                            or_else,
+                        )
+                        .await
+                    },
+                )
+                .await
+            },
+        )
+        .await
+    } else {
+        Ok(())
+    }
 }
 
-/// Require that `?X <= upper`.
-pub async fn require_infer_has_upper_bound<'db>(
+/// Relate `lower_term` (not)
+async fn require_ty_sub_infer<'db>(
     env: &mut Env<'db>,
-    infer: InferVarIndex,
-    bound: &RedTy<'db>,
+    lower_term: RedTerm<'db>,
+    upper_chains: VecSet<Chain<'db>>,
+    upper_infer: InferVarIndex,
     or_else: &dyn OrElse<'db>,
-) -> Errors<RedTy<'db>> {
-    require_infer_has_bound(env, Direction::FromAbove, bound, infer, or_else).await
+) -> Errors<()> {
+    let db = env.db();
+
+    debug_assert!(
+        !matches!(lower_term.ty, RedTy::Infer(_)),
+        "unexpected inference variable"
+    );
+
+    // Get the lower bounding red-ty from `upper_infer`;
+    // if it doesn't have one yet, generalize `lower_term.ty` to create one.
+    let generalized_ty = require_infer_has_bound(
+        env,
+        Direction::FromBelow,
+        &lower_term.ty,
+        upper_infer,
+        or_else,
+    )
+    .await?;
+
+    // Relate the lower term to the upper term
+    require_sub_red_terms(
+        env,
+        lower_term,
+        RedTerm::new(db, upper_chains, generalized_ty),
+        or_else,
+    )
+    .await
 }
 
+/// Return the red-ty lower bound from `infer`, creating one if needed by generalizing `bound`.
+/// Does not relate the return value and `bound` in any other way.
+async fn require_infer_sub_ty<'db>(
+    env: &mut Env<'db>,
+    lower_chains: VecSet<Chain<'db>>,
+    lower_infer: InferVarIndex,
+    upper_term: RedTerm<'db>,
+    or_else: &dyn OrElse<'db>,
+) -> Errors<()> {
+    let db = env.db();
+
+    debug_assert!(
+        !matches!(upper_term.ty, RedTy::Infer(_)),
+        "unexpected inference variable"
+    );
+
+    // Get the upper bounding red-ty from `upper_infer`;
+    // if it doesn't have one yet, generalize `upper_term.ty` to create one.
+    let generalized_ty = require_infer_has_bound(
+        env,
+        Direction::FromAbove,
+        &upper_term.ty,
+        lower_infer,
+        or_else,
+    )
+    .await?;
+
+    require_sub_red_terms(
+        env,
+        RedTerm::new(db, lower_chains, generalized_ty),
+        upper_term,
+        or_else,
+    )
+    .await
+}
+
+/// Return the upper or lower (depending on direction) red-ty-bound from `infer`.
+/// If `infer` does not yet have a suitable bound, create one by generalizing `bound`.
 async fn require_infer_has_bound<'db>(
     env: &mut Env<'db>,
     direction: Direction,
@@ -287,13 +373,14 @@ async fn require_infer_has_bound<'db>(
     infer: InferVarIndex,
     or_else: &dyn OrElse<'db>,
 ) -> Errors<RedTy<'db>> {
-    match bounding_red_ty(env, direction, infer) {
+    match env.red_ty_bound(infer, direction).peek() {
         None => {
             // Inference variable does not currently have a red-ty bound.
             // Create a generalized version of `bound` and use that.
             let span = env.infer_var_span(infer);
             let generalized = generalize(env, bound, span)?;
-            set_bounding_red_ty(env, direction, infer, generalized.clone(), or_else);
+            env.red_ty_bound(infer, direction)
+                .set(generalized.clone(), or_else);
             Ok(generalized)
         }
 
@@ -306,34 +393,8 @@ async fn require_infer_has_bound<'db>(
     }
 }
 
-fn bounding_red_ty<'db>(
-    env: &mut Env<'db>,
-    direction: Direction,
-    infer: InferVarIndex,
-) -> Option<(RedTy<'db>, ArcOrElse<'db>)> {
-    match direction {
-        Direction::FromBelow => env
-            .runtime()
-            .with_inference_var_data(infer, |data| data.lower_red_ty().clone()),
-        Direction::FromAbove => env
-            .runtime()
-            .with_inference_var_data(infer, |data| data.upper_red_ty().clone()),
-    }
-}
-
-fn set_bounding_red_ty<'db>(
-    env: &mut Env<'db>,
-    direction: Direction,
-    infer: InferVarIndex,
-    red_ty: RedTy<'db>,
-    or_else: &dyn OrElse<'db>,
-) -> ArcOrElse<'db> {
-    match direction {
-        Direction::FromBelow => env.set_lower_red_ty(infer, red_ty, or_else),
-        Direction::FromAbove => env.set_upper_red_ty(infer, red_ty, or_else),
-    }
-}
-
+/// *Generalize* returns a new red-ty created by replacing any generic arguments in `red_ty`
+/// with fresh inference variables.
 fn generalize<'db>(env: &mut Env<'db>, red_ty: &RedTy<'db>, span: Span<'db>) -> Errors<RedTy<'db>> {
     let db = env.db();
     let red_ty_generalized = match red_ty {
@@ -364,31 +425,32 @@ fn generalize<'db>(env: &mut Env<'db>, red_ty: &RedTy<'db>, span: Span<'db>) -> 
     Ok(red_ty_generalized)
 }
 
-/// Require that `?X <= upper`.
-pub async fn for_each_lower_bound<'db>(
+/// Invoke `op` for each new lower (or upper, depending on direction) bound on `?X`.
+pub async fn for_each_bound<'db>(
     env: &mut Env<'db>,
+    direction: Direction,
     infer: InferVarIndex,
     mut op: impl AsyncFnMut(&mut Env<'db>, &RedTy<'db>) -> Errors<()>,
 ) -> Errors<()> {
-    let mut previous_ty = None;
+    let mut previous_red_ty = None;
     loop {
-        let new_lower_red_ty = env
+        let new_red_ty = env
             .loop_on_inference_var(infer, |data| {
-                let (lower_red_ty, _or_else) = data.lower_red_ty()?;
-                if let Some(previous_ty) = &previous_ty {
-                    if lower_red_ty == *previous_ty {
+                let (red_ty, _or_else) = data.red_ty_bound(direction)?;
+                if let Some(previous_ty) = &previous_red_ty {
+                    if red_ty == *previous_ty {
                         return None;
                     }
                 }
-                Some(lower_red_ty)
+                Some(red_ty)
             })
             .await;
 
-        match new_lower_red_ty {
+        match new_red_ty {
             None => return Ok(()),
             Some(lower_red_ty) => {
-                previous_ty = Some(lower_red_ty);
-                op(env, previous_ty.as_ref().unwrap()).await?;
+                previous_red_ty = Some(lower_red_ty);
+                op(env, previous_red_ty.as_ref().unwrap()).await?;
             }
         }
     }

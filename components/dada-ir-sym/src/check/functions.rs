@@ -14,7 +14,7 @@ use crate::{
     ir::exprs::{SymExpr, SymExprKind, SymPlaceExpr, SymPlaceExprKind},
 };
 
-use super::{CheckInEnv, resolve::Resolver};
+use super::{CheckInEnv, report::InvalidReturnValue, resolve::Resolver};
 
 pub(crate) fn check_function_body<'db>(
     db: &'db dyn crate::Db,
@@ -112,9 +112,24 @@ fn check_function_body_ast_block<'db>(
         db,
         function.name_span(db),
         async move |runtime| {
-            let (mut env, _, _) = prepare_env(db, runtime, function).await;
+            let (
+                mut env,
+                _,
+                SymInputOutput {
+                    input_tys: _,
+                    output_ty,
+                },
+            ) = prepare_env(db, runtime, function).await;
             env.log("check_function_body_ast_block", &[&function, &body]);
             let expr = body.check_in_env(&mut env).await;
+            env.spawn_require_assignable_type(
+                expr.ty(db),
+                output_ty,
+                &InvalidReturnValue {
+                    value: expr,
+                    return_ty: output_ty,
+                },
+            );
             (env, expr)
         },
         |(mut env, expr)| Resolver::new(&mut env).resolve(expr),

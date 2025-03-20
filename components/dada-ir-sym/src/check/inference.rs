@@ -3,10 +3,7 @@ use std::sync::Arc;
 use dada_ir_ast::span::Span;
 use salsa::Update;
 
-use crate::{
-    check::universe::Universe,
-    ir::{indices::InferVarIndex, types::SymGenericKind},
-};
+use crate::ir::{indices::InferVarIndex, types::SymGenericKind};
 
 use super::{
     predicates::Predicate,
@@ -16,9 +13,13 @@ use super::{
 
 mod serialize;
 
-pub(crate) struct InferenceVarData<'db> {
-    universe: Universe,
+#[derive(Copy, Clone, Debug)]
+pub enum Direction {
+    FromBelow,
+    FromAbove,
+}
 
+pub(crate) struct InferenceVarData<'db> {
     span: Span<'db>,
 
     /// If the element for a given predicate is `Some`, then the predicate is known to be true
@@ -40,9 +41,8 @@ pub(crate) struct InferenceVarData<'db> {
 }
 
 impl<'db> InferenceVarData<'db> {
-    fn new(universe: Universe, span: Span<'db>, bounds: InferenceVarBounds<'db>) -> Self {
+    fn new(span: Span<'db>, bounds: InferenceVarBounds<'db>) -> Self {
         Self {
-            universe,
             span,
             bounds,
             is: [None, None, None, None],
@@ -51,9 +51,8 @@ impl<'db> InferenceVarData<'db> {
     }
 
     /// Create the data for a new permission inference variable.
-    pub fn new_perm(universe: Universe, span: Span<'db>) -> Self {
+    pub fn new_perm(span: Span<'db>) -> Self {
         Self::new(
-            universe,
             span,
             InferenceVarBounds::Perm {
                 lower: Default::default(),
@@ -64,9 +63,8 @@ impl<'db> InferenceVarData<'db> {
 
     /// Create the data for a new type inference variable.
     /// Requires the index `perm` of a corresponding permission variable.
-    pub fn new_ty(universe: Universe, span: Span<'db>, perm: InferVarIndex) -> Self {
+    pub fn new_ty(span: Span<'db>, perm: InferVarIndex) -> Self {
         Self::new(
-            universe,
             span,
             InferenceVarBounds::Ty {
                 perm,
@@ -214,29 +212,19 @@ impl<'db> InferenceVarData<'db> {
         }
     }
 
-    /// Returns the lower bound on this type variable.
+    /// Returns the lower or upper bound on this type variable, depending on `direction`.
     ///
     /// # Panics
     ///
     /// If this is not a type variable.
     #[track_caller]
-    pub fn lower_red_ty(&self) -> Option<(RedTy<'db>, ArcOrElse<'db>)> {
+    pub fn red_ty_bound(&self, direction: Direction) -> Option<(RedTy<'db>, ArcOrElse<'db>)> {
         match &self.bounds {
-            InferenceVarBounds::Ty { lower, .. } => lower.clone(),
-            _ => panic!("lower_red_ty invoked on a var of kind `{:?}`", self.kind()),
-        }
-    }
-
-    /// Returns the upper bound on this type variable.
-    ///
-    /// # Panics
-    ///
-    /// If this is not a type variable.
-    #[track_caller]
-    pub fn upper_red_ty(&self) -> Option<(RedTy<'db>, ArcOrElse<'db>)> {
-        match &self.bounds {
-            InferenceVarBounds::Ty { upper, .. } => upper.clone(),
-            _ => panic!("upper_red_ty invoked on a var of kind `{:?}`", self.kind()),
+            InferenceVarBounds::Ty { lower, upper, .. } => match direction {
+                Direction::FromBelow => lower.clone(),
+                Direction::FromAbove => upper.clone(),
+            },
+            _ => panic!("red_ty_bound invoked on a var of kind `{:?}`", self.kind()),
         }
     }
 
@@ -284,52 +272,25 @@ impl<'db> InferenceVarData<'db> {
         Some(or_else)
     }
 
-    /// Set the lower bounding red ty. Returns `c` with the `or_else` reason if
-    /// this is a new value for the upper bounding red ty.
-    ///
-    /// # Panics
-    ///
-    /// If there is already a lower bound red ty.
-    pub fn set_lower_red_ty(
+    /// Overwrite the lower or upper bounding red ty, depending on `direction`.
+    /// Returns the [to_arc'd](`OrElse::to_arc`) version of `or_else`.
+    pub fn set_red_ty_bound(
         &mut self,
+        direction: Direction,
         red_ty: RedTy<'db>,
         or_else: &dyn OrElse<'db>,
-    ) -> ArcOrElse<'db> {
-        let lower_red_ty = match &mut self.bounds {
-            InferenceVarBounds::Ty { lower, .. } => lower,
+    ) {
+        let red_ty_bound = match &mut self.bounds {
+            InferenceVarBounds::Ty { lower, upper, .. } => match direction {
+                Direction::FromBelow => lower,
+                Direction::FromAbove => upper,
+            },
             _ => panic!(
                 "set_lower_red_ty invoked on a var of kind `{:?}`",
                 self.kind()
             ),
         };
-        assert!(lower_red_ty.is_none());
-        let or_else = or_else.to_arc();
-        *lower_red_ty = Some((red_ty, or_else.clone()));
-        or_else
-    }
-
-    /// Set the upper bounding red ty. Returns `Some(c)` with the `or_else` reason if
-    /// this is a new value for the upper bounding red ty.
-    ///
-    /// # Panics
-    ///
-    /// If there is already an upper bound red ty.
-    pub fn set_upper_red_ty(
-        &mut self,
-        red_ty: RedTy<'db>,
-        or_else: &dyn OrElse<'db>,
-    ) -> ArcOrElse<'db> {
-        let upper_red_ty = match &mut self.bounds {
-            InferenceVarBounds::Ty { upper, .. } => upper,
-            _ => panic!(
-                "set_upper_red_ty invoked on a var of kind `{:?}`",
-                self.kind()
-            ),
-        };
-        assert!(upper_red_ty.is_none());
-        let or_else = or_else.to_arc();
-        *upper_red_ty = Some((red_ty, or_else.clone()));
-        or_else
+        *red_ty_bound = Some((red_ty, or_else.to_arc()));
     }
 }
 
@@ -377,4 +338,31 @@ pub enum InferenceVarBounds<'db> {
         lower: Option<(RedTy<'db>, ArcOrElse<'db>)>,
         upper: Option<(RedTy<'db>, ArcOrElse<'db>)>,
     },
+}
+
+/// Trait implemented by types returned by mutation methods
+/// like [`InferenceVarData::insert_lower_infer_bound`][]
+/// or [`InferenceVarData::set_lower_red_ty`][].
+/// Can be used to check if those return values indicate that
+/// the inference var data was actually changed.
+pub trait InferenceVarDataChanged {
+    fn did_change(&self) -> bool;
+}
+
+impl InferenceVarDataChanged for bool {
+    fn did_change(&self) -> bool {
+        *self
+    }
+}
+
+impl InferenceVarDataChanged for Option<ArcOrElse<'_>> {
+    fn did_change(&self) -> bool {
+        self.is_some()
+    }
+}
+
+impl InferenceVarDataChanged for () {
+    fn did_change(&self) -> bool {
+        true
+    }
 }

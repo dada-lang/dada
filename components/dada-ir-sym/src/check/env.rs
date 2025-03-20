@@ -23,13 +23,14 @@ use dada_ir_ast::{
     span::Span,
 };
 use dada_util::{Map, debug};
+use futures::task::LocalFutureObj;
 
 use crate::{check::runtime::Runtime, check::universe::Universe, ir::exprs::SymExpr};
 
 use super::{
     CheckInEnv,
     debug::LogHandle,
-    inference::{InferVarKind, InferenceVarData},
+    inference::{Direction, InferVarKind, InferenceVarData},
     predicates::Predicate,
     red::{Chain, RedTy},
     report::{ArcOrElse, BooleanTypeRequired, OrElse},
@@ -265,12 +266,12 @@ impl<'db> Env<'db> {
         let data = match kind {
             SymGenericKind::Type => {
                 let perm = self.fresh_inference_var(SymGenericKind::Perm, span);
-                InferenceVarData::new_ty(self.universe, span, perm)
+                InferenceVarData::new_ty(span, perm)
             }
-            SymGenericKind::Perm => InferenceVarData::new_perm(self.universe, span),
+            SymGenericKind::Perm => InferenceVarData::new_perm(span),
             SymGenericKind::Place => panic!("inference variable of kind `Place` not supported"),
         };
-        let infer = self.runtime.fresh_inference_var(data);
+        let infer = self.runtime.fresh_inference_var(&self.log, data);
         self.log.log(
             Location::caller(),
             "created inference variable",
@@ -501,6 +502,19 @@ impl<'db> Env<'db> {
         self.scope.all_binders().into_iter().flatten().collect()
     }
 
+    /// Record that `lower <: upper` must hold,
+    /// returning true if this is the first time that this has been recorded
+    /// or false if it has been recorded before.
+    #[track_caller]
+    pub fn insert_sub_infer_var_pair(
+        &mut self,
+        lower: InferVarIndex,
+        upper: InferVarIndex,
+    ) -> bool {
+        self.runtime
+            .insert_sub_infer_var_pair(lower, upper, &self.log)
+    }
+
     #[track_caller]
     pub fn require_inference_var_is(
         &mut self,
@@ -509,7 +523,7 @@ impl<'db> Env<'db> {
         or_else: &dyn OrElse<'db>,
     ) -> Option<ArcOrElse<'db>> {
         self.runtime
-            .require_inference_var_is(infer, &self.log, predicate, or_else)
+            .mutate_inference_var_data(infer, &self.log, |data| data.require_is(predicate, or_else))
     }
 
     #[track_caller]
@@ -520,7 +534,9 @@ impl<'db> Env<'db> {
         or_else: &dyn OrElse<'db>,
     ) -> Option<ArcOrElse<'db>> {
         self.runtime
-            .require_inference_var_isnt(infer, &self.log, predicate, or_else)
+            .mutate_inference_var_data(infer, &self.log, |data| {
+                data.require_isnt(predicate, or_else)
+            })
     }
 
     #[track_caller]
@@ -531,7 +547,9 @@ impl<'db> Env<'db> {
         or_else: &dyn OrElse<'db>,
     ) -> Option<ArcOrElse<'db>> {
         self.runtime
-            .insert_lower_chain(infer, &self.log, chain, or_else)
+            .mutate_inference_var_data(infer, &self.log, |data| {
+                data.insert_lower_chain(chain, or_else)
+            })
     }
 
     #[track_caller]
@@ -542,29 +560,70 @@ impl<'db> Env<'db> {
         or_else: &dyn OrElse<'db>,
     ) -> Option<ArcOrElse<'db>> {
         self.runtime
-            .insert_upper_chain(infer, &self.log, chain, or_else)
+            .mutate_inference_var_data(infer, &self.log, |data| {
+                data.insert_upper_chain(chain, or_else)
+            })
     }
 
+    /// Return a struct that gives ability to peek, modify, or block on the lower or upper red-ty-bound
+    /// on the given inference variable.
     #[track_caller]
-    pub fn set_lower_red_ty(
-        &mut self,
-        infer: InferVarIndex,
-        red_ty: RedTy<'db>,
-        or_else: &dyn OrElse<'db>,
-    ) -> ArcOrElse<'db> {
-        self.runtime
-            .set_lower_red_ty(infer, &self.log, red_ty, or_else)
+    pub fn red_ty_bound(&self, infer: InferVarIndex, direction: Direction) -> RedTyBound<'_, 'db> {
+        RedTyBound {
+            env: self,
+            infer,
+            direction,
+            source_location: Location::caller(),
+        }
+    }
+}
+
+/// Accessor for the bounding red-ty on an inference variable.
+/// Can be used to [read](`Self::peek`) or [modify](`Self::set`)
+/// the current value but can also be awaited through the [`IntoFuture`][]
+/// impl, which will block until a value is set by another task.
+/// Note that red-ty bounds can be set more than once but must always
+/// get tighter each time they are modified.
+pub struct RedTyBound<'env, 'db> {
+    env: &'env Env<'db>,
+    infer: InferVarIndex,
+    direction: Direction,
+    source_location: &'static Location<'static>,
+}
+
+impl<'env, 'db> RedTyBound<'env, 'db> {
+    /// Read the current value of the bound
+    #[track_caller]
+    pub fn peek(self) -> Option<(RedTy<'db>, ArcOrElse<'db>)> {
+        self.env
+            .runtime
+            .with_inference_var_data(self.infer, |data| data.red_ty_bound(self.direction))
     }
 
+    /// Modify the current value of the bound
     #[track_caller]
-    pub fn set_upper_red_ty(
-        &mut self,
-        infer: InferVarIndex,
-        red_ty: RedTy<'db>,
-        or_else: &dyn OrElse<'db>,
-    ) -> ArcOrElse<'db> {
-        self.runtime
-            .set_upper_red_ty(infer, &self.log, red_ty, or_else)
+    pub fn set(self, red_ty: RedTy<'db>, or_else: &dyn OrElse<'db>) {
+        self.env
+            .runtime
+            .mutate_inference_var_data(self.infer, &self.env.log, |data| {
+                data.set_red_ty_bound(self.direction, red_ty, or_else)
+            })
+    }
+}
+
+/// Convert to a future that blocks until a bound is set
+impl<'env, 'db> IntoFuture for RedTyBound<'env, 'db> {
+    type Output = Option<(RedTy<'db>, ArcOrElse<'db>)>;
+
+    type IntoFuture = LocalFutureObj<'env, Option<(RedTy<'db>, ArcOrElse<'db>)>>;
+
+    fn into_future(self) -> Self::IntoFuture {
+        LocalFutureObj::new(Box::new(self.env.runtime.loop_on_inference_var(
+            self.infer,
+            self.source_location,
+            &self.env.log,
+            move |data| data.red_ty_bound(self.direction),
+        )))
     }
 }
 

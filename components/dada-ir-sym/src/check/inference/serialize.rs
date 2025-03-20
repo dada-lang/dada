@@ -2,10 +2,7 @@ use dada_ir_ast::span::Span;
 use serde::Serialize;
 
 use crate::{
-    check::{
-        red::{Chain, RedTy},
-        universe::Universe,
-    },
+    check::red::{Chain, RedTy},
     ir::indices::InferVarIndex,
 };
 
@@ -16,7 +13,6 @@ use super::{InferenceVarBounds, InferenceVarData};
 
 #[derive(Serialize)]
 struct InferenceVarDataExport<'a, 'db> {
-    universe: Universe,
     span: Span<'db>,
     is: Vec<bool>,
     isnt: Vec<bool>,
@@ -42,7 +38,14 @@ impl Serialize for InferenceVarData<'_> {
     where
         S: serde::Serializer,
     {
-        let bounds = match &self.bounds {
+        let Self {
+            span,
+            is,
+            isnt,
+            bounds,
+        } = self;
+
+        let bounds = match bounds {
             InferenceVarBounds::Perm { lower, upper } => InferenceVarBoundsExport::Perm {
                 lower: lower.iter().map(|pair| &pair.0).collect(),
                 upper: upper.iter().map(|pair| &pair.0).collect(),
@@ -55,10 +58,9 @@ impl Serialize for InferenceVarData<'_> {
         };
 
         let export = InferenceVarDataExport {
-            universe: self.universe,
-            span: self.span,
-            is: self.is.iter().map(|option| option.is_some()).collect(),
-            isnt: self.isnt.iter().map(|option| option.is_some()).collect(),
+            span: *span,
+            is: is.iter().map(|option| option.is_some()).collect(),
+            isnt: isnt.iter().map(|option| option.is_some()).collect(),
             bounds,
         };
 

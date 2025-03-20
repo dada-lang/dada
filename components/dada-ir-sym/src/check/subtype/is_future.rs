@@ -4,6 +4,7 @@ use dada_util::boxed_async_fn;
 use crate::{
     check::{
         env::Env,
+        inference::Direction,
         red::RedTy,
         report::{Because, OrElse, OrElseHelper},
         to_red::ToRedTy,
@@ -52,9 +53,8 @@ async fn require_future_red_type<'db>(
             // For inference variables: find the current lower bound
             // and check if it is numeric. Since the bound can only get tighter,
             // that is sufficient (indeed, numeric types have no subtypes).
-            let Some((lower_red_ty, arc_or_else)) = env
-                .loop_on_inference_var(infer, |data| data.lower_red_ty())
-                .await
+            let Some((lower_red_ty, arc_or_else)) =
+                env.red_ty_bound(infer, Direction::FromBelow).await
             else {
                 return Err(
                     or_else.report(env, Because::UnconstrainedInfer(env.infer_var_span(infer)))

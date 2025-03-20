@@ -18,7 +18,7 @@ use crate::{
     prelude::CheckedFieldTy,
 };
 
-use super::{red::RedTy, to_red::ToRedTy};
+use super::{inference::Direction, red::RedTy, to_red::ToRedTy};
 
 pub(crate) struct MemberLookup<'member, 'db> {
     env: &'member mut Env<'db>,
@@ -238,7 +238,7 @@ async fn non_infer_lower_bound<'db>(
     let (red_ty, perm) = ty.to_red_ty(env);
     if let RedTy::Infer(infer_var_index) = red_ty {
         match env
-            .loop_on_inference_var(infer_var_index, |data| data.lower_red_ty())
+            .red_ty_bound(infer_var_index, Direction::FromBelow)
             .await
         {
             Some((bound_red_ty, _)) => (bound_red_ty, perm),

@@ -11,10 +11,9 @@ use crate::ir::{
 
 use super::{
     Env,
-    inference::InferVarKind,
+    inference::{Direction, InferVarKind},
     predicates::Predicate,
     red::{Chain, Lien, RedTy},
-    subtype::terms::Direction,
 };
 
 pub struct Resolver<'env, 'db> {
@@ -145,13 +144,7 @@ impl<'env, 'db> Resolver<'env, 'db> {
     ) -> Result<Option<SymTy<'db>>, ResolverError<'db>> {
         let db = self.env.db();
 
-        let bound = self
-            .env
-            .runtime()
-            .with_inference_var_data(infer, |data| match direction {
-                Direction::FromBelow => data.lower_red_ty(),
-                Direction::FromAbove => data.upper_red_ty(),
-            });
+        let bound = self.env.red_ty_bound(infer, direction).peek();
 
         let Some((red_ty, _)) = bound else {
             return Ok(None);
