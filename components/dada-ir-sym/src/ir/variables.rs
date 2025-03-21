@@ -14,7 +14,7 @@ use super::types::HasKind;
 
 /// Symbol for a generic parameter or local variable.
 #[derive(SalsaSerialize)]
-#[salsa::tracked]
+#[salsa::tracked(debug)]
 pub struct SymVariable<'db> {
     pub kind: SymGenericKind,
     pub name: Option<Identifier<'db>>,

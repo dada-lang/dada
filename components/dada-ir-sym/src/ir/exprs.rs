@@ -30,7 +30,7 @@ use salsa::Update;
 use serde::Serialize;
 
 #[derive(SalsaSerialize)]
-#[salsa::tracked]
+#[salsa::tracked(debug)]
 pub struct SymExpr<'db> {
     pub span: Span<'db>,
     pub ty: SymTy<'db>,
@@ -167,14 +167,14 @@ pub enum SymExprKind<'db> {
 }
 
 #[derive(SalsaSerialize)]
-#[salsa::tracked]
+#[salsa::tracked(debug)]
 pub struct SymByteLiteral<'db> {
     pub span: Span<'db>,
     pub data: SymByteLiteralData<'db>,
 }
 
 #[derive(SalsaSerialize)]
-#[salsa::interned]
+#[salsa::interned(debug)]
 pub struct SymByteLiteralData<'db> {
     pub value: Vec<u8>,
 }
@@ -234,7 +234,7 @@ pub struct SymMatchArm<'db> {
 }
 
 #[derive(SalsaSerialize)]
-#[salsa::tracked]
+#[salsa::tracked(debug)]
 pub struct SymPlaceExpr<'db> {
     pub span: Span<'db>,
     pub ty: SymTy<'db>,

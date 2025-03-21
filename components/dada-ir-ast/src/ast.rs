@@ -26,7 +26,7 @@ mod expr;
 pub use expr::*;
 
 #[derive(SalsaSerialize)]
-#[salsa::interned]
+#[salsa::interned(debug)]
 pub struct Identifier<'db> {
     #[return_ref]
     pub text: String,
@@ -68,7 +68,7 @@ impl std::fmt::Display for Identifier<'_> {
 }
 
 #[derive(SalsaSerialize)]
-#[salsa::tracked]
+#[salsa::tracked(debug)]
 pub struct AstModule<'db> {
     pub name: Identifier<'db>,
 
@@ -94,7 +94,7 @@ pub enum AstItem<'db> {
 
 /// A "path" identifies an item and a partial set of substitutions.
 #[derive(SalsaSerialize)]
-#[salsa::tracked]
+#[salsa::tracked(debug)]
 pub struct AstPath<'db> {
     #[return_ref]
     pub kind: AstPathKind<'db>,

@@ -27,7 +27,7 @@ pub fn primitives<'db>(db: &'db dyn crate::Db) -> Vec<SymPrimitive<'db>> {
 /// A "primitive" is a scalar type that is built-in to Dada and cannot be defined as an aggregate
 /// type like a struct, enum, or class.
 #[derive(SalsaSerialize)]
-#[salsa::interned]
+#[salsa::interned(debug)]
 pub struct SymPrimitive<'db> {
     pub kind: SymPrimitiveKind,
 }

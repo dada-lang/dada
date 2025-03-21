@@ -26,7 +26,7 @@ pub type Errors<T> = Result<T, Reported>;
 
 /// A diagnostic to be reported to the user.
 #[salsa::accumulator]
-#[derive(PartialEq, Eq, Hash, Serialize)]
+#[derive(PartialEq, Eq, Hash, Serialize, Clone, Debug)]
 #[must_use]
 pub struct Diagnostic {
     /// Level of the message.

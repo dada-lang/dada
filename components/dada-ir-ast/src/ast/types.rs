@@ -7,7 +7,7 @@ use crate::span::{Span, Spanned};
 use super::{AstPath, SpanVec, SpannedIdentifier};
 
 #[derive(SalsaSerialize)]
-#[salsa::tracked]
+#[salsa::tracked(debug)]
 pub struct AstTy<'db> {
     pub span: Span<'db>,
     pub kind: AstTyKind<'db>,
@@ -32,7 +32,7 @@ pub enum AstTyKind<'db> {
 }
 
 #[derive(SalsaSerialize)]
-#[salsa::tracked]
+#[salsa::tracked(debug)]
 pub struct AstPerm<'db> {
     pub span: Span<'db>,
 
@@ -115,7 +115,7 @@ impl<'db> Spanned<'db> for AstGenericKind<'db> {
 /// `type T? (: bounds)?`
 /// `perm T? (: bounds)?`
 #[derive(SalsaSerialize)]
-#[salsa::tracked]
+#[salsa::tracked(debug)]
 pub struct AstGenericDecl<'db> {
     pub kind: AstGenericKind<'db>,
     pub name: Option<SpannedIdentifier<'db>>,
