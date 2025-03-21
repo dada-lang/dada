@@ -21,15 +21,18 @@ use crate::{
 };
 
 #[derive(SalsaSerialize)]
-#[salsa::tracked]
+#[salsa::tracked(debug)]
 pub struct SymModule<'db> {
     pub source: AstModule<'db>,
 
     // Order of fields reflects the precedence we give during name resolution.
+    #[tracked]
     #[return_ref]
     pub(crate) class_map: Map<Identifier<'db>, SymAggregate<'db>>,
+    #[tracked]
     #[return_ref]
     pub(crate) function_map: Map<Identifier<'db>, SymFunction<'db>>,
+    #[tracked]
     #[return_ref]
     pub(crate) ast_use_map: Map<Identifier<'db>, AstUse<'db>>,
 }
@@ -41,7 +44,7 @@ impl<'db> Spanned<'db> for SymModule<'db> {
 }
 
 /// A "prelude" is a set of item names automatically imported into scope.
-#[salsa::interned]
+#[salsa::interned(debug)]
 pub struct SymPrelude<'db> {
     pub items: Vec<SymItem<'db>>,
 }

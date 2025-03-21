@@ -272,7 +272,7 @@ impl TestExpectations {
         Ok(())
     }
 
-    fn compare_diagnostics(self, mut actual_diagnostics: Vec<Diagnostic>) -> Vec<Failure> {
+    fn compare_diagnostics(self, mut actual_diagnostics: Vec<&Diagnostic>) -> Vec<Failure> {
         actual_diagnostics.sort_by_key(|d| d.span);
 
         let empty_matched = vec![false; self.expected_diagnostics.len()];
@@ -284,22 +284,22 @@ impl TestExpectations {
         for actual_diagnostic in actual_diagnostics {
             // Check whether this matches an expected diagnostic that
             // has not yet been matched.
-            if let Some(index) = self.find_match(&actual_diagnostic, &matched) {
+            if let Some(index) = self.find_match(actual_diagnostic, &matched) {
                 matched[index] = true; // Good!
                 continue;
             }
 
             // Check whether this matches an expected diagnostic that
             // had already matched.
-            match self.find_match(&actual_diagnostic, &empty_matched) {
+            match self.find_match(actual_diagnostic, &empty_matched) {
                 Some(index) => {
                     failures.push(Failure::MultipleMatches(
                         self.expected_diagnostics[index].clone(),
-                        actual_diagnostic,
+                        actual_diagnostic.clone(),
                     ));
                 }
                 None => {
-                    failures.push(Failure::UnexpectedDiagnostic(actual_diagnostic));
+                    failures.push(Failure::UnexpectedDiagnostic(actual_diagnostic.clone()));
                 }
             }
         }

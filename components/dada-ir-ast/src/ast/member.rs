@@ -27,7 +27,7 @@ impl<'db> Spanned<'db> for AstMember<'db> {
 }
 
 #[derive(SalsaSerialize)]
-#[salsa::tracked]
+#[salsa::tracked(debug)]
 pub struct AstFieldDecl<'db> {
     pub span: Span<'db>,
     pub visibility: Option<AstVisibility<'db>>,

@@ -86,7 +86,7 @@ impl CapturedPanic {
         let error_offset = line_starts[self.line as usize - 1] + self.column as usize - 1;
         let error_range = error_offset..error_offset + 1;
 
-        let message = Renderer::plain()
+        Renderer::plain()
             .render(
                 Level::Error.title(&self.message).snippet(
                     Snippet::source(&source_contents)
@@ -96,8 +96,6 @@ impl CapturedPanic {
                         .annotation(Level::Error.span(error_range).label(&self.message)),
                 ),
             )
-            .to_string();
-
-        message
+            .to_string()
     }
 }

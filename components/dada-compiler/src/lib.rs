@@ -24,6 +24,7 @@ use vfs::{ToUrl, UrlPath};
 use dada_parser::prelude::*;
 
 #[salsa::db]
+#[derive(Clone)]
 pub struct Compiler {
     storage: salsa::Storage<Self>,
 
@@ -158,13 +159,13 @@ impl Compiler {
     }
 
     /// Compute all diagnostics for a source file.
-    pub fn check_all(&self, source_file: SourceFile) -> Vec<Diagnostic> {
+    pub fn check_all(&self, source_file: SourceFile) -> Vec<&Diagnostic> {
         Self::deduplicated(check_all::accumulated::<Diagnostic>(self, source_file))
     }
 
-    fn deduplicated(mut diagnostics: Vec<Diagnostic>) -> Vec<Diagnostic> {
+    fn deduplicated(mut diagnostics: Vec<&Diagnostic>) -> Vec<&Diagnostic> {
         let mut new = Set::default();
-        diagnostics.retain(|d| new.insert(d.clone()));
+        diagnostics.retain(|&d| new.insert(d));
         diagnostics
     }
 
@@ -293,7 +294,9 @@ impl salsa::Database for Compiler {
                 EventKind::WillCheckCancellation
                 | EventKind::WillDiscardStaleOutput { .. }
                 | EventKind::DidDiscard { .. }
-                | EventKind::DidDiscardAccumulated { .. } => {}
+                | EventKind::DidDiscardAccumulated { .. }
+                | EventKind::DidInternValue { .. }
+                | EventKind::DidReinternValue { .. } => {}
             }
         }
     }

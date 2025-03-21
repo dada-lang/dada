@@ -12,7 +12,7 @@ use super::{AstGenericDecl, Identifier, SpanVec};
 ///
 /// `class $name[$generics] { ... }` or `class $name[$generics](...) { ... }`
 #[derive(SalsaSerialize)]
-#[salsa::tracked]
+#[salsa::tracked(debug)]
 pub struct AstAggregate<'db> {
     pub span: Span<'db>,
 
@@ -21,7 +21,6 @@ pub struct AstAggregate<'db> {
 
     pub kind: AstAggregateKind,
 
-    #[id]
     pub name: Identifier<'db>,
 
     pub name_span: Span<'db>,

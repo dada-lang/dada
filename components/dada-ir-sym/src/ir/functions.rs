@@ -24,9 +24,10 @@ use crate::{
 use super::types::{HasKind, SymGenericKind};
 
 #[derive(SalsaSerialize)]
-#[salsa::tracked]
+#[salsa::tracked(debug)]
 pub struct SymFunction<'db> {
     pub super_scope_item: ScopeItem<'db>,
+    #[tracked]
     pub source: SymFunctionSource<'db>,
 }
 
@@ -156,7 +157,7 @@ pub struct SymFunctionEffects {
     pub async_effect: bool,
 }
 
-#[salsa::tracked]
+#[salsa::tracked(debug)]
 pub struct SymFunctionSignature<'db> {
     #[return_ref]
     pub symbols: SignatureSymbols<'db>,

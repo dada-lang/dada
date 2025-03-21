@@ -10,7 +10,7 @@ use crate::{
 
 /// `fn foo() { }`
 #[derive(SalsaSerialize)]
-#[salsa::tracked]
+#[salsa::tracked(debug)]
 pub struct AstFunction<'db> {
     /// Overall span of the function declaration
     pub span: Span<'db>,
@@ -73,7 +73,7 @@ impl<'db> Spanned<'db> for AstFunctionInput<'db> {
 }
 
 #[derive(SalsaSerialize)]
-#[salsa::tracked]
+#[salsa::tracked(debug)]
 pub struct AstSelfArg<'db> {
     pub perm: AstPerm<'db>,
     pub self_span: Span<'db>,
@@ -87,7 +87,7 @@ impl<'db> Spanned<'db> for AstSelfArg<'db> {
 
 /// `[mut] x: T`
 #[derive(SalsaSerialize)]
-#[salsa::tracked]
+#[salsa::tracked(debug)]
 pub struct VariableDecl<'db> {
     /// Span of the `mut` keyword, if present.
     pub mutable: Option<Span<'db>>,

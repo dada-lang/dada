@@ -242,7 +242,7 @@ impl<'db> SymGenericTerm<'db> {
 }
 
 #[derive(SalsaSerialize)]
-#[salsa::interned]
+#[salsa::interned(debug)]
 pub struct SymTy<'db> {
     #[return_ref]
     pub kind: SymTyKind<'db>,
@@ -447,8 +447,8 @@ impl std::fmt::Display for SymTyName<'_> {
         salsa::with_attached_database(|db| {
             let db: &dyn crate::Db = db.as_view();
             match self {
-                SymTyName::Primitive(primitive) => write!(f, "`{}`", primitive),
-                SymTyName::Aggregate(class) => write!(f, "`{}`", class.name(db)),
+                SymTyName::Primitive(primitive) => write!(f, "{}", primitive),
+                SymTyName::Aggregate(class) => write!(f, "{}", class.name(db)),
                 SymTyName::Tuple { arity } => write!(f, "{arity}-tuple"),
                 SymTyName::Future => write!(f, "Future"),
             }
@@ -458,7 +458,7 @@ impl std::fmt::Display for SymTyName<'_> {
 }
 
 #[derive(SalsaSerialize)]
-#[salsa::interned]
+#[salsa::interned(debug)]
 pub struct SymPerm<'db> {
     #[return_ref]
     pub kind: SymPermKind<'db>,
@@ -623,7 +623,7 @@ pub enum SymPermKind<'db> {
 }
 
 #[derive(SalsaSerialize)]
-#[salsa::tracked]
+#[salsa::tracked(debug)]
 pub struct SymPlace<'db> {
     #[return_ref]
     pub kind: SymPlaceKind<'db>,
@@ -782,7 +782,7 @@ impl<'db> AnonymousPermSymbol<'db> for AstPerm<'db> {
     }
 }
 
-#[salsa::interned]
+#[salsa::interned(debug)]
 pub struct Assumption<'db> {
     pub kind: AssumptionKind,
     pub var: SymVariable<'db>,

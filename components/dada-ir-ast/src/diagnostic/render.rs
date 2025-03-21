@@ -7,8 +7,7 @@ use super::RenderOptions;
 pub(super) fn render(db: &dyn crate::Db, opts: &RenderOptions, diagnostic: &Diagnostic) -> String {
     let arena = Arena::new();
     let message = to_message(db, diagnostic, &arena);
-    let result = renderer(opts).render(message).to_string();
-    result
+    renderer(opts).render(message).to_string()
 }
 
 fn renderer(opts: &RenderOptions) -> Renderer {
