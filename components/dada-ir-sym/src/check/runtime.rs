@@ -206,19 +206,22 @@ impl<'db> Runtime<'db> {
         &self,
         infer: InferVarIndex,
         source_location: &'static Location<'static>,
-        log: &LogHandle<'_>,
+        log: &LogHandle<'db>,
         mut op: impl FnMut(&InferenceVarData<'db>) -> Option<T>,
     ) -> impl Future<Output = Option<T>> {
         std::future::poll_fn(move |cx| {
             log.log(source_location, "loop_on_inference_var", &[&infer]);
             let data = self.with_inference_var_data(infer, |data| op(data));
             match data {
-                Some(v) => Poll::Ready(Some(v)),
+                Some(v) => {
+                    log.log(source_location, "loop_on_inference_var:complete", &[]);
+                    Poll::Ready(Some(v))
+                }
                 None => {
                     if self.check_complete() {
                         Poll::Ready(None)
                     } else {
-                        self.block_on_inference_var(infer, cx);
+                        self.block_on_inference_var(source_location, log, infer, cx);
                         Poll::Pending
                     }
                 }
@@ -331,8 +334,16 @@ impl<'db> Runtime<'db> {
     /// # Panics
     ///
     /// If called when [`Self::check_complete`][] returns true.
-    fn block_on_inference_var(&self, infer: InferVarIndex, cx: &mut Context<'_>) {
+    fn block_on_inference_var(
+        &self,
+        source_location: &'static Location<'static>,
+        log: &LogHandle<'db>,
+        infer: InferVarIndex,
+        cx: &mut Context<'_>,
+    ) {
         assert!(!self.check_complete());
+        log.log(source_location, "block_on_inference_var", &[&infer]);
+
         let mut waiting_on_inference_var = self.waiting_on_inference_var.lock().unwrap();
         waiting_on_inference_var
             .entry(infer)

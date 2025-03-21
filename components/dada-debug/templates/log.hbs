@@ -2,7 +2,7 @@
 <html lang="en">
 
 <head>
-{{> header title="Debug log"}}
+    {{> header title="Debug log"}}
     <style>
         .nested {
             display: none;
@@ -47,14 +47,69 @@
 </head>
 
 <body>
-    <h1>By task</h1>
-    
+    <h1>Nested</h1>
+
     <div id="tasks">
         <ul>
             {{#with nested_event}}
             {{> render_nested_event this=this events_flat=../events_flat}}
             {{/with}}
         </ul>
+    </div>
+
+    <h1>By task</h1>
+    <ul>
+        {{#each tasks}}
+        <li> <a name="task{{@index}}"></a>
+            Task {{@index}}
+            <span class="event-value jsontree">{{description}}</span>
+            <div class="event">
+                <span class="caret"></span>
+                <ul class="nested">
+                    {{#each events}}
+                    {{#with (index ../../events_flat index)}}
+                    <li>{{> render_event this=this}}</li>
+                    {{/with}}
+                    {{/each}}
+                </ul>
+            </div>
+        </li>
+        {{/each}}
+    </ul>
+
+    <h1>By time</h1>
+    <ul>
+        {{#each events_flat}}
+        <li> <a name="event_flat{{@index}}"></a>
+            Event {{@index}} {{> render_event this=this}}
+        </li>
+        {{/each}}
+    </ul>
+
+    <h1>By infer</h1>
+    <div id="tasks">
+        <ol>
+            {{#each infers}}
+            <li> <a name="infer{{@index}}">
+                    Infer variable {{@index}}
+                    <ul>
+                        <li> Created at
+
+                            {{#with (index ../events_flat created_at.index)}}
+                            {{> render_event this=this}}
+                            {{/with}}
+
+                            {{#each modifications}}
+                        <li> Modification
+
+                            {{#with (index ../../events_flat index)}}
+                            {{> render_event this=this}}
+                            {{/with}}
+                            {{/each}}
+                    </ul>
+            </li>
+            {{/each}}
+        </ol>
     </div>
 
     <script>

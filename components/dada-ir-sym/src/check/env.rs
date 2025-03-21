@@ -283,9 +283,10 @@ impl<'db> Env<'db> {
 
         match kind {
             SymGenericKind::Type => {
-                self.spawn(TaskDescription::Misc, async move |env| {
-                    reconcile_ty_bounds(env, infer).await
-                });
+                self.spawn(
+                    TaskDescription::ReconcileTyBounds(infer),
+                    async move |env| reconcile_ty_bounds(env, infer).await,
+                );
             }
             SymGenericKind::Perm => {}
             SymGenericKind::Place => {}

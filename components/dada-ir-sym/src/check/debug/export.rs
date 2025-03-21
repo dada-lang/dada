@@ -58,6 +58,7 @@ pub struct TimeStamp {
 pub struct Task {
     pub spawned_at: TimeStamp,
     pub description: String,
+    pub events: Vec<TimeStamp>,
 }
 
 #[derive(Copy, Clone, Debug, Serialize)]

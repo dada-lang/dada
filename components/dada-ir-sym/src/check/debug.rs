@@ -326,12 +326,8 @@ impl<'db> Log<'db> {
         let tasks = self
             .tasks
             .iter()
-            .map(|task| export::Task {
-                spawned_at: export::TimeStamp {
-                    index: task.started_at.0,
-                },
-                description: event_argument(&[&task.task_description]),
-            })
+            .zip(0..)
+            .map(|(task, index)| self.export_task(task, index))
             .collect();
 
         export::Log {
@@ -339,6 +335,22 @@ impl<'db> Log<'db> {
             nested_event,
             tasks,
             infers,
+        }
+    }
+
+    fn export_task(&self, task: &Task<'db>, task_index: usize) -> export::Task {
+        export::Task {
+            spawned_at: export::TimeStamp {
+                index: task.started_at.0,
+            },
+            description: event_argument(&[&task.task_description]),
+            events: self
+                .events
+                .iter()
+                .zip(0..)
+                .filter(|(event, _)| event.task.0 == task_index)
+                .map(|(_, index)| TimeStamp { index })
+                .collect(),
         }
     }
 
@@ -526,6 +538,7 @@ pub enum TaskDescription<'db> {
     IfNotNever,
     Misc,
     CheckArg(usize),
+    ReconcileTyBounds(InferVarIndex),
 }
 
 pub struct InferenceVariable<'db> {
