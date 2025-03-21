@@ -1,5 +1,3 @@
-use std::sync::Arc;
-
 use dada_ir_ast::diagnostic::Errors;
 
 use crate::{
@@ -8,7 +6,7 @@ use crate::{
         env::Env,
         inference::InferenceVarData,
         predicates::Predicate,
-        report::{Because, OrElse},
+        report::{ArcOrElse, Because, OrElse},
     },
     ir::{indices::InferVarIndex, variables::SymVariable},
 };
@@ -180,7 +178,7 @@ fn defer_require_bounds_provably_predicate<'db>(
     env: &mut Env<'db>,
     infer: InferVarIndex,
     predicate: Predicate,
-    or_else: Arc<dyn OrElse<'db> + 'db>,
+    or_else: ArcOrElse<'db>,
 ) {
     let perm_infer = env.perm_infer(infer);
     env.spawn(
@@ -226,7 +224,7 @@ fn defer_require_bounds_not_provably_predicate<'db>(
     env: &mut Env<'db>,
     infer: InferVarIndex,
     predicate: Predicate,
-    or_else: Arc<dyn OrElse<'db> + 'db>,
+    or_else: ArcOrElse<'db>,
 ) {
     env.spawn(
         TaskDescription::RequireBoundsNotProvablyPredicate(infer, predicate),

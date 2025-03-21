@@ -105,7 +105,7 @@ async fn check_expr<'db>(expr: &AstExpr<'db>, env: &mut Env<'db>) -> ExprResult<
                         ty,
                         SymExprKind::Primitive(SymLiteral::Integral { bits }),
                     );
-                    env.spawn_require_numeric_type(ty, &NumericTypeExpected { expr: sym_expr, ty });
+                    env.spawn_require_numeric_type(ty, &NumericTypeExpected::new(sym_expr, ty));
                     ExprResult {
                         temporaries: vec![],
                         span: expr_span,
@@ -239,27 +239,17 @@ async fn check_expr<'db>(expr: &AstExpr<'db>, env: &mut Env<'db>) -> ExprResult<
 
                         env.spawn_require_numeric_type(
                             lhs.ty(db),
-                            &OperatorRequiresNumericType {
-                                op: span_op,
-                                expr: lhs,
-                            },
+                            &OperatorRequiresNumericType::new(span_op, lhs),
                         );
                         env.spawn_require_numeric_type(
                             rhs.ty(db),
-                            &OperatorRequiresNumericType {
-                                op: span_op,
-                                expr: rhs,
-                            },
+                            &OperatorRequiresNumericType::new(span_op, rhs),
                         );
                         env.spawn_if_not_never(&[lhs.ty(db), rhs.ty(db)], async move |env| {
                             env.spawn_require_equal_types(
                                 lhs.ty(db),
                                 rhs.ty(db),
-                                &OperatorArgumentsMustHaveSameType {
-                                    op: span_op,
-                                    lhs,
-                                    rhs,
-                                },
+                                &OperatorArgumentsMustHaveSameType::new(span_op, lhs, rhs),
                             );
                         });
 
@@ -361,27 +351,17 @@ async fn check_expr<'db>(expr: &AstExpr<'db>, env: &mut Env<'db>) -> ExprResult<
 
                         env.spawn_require_numeric_type(
                             lhs.ty(db),
-                            &OperatorRequiresNumericType {
-                                op: span_op,
-                                expr: lhs,
-                            },
+                            &OperatorRequiresNumericType::new(span_op, lhs),
                         );
                         env.spawn_require_numeric_type(
                             rhs.ty(db),
-                            &OperatorRequiresNumericType {
-                                op: span_op,
-                                expr: rhs,
-                            },
+                            &OperatorRequiresNumericType::new(span_op, rhs),
                         );
                         env.spawn_if_not_never(&[lhs.ty(db), rhs.ty(db)], async move |env| {
                             env.spawn_require_equal_types(
                                 lhs.ty(db),
                                 rhs.ty(db),
-                                &OperatorArgumentsMustHaveSameType {
-                                    op: span_op,
-                                    lhs,
-                                    rhs,
-                                },
+                                &OperatorArgumentsMustHaveSameType::new(span_op, lhs, rhs),
                             );
                         });
 
@@ -421,10 +401,7 @@ async fn check_expr<'db>(expr: &AstExpr<'db>, env: &mut Env<'db>) -> ExprResult<
                         env.spawn_require_assignable_type(
                             value.ty(db),
                             place.ty(db),
-                            &InvalidAssignmentType {
-                                lhs: place,
-                                rhs: value,
-                            },
+                            &InvalidAssignmentType::new(place, value),
                         );
 
                         ExprResult::from_expr(
@@ -662,10 +639,7 @@ async fn check_expr<'db>(expr: &AstExpr<'db>, env: &mut Env<'db>) -> ExprResult<
                 env.spawn_require_assignable_type(
                     return_expr.ty(db),
                     expected_return_ty,
-                    &InvalidReturnValue {
-                        value: return_expr,
-                        return_ty: expected_return_ty,
-                    },
+                    &InvalidReturnValue::new(return_expr, expected_return_ty),
                 );
 
                 ExprResult {
@@ -700,10 +674,7 @@ async fn check_expr<'db>(expr: &AstExpr<'db>, env: &mut Env<'db>) -> ExprResult<
                 env.spawn_require_future_type(
                     future_ty,
                     awaited_ty,
-                    &AwaitNonFuture {
-                        await_span,
-                        future_expr,
-                    },
+                    &AwaitNonFuture::new(await_span, future_expr),
                 );
 
                 ExprResult {
@@ -784,11 +755,7 @@ async fn check_expr<'db>(expr: &AstExpr<'db>, env: &mut Env<'db>) -> ExprResult<
                     env.spawn_require_assignable_type(
                         arm.body.ty(db),
                         if_ty,
-                        &BadSubtypeError {
-                            span: arm.body.span(db),
-                            lower: arm.body.ty(db),
-                            upper: if_ty,
-                        },
+                        &BadSubtypeError::new(arm.body.span(db), arm.body.ty(db), if_ty),
                     );
                 }
 
@@ -1205,11 +1172,7 @@ async fn check_call_common<'db>(
         env.spawn_require_assignable_type(
             expr.ty(db),
             input_output.input_tys[i],
-            &BadSubtypeError {
-                span: expr.span(db),
-                lower: expr.ty(db),
-                upper: input_output.input_tys[i],
-            },
+            &BadSubtypeError::new(expr.span(db), expr.ty(db), input_output.input_tys[i]),
         );
         ExprResult::from_expr(env.db(), expr, arg_temporaries)
     };

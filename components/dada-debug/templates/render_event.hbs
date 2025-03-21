@@ -1,6 +1,8 @@
 <span class="event-kind">{{kind}}</span>
-<span class="event-source">{{{(source_snippet source_location.file source_location.line
-    source_location.column)}}}</span>
+<span class="event-source">{{{(source_snippet compiler_location.file compiler_location.line
+    compiler_location.column)}}}</span>
+
+<a href="#task{{task.index}}"><img src="https://img.shields.io/badge/task-task%20{{task.index}}-blue"></img></a>
 
 {{#if infer}}
 <span class="event-infer"><a href="#infer{{infer}}"><img

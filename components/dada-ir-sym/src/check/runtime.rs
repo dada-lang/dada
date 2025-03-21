@@ -18,6 +18,7 @@ use dada_ir_ast::{
     span::Span,
 };
 use dada_util::{Map, Set, vecext::VecExt};
+use serde::Serialize;
 
 use crate::{check::env::Env, check::inference::InferenceVarData};
 
@@ -106,8 +107,8 @@ impl<'db> Runtime<'db> {
         T: 'db,
         R: 'db + Err<'db>,
     {
-        let source_location = Location::caller();
-        let runtime = Runtime::new(db, source_location, span);
+        let compiler_location = Location::caller();
+        let runtime = Runtime::new(db, compiler_location, span);
         let (channel_tx, channel_rx) = std::sync::mpsc::channel();
         runtime.spawn_future({
             let runtime = runtime.clone();
@@ -137,7 +138,7 @@ impl<'db> Runtime<'db> {
 
     fn new(
         db: &'db dyn crate::Db,
-        source_location: &'static Location<'static>,
+        compiler_location: &'static Location<'static>,
         span: Span<'db>,
     ) -> Self {
         Self {
@@ -149,7 +150,7 @@ impl<'db> Runtime<'db> {
                 ready_to_execute: Default::default(),
                 waiting_on_inference_var: Default::default(),
                 next_task_id: Default::default(),
-                root_log: LogHandle::root(db, source_location, RootTaskDescription { span }),
+                root_log: LogHandle::root(db, compiler_location, RootTaskDescription { span }),
             }),
         }
     }
@@ -221,23 +222,33 @@ impl<'db> Runtime<'db> {
     pub fn loop_on_inference_var<T>(
         &self,
         infer: InferVarIndex,
-        source_location: &'static Location<'static>,
+        compiler_location: &'static Location<'static>,
         log: &LogHandle<'db>,
         mut op: impl FnMut(&InferenceVarData<'db>) -> Option<T>,
-    ) -> impl Future<Output = Option<T>> {
+    ) -> impl Future<Output = Option<T>>
+    where
+        T: Serialize,
+    {
         std::future::poll_fn(move |cx| {
-            log.log(source_location, "loop_on_inference_var", &[&infer]);
+            log.infer(compiler_location, "loop_on_inference_var", infer, &[]);
             let data = self.with_inference_var_data(infer, |data| op(data));
             match data {
                 Some(v) => {
-                    log.log(source_location, "loop_on_inference_var:complete", &[]);
+                    log.infer(
+                        compiler_location,
+                        "loop_on_inference_var:success",
+                        infer,
+                        &[&v],
+                    );
                     Poll::Ready(Some(v))
                 }
                 None => {
                     if self.check_complete() {
+                        log.infer(compiler_location, "loop_on_inference_var:fail", infer, &[]);
                         Poll::Ready(None)
                     } else {
-                        self.block_on_inference_var(source_location, log, infer, cx);
+                        log.infer(compiler_location, "loop_on_inference_var:block", infer, &[]);
+                        self.block_on_inference_var(compiler_location, log, infer, cx);
                         Poll::Pending
                     }
                 }
@@ -340,8 +351,8 @@ impl<'db> Runtime<'db> {
     ) where
         R: DeferResult,
     {
-        let source_location = Location::caller();
-        let mut env = env.fork(|log| log.spawn(source_location, task_description));
+        let compiler_location = Location::caller();
+        let mut env = env.fork(|log| log.spawn(compiler_location, task_description));
         self.spawn_future(async move { check(&mut env).await.finish() });
     }
 
@@ -352,13 +363,18 @@ impl<'db> Runtime<'db> {
     /// If called when [`Self::check_complete`][] returns true.
     fn block_on_inference_var(
         &self,
-        source_location: &'static Location<'static>,
+        compiler_location: &'static Location<'static>,
         log: &LogHandle<'db>,
         infer: InferVarIndex,
         cx: &mut Context<'_>,
     ) {
         assert!(!self.check_complete());
-        log.log(source_location, "block_on_inference_var", &[&infer]);
+        log.infer(
+            compiler_location,
+            "block_on_inference_var",
+            infer,
+            &[&infer],
+        );
 
         let mut waiting_on_inference_var = self.waiting_on_inference_var.lock().unwrap();
         waiting_on_inference_var

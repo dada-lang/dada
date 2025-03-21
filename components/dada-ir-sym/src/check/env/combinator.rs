@@ -6,6 +6,7 @@ use futures::{
     future::{Either, LocalBoxFuture},
     stream::FuturesUnordered,
 };
+use serde::Serialize;
 
 use crate::{
     check::{alternatives::Alternative, debug::TaskDescription, inference::Direction, red::RedTy},
@@ -148,7 +149,7 @@ impl<'db> Env<'db> {
         items: impl IntoIterator<Item = T>,
         test_fn: impl AsyncFn(&mut Env<'db>, T) -> Errors<bool>,
     ) -> impl Future<Output = Errors<bool>> {
-        let source_location = Location::caller();
+        let compiler_location = Location::caller();
 
         async move {
             let this = &*self;
@@ -156,10 +157,11 @@ impl<'db> Env<'db> {
             let mut unordered = FuturesUnordered::new();
             for (item, index) in items.into_iter().zip(0..) {
                 unordered.push(async move {
-                    let mut env = this
-                        .fork(|handle| handle.spawn(source_location, TaskDescription::All(index)));
+                    let mut env = this.fork(|handle| {
+                        handle.spawn(compiler_location, TaskDescription::All(index))
+                    });
                     let result = test_fn(&mut env, item).await;
-                    env.log_result(source_location, result)
+                    env.log_result(compiler_location, result)
                 });
             }
             let mut unordered = pin!(unordered);
@@ -183,7 +185,7 @@ impl<'db> Env<'db> {
         items: impl IntoIterator<Item = T>,
         test_fn: impl AsyncFn(&mut Env<'db>, T) -> Errors<bool>,
     ) -> impl Future<Output = Errors<bool>> {
-        let source_location = Location::caller();
+        let compiler_location = Location::caller();
 
         async move {
             let this = &*self;
@@ -191,10 +193,11 @@ impl<'db> Env<'db> {
             let mut unordered = FuturesUnordered::new();
             for (item, index) in items.into_iter().zip(0..) {
                 unordered.push(async move {
-                    let mut env = this
-                        .fork(|handle| handle.spawn(source_location, TaskDescription::Any(index)));
+                    let mut env = this.fork(|handle| {
+                        handle.spawn(compiler_location, TaskDescription::Any(index))
+                    });
                     let result = test_fn(&mut env, item).await;
-                    env.log_result(source_location, result)
+                    env.log_result(compiler_location, result)
                 });
             }
             let mut unordered = pin!(unordered);
@@ -216,21 +219,21 @@ impl<'db> Env<'db> {
         mut a: impl AsyncFnMut(&mut Env<'db>) -> Errors<bool>,
         mut b: impl AsyncFnMut(&mut Env<'db>) -> Errors<bool>,
     ) -> impl Future<Output = Errors<bool>> {
-        let source_location = Location::caller();
+        let compiler_location = Location::caller();
 
         async move {
             let a = async {
                 let mut env =
-                    self.fork(|handle| handle.spawn(source_location, TaskDescription::All(0)));
+                    self.fork(|handle| handle.spawn(compiler_location, TaskDescription::All(0)));
                 let result = a(&mut env).await;
-                env.log_result(source_location, result)
+                env.log_result(compiler_location, result)
             };
 
             let b = async {
                 let mut env =
-                    self.fork(|handle| handle.spawn(source_location, TaskDescription::All(1)));
+                    self.fork(|handle| handle.spawn(compiler_location, TaskDescription::All(1)));
                 let result = b(&mut env).await;
-                env.log_result(source_location, result)
+                env.log_result(compiler_location, result)
             };
 
             match futures::future::select(pin!(a), pin!(b)).await {
@@ -251,11 +254,11 @@ impl<'db> Env<'db> {
         direction: impl for<'a> Fn(&'a InferenceVarData<'db>) -> &'a [(Chain<'db>, ArcOrElse<'db>)],
         mut op: impl AsyncFnMut(&mut Env<'db>, Chain<'db>) -> Errors<bool>,
     ) -> impl Future<Output = Errors<bool>> {
-        let source_location = Location::caller();
+        let compiler_location = Location::caller();
 
         async move {
-            self.indent_with_source_location(
-                source_location,
+            self.indent_with_compiler_location(
+                compiler_location,
                 "exists_infer_bound",
                 &[&infer],
                 async |env| {
@@ -291,11 +294,11 @@ impl<'db> Env<'db> {
         direction: impl for<'a> Fn(&'a InferenceVarData<'db>) -> &'a [(Chain<'db>, ArcOrElse<'db>)],
         mut op: impl AsyncFnMut(&mut Env<'db>, Chain<'db>) -> Errors<()>,
     ) -> impl Future<Output = Errors<()>> {
-        let source_location = Location::caller();
+        let compiler_location = Location::caller();
 
         async move {
-            self.indent_with_source_location(
-                source_location,
+            self.indent_with_compiler_location(
+                compiler_location,
                 "require_for_all_infer_bounds",
                 &[&infer],
                 async |env| {
@@ -356,10 +359,13 @@ impl<'db> Env<'db> {
         &self,
         infer: InferVarIndex,
         op: impl FnMut(&InferenceVarData<'db>) -> Option<T>,
-    ) -> impl Future<Output = Option<T>> {
-        let source_location = Location::caller();
+    ) -> impl Future<Output = Option<T>>
+    where
+        T: Serialize,
+    {
+        let compiler_location = Location::caller();
         self.runtime
-            .loop_on_inference_var(infer, source_location, &self.log, op)
+            .loop_on_inference_var(infer, compiler_location, &self.log, op)
     }
 
     /// Choose between two options:
@@ -376,16 +382,17 @@ impl<'db> Env<'db> {
         mut not_required: impl AsyncFnMut(&mut Env<'db>) -> Errors<bool>,
     ) -> impl Future<Output = Errors<bool>> {
         let this = &*self;
-        let source_location = Location::caller();
+        let compiler_location = Location::caller();
 
         let mut is_required = Box::pin(async move {
-            let mut env = this.fork(|log| log.spawn(source_location, TaskDescription::IfRequired));
+            let mut env =
+                this.fork(|log| log.spawn(compiler_location, TaskDescription::IfRequired));
             is_required(&mut env).await
         });
 
         let mut not_required = Box::pin(async move {
             let mut env =
-                this.fork(|log| log.spawn(source_location, TaskDescription::IfNotRequired));
+                this.fork(|log| log.spawn(compiler_location, TaskDescription::IfNotRequired));
             not_required(&mut env).await
         });
 
@@ -426,6 +433,7 @@ impl<'db> Env<'db> {
             match new_pair {
                 None => return Ok(()),
                 Some((lower_red_ty, or_else)) => {
+                    self.log("for_each_bound", &[&infer, &lower_red_ty]);
                     previous_red_ty = Some(lower_red_ty);
                     op(self, previous_red_ty.as_ref().unwrap(), or_else).await?;
                 }
@@ -443,10 +451,10 @@ impl<'env, 'db> RequireAll<'env, 'db> {
     #[track_caller]
     pub fn require(mut self, op: impl AsyncFnOnce(&mut Env<'db>) -> Errors<()> + 'env) -> Self {
         let index = self.required.len();
-        let source_location = Location::caller();
+        let compiler_location = Location::caller();
         let mut env = self
             .env
-            .fork(|log| log.spawn(source_location, TaskDescription::All(index)));
+            .fork(|log| log.spawn(compiler_location, TaskDescription::All(index)));
         let future = async move { op(&mut env).await };
         self.required.push(Box::pin(future));
         self
