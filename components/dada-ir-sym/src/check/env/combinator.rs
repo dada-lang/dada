@@ -302,10 +302,10 @@ impl<'db> Env<'db> {
                     let mut observed = 0;
                     let mut stack = vec![];
 
-                    loop {
-                        env.extract_bounding_chains(infer, &mut observed, &mut stack, &direction)
-                            .await;
-
+                    while env
+                        .extract_bounding_chains(infer, &mut observed, &mut stack, &direction)
+                        .await
+                    {
                         while let Some(chain) = stack.pop() {
                             env.log("new bound", &[&chain]);
                             match op(env, chain).await {
@@ -314,6 +314,8 @@ impl<'db> Env<'db> {
                             }
                         }
                     }
+
+                    Ok(())
                 },
             )
             .await
@@ -324,13 +326,16 @@ impl<'db> Env<'db> {
     /// depending on `direction`) onto `stack`. The variable `observed` is used to track which
     /// chains have been observed from previous invocations; it should begin as `0` and it will be
     /// incremented during the call.
+    ///
+    /// Returns true if bounds were extracted and false if inference has completed and no more
+    /// bounds are forthcoming.
     pub async fn extract_bounding_chains(
         &mut self,
         infer: InferVarIndex,
         observed: &mut usize,
         stack: &mut Vec<Chain<'db>>,
         direction: impl for<'a> Fn(&'a InferenceVarData<'db>) -> &'a [(Chain<'db>, ArcOrElse<'db>)],
-    ) {
+    ) -> bool {
         self.loop_on_inference_var(infer, |data| {
             let chains = direction(data);
             assert!(stack.is_empty());
@@ -342,7 +347,8 @@ impl<'db> Env<'db> {
                 Some(())
             }
         })
-        .await;
+        .await
+        .is_some()
     }
 
     #[track_caller]

@@ -116,10 +116,13 @@ impl<'db> Runtime<'db> {
                 channel_tx.send(result).unwrap();
             }
         });
-        runtime.drain();
-        runtime.complete.store(true, Ordering::Relaxed);
 
-        // Once we have reached the "complete" state, we should awaken all remaining tasks (?).
+        // Run all spawned tasks until no more progress can be made.
+        runtime.drain();
+
+        // Mark inference as done and drain again. This may generate fresh errors.
+        runtime.mark_complete();
+        runtime.drain();
 
         // Dump debug info
         runtime.root_log.dump(span);
@@ -161,8 +164,9 @@ impl<'db> Runtime<'db> {
     }
 
     /// Spawn a new check-task.
+    #[track_caller]
     fn spawn_future(&self, future: impl Future<Output = ()> + 'db) {
-        let task = CheckTask::new(self, future);
+        let task = CheckTask::new(Location::caller(), self, future);
         self.ready_to_execute.lock().unwrap().push(task);
     }
 
@@ -175,6 +179,18 @@ impl<'db> Runtime<'db> {
     fn drain(&self) {
         while let Some(ready) = self.pop_task() {
             ready.execute(self);
+        }
+    }
+
+    /// Mark the inference process as complete and wake all tasks.
+    fn mark_complete(&self) {
+        self.complete.store(true, Ordering::Relaxed);
+        let map = std::mem::replace(
+            &mut *self.waiting_on_inference_var.lock().unwrap(),
+            Default::default(),
+        );
+        for EqWaker { waker } in map.into_values().flatten() {
+            waker.wake();
         }
     }
 
@@ -380,6 +396,7 @@ mod check_task {
     use futures::{FutureExt, future::LocalBoxFuture};
     use std::{
         future::Future,
+        panic::Location,
         rc::Rc,
         sync::{Arc, Mutex},
         task::{Context, Poll, RawWaker, RawWakerVTable, Waker},
@@ -402,6 +419,8 @@ mod check_task {
     /// then we know that `self.check` has that same type, and that therefore the
     /// lifetimes in `self.state` are valid.
     pub(super) struct CheckTask {
+        spawned_at: &'static Location<'static>,
+
         /// Erased type: `Check<'db>`
         runtime: Runtime<'static>,
 
@@ -420,6 +439,7 @@ mod check_task {
 
     impl CheckTask {
         pub(super) fn new<'db>(
+            spawned_at: &'static Location<'static>,
             runtime: &Runtime<'db>,
             future: impl Future<Output = ()> + 'db,
         ) -> Arc<Self> {
@@ -431,6 +451,7 @@ mod check_task {
                     unsafe { std::mem::transmute::<Runtime<'db>, Runtime<'static>>(my_check) };
 
                 Arc::new(Self {
+                    spawned_at,
                     runtime: my_check,
                     id: runtime.next_task_id(),
                     state: Mutex::new(CheckTaskState::Executing),
@@ -521,7 +542,7 @@ mod check_task {
                 }
 
                 CheckTaskState::Waiting(mut future, log_state) => {
-                    let _log = dada_util::log::enter_task(self.id, log_state);
+                    let _log = dada_util::log::enter_task(self.id, self.spawned_at, log_state);
                     match Future::poll(
                         future.as_mut(),
                         &mut Context::from_waker(&self.clone().waker()),

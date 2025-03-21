@@ -1,4 +1,4 @@
-use std::{fs::File, thread::ThreadId};
+use std::{fs::File, panic::Location, thread::ThreadId};
 
 use serde::ser::SerializeStruct;
 
@@ -37,7 +37,7 @@ enum MessageKind {
     Normal,
     Indent,
     Undent,
-    EnterTask(u64),
+    EnterTask(u64, #[serde(skip)] &'static Location<'static>),
     LeaveTask(u64),
 }
 
@@ -47,7 +47,9 @@ impl std::fmt::Debug for MessageKind {
             MessageKind::Normal => write!(f, "- "),
             MessageKind::Indent => write!(f, "> "),
             MessageKind::Undent => write!(f, "< "),
-            MessageKind::EnterTask(id) => write!(f, "> task {id}"),
+            MessageKind::EnterTask(id, location) => {
+                write!(f, "> task {id} (spawned at {:?})", location)
+            }
             MessageKind::LeaveTask(id) => write!(f, "< task {id}"),
         }
     }
@@ -91,10 +93,14 @@ macro_rules! debug_heading {
 ///
 /// * `id`, the task ID.
 /// * `log_state`, the log state of the task when it was suspended.
-pub fn enter_task(id: u64, log_state: LogState) -> TaskUndent {
+pub fn enter_task(
+    id: u64,
+    location: &'static Location<'static>,
+    log_state: LogState,
+) -> TaskUndent {
     let old_state = LogState::get();
     if let Some(kind) = enabled() {
-        debug_cold(kind, MessageKind::EnterTask(id), "", &[])
+        debug_cold(kind, MessageKind::EnterTask(id, location), "", &[])
     }
     log_state.set();
     TaskUndent(id, old_state)
@@ -220,7 +226,7 @@ fn debug_cold(
                 MessageKind::Indent => {
                     INDENT_LEVEL.with(|level| level.set(indent_level + 1));
                 }
-                MessageKind::Normal | MessageKind::EnterTask(_) | MessageKind::LeaveTask(_) => (),
+                MessageKind::Normal | MessageKind::EnterTask(..) | MessageKind::LeaveTask(_) => (),
             }
         }
         LogKind::Json(file) => {
