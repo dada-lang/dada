@@ -1,5 +1,3 @@
-use std::sync::Arc;
-
 use dada_ir_ast::span::Span;
 use salsa::Update;
 
@@ -89,10 +87,7 @@ impl<'db> InferenceVarData<'db> {
 
     /// Returns `Some(s)` if the predicate is known to be true (where `s` is the span of code
     /// which required the predicate to be true).
-    pub fn is_known_to_provably_be(
-        &self,
-        predicate: Predicate,
-    ) -> Option<Arc<dyn OrElse<'db> + 'db>> {
+    pub fn is_known_to_provably_be(&self, predicate: Predicate) -> Option<ArcOrElse<'db>> {
         self.is[predicate.index()].clone()
     }
 
@@ -101,10 +96,7 @@ impl<'db> InferenceVarData<'db> {
     ///
     /// This is different from being known to be false. It means we know we won't be able to know.
     /// Can occur with generics etc.
-    pub fn is_known_not_to_provably_be(
-        &self,
-        predicate: Predicate,
-    ) -> Option<Arc<dyn OrElse<'db> + 'db>> {
+    pub fn is_known_not_to_provably_be(&self, predicate: Predicate) -> Option<ArcOrElse<'db>> {
         self.isnt[predicate.index()].clone()
     }
 

@@ -35,7 +35,10 @@ use super::{
     red::{Chain, RedTy},
     report::{ArcOrElse, BooleanTypeRequired, OrElse},
     runtime::DeferResult,
-    subtype::{is_future::require_future_type, is_numeric::require_numeric_type},
+    subtype::{
+        is_future::require_future_type, is_numeric::require_numeric_type,
+        terms::reconcile_ty_bounds,
+    },
 };
 
 pub mod combinator;
@@ -277,6 +280,18 @@ impl<'db> Env<'db> {
             "created inference variable",
             &[&infer, &kind, &span],
         );
+
+        match kind {
+            SymGenericKind::Type => {
+                self.spawn(
+                    TaskDescription::ReconcileTyBounds(infer),
+                    async move |env| reconcile_ty_bounds(env, infer).await,
+                );
+            }
+            SymGenericKind::Perm => {}
+            SymGenericKind::Place => {}
+        }
+
         infer
     }
 
@@ -418,7 +433,11 @@ impl<'db> Env<'db> {
     pub(crate) fn require_expr_has_bool_ty(&mut self, expr: SymExpr<'db>) {
         let db = self.db();
         let boolean_ty = SymTy::boolean(db);
-        self.spawn_require_assignable_type(expr.ty(db), boolean_ty, &BooleanTypeRequired { expr });
+        self.spawn_require_assignable_type(
+            expr.ty(db),
+            boolean_ty,
+            &BooleanTypeRequired::new(expr),
+        );
     }
 
     /// Check if the given (perm, type) variable is declared as leased.
@@ -467,13 +486,13 @@ impl<'db> Env<'db> {
     where
         R: erased_serde::Serialize,
     {
-        let source_location = Location::caller();
-        self.indent_with_source_location(source_location, message, values, op)
+        let compiler_location = Location::caller();
+        self.indent_with_compiler_location(compiler_location, message, values, op)
     }
 
-    pub async fn indent_with_source_location<R>(
+    pub async fn indent_with_compiler_location<R>(
         &mut self,
-        source_location: &'static Location<'static>,
+        compiler_location: &'static Location<'static>,
         message: &'static str,
         values: &[&dyn erased_serde::Serialize],
         op: impl AsyncFnOnce(&mut Self) -> R,
@@ -481,18 +500,18 @@ impl<'db> Env<'db> {
     where
         R: erased_serde::Serialize,
     {
-        self.log.indent(source_location, message, values);
+        self.log.indent(compiler_location, message, values);
         let result = op(self).await;
-        self.log.log(source_location, "result", &[&result]);
-        self.log.undent(source_location, message);
+        self.log.log(compiler_location, "result", &[&result]);
+        self.log.undent(compiler_location, message);
         result
     }
 
-    pub fn log_result<T>(&mut self, source_location: &'static Location<'static>, value: T) -> T
+    pub fn log_result<T>(&mut self, compiler_location: &'static Location<'static>, value: T) -> T
     where
         T: erased_serde::Serialize,
     {
-        self.log.log(source_location, "result", &[&value]);
+        self.log.log(compiler_location, "result", &[&value]);
         value
     }
 
@@ -505,12 +524,17 @@ impl<'db> Env<'db> {
     /// Record that `lower <: upper` must hold,
     /// returning true if this is the first time that this has been recorded
     /// or false if it has been recorded before.
+    ///
+    /// # Panics
+    ///
+    /// If `lower == upper`, as that is just always true, why record it?
     #[track_caller]
     pub fn insert_sub_infer_var_pair(
         &mut self,
         lower: InferVarIndex,
         upper: InferVarIndex,
     ) -> bool {
+        assert_ne!(lower, upper);
         self.runtime
             .insert_sub_infer_var_pair(lower, upper, &self.log)
     }
@@ -573,7 +597,7 @@ impl<'db> Env<'db> {
             env: self,
             infer,
             direction,
-            source_location: Location::caller(),
+            compiler_location: Location::caller(),
         }
     }
 }
@@ -588,7 +612,7 @@ pub struct RedTyBound<'env, 'db> {
     env: &'env Env<'db>,
     infer: InferVarIndex,
     direction: Direction,
-    source_location: &'static Location<'static>,
+    compiler_location: &'static Location<'static>,
 }
 
 impl<'env, 'db> RedTyBound<'env, 'db> {
@@ -620,7 +644,7 @@ impl<'env, 'db> IntoFuture for RedTyBound<'env, 'db> {
     fn into_future(self) -> Self::IntoFuture {
         LocalFutureObj::new(Box::new(self.env.runtime.loop_on_inference_var(
             self.infer,
-            self.source_location,
+            self.compiler_location,
             &self.env.log,
             move |data| data.red_ty_bound(self.direction),
         )))

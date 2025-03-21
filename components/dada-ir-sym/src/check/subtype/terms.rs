@@ -23,7 +23,7 @@ use crate::{
     ir::{
         classes::SymAggregateStyle,
         indices::{FromInfer, InferVarIndex},
-        types::{SymGenericKind, SymGenericTerm, SymPerm, SymTy, SymTyKind, Variance},
+        types::{SymGenericKind, SymGenericTerm, SymPerm, SymTy, SymTyKind, SymTyName, Variance},
     },
 };
 
@@ -249,14 +249,17 @@ async fn require_infer_sub_infer<'db>(
     debug_assert_eq!(env.infer_var_kind(lower_infer), InferVarKind::Type);
     debug_assert_eq!(env.infer_var_kind(upper_infer), InferVarKind::Type);
 
+    if lower_infer == upper_infer {
+        return Ok(());
+    }
+
     if env.insert_sub_infer_var_pair(lower_infer, upper_infer) {
         env.require_both(
             async |env| {
-                for_each_bound(
-                    env,
+                env.for_each_bound(
                     Direction::FromBelow,
                     lower_infer,
-                    async |env, lower_bound| {
+                    async |env, lower_bound, _or_else| {
                         require_sub_red_terms(
                             env,
                             RedTerm::new(db, lower.chains.clone(), lower_bound.clone()),
@@ -269,11 +272,10 @@ async fn require_infer_sub_infer<'db>(
                 .await
             },
             async |env| {
-                for_each_bound(
-                    env,
+                env.for_each_bound(
                     Direction::FromAbove,
                     upper_infer,
-                    async |env, upper_bound| {
+                    async |env, upper_bound, _or_else| {
                         require_sub_red_terms(
                             env,
                             lower.clone(),
@@ -425,33 +427,99 @@ fn generalize<'db>(env: &mut Env<'db>, red_ty: &RedTy<'db>, span: Span<'db>) -> 
     Ok(red_ty_generalized)
 }
 
-/// Invoke `op` for each new lower (or upper, depending on direction) bound on `?X`.
-pub async fn for_each_bound<'db>(
-    env: &mut Env<'db>,
-    direction: Direction,
-    infer: InferVarIndex,
-    mut op: impl AsyncFnMut(&mut Env<'db>, &RedTy<'db>) -> Errors<()>,
-) -> Errors<()> {
-    let mut previous_red_ty = None;
-    loop {
-        let new_red_ty = env
-            .loop_on_inference_var(infer, |data| {
-                let (red_ty, _or_else) = data.red_ty_bound(direction)?;
-                if let Some(previous_ty) = &previous_red_ty {
-                    if red_ty == *previous_ty {
-                        return None;
-                    }
-                }
-                Some(red_ty)
-            })
-            .await;
+/// A task that runs for each type inference variable. It awaits any upper/lower bounds
+/// and propagates a corresponding bound.
+pub async fn reconcile_ty_bounds<'db>(env: &mut Env<'db>, infer: InferVarIndex) -> Errors<()> {
+    assert_eq!(env.infer_var_kind(infer), InferVarKind::Type);
+    let db = env.db();
 
-        match new_red_ty {
-            None => return Ok(()),
-            Some(lower_red_ty) => {
-                previous_red_ty = Some(lower_red_ty);
-                op(env, previous_red_ty.as_ref().unwrap()).await?;
-            }
-        }
-    }
+    // Various views onto this inference variable
+    let span = env.infer_var_span(infer);
+    let perm_infer = env.perm_infer(infer);
+    let red_chains = VecSet::from(Chain::infer(db, perm_infer));
+    let red_term_with_perm_infer = |red_ty| RedTerm::new(db, red_chains.clone(), red_ty);
+
+    env.require_both(
+        async |env| {
+            // For each type `T` where `?X <: T`...
+            env.for_each_bound(Direction::FromAbove, infer, async |env, red_ty, or_else| {
+                // see if that implies that `U <: ?X` for some `U`
+                let lower_bound = match red_ty {
+                    RedTy::Error(_) => None,
+
+                    RedTy::Named(sym_ty_name, _) => match sym_ty_name {
+                        SymTyName::Primitive(_) | SymTyName::Future | SymTyName::Tuple { .. } => {
+                            Some(generalize(env, red_ty, span)?)
+                        }
+                        SymTyName::Aggregate(_sym_aggregate) => {
+                            // FIXME(#241): check if `sym_aggregate` is an enum
+                            // in which case we need to adjust
+                            Some(generalize(env, red_ty, span)?)
+                        }
+                    },
+
+                    RedTy::Never | RedTy::Var(..) => Some(red_ty.clone()),
+
+                    RedTy::Infer(..) | RedTy::Perm => {
+                        unreachable!("unexpected kind for red-ty bound: {red_ty:?}")
+                    }
+                };
+
+                if let Some(lower_bound) = lower_bound {
+                    require_ty_sub_infer(
+                        env,
+                        red_term_with_perm_infer(lower_bound),
+                        red_chains.clone(),
+                        infer,
+                        &or_else,
+                    )
+                    .await?;
+                }
+
+                Ok(())
+            })
+            .await
+        },
+        async |env| {
+            // For each type `T` where `T <: ?X`...
+            env.for_each_bound(Direction::FromBelow, infer, async |env, red_ty, or_else| {
+                // see if that implies that `?X <: U` for some `U`
+                let upper_bound = match red_ty {
+                    RedTy::Error(_) => None,
+
+                    RedTy::Named(sym_ty_name, _) => match sym_ty_name {
+                        SymTyName::Primitive(_) | SymTyName::Future | SymTyName::Tuple { .. } => {
+                            Some(generalize(env, red_ty, span)?)
+                        }
+                        SymTyName::Aggregate(_sym_aggregate) => {
+                            // FIXME(#241): check if `sym_aggregate` is an enum
+                            // in which case we need to adjust
+                            Some(generalize(env, red_ty, span)?)
+                        }
+                    },
+
+                    RedTy::Never | RedTy::Var(..) => Some(red_ty.clone()),
+
+                    RedTy::Infer(..) | RedTy::Perm => {
+                        unreachable!("unexpected kind for red-ty bound: {red_ty:?}")
+                    }
+                };
+
+                if let Some(upper_bound) = upper_bound {
+                    require_infer_sub_ty(
+                        env,
+                        red_chains.clone(),
+                        infer,
+                        red_term_with_perm_infer(upper_bound),
+                        &or_else,
+                    )
+                    .await?;
+                }
+
+                Ok(())
+            })
+            .await
+        },
+    )
+    .await
 }

@@ -1,13 +1,14 @@
-use std::sync::Arc;
+use std::{panic::Location, sync::Arc};
 
 use dada_ir_ast::{
     ast::SpannedBinaryOp,
     diagnostic::{Diagnostic, Level, Reported},
     span::Span,
 };
+use serde::Serialize;
 
 use crate::{
-    check::{env::Env, predicates::Predicate},
+    check::{debug::export, env::Env, predicates::Predicate},
     ir::{
         exprs::{SymExpr, SymPlaceExpr},
         primitive::SymPrimitive,
@@ -48,18 +49,63 @@ pub trait OrElse<'db> {
     /// or otherwise preserved beyond the current stack frame.
     /// See the trait comment for more details.
     fn to_arc(&self) -> ArcOrElse<'db>;
+
+    /// Returns the location in the *compiler source* where this `or_else` was created.
+    /// Useful for debugging.
+    fn compiler_location(&self) -> &'static Location<'static>;
 }
 
 /// See [`OrElse::to_arc`][].
-pub type ArcOrElse<'db> = Arc<dyn OrElse<'db> + 'db>;
+#[derive(Clone)]
+pub struct ArcOrElse<'db> {
+    data: Arc<dyn OrElse<'db> + 'db>,
+}
+
+impl<'db, T> From<Arc<T>> for ArcOrElse<'db>
+where
+    T: OrElse<'db> + 'db,
+{
+    fn from(data: Arc<T>) -> Self {
+        ArcOrElse { data }
+    }
+}
 
 impl<'db> OrElse<'db> for ArcOrElse<'db> {
     fn or_else(&self, env: &mut Env<'db>, because: Because<'db>) -> Diagnostic {
-        <dyn OrElse<'db>>::or_else(&**self, env, because)
+        self.data.or_else(env, because)
     }
 
     fn to_arc(&self) -> ArcOrElse<'db> {
-        Arc::clone(self)
+        ArcOrElse::clone(self)
+    }
+
+    fn compiler_location(&self) -> &'static Location<'static> {
+        self.data.compiler_location()
+    }
+}
+
+impl<'db> std::ops::Deref for ArcOrElse<'db> {
+    type Target = dyn OrElse<'db> + 'db;
+
+    fn deref(&self) -> &Self::Target {
+        &*self.data
+    }
+}
+
+impl Serialize for ArcOrElse<'_> {
+    fn serialize<S>(&self, serializer: S) -> Result<S::Ok, S::Error>
+    where
+        S: serde::Serializer,
+    {
+        #[derive(Serialize)]
+        struct ErasedOrElse {
+            compiler_location: export::CompilerLocation<'static>,
+        }
+
+        ErasedOrElse {
+            compiler_location: self.compiler_location().into(),
+        }
+        .serialize(serializer)
     }
 }
 
@@ -78,11 +124,12 @@ pub trait OrElseHelper<'db>: Sized {
 
 impl<'db> OrElseHelper<'db> for &dyn OrElse<'db> {
     /// See [`OrElseHelper::map_because`][].
+    #[track_caller]
     fn map_because(
         self,
         f: impl 'db + Clone + Fn(Because<'db>) -> Because<'db>,
     ) -> impl OrElse<'db> {
-        struct MapBecause<F, G>(F, G);
+        struct MapBecause<F, G>(F, G, &'static Location<'static>);
 
         impl<'db, F, G> OrElse<'db> for MapBecause<F, G>
         where
@@ -93,12 +140,16 @@ impl<'db> OrElseHelper<'db> for &dyn OrElse<'db> {
                 self.1.or_else(env, (self.0)(because))
             }
 
-            fn to_arc(&self) -> Arc<dyn OrElse<'db> + 'db> {
-                Arc::new(MapBecause(self.0.clone(), self.1.to_arc()))
+            fn to_arc(&self) -> ArcOrElse<'db> {
+                Arc::new(MapBecause(self.0.clone(), self.1.to_arc(), self.2)).into()
+            }
+
+            fn compiler_location(&self) -> &'static Location<'static> {
+                self.2
             }
         }
 
-        MapBecause(f, self)
+        MapBecause(f, self, Location::caller())
     }
 }
 
@@ -296,15 +347,33 @@ where
 /// Every usage of this is a bug.
 #[derive(Copy, Clone, Debug)]
 pub struct BadSubtypeError<'db> {
-    pub span: Span<'db>,
-    pub lower: SymTy<'db>,
-    pub upper: SymTy<'db>,
+    span: Span<'db>,
+    lower: SymTy<'db>,
+    upper: SymTy<'db>,
+    compiler_location: &'static Location<'static>,
+}
+
+impl<'db> BadSubtypeError<'db> {
+    #[track_caller]
+    pub fn new(span: Span<'db>, lower: SymTy<'db>, upper: SymTy<'db>) -> Self {
+        Self {
+            span,
+            lower,
+            upper,
+            compiler_location: Location::caller(),
+        }
+    }
 }
 
 impl<'db> OrElse<'db> for BadSubtypeError<'db> {
     fn or_else(&self, env: &mut Env<'db>, because: Because<'db>) -> Diagnostic {
         let db = env.db();
-        let Self { span, lower, upper } = *self;
+        let Self {
+            span,
+            lower,
+            upper,
+            compiler_location: _,
+        } = *self;
         because.annotate_diagnostic(
             env,
             Diagnostic::error(db, span, "subtype expected".to_string()).label(
@@ -317,16 +386,39 @@ impl<'db> OrElse<'db> for BadSubtypeError<'db> {
     }
 
     fn to_arc(&self) -> ArcOrElse<'db> {
-        Arc::new(*self)
+        Arc::new(*self).into()
+    }
+
+    fn compiler_location(&self) -> &'static Location<'static> {
+        self.compiler_location
     }
 }
 
 #[derive(Copy, Clone, Debug)]
 pub struct InvalidInitializerType<'db> {
-    pub variable: SymVariable<'db>,
-    pub variable_span: Span<'db>,
-    pub variable_ty: SymTy<'db>,
-    pub initializer: SymExpr<'db>,
+    variable: SymVariable<'db>,
+    variable_span: Span<'db>,
+    variable_ty: SymTy<'db>,
+    initializer: SymExpr<'db>,
+    compiler_location: &'static Location<'static>,
+}
+
+impl<'db> InvalidInitializerType<'db> {
+    #[track_caller]
+    pub fn new(
+        variable: SymVariable<'db>,
+        variable_span: Span<'db>,
+        variable_ty: SymTy<'db>,
+        initializer: SymExpr<'db>,
+    ) -> Self {
+        Self {
+            variable,
+            variable_span,
+            variable_ty,
+            initializer,
+            compiler_location: Location::caller(),
+        }
+    }
 }
 
 impl<'db> OrElse<'db> for InvalidInitializerType<'db> {
@@ -363,14 +455,30 @@ impl<'db> OrElse<'db> for InvalidInitializerType<'db> {
     }
 
     fn to_arc(&self) -> ArcOrElse<'db> {
-        Arc::new(*self)
+        Arc::new(*self).into()
+    }
+
+    fn compiler_location(&self) -> &'static Location<'static> {
+        self.compiler_location
     }
 }
 
 #[derive(Copy, Clone, Debug)]
 pub struct InvalidAssignmentType<'db> {
-    pub lhs: SymPlaceExpr<'db>,
-    pub rhs: SymExpr<'db>,
+    lhs: SymPlaceExpr<'db>,
+    rhs: SymExpr<'db>,
+    compiler_location: &'static Location<'static>,
+}
+
+impl<'db> InvalidAssignmentType<'db> {
+    #[track_caller]
+    pub fn new(lhs: SymPlaceExpr<'db>, rhs: SymExpr<'db>) -> Self {
+        Self {
+            lhs,
+            rhs,
+            compiler_location: Location::caller(),
+        }
+    }
 }
 
 impl<'db> OrElse<'db> for InvalidAssignmentType<'db> {
@@ -401,14 +509,30 @@ impl<'db> OrElse<'db> for InvalidAssignmentType<'db> {
     }
 
     fn to_arc(&self) -> ArcOrElse<'db> {
-        Arc::new(*self)
+        Arc::new(*self).into()
+    }
+
+    fn compiler_location(&self) -> &'static Location<'static> {
+        self.compiler_location
     }
 }
 
 #[derive(Copy, Clone, Debug)]
 pub struct InvalidReturnValue<'db> {
-    pub value: SymExpr<'db>,
-    pub return_ty: SymTy<'db>,
+    value: SymExpr<'db>,
+    return_ty: SymTy<'db>,
+    compiler_location: &'static Location<'static>,
+}
+
+impl<'db> InvalidReturnValue<'db> {
+    #[track_caller]
+    pub fn new(value: SymExpr<'db>, return_ty: SymTy<'db>) -> Self {
+        Self {
+            value,
+            return_ty,
+            compiler_location: Location::caller(),
+        }
+    }
 }
 
 impl<'db> OrElse<'db> for InvalidReturnValue<'db> {
@@ -440,14 +564,30 @@ impl<'db> OrElse<'db> for InvalidReturnValue<'db> {
     }
 
     fn to_arc(&self) -> ArcOrElse<'db> {
-        Arc::new(*self)
+        Arc::new(*self).into()
+    }
+
+    fn compiler_location(&self) -> &'static Location<'static> {
+        self.compiler_location
     }
 }
 
 #[derive(Copy, Clone, Debug)]
 pub struct AwaitNonFuture<'db> {
-    pub await_span: Span<'db>,
-    pub future_expr: SymExpr<'db>,
+    await_span: Span<'db>,
+    future_expr: SymExpr<'db>,
+    compiler_location: &'static Location<'static>,
+}
+
+impl<'db> AwaitNonFuture<'db> {
+    #[track_caller]
+    pub fn new(await_span: Span<'db>, future_expr: SymExpr<'db>) -> Self {
+        Self {
+            await_span,
+            future_expr,
+            compiler_location: Location::caller(),
+        }
+    }
 }
 
 impl<'db> OrElse<'db> for AwaitNonFuture<'db> {
@@ -455,6 +595,7 @@ impl<'db> OrElse<'db> for AwaitNonFuture<'db> {
         let Self {
             await_span,
             future_expr,
+            compiler_location: _,
         } = *self;
         let db = env.db();
         because.annotate_diagnostic(
@@ -483,13 +624,28 @@ impl<'db> OrElse<'db> for AwaitNonFuture<'db> {
     }
 
     fn to_arc(&self) -> ArcOrElse<'db> {
-        Arc::new(*self)
+        Arc::new(*self).into()
+    }
+
+    fn compiler_location(&self) -> &'static Location<'static> {
+        self.compiler_location
     }
 }
 
 #[derive(Copy, Clone, Debug)]
 pub struct BooleanTypeRequired<'db> {
-    pub expr: SymExpr<'db>,
+    expr: SymExpr<'db>,
+    compiler_location: &'static Location<'static>,
+}
+
+impl<'db> BooleanTypeRequired<'db> {
+    #[track_caller]
+    pub fn new(expr: SymExpr<'db>) -> Self {
+        Self {
+            expr,
+            compiler_location: Location::caller(),
+        }
+    }
 }
 
 impl<'db> OrElse<'db> for BooleanTypeRequired<'db> {
@@ -515,14 +671,30 @@ impl<'db> OrElse<'db> for BooleanTypeRequired<'db> {
     }
 
     fn to_arc(&self) -> ArcOrElse<'db> {
-        Arc::new(*self)
+        Arc::new(*self).into()
+    }
+
+    fn compiler_location(&self) -> &'static Location<'static> {
+        self.compiler_location
     }
 }
 
 #[derive(Copy, Clone, Debug)]
 pub struct NumericTypeExpected<'db> {
-    pub expr: SymExpr<'db>,
-    pub ty: SymTy<'db>,
+    expr: SymExpr<'db>,
+    ty: SymTy<'db>,
+    compiler_location: &'static Location<'static>,
+}
+
+impl<'db> NumericTypeExpected<'db> {
+    #[track_caller]
+    pub fn new(expr: SymExpr<'db>, ty: SymTy<'db>) -> Self {
+        Self {
+            expr,
+            ty,
+            compiler_location: Location::caller(),
+        }
+    }
 }
 
 impl<'db> OrElse<'db> for NumericTypeExpected<'db> {
@@ -540,14 +712,30 @@ impl<'db> OrElse<'db> for NumericTypeExpected<'db> {
     }
 
     fn to_arc(&self) -> ArcOrElse<'db> {
-        Arc::new(*self)
+        Arc::new(*self).into()
+    }
+
+    fn compiler_location(&self) -> &'static Location<'static> {
+        self.compiler_location
     }
 }
 
 #[derive(Copy, Clone, Debug)]
 pub struct OperatorRequiresNumericType<'db> {
-    pub op: SpannedBinaryOp<'db>,
-    pub expr: SymExpr<'db>,
+    op: SpannedBinaryOp<'db>,
+    expr: SymExpr<'db>,
+    compiler_location: &'static Location<'static>,
+}
+
+impl<'db> OperatorRequiresNumericType<'db> {
+    #[track_caller]
+    pub fn new(op: SpannedBinaryOp<'db>, expr: SymExpr<'db>) -> Self {
+        Self {
+            op,
+            expr,
+            compiler_location: Location::caller(),
+        }
+    }
 }
 
 impl<'db> OrElse<'db> for OperatorRequiresNumericType<'db> {
@@ -556,6 +744,7 @@ impl<'db> OrElse<'db> for OperatorRequiresNumericType<'db> {
         let Self {
             op: SpannedBinaryOp { span: op_span, op },
             expr,
+            compiler_location: _,
         } = *self;
 
         because.annotate_diagnostic(
@@ -580,15 +769,32 @@ impl<'db> OrElse<'db> for OperatorRequiresNumericType<'db> {
     }
 
     fn to_arc(&self) -> ArcOrElse<'db> {
-        Arc::new(*self)
+        Arc::new(*self).into()
+    }
+
+    fn compiler_location(&self) -> &'static Location<'static> {
+        self.compiler_location
     }
 }
 
 #[derive(Copy, Clone, Debug)]
 pub struct OperatorArgumentsMustHaveSameType<'db> {
-    pub op: SpannedBinaryOp<'db>,
-    pub lhs: SymExpr<'db>,
-    pub rhs: SymExpr<'db>,
+    op: SpannedBinaryOp<'db>,
+    lhs: SymExpr<'db>,
+    rhs: SymExpr<'db>,
+    compiler_location: &'static Location<'static>,
+}
+
+impl<'db> OperatorArgumentsMustHaveSameType<'db> {
+    #[track_caller]
+    pub fn new(op: SpannedBinaryOp<'db>, lhs: SymExpr<'db>, rhs: SymExpr<'db>) -> Self {
+        Self {
+            op,
+            lhs,
+            rhs,
+            compiler_location: Location::caller(),
+        }
+    }
 }
 
 impl<'db> OrElse<'db> for OperatorArgumentsMustHaveSameType<'db> {
@@ -598,6 +804,7 @@ impl<'db> OrElse<'db> for OperatorArgumentsMustHaveSameType<'db> {
             op: SpannedBinaryOp { span: op_span, op },
             lhs,
             rhs,
+            compiler_location: _,
         } = *self;
 
         because.annotate_diagnostic(
@@ -625,6 +832,10 @@ impl<'db> OrElse<'db> for OperatorArgumentsMustHaveSameType<'db> {
     }
 
     fn to_arc(&self) -> ArcOrElse<'db> {
-        Arc::new(*self)
+        Arc::new(*self).into()
+    }
+
+    fn compiler_location(&self) -> &'static Location<'static> {
+        self.compiler_location
     }
 }

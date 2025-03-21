@@ -43,12 +43,7 @@ pub async fn check_block_statements<'db>(
                             env.spawn_require_assignable_type(
                                 initializer.ty(db),
                                 ty,
-                                &InvalidInitializerType {
-                                    variable: lv,
-                                    variable_span: s.name(db).span,
-                                    variable_ty: ty,
-                                    initializer,
-                                },
+                                &InvalidInitializerType::new(lv, s.name(db).span, ty, initializer),
                             );
                             Some(initializer)
                         }

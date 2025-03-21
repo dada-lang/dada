@@ -9,14 +9,14 @@ use std::{
 
 use dada_ir_ast::{DebugEvent, DebugEventPayload, span::Span};
 use dada_util::fixed_depth_json;
-use export::{SourceLocation, TimeStamp};
+use export::{CompilerLocation, TimeStamp};
 use serde::Serialize;
 
 use crate::ir::{indices::InferVarIndex, types::SymTy};
 
 use super::predicates::Predicate;
 
-mod export;
+pub mod export;
 
 pub struct LogHandle<'db> {
     log: Option<Rc<Mutex<Log<'db>>>>,
@@ -26,14 +26,14 @@ pub struct LogHandle<'db> {
 impl<'db> LogHandle<'db> {
     pub fn root(
         db: &'db dyn crate::Db,
-        source_location: &'static Location<'static>,
+        compiler_location: &'static Location<'static>,
         root: RootTaskDescription<'db>,
     ) -> Self {
         if let Some(debug_tx) = db.debug_tx() {
             LogHandle {
                 log: Some(Rc::new(Mutex::new(Log::new(
                     db,
-                    source_location,
+                    compiler_location,
                     root,
                     debug_tx,
                 )))),
@@ -54,7 +54,7 @@ impl<'db> LogHandle<'db> {
 
     pub fn spawn(
         &self,
-        source_location: &'static Location<'static>,
+        compiler_location: &'static Location<'static>,
         task_description: TaskDescription<'db>,
     ) -> Self {
         let Some(log) = &self.log else {
@@ -70,12 +70,12 @@ impl<'db> LogHandle<'db> {
         });
         locked_log.push_event(Event {
             task: self.task_index,
-            source_location,
+            compiler_location,
             kind: EventKind::Spawned(spawned_task_index),
         });
         locked_log.push_event(Event {
             task: spawned_task_index,
-            source_location,
+            compiler_location,
             kind: EventKind::TaskStart,
         });
         std::mem::drop(locked_log);
@@ -102,11 +102,11 @@ impl<'db> LogHandle<'db> {
     /// until `undent` is called.
     pub fn indent(
         &self,
-        source_location: &'static Location<'static>,
+        compiler_location: &'static Location<'static>,
         message: &'static str,
         values: &[&dyn erased_serde::Serialize],
     ) {
-        self.push_event(source_location, message, values, |message, json_value| {
+        self.push_event(compiler_location, message, values, |message, json_value| {
             EventKind::Indent {
                 message,
                 json_value,
@@ -115,8 +115,8 @@ impl<'db> LogHandle<'db> {
     }
 
     /// Remove one layer of indent
-    pub fn undent(&self, source_location: &'static Location<'static>, message: &'static str) {
-        self.push_event(source_location, message, &[], |message, _| {
+    pub fn undent(&self, compiler_location: &'static Location<'static>, message: &'static str) {
+        self.push_event(compiler_location, message, &[], |message, _| {
             EventKind::Undent { message }
         })
     }
@@ -124,11 +124,11 @@ impl<'db> LogHandle<'db> {
     /// Log a message with argument(s).
     pub fn log(
         &self,
-        source_location: &'static Location<'static>,
+        compiler_location: &'static Location<'static>,
         message: &'static str,
         values: &[&dyn erased_serde::Serialize],
     ) {
-        self.push_event(source_location, message, values, |message, json_value| {
+        self.push_event(compiler_location, message, values, |message, json_value| {
             EventKind::Log {
                 message,
                 json_value,
@@ -139,12 +139,12 @@ impl<'db> LogHandle<'db> {
     /// Log a message with argument(s).
     pub fn infer(
         &self,
-        source_location: &'static Location<'static>,
+        compiler_location: &'static Location<'static>,
         message: &'static str,
         infer: InferVarIndex,
         values: &[&dyn erased_serde::Serialize],
     ) {
-        self.push_event(source_location, message, values, |message, json_value| {
+        self.push_event(compiler_location, message, values, |message, json_value| {
             EventKind::Infer {
                 infer,
                 message,
@@ -155,7 +155,7 @@ impl<'db> LogHandle<'db> {
 
     fn push_event(
         &self,
-        source_location: &'static Location<'static>,
+        compiler_location: &'static Location<'static>,
         message: &'static str,
         values: &[&dyn erased_serde::Serialize],
         kind: impl FnOnce(&'static str, String) -> EventKind,
@@ -174,7 +174,7 @@ impl<'db> LogHandle<'db> {
         let argument = event_argument(values);
 
         log.push_event(Event {
-            source_location,
+            compiler_location,
             task: self.task_index,
             kind: kind(message, argument),
         });
@@ -200,7 +200,7 @@ pub struct Log<'db> {
 impl<'db> Log<'db> {
     fn new(
         db: &'db dyn crate::Db,
-        source_location: &'static Location<'static>,
+        compiler_location: &'static Location<'static>,
         root: RootTaskDescription<'db>,
         debug_tx: Sender<DebugEvent>,
     ) -> Self {
@@ -211,7 +211,7 @@ impl<'db> Log<'db> {
 
         let events = vec![Event {
             task: TaskIndex::root(),
-            source_location,
+            compiler_location,
             kind: EventKind::Root,
         }];
 
@@ -259,7 +259,10 @@ impl<'db> Log<'db> {
             .events
             .iter()
             .map(|event| export::Event {
-                source_location: SourceLocation::from(event.source_location),
+                compiler_location: CompilerLocation::from(event.compiler_location),
+                task: export::TaskId {
+                    index: event.task.0,
+                },
                 kind: match &event.kind {
                     EventKind::Root => "root",
                     EventKind::Spawned(..) => "spawned",
@@ -326,12 +329,8 @@ impl<'db> Log<'db> {
         let tasks = self
             .tasks
             .iter()
-            .map(|task| export::Task {
-                spawned_at: export::TimeStamp {
-                    index: task.started_at.0,
-                },
-                description: event_argument(&[&task.task_description]),
-            })
+            .zip(0..)
+            .map(|(task, index)| self.export_task(task, index))
             .collect();
 
         export::Log {
@@ -339,6 +338,22 @@ impl<'db> Log<'db> {
             nested_event,
             tasks,
             infers,
+        }
+    }
+
+    fn export_task(&self, task: &Task<'db>, task_index: usize) -> export::Task {
+        export::Task {
+            spawned_at: export::TimeStamp {
+                index: task.started_at.0,
+            },
+            description: event_argument(&[&task.task_description]),
+            events: self
+                .events
+                .iter()
+                .zip(0..)
+                .filter(|(event, _)| event.task.0 == task_index)
+                .map(|(_, index)| TimeStamp { index })
+                .collect(),
         }
     }
 
@@ -351,11 +366,11 @@ impl<'db> Log<'db> {
                     Entry::Vacant(e) => {
                         e.insert(export::Infer {
                             created_at: TimeStamp { index },
-                            modifications: vec![],
+                            events: vec![],
                         });
                     }
                     Entry::Occupied(mut e) => {
-                        e.get_mut().modifications.push(TimeStamp { index });
+                        e.get_mut().events.push(TimeStamp { index });
                     }
                 }
             }
@@ -465,7 +480,7 @@ pub struct EventIndex(usize);
 
 pub struct Event {
     pub task: TaskIndex,
-    pub source_location: &'static Location<'static>,
+    pub compiler_location: &'static Location<'static>,
     pub kind: EventKind,
 }
 
@@ -526,6 +541,7 @@ pub enum TaskDescription<'db> {
     IfNotNever,
     Misc,
     CheckArg(usize),
+    ReconcileTyBounds(InferVarIndex),
 }
 
 pub struct InferenceVariable<'db> {

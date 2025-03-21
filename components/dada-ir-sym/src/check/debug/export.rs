@@ -17,7 +17,10 @@ pub struct Log<'a> {
 #[derive(Serialize, Debug)]
 pub struct Event<'a> {
     /// Where in the Rust source...
-    pub source_location: SourceLocation<'a>,
+    pub compiler_location: CompilerLocation<'a>,
+
+    /// Task in which this event occurred.
+    pub task: TaskId,
 
     /// Kind of event.
     pub kind: &'a str,
@@ -33,13 +36,13 @@ pub struct Event<'a> {
 }
 
 #[derive(Serialize, Debug)]
-pub struct SourceLocation<'a> {
+pub struct CompilerLocation<'a> {
     pub file: &'a str,
     pub line: u32,
     pub column: u32,
 }
 
-impl<'a> From<&'a Location<'a>> for SourceLocation<'a> {
+impl<'a> From<&'a Location<'a>> for CompilerLocation<'a> {
     fn from(location: &'a Location<'a>) -> Self {
         Self {
             file: location.file(),
@@ -58,6 +61,7 @@ pub struct TimeStamp {
 pub struct Task {
     pub spawned_at: TimeStamp,
     pub description: String,
+    pub events: Vec<TimeStamp>,
 }
 
 #[derive(Copy, Clone, Debug, Serialize)]
@@ -88,5 +92,5 @@ pub struct Infer {
     pub created_at: TimeStamp,
 
     /// Location of each event that modified the value of the variable
-    pub modifications: Vec<TimeStamp>,
+    pub events: Vec<TimeStamp>,
 }

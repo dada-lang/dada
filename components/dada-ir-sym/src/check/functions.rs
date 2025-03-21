@@ -125,10 +125,7 @@ fn check_function_body_ast_block<'db>(
             env.spawn_require_assignable_type(
                 expr.ty(db),
                 output_ty,
-                &InvalidReturnValue {
-                    value: expr,
-                    return_ty: output_ty,
-                },
+                &InvalidReturnValue::new(expr, output_ty),
             );
             (env, expr)
         },

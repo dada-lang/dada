@@ -18,6 +18,7 @@ use dada_ir_ast::{
     span::Span,
 };
 use dada_util::{Map, Set, vecext::VecExt};
+use serde::Serialize;
 
 use crate::{check::env::Env, check::inference::InferenceVarData};
 
@@ -106,8 +107,8 @@ impl<'db> Runtime<'db> {
         T: 'db,
         R: 'db + Err<'db>,
     {
-        let source_location = Location::caller();
-        let runtime = Runtime::new(db, source_location, span);
+        let compiler_location = Location::caller();
+        let runtime = Runtime::new(db, compiler_location, span);
         let (channel_tx, channel_rx) = std::sync::mpsc::channel();
         runtime.spawn_future({
             let runtime = runtime.clone();
@@ -116,10 +117,13 @@ impl<'db> Runtime<'db> {
                 channel_tx.send(result).unwrap();
             }
         });
-        runtime.drain();
-        runtime.complete.store(true, Ordering::Relaxed);
 
-        // Once we have reached the "complete" state, we should awaken all remaining tasks (?).
+        // Run all spawned tasks until no more progress can be made.
+        runtime.drain();
+
+        // Mark inference as done and drain again. This may generate fresh errors.
+        runtime.mark_complete();
+        runtime.drain();
 
         // Dump debug info
         runtime.root_log.dump(span);
@@ -134,7 +138,7 @@ impl<'db> Runtime<'db> {
 
     fn new(
         db: &'db dyn crate::Db,
-        source_location: &'static Location<'static>,
+        compiler_location: &'static Location<'static>,
         span: Span<'db>,
     ) -> Self {
         Self {
@@ -146,7 +150,7 @@ impl<'db> Runtime<'db> {
                 ready_to_execute: Default::default(),
                 waiting_on_inference_var: Default::default(),
                 next_task_id: Default::default(),
-                root_log: LogHandle::root(db, source_location, RootTaskDescription { span }),
+                root_log: LogHandle::root(db, compiler_location, RootTaskDescription { span }),
             }),
         }
     }
@@ -161,8 +165,9 @@ impl<'db> Runtime<'db> {
     }
 
     /// Spawn a new check-task.
+    #[track_caller]
     fn spawn_future(&self, future: impl Future<Output = ()> + 'db) {
-        let task = CheckTask::new(self, future);
+        let task = CheckTask::new(Location::caller(), self, future);
         self.ready_to_execute.lock().unwrap().push(task);
     }
 
@@ -175,6 +180,18 @@ impl<'db> Runtime<'db> {
     fn drain(&self) {
         while let Some(ready) = self.pop_task() {
             ready.execute(self);
+        }
+    }
+
+    /// Mark the inference process as complete and wake all tasks.
+    fn mark_complete(&self) {
+        self.complete.store(true, Ordering::Relaxed);
+        let map = std::mem::replace(
+            &mut *self.waiting_on_inference_var.lock().unwrap(),
+            Default::default(),
+        );
+        for EqWaker { waker } in map.into_values().flatten() {
+            waker.wake();
         }
     }
 
@@ -205,20 +222,33 @@ impl<'db> Runtime<'db> {
     pub fn loop_on_inference_var<T>(
         &self,
         infer: InferVarIndex,
-        source_location: &'static Location<'static>,
-        log: &LogHandle<'_>,
+        compiler_location: &'static Location<'static>,
+        log: &LogHandle<'db>,
         mut op: impl FnMut(&InferenceVarData<'db>) -> Option<T>,
-    ) -> impl Future<Output = Option<T>> {
+    ) -> impl Future<Output = Option<T>>
+    where
+        T: Serialize,
+    {
         std::future::poll_fn(move |cx| {
-            log.log(source_location, "loop_on_inference_var", &[&infer]);
+            log.infer(compiler_location, "loop_on_inference_var", infer, &[]);
             let data = self.with_inference_var_data(infer, |data| op(data));
             match data {
-                Some(v) => Poll::Ready(Some(v)),
+                Some(v) => {
+                    log.infer(
+                        compiler_location,
+                        "loop_on_inference_var:success",
+                        infer,
+                        &[&v],
+                    );
+                    Poll::Ready(Some(v))
+                }
                 None => {
                     if self.check_complete() {
+                        log.infer(compiler_location, "loop_on_inference_var:fail", infer, &[]);
                         Poll::Ready(None)
                     } else {
-                        self.block_on_inference_var(infer, cx);
+                        log.infer(compiler_location, "loop_on_inference_var:block", infer, &[]);
+                        self.block_on_inference_var(compiler_location, log, infer, cx);
                         Poll::Pending
                     }
                 }
@@ -321,8 +351,8 @@ impl<'db> Runtime<'db> {
     ) where
         R: DeferResult,
     {
-        let source_location = Location::caller();
-        let mut env = env.fork(|log| log.spawn(source_location, task_description));
+        let compiler_location = Location::caller();
+        let mut env = env.fork(|log| log.spawn(compiler_location, task_description));
         self.spawn_future(async move { check(&mut env).await.finish() });
     }
 
@@ -331,8 +361,21 @@ impl<'db> Runtime<'db> {
     /// # Panics
     ///
     /// If called when [`Self::check_complete`][] returns true.
-    fn block_on_inference_var(&self, infer: InferVarIndex, cx: &mut Context<'_>) {
+    fn block_on_inference_var(
+        &self,
+        compiler_location: &'static Location<'static>,
+        log: &LogHandle<'db>,
+        infer: InferVarIndex,
+        cx: &mut Context<'_>,
+    ) {
         assert!(!self.check_complete());
+        log.infer(
+            compiler_location,
+            "block_on_inference_var",
+            infer,
+            &[&infer],
+        );
+
         let mut waiting_on_inference_var = self.waiting_on_inference_var.lock().unwrap();
         waiting_on_inference_var
             .entry(infer)
@@ -369,6 +412,7 @@ mod check_task {
     use futures::{FutureExt, future::LocalBoxFuture};
     use std::{
         future::Future,
+        panic::Location,
         rc::Rc,
         sync::{Arc, Mutex},
         task::{Context, Poll, RawWaker, RawWakerVTable, Waker},
@@ -391,6 +435,8 @@ mod check_task {
     /// then we know that `self.check` has that same type, and that therefore the
     /// lifetimes in `self.state` are valid.
     pub(super) struct CheckTask {
+        spawned_at: &'static Location<'static>,
+
         /// Erased type: `Check<'db>`
         runtime: Runtime<'static>,
 
@@ -409,6 +455,7 @@ mod check_task {
 
     impl CheckTask {
         pub(super) fn new<'db>(
+            spawned_at: &'static Location<'static>,
             runtime: &Runtime<'db>,
             future: impl Future<Output = ()> + 'db,
         ) -> Arc<Self> {
@@ -420,6 +467,7 @@ mod check_task {
                     unsafe { std::mem::transmute::<Runtime<'db>, Runtime<'static>>(my_check) };
 
                 Arc::new(Self {
+                    spawned_at,
                     runtime: my_check,
                     id: runtime.next_task_id(),
                     state: Mutex::new(CheckTaskState::Executing),
@@ -510,7 +558,7 @@ mod check_task {
                 }
 
                 CheckTaskState::Waiting(mut future, log_state) => {
-                    let _log = dada_util::log::enter_task(self.id, log_state);
+                    let _log = dada_util::log::enter_task(self.id, self.spawned_at, log_state);
                     match Future::poll(
                         future.as_mut(),
                         &mut Context::from_waker(&self.clone().waker()),

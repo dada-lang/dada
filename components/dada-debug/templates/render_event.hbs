@@ -1,5 +1,18 @@
 <span class="event-kind">{{kind}}</span>
-<span class="event-source">{{{(source_snippet source_location.file source_location.line source_location.column)}}}</span>
+<span class="event-source">{{{(source_snippet compiler_location.file compiler_location.line
+    compiler_location.column)}}}</span>
+
+<a href="#task{{task.index}}"><img src="https://img.shields.io/badge/task-task%20{{task.index}}-blue"></img></a>
+
+{{#if infer}}
+<span class="event-infer"><a href="#infer{{infer}}"><img
+            src="https://img.shields.io/badge/infer-{{infer}}-green"></img></a></span>
+{{/if}}
+
 {{#if value}}
 <span class="event-value jsontree">{{value}}</span>
+{{/if}}
+
+{{#if spawns}}
+<a href="#task{{spawns.index}}"><img src="https://img.shields.io/badge/spawns-task%20{{spawns.index}}-blue"></img></a>
 {{/if}}
