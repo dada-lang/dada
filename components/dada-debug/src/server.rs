@@ -3,7 +3,7 @@ use std::{
     time::Duration,
 };
 
-use axum::{Json, Router, http::header::ACCEPT, routing::get};
+use axum::{Json, Router, routing::get};
 use dada_ir_ast::DebugEvent;
 use serde::{Deserialize, Serialize};
 
@@ -51,9 +51,7 @@ async fn main_async(port: u32, debug_rx: Receiver<DebugEvent>) -> anyhow::Result
     Ok(())
 }
 
-async fn respond_ok_or_500<B: Into<String>>(
-    body: anyhow::Result<B>,
-) -> axum::http::Response<String> {
+fn respond_ok_or_500<B: Into<String>>(body: anyhow::Result<B>) -> axum::http::Response<String> {
     match body {
         Ok(body) => axum::http::Response::builder()
             .status(200)
@@ -66,9 +64,7 @@ async fn respond_ok_or_500<B: Into<String>>(
     }
 }
 
-async fn respond_json_or_500<T: Serialize>(
-    result: anyhow::Result<T>,
-) -> axum::response::Result<Json<T>> {
+fn respond_json_or_500<T: Serialize>(result: anyhow::Result<T>) -> axum::response::Result<Json<T>> {
     match result {
         Ok(data) => Ok(Json(data)),
         Err(err) => Err(axum::response::Response::builder()
@@ -82,45 +78,27 @@ async fn respond_json_or_500<T: Serialize>(
 async fn root(
     axum::extract::State(state): axum::extract::State<Arc<State>>,
 ) -> axum::http::Response<String> {
-    respond_ok_or_500(crate::root::root(&state).await).await
+    respond_ok_or_500(crate::root::root(&state).await)
 }
 
 async fn view(
     axum::extract::Path(event_index): axum::extract::Path<usize>,
     axum::extract::State(state): axum::extract::State<Arc<State>>,
 ) -> axum::http::Response<String> {
-    respond_ok_or_500(crate::view::try_view(event_index, &state).await).await
+    respond_ok_or_500(crate::view::try_view(event_index, &state).await)
 }
 
 async fn assets(
     axum::extract::Path(file): axum::extract::Path<String>,
 ) -> axum::http::Response<String> {
-    respond_ok_or_500(crate::assets::try_asset(&file)).await
+    respond_ok_or_500(crate::assets::try_asset(&file))
 }
 
 async fn events(
     headers: axum::http::header::HeaderMap,
     axum::extract::State(state): axum::extract::State<Arc<State>>,
 ) -> axum::response::Result<Json<Vec<crate::root::RootEvent>>> {
-    // Check the request mime type
-    let accept_header = headers.get(&ACCEPT).map(|value| value.to_str());
-    match accept_header {
-        Some(Ok("application/json")) => {
-            respond_json_or_500(crate::root::root_data(&state).await).await
-        }
-        None | Some(Err(_)) => {
-            respond_json_or_500(Err(anyhow::anyhow!(
-                "This endpoint only returns application/json"
-            )))
-            .await
-        }
-        _ => {
-            respond_json_or_500(Err(anyhow::anyhow!(
-                "This endpoint only returns application/json"
-            )))
-            .await
-        }
-    }
+    respond_json_or_500(crate::events::events(&headers, &state).await)
 }
 
 #[derive(Deserialize, Debug)]
@@ -138,7 +116,6 @@ async fn source(
         line_col.line,
         line_col.column,
     ))
-    .await
 }
 
 pub struct State {
