@@ -431,95 +431,112 @@ fn generalize<'db>(env: &mut Env<'db>, red_ty: &RedTy<'db>, span: Span<'db>) -> 
 /// and propagates a corresponding bound.
 pub async fn reconcile_ty_bounds<'db>(env: &mut Env<'db>, infer: InferVarIndex) -> Errors<()> {
     assert_eq!(env.infer_var_kind(infer), InferVarKind::Type);
+
+    env.require_all()
+        .require(async |env| propagate_inverse_bound(env, infer, Direction::FromAbove).await)
+        .require(async |env| propagate_inverse_bound(env, infer, Direction::FromBelow).await)
+        .finish()
+        .await
+}
+
+/// What each upper or lower  (depending on `direction`) bound `B` that is added to `infer`
+/// and add a lower or upper (respectively) bound `B1` that is implied by `B`.
+///
+/// # Example
+///
+/// Given `Direction::FromAbove`, if we learn that a new upper bound `i32`,
+/// i.e., that `infer <: i32`, then this also implies `i32 <: infer`, so we add the
+/// lower bound `i32`.
+///
+/// Given `Direction::FromAbove`, if we learn that a new upper bound `Vec[T1]`,
+/// i.e., that `infer <: Vec[T1]`, then this also implies `Vec[_] <: infer`, so we add the
+/// lower bound `Vec[?X]` for a fresh `?X`. This will in turn require that `?X <: T1`.
+///
+/// NB. In some cases (e.g., `Vec[i32]` for sure...) we could avoid creating the inference
+/// variable but right now we just *always* create one since I didn't want to think about it.
+async fn propagate_inverse_bound<'db>(
+    env: &mut Env<'db>,
+    infer: InferVarIndex,
+    direction: Direction,
+) -> Errors<()> {
     let db = env.db();
 
-    // Various views onto this inference variable
     let span = env.infer_var_span(infer);
+
+    // Every type inference variable has both an associated
+    // permission variable `perm_infer` and upper/lower red-ty
+    // bounds (see `InferenceVarBounds` in the `inference` module
+    // for more details).
+    //
+    // The bound `B` and opposite bound `B1` that we are creating
+    // correspond to the red-ty bound part of `?X`.
+    // To relate these bounds fully to `?X` will will need to combine
+    // them with the permissions from `perm_infer`.
+    // This is because you can't directly subtype e.g. a struct
+    // without knowing the permission.
     let perm_infer = env.perm_infer(infer);
     let red_chains = VecSet::from(Chain::infer(db, perm_infer));
     let red_term_with_perm_infer = |red_ty| RedTerm::new(db, red_chains.clone(), red_ty);
 
-    env.require_both(
-        async |env| {
-            // For each type `T` where `?X <: T`...
-            env.for_each_bound(Direction::FromAbove, infer, async |env, red_ty, or_else| {
-                // see if that implies that `U <: ?X` for some `U`
-                let lower_bound = match red_ty {
-                    RedTy::Error(_) => None,
+    // For each new bound `B` where `?X <: B`...
+    //
+    // NB: Comments are written assuming `Direction::FromAbove`.
+    env.for_each_bound(direction, infer, async |env, red_ty, or_else| {
+        // ...see if that implies an opposite bound `B1 <: ?X`...
+        let opposite_bound = match red_ty {
+            RedTy::Error(_) => None,
 
-                    RedTy::Named(sym_ty_name, _) => match sym_ty_name {
-                        SymTyName::Primitive(_) | SymTyName::Future | SymTyName::Tuple { .. } => {
-                            Some(generalize(env, red_ty, span)?)
-                        }
-                        SymTyName::Aggregate(_sym_aggregate) => {
-                            // FIXME(#241): check if `sym_aggregate` is an enum
-                            // in which case we need to adjust
-                            Some(generalize(env, red_ty, span)?)
-                        }
-                    },
+            RedTy::Named(sym_ty_name, _) => match sym_ty_name {
+                SymTyName::Primitive(_) | SymTyName::Future | SymTyName::Tuple { .. } => {
+                    Some(generalize(env, red_ty, span)?)
+                }
+                SymTyName::Aggregate(_sym_aggregate) => {
+                    // FIXME(#241): check if `sym_aggregate` is an enum
+                    // in which case we need to adjust based on `direction`
+                    Some(generalize(env, red_ty, span)?)
+                }
+            },
 
-                    RedTy::Never | RedTy::Var(..) => Some(red_ty.clone()),
+            RedTy::Never | RedTy::Var(..) => Some(red_ty.clone()),
 
-                    RedTy::Infer(..) | RedTy::Perm => {
-                        unreachable!("unexpected kind for red-ty bound: {red_ty:?}")
-                    }
-                };
+            RedTy::Infer(..) | RedTy::Perm => {
+                unreachable!("unexpected kind for red-ty bound: {red_ty:?}")
+            }
+        };
 
-                if let Some(lower_bound) = lower_bound {
+        // If so, add the new opposite bound `B1`.
+        if let Some(opposite_bound) = opposite_bound {
+            match direction {
+                Direction::FromAbove => {
+                    // ... `?X <: B` so `B1 <: ?X`
                     require_ty_sub_infer(
                         env,
-                        red_term_with_perm_infer(lower_bound),
+                        // Combine `B1` with the permission variable from `?X`
+                        red_term_with_perm_infer(opposite_bound),
+                        // Pass `?X` along with its permisson variable as the upper term
                         red_chains.clone(),
                         infer,
                         &or_else,
                     )
                     .await?;
                 }
-
-                Ok(())
-            })
-            .await
-        },
-        async |env| {
-            // For each type `T` where `T <: ?X`...
-            env.for_each_bound(Direction::FromBelow, infer, async |env, red_ty, or_else| {
-                // see if that implies that `?X <: U` for some `U`
-                let upper_bound = match red_ty {
-                    RedTy::Error(_) => None,
-
-                    RedTy::Named(sym_ty_name, _) => match sym_ty_name {
-                        SymTyName::Primitive(_) | SymTyName::Future | SymTyName::Tuple { .. } => {
-                            Some(generalize(env, red_ty, span)?)
-                        }
-                        SymTyName::Aggregate(_sym_aggregate) => {
-                            // FIXME(#241): check if `sym_aggregate` is an enum
-                            // in which case we need to adjust
-                            Some(generalize(env, red_ty, span)?)
-                        }
-                    },
-
-                    RedTy::Never | RedTy::Var(..) => Some(red_ty.clone()),
-
-                    RedTy::Infer(..) | RedTy::Perm => {
-                        unreachable!("unexpected kind for red-ty bound: {red_ty:?}")
-                    }
-                };
-
-                if let Some(upper_bound) = upper_bound {
+                Direction::FromBelow => {
+                    // ... `B <: ?X` so `?X <: B1`
                     require_infer_sub_ty(
                         env,
+                        // Pass `?X` along with its permisson variable as the lower term
                         red_chains.clone(),
                         infer,
-                        red_term_with_perm_infer(upper_bound),
+                        // Combine `B1` with the permission variable from `?X`
+                        red_term_with_perm_infer(opposite_bound),
                         &or_else,
                     )
-                    .await?;
+                    .await?
                 }
+            }
+        }
 
-                Ok(())
-            })
-            .await
-        },
-    )
+        Ok(())
+    })
     .await
 }
