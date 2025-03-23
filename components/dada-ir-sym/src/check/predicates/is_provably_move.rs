@@ -9,10 +9,12 @@ use crate::{
             Predicate,
             var_infer::{test_infer_is_known_to_be, test_var_is_provably},
         },
+        red::RedTy,
+        to_red::ToRedTy,
     },
     ir::{
         classes::SymAggregateStyle,
-        types::{SymGenericTerm, SymPerm, SymPermKind, SymPlace, SymTy, SymTyKind, SymTyName},
+        types::{SymGenericTerm, SymPerm, SymPermKind, SymPlace, SymTyName},
     },
 };
 
@@ -20,26 +22,28 @@ pub(crate) async fn term_is_provably_move<'db>(
     env: &mut Env<'db>,
     term: SymGenericTerm<'db>,
 ) -> Errors<bool> {
-    match term {
-        SymGenericTerm::Type(sym_ty) => ty_is_provably_move(env, sym_ty).await,
-        SymGenericTerm::Perm(sym_perm) => perm_is_provably_move(env, sym_perm).await,
-        SymGenericTerm::Place(sym_place) => panic!("term_is invoked on place: {sym_place:?}"),
-        SymGenericTerm::Error(reported) => Err(reported),
-    }
+    let (red_ty, perm) = term.to_red_ty(env);
+    env.both(
+        async |env| red_ty_is_provably_move(env, red_ty).await,
+        async |env| {
+            if let Some(perm) = perm {
+                perm_is_provably_move(env, perm).await
+            } else {
+                Ok(true)
+            }
+        },
+    )
+    .await
 }
 
-#[boxed_async_fn]
-async fn ty_is_provably_move<'db>(env: &mut Env<'db>, ty: SymTy<'db>) -> Errors<bool> {
+async fn red_ty_is_provably_move<'db>(env: &mut Env<'db>, ty: RedTy<'db>) -> Errors<bool> {
     let db = env.db();
-    match *ty.kind(db) {
-        SymTyKind::Perm(sym_perm, sym_ty) => {
-            Ok(application_is_provably_move(env, sym_perm.into(), sym_ty.into()).await?)
-        }
-        SymTyKind::Infer(infer) => Ok(test_infer_is_known_to_be(env, infer, Predicate::Move).await),
-        SymTyKind::Var(var) => Ok(test_var_is_provably(env, var, Predicate::Move)),
-        SymTyKind::Never => Ok(true),
-        SymTyKind::Error(reported) => Err(reported),
-        SymTyKind::Named(sym_ty_name, ref generics) => match sym_ty_name {
+    match ty {
+        RedTy::Infer(infer) => Ok(test_infer_is_known_to_be(env, infer, Predicate::Move).await),
+        RedTy::Var(var) => Ok(test_var_is_provably(env, var, Predicate::Move)),
+        RedTy::Never => Ok(true),
+        RedTy::Error(reported) => Err(reported),
+        RedTy::Named(sym_ty_name, ref generics) => match sym_ty_name {
             SymTyName::Primitive(_) => Ok(false),
             SymTyName::Aggregate(sym_aggregate) => match sym_aggregate.style(db) {
                 SymAggregateStyle::Struct => {
@@ -58,6 +62,7 @@ async fn ty_is_provably_move<'db>(env: &mut Env<'db>, ty: SymTy<'db>) -> Errors<
                 .await
             }
         },
+        RedTy::Perm => Ok(true),
     }
 }
 
@@ -107,5 +112,5 @@ pub(crate) async fn place_is_provably_move<'db>(
     place: SymPlace<'db>,
 ) -> Errors<bool> {
     let ty = place.place_ty(env).await;
-    ty_is_provably_move(env, ty).await
+    term_is_provably_move(env, ty.into()).await
 }

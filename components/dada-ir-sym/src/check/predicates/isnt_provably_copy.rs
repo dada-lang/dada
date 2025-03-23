@@ -9,6 +9,7 @@ use crate::{
             Predicate,
             var_infer::{test_infer_is_known_to_be, test_var_is_provably},
         },
+        to_red::ToRedTy,
     },
     ir::{
         classes::SymAggregateStyle,
@@ -20,16 +21,15 @@ pub(crate) async fn term_isnt_provably_copy<'db>(
     env: &mut Env<'db>,
     term: SymGenericTerm<'db>,
 ) -> Errors<bool> {
-    match term {
-        SymGenericTerm::Type(sym_ty) => ty_isnt_provably_copy(env, sym_ty).await,
-        SymGenericTerm::Perm(sym_perm) => perm_isnt_provably_copy(env, sym_perm).await,
-        SymGenericTerm::Place(sym_place) => panic!("term_is invoked on place: {sym_place:?}"),
-        SymGenericTerm::Error(reported) => Err(reported),
-    }
+    let (red_ty, perm) = term.to_red_ty(env);
+    env.both(
+        async |env| red_ty_isnt_provably_copy(env, red_ty).await,
+        async |env| perm_isnt_provably_copy(env, perm).await,
+    )
+    .await
 }
 
-#[boxed_async_fn]
-async fn ty_isnt_provably_copy<'db>(env: &mut Env<'db>, ty: SymTy<'db>) -> Errors<bool> {
+async fn red_ty_isnt_provably_copy<'db>(env: &mut Env<'db>, ty: SymTy<'db>) -> Errors<bool> {
     let db = env.db();
     match *ty.kind(db) {
         SymTyKind::Perm(sym_perm, sym_ty) => {
@@ -109,5 +109,5 @@ pub(crate) async fn place_isnt_provably_copy<'db>(
     place: SymPlace<'db>,
 ) -> Errors<bool> {
     let ty = place.place_ty(env).await;
-    ty_isnt_provably_copy(env, ty).await
+    term_isnt_provably_copy(env, ty.into()).await
 }

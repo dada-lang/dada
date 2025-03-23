@@ -216,8 +216,8 @@ impl<'db> Env<'db> {
     #[track_caller]
     pub fn both(
         &mut self,
-        mut a: impl AsyncFnMut(&mut Env<'db>) -> Errors<bool>,
-        mut b: impl AsyncFnMut(&mut Env<'db>) -> Errors<bool>,
+        a: impl AsyncFnOnce(&mut Env<'db>) -> Errors<bool>,
+        b: impl AsyncFnOnce(&mut Env<'db>) -> Errors<bool>,
     ) -> impl Future<Output = Errors<bool>> {
         let compiler_location = Location::caller();
 

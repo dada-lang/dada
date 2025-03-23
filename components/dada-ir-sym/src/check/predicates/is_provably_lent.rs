@@ -9,10 +9,12 @@ use crate::{
             Predicate,
             var_infer::{test_infer_is_known_to_be, test_var_is_provably},
         },
+        red::RedTy,
+        to_red::ToRedTy,
     },
     ir::{
         classes::SymAggregateStyle,
-        types::{SymGenericTerm, SymPerm, SymPermKind, SymPlace, SymTy, SymTyKind, SymTyName},
+        types::{SymGenericTerm, SymPerm, SymPermKind, SymPlace, SymTyName},
     },
 };
 
@@ -22,30 +24,33 @@ pub(crate) async fn term_is_provably_lent<'db>(
     env: &mut Env<'db>,
     term: SymGenericTerm<'db>,
 ) -> Errors<bool> {
-    match term {
-        SymGenericTerm::Type(sym_ty) => ty_is_provably_lent(env, sym_ty).await,
-        SymGenericTerm::Perm(sym_perm) => perm_is_provably_lent(env, sym_perm).await,
-        SymGenericTerm::Place(sym_place) => panic!("term_is invoked on place: {sym_place:?}"),
-        SymGenericTerm::Error(reported) => Err(reported),
-    }
+    let (red_ty, perm) = term.to_red_ty(env);
+    env.either(
+        async |env| red_ty_is_provably_lent(env, red_ty).await,
+        async |env| {
+            if let Some(perm) = perm {
+                perm_is_provably_lent(env, perm).await
+            } else {
+                Ok(false)
+            }
+        },
+    )
+    .await
 }
 
 #[boxed_async_fn]
-async fn ty_is_provably_lent<'db>(env: &mut Env<'db>, ty: SymTy<'db>) -> Errors<bool> {
+async fn red_ty_is_provably_lent<'db>(env: &mut Env<'db>, ty: RedTy<'db>) -> Errors<bool> {
     let db = env.db();
-    match *ty.kind(db) {
-        SymTyKind::Perm(sym_perm, sym_ty) => {
-            Ok(application_is_provably_lent(env, sym_perm.into(), sym_ty.into()).await?)
-        }
-        SymTyKind::Infer(infer) => Ok(test_infer_is_known_to_be(env, infer, Predicate::Copy).await),
-        SymTyKind::Var(var) => Ok(test_var_is_provably(env, var, Predicate::Copy)),
-        SymTyKind::Never => Ok(false),
-        SymTyKind::Error(reported) => Err(reported),
-        SymTyKind::Named(sym_ty_name, ref generics) => match sym_ty_name {
+    match ty {
+        RedTy::Infer(infer) => Ok(test_infer_is_known_to_be(env, infer, Predicate::Copy).await),
+        RedTy::Var(var) => Ok(test_var_is_provably(env, var, Predicate::Copy)),
+        RedTy::Never => Ok(false),
+        RedTy::Error(reported) => Err(reported),
+        RedTy::Named(name, generics) => match name {
             SymTyName::Primitive(_) => Ok(true),
             SymTyName::Aggregate(sym_aggregate) => match sym_aggregate.style(db) {
                 SymAggregateStyle::Struct => {
-                    env.exists(generics, async |env, &generic| {
+                    env.exists(generics, async |env, generic| {
                         term_is_provably_lent(env, generic).await
                     })
                     .await
@@ -54,12 +59,13 @@ async fn ty_is_provably_lent<'db>(env: &mut Env<'db>, ty: SymTy<'db>) -> Errors<
             },
             SymTyName::Future => Ok(false),
             SymTyName::Tuple { arity: _ } => {
-                env.exists(generics, async |env, &generic| {
+                env.exists(generics, async |env, generic| {
                     term_is_provably_lent(env, generic).await
                 })
                 .await
             }
         },
+        RedTy::Perm => Ok(false),
     }
 }
 
@@ -121,5 +127,5 @@ pub(crate) async fn place_is_provably_lent<'db>(
     place: SymPlace<'db>,
 ) -> Errors<bool> {
     let ty = place.place_ty(env).await;
-    ty_is_provably_lent(env, ty).await
+    term_is_provably_lent(env, ty.into()).await
 }
