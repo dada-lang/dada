@@ -9,11 +9,12 @@ use crate::{
             Predicate,
             var_infer::{test_infer_is_known_to_be, test_var_is_provably},
         },
+        red::RedTy,
         to_red::ToRedTy,
     },
     ir::{
         classes::SymAggregateStyle,
-        types::{SymGenericTerm, SymPerm, SymPermKind, SymPlace, SymTy, SymTyKind, SymTyName},
+        types::{SymGenericTerm, SymPerm, SymPermKind, SymPlace, SymTyName},
     },
 };
 
@@ -24,28 +25,29 @@ pub(crate) async fn term_isnt_provably_copy<'db>(
     let (red_ty, perm) = term.to_red_ty(env);
     env.both(
         async |env| red_ty_isnt_provably_copy(env, red_ty).await,
-        async |env| perm_isnt_provably_copy(env, perm).await,
+        async |env| {
+            if let Some(perm) = perm {
+                perm_isnt_provably_copy(env, perm).await
+            } else {
+                Ok(true)
+            }
+        },
     )
     .await
 }
 
-async fn red_ty_isnt_provably_copy<'db>(env: &mut Env<'db>, ty: SymTy<'db>) -> Errors<bool> {
+async fn red_ty_isnt_provably_copy<'db>(env: &mut Env<'db>, ty: RedTy<'db>) -> Errors<bool> {
     let db = env.db();
-    match *ty.kind(db) {
-        SymTyKind::Perm(sym_perm, sym_ty) => {
-            Ok(application_isnt_provably_copy(env, sym_perm.into(), sym_ty.into()).await?)
-        }
-        SymTyKind::Infer(infer) => {
-            Ok(!test_infer_is_known_to_be(env, infer, Predicate::Copy).await)
-        }
-        SymTyKind::Var(var) => Ok(!test_var_is_provably(env, var, Predicate::Copy)),
-        SymTyKind::Never => Ok(true),
-        SymTyKind::Error(reported) => Err(reported),
-        SymTyKind::Named(sym_ty_name, ref generics) => match sym_ty_name {
+    match ty {
+        RedTy::Infer(infer) => Ok(!test_infer_is_known_to_be(env, infer, Predicate::Copy).await),
+        RedTy::Var(var) => Ok(!test_var_is_provably(env, var, Predicate::Copy)),
+        RedTy::Never => Ok(true),
+        RedTy::Error(reported) => Err(reported),
+        RedTy::Named(sym_ty_name, generics) => match sym_ty_name {
             SymTyName::Primitive(_) => Ok(false),
             SymTyName::Aggregate(sym_aggregate) => match sym_aggregate.style(db) {
                 SymAggregateStyle::Struct => {
-                    env.exists(generics, async |env, &generic| {
+                    env.exists(generics, async |env, generic| {
                         term_isnt_provably_copy(env, generic).await
                     })
                     .await
@@ -54,12 +56,13 @@ async fn red_ty_isnt_provably_copy<'db>(env: &mut Env<'db>, ty: SymTy<'db>) -> E
             },
             SymTyName::Future => Ok(false),
             SymTyName::Tuple { arity: _ } => {
-                env.exists(generics, async |env, &generic| {
+                env.exists(generics, async |env, generic| {
                     term_isnt_provably_copy(env, generic).await
                 })
                 .await
             }
         },
+        RedTy::Perm => Ok(true),
     }
 }
 

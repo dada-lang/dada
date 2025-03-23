@@ -4,7 +4,7 @@ use crate::{
     check::{
         debug::TaskDescription,
         env::Env,
-        inference::InferenceVarData,
+        inference::{Direction, InferenceVarData},
         predicates::Predicate,
         report::{ArcOrElse, Because, OrElse},
     },
@@ -12,7 +12,7 @@ use crate::{
 };
 
 use super::{
-    require_copy::require_chain_is_copy,
+    red_ty_is_provably, require_copy::require_chain_is_copy,
     require_isnt_provably_copy::require_chain_isnt_provably_copy,
     require_lent::require_chain_is_lent, require_move::require_chain_is_move,
     require_owned::require_chain_is_owned,
@@ -140,6 +140,38 @@ pub(super) fn require_infer_isnt<'db>(
     }
 
     Ok(())
+}
+
+/// Wait until we know that the inference variable IS (or IS NOT) the given predicate.
+pub async fn test_ty_infer_is_known_to_be(
+    env: &mut Env<'_>,
+    infer: InferVarIndex,
+    direction: Direction,
+    predicate: Predicate,
+) -> Errors<bool> {
+    loop {
+        let Some((is, isnt, bound)) = env
+            .loop_on_inference_var(infer, |data| {
+                Some((
+                    data.is_known_to_provably_be(predicate),
+                    data.is_known_not_to_provably_be(predicate),
+                    data.red_ty_bound(direction),
+                ))
+            })
+            .await
+        else {
+            // XXX: Should we report an error instead?
+            return Ok(false);
+        };
+
+        if is.is_some() {
+            return Ok(true);
+        } else if isnt.is_some() {
+            return Ok(false);
+        } else if let Some((bound, _)) = bound {
+            return red_ty_is_provably(env, bound, predicate).await;
+        }
+    }
 }
 
 /// Wait until we know that the inference variable IS (or IS NOT) the given predicate.

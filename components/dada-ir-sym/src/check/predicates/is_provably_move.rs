@@ -18,7 +18,7 @@ use crate::{
     },
 };
 
-pub(crate) async fn term_is_provably_move<'db>(
+pub async fn term_is_provably_move<'db>(
     env: &mut Env<'db>,
     term: SymGenericTerm<'db>,
 ) -> Errors<bool> {
@@ -36,7 +36,7 @@ pub(crate) async fn term_is_provably_move<'db>(
     .await
 }
 
-async fn red_ty_is_provably_move<'db>(env: &mut Env<'db>, ty: RedTy<'db>) -> Errors<bool> {
+pub async fn red_ty_is_provably_move<'db>(env: &mut Env<'db>, ty: RedTy<'db>) -> Errors<bool> {
     let db = env.db();
     match ty {
         RedTy::Infer(infer) => Ok(test_infer_is_known_to_be(env, infer, Predicate::Move).await),

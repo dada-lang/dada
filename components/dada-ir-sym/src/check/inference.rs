@@ -21,16 +21,18 @@ pub(crate) struct InferenceVarData<'db> {
     span: Span<'db>,
 
     /// If the element for a given predicate is `Some`, then the predicate is known to be true
-    /// due to code at the given span. If the element is `None`, then it is not known that the
-    /// predicate is true (but it still could be, depending on what value we ultimately infer).
+    /// for this inference variable due to code at the given span. If the element is `None`,
+    /// then it is not known that the predicate is true (but it still could be, depending
+    /// on what value we ultimately infer).
+    ///
+    /// **Subtle:** For ty inference variables, this applies only to the red-ty bounds.
+    /// The associated permission variable tracks predicates separately.
     ///
     /// See also the `isnt` field.
     is: [Option<ArcOrElse<'db>>; Predicate::LEN],
 
-    /// If the element for a given predicate is `Some`, then the predicate is NOT known to be true
-    /// due to code at the given span.
-    ///
-    /// This is a subtle distinction. Knowing that a variable `isnt (known to be) copy` doesn't
+    /// Like [`Self::is`][] except it records if the predicate is known to not be provable.
+    /// Note that knowing that a variable `isnt (known to be) copy` doesn't
     /// imply that it is `is (known to be) move`. It means "you will never be able to prove this is copy".
     isnt: [Option<ArcOrElse<'db>>; Predicate::LEN],
 
@@ -85,22 +87,17 @@ impl<'db> InferenceVarData<'db> {
         }
     }
 
-    /// Returns `Some(s)` if the predicate is known to be true (where `s` is the span of code
-    /// which required the predicate to be true).
+    /// Returns `Some(s)` if the predicate is known to be in the [`is`](`Self::is`) set.
     pub fn is_known_to_provably_be(&self, predicate: Predicate) -> Option<ArcOrElse<'db>> {
         self.is[predicate.index()].clone()
     }
 
-    /// Returns `Some(s)` if the predicate is not known to be true (where `s` is the span of code
-    /// which required the predicate to not be known to be true).
-    ///
-    /// This is different from being known to be false. It means we know we won't be able to know.
-    /// Can occur with generics etc.
+    /// Returns `Some(s)` if the predicate is found in the [`isnt`](`Self::isnt`) set.
     pub fn is_known_not_to_provably_be(&self, predicate: Predicate) -> Option<ArcOrElse<'db>> {
         self.isnt[predicate.index()].clone()
     }
 
-    /// Insert a predicate into the `is` set and its invert into the `isnt` set.
+    /// Insert a predicate into the [`is`](`Self::is`) set and its invert into the [`isnt`](`Self::isnt`) set.
     /// Returns `None` if these are not new requirements.
     /// Otherwise, returns `Some(o)` where `o` is the Arc-ified version of `or_else`.
     /// Low-level method invoked by runtime only.
@@ -146,13 +143,8 @@ impl<'db> InferenceVarData<'db> {
         Some(or_else)
     }
 
-    /// Insert a predicate into the `isnt` set.
-    /// Returns `true` if the predicate was not already in the set.
-    /// Low-level method invoked by runtime only.
-    ///
-    /// # Panics
-    ///
-    /// * If the inference variable is required to satisfy a contradictory predicate.
+    /// Insert a predicate into the [`isnt`](`Self::isnt`) set,
+    /// returning `Some` if this is a new bound.
     pub fn require_isnt(
         &mut self,
         predicate: Predicate,

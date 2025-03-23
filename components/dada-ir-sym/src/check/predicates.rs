@@ -3,7 +3,6 @@ pub mod is_provably_lent;
 pub mod is_provably_move;
 pub mod is_provably_owned;
 pub mod isnt_provably_copy;
-pub mod isnt_provably_owned;
 pub mod require_copy;
 pub mod require_isnt_provably_copy;
 pub mod require_lent;
@@ -12,9 +11,10 @@ pub mod require_owned;
 pub mod var_infer;
 
 use dada_ir_ast::diagnostic::Errors;
-use is_provably_lent::term_is_provably_lent;
-use is_provably_move::term_is_provably_move;
-use is_provably_owned::term_is_provably_owned;
+use is_provably_copy::red_ty_is_provably_copy;
+use is_provably_lent::{red_ty_is_provably_lent, term_is_provably_lent};
+use is_provably_move::{red_ty_is_provably_move, term_is_provably_move};
+use is_provably_owned::{red_ty_is_provably_owned, term_is_provably_owned};
 use require_lent::require_term_is_lent;
 use require_move::require_term_is_move;
 use require_owned::require_term_is_owned;
@@ -23,7 +23,7 @@ pub use var_infer::{test_infer_is_known_to_be, test_var_is_provably};
 
 use crate::ir::types::SymGenericTerm;
 
-use super::{env::Env, report::OrElse};
+use super::{env::Env, red::RedTy, report::OrElse};
 
 #[derive(Copy, Clone, Debug, Eq, PartialEq, Hash, Ord, PartialOrd, Serialize)]
 pub enum Predicate {
@@ -84,6 +84,19 @@ pub(crate) async fn term_is_provably_leased<'db>(
         async |env| term_is_provably_lent(env, term).await,
     )
     .await
+}
+
+pub(crate) async fn red_ty_is_provably<'db>(
+    env: &mut Env<'db>,
+    red_ty: RedTy<'db>,
+    predicate: Predicate,
+) -> Errors<bool> {
+    match predicate {
+        Predicate::Copy => red_ty_is_provably_copy(env, red_ty).await,
+        Predicate::Move => red_ty_is_provably_move(env, red_ty).await,
+        Predicate::Owned => red_ty_is_provably_owned(env, red_ty).await,
+        Predicate::Lent => red_ty_is_provably_lent(env, red_ty).await,
+    }
 }
 
 pub(crate) async fn require_term_is_leased<'db>(

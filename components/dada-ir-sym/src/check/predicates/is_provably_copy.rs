@@ -4,6 +4,7 @@ use dada_util::boxed_async_fn;
 use crate::{
     check::{
         env::Env,
+        inference::Direction,
         places::PlaceTy,
         predicates::{
             Predicate,
@@ -18,7 +19,9 @@ use crate::{
     },
 };
 
-pub(crate) async fn term_is_provably_copy<'db>(
+use super::var_infer::test_ty_infer_is_known_to_be;
+
+pub async fn term_is_provably_copy<'db>(
     env: &mut Env<'db>,
     term: SymGenericTerm<'db>,
 ) -> Errors<bool> {
@@ -36,7 +39,8 @@ pub(crate) async fn term_is_provably_copy<'db>(
     .await
 }
 
-async fn red_ty_is_provably_copy<'db>(env: &mut Env<'db>, ty: RedTy<'db>) -> Errors<bool> {
+#[boxed_async_fn]
+pub async fn red_ty_is_provably_copy<'db>(env: &mut Env<'db>, ty: RedTy<'db>) -> Errors<bool> {
     let db = env.db();
     match ty {
         RedTy::Error(reported) => Err(reported),
@@ -60,7 +64,9 @@ async fn red_ty_is_provably_copy<'db>(env: &mut Env<'db>, ty: RedTy<'db>) -> Err
             }
         },
         RedTy::Never => Ok(false),
-        RedTy::Infer(infer) => Ok(test_infer_is_known_to_be(env, infer, Predicate::Copy).await),
+        RedTy::Infer(infer) => {
+            test_ty_infer_is_known_to_be(env, infer, Direction::FromAbove, Predicate::Copy).await
+        }
         RedTy::Var(var) => Ok(test_var_is_provably(env, var, Predicate::Copy)),
         RedTy::Perm => todo!(),
     }
