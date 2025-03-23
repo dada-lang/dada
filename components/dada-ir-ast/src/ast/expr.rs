@@ -7,7 +7,7 @@ use crate::span::Span;
 use super::{AstGenericTerm, AstPath, AstTy, DeferredParse, SpanVec, SpannedIdentifier};
 
 #[derive(SalsaSerialize)]
-#[salsa::tracked]
+#[salsa::tracked(debug)]
 pub struct AstBlock<'db> {
     #[return_ref]
     pub statements: SpanVec<'db, AstStatement<'db>>,
@@ -21,7 +21,7 @@ pub enum AstStatement<'db> {
 
 /// `let x = v`, `let x: t = v`, etc
 #[derive(SalsaSerialize)]
-#[salsa::tracked]
+#[salsa::tracked(debug)]
 pub struct AstLetStatement<'db> {
     pub mutable: Option<Span<'db>>,
     pub name: SpannedIdentifier<'db>,
@@ -180,7 +180,7 @@ pub enum UnaryOp {
 /// We can't eagerly parse it because we don't yet know whether to parse it
 /// as types or expressions.
 #[derive(SalsaSerialize)]
-#[salsa::tracked]
+#[salsa::tracked(debug)]
 pub struct SquareBracketArgs<'db> {
     #[return_ref]
     pub deferred: DeferredParse<'db>,
@@ -193,7 +193,7 @@ pub struct AstConstructorField<'db> {
 }
 
 #[derive(SalsaSerialize)]
-#[salsa::interned]
+#[salsa::interned(debug)]
 pub struct Literal<'db> {
     pub kind: LiteralKind,
     #[return_ref]

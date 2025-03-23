@@ -172,7 +172,7 @@ impl EditorDiagnostics {
         &mut self,
         db: &Compiler,
         editor: &mut dyn Editor<Server>,
-        diagnostics: Vec<Diagnostic>,
+        diagnostics: Vec<&Diagnostic>,
     ) -> Fallible<()> {
         let mut new_diagnostics: Map<SourceFile, Vec<Diagnostic>> = Map::default();
 
@@ -181,7 +181,7 @@ impl EditorDiagnostics {
             new_diagnostics
                 .entry(diagnostic.span.source_file)
                 .or_default()
-                .push(diagnostic);
+                .push(diagnostic.clone());
         }
 
         // Publish new diagnostics for each URI that has them

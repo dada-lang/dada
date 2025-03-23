@@ -58,7 +58,7 @@ pub struct Krate {
     pub name: String,
 }
 
-#[salsa::input]
+#[salsa::input(debug)]
 pub struct SourceFile {
     #[return_ref]
     pub url: Url,

@@ -7,6 +7,7 @@ use dada_ir_ast::{
     span::{Span, Spanned},
 };
 use dada_util::{FromImpls, indirect};
+use salsa::Update;
 use serde::Serialize;
 
 use crate::{
@@ -256,7 +257,7 @@ impl<'db> From<SymVariable<'db>> for ScopeChainKind<'_, 'db> {
     }
 }
 
-#[derive(Clone, Debug, PartialEq, Eq, Serialize)]
+#[derive(Clone, Debug, PartialEq, Eq, Serialize, Update)]
 pub(crate) struct NameResolution<'db> {
     pub generics: Vec<SymGenericTerm<'db>>,
     pub sym: NameResolutionSym<'db>,
@@ -387,7 +388,7 @@ impl<'db> NameResolution<'db> {
 }
 
 /// Result of name resolution.
-#[derive(Copy, Clone, Debug, PartialEq, Eq, FromImpls, Serialize)]
+#[derive(Copy, Clone, Debug, PartialEq, Eq, FromImpls, Serialize, Update)]
 #[allow(clippy::enum_variant_names)]
 pub enum NameResolutionSym<'db> {
     SymModule(SymModule<'db>),
@@ -606,7 +607,7 @@ impl<'scope, 'db> ScopeChain<'scope, 'db> {
             | ScopeChainKind::Primitives
             | ScopeChainKind::SymModule(_) => false,
 
-            ScopeChainKind::ForAll(symbols) => symbols.iter().any(|&s| s == sym),
+            ScopeChainKind::ForAll(symbols) => symbols.contains(&sym),
         }
     }
 }

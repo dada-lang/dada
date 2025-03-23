@@ -6,7 +6,7 @@ use super::{AstPath, SpannedIdentifier};
 
 /// `use $crate.$path [as $id]`
 #[derive(SalsaSerialize)]
-#[salsa::tracked]
+#[salsa::tracked(debug)]
 pub struct AstUse<'db> {
     pub span: Span<'db>,
     pub crate_name: SpannedIdentifier<'db>,
