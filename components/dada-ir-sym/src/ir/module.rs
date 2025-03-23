@@ -209,7 +209,7 @@ fn report_duplicate<'db>(
         db,
         Level::Info,
         canonical_span,
-        format!("we will map `{id:?}` to this other definition"),
+        format!("we will map `{id}` to this other definition"),
     )
     .report(db);
 }

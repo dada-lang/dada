@@ -54,6 +54,18 @@ impl<'db> CheckInEnv<'db> for AstTy<'db> {
                 let symbol = decl.symbol(db);
                 SymTy::var(db, symbol)
             }
+
+            AstTyKind::Tuple(ast_elts) => {
+                let mut elts: Vec<SymGenericTerm<'_>> = Vec::with_capacity(ast_elts.len());
+                for elt in &ast_elts {
+                    elts.push(elt.check_in_env(env).await.into());
+                }
+                SymTy::named(
+                    db,
+                    crate::ir::types::SymTyName::Tuple { arity: elts.len() },
+                    elts,
+                )
+            }
         })
         .await
     }

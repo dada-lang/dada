@@ -29,6 +29,9 @@ pub enum AstTyKind<'db> {
 
     /// `type T`
     GenericDecl(AstGenericDecl<'db>),
+
+    /// `(A, B, C)`
+    Tuple(SpanVec<'db, AstTy<'db>>),
 }
 
 #[derive(SalsaSerialize)]

@@ -547,6 +547,7 @@ trait Parse<'db>: Sized {
         let input_offset = text_span.start + 1; // account for the opening delimiter
         let tokenized = tokenize(db, text_span.anchor, input_offset, text);
         let mut parser1 = Parser::new(db, text_span.anchor, &tokenized);
+        parser1.last_span = parser.last_span();
         let opt_list_err = eat_method(db, &mut parser1);
         parser.take_diagnostics(parser1);
         Ok(Some(opt_list_err?))
@@ -557,6 +558,8 @@ trait Parse<'db>: Sized {
         db: &'db dyn crate::Db,
         parser: &mut Parser<'_, 'db>,
     ) -> Result<Option<SpanVec<'db, Self::Output>>, ParseFail<'db>> {
+        let start_span = parser.peek_span();
+
         match Self::opt_parse(db, parser) {
             Ok(Some(item)) => {
                 let mut values = vec![item];
@@ -573,7 +576,7 @@ trait Parse<'db>: Sized {
                 }
 
                 Ok(Some(SpanVec {
-                    span: parser.last_span(),
+                    span: start_span.to(db, parser.last_span()),
                     values,
                 }))
             }

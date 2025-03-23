@@ -212,6 +212,15 @@ fn base_expr_precedence<'db, const SELECT: u32>(
         return Ok(Some(AstExprKind::Literal(literal)));
     }
 
+    if let Some(elts) = AstExpr::opt_parse_delimited(
+        db,
+        parser,
+        crate::tokenizer::Delimiter::Parentheses,
+        AstExpr::eat_comma,
+    )? {
+        return Ok(Some(AstExprKind::Tuple(elts)));
+    }
+
     if let Ok(if_span) = parser.eat_keyword(Keyword::If) {
         return Ok(Some(if_chain(db, parser, if_span)?));
     }

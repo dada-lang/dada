@@ -26,8 +26,11 @@ enum TyOrPerm<'db> {
     /// Perm that starts with a keyword, like `my`
     PermKeyword(AstPerm<'db>),
 
-    /// P1 P2
+    /// `P1 P2`
     Apply(AstPerm<'db>, AstTy<'db>),
+
+    /// `(A, B, C)`
+    Tuple(SpanVec<'db, AstTy<'db>>),
 }
 
 impl<'db> Parse<'db> for TyOrPerm<'db> {
@@ -56,6 +59,14 @@ impl<'db> Parse<'db> for TyOrPerm<'db> {
             return TyOrPerm::PermKeyword(p).maybe_apply(db, parser);
         }
 
+        let start_span = parser.peek_span();
+        if let Some(mut elts) =
+            AstTy::opt_parse_delimited(db, parser, Delimiter::Parentheses, AstTy::eat_comma)?
+        {
+            elts.span = start_span.to(db, parser.last_span());
+            return Ok(Some(TyOrPerm::Tuple(elts)));
+        }
+
         Ok(None)
     }
 
@@ -74,6 +85,7 @@ impl<'db> Spanned<'db> for TyOrPerm<'db> {
             TyOrPerm::Generic(decl) => decl.span(db),
             TyOrPerm::PermKeyword(p) => p.span(db),
             TyOrPerm::Apply(p, ty) => p.span(db).to(db, ty.span(db)),
+            TyOrPerm::Tuple(elts) => elts.span,
         }
     }
 }
@@ -103,6 +115,7 @@ impl<'db> TyOrPerm<'db> {
             TyOrPerm::Generic(decl) => matches!(decl.kind(db), AstGenericKind::Perm(_)),
             TyOrPerm::PermKeyword(_) => true,
             TyOrPerm::Apply(_, _) => false,
+            TyOrPerm::Tuple(_) => false,
         }
     }
 
@@ -123,16 +136,18 @@ impl<'db> TyOrPerm<'db> {
             },
             TyOrPerm::PermKeyword(p) => Some(p),
             TyOrPerm::Apply(_, _) => None,
+            TyOrPerm::Tuple(_) => None,
         }
     }
 
-    /// True if this could syntactically be a permission.
+    /// True if this could syntactically be a type.
     fn can_be_ty(&self, db: &'db dyn crate::Db) -> bool {
         match self {
             TyOrPerm::Path(..) => true,
             TyOrPerm::Generic(decl) => matches!(decl.kind(db), AstGenericKind::Type(_)),
             TyOrPerm::PermKeyword(_) => false,
             TyOrPerm::Apply(_, _) => true,
+            TyOrPerm::Tuple(_) => true,
         }
     }
 
@@ -146,6 +161,7 @@ impl<'db> TyOrPerm<'db> {
             },
             TyOrPerm::PermKeyword(_) => None,
             TyOrPerm::Apply(p, t) => Some(AstTy::new(db, span, AstTyKind::Perm(p, t))),
+            TyOrPerm::Tuple(elts) => Some(AstTy::new(db, span, AstTyKind::Tuple(elts))),
         }
     }
 }
@@ -272,7 +288,8 @@ impl<'db> Parse<'db> for AstGenericTerm<'db> {
             TyOrPerm::Generic(_)
             | TyOrPerm::PermKeyword(_)
             | TyOrPerm::Path(..)
-            | TyOrPerm::Apply(_, _) => {
+            | TyOrPerm::Apply(_, _)
+            | TyOrPerm::Tuple(_) => {
                 let can_be_perm = ty_or_perm.can_be_perm(db);
                 let can_be_ty = ty_or_perm.can_be_ty(db);
 
