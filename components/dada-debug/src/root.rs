@@ -8,7 +8,7 @@ use crate::server::State;
 
 /// Struct passed into the handlebars template to allow it to generate root event listing.
 #[derive(Serialize)]
-struct RootEvent {
+pub struct RootEvent {
     url: String,
     start: usize,
     end: usize,
@@ -30,6 +30,11 @@ enum RootEventPayload {
 pub async fn root(state: &State) -> anyhow::Result<String> {
     let events = root_events(&state.debug_events.lock().unwrap())?;
     crate::hbs::render("index", &events)
+}
+
+pub async fn root_data(state: &State) -> anyhow::Result<Vec<RootEvent>> {
+    let events = state.debug_events.lock().unwrap();
+    root_events(&events)
 }
 
 fn root_events(events: &[Arc<DebugEvent>]) -> anyhow::Result<Vec<RootEvent>> {
