@@ -8,12 +8,14 @@ use crate::{
         env::Env,
         inference::{Direction, InferVarKind},
         predicates::{
-            is_provably_copy::term_is_provably_copy, is_provably_lent::term_is_provably_lent,
-            is_provably_move::term_is_provably_move, is_provably_owned::term_is_provably_owned,
-            isnt_provably_copy::term_isnt_provably_copy, require_copy::require_term_is_copy,
+            Predicate, is_provably_copy::term_is_provably_copy,
+            is_provably_lent::term_is_provably_lent, is_provably_move::term_is_provably_move,
+            is_provably_owned::term_is_provably_owned, isnt_provably_copy::term_isnt_provably_copy,
+            require_copy::require_term_is_copy,
             require_isnt_provably_copy::require_term_isnt_provably_copy,
             require_lent::require_term_is_lent, require_move::require_term_is_move,
             require_owned::require_term_is_owned, require_term_is_leased, term_is_provably_leased,
+            var_infer::require_infer_is,
         },
         red::{Chain, RedTerm, RedTy},
         report::{Because, OrElse},
@@ -435,7 +437,51 @@ pub async fn reconcile_ty_bounds<'db>(env: &mut Env<'db>, infer: InferVarIndex) 
     env.require_all()
         .require(async |env| propagate_inverse_bound(env, infer, Direction::FromAbove).await)
         .require(async |env| propagate_inverse_bound(env, infer, Direction::FromBelow).await)
+        .require(async |env| propagate_predicates_from_below(env, infer).await)
+        .require(async |env| propagate_predicates_from_above(env, infer).await)
         .finish()
+        .await
+}
+
+async fn propagate_predicates_from_below<'db>(
+    env: &mut Env<'db>,
+    infer: InferVarIndex,
+) -> Errors<()> {
+    let db = env.db();
+
+    // Iterate over each lower bound `LB <: X`...
+    env.for_each_bound(
+        Direction::FromBelow,
+        infer,
+        async |env, red_ty, or_else| match red_ty {
+            RedTy::Error(_) => Ok(()),
+            RedTy::Named(sym_ty_name, sym_generic_terms) => match sym_ty_name {
+                SymTyName::Primitive(_) => require_infer_is(env, infer, Predicate::Copy, &or_else),
+                SymTyName::Aggregate(sym_aggregate) if sym_aggregate.is_struct(db) => {
+
+                }
+                SymTyName::Future => Ok(())
+                SymTyName::Tuple { arity } => todo!(),
+            },
+            RedTy::Never => Ok(()),
+            RedTy::Var(sym_variable) => Ok(()),
+
+            RedTy::Infer(..) | RedTy::Perm => {
+                unreachable!("unexpected kind for red-ty bound: {red_ty:?}")
+            }
+        },
+    )
+    .await
+}
+
+async fn propagate_predicates_from_above<'db>(
+    env: &mut Env<'db>,
+    infer: InferVarIndex,
+) -> Errors<()> {
+    let db = env.db();
+
+    // Iterate over each lower bound `LB <: X`...
+    env.for_each_bound(Direction::FromAbove, infer, async |env, red_ty, or_else| {})
         .await
 }
 

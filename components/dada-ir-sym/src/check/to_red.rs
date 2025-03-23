@@ -131,6 +131,17 @@ impl<'db> ToRedTerm<'db> for SymGenericTerm<'db> {
     }
 }
 
+impl<'db> ToRedTy<'db> for SymGenericTerm<'db> {
+    fn to_red_ty(&self, env: &mut Env<'db>) -> (RedTy<'db>, Option<SymPerm<'db>>) {
+        match *self {
+            SymGenericTerm::Type(ty) => ty.to_red_ty(env),
+            SymGenericTerm::Perm(perm) => perm.to_red_ty(env),
+            SymGenericTerm::Place(_) => panic!("cannot create a red term from a place"),
+            SymGenericTerm::Error(reported) => (RedTy::err(env.db(), reported), None),
+        }
+    }
+}
+
 impl<'db> ToRedTerm<'db> for SymTy<'db> {
     async fn to_red_term(&self, env: &mut Env<'db>) -> RedTerm<'db> {
         match self.to_chains(env).await {
