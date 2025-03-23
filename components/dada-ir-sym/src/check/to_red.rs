@@ -14,7 +14,7 @@ use super::{
     Env,
     places::PlaceTy,
     predicates::{
-        Predicate, is_provably_copy::place_is_provably_copy, test_infer_is_known_to_be,
+        Predicate, is_provably_copy::place_is_provably_copy, test_perm_infer_is_known_to_be,
         test_var_is_provably,
     },
     red::{Chain, Lien, RedTerm, RedTy},
@@ -64,7 +64,7 @@ impl<'db> LienExt<'db> for Lien<'db> {
             Lien::Our | Lien::Shared(_) => Ok(true),
             Lien::Leased(_) => Ok(false),
             Lien::Var(v) => Ok(test_var_is_provably(env, v, Predicate::Copy)),
-            Lien::Infer(v) => Ok(test_infer_is_known_to_be(env, v, Predicate::Copy).await),
+            Lien::Infer(v) => Ok(test_perm_infer_is_known_to_be(env, v, Predicate::Copy).await),
             Lien::Error(reported) => Err(reported),
         }
     }

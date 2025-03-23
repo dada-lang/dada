@@ -4,7 +4,7 @@ use crate::{
     check::{
         debug::TaskDescription,
         env::Env,
-        inference::{Direction, InferenceVarData},
+        inference::{InferVarKind, InferenceVarData},
         predicates::Predicate,
         report::{ArcOrElse, Because, OrElse},
     },
@@ -146,64 +146,72 @@ pub(super) fn require_infer_isnt<'db>(
 pub async fn test_ty_infer_is_known_to_be(
     env: &mut Env<'_>,
     infer: InferVarIndex,
-    direction: Direction,
     predicate: Predicate,
 ) -> Errors<bool> {
+    assert_eq!(env.infer_var_kind(infer), InferVarKind::Type);
+    let mut storage = None;
     loop {
         let Some((is, isnt, bound)) = env
-            .loop_on_inference_var(infer, |data| {
-                Some((
-                    data.is_known_to_provably_be(predicate),
-                    data.is_known_not_to_provably_be(predicate),
-                    data.red_ty_bound(direction),
-                ))
-            })
+            .watch_inference_var(
+                infer,
+                |data| {
+                    (
+                        data.is_known_to_provably_be(predicate).is_some(),
+                        data.is_known_not_to_provably_be(predicate).is_some(),
+                        data.red_ty_bound(predicate.bound_direction())
+                            .map(|pair| pair.0),
+                    )
+                },
+                &mut storage,
+            )
             .await
         else {
             // XXX: Should we report an error instead?
             return Ok(false);
         };
 
-        if is.is_some() {
+        if is {
             return Ok(true);
-        } else if isnt.is_some() {
+        } else if isnt {
             return Ok(false);
-        } else if let Some((bound, _)) = bound {
+        } else if let Some(bound) = bound {
             return red_ty_is_provably(env, bound, predicate).await;
         }
     }
 }
 
 /// Wait until we know that the inference variable IS (or IS NOT) the given predicate.
-pub async fn test_infer_is_known_to_be(
+pub async fn test_perm_infer_is_known_to_be(
     env: &mut Env<'_>,
     infer: InferVarIndex,
     predicate: Predicate,
-) -> bool {
-    env.loop_on_inference_var(infer, |data| {
-        let (is, isnt) = (
-            data.is_known_to_provably_be(predicate),
-            data.is_known_not_to_provably_be(predicate),
-        );
-        if is.is_some() {
-            Some(true)
-        } else if isnt.is_some() {
-            Some(false)
-        } else {
-            // We do not yet have a constraint on whether the inference variable
-            // is known to be `predicate`, so block to see what new constraints
-            // are added in the future.
-            None
+) -> Errors<bool> {
+    assert_eq!(env.infer_var_kind(infer), InferVarKind::Perm);
+    let mut storage = None;
+    loop {
+        let Some((is, isnt)) = env
+            .watch_inference_var(
+                infer,
+                |data| {
+                    (
+                        data.is_known_to_provably_be(predicate).is_some(),
+                        data.is_known_not_to_provably_be(predicate).is_some(),
+                    )
+                },
+                &mut storage,
+            )
+            .await
+        else {
+            // XXX: Should we report an error instead?
+            return Ok(false);
+        };
+
+        if is {
+            return Ok(true);
+        } else if isnt {
+            return Ok(false);
         }
-    })
-    .await
-    .unwrap_or({
-        // If `None` is returned, it indicates that we terminated without ever
-        // adding a constrain on the inference variable one way or the other.
-        // This implies that the variable is not KNOWN to be `predicate` (though of course
-        // it may be).
-        false
-    })
+    }
 }
 
 fn defer_require_bounds_provably_predicate<'db>(

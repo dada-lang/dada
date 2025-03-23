@@ -368,6 +368,35 @@ impl<'db> Env<'db> {
             .loop_on_inference_var(infer, compiler_location, &self.log, op)
     }
 
+    /// Given a function `op` that extracts value from an inference var,
+    /// returns a future that blocks until a new value is observed.
+    /// A "new" value here means one not already found in `storage`;
+    /// the `storage` parameter is updated to track values across invocations.
+    #[track_caller]
+    pub fn watch_inference_var<T>(
+        &self,
+        infer: InferVarIndex,
+        mut op: impl FnMut(&InferenceVarData<'db>) -> T,
+        storage: &mut Option<T>,
+    ) -> impl Future<Output = Option<T>>
+    where
+        T: Serialize + Eq + Clone,
+    {
+        let compiler_location = Location::caller();
+        self.runtime
+            .loop_on_inference_var(infer, compiler_location, &self.log, move |data| {
+                let new_value = op(data);
+
+                if let Some(old_value) = &storage {
+                    if *old_value == new_value {
+                        return None;
+                    }
+                }
+
+                *storage = Some(new_value.clone());
+                Some(new_value)
+            })
+    }
     /// Choose between two options:
     ///
     /// * If the current node is required, then execute `if_required`. This is preferred

@@ -7,7 +7,7 @@ use crate::{
         places::PlaceTy,
         predicates::{
             Predicate,
-            var_infer::{test_infer_is_known_to_be, test_var_is_provably},
+            var_infer::{test_perm_infer_is_known_to_be, test_var_is_provably},
         },
         red::RedTy,
         to_red::ToRedTy,
@@ -17,6 +17,8 @@ use crate::{
         types::{SymGenericTerm, SymPerm, SymPermKind, SymPlace, SymTyName},
     },
 };
+
+use super::var_infer::test_ty_infer_is_known_to_be;
 
 pub(crate) async fn term_isnt_provably_copy<'db>(
     env: &mut Env<'db>,
@@ -39,7 +41,9 @@ pub(crate) async fn term_isnt_provably_copy<'db>(
 async fn red_ty_isnt_provably_copy<'db>(env: &mut Env<'db>, ty: RedTy<'db>) -> Errors<bool> {
     let db = env.db();
     match ty {
-        RedTy::Infer(infer) => Ok(!test_infer_is_known_to_be(env, infer, Predicate::Copy).await),
+        RedTy::Infer(infer) => {
+            Ok(!test_ty_infer_is_known_to_be(env, infer, Predicate::Copy).await?)
+        }
         RedTy::Var(var) => Ok(!test_var_is_provably(env, var, Predicate::Copy)),
         RedTy::Never => Ok(true),
         RedTy::Error(reported) => Err(reported),
@@ -102,7 +106,7 @@ pub(crate) async fn perm_isnt_provably_copy<'db>(
         SymPermKind::Var(var) => Ok(!test_var_is_provably(env, var, Predicate::Copy)),
 
         SymPermKind::Infer(infer) => {
-            Ok(!test_infer_is_known_to_be(env, infer, Predicate::Copy).await)
+            Ok(!test_perm_infer_is_known_to_be(env, infer, Predicate::Copy).await?)
         }
     }
 }

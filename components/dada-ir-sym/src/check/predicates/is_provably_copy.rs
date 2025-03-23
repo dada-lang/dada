@@ -8,7 +8,7 @@ use crate::{
         places::PlaceTy,
         predicates::{
             Predicate,
-            var_infer::{test_infer_is_known_to_be, test_var_is_provably},
+            var_infer::{test_perm_infer_is_known_to_be, test_var_is_provably},
         },
         red::RedTy,
         to_red::ToRedTy,
@@ -64,9 +64,7 @@ pub async fn red_ty_is_provably_copy<'db>(env: &mut Env<'db>, ty: RedTy<'db>) ->
             }
         },
         RedTy::Never => Ok(false),
-        RedTy::Infer(infer) => {
-            test_ty_infer_is_known_to_be(env, infer, Direction::FromAbove, Predicate::Copy).await
-        }
+        RedTy::Infer(infer) => test_ty_infer_is_known_to_be(env, infer, Predicate::Copy).await,
         RedTy::Var(var) => Ok(test_var_is_provably(env, var, Predicate::Copy)),
         RedTy::Perm => todo!(),
     }
@@ -100,7 +98,7 @@ pub(crate) async fn perm_is_provably_copy<'db>(
         }
         SymPermKind::Var(var) => Ok(test_var_is_provably(env, var, Predicate::Copy)),
         SymPermKind::Infer(infer) => {
-            Ok(test_infer_is_known_to_be(env, infer, Predicate::Copy).await)
+            test_perm_infer_is_known_to_be(env, infer, Predicate::Copy).await
         }
     }
 }

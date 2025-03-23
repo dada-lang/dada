@@ -11,6 +11,7 @@ pub mod require_owned;
 pub mod var_infer;
 
 use dada_ir_ast::diagnostic::Errors;
+use dada_util::boxed_async_fn;
 use is_provably_copy::red_ty_is_provably_copy;
 use is_provably_lent::{red_ty_is_provably_lent, term_is_provably_lent};
 use is_provably_move::{red_ty_is_provably_move, term_is_provably_move};
@@ -19,11 +20,11 @@ use require_lent::require_term_is_lent;
 use require_move::require_term_is_move;
 use require_owned::require_term_is_owned;
 use serde::Serialize;
-pub use var_infer::{test_infer_is_known_to_be, test_var_is_provably};
+pub use var_infer::{test_perm_infer_is_known_to_be, test_var_is_provably};
 
 use crate::ir::types::SymGenericTerm;
 
-use super::{env::Env, red::RedTy, report::OrElse};
+use super::{env::Env, inference::Direction, red::RedTy, report::OrElse};
 
 #[derive(Copy, Clone, Debug, Eq, PartialEq, Hash, Ord, PartialOrd, Serialize)]
 pub enum Predicate {
@@ -62,6 +63,23 @@ impl Predicate {
             Predicate::Lent => Predicate::Owned,
         }
     }
+
+    /// The "bound direction" for a predicate indicate how the predicate
+    /// interacts with subtyping:
+    ///
+    /// * [`Copy`](`Predicate::Copy`) and [`Lent`](`Predicate::Lent`) are [`FromBelow`](`Direction::FromBelow`)
+    ///   predicates, meaning that if a type `T` is `Copy` or `Lent`, then all *super*types of `T` are also
+    ///   `Copy` and `Lent` (these predicates are "viral" in a sense, they can't be upcast away).
+    /// * [`Move`](`Predicate::Move`) and [`Owned`](`Predicate::Owned`) are [`FromAbove`](`Direction::FromAbove`)
+    ///   predicates, meaning that if a type `T` is `Move` or `Owned`, then all *sub*types of `T` are also
+    ///   `Move` and `Owned`. This reflects the fact that a `Move` type like `my` can be assigned to a `Copy`
+    ///   type like `our`; but you cannot assign an `our` into a `my` slot.
+    pub fn bound_direction(self) -> Direction {
+        match self {
+            Predicate::Copy | Predicate::Lent => Direction::FromBelow,
+            Predicate::Move | Predicate::Owned => Direction::FromAbove,
+        }
+    }
 }
 
 impl std::fmt::Display for Predicate {
@@ -86,6 +104,7 @@ pub(crate) async fn term_is_provably_leased<'db>(
     .await
 }
 
+#[boxed_async_fn]
 pub(crate) async fn red_ty_is_provably<'db>(
     env: &mut Env<'db>,
     red_ty: RedTy<'db>,

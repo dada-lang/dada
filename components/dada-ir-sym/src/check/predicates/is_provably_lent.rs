@@ -4,10 +4,11 @@ use dada_util::boxed_async_fn;
 use crate::{
     check::{
         env::Env,
+        inference::Direction,
         places::PlaceTy,
         predicates::{
             Predicate,
-            var_infer::{test_infer_is_known_to_be, test_var_is_provably},
+            var_infer::{test_perm_infer_is_known_to_be, test_var_is_provably},
         },
         red::RedTy,
         to_red::ToRedTy,
@@ -18,7 +19,7 @@ use crate::{
     },
 };
 
-use super::is_provably_move::place_is_provably_move;
+use super::{is_provably_move::place_is_provably_move, var_infer::test_ty_infer_is_known_to_be};
 
 pub async fn term_is_provably_lent<'db>(
     env: &mut Env<'db>,
@@ -41,8 +42,8 @@ pub async fn term_is_provably_lent<'db>(
 pub async fn red_ty_is_provably_lent<'db>(env: &mut Env<'db>, ty: RedTy<'db>) -> Errors<bool> {
     let db = env.db();
     match ty {
-        RedTy::Infer(infer) => Ok(test_infer_is_known_to_be(env, infer, Predicate::Copy).await),
-        RedTy::Var(var) => Ok(test_var_is_provably(env, var, Predicate::Copy)),
+        RedTy::Infer(infer) => test_ty_infer_is_known_to_be(env, infer, Predicate::Lent).await,
+        RedTy::Var(var) => Ok(test_var_is_provably(env, var, Predicate::Lent)),
         RedTy::Never => Ok(false),
         RedTy::Error(reported) => Err(reported),
         RedTy::Named(name, generics) => match name {
@@ -116,7 +117,7 @@ pub(crate) async fn perm_is_provably_lent<'db>(
         }
         SymPermKind::Var(var) => Ok(test_var_is_provably(env, var, Predicate::Lent)),
         SymPermKind::Infer(infer) => {
-            Ok(test_infer_is_known_to_be(env, infer, Predicate::Lent).await)
+            test_perm_infer_is_known_to_be(env, infer, Predicate::Lent).await
         }
     }
 }

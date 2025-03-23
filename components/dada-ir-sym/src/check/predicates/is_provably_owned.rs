@@ -7,7 +7,7 @@ use crate::{
         places::PlaceTy,
         predicates::{
             Predicate,
-            var_infer::{test_infer_is_known_to_be, test_var_is_provably},
+            var_infer::{test_perm_infer_is_known_to_be, test_var_is_provably},
         },
         red::RedTy,
         to_red::ToRedTy,
@@ -17,6 +17,8 @@ use crate::{
         types::{SymGenericTerm, SymPerm, SymPermKind, SymPlace, SymTyName},
     },
 };
+
+use super::var_infer::test_ty_infer_is_known_to_be;
 
 pub async fn term_is_provably_owned<'db>(
     env: &mut Env<'db>,
@@ -39,7 +41,7 @@ pub async fn term_is_provably_owned<'db>(
 pub async fn red_ty_is_provably_owned<'db>(env: &mut Env<'db>, ty: RedTy<'db>) -> Errors<bool> {
     let db = env.db();
     match ty {
-        RedTy::Infer(infer) => Ok(test_infer_is_known_to_be(env, infer, Predicate::Owned).await),
+        RedTy::Infer(infer) => test_ty_infer_is_known_to_be(env, infer, Predicate::Owned).await,
         RedTy::Var(var) => Ok(test_var_is_provably(env, var, Predicate::Owned)),
         RedTy::Never => Ok(false),
         RedTy::Error(reported) => Err(reported),
@@ -102,7 +104,7 @@ pub(crate) async fn perm_is_provably_owned<'db>(
         SymPermKind::Var(var) => Ok(test_var_is_provably(env, var, Predicate::Owned)),
 
         SymPermKind::Infer(infer) => {
-            Ok(test_infer_is_known_to_be(env, infer, Predicate::Owned).await)
+            test_perm_infer_is_known_to_be(env, infer, Predicate::Owned).await
         }
     }
 }
