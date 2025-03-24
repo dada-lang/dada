@@ -5,7 +5,8 @@ use crate::{
         debug::TaskDescription,
         env::Env,
         inference::{Direction, InferVarKind},
-        predicates::Predicate,
+        predicates::{Predicate, chain_is},
+        red::Chain,
         report::{ArcOrElse, Because, OrElse},
     },
     ir::{indices::InferVarIndex, variables::SymVariable},
@@ -176,21 +177,26 @@ pub async fn test_ty_infer_is_known_to_be(
 }
 
 /// Wait until we know that the inference variable IS (or IS NOT) the given predicate.
-pub async fn test_perm_infer_is_known_to_be(
-    env: &mut Env<'_>,
+pub async fn test_perm_infer_is_known_to_be<'db>(
+    env: &mut Env<'db>,
     infer: InferVarIndex,
     predicate: Predicate,
 ) -> Errors<bool> {
     assert_eq!(env.infer_var_kind(infer), InferVarKind::Perm);
+    let bound_direction = predicate.bound_direction();
     let mut storage = None;
     loop {
-        let Some((is, isnt)) = env
+        let Some((is, isnt, chains)) = env
             .watch_inference_var(
                 infer,
                 |data| {
                     (
                         data.is_known_to_provably_be(predicate).is_some(),
                         data.is_known_not_to_provably_be(predicate).is_some(),
+                        data.chain_bounds(bound_direction)
+                            .iter()
+                            .map(|pair| pair.0.clone())
+                            .collect::<Vec<Chain<'db>>>(),
                     )
                 },
                 &mut storage,
@@ -205,6 +211,21 @@ pub async fn test_perm_infer_is_known_to_be(
             return Ok(true);
         } else if isnt {
             return Ok(false);
+        } else {
+            return match bound_direction {
+                Direction::FromBelow => {
+                    env.exists(chains, async |env, chain| {
+                        chain_is(env, &chain, predicate).await
+                    })
+                    .await
+                }
+                Direction::FromAbove => {
+                    env.for_all(chains, async |env, chain| {
+                        chain_is(env, &chain, predicate).await
+                    })
+                    .await
+                }
+            };
         }
     }
 }
@@ -247,14 +268,15 @@ fn defer_require_bounds_not_provably_predicate<'db>(
 ) {
     env.spawn(
         TaskDescription::RequireBoundsNotProvablyPredicate(infer, predicate),
-        async move |env| 
-                // As above, if we want to prove that something *isn't* `Copy`,
-                // we need to ensure that the supertype isn't `Copy`.
-                //
-                // To show that it isn't `Move`, either suffices.
-                env.require_for_all_chain_bounds(infer, Direction::FromAbove, async |env, chain| {
-                    require_chain_isnt(env, &chain, predicate, &or_else).await
-                })
-                .await
+        async move |env| {
+            // As above, if we want to prove that something *isn't* `Copy`,
+            // we need to ensure that the supertype isn't `Copy`.
+            //
+            // To show that it isn't `Move`, either suffices.
+            env.require_for_all_chain_bounds(infer, Direction::FromAbove, async |env, chain| {
+                require_chain_isnt(env, &chain, predicate, &or_else).await
+            })
+            .await
+        },
     );
 }
