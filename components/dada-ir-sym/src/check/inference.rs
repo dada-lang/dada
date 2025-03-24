@@ -160,28 +160,18 @@ impl<'db> InferenceVarData<'db> {
         }
     }
 
-    /// Returns the lower bounds on this permission variable.
+    /// Returns the upper or lower bounds on this permission variable.
     ///
     /// # Panics
     ///
     /// If this is not a permission variable.
     #[track_caller]
-    pub fn lower_chains(&self) -> &[(Chain<'db>, ArcOrElse<'db>)] {
+    pub fn chain_bounds(&self, direction: Direction) -> &[(Chain<'db>, ArcOrElse<'db>)] {
         match &self.bounds {
-            InferenceVarBounds::Perm { lower, .. } => lower,
-            _ => panic!("lower_chains invoked on a var of kind `{:?}`", self.kind()),
-        }
-    }
-
-    /// Returns the upper bounds on this permission variable.
-    ///
-    /// # Panics
-    ///
-    /// If this is not a permission variable.
-    #[track_caller]
-    pub fn upper_chains(&self) -> &[(Chain<'db>, ArcOrElse<'db>)] {
-        match &self.bounds {
-            InferenceVarBounds::Perm { upper, .. } => upper,
+            InferenceVarBounds::Perm { lower, upper, .. } => match direction {
+                Direction::FromBelow => lower,
+                Direction::FromAbove => upper,
+            },
             _ => panic!("lower_chains invoked on a var of kind `{:?}`", self.kind()),
         }
     }
@@ -214,45 +204,27 @@ impl<'db> InferenceVarData<'db> {
 
     /// Insert a chain as a lower bound.
     /// Returns `Some(or_else.to_arc())` if this is a new upper bound.
-    pub fn insert_lower_chain(
+    pub fn insert_chain_bound(
         &mut self,
         chain: &Chain<'db>,
+        direction: Direction,
         or_else: &dyn OrElse<'db>,
     ) -> Option<ArcOrElse<'db>> {
-        let lower_chains = match &mut self.bounds {
-            InferenceVarBounds::Perm { lower, .. } => lower,
+        let chain_bounds = match &mut self.bounds {
+            InferenceVarBounds::Perm { lower, upper, .. } => match direction {
+                Direction::FromBelow => lower,
+                Direction::FromAbove => upper,
+            },
             _ => panic!(
                 "insert_lower_chain invoked on a var of kind `{:?}`",
                 self.kind()
             ),
         };
-        if lower_chains.iter().any(|pair| pair.0 == *chain) {
+        if chain_bounds.iter().any(|pair| pair.0 == *chain) {
             return None;
         }
         let or_else = or_else.to_arc();
-        lower_chains.push((chain.clone(), or_else.clone()));
-        Some(or_else)
-    }
-
-    /// Insert a chain as an upper bound.
-    /// Returns `Some(or_else.to_arc())` if this is a new upper bound.
-    pub fn insert_upper_chain(
-        &mut self,
-        chain: &Chain<'db>,
-        or_else: &dyn OrElse<'db>,
-    ) -> Option<ArcOrElse<'db>> {
-        let upper_chains = match &mut self.bounds {
-            InferenceVarBounds::Perm { upper, .. } => upper,
-            _ => panic!(
-                "insert_upper_chain invoked on a var of kind `{:?}`",
-                self.kind()
-            ),
-        };
-        if upper_chains.iter().any(|pair| pair.0 == *chain) {
-            return None;
-        }
-        let or_else = or_else.to_arc();
-        upper_chains.push((chain.clone(), or_else.clone()));
+        chain_bounds.push((chain.clone(), or_else.clone()));
         Some(or_else)
     }
 

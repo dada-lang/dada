@@ -175,11 +175,7 @@ impl<'env, 'db> Resolver<'env, 'db> {
     ) -> Result<SymPerm<'db>, ResolverError<'db>> {
         let runtime = self.env.runtime().clone();
         runtime.with_inference_var_data(infer, |data| {
-            let chains = match direction {
-                Direction::FromBelow => data.lower_chains(),
-                Direction::FromAbove => data.upper_chains(),
-            };
-
+            let chains = data.chain_bounds(direction);
             self.merge_lien_chains(chains.iter().map(|pair| &pair.0), direction)
         })
     }

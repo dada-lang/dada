@@ -4,19 +4,14 @@ use crate::{
     check::{
         debug::TaskDescription,
         env::Env,
-        inference::{InferVarKind, InferenceVarData},
+        inference::{Direction, InferVarKind},
         predicates::Predicate,
         report::{ArcOrElse, Because, OrElse},
     },
     ir::{indices::InferVarIndex, variables::SymVariable},
 };
 
-use super::{
-    red_ty_is_provably, require_copy::require_chain_is_copy,
-    require_isnt_provably_copy::require_chain_isnt_provably_copy,
-    require_lent::require_chain_is_lent, require_move::require_chain_is_move,
-    require_owned::require_chain_is_owned,
-};
+use super::{red_ty_is_provably, require_chain_is, require_chain_isnt};
 
 pub fn test_var_is_provably<'db>(
     env: &mut Env<'db>,
@@ -223,39 +218,23 @@ fn defer_require_bounds_provably_predicate<'db>(
     let perm_infer = env.perm_infer(infer);
     env.spawn(
         TaskDescription::RequireBoundsProvablyPredicate(infer, predicate),
-        async move |env| match predicate {
-            Predicate::Copy => {
-                env.require_for_all_infer_bounds(
-                    perm_infer,
-                    InferenceVarData::upper_chains,
-                    async |env, chain| require_chain_is_copy(env, &chain, &or_else).await,
-                )
-                .await
-            }
-            Predicate::Move => {
-                env.require_for_all_infer_bounds(
-                    perm_infer,
-                    InferenceVarData::lower_chains,
-                    async |env, chain| require_chain_is_move(env, &chain, &or_else).await,
-                )
-                .await
-            }
-            Predicate::Owned => {
-                env.require_for_all_infer_bounds(
-                    perm_infer,
-                    InferenceVarData::lower_chains,
-                    async |env, chain| require_chain_is_owned(env, &chain, &or_else).await,
-                )
-                .await
-            }
-            Predicate::Lent => {
-                env.require_for_all_infer_bounds(
-                    perm_infer,
-                    InferenceVarData::upper_chains,
-                    async |env, chain| require_chain_is_lent(env, &chain, &or_else).await,
-                )
-                .await
-            }
+        async move |env| {
+            env.require_for_all_chain_bounds(
+                perm_infer,
+                // We need to ensure that the *supertype* bound meets the predicate.
+                // This doesn't really depend on the predicate.
+                //
+                // Consider the cases:
+                //
+                // * `Copy` -- it's ok to have subtype bounds that are move as long as the
+                //   final type is upcast into a copy value.
+                // * `move` -- if supertype is move, subtype must also be move.
+                //
+                // Analogous reasoning applies to `lent` and `owned`.
+                Direction::FromAbove,
+                async |env, chain| require_chain_is(env, &chain, predicate, &or_else).await,
+            )
+            .await
         },
     );
 }
@@ -268,26 +247,14 @@ fn defer_require_bounds_not_provably_predicate<'db>(
 ) {
     env.spawn(
         TaskDescription::RequireBoundsNotProvablyPredicate(infer, predicate),
-        async move |env| match predicate {
-            Predicate::Copy => {
-                env.require_for_all_infer_bounds(
-                    infer,
-                    InferenceVarData::upper_chains,
-                    async |env, chain| {
-                        require_chain_isnt_provably_copy(env, &chain, &or_else).await
-                    },
-                )
+        async move |env| 
+                // As above, if we want to prove that something *isn't* `Copy`,
+                // we need to ensure that the supertype isn't `Copy`.
+                //
+                // To show that it isn't `Move`, either suffices.
+                env.require_for_all_chain_bounds(infer, Direction::FromAbove, async |env, chain| {
+                    require_chain_isnt(env, &chain, predicate, &or_else).await
+                })
                 .await
-            }
-            Predicate::Move => {
-                todo!()
-            }
-            Predicate::Owned => {
-                todo!()
-            }
-            Predicate::Lent => {
-                todo!()
-            }
-        },
     );
 }

@@ -248,10 +248,10 @@ impl<'db> Env<'db> {
     }
 
     #[track_caller]
-    pub fn exists_infer_bound(
+    pub fn exists_chain_bound(
         &mut self,
         infer: InferVarIndex,
-        direction: impl for<'a> Fn(&'a InferenceVarData<'db>) -> &'a [(Chain<'db>, ArcOrElse<'db>)],
+        direction: Direction,
         mut op: impl AsyncFnMut(&mut Env<'db>, Chain<'db>) -> Errors<bool>,
     ) -> impl Future<Output = Errors<bool>> {
         let compiler_location = Location::caller();
@@ -259,14 +259,14 @@ impl<'db> Env<'db> {
         async move {
             self.indent_with_compiler_location(
                 compiler_location,
-                "exists_infer_bound",
+                "exists_chain_bound",
                 &[&infer],
                 async |env| {
                     let mut observed = 0;
                     let mut stack = vec![];
 
                     loop {
-                        env.extract_bounding_chains(infer, &mut observed, &mut stack, &direction)
+                        env.extract_bounding_chains(infer, &mut observed, &mut stack, direction)
                             .await;
 
                         while let Some(chain) = stack.pop() {
@@ -288,10 +288,10 @@ impl<'db> Env<'db> {
     /// Typically never returns as the full set of bounds on an inference variable is never known.
     /// Exception is if an `Err` occurs, it is propagated.
     #[track_caller]
-    pub fn require_for_all_infer_bounds(
+    pub fn require_for_all_chain_bounds(
         &mut self,
         infer: InferVarIndex,
-        direction: impl for<'a> Fn(&'a InferenceVarData<'db>) -> &'a [(Chain<'db>, ArcOrElse<'db>)],
+        direction: Direction,
         mut op: impl AsyncFnMut(&mut Env<'db>, Chain<'db>) -> Errors<()>,
     ) -> impl Future<Output = Errors<()>> {
         let compiler_location = Location::caller();
@@ -299,14 +299,14 @@ impl<'db> Env<'db> {
         async move {
             self.indent_with_compiler_location(
                 compiler_location,
-                "require_for_all_infer_bounds",
+                "require_for_all_chain_bounds",
                 &[&infer],
                 async |env| {
                     let mut observed = 0;
                     let mut stack = vec![];
 
                     while env
-                        .extract_bounding_chains(infer, &mut observed, &mut stack, &direction)
+                        .extract_bounding_chains(infer, &mut observed, &mut stack, direction)
                         .await
                     {
                         while let Some(chain) = stack.pop() {
@@ -337,10 +337,10 @@ impl<'db> Env<'db> {
         infer: InferVarIndex,
         observed: &mut usize,
         stack: &mut Vec<Chain<'db>>,
-        direction: impl for<'a> Fn(&'a InferenceVarData<'db>) -> &'a [(Chain<'db>, ArcOrElse<'db>)],
+        direction: Direction,
     ) -> bool {
         self.loop_on_inference_var(infer, |data| {
-            let chains = direction(data);
+            let chains = data.chain_bounds(direction);
             assert!(stack.is_empty());
             if *observed == chains.len() {
                 None

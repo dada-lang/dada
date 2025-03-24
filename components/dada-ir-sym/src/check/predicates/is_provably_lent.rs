@@ -4,7 +4,6 @@ use dada_util::boxed_async_fn;
 use crate::{
     check::{
         env::Env,
-        inference::Direction,
         places::PlaceTy,
         predicates::{
             Predicate,

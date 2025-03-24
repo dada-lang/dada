@@ -564,28 +564,16 @@ impl<'db> Env<'db> {
     }
 
     #[track_caller]
-    pub fn insert_lower_chain(
+    pub fn insert_chain_bound(
         &mut self,
         infer: InferVarIndex,
         chain: &Chain<'db>,
+        direction: Direction,
         or_else: &dyn OrElse<'db>,
     ) -> Option<ArcOrElse<'db>> {
         self.runtime
             .mutate_inference_var_data(infer, &self.log, |data| {
-                data.insert_lower_chain(chain, or_else)
-            })
-    }
-
-    #[track_caller]
-    pub fn insert_upper_chain(
-        &mut self,
-        infer: InferVarIndex,
-        chain: &Chain<'db>,
-        or_else: &dyn OrElse<'db>,
-    ) -> Option<ArcOrElse<'db>> {
-        self.runtime
-            .mutate_inference_var_data(infer, &self.log, |data| {
-                data.insert_upper_chain(chain, or_else)
+                data.insert_chain_bound(chain, direction, or_else)
             })
     }
 

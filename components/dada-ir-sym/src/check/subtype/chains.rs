@@ -6,7 +6,7 @@ use crate::{
         alternatives::Alternative,
         debug::TaskDescription,
         env::Env,
-        inference::InferenceVarData,
+        inference::Direction,
         predicates::{
             Predicate, is_provably_copy::term_is_provably_copy, require_copy::require_term_is_copy,
             require_term_is_my, term_is_provably_my,
@@ -250,7 +250,9 @@ async fn require_lower_chain<'db>(
 ) -> Errors<()> {
     let lower_chain = Chain::from_head_tail(env.db(), lower_head, lower_tail);
 
-    let Some(or_else) = env.insert_lower_chain(upper_head, &lower_chain, or_else) else {
+    let Some(or_else) =
+        env.insert_chain_bound(upper_head, &lower_chain, Direction::FromBelow, or_else)
+    else {
         return Ok(());
     };
 
@@ -258,13 +260,15 @@ async fn require_lower_chain<'db>(
     // there is at least one *upper bound* on the variable (either one
     // that currently exists or one that may be added in the future)
     // that is a superchain of this lower bound.
-    env.runtime()
-        .spawn(env, TaskDescription::RequireLowerChain, async move |env| {
+    env.runtime().spawn(
+        env,
+        TaskDescription::RequireLowerChain,
+        async move |env| -> Result<(), dada_ir_ast::diagnostic::Reported> {
             env.log("RequireLowerChain", &[&lower_chain, &upper_head]);
 
-            env.require_for_all_infer_bounds(
+            env.require_for_all_chain_bounds(
                 upper_head,
-                InferenceVarData::upper_chains,
+                Direction::FromAbove,
                 async |env, upper_chain| {
                     Alternative::the_future_never_comes(async |alternative| {
                         env.require(
@@ -280,7 +284,8 @@ async fn require_lower_chain<'db>(
                 },
             )
             .await
-        });
+        },
+    );
 
     Ok(())
 }
@@ -315,9 +320,9 @@ async fn splice_upper_bound<'db>(
     or_else: &dyn OrElse<'db>,
 ) -> Errors<bool> {
     let lower_chain = Chain::from_head_tail(env.db(), lower_head, lower_tail);
-    env.exists_infer_bound(
+    env.exists_chain_bound(
         upper_head,
-        InferenceVarData::upper_chains,
+        Direction::FromAbove,
         async |env, mut upper_chain| {
             Alternative::the_future_never_comes(async |alternative| {
                 upper_chain.extend(upper_tail);
@@ -340,7 +345,9 @@ async fn require_upper_chain<'db>(
 ) -> Errors<()> {
     let upper_chain = Chain::from_head_tail(env.db(), upper_head, upper_tail);
 
-    let Some(_or_else) = env.insert_upper_chain(lower_head, &upper_chain, or_else) else {
+    let Some(_or_else) =
+        env.insert_chain_bound(lower_head, &upper_chain, Direction::FromAbove, or_else)
+    else {
         return Ok(());
     };
 
@@ -361,9 +368,9 @@ async fn splice_lower_bound<'db>(
     or_else: &dyn OrElse<'db>,
 ) -> Errors<bool> {
     let upper_chain = Chain::from_head_tail(env.db(), upper_head, upper_tail);
-    env.exists_infer_bound(
+    env.exists_chain_bound(
         lower_head,
-        InferenceVarData::lower_chains,
+        Direction::FromBelow,
         async |env, mut lower_chain| {
             Alternative::the_future_never_comes(async |alternative| {
                 lower_chain.extend(lower_tail);

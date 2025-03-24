@@ -64,7 +64,7 @@ impl<'db> LienExt<'db> for Lien<'db> {
             Lien::Our | Lien::Shared(_) => Ok(true),
             Lien::Leased(_) => Ok(false),
             Lien::Var(v) => Ok(test_var_is_provably(env, v, Predicate::Copy)),
-            Lien::Infer(v) => Ok(test_perm_infer_is_known_to_be(env, v, Predicate::Copy).await),
+            Lien::Infer(v) => test_perm_infer_is_known_to_be(env, v, Predicate::Copy).await,
             Lien::Error(reported) => Err(reported),
         }
     }
