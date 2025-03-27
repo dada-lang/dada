@@ -7,18 +7,24 @@
 <h1>Dada Debug Log</h1>
 <ul>
 {{#each this}}
-{{#if payload.CheckLog}}
+{{#if (is_type payload.type "CheckLog")}}
     <li>
-        <a href="/view/{{payload.CheckLog.index}}">
+        <a href="/view/{{payload.index}}">
             Type check log from {{url}}:{{line_start}}:{{col_start}}:{{line_end}}:{{col_end}}<br>
             <code>{{text}}</code>
         </a>
     </li>
-{{else if payload.Diagnostic}}
+{{else if (is_type payload.type "Diagnostic")}}
     <li>
         Diagnostic from {{url}}:{{line_start}}:{{col_start}}:{{line_end}}:{{col_end}}<br>
         <code>{{text}}</code><br>
         {{payload.Diagnostic.message}}
+    </li>
+{{else }}
+    <li>
+        Unknown from {{url}}:{{line_start}}:{{col_start}}:{{line_end}}:{{col_end}}<br>
+        <code>{{text}}</code><br>
+        <code>{{payload.type}}</code><br>
     </li>
 {{/if}}
 {{/each}}

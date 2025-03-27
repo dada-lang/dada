@@ -21,6 +21,7 @@ pub struct RootEvent {
 }
 
 #[derive(Serialize)]
+#[serde(tag = "type")]
 enum RootEventPayload {
     Diagnostic { message: String },
     CheckLog { index: usize },

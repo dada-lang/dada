@@ -12,6 +12,10 @@ handlebars_helper!(index: |events: array, i: usize| {
     events[i].clone()
 });
 
+handlebars_helper!(is_type: |actual: str, expected: str| {
+    actual == expected
+});
+
 handlebars_helper!(source_snippet: |file: str, line: usize, column: usize| {
     file_line_col(file, line, column)
 });
@@ -20,6 +24,7 @@ pub(crate) fn render(name: &str, data: &impl Serialize) -> anyhow::Result<String
     let mut handlers = handlebars::Handlebars::new();
     handlers.register_embed_templates_with_extension::<Assets>(".hbs")?;
     handlers.register_helper("index", Box::new(index));
+    handlers.register_helper("is_type", Box::new(is_type));
     handlers.register_helper("source_snippet", Box::new(source_snippet));
     Ok(handlers.render(name, data)?)
 }
@@ -28,7 +33,7 @@ fn file_line_col(file: &str, line: usize, column: usize) -> String {
     let path = Utf8Path::new(file);
     let file_name = path.file_name().unwrap_or("rust");
     format!(
-        "<a href='{href}'><img 
+        "<a href='{href}'><img
             alt='badge {file} {line} {column}'
             src='https://img.shields.io/badge/source-{file}:{line}:{column}-orange'
         /></a>",
