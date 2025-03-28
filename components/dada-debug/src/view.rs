@@ -18,6 +18,20 @@ pub async fn try_view(event_index: usize, state: &State) -> anyhow::Result<Strin
     }
 }
 
+pub async fn try_view_data(event_index: usize, state: &State) -> anyhow::Result<serde_json::Value> {
+    let Some(event_data) = state.debug_events.lock().unwrap().get(event_index).cloned() else {
+        anyhow::bail!("Event not found");
+    };
+
+    let DebugEvent { payload, .. } = &*event_data;
+    match payload {
+        DebugEventPayload::CheckLog(log) => Ok(log.clone()),
+        DebugEventPayload::Diagnostic(_) => {
+            anyhow::bail!("not implemented: view diagnostics")
+        }
+    }
+}
+
 #[derive(Embed)]
 #[folder = "templates"]
 struct Assets;

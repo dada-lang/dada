@@ -37,6 +37,7 @@ async fn main_async(port: u32, debug_rx: Receiver<DebugEvent>) -> anyhow::Result
         .route("/assets/{file}", get(assets))
         .route("/source/{*path}", get(source))
         .route("/events", get(events))
+        .route("/events/{event_index}", get(event_data))
         .with_state(state.clone());
 
     // run our app with hyper, listening globally on port 3000
@@ -99,6 +100,14 @@ async fn events(
     axum::extract::State(state): axum::extract::State<Arc<State>>,
 ) -> axum::response::Result<Json<Vec<crate::root::RootEvent>>> {
     respond_json_or_500(crate::events::events(&headers, &state).await)
+}
+
+async fn event_data(
+    headers: axum::http::header::HeaderMap,
+    axum::extract::Path(event_index): axum::extract::Path<usize>,
+    axum::extract::State(state): axum::extract::State<Arc<State>>,
+) -> axum::response::Result<Json<serde_json::Value>> {
+    respond_json_or_500(crate::events::try_event_data(&headers, event_index, &state).await)
 }
 
 #[derive(Deserialize, Debug)]
