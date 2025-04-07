@@ -271,7 +271,7 @@ pub enum InferenceVarBounds<'db> {
     /// The inferred permission `?P` must meet
     ///
     /// * `L <: ?P` for each `L` in `lower`
-    /// * `U <: ?P` for each `U` in `upper`
+    /// * `?P <: U` for each `U` in `upper`
     ///
     /// This in turn implies that `L <: U`
     /// for all `L in lower`, `U in upper`.

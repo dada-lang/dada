@@ -1,11 +1,11 @@
-use dada_ir_ast::diagnostic::Errors;
+use dada_ir_ast::diagnostic::{Diagnostic, Errors, Level, Reported};
 
 use crate::{
     check::{
         debug::TaskDescription,
         env::Env,
         inference::{Direction, InferVarKind},
-        predicates::{Predicate, chain_is},
+        predicates::{Predicate, chain_is_provably, chain_isnt_provably},
         red::Chain,
         report::{ArcOrElse, Because, OrElse},
     },
@@ -162,8 +162,7 @@ pub async fn test_ty_infer_is_known_to_be(
             )
             .await
         else {
-            // XXX: Should we report an error instead?
-            return Ok(false);
+            return Err(report_type_annotations_needed(env, infer, predicate));
         };
 
         if is {
@@ -186,14 +185,18 @@ pub async fn test_perm_infer_is_known_to_be<'db>(
     let bound_direction = predicate.bound_direction();
     let mut storage = None;
     loop {
-        let Some((is, isnt, chains)) = env
+        let Some((is, isnt, lower_chains, upper_chains)) = env
             .watch_inference_var(
                 infer,
                 |data| {
                     (
                         data.is_known_to_provably_be(predicate).is_some(),
                         data.is_known_not_to_provably_be(predicate).is_some(),
-                        data.chain_bounds(bound_direction)
+                        data.chain_bounds(Direction::FromBelow)
+                            .iter()
+                            .map(|pair| pair.0.clone())
+                            .collect::<Vec<Chain<'db>>>(),
+                        data.chain_bounds(Direction::FromAbove)
                             .iter()
                             .map(|pair| pair.0.clone())
                             .collect::<Vec<Chain<'db>>>(),
@@ -203,8 +206,7 @@ pub async fn test_perm_infer_is_known_to_be<'db>(
             )
             .await
         else {
-            // XXX: Should we report an error instead?
-            return Ok(false);
+            return Err(report_type_annotations_needed(env, infer, predicate));
         };
 
         if is {
@@ -212,18 +214,41 @@ pub async fn test_perm_infer_is_known_to_be<'db>(
         } else if isnt {
             return Ok(false);
         } else {
-            return match bound_direction {
+            // I'm not 100% sure about this part.
+            match bound_direction {
+                // `FromBelow` bounds are bound like `Copy` or `Lent`, which cannot be lost
+                // through upcasting. Therefore, if we find any lower chain for which the predicate
+                // holds, then the final type must meet this predicate. Similarly, if we can find
+                // an upper chain bound for which the predicate does NOT hold, then there is an error.
                 Direction::FromBelow => {
-                    env.exists(chains, async |env, chain| {
-                        chain_is(env, &chain, predicate).await
-                    })
-                    .await
+                    if env
+                        .exists(lower_chains, async |env, chain| {
+                            chain_is_provably(env, &chain, predicate).await
+                        })
+                        .await?
+                    {
+                        return Ok(true);
+                    }
+
+                    if env
+                        .exists(upper_chains, async |env, chain| {
+                            chain_isnt_provably(env, &chain, predicate).await
+                        })
+                        .await?
+                    {
+                        return Ok(true);
+                    }
                 }
+
                 Direction::FromAbove => {
-                    env.for_all(chains, async |env, chain| {
-                        chain_is(env, &chain, predicate).await
-                    })
-                    .await
+                    if env
+                        .exists(lower_chains, async |env, chain| {
+                            chain_isnt_provably(env, &chain, predicate).await
+                        })
+                        .await?
+                    {
+                        return Ok(false);
+                    }
                 }
             };
         }
@@ -279,4 +304,28 @@ fn defer_require_bounds_not_provably_predicate<'db>(
             .await
         },
     );
+}
+
+fn report_type_annotations_needed<'db>(
+    env: &Env<'db>,
+    infer: InferVarIndex,
+    predicate: Predicate,
+) -> Reported {
+    let db = env.db();
+    let span = env.infer_var_span(infer);
+    Diagnostic::error(db, span, "type annotation needed")
+        .label(
+            db,
+            Level::Error,
+            span,
+            "I could not infer the correct type here, can you annotate it?",
+        )
+        .child(Diagnostic::info(
+            db,
+            span,
+            format!(
+                "I was trying to figure out whether the type was `{predicate}` and I got stuck :("
+            ),
+        ))
+        .report(db)
 }
