@@ -17,7 +17,7 @@ use super::{
         Predicate, is_provably_copy::place_is_provably_copy, test_perm_infer_is_known_to_be,
         test_var_is_provably,
     },
-    red::{Chain, Lien, RedTerm, RedTy},
+    red::{RedPerm, Lien, RedTerm, RedTy},
     runtime::Runtime,
 };
 
@@ -29,7 +29,7 @@ trait ChainExt<'db>: Sized {
     async fn is_copy(&self, env: &mut Env<'db>) -> Errors<bool>;
 }
 
-impl<'db> ChainExt<'db> for Chain<'db> {
+impl<'db> ChainExt<'db> for RedPerm<'db> {
     /// See [`ChainExt::concat`][].
     async fn concat(&self, env: &mut Env<'db>, other: &Self) -> Errors<Self> {
         if other.is_copy(env).await? {
@@ -144,7 +144,7 @@ impl<'db> ToRedTy<'db> for SymGenericTerm<'db> {
 
 impl<'db> ToRedTerm<'db> for SymTy<'db> {
     async fn to_red_term(&self, env: &mut Env<'db>) -> RedTerm<'db> {
-        match self.to_chains(env).await {
+        match self.to_red_perms(env).await {
             Ok(chains) => RedTerm {
                 chains,
                 ty: self.to_red_ty(env).0,
@@ -188,7 +188,7 @@ pub fn to_red_ty_with_runtime<'db>(
 
 impl<'db> ToRedTerm<'db> for SymPerm<'db> {
     async fn to_red_term(&self, env: &mut Env<'db>) -> RedTerm<'db> {
-        match self.to_chains(env).await {
+        match self.to_red_perms(env).await {
             Ok(chains) => RedTerm {
                 chains,
                 ty: RedTy::Perm,
@@ -208,43 +208,43 @@ impl<'db> ToRedTy<'db> for SymPerm<'db> {
     }
 }
 
-trait ToChains<'db> {
-    async fn to_chains(&self, env: &mut Env<'db>) -> Errors<VecSet<Chain<'db>>>;
+trait ToRedPerms<'db> {
+    async fn to_red_perms(&self, env: &mut Env<'db>) -> Errors<VecSet<RedPerm<'db>>>;
 }
 
-impl<'db> ToChains<'db> for SymPerm<'db> {
+impl<'db> ToRedPerms<'db> for SymPerm<'db> {
     #[boxed_async_fn]
-    async fn to_chains(&self, env: &mut Env<'db>) -> Errors<VecSet<Chain<'db>>> {
+    async fn to_red_perms(&self, env: &mut Env<'db>) -> Errors<VecSet<RedPerm<'db>>> {
         let mut output = VecSet::new();
         let db = env.db();
         match *self.kind(db) {
             SymPermKind::My => {
-                output.insert(Chain::my(db));
+                output.insert(RedPerm::my(db));
             }
             SymPermKind::Our => {
-                output.insert(Chain::our(db));
+                output.insert(RedPerm::our(db));
             }
             SymPermKind::Shared(ref places) => {
                 for &place in places {
                     if place_is_provably_copy(env, place).await.is_ok() {
-                        output.extend(place.to_chains(env).await?);
+                        output.extend(place.to_red_perms(env).await?);
                     } else {
-                        output.insert(Chain::shared(env.db(), place));
+                        output.insert(RedPerm::shared(env.db(), place));
                     }
                 }
             }
             SymPermKind::Leased(ref places) => {
                 for &place in places {
                     if place_is_provably_copy(env, place).await.is_ok() {
-                        output.extend(place.to_chains(env).await?);
+                        output.extend(place.to_red_perms(env).await?);
                     } else {
-                        output.insert(Chain::leased(db, place));
+                        output.insert(RedPerm::leased(db, place));
                     }
                 }
             }
             SymPermKind::Apply(lhs, rhs) => {
-                let lhs_chains = lhs.to_chains(env).await?;
-                let rhs_chains = rhs.to_chains(env).await?;
+                let lhs_chains = lhs.to_red_perms(env).await?;
+                let rhs_chains = rhs.to_red_perms(env).await?;
                 for lhs_chain in &lhs_chains {
                     for rhs_chain in &rhs_chains {
                         output.insert(lhs_chain.concat(env, rhs_chain).await?);
@@ -252,10 +252,10 @@ impl<'db> ToChains<'db> for SymPerm<'db> {
                 }
             }
             SymPermKind::Infer(v) => {
-                output.insert(Chain::infer(db, v));
+                output.insert(RedPerm::infer(db, v));
             }
             SymPermKind::Var(v) => {
-                output.insert(Chain::var(db, v));
+                output.insert(RedPerm::var(db, v));
             }
             SymPermKind::Error(reported) => return Err(reported),
         }
@@ -263,22 +263,22 @@ impl<'db> ToChains<'db> for SymPerm<'db> {
     }
 }
 
-impl<'db> ToChains<'db> for SymPlace<'db> {
-    async fn to_chains(&self, env: &mut Env<'db>) -> Errors<VecSet<Chain<'db>>> {
+impl<'db> ToRedPerms<'db> for SymPlace<'db> {
+    async fn to_red_perms(&self, env: &mut Env<'db>) -> Errors<VecSet<RedPerm<'db>>> {
         let ty = self.place_ty(env).await;
-        ty.to_chains(env).await
+        ty.to_red_perms(env).await
     }
 }
 
-impl<'db> ToChains<'db> for SymTy<'db> {
+impl<'db> ToRedPerms<'db> for SymTy<'db> {
     #[boxed_async_fn]
-    async fn to_chains(&self, env: &mut Env<'db>) -> Errors<VecSet<Chain<'db>>> {
+    async fn to_red_perms(&self, env: &mut Env<'db>) -> Errors<VecSet<RedPerm<'db>>> {
         let mut output = VecSet::new();
         let db = env.db();
         match *self.kind(db) {
             SymTyKind::Perm(lhs, rhs) => {
-                let lhs_chains = lhs.to_chains(env).await?;
-                let rhs_chains = rhs.to_chains(env).await?;
+                let lhs_chains = lhs.to_red_perms(env).await?;
+                let rhs_chains = rhs.to_red_perms(env).await?;
                 for lhs_chain in &lhs_chains {
                     for rhs_chain in &rhs_chains {
                         output.insert(lhs_chain.concat(env, rhs_chain).await?);
@@ -286,10 +286,10 @@ impl<'db> ToChains<'db> for SymTy<'db> {
                 }
             }
             SymTyKind::Infer(infer) => {
-                output.insert(Chain::infer(db, env.perm_infer(infer)));
+                output.insert(RedPerm::infer(db, env.perm_infer(infer)));
             }
             SymTyKind::Never | SymTyKind::Named(..) | SymTyKind::Var(_) => {
-                output.insert(Chain::my(db));
+                output.insert(RedPerm::my(db));
             }
             SymTyKind::Error(reported) => return Err(reported),
         }

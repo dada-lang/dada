@@ -17,13 +17,13 @@ use crate::ir::{
 /// with the type of the term (a [`RedTy`]). It can be used to represent either permissions or types.
 #[derive(Debug, PartialEq, Eq, Clone, PartialOrd, Ord, Update, Serialize)]
 pub struct RedTerm<'db> {
-    pub chains: VecSet<Chain<'db>>,
+    pub chains: VecSet<RedPerm<'db>>,
     pub ty: RedTy<'db>,
 }
 
 impl<'db> RedTerm<'db> {
     /// Create a new [`RedTerm`].
-    pub fn new(_db: &'db dyn crate::Db, chains: VecSet<Chain<'db>>, ty: RedTy<'db>) -> Self {
+    pub fn new(_db: &'db dyn crate::Db, chains: VecSet<RedPerm<'db>>, ty: RedTy<'db>) -> Self {
         Self { ty, chains }
     }
 }
@@ -39,11 +39,11 @@ impl<'db> Err<'db> for RedTerm<'db> {
 /// A lien chain like `shared[p] leased[q]` would correspond to data shared from a variable `p`
 /// which in turn had data leased from `q` (which in turn owned the data).
 #[derive(Debug, PartialEq, Eq, Clone, PartialOrd, Ord, Update, Serialize)]
-pub struct Chain<'db> {
+pub struct RedPerm<'db> {
     pub liens: Vec<Lien<'db>>,
 }
 
-impl<'db> Chain<'db> {
+impl<'db> RedPerm<'db> {
     /// Create a new [`Chain`].
     pub fn new(_db: &'db dyn crate::Db, links: Vec<Lien<'db>>) -> Self {
         Self { liens: links }
@@ -91,7 +91,7 @@ impl<'db> Chain<'db> {
     }
 }
 
-impl<'db> std::ops::Deref for Chain<'db> {
+impl<'db> std::ops::Deref for RedPerm<'db> {
     type Target = [Lien<'db>];
 
     fn deref(&self) -> &Self::Target {
@@ -99,9 +99,9 @@ impl<'db> std::ops::Deref for Chain<'db> {
     }
 }
 
-impl<'db> Err<'db> for Chain<'db> {
+impl<'db> Err<'db> for RedPerm<'db> {
     fn err(db: &'db dyn crate::Db, reported: Reported) -> Self {
-        Chain::new(db, vec![Lien::Error(reported)])
+        RedPerm::new(db, vec![Lien::Error(reported)])
     }
 }
 

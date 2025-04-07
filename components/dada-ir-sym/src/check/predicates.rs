@@ -30,7 +30,7 @@ use crate::ir::types::SymGenericTerm;
 use super::{
     env::Env,
     inference::Direction,
-    red::{Chain, Lien, RedTy},
+    red::{RedPerm, Lien, RedTy},
     report::OrElse,
 };
 
@@ -115,7 +115,7 @@ pub(crate) async fn term_is_provably_leased<'db>(
 #[boxed_async_fn]
 pub async fn require_chain_is<'db>(
     env: &mut Env<'db>,
-    chain: &Chain<'db>,
+    chain: &RedPerm<'db>,
     predicate: Predicate,
     or_else: &dyn OrElse<'db>,
 ) -> Errors<()> {
@@ -130,7 +130,7 @@ pub async fn require_chain_is<'db>(
 #[boxed_async_fn]
 pub async fn require_chain_isnt<'db>(
     env: &mut Env<'db>,
-    chain: &Chain<'db>,
+    chain: &RedPerm<'db>,
     predicate: Predicate,
     or_else: &dyn OrElse<'db>,
 ) -> Errors<()> {
@@ -193,7 +193,7 @@ pub(crate) async fn term_is_provably_my<'db>(
 #[boxed_async_fn]
 pub async fn chain_is_provably<'db>(
     env: &mut Env<'db>,
-    chain: &Chain<'db>,
+    chain: &RedPerm<'db>,
     predicate: Predicate,
 ) -> Errors<bool> {
     let db = env.db();
@@ -209,7 +209,7 @@ pub async fn chain_is_provably<'db>(
 #[boxed_async_fn]
 pub async fn chain_isnt_provably<'db>(
     env: &mut Env<'db>,
-    chain: &Chain<'db>,
+    chain: &RedPerm<'db>,
     predicate: Predicate,
 ) -> Errors<bool> {
     let db = env.db();

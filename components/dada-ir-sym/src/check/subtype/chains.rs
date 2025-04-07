@@ -11,7 +11,7 @@ use crate::{
             Predicate, is_provably_copy::term_is_provably_copy, require_copy::require_term_is_copy,
             require_term_is_my, term_is_provably_my,
         },
-        red::{Chain, Lien},
+        red::{RedPerm, Lien},
         report::{Because, OrElse},
     },
     ir::indices::InferVarIndex,
@@ -31,8 +31,8 @@ use crate::{
 
 pub async fn require_sub_red_perms<'db>(
     env: &mut Env<'db>,
-    lower_chains: &VecSet<Chain<'db>>,
-    upper_chains: &VecSet<Chain<'db>>,
+    lower_chains: &VecSet<RedPerm<'db>>,
+    upper_chains: &VecSet<RedPerm<'db>>,
     or_else: &dyn OrElse<'db>,
 ) -> Errors<()> {
     env.require_for_all(lower_chains, async |env, lower_chain| {
@@ -43,8 +43,8 @@ pub async fn require_sub_red_perms<'db>(
 
 async fn require_sub_some<'db>(
     env: &mut Env<'db>,
-    lower_chain: &Chain<'db>,
-    upper_chains: &VecSet<Chain<'db>>,
+    lower_chain: &RedPerm<'db>,
+    upper_chains: &VecSet<RedPerm<'db>>,
     or_else: &dyn OrElse<'db>,
 ) -> Errors<()> {
     let mut root = Alternative::root();
@@ -248,7 +248,7 @@ async fn require_lower_chain<'db>(
     upper_head: InferVarIndex,
     or_else: &dyn OrElse<'db>,
 ) -> Errors<()> {
-    let lower_chain = Chain::from_head_tail(env.db(), lower_head, lower_tail);
+    let lower_chain = RedPerm::from_head_tail(env.db(), lower_head, lower_tail);
 
     let Some(or_else) =
         env.insert_chain_bound(upper_head, &lower_chain, Direction::FromBelow, or_else)
@@ -319,7 +319,7 @@ async fn splice_upper_bound<'db>(
     upper_tail: &[Lien<'db>],
     or_else: &dyn OrElse<'db>,
 ) -> Errors<bool> {
-    let lower_chain = Chain::from_head_tail(env.db(), lower_head, lower_tail);
+    let lower_chain = RedPerm::from_head_tail(env.db(), lower_head, lower_tail);
     env.exists_chain_bound(
         upper_head,
         Direction::FromAbove,
@@ -343,7 +343,7 @@ async fn require_upper_chain<'db>(
     upper_tail: &[Lien<'db>],
     or_else: &dyn OrElse<'db>,
 ) -> Errors<()> {
-    let upper_chain = Chain::from_head_tail(env.db(), upper_head, upper_tail);
+    let upper_chain = RedPerm::from_head_tail(env.db(), upper_head, upper_tail);
 
     let Some(_or_else) =
         env.insert_chain_bound(lower_head, &upper_chain, Direction::FromAbove, or_else)
@@ -367,7 +367,7 @@ async fn splice_lower_bound<'db>(
     upper_tail: &[Lien<'db>],
     or_else: &dyn OrElse<'db>,
 ) -> Errors<bool> {
-    let upper_chain = Chain::from_head_tail(env.db(), upper_head, upper_tail);
+    let upper_chain = RedPerm::from_head_tail(env.db(), upper_head, upper_tail);
     env.exists_chain_bound(
         lower_head,
         Direction::FromBelow,

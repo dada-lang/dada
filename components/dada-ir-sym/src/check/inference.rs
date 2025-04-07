@@ -5,7 +5,7 @@ use crate::ir::{indices::InferVarIndex, types::SymGenericKind};
 
 use super::{
     predicates::Predicate,
-    red::{Chain, RedTy},
+    red::{RedPerm, RedTy},
     report::{ArcOrElse, OrElse},
 };
 
@@ -166,7 +166,7 @@ impl<'db> InferenceVarData<'db> {
     ///
     /// If this is not a permission variable.
     #[track_caller]
-    pub fn chain_bounds(&self, direction: Direction) -> &[(Chain<'db>, ArcOrElse<'db>)] {
+    pub fn chain_bounds(&self, direction: Direction) -> &[(RedPerm<'db>, ArcOrElse<'db>)] {
         match &self.bounds {
             InferenceVarBounds::Perm { lower, upper, .. } => match direction {
                 Direction::FromBelow => lower,
@@ -206,7 +206,7 @@ impl<'db> InferenceVarData<'db> {
     /// Returns `Some(or_else.to_arc())` if this is a new upper bound.
     pub fn insert_chain_bound(
         &mut self,
-        chain: &Chain<'db>,
+        chain: &RedPerm<'db>,
         direction: Direction,
         or_else: &dyn OrElse<'db>,
     ) -> Option<ArcOrElse<'db>> {
@@ -276,8 +276,8 @@ pub enum InferenceVarBounds<'db> {
     /// This in turn implies that `L <: U`
     /// for all `L in lower`, `U in upper`.
     Perm {
-        lower: Vec<(Chain<'db>, ArcOrElse<'db>)>,
-        upper: Vec<(Chain<'db>, ArcOrElse<'db>)>,
+        lower: Vec<(RedPerm<'db>, ArcOrElse<'db>)>,
+        upper: Vec<(RedPerm<'db>, ArcOrElse<'db>)>,
     },
 
     /// Bounds for a type:

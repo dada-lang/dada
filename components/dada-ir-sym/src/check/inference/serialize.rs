@@ -2,7 +2,7 @@ use dada_ir_ast::span::Span;
 use serde::Serialize;
 
 use crate::{
-    check::red::{Chain, RedTy},
+    check::red::{RedPerm, RedTy},
     ir::indices::InferVarIndex,
 };
 
@@ -22,8 +22,8 @@ struct InferenceVarDataExport<'a, 'db> {
 #[derive(Serialize)]
 enum InferenceVarBoundsExport<'a, 'db> {
     Perm {
-        lower: Vec<&'a Chain<'db>>,
-        upper: Vec<&'a Chain<'db>>,
+        lower: Vec<&'a RedPerm<'db>>,
+        upper: Vec<&'a RedPerm<'db>>,
     },
 
     Ty {

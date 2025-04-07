@@ -13,7 +13,7 @@ use crate::{
     ir::indices::InferVarIndex,
 };
 
-use crate::check::{env::Env, inference::InferenceVarData, red::Chain, report::ArcOrElse};
+use crate::check::{env::Env, inference::InferenceVarData, red::RedPerm, report::ArcOrElse};
 
 impl<'db> Env<'db> {
     pub async fn require(
@@ -252,7 +252,7 @@ impl<'db> Env<'db> {
         &mut self,
         infer: InferVarIndex,
         direction: Direction,
-        mut op: impl AsyncFnMut(&mut Env<'db>, Chain<'db>) -> Errors<bool>,
+        mut op: impl AsyncFnMut(&mut Env<'db>, RedPerm<'db>) -> Errors<bool>,
     ) -> impl Future<Output = Errors<bool>> {
         let compiler_location = Location::caller();
 
@@ -292,7 +292,7 @@ impl<'db> Env<'db> {
         &mut self,
         infer: InferVarIndex,
         direction: Direction,
-        mut op: impl AsyncFnMut(&mut Env<'db>, Chain<'db>) -> Errors<()>,
+        mut op: impl AsyncFnMut(&mut Env<'db>, RedPerm<'db>) -> Errors<()>,
     ) -> impl Future<Output = Errors<()>> {
         let compiler_location = Location::caller();
 
@@ -336,7 +336,7 @@ impl<'db> Env<'db> {
         &mut self,
         infer: InferVarIndex,
         observed: &mut usize,
-        stack: &mut Vec<Chain<'db>>,
+        stack: &mut Vec<RedPerm<'db>>,
         direction: Direction,
     ) -> bool {
         self.loop_on_inference_var(infer, |data| {

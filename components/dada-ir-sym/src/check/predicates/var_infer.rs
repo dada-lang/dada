@@ -6,7 +6,7 @@ use crate::{
         env::Env,
         inference::{Direction, InferVarKind},
         predicates::{Predicate, chain_is_provably, chain_isnt_provably},
-        red::Chain,
+        red::RedPerm,
         report::{ArcOrElse, Because, OrElse},
     },
     ir::{indices::InferVarIndex, variables::SymVariable},
@@ -195,11 +195,11 @@ pub async fn test_perm_infer_is_known_to_be<'db>(
                         data.chain_bounds(Direction::FromBelow)
                             .iter()
                             .map(|pair| pair.0.clone())
-                            .collect::<Vec<Chain<'db>>>(),
+                            .collect::<Vec<RedPerm<'db>>>(),
                         data.chain_bounds(Direction::FromAbove)
                             .iter()
                             .map(|pair| pair.0.clone())
-                            .collect::<Vec<Chain<'db>>>(),
+                            .collect::<Vec<RedPerm<'db>>>(),
                     )
                 },
                 &mut storage,

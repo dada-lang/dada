@@ -15,7 +15,7 @@ use crate::{
             require_lent::require_term_is_lent, require_move::require_term_is_move,
             require_owned::require_term_is_owned, require_term_is_leased, term_is_provably_leased,
         },
-        red::{Chain, RedTerm, RedTy},
+        red::{RedPerm, RedTerm, RedTy},
         report::{Because, OrElse},
         subtype::chains::require_sub_red_perms,
         to_red::ToRedTerm,
@@ -298,7 +298,7 @@ async fn require_infer_sub_infer<'db>(
 async fn require_ty_sub_infer<'db>(
     env: &mut Env<'db>,
     lower_term: RedTerm<'db>,
-    upper_chains: VecSet<Chain<'db>>,
+    upper_chains: VecSet<RedPerm<'db>>,
     upper_infer: InferVarIndex,
     or_else: &dyn OrElse<'db>,
 ) -> Errors<()> {
@@ -334,7 +334,7 @@ async fn require_ty_sub_infer<'db>(
 /// Does not relate the return value and `bound` in any other way.
 async fn require_infer_sub_ty<'db>(
     env: &mut Env<'db>,
-    lower_chains: VecSet<Chain<'db>>,
+    lower_chains: VecSet<RedPerm<'db>>,
     lower_infer: InferVarIndex,
     upper_term: RedTerm<'db>,
     or_else: &dyn OrElse<'db>,
@@ -475,7 +475,7 @@ async fn propagate_inverse_bound<'db>(
     // This is because you can't directly subtype e.g. a struct
     // without knowing the permission.
     let perm_infer = env.perm_infer(infer);
-    let red_chains = VecSet::from(Chain::infer(db, perm_infer));
+    let red_chains = VecSet::from(RedPerm::infer(db, perm_infer));
     let red_term_with_perm_infer = |red_ty| RedTerm::new(db, red_chains.clone(), red_ty);
 
     // For each new bound `B` where `?X <: B`...

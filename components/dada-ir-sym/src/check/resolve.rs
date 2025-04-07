@@ -13,7 +13,7 @@ use super::{
     Env,
     inference::{Direction, InferVarKind},
     predicates::Predicate,
-    red::{Chain, Lien, RedTy},
+    red::{Lien, RedPerm, RedTy},
 };
 
 pub struct Resolver<'env, 'db> {
@@ -183,7 +183,7 @@ impl<'env, 'db> Resolver<'env, 'db> {
     /// Merge a list of lien chains, computing their LUB or GLB depending on `direction`.
     fn merge_lien_chains<'a>(
         &mut self,
-        mut lien_chains: impl Iterator<Item = &'a Chain<'db>>,
+        mut lien_chains: impl Iterator<Item = &'a RedPerm<'db>>,
         direction: Direction,
     ) -> Result<SymPerm<'db>, ResolverError<'db>>
     where
@@ -582,7 +582,7 @@ impl<'env, 'db> Resolver<'env, 'db> {
     }
 
     /// Convert a `LienChain` into a `SymPerm`.
-    fn lien_chain_to_perm(&mut self, lien_chain: &Chain<'db>) -> SymPerm<'db> {
+    fn lien_chain_to_perm(&mut self, lien_chain: &RedPerm<'db>) -> SymPerm<'db> {
         self.liens_to_perm(lien_chain)
     }
 

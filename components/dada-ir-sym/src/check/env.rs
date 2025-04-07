@@ -32,7 +32,7 @@ use super::{
     debug::LogHandle,
     inference::{Direction, InferVarKind, InferenceVarData},
     predicates::Predicate,
-    red::{Chain, RedTy},
+    red::{RedPerm, RedTy},
     report::{ArcOrElse, BooleanTypeRequired, OrElse},
     runtime::DeferResult,
     subtype::{
@@ -567,7 +567,7 @@ impl<'db> Env<'db> {
     pub fn insert_chain_bound(
         &mut self,
         infer: InferVarIndex,
-        chain: &Chain<'db>,
+        chain: &RedPerm<'db>,
         direction: Direction,
         or_else: &dyn OrElse<'db>,
     ) -> Option<ArcOrElse<'db>> {
