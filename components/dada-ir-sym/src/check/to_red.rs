@@ -17,7 +17,7 @@ use super::{
         Predicate, is_provably_copy::place_is_provably_copy, test_perm_infer_is_known_to_be,
         test_var_is_provably,
     },
-    red::{RedPerm, Lien, RedTerm, RedTy},
+    red::{Lien, RedPerm, RedTy},
     runtime::Runtime,
 };
 
@@ -104,31 +104,9 @@ impl<'db> RedTyExt<'db> for RedTy<'db> {
     }
 }
 
-/// Convert something to a [`RedTerm`].
-pub trait ToRedTerm<'db> {
-    async fn to_red_term(&self, env: &mut Env<'db>) -> RedTerm<'db>;
-}
-
 /// Convert something to a [`RedTy`] and an (optional) permission that is applied to that [`RedTy`][].
 pub trait ToRedTy<'db> {
     fn to_red_ty(&self, env: &mut Env<'db>) -> (RedTy<'db>, Option<SymPerm<'db>>);
-}
-
-impl<'db, T: ToRedTerm<'db>> ToRedTerm<'db> for &T {
-    async fn to_red_term(&self, env: &mut Env<'db>) -> RedTerm<'db> {
-        T::to_red_term(self, env).await
-    }
-}
-
-impl<'db> ToRedTerm<'db> for SymGenericTerm<'db> {
-    async fn to_red_term(&self, env: &mut Env<'db>) -> RedTerm<'db> {
-        match *self {
-            SymGenericTerm::Type(ty) => ty.to_red_term(env).await,
-            SymGenericTerm::Perm(perm) => perm.to_red_term(env).await,
-            SymGenericTerm::Place(_) => panic!("cannot create a red term from a place"),
-            SymGenericTerm::Error(reported) => RedTerm::err(env.db(), reported),
-        }
-    }
 }
 
 impl<'db> ToRedTy<'db> for SymGenericTerm<'db> {
@@ -138,18 +116,6 @@ impl<'db> ToRedTy<'db> for SymGenericTerm<'db> {
             SymGenericTerm::Perm(perm) => perm.to_red_ty(env),
             SymGenericTerm::Place(_) => panic!("cannot create a red term from a place"),
             SymGenericTerm::Error(reported) => (RedTy::err(env.db(), reported), None),
-        }
-    }
-}
-
-impl<'db> ToRedTerm<'db> for SymTy<'db> {
-    async fn to_red_term(&self, env: &mut Env<'db>) -> RedTerm<'db> {
-        match self.to_red_perms(env).await {
-            Ok(chains) => RedTerm {
-                chains,
-                ty: self.to_red_ty(env).0,
-            },
-            Err(reported) => RedTerm::err(env.db(), reported),
         }
     }
 }
@@ -186,18 +152,6 @@ pub fn to_red_ty_with_runtime<'db>(
     }
 }
 
-impl<'db> ToRedTerm<'db> for SymPerm<'db> {
-    async fn to_red_term(&self, env: &mut Env<'db>) -> RedTerm<'db> {
-        match self.to_red_perms(env).await {
-            Ok(chains) => RedTerm {
-                chains,
-                ty: RedTy::Perm,
-            },
-            Err(reported) => RedTerm::err(env.db(), reported),
-        }
-    }
-}
-
 impl<'db> ToRedTy<'db> for SymPerm<'db> {
     fn to_red_ty(&self, env: &mut Env<'db>) -> (RedTy<'db>, Option<SymPerm<'db>>) {
         let db = env.db();
@@ -208,7 +162,7 @@ impl<'db> ToRedTy<'db> for SymPerm<'db> {
     }
 }
 
-trait ToRedPerms<'db> {
+pub trait ToRedPerms<'db> {
     async fn to_red_perms(&self, env: &mut Env<'db>) -> Errors<VecSet<RedPerm<'db>>>;
 }
 

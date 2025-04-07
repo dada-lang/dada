@@ -3,7 +3,6 @@
 //! They are used in borrow checking and for producing the final version of each inference variable.
 
 use dada_ir_ast::diagnostic::{Err, Reported};
-use dada_util::vecset::VecSet;
 use salsa::Update;
 use serde::Serialize;
 
@@ -12,27 +11,6 @@ use crate::ir::{
     types::{SymGenericTerm, SymPerm, SymPlace, SymTyName},
     variables::SymVariable,
 };
-
-/// A "red(uced) term" combines the possible permissions (a [`VecSet`] of [`Chain`])
-/// with the type of the term (a [`RedTy`]). It can be used to represent either permissions or types.
-#[derive(Debug, PartialEq, Eq, Clone, PartialOrd, Ord, Update, Serialize)]
-pub struct RedTerm<'db> {
-    pub chains: VecSet<RedPerm<'db>>,
-    pub ty: RedTy<'db>,
-}
-
-impl<'db> RedTerm<'db> {
-    /// Create a new [`RedTerm`].
-    pub fn new(_db: &'db dyn crate::Db, chains: VecSet<RedPerm<'db>>, ty: RedTy<'db>) -> Self {
-        Self { ty, chains }
-    }
-}
-
-impl<'db> Err<'db> for RedTerm<'db> {
-    fn err(db: &'db dyn crate::Db, reported: Reported) -> Self {
-        RedTerm::new(db, Default::default(), RedTy::err(db, reported))
-    }
-}
 
 /// A "lien chain" is a list of permissions by which some data may have been reached.
 /// An empty lien chain corresponds to owned data (`my`, in surface Dada syntax).

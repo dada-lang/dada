@@ -11,10 +11,11 @@ use crate::{
             Predicate, is_provably_copy::term_is_provably_copy, require_copy::require_term_is_copy,
             require_term_is_my, term_is_provably_my,
         },
-        red::{RedPerm, Lien},
+        red::{Lien, RedPerm},
         report::{Because, OrElse},
+        to_red::ToRedPerms,
     },
-    ir::indices::InferVarIndex,
+    ir::{indices::InferVarIndex, types::SymPerm},
 };
 
 // Rules (ignoring inference and layout rules)
@@ -28,6 +29,20 @@ use crate::{
 // * `X C0 <= X C1 if C0 <= C1`
 // * `X <= our if X is copy+owned`
 // * `X <= my if X is move+owned`
+
+pub async fn require_sub_opt_perms<'db>(
+    env: &mut Env<'db>,
+    lower_perm: Option<SymPerm<'db>>,
+    upper_perm: Option<SymPerm<'db>>,
+    or_else: &dyn OrElse<'db>,
+) -> Errors<()> {
+    let db = env.db();
+    let lower_perm = lower_perm.unwrap_or_else(|| SymPerm::my(db));
+    let upper_perm = upper_perm.unwrap_or_else(|| SymPerm::my(db));
+    let lower_chains = lower_perm.to_red_perms(env).await?;
+    let upper_chains = upper_perm.to_red_perms(env).await?;
+    require_sub_red_perms(env, &lower_chains, &upper_chains, or_else).await
+}
 
 pub async fn require_sub_red_perms<'db>(
     env: &mut Env<'db>,

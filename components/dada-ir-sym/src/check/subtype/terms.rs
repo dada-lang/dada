@@ -1,7 +1,7 @@
 //! Implement object-level subtyping.
 
 use dada_ir_ast::{diagnostic::Errors, span::Span};
-use dada_util::{boxed_async_fn, vecset::VecSet};
+use dada_util::boxed_async_fn;
 
 use crate::{
     check::{
@@ -15,10 +15,9 @@ use crate::{
             require_lent::require_term_is_lent, require_move::require_term_is_move,
             require_owned::require_term_is_owned, require_term_is_leased, term_is_provably_leased,
         },
-        red::{RedPerm, RedTerm, RedTy},
+        red::RedTy,
         report::{Because, OrElse},
-        subtype::chains::require_sub_red_perms,
-        to_red::ToRedTerm,
+        to_red::ToRedTy,
     },
     ir::{
         classes::SymAggregateStyle,
@@ -26,6 +25,8 @@ use crate::{
         types::{SymGenericKind, SymGenericTerm, SymPerm, SymTy, SymTyKind, SymTyName, Variance},
     },
 };
+
+use super::chains::require_sub_opt_perms;
 
 pub async fn require_assignable_type<'db>(
     env: &mut Env<'db>,
@@ -52,8 +53,8 @@ pub async fn require_sub_terms<'db>(
         async |env| propagate_bounds(env, lower, upper, or_else).await,
         async |env| {
             // Reduce and relate chains
-            let red_term_lower = lower.to_red_term(env).await;
-            let red_term_upper = upper.to_red_term(env).await;
+            let red_term_lower = lower.to_red_ty(env);
+            let red_term_upper = upper.to_red_ty(env);
             require_sub_red_terms(env, red_term_lower, red_term_upper, or_else).await
         },
     )
@@ -141,24 +142,51 @@ async fn propagate_bounds<'db>(
 #[boxed_async_fn]
 pub async fn require_sub_red_terms<'db>(
     env: &mut Env<'db>,
-    lower: RedTerm<'db>,
-    upper: RedTerm<'db>,
+    (lower_red_ty, lower_perm): (RedTy<'db>, Option<SymPerm<'db>>),
+    (upper_red_ty, upper_perm): (RedTy<'db>, Option<SymPerm<'db>>),
     or_else: &dyn OrElse<'db>,
 ) -> Errors<()> {
-    env.log("require_sub_red_terms", &[&lower, &upper]);
-    match (&lower.ty, &upper.ty) {
+    env.log(
+        "require_sub_red_terms",
+        &[&lower_perm, &lower_red_ty, &upper_perm, &upper_red_ty],
+    );
+    match (&lower_red_ty, &upper_red_ty) {
         (&RedTy::Error(reported), _) | (_, &RedTy::Error(reported)) => Err(reported),
 
         (&RedTy::Infer(lower_infer), &RedTy::Infer(upper_infer)) => {
-            require_infer_sub_infer(env, lower, lower_infer, upper, upper_infer, or_else).await
+            require_infer_sub_infer(
+                env,
+                lower_perm,
+                lower_infer,
+                upper_perm,
+                upper_infer,
+                or_else,
+            )
+            .await
         }
 
         (&RedTy::Infer(lower_infer), _) => {
-            require_infer_sub_ty(env, lower.chains, lower_infer, upper, or_else).await
+            require_infer_sub_ty(
+                env,
+                lower_perm,
+                lower_infer,
+                upper_perm,
+                upper_red_ty,
+                or_else,
+            )
+            .await
         }
 
         (_, &RedTy::Infer(upper_infer)) => {
-            require_ty_sub_infer(env, lower, upper.chains, upper_infer, or_else).await
+            require_ty_sub_infer(
+                env,
+                lower_perm,
+                lower_red_ty,
+                upper_perm,
+                upper_infer,
+                or_else,
+            )
+            .await
         }
 
         (
@@ -199,7 +227,7 @@ pub async fn require_sub_red_terms<'db>(
                 match name_lower.style(env.db()) {
                     SymAggregateStyle::Struct => {}
                     SymAggregateStyle::Class => {
-                        require_sub_red_perms(env, &lower.chains, &upper.chains, or_else).await?;
+                        require_sub_opt_perms(env, lower_perm, upper_perm, or_else).await?;
                     }
                 }
 
@@ -213,13 +241,13 @@ pub async fn require_sub_red_terms<'db>(
         }
 
         (&RedTy::Never, &RedTy::Never) => {
-            require_sub_red_perms(env, &lower.chains, &upper.chains, or_else).await
+            require_sub_opt_perms(env, lower_perm, upper_perm, or_else).await
         }
         (&RedTy::Never, _) | (_, &RedTy::Never) => Err(or_else.report(env, Because::JustSo)),
 
         (&RedTy::Var(var_lower), &RedTy::Var(var_upper)) => {
             if var_lower == var_upper {
-                require_sub_red_perms(env, &lower.chains, &upper.chains, or_else).await
+                require_sub_opt_perms(env, lower_perm, upper_perm, or_else).await
             } else {
                 Err(or_else.report(env, Because::UniversalMismatch(var_lower, var_upper)))
             }
@@ -227,7 +255,7 @@ pub async fn require_sub_red_terms<'db>(
         (&RedTy::Var(_), _) | (_, &RedTy::Var(_)) => Err(or_else.report(env, Because::JustSo)),
 
         (&RedTy::Perm, &RedTy::Perm) => {
-            require_sub_red_perms(env, &lower.chains, &upper.chains, or_else).await
+            require_sub_opt_perms(env, lower_perm, upper_perm, or_else).await
         }
     }
 }
@@ -239,13 +267,12 @@ pub async fn require_sub_red_terms<'db>(
 /// (in this case it will not return).
 async fn require_infer_sub_infer<'db>(
     env: &mut Env<'db>,
-    lower: RedTerm<'db>,
+    lower_perm: Option<SymPerm<'db>>,
     lower_infer: InferVarIndex,
-    upper: RedTerm<'db>,
+    upper_perm: Option<SymPerm<'db>>,
     upper_infer: InferVarIndex,
     or_else: &dyn OrElse<'db>,
 ) -> Errors<()> {
-    let db = env.db();
     debug_assert_eq!(env.infer_var_kind(lower_infer), InferVarKind::Type);
     debug_assert_eq!(env.infer_var_kind(upper_infer), InferVarKind::Type);
 
@@ -262,8 +289,8 @@ async fn require_infer_sub_infer<'db>(
                     async |env, lower_bound, _or_else| {
                         require_sub_red_terms(
                             env,
-                            RedTerm::new(db, lower.chains.clone(), lower_bound.clone()),
-                            upper.clone(),
+                            (lower_bound.clone(), lower_perm),
+                            (RedTy::Infer(upper_infer), upper_perm),
                             or_else,
                         )
                         .await
@@ -278,8 +305,8 @@ async fn require_infer_sub_infer<'db>(
                     async |env, upper_bound, _or_else| {
                         require_sub_red_terms(
                             env,
-                            lower.clone(),
-                            RedTerm::new(db, upper.chains.clone(), upper_bound.clone()),
+                            (RedTy::Infer(lower_infer), lower_perm),
+                            (upper_bound.clone(), upper_perm),
                             or_else,
                         )
                         .await
@@ -297,34 +324,27 @@ async fn require_infer_sub_infer<'db>(
 /// Relate `lower_term` (not)
 async fn require_ty_sub_infer<'db>(
     env: &mut Env<'db>,
-    lower_term: RedTerm<'db>,
-    upper_chains: VecSet<RedPerm<'db>>,
+    lower_perm: Option<SymPerm<'db>>,
+    lower_ty: RedTy<'db>,
+    upper_perm: Option<SymPerm<'db>>,
     upper_infer: InferVarIndex,
     or_else: &dyn OrElse<'db>,
 ) -> Errors<()> {
-    let db = env.db();
-
     debug_assert!(
-        !matches!(lower_term.ty, RedTy::Infer(_)),
+        !matches!(lower_ty, RedTy::Infer(_)),
         "unexpected inference variable"
     );
 
     // Get the lower bounding red-ty from `upper_infer`;
-    // if it doesn't have one yet, generalize `lower_term.ty` to create one.
-    let generalized_ty = require_infer_has_bound(
-        env,
-        Direction::FromBelow,
-        &lower_term.ty,
-        upper_infer,
-        or_else,
-    )
-    .await?;
+    // if it doesn't have one yet, generalize `lower_ty` to create one.
+    let generalized_ty =
+        require_infer_has_bound(env, Direction::FromBelow, &lower_ty, upper_infer, or_else).await?;
 
     // Relate the lower term to the upper term
     require_sub_red_terms(
         env,
-        lower_term,
-        RedTerm::new(db, upper_chains, generalized_ty),
+        (lower_ty, lower_perm),
+        (generalized_ty, upper_perm),
         or_else,
     )
     .await
@@ -334,33 +354,26 @@ async fn require_ty_sub_infer<'db>(
 /// Does not relate the return value and `bound` in any other way.
 async fn require_infer_sub_ty<'db>(
     env: &mut Env<'db>,
-    lower_chains: VecSet<RedPerm<'db>>,
+    lower_perm: Option<SymPerm<'db>>,
     lower_infer: InferVarIndex,
-    upper_term: RedTerm<'db>,
+    upper_perm: Option<SymPerm<'db>>,
+    upper_ty: RedTy<'db>,
     or_else: &dyn OrElse<'db>,
 ) -> Errors<()> {
-    let db = env.db();
-
     debug_assert!(
-        !matches!(upper_term.ty, RedTy::Infer(_)),
+        !matches!(upper_ty, RedTy::Infer(_)),
         "unexpected inference variable"
     );
 
     // Get the upper bounding red-ty from `upper_infer`;
     // if it doesn't have one yet, generalize `upper_term.ty` to create one.
-    let generalized_ty = require_infer_has_bound(
-        env,
-        Direction::FromAbove,
-        &upper_term.ty,
-        lower_infer,
-        or_else,
-    )
-    .await?;
+    let generalized_ty =
+        require_infer_has_bound(env, Direction::FromAbove, &upper_ty, lower_infer, or_else).await?;
 
     require_sub_red_terms(
         env,
-        RedTerm::new(db, lower_chains, generalized_ty),
-        upper_term,
+        (generalized_ty, lower_perm),
+        (upper_ty, upper_perm),
         or_else,
     )
     .await
@@ -474,9 +487,7 @@ async fn propagate_inverse_bound<'db>(
     // them with the permissions from `perm_infer`.
     // This is because you can't directly subtype e.g. a struct
     // without knowing the permission.
-    let perm_infer = env.perm_infer(infer);
-    let red_chains = VecSet::from(RedPerm::infer(db, perm_infer));
-    let red_term_with_perm_infer = |red_ty| RedTerm::new(db, red_chains.clone(), red_ty);
+    let perm_infer = SymPerm::infer(db, env.perm_infer(infer));
 
     // For each new bound `B` where `?X <: B`...
     //
@@ -512,9 +523,10 @@ async fn propagate_inverse_bound<'db>(
                     require_ty_sub_infer(
                         env,
                         // Combine `B1` with the permission variable from `?X`
-                        red_term_with_perm_infer(opposite_bound),
+                        Some(perm_infer),
+                        opposite_bound,
                         // Pass `?X` along with its permisson variable as the upper term
-                        red_chains.clone(),
+                        Some(perm_infer),
                         infer,
                         &or_else,
                     )
@@ -525,10 +537,11 @@ async fn propagate_inverse_bound<'db>(
                     require_infer_sub_ty(
                         env,
                         // Pass `?X` along with its permisson variable as the lower term
-                        red_chains.clone(),
+                        Some(perm_infer),
                         infer,
                         // Combine `B1` with the permission variable from `?X`
-                        red_term_with_perm_infer(opposite_bound),
+                        Some(perm_infer),
+                        opposite_bound,
                         &or_else,
                     )
                     .await?
