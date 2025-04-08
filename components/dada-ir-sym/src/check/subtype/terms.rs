@@ -7,6 +7,7 @@ use crate::{
     check::{
         env::Env,
         inference::{Direction, InferVarKind},
+        live_places::LivePlaces,
         predicates::{
             is_provably_copy::term_is_provably_copy, is_provably_lent::term_is_provably_lent,
             is_provably_move::term_is_provably_move, is_provably_owned::term_is_provably_owned,
@@ -30,6 +31,7 @@ use super::chains::require_sub_opt_perms;
 
 pub async fn require_assignable_type<'db>(
     env: &mut Env<'db>,
+    live_after: LivePlaces,
     value_ty: SymTy<'db>,
     place_ty: SymTy<'db>,
     or_else: &dyn OrElse<'db>,
@@ -38,12 +40,13 @@ pub async fn require_assignable_type<'db>(
 
     match (value_ty.kind(db), place_ty.kind(db)) {
         (SymTyKind::Never, _) => Ok(()),
-        _ => require_sub_terms(env, value_ty.into(), place_ty.into(), or_else).await,
+        _ => require_sub_terms(env, live_after, value_ty.into(), place_ty.into(), or_else).await,
     }
 }
 
 pub async fn require_sub_terms<'db>(
     env: &mut Env<'db>,
+    live_after: LivePlaces,
     lower: SymGenericTerm<'db>,
     upper: SymGenericTerm<'db>,
     or_else: &dyn OrElse<'db>,
@@ -55,7 +58,7 @@ pub async fn require_sub_terms<'db>(
             // Reduce and relate chains
             let red_term_lower = lower.to_red_ty(env);
             let red_term_upper = upper.to_red_ty(env);
-            require_sub_red_terms(env, red_term_lower, red_term_upper, or_else).await
+            require_sub_red_terms(env, live_after, red_term_lower, red_term_upper, or_else).await
         },
     )
     .await
@@ -142,6 +145,7 @@ async fn propagate_bounds<'db>(
 #[boxed_async_fn]
 pub async fn require_sub_red_terms<'db>(
     env: &mut Env<'db>,
+    live_after: LivePlaces,
     (lower_red_ty, lower_perm): (RedTy<'db>, Option<SymPerm<'db>>),
     (upper_red_ty, upper_perm): (RedTy<'db>, Option<SymPerm<'db>>),
     or_else: &dyn OrElse<'db>,
@@ -156,6 +160,7 @@ pub async fn require_sub_red_terms<'db>(
         (&RedTy::Infer(lower_infer), &RedTy::Infer(upper_infer)) => {
             require_infer_sub_infer(
                 env,
+                live_after,
                 lower_perm,
                 lower_infer,
                 upper_perm,
@@ -168,6 +173,7 @@ pub async fn require_sub_red_terms<'db>(
         (&RedTy::Infer(lower_infer), _) => {
             require_infer_sub_ty(
                 env,
+                live_after,
                 lower_perm,
                 lower_infer,
                 upper_perm,
@@ -180,6 +186,7 @@ pub async fn require_sub_red_terms<'db>(
         (_, &RedTy::Infer(upper_infer)) => {
             require_ty_sub_infer(
                 env,
+                live_after,
                 lower_perm,
                 lower_red_ty,
                 upper_perm,
@@ -202,20 +209,46 @@ pub async fn require_sub_red_terms<'db>(
                         .zip(lower_generics.iter().zip(upper_generics)),
                     async |env, (&variance, (&lower_generic, &upper_generic))| match variance {
                         Variance::Covariant => {
-                            require_sub_terms(env, lower_generic, upper_generic, or_else).await
+                            require_sub_terms(
+                                env,
+                                live_after,
+                                lower_generic,
+                                upper_generic,
+                                or_else,
+                            )
+                            .await
                         }
                         Variance::Contravariant => {
-                            require_sub_terms(env, upper_generic, lower_generic, or_else).await
+                            require_sub_terms(
+                                env,
+                                live_after,
+                                upper_generic,
+                                lower_generic,
+                                or_else,
+                            )
+                            .await
                         }
                         Variance::Invariant => {
                             env.require_both(
                                 async |env| {
-                                    require_sub_terms(env, lower_generic, upper_generic, or_else)
-                                        .await
+                                    require_sub_terms(
+                                        env,
+                                        live_after,
+                                        lower_generic,
+                                        upper_generic,
+                                        or_else,
+                                    )
+                                    .await
                                 },
                                 async |env| {
-                                    require_sub_terms(env, upper_generic, lower_generic, or_else)
-                                        .await
+                                    require_sub_terms(
+                                        env,
+                                        live_after,
+                                        upper_generic,
+                                        lower_generic,
+                                        or_else,
+                                    )
+                                    .await
                                 },
                             )
                             .await
@@ -227,7 +260,8 @@ pub async fn require_sub_red_terms<'db>(
                 match name_lower.style(env.db()) {
                     SymAggregateStyle::Struct => {}
                     SymAggregateStyle::Class => {
-                        require_sub_opt_perms(env, lower_perm, upper_perm, or_else).await?;
+                        require_sub_opt_perms(env, live_after, lower_perm, upper_perm, or_else)
+                            .await?;
                     }
                 }
 
@@ -241,13 +275,13 @@ pub async fn require_sub_red_terms<'db>(
         }
 
         (&RedTy::Never, &RedTy::Never) => {
-            require_sub_opt_perms(env, lower_perm, upper_perm, or_else).await
+            require_sub_opt_perms(env, live_after, lower_perm, upper_perm, or_else).await
         }
         (&RedTy::Never, _) | (_, &RedTy::Never) => Err(or_else.report(env, Because::JustSo)),
 
         (&RedTy::Var(var_lower), &RedTy::Var(var_upper)) => {
             if var_lower == var_upper {
-                require_sub_opt_perms(env, lower_perm, upper_perm, or_else).await
+                require_sub_opt_perms(env, live_after, lower_perm, upper_perm, or_else).await
             } else {
                 Err(or_else.report(env, Because::UniversalMismatch(var_lower, var_upper)))
             }
@@ -255,7 +289,7 @@ pub async fn require_sub_red_terms<'db>(
         (&RedTy::Var(_), _) | (_, &RedTy::Var(_)) => Err(or_else.report(env, Because::JustSo)),
 
         (&RedTy::Perm, &RedTy::Perm) => {
-            require_sub_opt_perms(env, lower_perm, upper_perm, or_else).await
+            require_sub_opt_perms(env, live_after, lower_perm, upper_perm, or_else).await
         }
     }
 }
@@ -267,6 +301,7 @@ pub async fn require_sub_red_terms<'db>(
 /// (in this case it will not return).
 async fn require_infer_sub_infer<'db>(
     env: &mut Env<'db>,
+    live_after: LivePlaces,
     lower_perm: Option<SymPerm<'db>>,
     lower_infer: InferVarIndex,
     upper_perm: Option<SymPerm<'db>>,
@@ -280,6 +315,7 @@ async fn require_infer_sub_infer<'db>(
         return Ok(());
     }
 
+    // FIXME: needs to take live-places into account
     if env.insert_sub_infer_var_pair(lower_infer, upper_infer) {
         env.require_both(
             async |env| {
@@ -289,6 +325,7 @@ async fn require_infer_sub_infer<'db>(
                     async |env, lower_bound, _or_else| {
                         require_sub_red_terms(
                             env,
+                            live_after,
                             (lower_bound.clone(), lower_perm),
                             (RedTy::Infer(upper_infer), upper_perm),
                             or_else,
@@ -305,6 +342,7 @@ async fn require_infer_sub_infer<'db>(
                     async |env, upper_bound, _or_else| {
                         require_sub_red_terms(
                             env,
+                            live_after,
                             (RedTy::Infer(lower_infer), lower_perm),
                             (upper_bound.clone(), upper_perm),
                             or_else,
@@ -324,6 +362,7 @@ async fn require_infer_sub_infer<'db>(
 /// Relate `lower_term` (not)
 async fn require_ty_sub_infer<'db>(
     env: &mut Env<'db>,
+    live_after: LivePlaces,
     lower_perm: Option<SymPerm<'db>>,
     lower_ty: RedTy<'db>,
     upper_perm: Option<SymPerm<'db>>,
@@ -343,6 +382,7 @@ async fn require_ty_sub_infer<'db>(
     // Relate the lower term to the upper term
     require_sub_red_terms(
         env,
+        live_after,
         (lower_ty, lower_perm),
         (generalized_ty, upper_perm),
         or_else,
@@ -354,6 +394,7 @@ async fn require_ty_sub_infer<'db>(
 /// Does not relate the return value and `bound` in any other way.
 async fn require_infer_sub_ty<'db>(
     env: &mut Env<'db>,
+    live_after: LivePlaces,
     lower_perm: Option<SymPerm<'db>>,
     lower_infer: InferVarIndex,
     upper_perm: Option<SymPerm<'db>>,
@@ -372,6 +413,7 @@ async fn require_infer_sub_ty<'db>(
 
     require_sub_red_terms(
         env,
+        live_after,
         (generalized_ty, lower_perm),
         (upper_ty, upper_perm),
         or_else,
@@ -522,6 +564,7 @@ async fn propagate_inverse_bound<'db>(
                     // ... `?X <: B` so `B1 <: ?X`
                     require_ty_sub_infer(
                         env,
+                        LivePlaces::fixme(),
                         // Combine `B1` with the permission variable from `?X`
                         Some(perm_infer),
                         opposite_bound,
@@ -536,6 +579,7 @@ async fn propagate_inverse_bound<'db>(
                     // ... `B <: ?X` so `?X <: B1`
                     require_infer_sub_ty(
                         env,
+                        LivePlaces::fixme(),
                         // Pass `?X` along with its permisson variable as the lower term
                         Some(perm_infer),
                         infer,

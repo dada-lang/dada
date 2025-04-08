@@ -2,7 +2,7 @@ use dada_ir_ast::{ast::AstStatement, span::Span};
 use dada_util::boxed_async_fn;
 
 use crate::{
-    check::{CheckInEnv, env::Env, report::InvalidInitializerType},
+    check::{CheckExprInEnv, env::Env, report::InvalidInitializerType},
     ir::{
         exprs::{SymExpr, SymExprKind},
         types::SymTy,
@@ -10,9 +10,12 @@ use crate::{
     },
 };
 
+use super::{CheckTyInEnv, live_places::LivePlaces};
+
 #[boxed_async_fn]
 pub async fn check_block_statements<'db>(
     env: &mut Env<'db>,
+    live_after: LivePlaces,
     block_span: Span<'db>,
     statements: &[AstStatement<'db>],
 ) -> SymExpr<'db> {
@@ -37,10 +40,11 @@ pub async fn check_block_statements<'db>(
                     async |env| match s.initializer(db) {
                         Some(initializer) => {
                             let initializer = initializer
-                                .check_in_env(env)
+                                .check_in_env(env, LivePlaces::fixme())
                                 .await
                                 .into_expr_with_enclosed_temporaries(env);
                             env.spawn_require_assignable_type(
+                                LivePlaces::fixme(),
                                 initializer.ty(db),
                                 ty,
                                 &InvalidInitializerType::new(lv, s.name(db).span, ty, initializer),
@@ -52,7 +56,7 @@ pub async fn check_block_statements<'db>(
                     },
                     async |env| {
                         env.push_program_variable_with_ty(lv, ty);
-                        check_block_statements(env, block_span, rest).await
+                        check_block_statements(env, LivePlaces::fixme(), block_span, rest).await
                     },
                 )
                 .await;
@@ -73,7 +77,7 @@ pub async fn check_block_statements<'db>(
 
         AstStatement::Expr(e) => {
             let check_e = async |env: &mut Env<'db>| {
-                e.check_in_env(env)
+                e.check_in_env(env, LivePlaces::fixme())
                     .await
                     .into_expr_with_enclosed_temporaries(env)
             };
@@ -84,7 +88,7 @@ pub async fn check_block_statements<'db>(
             } else {
                 let (ce, re) = env
                     .join(check_e, async |env| {
-                        check_block_statements(env, block_span, rest).await
+                        check_block_statements(env, live_after, block_span, rest).await
                     })
                     .await;
                 SymExpr::new(

@@ -28,9 +28,10 @@ use futures::task::LocalFutureObj;
 use crate::{check::runtime::Runtime, check::universe::Universe, ir::exprs::SymExpr};
 
 use super::{
-    CheckInEnv,
+    CheckTyInEnv,
     debug::LogHandle,
     inference::{Direction, InferVarKind, InferenceVarData},
+    live_places::LivePlaces,
     predicates::Predicate,
     red::{RedPerm, RedTy},
     report::{ArcOrElse, BooleanTypeRequired, OrElse},
@@ -326,6 +327,7 @@ impl<'db> Env<'db> {
     #[track_caller]
     pub(super) fn spawn_require_assignable_type(
         &mut self,
+        live_after: LivePlaces,
         value_ty: SymTy<'db>,
         place_ty: SymTy<'db>,
         or_else: &dyn OrElse<'db>,
@@ -338,7 +340,10 @@ impl<'db> Env<'db> {
             async move |env| {
                 debug!("require_assignable_object_type", value_ty, place_ty);
 
-                if let Ok(()) = require_assignable_type(env, value_ty, place_ty, &or_else).await {}
+                if let Ok(()) =
+                    require_assignable_type(env, live_after, value_ty, place_ty, &or_else).await
+                {
+                }
             },
         )
     }
@@ -347,6 +352,7 @@ impl<'db> Env<'db> {
     #[track_caller]
     pub(super) fn spawn_require_equal_types(
         &self,
+        live_after: LivePlaces,
         expected_ty: SymTy<'db>,
         found_ty: SymTy<'db>,
         or_else: &dyn OrElse<'db>,
@@ -361,10 +367,24 @@ impl<'db> Env<'db> {
 
                 env.require_both(
                     async |env| {
-                        require_sub_terms(env, expected_ty.into(), found_ty.into(), &or_else).await
+                        require_sub_terms(
+                            env,
+                            live_after,
+                            expected_ty.into(),
+                            found_ty.into(),
+                            &or_else,
+                        )
+                        .await
                     },
                     async |env| {
-                        require_sub_terms(env, found_ty.into(), expected_ty.into(), &or_else).await
+                        require_sub_terms(
+                            env,
+                            live_after,
+                            found_ty.into(),
+                            expected_ty.into(),
+                            &or_else,
+                        )
+                        .await
                     },
                 )
                 .await
@@ -385,6 +405,7 @@ impl<'db> Env<'db> {
     #[track_caller]
     pub(super) fn spawn_require_future_type(
         &self,
+        live_after: LivePlaces,
         ty: SymTy<'db>,
         awaited_ty: SymTy<'db>,
         or_else: &dyn OrElse<'db>,
@@ -393,7 +414,7 @@ impl<'db> Env<'db> {
         self.runtime.spawn(
             self,
             TaskDescription::RequireFutureType(ty),
-            async move |env| require_future_type(env, ty, awaited_ty, &or_else).await,
+            async move |env| require_future_type(env, live_after, ty, awaited_ty, &or_else).await,
         )
     }
 
@@ -430,10 +451,11 @@ impl<'db> Env<'db> {
             .spawn(self, task_description, async move |env| op(env).await)
     }
 
-    pub(crate) fn require_expr_has_bool_ty(&mut self, expr: SymExpr<'db>) {
+    pub(crate) fn require_expr_has_bool_ty(&mut self, live_after: LivePlaces, expr: SymExpr<'db>) {
         let db = self.db();
         let boolean_ty = SymTy::boolean(db);
         self.spawn_require_assignable_type(
+            live_after,
             expr.ty(db),
             boolean_ty,
             &BooleanTypeRequired::new(expr),

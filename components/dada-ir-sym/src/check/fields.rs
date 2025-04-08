@@ -5,7 +5,7 @@ use crate::{
     ir::{binder::Binder, classes::SymField, types::SymTy},
 };
 
-use super::CheckInEnv;
+use super::CheckTyInEnv;
 
 /// Check the type of a field.
 /// The returned type has two binders, the outer binder is the class,

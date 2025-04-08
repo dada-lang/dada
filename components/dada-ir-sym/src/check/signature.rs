@@ -14,7 +14,7 @@ use crate::{
     prelude::Symbol,
 };
 
-use super::CheckInEnv;
+use super::CheckTyInEnv;
 
 pub fn check_function_signature<'db>(
     db: &'db dyn crate::Db,

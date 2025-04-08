@@ -11,7 +11,7 @@ use salsa::Update;
 use serde::Serialize;
 
 use crate::{
-    check::{CheckInEnv, scope_tree::ScopeTreeNode},
+    check::{CheckTyInEnv, scope_tree::ScopeTreeNode},
     ir::{
         binder::BoundTerm,
         classes::{SymAggregate, SymClassMember},

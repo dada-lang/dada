@@ -2,7 +2,6 @@ use std::panic::Location;
 
 use crate::{
     check::{
-        CheckInEnv,
         env::Env,
         member_lookup::MemberLookup,
         scope::{NameResolution, NameResolutionSym},
@@ -35,7 +34,9 @@ use dada_util::{FromImpls, boxed_async_fn};
 use serde::Serialize;
 
 use super::{
+    CheckExprInEnv, CheckTyInEnv,
     debug::TaskDescription,
+    live_places::LivePlaces,
     report::{
         AwaitNonFuture, BadSubtypeError, InvalidAssignmentType, InvalidReturnValue,
         NumericTypeExpected, OperatorArgumentsMustHaveSameType, OperatorRequiresNumericType,
@@ -77,16 +78,20 @@ pub(crate) enum ExprResultKind<'db> {
     Other(NameResolution<'db>),
 }
 
-impl<'db> CheckInEnv<'db> for AstExpr<'db> {
+impl<'db> CheckExprInEnv<'db> for AstExpr<'db> {
     type Output = ExprResult<'db>;
 
-    async fn check_in_env(&self, env: &mut Env<'db>) -> Self::Output {
-        check_expr(self, env).await
+    async fn check_in_env(&self, env: &mut Env<'db>, live_after: LivePlaces) -> Self::Output {
+        check_expr(self, env, live_after).await
     }
 }
 
 #[boxed_async_fn]
-async fn check_expr<'db>(expr: &AstExpr<'db>, env: &mut Env<'db>) -> ExprResult<'db> {
+async fn check_expr<'db>(
+    expr: &AstExpr<'db>,
+    env: &mut Env<'db>,
+    live_after: LivePlaces,
+) -> ExprResult<'db> {
     env.indent("check_expr", &[expr], async |env| {
         let db = env.db();
         let expr_span = expr.span;
@@ -198,7 +203,7 @@ async fn check_expr<'db>(expr: &AstExpr<'db>, env: &mut Env<'db>) -> ExprResult<
                 for element in &span_vec.values {
                     exprs.push(
                         element
-                            .check_in_env(env)
+                            .check_in_env(env, LivePlaces::fixme())
                             .await
                             .into_expr(env, &mut temporaries),
                     );
@@ -229,10 +234,14 @@ async fn check_expr<'db>(expr: &AstExpr<'db>, env: &mut Env<'db>) -> ExprResult<
                 match span_op.op {
                     AstBinaryOp::Add | AstBinaryOp::Sub | AstBinaryOp::Mul | AstBinaryOp::Div => {
                         let mut temporaries: Vec<Temporary<'db>> = vec![];
-                        let lhs: SymExpr<'db> =
-                            lhs.check_in_env(env).await.into_expr(env, &mut temporaries);
-                        let rhs: SymExpr<'db> =
-                            rhs.check_in_env(env).await.into_expr(env, &mut temporaries);
+                        let lhs: SymExpr<'db> = lhs
+                            .check_in_env(env, LivePlaces::fixme())
+                            .await
+                            .into_expr(env, &mut temporaries);
+                        let rhs: SymExpr<'db> = rhs
+                            .check_in_env(env, LivePlaces::fixme())
+                            .await
+                            .into_expr(env, &mut temporaries);
 
                         // For now, let's do a dumb rule that operands must be
                         // of the same primitive (and scalar) type.
@@ -247,6 +256,7 @@ async fn check_expr<'db>(expr: &AstExpr<'db>, env: &mut Env<'db>) -> ExprResult<
                         );
                         env.spawn_if_not_never(&[lhs.ty(db), rhs.ty(db)], async move |env| {
                             env.spawn_require_equal_types(
+                                live_after,
                                 lhs.ty(db),
                                 rhs.ty(db),
                                 &OperatorArgumentsMustHaveSameType::new(span_op, lhs, rhs),
@@ -276,12 +286,16 @@ async fn check_expr<'db>(expr: &AstExpr<'db>, env: &mut Env<'db>) -> ExprResult<
 
                     AstBinaryOp::AndAnd => {
                         let mut temporaries: Vec<Temporary<'db>> = vec![];
-                        let lhs: SymExpr<'db> =
-                            lhs.check_in_env(env).await.into_expr(env, &mut temporaries);
-                        let rhs: SymExpr<'db> =
-                            rhs.check_in_env(env).await.into_expr(env, &mut temporaries);
-                        env.require_expr_has_bool_ty(lhs);
-                        env.require_expr_has_bool_ty(rhs);
+                        let lhs: SymExpr<'db> = lhs
+                            .check_in_env(env, LivePlaces::fixme())
+                            .await
+                            .into_expr(env, &mut temporaries);
+                        let rhs: SymExpr<'db> = rhs
+                            .check_in_env(env, live_after)
+                            .await
+                            .into_expr(env, &mut temporaries);
+                        env.require_expr_has_bool_ty(LivePlaces::fixme(), lhs);
+                        env.require_expr_has_bool_ty(live_after, rhs);
 
                         // construct an expression like
                         // if lhs { if rhs { true } else { false } } else { false }
@@ -306,13 +320,17 @@ async fn check_expr<'db>(expr: &AstExpr<'db>, env: &mut Env<'db>) -> ExprResult<
 
                     AstBinaryOp::OrOr => {
                         let mut temporaries: Vec<Temporary<'db>> = vec![];
-                        let lhs: SymExpr<'db> =
-                            lhs.check_in_env(env).await.into_expr(env, &mut temporaries);
-                        let rhs: SymExpr<'db> =
-                            rhs.check_in_env(env).await.into_expr(env, &mut temporaries);
+                        let lhs: SymExpr<'db> = lhs
+                            .check_in_env(env, LivePlaces::fixme())
+                            .await
+                            .into_expr(env, &mut temporaries);
+                        let rhs: SymExpr<'db> = rhs
+                            .check_in_env(env, live_after)
+                            .await
+                            .into_expr(env, &mut temporaries);
 
-                        env.require_expr_has_bool_ty(lhs);
-                        env.require_expr_has_bool_ty(rhs);
+                        env.require_expr_has_bool_ty(LivePlaces::fixme(), lhs);
+                        env.require_expr_has_bool_ty(live_after, rhs);
 
                         // construct an expression like
                         // if lhs { true } else { if rhs { true } else { false } }
@@ -341,10 +359,14 @@ async fn check_expr<'db>(expr: &AstExpr<'db>, env: &mut Env<'db>) -> ExprResult<
                     | AstBinaryOp::LessEqual
                     | AstBinaryOp::EqualEqual => {
                         let mut temporaries: Vec<Temporary<'db>> = vec![];
-                        let lhs: SymExpr<'db> =
-                            lhs.check_in_env(env).await.into_expr(env, &mut temporaries);
-                        let rhs: SymExpr<'db> =
-                            rhs.check_in_env(env).await.into_expr(env, &mut temporaries);
+                        let lhs: SymExpr<'db> = lhs
+                            .check_in_env(env, LivePlaces::fixme())
+                            .await
+                            .into_expr(env, &mut temporaries);
+                        let rhs: SymExpr<'db> = rhs
+                            .check_in_env(env, LivePlaces::fixme())
+                            .await
+                            .into_expr(env, &mut temporaries);
 
                         // For now, let's do a dumb rule that operands must be
                         // of the same primitive (and scalar) type.
@@ -359,6 +381,7 @@ async fn check_expr<'db>(expr: &AstExpr<'db>, env: &mut Env<'db>) -> ExprResult<
                         );
                         env.spawn_if_not_never(&[lhs.ty(db), rhs.ty(db)], async move |env| {
                             env.spawn_require_equal_types(
+                                LivePlaces::fixme(),
                                 lhs.ty(db),
                                 rhs.ty(db),
                                 &OperatorArgumentsMustHaveSameType::new(span_op, lhs, rhs),
@@ -389,16 +412,19 @@ async fn check_expr<'db>(expr: &AstExpr<'db>, env: &mut Env<'db>) -> ExprResult<
                     AstBinaryOp::Assign => {
                         let mut temporaries: Vec<Temporary<'db>> = vec![];
                         let place: SymPlaceExpr<'db> = lhs
-                            .check_in_env(env)
+                            .check_in_env(env, LivePlaces::fixme())
                             .await
                             .into_place_expr(env, &mut temporaries);
-                        let value: SymExpr<'db> =
-                            rhs.check_in_env(env).await.into_expr(env, &mut temporaries);
+                        let value: SymExpr<'db> = rhs
+                            .check_in_env(env, LivePlaces::fixme())
+                            .await
+                            .into_expr(env, &mut temporaries);
 
                         // For now, let's do a dumb rule that operands must be
                         // of the same primitive (and scalar) type.
 
                         env.spawn_require_assignable_type(
+                            LivePlaces::fixme(),
                             value.ty(db),
                             place.ty(db),
                             &InvalidAssignmentType::new(place, value),
@@ -426,7 +452,7 @@ async fn check_expr<'db>(expr: &AstExpr<'db>, env: &mut Env<'db>) -> ExprResult<
             }
 
             AstExprKind::DotId(owner, id) => {
-                let mut owner_result = owner.check_in_env(env).await;
+                let mut owner_result = owner.check_in_env(env, live_after).await;
                 match owner_result.kind {
                     ExprResultKind::PlaceExpr(_) | ExprResultKind::Expr(_) => {
                         MemberLookup::new(env)
@@ -464,7 +490,7 @@ async fn check_expr<'db>(expr: &AstExpr<'db>, env: &mut Env<'db>) -> ExprResult<
             }
 
             AstExprKind::SquareBracketOp(owner, square_bracket_args) => {
-                let owner_result = owner.check_in_env(env).await;
+                let owner_result = owner.check_in_env(env, LivePlaces::fixme()).await;
                 match owner_result.kind {
                     ExprResultKind::Method {
                         self_expr: owner,
@@ -522,7 +548,7 @@ async fn check_expr<'db>(expr: &AstExpr<'db>, env: &mut Env<'db>) -> ExprResult<
             }
 
             AstExprKind::ParenthesisOp(owner, ast_args) => {
-                let owner_result = owner.check_in_env(env).await;
+                let owner_result = owner.check_in_env(env, live_after).await;
                 match owner_result {
                     ExprResult {
                         temporaries,
@@ -537,6 +563,7 @@ async fn check_expr<'db>(expr: &AstExpr<'db>, env: &mut Env<'db>) -> ExprResult<
                     } => {
                         check_method_call(
                             env,
+                            live_after,
                             id_span,
                             expr_span,
                             function,
@@ -560,6 +587,7 @@ async fn check_expr<'db>(expr: &AstExpr<'db>, env: &mut Env<'db>) -> ExprResult<
                     } => {
                         check_function_call(
                             env,
+                            live_after,
                             function_span,
                             expr_span,
                             sym,
@@ -585,6 +613,7 @@ async fn check_expr<'db>(expr: &AstExpr<'db>, env: &mut Env<'db>) -> ExprResult<
                     } => {
                         check_class_call(
                             env,
+                            live_after,
                             class_span,
                             expr_span,
                             name_resolution,
@@ -610,7 +639,7 @@ async fn check_expr<'db>(expr: &AstExpr<'db>, env: &mut Env<'db>) -> ExprResult<
 
                 let return_expr = if let Some(ast_expr) = ast_expr {
                     ast_expr
-                        .check_in_env(env)
+                        .check_in_env(env, LivePlaces::none(env))
                         .await
                         .into_expr(env, &mut temporaries)
                 } else {
@@ -637,6 +666,7 @@ async fn check_expr<'db>(expr: &AstExpr<'db>, env: &mut Env<'db>) -> ExprResult<
                 };
 
                 env.spawn_require_assignable_type(
+                    LivePlaces::none(env),
                     return_expr.ty(db),
                     expected_return_ty,
                     &InvalidReturnValue::new(return_expr, expected_return_ty),
@@ -664,7 +694,7 @@ async fn check_expr<'db>(expr: &AstExpr<'db>, env: &mut Env<'db>) -> ExprResult<
                 let mut temporaries = vec![];
 
                 let future_expr = future
-                    .check_in_env(env)
+                    .check_in_env(env, live_after)
                     .await
                     .into_expr(env, &mut temporaries);
                 let future_ty = future_expr.ty(db);
@@ -672,6 +702,7 @@ async fn check_expr<'db>(expr: &AstExpr<'db>, env: &mut Env<'db>) -> ExprResult<
                 let awaited_ty = env.fresh_ty_inference_var(await_span);
 
                 env.spawn_require_future_type(
+                    live_after,
                     future_ty,
                     awaited_ty,
                     &AwaitNonFuture::new(await_span, future_expr),
@@ -696,10 +727,10 @@ async fn check_expr<'db>(expr: &AstExpr<'db>, env: &mut Env<'db>) -> ExprResult<
                 UnaryOp::Not => {
                     let mut temporaries = vec![];
                     let operand = ast_expr
-                        .check_in_env(env)
+                        .check_in_env(env, live_after)
                         .await
                         .into_expr(env, &mut temporaries);
-                    env.require_expr_has_bool_ty(operand);
+                    env.require_expr_has_bool_ty(live_after, operand);
 
                     ExprResult {
                         temporaries,
@@ -718,10 +749,11 @@ async fn check_expr<'db>(expr: &AstExpr<'db>, env: &mut Env<'db>) -> ExprResult<
                 }
                 UnaryOp::Negate => todo!(),
             },
+
             AstExprKind::Block(ast_block) => ExprResult {
                 temporaries: vec![],
                 span: expr_span,
-                kind: ast_block.check_in_env(env).await.into(),
+                kind: ast_block.check_in_env(env, live_after).await.into(),
             },
 
             AstExprKind::If(ast_arms) => {
@@ -730,17 +762,17 @@ async fn check_expr<'db>(expr: &AstExpr<'db>, env: &mut Env<'db>) -> ExprResult<
                 for arm in ast_arms {
                     let condition = if let Some(c) = &arm.condition {
                         let expr = c
-                            .check_in_env(env)
+                            .check_in_env(env, LivePlaces::fixme())
                             .await
                             .into_expr_with_enclosed_temporaries(env);
-                        env.require_expr_has_bool_ty(expr);
+                        env.require_expr_has_bool_ty(LivePlaces::fixme(), expr);
                         Some(expr)
                     } else {
                         has_else = true;
                         None
                     };
 
-                    let body = arm.result.check_in_env(env).await;
+                    let body = arm.result.check_in_env(env, live_after).await;
 
                     arms.push(SymMatchArm { condition, body });
                 }
@@ -753,6 +785,7 @@ async fn check_expr<'db>(expr: &AstExpr<'db>, env: &mut Env<'db>) -> ExprResult<
 
                 for arm in &arms {
                     env.spawn_require_assignable_type(
+                        live_after,
                         arm.body.ty(db),
                         if_ty,
                         &BadSubtypeError::new(arm.body.span(db), arm.body.ty(db), if_ty),
@@ -768,7 +801,7 @@ async fn check_expr<'db>(expr: &AstExpr<'db>, env: &mut Env<'db>) -> ExprResult<
 
             AstExprKind::PermissionOp { value, op } => {
                 let mut temporaries = vec![];
-                let value_result = value.check_in_env(env).await;
+                let value_result = value.check_in_env(env, live_after).await;
                 let place_expr = value_result.into_place_expr(env, &mut temporaries);
                 let sym_place = place_expr.into_sym_place(db);
                 ExprResult {
@@ -795,6 +828,7 @@ async fn check_expr<'db>(expr: &AstExpr<'db>, env: &mut Env<'db>) -> ExprResult<
 #[boxed_async_fn]
 async fn check_class_call<'db>(
     env: &mut Env<'db>,
+    live_after: LivePlaces,
     class_span: Span<'db>,
     expr_span: Span<'db>,
     name_resolution: NameResolution<'db>,
@@ -820,6 +854,7 @@ async fn check_class_call<'db>(
 
     check_function_call(
         env,
+        live_after,
         class_span,
         expr_span,
         new_function,
@@ -895,6 +930,7 @@ fn report_no_new_method<'db>(
 #[boxed_async_fn]
 async fn check_function_call<'db>(
     env: &mut Env<'db>,
+    live_after: LivePlaces,
     function_span: Span<'db>,
     expr_span: Span<'db>,
     function: SymFunction<'db>,
@@ -909,7 +945,7 @@ async fn check_function_call<'db>(
         Ok(signature) => signature,
         Err(reported) => {
             for ast_arg in ast_args {
-                let _ = ast_arg.check_in_env(env).await;
+                let _ = ast_arg.check_in_env(env, LivePlaces::fixme()).await;
             }
             return ExprResult::err(db, reported);
         }
@@ -927,6 +963,7 @@ async fn check_function_call<'db>(
 
     check_call_common(
         env,
+        live_after,
         function,
         expr_span,
         function_span,
@@ -946,6 +983,7 @@ async fn check_function_call<'db>(
 #[boxed_async_fn]
 async fn check_method_call<'db>(
     env: &mut Env<'db>,
+    live_after: LivePlaces,
     id_span: Span<'db>,
     expr_span: Span<'db>,
     function: SymFunction<'db>,
@@ -964,7 +1002,7 @@ async fn check_method_call<'db>(
                 let _ = generic.check_in_env(env).await;
             }
             for ast_arg in ast_args {
-                let _ = ast_arg.check_in_env(env).await;
+                let _ = ast_arg.check_in_env(env, LivePlaces::fixme()).await;
             }
             return ExprResult::err(db, reported);
         }
@@ -1075,6 +1113,7 @@ async fn check_method_call<'db>(
 
     check_call_common(
         env,
+        live_after,
         function,
         expr_span,
         id_span,
@@ -1091,6 +1130,7 @@ async fn check_method_call<'db>(
 #[boxed_async_fn]
 async fn check_call_common<'db>(
     env: &mut Env<'db>,
+    _live_after: LivePlaces,
     function: SymFunction<'db>,
     expr_span: Span<'db>,
     callee_span: Span<'db>,
@@ -1165,11 +1205,12 @@ async fn check_call_common<'db>(
         } else {
             let ast_arg = &ast_args[i - self_args];
             ast_arg
-                .check_in_env(&mut env)
+                .check_in_env(&mut env, LivePlaces::fixme())
                 .await
                 .into_expr(&mut env, &mut arg_temporaries)
         };
         env.spawn_require_assignable_type(
+            LivePlaces::fixme(),
             expr.ty(db),
             input_output.input_tys[i],
             &BadSubtypeError::new(expr.span(db), expr.ty(db), input_output.input_tys[i]),

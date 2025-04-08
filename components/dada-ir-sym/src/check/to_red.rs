@@ -12,6 +12,7 @@ use crate::ir::{
 
 use super::{
     Env,
+    live_places::LivePlaces,
     places::PlaceTy,
     predicates::{
         Predicate, is_provably_copy::place_is_provably_copy, test_perm_infer_is_known_to_be,
@@ -163,12 +164,20 @@ impl<'db> ToRedTy<'db> for SymPerm<'db> {
 }
 
 pub trait ToRedPerms<'db> {
-    async fn to_red_perms(&self, env: &mut Env<'db>) -> Errors<VecSet<RedPerm<'db>>>;
+    async fn to_red_perms(
+        &self,
+        env: &mut Env<'db>,
+        live_after: LivePlaces,
+    ) -> Errors<VecSet<RedPerm<'db>>>;
 }
 
 impl<'db> ToRedPerms<'db> for SymPerm<'db> {
     #[boxed_async_fn]
-    async fn to_red_perms(&self, env: &mut Env<'db>) -> Errors<VecSet<RedPerm<'db>>> {
+    async fn to_red_perms(
+        &self,
+        env: &mut Env<'db>,
+        live_after: LivePlaces,
+    ) -> Errors<VecSet<RedPerm<'db>>> {
         let mut output = VecSet::new();
         let db = env.db();
         match *self.kind(db) {
@@ -181,7 +190,7 @@ impl<'db> ToRedPerms<'db> for SymPerm<'db> {
             SymPermKind::Shared(ref places) => {
                 for &place in places {
                     if place_is_provably_copy(env, place).await.is_ok() {
-                        output.extend(place.to_red_perms(env).await?);
+                        output.extend(place.to_red_perms(env, live_after).await?);
                     } else {
                         output.insert(RedPerm::shared(env.db(), place));
                     }
@@ -190,15 +199,15 @@ impl<'db> ToRedPerms<'db> for SymPerm<'db> {
             SymPermKind::Leased(ref places) => {
                 for &place in places {
                     if place_is_provably_copy(env, place).await.is_ok() {
-                        output.extend(place.to_red_perms(env).await?);
+                        output.extend(place.to_red_perms(env, live_after).await?);
                     } else {
                         output.insert(RedPerm::leased(db, place));
                     }
                 }
             }
             SymPermKind::Apply(lhs, rhs) => {
-                let lhs_chains = lhs.to_red_perms(env).await?;
-                let rhs_chains = rhs.to_red_perms(env).await?;
+                let lhs_chains = lhs.to_red_perms(env, live_after).await?;
+                let rhs_chains = rhs.to_red_perms(env, live_after).await?;
                 for lhs_chain in &lhs_chains {
                     for rhs_chain in &rhs_chains {
                         output.insert(lhs_chain.concat(env, rhs_chain).await?);
@@ -218,21 +227,29 @@ impl<'db> ToRedPerms<'db> for SymPerm<'db> {
 }
 
 impl<'db> ToRedPerms<'db> for SymPlace<'db> {
-    async fn to_red_perms(&self, env: &mut Env<'db>) -> Errors<VecSet<RedPerm<'db>>> {
+    async fn to_red_perms(
+        &self,
+        env: &mut Env<'db>,
+        live_after: LivePlaces,
+    ) -> Errors<VecSet<RedPerm<'db>>> {
         let ty = self.place_ty(env).await;
-        ty.to_red_perms(env).await
+        ty.to_red_perms(env, live_after).await
     }
 }
 
 impl<'db> ToRedPerms<'db> for SymTy<'db> {
     #[boxed_async_fn]
-    async fn to_red_perms(&self, env: &mut Env<'db>) -> Errors<VecSet<RedPerm<'db>>> {
+    async fn to_red_perms(
+        &self,
+        env: &mut Env<'db>,
+        live_after: LivePlaces,
+    ) -> Errors<VecSet<RedPerm<'db>>> {
         let mut output = VecSet::new();
         let db = env.db();
         match *self.kind(db) {
             SymTyKind::Perm(lhs, rhs) => {
-                let lhs_chains = lhs.to_red_perms(env).await?;
-                let rhs_chains = rhs.to_red_perms(env).await?;
+                let lhs_chains = lhs.to_red_perms(env, live_after).await?;
+                let rhs_chains = rhs.to_red_perms(env, live_after).await?;
                 for lhs_chain in &lhs_chains {
                     for rhs_chain in &rhs_chains {
                         output.insert(lhs_chain.concat(env, rhs_chain).await?);

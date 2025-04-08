@@ -1,6 +1,9 @@
-use crate::ir::{
-    classes::SymAggregate,
-    functions::{SymFunction, SymFunctionSource, SymInputOutput},
+use crate::{
+    check::CheckTyInEnv,
+    ir::{
+        classes::SymAggregate,
+        functions::{SymFunction, SymFunctionSource, SymInputOutput},
+    },
 };
 use dada_ir_ast::{
     ast::{AstAggregate, AstBlock},
@@ -14,7 +17,9 @@ use crate::{
     ir::exprs::{SymExpr, SymExprKind, SymPlaceExpr, SymPlaceExprKind},
 };
 
-use super::{CheckInEnv, report::InvalidReturnValue, resolve::Resolver};
+use super::{
+    CheckExprInEnv, live_places::LivePlaces, report::InvalidReturnValue, resolve::Resolver,
+};
 
 pub(crate) fn check_function_body<'db>(
     db: &'db dyn crate::Db,
@@ -121,8 +126,10 @@ fn check_function_body_ast_block<'db>(
                 },
             ) = prepare_env(db, runtime, function).await;
             env.log("check_function_body_ast_block", &[&function, &body]);
-            let expr = body.check_in_env(&mut env).await;
+            let live_after = LivePlaces::none(&env);
+            let expr = body.check_in_env(&mut env, live_after).await;
             env.spawn_require_assignable_type(
+                live_after,
                 expr.ty(db),
                 output_ty,
                 &InvalidReturnValue::new(expr, output_ty),

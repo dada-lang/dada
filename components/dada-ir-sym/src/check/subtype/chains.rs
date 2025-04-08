@@ -7,6 +7,7 @@ use crate::{
         debug::TaskDescription,
         env::Env,
         inference::Direction,
+        live_places::LivePlaces,
         predicates::{
             Predicate, is_provably_copy::term_is_provably_copy, require_copy::require_term_is_copy,
             require_term_is_my, term_is_provably_my,
@@ -32,6 +33,7 @@ use crate::{
 
 pub async fn require_sub_opt_perms<'db>(
     env: &mut Env<'db>,
+    live_after: LivePlaces,
     lower_perm: Option<SymPerm<'db>>,
     upper_perm: Option<SymPerm<'db>>,
     or_else: &dyn OrElse<'db>,
@@ -39,8 +41,8 @@ pub async fn require_sub_opt_perms<'db>(
     let db = env.db();
     let lower_perm = lower_perm.unwrap_or_else(|| SymPerm::my(db));
     let upper_perm = upper_perm.unwrap_or_else(|| SymPerm::my(db));
-    let lower_chains = lower_perm.to_red_perms(env).await?;
-    let upper_chains = upper_perm.to_red_perms(env).await?;
+    let lower_chains = lower_perm.to_red_perms(env, live_after).await?;
+    let upper_chains = upper_perm.to_red_perms(env, live_after).await?;
     require_sub_red_perms(env, &lower_chains, &upper_chains, or_else).await
 }
 
