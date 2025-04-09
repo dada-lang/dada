@@ -27,7 +27,7 @@ use crate::{
     },
 };
 
-use super::chains::require_sub_opt_perms;
+use super::perms::require_sub_opt_perms;
 
 pub async fn require_assignable_type<'db>(
     env: &mut Env<'db>,
