@@ -22,7 +22,9 @@ impl Main {
             );
         }
 
-        let _ = bytes;
+        if let Some(bytes) = bytes {
+            dada_run::run_bytes(bytes)?;
+        }
 
         Ok(())
     }
