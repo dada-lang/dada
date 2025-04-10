@@ -1,0 +1,8 @@
+[package]
+name = "dada-run"
+version.workspace = true
+edition.workspace = true
+
+[dependencies]
+dada-util = { version = "0.1.0", path = "../dada-util" }
+wasmtime = "31.0.0"

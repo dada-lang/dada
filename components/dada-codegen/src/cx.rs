@@ -1,7 +1,7 @@
 use dada_ir_sym::{ir::functions::SymFunction, ir::types::SymGenericTerm};
 use dada_util::{FromImpls, Map};
 use salsa::Update;
-use wasm_encoder::{CodeSection, FunctionSection, TypeSection};
+use wasm_encoder::{CodeSection, ExportKind, ExportSection, FunctionSection, TypeSection};
 
 mod generate_expr;
 mod generate_fn;
@@ -14,6 +14,7 @@ pub(crate) struct Cx<'db> {
     function_section: FunctionSection,
     type_section: TypeSection,
     code_section: CodeSection,
+    export_section: ExportSection,
     functions: Map<FnKey<'db>, FnIndex>,
     codegen_queue: Vec<CodegenQueueItem<'db>>,
 }
@@ -25,6 +26,7 @@ impl<'db> Cx<'db> {
             function_section: Default::default(),
             type_section: Default::default(),
             code_section: Default::default(),
+            export_section: Default::default(),
             functions: Default::default(),
             codegen_queue: Default::default(),
         }
@@ -36,16 +38,20 @@ impl<'db> Cx<'db> {
         function: SymFunction<'db>,
         generics: Vec<SymGenericTerm<'db>>,
     ) -> wasm_encoder::Module {
-        self.declare_fn(function, generics);
+        let index = self.declare_fn(function, generics);
         while let Some(item) = self.codegen_queue.pop() {
             match item {
                 CodegenQueueItem::Function(fn_key) => self.codegen_fn(fn_key),
             }
         }
 
+        let name = function.name(self.db).text(self.db);
+        self.export_section.export(name, ExportKind::Func, index.0);
+
         let mut module = wasm_encoder::Module::new();
         module.section(&self.type_section);
         module.section(&self.function_section);
+        module.section(&self.export_section);
         module.section(&self.code_section);
 
         module
