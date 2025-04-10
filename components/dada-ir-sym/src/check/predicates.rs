@@ -30,7 +30,7 @@ use crate::ir::types::SymGenericTerm;
 use super::{
     env::Env,
     inference::Direction,
-    red::{RedPerm, Lien, RedTy},
+    red::{Lien, RedPerm, RedTy},
     report::OrElse,
 };
 
@@ -141,6 +141,7 @@ pub async fn require_chain_isnt<'db>(
         Predicate::Lent => todo!(),
     }
 }
+
 #[boxed_async_fn]
 pub(crate) async fn red_ty_is_provably<'db>(
     env: &mut Env<'db>,

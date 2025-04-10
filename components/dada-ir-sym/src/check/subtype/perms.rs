@@ -9,7 +9,11 @@ use crate::{
         inference::Direction,
         live_places::LivePlaces,
         predicates::{
-            Predicate, is_provably_copy::term_is_provably_copy, require_copy::require_term_is_copy,
+            Predicate,
+            is_provably_copy::{perm_is_provably_copy, term_is_provably_copy},
+            is_provably_move::perm_is_provably_move,
+            is_provably_owned::perm_is_provably_owned,
+            require_copy::require_term_is_copy,
             require_term_is_my, term_is_provably_my,
         },
         red::{Lien, RedPerm},
@@ -41,21 +45,64 @@ pub async fn require_sub_opt_perms<'db>(
     let db = env.db();
     let lower_perm = lower_perm.unwrap_or_else(|| SymPerm::my(db));
     let upper_perm = upper_perm.unwrap_or_else(|| SymPerm::my(db));
-    let lower_chains = lower_perm.to_red_perms(env, live_after).await?;
-    let upper_chains = upper_perm.to_red_perms(env, live_after).await?;
-    require_sub_red_perms(env, &lower_chains, &upper_chains, or_else).await
+    require_sub_perms(env, live_after, lower_perm, upper_perm, or_else).await
 }
 
-pub async fn require_sub_red_perms<'db>(
+async fn require_sub_perms<'db>(
     env: &mut Env<'db>,
-    lower_chains: &VecSet<RedPerm<'db>>,
-    upper_chains: &VecSet<RedPerm<'db>>,
+    live_after: LivePlaces,
+    lower_perm: SymPerm<'db>,
+    upper_perm: SymPerm<'db>,
     or_else: &dyn OrElse<'db>,
 ) -> Errors<()> {
+    // First check if this is a case of `my <: P` (true for any P where P != leased)
+    // or `our <: P` (true for any P where P is copy).
+    if perm_is_provably_owned(env, lower_perm).await? {
+        if perm_is_provably_move(env, lower_perm).await? {
+            return require_sub_my(env, upper_perm, or_else).await;
+        } else if perm_is_provably_copy(env, lower_perm).await? {
+            return require_sub_our(env, upper_perm, or_else).await;
+        }
+    }
+
+    let lower_chains = lower_perm.to_red_perms(env, live_after).await?;
+    let upper_chains = upper_perm.to_red_perms(env, live_after).await?;
     env.require_for_all(lower_chains, async |env, lower_chain| {
-        require_sub_some(env, lower_chain, upper_chains, or_else).await
+        require_sub_some(env, &lower_chain, &upper_chains, or_else).await
     })
     .await
+}
+
+async fn require_sub_my<'db>(
+    env: &mut Env<'db>,
+    upper_perm: SymPerm<'db>,
+    or_else: &dyn OrElse<'db>,
+) -> Errors<()> {
+    // `our <: P` if `P` is copy
+    //
+    // NB. Simplification cannot change whether `P` is owned or copy.
+    env.require(
+        async |env| {
+            env.either(
+                async |env| perm_is_provably_owned(env, upper_perm).await,
+                async |env| perm_is_provably_copy(env, upper_perm).await,
+            )
+            .await
+        },
+        |env| or_else.report(env, Because::JustSo),
+    )
+    .await
+}
+
+async fn require_sub_our<'db>(
+    env: &mut Env<'db>,
+    upper_perm: SymPerm<'db>,
+    or_else: &dyn OrElse<'db>,
+) -> Errors<()> {
+    // `our <: P` if `P` is copy
+    //
+    // NB. Simplification cannot change whether `P` is copy.
+    require_term_is_copy(env, upper_perm.into(), or_else).await
 }
 
 async fn require_sub_some<'db>(
