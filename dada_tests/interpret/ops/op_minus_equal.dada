@@ -1,7 +1,0 @@
-async fn main() {
-    let x = 4
-    x -= 2
-    if x == 2 {
-        print("Huzzah").await #! OUTPUT Huzzah
-    }
-}

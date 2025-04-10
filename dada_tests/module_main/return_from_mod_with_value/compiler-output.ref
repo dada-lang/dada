@@ -1,7 +1,0 @@
-Error: cannot return a value in this function
-   ╭─[dada_tests/module_main/return_from_mod_with_value.dada:2:8]
-   │
- 2 │ return 22
-   ·        ─┬  
-   ·         ╰── can only write `return` (without a value) in this function
-───╯

@@ -1,5 +1,0 @@
-let x = "\n\n    Hello, world\n"
-let y = "\n
-    Hello, world
-"
-print(x == y).await #! OUTPUT true

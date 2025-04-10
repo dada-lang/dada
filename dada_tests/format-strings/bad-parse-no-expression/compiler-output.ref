@@ -1,7 +1,0 @@
-Error: expected expression here
-   ╭─[dada_tests/format-strings/bad-parse-no-expression.dada:1:11]
-   │
- 1 │ let p = "{}"
-   ·           │ 
-   ·           ╰─ here
-───╯

@@ -1,4 +1,0 @@
-let p = "{}"
-#! ERROR expected expression here
-print(p).await
-#! RUN ERROR compilation error encountered

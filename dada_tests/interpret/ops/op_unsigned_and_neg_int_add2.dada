@@ -1,4 +1,0 @@
-async fn main() {
-    print(22u + -11).await
-    #!    ^^^^^^^^^ RUN ERROR cannot apply operator \+ to an unsigned integer and a signed integer
-}

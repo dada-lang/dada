@@ -1,8 +1,0 @@
-class Point(x, y)
-
-let p = Point(22, 44).share
-print("{{
-    let z = p.x + p.y
-    z
-}}").await
-#!-3 OUTPUT 66

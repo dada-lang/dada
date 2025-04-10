@@ -1,6 +1,0 @@
-class Test(a)
-
-async fn main() {
-    let t = Test("foo")
-    print(t.a).await #! OUTPUT foo
-}

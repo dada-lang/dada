@@ -1,5 +1,0 @@
-async fn main() {
-    break
-    #! ERROR cannot `break` outside of a loop
-    #! RUN ERROR compilation error encountered
-}

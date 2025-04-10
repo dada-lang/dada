@@ -1,4 +1,0 @@
-fn main() {
-    0_u - 1_u
-#!  ^^^^^^^^^ RUN ERROR overflow
-}

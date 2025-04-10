@@ -1,5 +1,0 @@
-async fn main() {
-    let x = "foo"
-    let y = x + 44 + 66
-    #!      ^^^^^^ RUN ERROR cannot apply operator \+ to a string and an integer
-}

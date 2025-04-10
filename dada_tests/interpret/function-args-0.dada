@@ -1,9 +1,0 @@
-#! OUTPUT ANY
-
-async fn greet0() {
-    print("Hello you").await
-}
-
-async fn main() {
-    greet0().await
-}

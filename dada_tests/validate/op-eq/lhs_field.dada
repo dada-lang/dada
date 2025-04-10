@@ -1,7 +1,0 @@
-class Point(x, y)
-
-async fn main() {
-    let p = Point(22, 44)
-    p.x += 1
-    print(p).await #! OUTPUT Point\(23, 44\)
-}

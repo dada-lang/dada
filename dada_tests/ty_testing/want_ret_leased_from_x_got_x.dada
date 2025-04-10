@@ -1,9 +1,0 @@
-class Object()
-
-fn want(x: leased Object, y: leased Object) -> leased{x} Object {
-    x.lease
-}
-
-let a = Object()
-let b = Object()
-want(a.lease, b.lease) 

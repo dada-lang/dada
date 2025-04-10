@@ -1,9 +1,0 @@
-class Point(x, y)
-
-async fn main() {
-    let p = Point(22, 44).share
-    let q = Point(p, p)
-    #?             ^ HeapGraph
-    #
-    # Test that there is only q.x and q.y both have edges to p.
-}

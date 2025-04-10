@@ -1,3 +1,0 @@
-class Value(n)
-
-let v: Value = Value(22)

@@ -1,3 +1,0 @@
-class test()
-fn test() {}
-#! ERROR already have a class named `test`

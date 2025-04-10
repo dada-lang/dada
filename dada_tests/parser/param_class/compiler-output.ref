@@ -1,9 +1,0 @@
-Error: expected type after `:`
-    ╭─[dada_tests/parser/param_class.dada:13:46]
-    │
- 13 │     field2:  #! ERROR expected type after `:`
-    ·           ┬                                  ┬  
-    ·           ╰───────────────────────────────────── `:` is here
-    ·                                              │  
-    ·                                              ╰── here
-────╯

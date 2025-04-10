@@ -1,3 +1,0 @@
-class Value(n)
-
-class List(v: Value)

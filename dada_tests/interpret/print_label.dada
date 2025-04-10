@@ -1,4 +1,0 @@
-async fn main() {
-    print(message: "Hello, world").await
-    #! OUTPUT Hello, world
-}

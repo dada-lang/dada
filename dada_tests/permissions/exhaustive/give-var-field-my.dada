@@ -1,8 +1,0 @@
-class Pair(a, b)
-
-async fn main() {
-    let p = Pair(Pair(22, 44), 66)
-    let q = p.a.give
-    print(p).await #! OUTPUT Pair\(\(expired\), 66\)
-    print(q).await #! OUTPUT Pair\(22, 44\)
-}

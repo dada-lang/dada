@@ -1,8 +1,0 @@
-class Data(field)
-
-async fn main() {
-    let m = Data(22)
-    let s = m.share
-    print(m.field).await #! OUTPUT 22
-    print(s.field).await #! OUTPUT 22
-}

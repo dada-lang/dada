@@ -1,7 +1,0 @@
-Error: expected expression here
-   ╭─[dada_tests/format-strings/bad-parse-not-expression.dada:1:11]
-   │
- 1 │ let p = "{class Point(a, b)}"
-   ·           ────────┬────────  
-   ·                   ╰────────── here
-───╯
