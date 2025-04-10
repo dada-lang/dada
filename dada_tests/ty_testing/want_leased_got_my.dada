@@ -1,6 +1,0 @@
-class Object()
-
-fn want(s: leased Object) { }
-
-let o = Object()
-want(o.give) #! RUN ERROR expected a `leased` value, but got a `my` value

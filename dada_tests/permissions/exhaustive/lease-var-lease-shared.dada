@@ -1,9 +1,0 @@
-class Pair(a, b)
-
-async fn main() {
-    let p = Pair(22, 44).lease.share
-    let q = p.lease
-    print(q).await #! OUTPUT Pair\(22, 44\)
-    print(p).await #! OUTPUT Pair\(22, 44\)
-    print(q).await #! OUTPUT Pair\(22, 44\)
-}

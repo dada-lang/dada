@@ -1,8 +1,0 @@
-async fn main() {
-    let x = 2
-    print(x).await #! OUTPUT 2
-    x = 4
-    print(x).await #! OUTPUT 4
-    x = 8
-    print(x).await #! OUTPUT 8
-}

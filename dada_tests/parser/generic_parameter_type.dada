@@ -1,3 +1,0 @@
-class Bar[K, V]()
-
-fn foo[]() { }

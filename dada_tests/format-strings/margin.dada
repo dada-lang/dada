@@ -1,8 +1,0 @@
-print("
-    I have forced {"myself"} to contradict myself
-    in order to avoid conforming to my own taste.
-        -- Marcel Duchamp
-").await
-#!-4 OUTPUT I have forced myself to contradict myself\nin order to avoid conforming to my own taste.\n    -- Marcel Duchamp\n
-#
-# Note that there is still space around "myself".

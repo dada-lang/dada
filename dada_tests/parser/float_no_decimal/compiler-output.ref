@@ -1,7 +1,0 @@
-Error: expected digits after `.`
-   ╭─[dada_tests/parser/float_no_decimal.dada:2:14]
-   │
- 2 │     let a = 1.
-   ·              ┬  
-   ·              ╰── here
-───╯

@@ -1,9 +1,0 @@
-class Name(s)
-class Character(name: my Name)
-
-fn name(c: Character) -> shared{c} Name {
-    c.name.give #! RUN ERROR expected a shared value
-}
-
-let c1 = Character(Name("Achilles"))
-let n_given = name(c1.lease)

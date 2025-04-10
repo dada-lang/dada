@@ -1,7 +1,0 @@
-class Object(data)
-
-async fn main() {
-    # This is equivalent to `if { .. } else { .. }.lease`.
-    let o = if true { Object(true) } else { Object(false) }.lease
-    print(o).await  #! OUTPUT Object\(true\)
-}

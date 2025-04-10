@@ -1,7 +1,0 @@
-Error: cannot `break` outside of a loop
-   ╭─[dada_tests/validate/break_outside_loop.dada:2:5]
-   │
- 2 │     break
-   ·     ──┬──  
-   ·       ╰──── `break` outside of a loop here
-───╯

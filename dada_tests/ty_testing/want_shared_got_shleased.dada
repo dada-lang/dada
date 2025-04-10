@@ -1,6 +1,0 @@
-class Object()
-
-fn want(s: shared Object) { }
-
-let o = Object()
-want(o)

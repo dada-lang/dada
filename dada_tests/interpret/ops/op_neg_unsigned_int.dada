@@ -1,4 +1,0 @@
-fn main() {
-    -1u
-#!  ^^^ RUN ERROR cannot apply operator - to an unsigned integer
-}

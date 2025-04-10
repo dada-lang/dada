@@ -1,5 +1,0 @@
-fn main() {
-    let a = 1.
-    #!       ^ ERROR expected digits after `.`
-    #!      ^^ RUN ERROR compilation error encountered
-}

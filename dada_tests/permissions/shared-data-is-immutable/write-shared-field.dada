@@ -1,6 +1,0 @@
-class Pair(a, b)
-
-async fn main() {
-    let pair = Pair(22, 44).share
-    pair.a = 23 #! RUN ERROR cannot write to shared fields
-}

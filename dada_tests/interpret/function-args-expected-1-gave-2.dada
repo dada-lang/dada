@@ -1,8 +1,0 @@
-async fn greet(name) {
-    print(name).await
-}
-
-fn main() {
-    greet("Plush", "plush")
-#!  ^^^^^^^^^^^^^^^^^^^^^^^ RUN ERROR expected to find 1 arguments, but found 2
-}

@@ -1,7 +1,0 @@
-class Value(n)
-
-# Without paths
-class List1(v: my Value)
-class List2(v: our Value)
-class List3(v: shared Value)
-class List4(v: leased Value)

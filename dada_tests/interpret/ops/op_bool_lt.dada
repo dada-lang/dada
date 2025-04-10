@@ -1,4 +1,0 @@
-fn main() {
-    true < false
-#!  ^^^^^^^^^^^^ RUN ERROR cannot apply operator < to a boolean and a boolean
-}

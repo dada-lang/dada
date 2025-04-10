@@ -1,7 +1,0 @@
-Error: you can only assign to local variables and fields, not arbitrary expressions
-   ╭─[dada_tests/validate/op-eq/lhs_func_call.dada:5:5]
-   │
- 5 │     test(p.lease) += 1
-   ·     ──────┬──────  
-   ·           ╰──────── here
-───╯

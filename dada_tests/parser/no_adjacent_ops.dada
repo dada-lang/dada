@@ -1,8 +1,0 @@
-async fn main() {
-    let x = 22 + 44
-
-    # This `==` should not be parsed as `=`
-    if x == 66 {
-        print("Huzzah").await #! OUTPUT Huzzah
-    }
-}

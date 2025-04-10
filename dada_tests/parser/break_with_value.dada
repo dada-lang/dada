@@ -1,9 +1,0 @@
-class Pair(a, b)
-
-async fn main() {
-    let x = loop {
-        break Pair(22, 44)
-    }
-
-    print(x).await #! OUTPUT Pair\(22, 44\)
-}

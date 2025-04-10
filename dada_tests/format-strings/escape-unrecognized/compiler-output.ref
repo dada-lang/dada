@@ -1,7 +1,0 @@
-Error: unrecognized escape `\a`
-   ╭─[dada_tests/format-strings/escape-unrecognized.dada:1:9]
-   │
- 1 │ let x = "\a" #! ERROR unrecognized escape `\\a`
-   ·         ──┬─  
-   ·           ╰─── here
-───╯

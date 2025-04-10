@@ -1,6 +1,0 @@
-class Foo(arg)
-
-async fn main() {
-    let x = Foo(arg: 10, arg2: 22)
-    #!      ^^^^^^^^^^^^^^^^^^^^^^ RUN ERROR expected to find 1 arguments, but found 2
-}

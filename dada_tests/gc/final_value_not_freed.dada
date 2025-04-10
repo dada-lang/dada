@@ -1,8 +1,0 @@
-# Test that we don't free `print` before it happens
-# a change to be printed (used to panic).
-
-#! OUTPUT ANY
-
-async fn main() -> {
-    print
-}

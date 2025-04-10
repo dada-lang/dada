@@ -1,6 +1,0 @@
-let x = "Hello, \nworld,\n\nhow are you?"
-let y = "
-  Hello, {"\nworld,\n"}
-  how are you?
-"
-print(x == y).await #! OUTPUT true

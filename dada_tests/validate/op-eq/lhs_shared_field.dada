@@ -1,7 +1,0 @@
-class Point(x, y)
-
-async fn main() {
-    let p = Point(22, 44).share
-    p.x += 1 #! RUN ERROR cannot write to shared fields
-    print(p).await
-}

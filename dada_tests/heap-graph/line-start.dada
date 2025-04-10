@@ -1,8 +1,0 @@
-class Point(x, y)
-
-async fn main() {
-    let p = Point(22, 44)
-#?^ HeapGraph
-    let q = Point(p, 66)
-#?^ HeapGraph
-}

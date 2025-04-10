@@ -1,7 +1,0 @@
-class Point(x, y)
-let p = Point(22, 44)
-let q = Point(66, 88)
-let t = true
-if t { p.lease } else { q.lease }.x += 1
-print(p).await #! OUTPUT Point\(23, 44\)
-print(q).await #! OUTPUT Point\(66, 88\)

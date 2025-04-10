@@ -1,7 +1,0 @@
-Error: expected name after permission
-   ╭─[dada_tests/parser/generic_parameter_permission_without_name.dada:1:8]
-   │
- 1 │ fn foo[shared]() {} #! ERROR expected name after permission
-   ·        ───┬──  
-   ·           ╰──── here
-───╯

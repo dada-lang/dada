@@ -1,4 +1,0 @@
-class Point(x, y)
-let p = Point(22, 44)
-p.x += p.y
-print(p).await #! OUTPUT Point\(66, 44\)

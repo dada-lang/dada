@@ -1,5 +1,0 @@
-class Object()
-
-fn want(s: shared Object) { }
-
-want(Object()) #! RUN ERROR expected a `shared` value, but got a `my` value
