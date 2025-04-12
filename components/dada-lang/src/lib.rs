@@ -66,6 +66,8 @@ pub enum Command {
 pub struct CompileOptions {
     /// Main source file to compile.
     input: String,
+    #[structopt(long)]
+    emit_wasm: Option<String>,
 }
 
 #[derive(Debug, StructOpt)]

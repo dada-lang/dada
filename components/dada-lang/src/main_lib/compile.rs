@@ -18,6 +18,11 @@ impl Main {
         let mut compiler = Compiler::new(RealFs::default(), debug_tx);
         let source_url = Path::new(&compile_options.input);
         let source_file = compiler.load_source_file(source_url)?;
+        let bytes = if compile_options.emit_wasm.is_some() {
+            compiler.codegen_main_fn(source_file)
+        } else {
+            &None
+        };
         let diagnostics = compiler.check_all(source_file);
 
         for diagnostic in &diagnostics {
@@ -30,6 +35,13 @@ impl Main {
         // In debug mode, diagnostics get reported to the `debug_tx` and aren't considered errors.
         if !debug_mode && diagnostics.iter().any(|d| d.level >= Level::Error) {
             bail!("compilation failed due to errors");
+        }
+
+        if let Some(wasm_path) = compile_options.emit_wasm.as_ref() {
+            let wasm_path = Path::new(wasm_path);
+            if let Some(bytes) = bytes {
+                std::fs::write(wasm_path, bytes)?;
+            }
         }
 
         Ok(())
