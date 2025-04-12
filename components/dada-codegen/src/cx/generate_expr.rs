@@ -57,6 +57,7 @@ impl<'cx, 'db> ExprCodegen<'cx, 'db> {
         for instruction in self.instructions {
             f.instruction(&instruction);
         }
+        f.instruction(&Instruction::End);
         f
     }
 
@@ -73,8 +74,8 @@ impl<'cx, 'db> ExprCodegen<'cx, 'db> {
             self.insert_variable(input, input_ty);
             self.pop_and_store(&self.place_for_local(input));
         }
-        self.instructions
-            .push(Instruction::LocalSet(self.wasm_stack_pointer.index));
+        //self.instructions
+        //    .push(Instruction::LocalSet(self.wasm_stack_pointer.index));
     }
 
     /// Generate code to execute the expression, leaving the result on the top of the wasm stack.
