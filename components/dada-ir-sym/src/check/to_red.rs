@@ -2,6 +2,8 @@
 //! They can only be produced after inference is complete as they require enumerating the bounds of inference variables.
 //! They are used in borrow checking and for producing the final version of each inference variable.
 
+use std::{boxed, pin::Pin};
+
 use dada_ir_ast::diagnostic::{Err, Errors};
 use dada_util::{boxed_async_fn, vecset::VecSet};
 
@@ -12,13 +14,14 @@ use crate::ir::{
 
 use super::{
     Env,
+    inference::Direction,
     live_places::LivePlaces,
     places::PlaceTy,
     predicates::{
         Predicate, is_provably_copy::place_is_provably_copy, test_perm_infer_is_known_to_be,
         test_var_is_provably,
     },
-    red::{Lien, RedPerm, RedTy},
+    red::{RedPerm, RedPermLink, RedTy},
     runtime::Runtime,
 };
 
@@ -36,15 +39,15 @@ impl<'db> ChainExt<'db> for RedPerm<'db> {
         if other.is_copy(env).await? {
             Ok(other.clone())
         } else {
-            let mut links = self.liens.clone();
-            links.extend(other.liens.iter());
+            let mut links = self.links.clone();
+            links.extend(other.links.iter());
             Ok(Self::new(env.db(), links))
         }
     }
 
     /// See [`ChainExt::is_copy`][].
     async fn is_copy(&self, env: &mut Env<'db>) -> Errors<bool> {
-        for lien in &self.liens {
+        for lien in &self.links {
             if lien.is_copy(env).await? {
                 return Ok(true);
             }
@@ -58,15 +61,15 @@ trait LienExt<'db>: Sized {
     async fn is_copy(&self, env: &mut Env<'db>) -> Errors<bool>;
 }
 
-impl<'db> LienExt<'db> for Lien<'db> {
+impl<'db> LienExt<'db> for RedPermLink<'db> {
     /// See [`LienExt::is_copy`][].
     async fn is_copy(&self, env: &mut Env<'db>) -> Errors<bool> {
         match *self {
-            Lien::Our | Lien::Shared(_) => Ok(true),
-            Lien::Leased(_) => Ok(false),
-            Lien::Var(v) => Ok(test_var_is_provably(env, v, Predicate::Copy)),
-            Lien::Infer(v) => test_perm_infer_is_known_to_be(env, v, Predicate::Copy).await,
-            Lien::Error(reported) => Err(reported),
+            RedPermLink::Our | RedPermLink::Shared(_) => Ok(true),
+            RedPermLink::Leased(_) => Ok(false),
+            RedPermLink::Var(v) => Ok(test_var_is_provably(env, v, Predicate::Copy)),
+            RedPermLink::Infer(v) => test_perm_infer_is_known_to_be(env, v, Predicate::Copy).await,
+            RedPermLink::Error(reported) => Err(reported),
         }
     }
 }
@@ -163,107 +166,138 @@ impl<'db> ToRedTy<'db> for SymPerm<'db> {
     }
 }
 
-pub trait ToRedPerms<'db> {
-    async fn to_red_perms(
-        &self,
-        env: &mut Env<'db>,
-        live_after: LivePlaces,
-    ) -> Errors<VecSet<RedPerm<'db>>>;
+/// Create a "red perm", which is basically a flatted view of a perm.
+/// Note that this method does only minimal simplification.
+/// It does not check for dead places nor does it query the bounds
+/// on inference variables. Callers are expected to manage that.
+pub trait ToRedPerm<'db> {
+    fn to_red_perm(&self, env: &mut Env<'db>) -> RedPerm<'db>;
 }
 
-impl<'db> ToRedPerms<'db> for SymPerm<'db> {
-    #[boxed_async_fn]
-    async fn to_red_perms(
-        &self,
-        env: &mut Env<'db>,
-        live_after: LivePlaces,
-    ) -> Errors<VecSet<RedPerm<'db>>> {
-        let mut output = VecSet::new();
-        let db = env.db();
-        match *self.kind(db) {
-            SymPermKind::My => {
-                output.insert(RedPerm::my(db));
-            }
-            SymPermKind::Our => {
-                output.insert(RedPerm::our(db));
-            }
-            SymPermKind::Shared(ref places) => {
-                for &place in places {
-                    if place_is_provably_copy(env, place).await.is_ok() {
-                        output.extend(place.to_red_perms(env, live_after).await?);
-                    } else {
-                        output.insert(RedPerm::shared(env.db(), place));
-                    }
-                }
-            }
-            SymPermKind::Leased(ref places) => {
-                for &place in places {
-                    if place_is_provably_copy(env, place).await.is_ok() {
-                        output.extend(place.to_red_perms(env, live_after).await?);
-                    } else {
-                        output.insert(RedPerm::leased(db, place));
-                    }
-                }
-            }
-            SymPermKind::Apply(lhs, rhs) => {
-                let lhs_chains = lhs.to_red_perms(env, live_after).await?;
-                let rhs_chains = rhs.to_red_perms(env, live_after).await?;
-                for lhs_chain in &lhs_chains {
-                    for rhs_chain in &rhs_chains {
-                        output.insert(lhs_chain.concat(env, rhs_chain).await?);
-                    }
-                }
-            }
-            SymPermKind::Infer(v) => {
-                output.insert(RedPerm::infer(db, v));
-            }
-            SymPermKind::Var(v) => {
-                output.insert(RedPerm::var(db, v));
-            }
-            SymPermKind::Error(reported) => return Err(reported),
-        }
-        Ok(output)
+impl<'db> ToRedPerm<'db> for SymPerm<'db> {
+    fn to_red_perm(&self, env: &mut Env<'db>) -> RedPerm<'db> {
+        let mut output = RedPerm::my(env.db());
+        push_links_from_perm(env, *self, &mut output);
+        output
     }
 }
 
-impl<'db> ToRedPerms<'db> for SymPlace<'db> {
-    async fn to_red_perms(
-        &self,
-        env: &mut Env<'db>,
-        live_after: LivePlaces,
-    ) -> Errors<VecSet<RedPerm<'db>>> {
-        let ty = self.place_ty(env).await;
-        ty.to_red_perms(env, live_after).await
-    }
-}
-
-impl<'db> ToRedPerms<'db> for SymTy<'db> {
-    #[boxed_async_fn]
-    async fn to_red_perms(
-        &self,
-        env: &mut Env<'db>,
-        live_after: LivePlaces,
-    ) -> Errors<VecSet<RedPerm<'db>>> {
-        let mut output = VecSet::new();
+impl<'db> ToRedPerm<'db> for SymTy<'db> {
+    fn to_red_perm(&self, env: &mut Env<'db>) -> RedPerm<'db> {
         let db = env.db();
         match *self.kind(db) {
             SymTyKind::Perm(lhs, rhs) => {
-                let lhs_chains = lhs.to_red_perms(env, live_after).await?;
-                let rhs_chains = rhs.to_red_perms(env, live_after).await?;
-                for lhs_chain in &lhs_chains {
-                    for rhs_chain in &rhs_chains {
-                        output.insert(lhs_chain.concat(env, rhs_chain).await?);
-                    }
+                let mut lhs = lhs.to_red_perm(env);
+                let rhs = rhs.to_red_perm(env);
+                for link in rhs.links {
+                    push_red_link(env, link, &mut lhs);
                 }
+                lhs
             }
-            SymTyKind::Infer(infer) => {
-                output.insert(RedPerm::infer(db, env.perm_infer(infer)));
-            }
+            SymTyKind::Infer(infer) => SymPerm::infer(db, env.perm_infer(infer)).to_red_perm(env),
             SymTyKind::Never | SymTyKind::Named(..) | SymTyKind::Var(_) => {
-                output.insert(RedPerm::my(db));
+                SymPerm::my(db).to_red_perm(env)
             }
-            SymTyKind::Error(reported) => return Err(reported),
+            SymTyKind::Error(reported) => RedPerm::err(db, reported),
         }
-        Ok(output)
+    }
+}
+
+fn push_links_from_perm<'db>(env: &mut Env<'db>, perm: SymPerm<'db>, output: &mut RedPerm<'db>) {
+    let db = env.db();
+    match perm.kind(db) {
+        SymPermKind::My => {}
+        SymPermKind::Our => {
+            push_red_link(env, RedPermLink::Our, output);
+        }
+        SymPermKind::Shared(places) => {
+            push_red_link(env, RedPermLink::Shared(VecSet::from_iter(places)), output);
+        }
+        SymPermKind::Leased(places) => {
+            push_red_link(env, RedPermLink::Leased(VecSet::from_iter(places)), output);
+        }
+        SymPermKind::Apply(lhs, rhs) => {
+            push_links_from_perm(env, *lhs, output);
+            push_links_from_perm(env, *rhs, output);
+        }
+        SymPermKind::Infer(infer) => {
+            push_red_link(env, RedPermLink::Infer(*infer), output);
+        }
+        SymPermKind::Var(var) => {
+            push_red_link(env, RedPermLink::Var(*var), output);
+        }
+        SymPermKind::Error(reported) => {
+            push_red_link(env, RedPermLink::Error(*reported), output);
+        }
+    }
+}
+
+fn push_red_link<'db>(env: &mut Env<'db>, link: RedPermLink<'db>, output: &mut RedPerm<'db>) -> ! {
+    let db = env.db();
+    let clear = match link {
+        RedPermLink::Our | RedPermLink::Shared(_) => true,
+        RedPermLink::Leased(vec_set) => false,
+        RedPermLink::Var(var) => env.var_is_declared_to_be(*var, Predicate::Copy),
+        RedPermLink::Infer(infer_var_index) => false,
+        RedPermLink::Error(reported) => true,
+    };
+    if clear {
+        output.links.clear();
+    }
+    output.links.push(link);
+}
+
+#[boxed_async_fn]
+async fn simplify_red_perm<'db>(
+    env: &mut Env<'db>,
+    live_after: LivePlaces,
+    direction: Direction,
+    red_perm: RedPerm<'db>,
+    op: impl AsyncFnMut(&mut Env<'db>, RedPerm<'db>) -> Errors<()>,
+) -> Errors<()> {
+    let db = env.db();
+    let mut output = RedPerm::my(db);
+
+    // Step 1. Scan the links to find anything that is known to be copy.
+    let mut start_index = 0;
+    for (link, i) in output.links.iter().zip(0..) {
+        if is_copy_link(env, link)? {
+            start_index = i;
+        }
+    }
+
+    //
+
+    for link in red_perm.links {
+        // Our plan:
+        //
+        // * If LHS or RHS is just an inference variable-- add appropriate bound
+        // * Otherwise:
+        //   - Flatten any inference variable bounds into the red perm
+        //     - but what if we KNOW the inf variable is (say) copy but don't have a bound?
+        //       -> then we can ignore earlier links
+        //       - it seems to me that the "flattening" should occur when pushing something AFTER an inf variable
+        //   - In the end check for shared/leased/given from dead places
+
+        if let RedPermLink::Infer(infer) = link {
+        } else if let Some(RedPermLink::Infer(infer)) = output.links.last() {
+        } else {
+            push_red_link(env, link, &mut output);
+        }
+    }
+
+    Ok(())
+}
+
+fn is_copy_link<'db>(env: &Env<'db>, link: &RedPermLink<'db>) -> Errors<bool> {
+    match link {
+        RedPermLink::Our => Ok(true),
+        RedPermLink::Shared(_) => Ok(true),
+        RedPermLink::Leased(_) => Ok(false),
+        RedPermLink::Var(var) => Ok(env.var_is_declared_to_be(var, Predicate::Copy)),
+        RedPermLink::Infer(infer) => Ok(env.runtime().with_inference_var_data(*infer, |data| {
+            data.is_known_to_provably_be(Predicate::Copy).is_some()
+        })),
+        RedPermLink::Error(reported) => Err(*reported),
     }
 }

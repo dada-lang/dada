@@ -166,11 +166,11 @@ impl<'db> InferenceVarData<'db> {
     ///
     /// If this is not a permission variable.
     #[track_caller]
-    pub fn chain_bounds(&self, direction: Direction) -> &[(RedPerm<'db>, ArcOrElse<'db>)] {
+    pub fn red_perm_bound(&self, direction: Direction) -> Option<(RedPerm<'db>, ArcOrElse<'db>)> {
         match &self.bounds {
             InferenceVarBounds::Perm { lower, upper, .. } => match direction {
-                Direction::FromBelow => lower,
-                Direction::FromAbove => upper,
+                Direction::FromBelow => lower.clone(),
+                Direction::FromAbove => upper.clone(),
             },
             _ => panic!("lower_chains invoked on a var of kind `{:?}`", self.kind()),
         }
@@ -204,13 +204,13 @@ impl<'db> InferenceVarData<'db> {
 
     /// Insert a chain as a lower bound.
     /// Returns `Some(or_else.to_arc())` if this is a new upper bound.
-    pub fn insert_chain_bound(
+    pub fn set_red_perm_bound(
         &mut self,
-        chain: &RedPerm<'db>,
+        red_perm: &RedPerm<'db>,
         direction: Direction,
         or_else: &dyn OrElse<'db>,
-    ) -> Option<ArcOrElse<'db>> {
-        let chain_bounds = match &mut self.bounds {
+    ) {
+        let red_perm_bound = match &mut self.bounds {
             InferenceVarBounds::Perm { lower, upper, .. } => match direction {
                 Direction::FromBelow => lower,
                 Direction::FromAbove => upper,
@@ -220,12 +220,7 @@ impl<'db> InferenceVarData<'db> {
                 self.kind()
             ),
         };
-        if chain_bounds.iter().any(|pair| pair.0 == *chain) {
-            return None;
-        }
-        let or_else = or_else.to_arc();
-        chain_bounds.push((chain.clone(), or_else.clone()));
-        Some(or_else)
+        *red_perm_bound = Some((red_perm.clone(), or_else.to_arc()));
     }
 
     /// Overwrite the lower or upper bounding red ty, depending on `direction`.
@@ -276,8 +271,8 @@ pub enum InferenceVarBounds<'db> {
     /// This in turn implies that `L <: U`
     /// for all `L in lower`, `U in upper`.
     Perm {
-        lower: Vec<(RedPerm<'db>, ArcOrElse<'db>)>,
-        upper: Vec<(RedPerm<'db>, ArcOrElse<'db>)>,
+        lower: Option<(RedPerm<'db>, ArcOrElse<'db>)>,
+        upper: Option<(RedPerm<'db>, ArcOrElse<'db>)>,
     },
 
     /// Bounds for a type:

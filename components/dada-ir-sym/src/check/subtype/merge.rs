@@ -1,6 +1,6 @@
 //! Code to resolve inference variables to concrete types and permissions.
 
-use dada_ir_ast::diagnostic::{Diagnostic, Err, Level, Reported};
+use dada_ir_ast::diagnostic::{Diagnostic, Err, Errors, Level, Reported};
 use dada_util::Set;
 
 use crate::ir::{
@@ -9,20 +9,20 @@ use crate::ir::{
     types::{SymGenericTerm, SymPerm, SymPermKind, SymPlace, SymTy, SymTyKind},
 };
 
-use super::{
+use crate::check::{
     Env,
     inference::{Direction, InferVarKind},
     predicates::Predicate,
     red::{RedPerm, RedPermLink, RedTy},
 };
 
-pub struct Resolver<'env, 'db> {
+pub struct Merger<'env, 'db> {
     db: &'db dyn crate::Db,
     env: &'env mut Env<'db>,
     var_stack: Set<InferVarIndex>,
 }
 
-impl<'env, 'db> Resolver<'env, 'db> {
+impl<'env, 'db> Merger<'env, 'db> {
     pub fn new(env: &'env mut Env<'db>) -> Self {
         assert!(
             env.runtime().check_complete(),
@@ -36,51 +36,7 @@ impl<'env, 'db> Resolver<'env, 'db> {
         }
     }
 
-    /// Return a version of `term` in which all inference variables are (deeply) removed.
-    pub fn resolve<T>(&mut self, term: T) -> T::Output
-    where
-        T: Subst<'db, GenericTerm = SymGenericTerm<'db>>,
-    {
-        let mut bound_vars = self.env.bound_vars();
-        term.resolve_infer_var(self.db, &mut bound_vars, |infer| {
-            match self.resolve_infer_var(infer) {
-                Ok(v) => Some(v),
-                Result::Err(error) => Some(SymGenericTerm::err(self.db, self.report(infer, error))),
-            }
-        })
-    }
-
-    /// Resolve an inference variable to a generic term, given the variance of the location in which it appears
-    fn resolve_infer_var(
-        &mut self,
-        infer: InferVarIndex,
-    ) -> Result<SymGenericTerm<'db>, ResolverError<'db>> {
-        if self.var_stack.insert(infer) {
-            let mut compute_result = || -> Result<SymGenericTerm<'db>, ResolverError<'db>> {
-                match self.env.infer_var_kind(infer) {
-                    InferVarKind::Type => {
-                        if let Some(ty) = self.bounding_ty(infer, Direction::FromBelow)? {
-                            Ok(ty.into())
-                        } else if let Some(ty) = self.bounding_ty(infer, Direction::FromAbove)? {
-                            Ok(ty.into())
-                        } else {
-                            Err(ResolverError::NoBounds)
-                        }
-                    }
-
-                    InferVarKind::Perm => {
-                        Ok(self.bounding_perm(infer, Direction::FromBelow)?.into())
-                    }
-                }
-            };
-
-            let result = compute_result();
-            self.var_stack.remove(&infer);
-            result
-        } else {
-            Err(ResolverError::Cycle)
-        }
-    }
+    fn merge_perms(&mut self, lhs: SymPerm<'db>, rhs: SymPerm<'db>) -> Errors<SymPerm<'db>> {}
 
     fn report(&self, infer: InferVarIndex, err: ResolverError<'db>) -> Reported {
         let span = self.env.infer_var_span(infer);
@@ -175,7 +131,7 @@ impl<'env, 'db> Resolver<'env, 'db> {
     ) -> Result<SymPerm<'db>, ResolverError<'db>> {
         let runtime = self.env.runtime().clone();
         runtime.with_inference_var_data(infer, |data| {
-            let chains = data.red_perm_bound(direction);
+            let chains = data.chain_bounds(direction);
             self.merge_lien_chains(chains.iter().map(|pair| &pair.0), direction)
         })
     }
@@ -597,8 +553,8 @@ impl<'env, 'db> Resolver<'env, 'db> {
                 assert!(rest.is_empty());
                 return SymPerm::our(self.db);
             }
-            RedPermLink::Shared(sym_places) => SymPerm::shared(self.db, sym_places),
-            RedPermLink::Leased(sym_places) => SymPerm::leased(self.db, sym_places),
+            RedPermLink::Shared(places) => SymPerm::shared(self.db, places),
+            RedPermLink::Leased(places) => SymPerm::leased(self.db, places),
             RedPermLink::Var(sym_variable) => SymPerm::var(self.db, sym_variable),
             RedPermLink::Error(reported) => return SymPerm::err(self.db, reported),
             RedPermLink::Infer(infer) => self.resolve(SymPerm::infer(self.db, infer)),

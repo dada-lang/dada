@@ -8,7 +8,7 @@ use crate::{
             Predicate,
             var_infer::{require_infer_is, require_var_is},
         },
-        red::Lien,
+        red::RedPermLink,
         report::{Because, OrElse},
     },
     ir::{
@@ -38,11 +38,11 @@ pub(crate) async fn require_term_is_lent<'db>(
 /// Requires that the given chain is `lent`.
 pub(crate) async fn require_chain_is_lent<'db>(
     env: &mut Env<'db>,
-    chain: &[Lien<'db>],
+    chain: &[RedPermLink<'db>],
     or_else: &dyn OrElse<'db>,
 ) -> Errors<()> {
     let db = env.db();
-    let perm = Lien::chain_to_perm(db, chain);
+    let perm = RedPermLink::chain_to_perm(db, chain);
     require_perm_is_lent(env, perm, or_else).await
 }
 

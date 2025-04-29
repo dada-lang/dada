@@ -16,9 +16,9 @@ use crate::{
             require_copy::require_term_is_copy,
             require_term_is_my, term_is_provably_my,
         },
-        red::{Lien, RedPerm},
+        red::{RedPerm, RedPermLink},
         report::{Because, OrElse},
-        to_red::ToRedPerms,
+        to_red::ToRedPerm,
     },
     ir::{indices::InferVarIndex, types::SymPerm},
 };
@@ -65,13 +65,25 @@ async fn require_sub_perms<'db>(
         }
     }
 
-    let lower_chains = lower_perm.to_red_perms(env, live_after).await?;
-    let upper_chains = upper_perm.to_red_perms(env, live_after).await?;
-    env.require_for_all(lower_chains, async |env, lower_chain| {
-        require_sub_some(env, &lower_chain, &upper_chains, or_else).await
-    })
+    simplify_red_perm(
+        env,
+        live_after,
+        Direction::FromAbove,
+        lower_perm.to_red_perm(env),
+        async |env, lower_red_perm| {
+            simplify_red_perm(
+                env,
+                live_after,
+                Direction::FromBelow,
+                upper_perm.to_red_perm(env),
+                async |env, upper_red_perm| {},
+            )
+            .await
+        },
+    )
     .await
 }
+
 
 async fn require_sub_my<'db>(
     env: &mut Env<'db>,
@@ -139,8 +151,8 @@ async fn require_sub_some<'db>(
 async fn sub_chains<'db>(
     env: &mut Env<'db>,
     alternative: &mut Alternative<'_>,
-    lower_chain: &[Lien<'db>],
-    upper_chain: &[Lien<'db>],
+    lower_chain: &[RedPermLink<'db>],
+    upper_chain: &[RedPermLink<'db>],
     or_else: &dyn OrElse<'db>,
 ) -> Errors<bool> {
     env.indent("sub_chains", &[&lower_chain, &upper_chain], async |env| {
@@ -152,7 +164,7 @@ async fn sub_chains<'db>(
             }
 
             (Some(_), None) => {
-                let lower_term = Lien::chain_to_perm(db, lower_chain);
+                let lower_term = RedPermLink::chain_to_perm(db, lower_chain);
                 env.if_required(
                     alternative,
                     async |env| require_term_is_my(env, lower_term.into(), or_else).await,
@@ -173,10 +185,10 @@ async fn sub_chains<'db>(
 async fn sub_chains1<'db>(
     env: &mut Env<'db>,
     alternative: &mut Alternative<'_>,
-    lower_chain_head: Lien<'db>,
-    lower_chain_tail: &[Lien<'db>],
-    upper_chain_head: Lien<'db>,
-    upper_chain_tail: &[Lien<'db>],
+    lower_chain_head: RedPermLink<'db>,
+    lower_chain_tail: &[RedPermLink<'db>],
+    upper_chain_head: RedPermLink<'db>,
+    upper_chain_tail: &[RedPermLink<'db>],
     or_else: &dyn OrElse<'db>,
 ) -> Errors<bool> {
     let db = env.db();
@@ -186,9 +198,11 @@ async fn sub_chains1<'db>(
         upper_chain_head,
         upper_chain_tail,
     ) {
-        (Lien::Error(reported), _, _, _) | (_, _, Lien::Error(reported), _) => Err(reported),
+        (RedPermLink::Error(reported), _, _, _) | (_, _, RedPermLink::Error(reported), _) => {
+            Err(reported)
+        }
 
-        (Lien::Infer(v0), c0, _, _) => {
+        (RedPermLink::Infer(v0), c0, _, _) => {
             if c0.is_empty() {
                 env.if_required(
                     alternative,
@@ -207,7 +221,7 @@ async fn sub_chains1<'db>(
             }
         }
 
-        (_, _, Lien::Infer(v1), c1) => {
+        (_, _, RedPermLink::Infer(v1), c1) => {
             if c1.is_empty() {
                 env.if_required(
                     alternative,
@@ -226,9 +240,9 @@ async fn sub_chains1<'db>(
             }
         }
 
-        (Lien::Our, [], head1, tail1) => {
+        (RedPermLink::Our, [], head1, tail1) => {
             // `our <= C1 if C1 is copy`
-            let perm1 = Lien::head_tail_to_perm(db, head1, tail1);
+            let perm1 = RedPermLink::head_tail_to_perm(db, head1, tail1);
             env.if_required(
                 alternative,
                 async |env| require_term_is_copy(env, perm1.into(), or_else).await,
@@ -236,16 +250,16 @@ async fn sub_chains1<'db>(
             )
             .await
         }
-        (Lien::Our, c0, Lien::Our, c1) => {
+        (RedPermLink::Our, c0, RedPermLink::Our, c1) => {
             // `(our C0) <= (our C1) if C0 <= C1`
             sub_chains(env, alternative, c0, c1, or_else).await
         }
-        (Lien::Our, _, Lien::Leased(_), _) => Ok(false),
-        (Lien::Our, _, Lien::Shared(_), _) => Ok(false),
-        (Lien::Our, _, Lien::Var(_), _) => Ok(false),
+        (RedPermLink::Our, _, RedPermLink::Leased(_), _) => Ok(false),
+        (RedPermLink::Our, _, RedPermLink::Shared(_), _) => Ok(false),
+        (RedPermLink::Our, _, RedPermLink::Var(_), _) => Ok(false),
 
-        (Lien::Leased(_), _, Lien::Our, _) => Ok(false),
-        (Lien::Leased(place0), c0, Lien::Leased(place1), c1) => {
+        (RedPermLink::Leased(_), _, RedPermLink::Our, _) => Ok(false),
+        (RedPermLink::Leased(place0), c0, RedPermLink::Leased(place1), c1) => {
             // * `(leased[place0] C0) <= (leased[place1] C1) if place1 <= place0 && C0 <= C1`
             if place0.is_covered_by(db, place1) {
                 sub_chains(env, alternative, c0, c1, or_else).await
@@ -253,15 +267,15 @@ async fn sub_chains1<'db>(
                 Ok(false)
             }
         }
-        (Lien::Leased(_), _, Lien::Shared(_), _) => Ok(false),
-        (Lien::Leased(_), _, Lien::Var(_), _) => Ok(false),
+        (RedPermLink::Leased(_), _, RedPermLink::Shared(_), _) => Ok(false),
+        (RedPermLink::Leased(_), _, RedPermLink::Var(_), _) => Ok(false),
 
-        (Lien::Shared(place0), c0, Lien::Our, [lien1, c1 @ ..]) => {
+        (RedPermLink::Shared(place0), c0, RedPermLink::Our, [lien1, c1 @ ..]) => {
             // * `(shared[place0] C0) <= (our C1) if (leased[place0] C0) <= C1`
             sub_chains1(
                 env,
                 alternative,
-                Lien::Leased(place0),
+                RedPermLink::Leased(place0),
                 c0,
                 *lien1,
                 c1,
@@ -269,11 +283,11 @@ async fn sub_chains1<'db>(
             )
             .await
         }
-        (Lien::Shared(_), _, Lien::Our, []) => {
+        (RedPermLink::Shared(_), _, RedPermLink::Our, []) => {
             // See above rule: if C1 is [] then `leased[place0] C0 <= []` will also be false.
             Ok(false)
         }
-        (Lien::Shared(place0), c0, Lien::Shared(place1), c1) => {
+        (RedPermLink::Shared(place0), c0, RedPermLink::Shared(place1), c1) => {
             // * `(shared[place0] C0) <= (shared[place1] C1) if place1 <= place0 && C0 <= C1`
             if place0.is_covered_by(db, place1) {
                 sub_chains(env, alternative, c0, c1, or_else).await
@@ -281,16 +295,16 @@ async fn sub_chains1<'db>(
                 Ok(false)
             }
         }
-        (Lien::Shared(_), _, Lien::Leased(_), _) => Ok(false),
-        (Lien::Shared(_), _, Lien::Var(_), _) => Ok(false),
+        (RedPermLink::Shared(_), _, RedPermLink::Leased(_), _) => Ok(false),
+        (RedPermLink::Shared(_), _, RedPermLink::Var(_), _) => Ok(false),
 
-        (Lien::Var(v0), [], Lien::Our, []) => {
+        (RedPermLink::Var(v0), [], RedPermLink::Our, []) => {
             // `X <= our`
             Ok(env.var_is_declared_to_be(v0, Predicate::Copy)
                 && env.var_is_declared_to_be(v0, Predicate::Owned))
         }
-        (Lien::Var(_), _, Lien::Our, _) => Ok(false),
-        (Lien::Var(v0), c0, Lien::Var(v1), c1) => {
+        (RedPermLink::Var(_), _, RedPermLink::Our, _) => Ok(false),
+        (RedPermLink::Var(v0), c0, RedPermLink::Var(v1), c1) => {
             // * `X C0 <= X C1 if C0 <= C1`
             if v0 == v1 {
                 sub_chains(env, alternative, c0, c1, or_else).await
@@ -298,8 +312,8 @@ async fn sub_chains1<'db>(
                 Ok(false)
             }
         }
-        (Lien::Var(_), _, Lien::Leased(_), _) => Ok(false),
-        (Lien::Var(_), _, Lien::Shared(_), _) => Ok(false),
+        (RedPermLink::Var(_), _, RedPermLink::Leased(_), _) => Ok(false),
+        (RedPermLink::Var(_), _, RedPermLink::Shared(_), _) => Ok(false),
     }
 }
 
@@ -307,8 +321,8 @@ async fn sub_chains1<'db>(
 /// to `?L0`.
 async fn require_lower_chain<'db>(
     env: &mut Env<'db>,
-    lower_head: Lien<'db>,
-    lower_tail: &[Lien<'db>],
+    lower_head: RedPermLink<'db>,
+    lower_tail: &[RedPermLink<'db>],
     upper_head: InferVarIndex,
     or_else: &dyn OrElse<'db>,
 ) -> Errors<()> {
@@ -377,10 +391,10 @@ async fn require_lower_chain<'db>(
 /// (*) This is true but we ought to be propagating "layout".
 async fn splice_upper_bound<'db>(
     env: &mut Env<'db>,
-    lower_head: Lien<'db>,
-    lower_tail: &[Lien<'db>],
+    lower_head: RedPermLink<'db>,
+    lower_tail: &[RedPermLink<'db>],
     upper_head: InferVarIndex,
-    upper_tail: &[Lien<'db>],
+    upper_tail: &[RedPermLink<'db>],
     or_else: &dyn OrElse<'db>,
 ) -> Errors<bool> {
     let lower_chain = RedPerm::from_head_tail(env.db(), lower_head, lower_tail);
@@ -403,8 +417,8 @@ async fn splice_upper_bound<'db>(
 async fn require_upper_chain<'db>(
     env: &mut Env<'db>,
     lower_head: InferVarIndex,
-    upper_head: Lien<'db>,
-    upper_tail: &[Lien<'db>],
+    upper_head: RedPermLink<'db>,
+    upper_tail: &[RedPermLink<'db>],
     or_else: &dyn OrElse<'db>,
 ) -> Errors<()> {
     let upper_chain = RedPerm::from_head_tail(env.db(), upper_head, upper_tail);
@@ -426,9 +440,9 @@ async fn require_upper_chain<'db>(
 async fn splice_lower_bound<'db>(
     env: &mut Env<'db>,
     lower_head: InferVarIndex,
-    lower_tail: &[Lien<'db>],
-    upper_head: Lien<'db>,
-    upper_tail: &[Lien<'db>],
+    lower_tail: &[RedPermLink<'db>],
+    upper_head: RedPermLink<'db>,
+    upper_tail: &[RedPermLink<'db>],
     or_else: &dyn OrElse<'db>,
 ) -> Errors<bool> {
     let upper_chain = RedPerm::from_head_tail(env.db(), upper_head, upper_tail);

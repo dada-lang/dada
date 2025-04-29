@@ -25,12 +25,12 @@ use require_owned::{require_chain_is_owned, require_term_is_owned};
 use serde::Serialize;
 pub use var_infer::{test_perm_infer_is_known_to_be, test_var_is_provably};
 
-use crate::ir::types::SymGenericTerm;
+use crate::ir::types::{SymGenericTerm, SymPerm};
 
 use super::{
     env::Env,
     inference::Direction,
-    red::{Lien, RedPerm, RedTy},
+    red::{RedPerm, RedPermLink, RedTy},
     report::OrElse,
 };
 
@@ -113,7 +113,7 @@ pub(crate) async fn term_is_provably_leased<'db>(
 }
 
 #[boxed_async_fn]
-pub async fn require_chain_is<'db>(
+pub async fn require_red_perm_is<'db>(
     env: &mut Env<'db>,
     chain: &RedPerm<'db>,
     predicate: Predicate,
@@ -128,7 +128,7 @@ pub async fn require_chain_is<'db>(
 }
 
 #[boxed_async_fn]
-pub async fn require_chain_isnt<'db>(
+pub async fn require_red_perm_isnt<'db>(
     env: &mut Env<'db>,
     chain: &RedPerm<'db>,
     predicate: Predicate,
@@ -191,14 +191,25 @@ pub(crate) async fn term_is_provably_my<'db>(
     .await
 }
 
-#[boxed_async_fn]
-pub async fn chain_is_provably<'db>(
+pub async fn red_perm_is_provably<'db>(
     env: &mut Env<'db>,
-    chain: &RedPerm<'db>,
+    red_perm: &RedPerm<'db>,
     predicate: Predicate,
 ) -> Errors<bool> {
-    let db = env.db();
-    let perm = Lien::chain_to_perm(db, chain);
+    perm_is_provably(
+        env,
+        RedPermLink::chain_to_perm(env.db(), red_perm),
+        predicate,
+    )
+    .await
+}
+
+#[boxed_async_fn]
+pub async fn perm_is_provably<'db>(
+    env: &mut Env<'db>,
+    perm: SymPerm<'db>,
+    predicate: Predicate,
+) -> Errors<bool> {
     match predicate {
         Predicate::Copy => perm_is_provably_copy(env, perm).await,
         Predicate::Move => perm_is_provably_move(env, perm).await,
@@ -206,7 +217,6 @@ pub async fn chain_is_provably<'db>(
         Predicate::Lent => perm_is_provably_lent(env, perm).await,
     }
 }
-
 #[boxed_async_fn]
 pub async fn chain_isnt_provably<'db>(
     env: &mut Env<'db>,
@@ -214,7 +224,7 @@ pub async fn chain_isnt_provably<'db>(
     predicate: Predicate,
 ) -> Errors<bool> {
     let db = env.db();
-    let perm = Lien::chain_to_perm(db, chain);
+    let perm = RedPermLink::chain_to_perm(db, chain);
     match predicate {
         Predicate::Copy => perm_isnt_provably_copy(env, perm).await,
         Predicate::Move => todo!(),

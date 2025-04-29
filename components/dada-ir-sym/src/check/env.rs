@@ -586,16 +586,16 @@ impl<'db> Env<'db> {
     }
 
     #[track_caller]
-    pub fn insert_chain_bound(
+    pub fn set_red_perm_bound(
         &mut self,
         infer: InferVarIndex,
         chain: &RedPerm<'db>,
         direction: Direction,
         or_else: &dyn OrElse<'db>,
-    ) -> Option<ArcOrElse<'db>> {
+    ) {
         self.runtime
             .mutate_inference_var_data(infer, &self.log, |data| {
-                data.insert_chain_bound(chain, direction, or_else)
+                data.set_red_perm_bound(chain, direction, or_else)
             })
     }
 
