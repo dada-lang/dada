@@ -120,25 +120,3 @@ impl<T: Ord> From<T> for VecSet<T> {
         VecSet::singleton(value)
     }
 }
-
-impl<T: Ord> From<VecSet<T>> for Vec<T> {
-    fn from(value: VecSet<T>) -> Self {
-        value.sorted_elements
-    }
-}
-
-impl<'a, T: Ord + Copy> FromIterator<&'a T> for VecSet<T> {
-    fn from_iter<I: IntoIterator<Item = &'a T>>(iter: I) -> Self {
-        let mut v = VecSet::default();
-        v.extend(iter.into_iter().copied());
-        v
-    }
-}
-
-impl<T: Ord + Copy> FromIterator<T> for VecSet<T> {
-    fn from_iter<I: IntoIterator<Item = T>>(iter: I) -> Self {
-        let mut v = VecSet::default();
-        v.extend(iter);
-        v
-    }
-}

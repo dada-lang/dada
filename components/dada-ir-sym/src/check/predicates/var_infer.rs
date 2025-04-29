@@ -5,14 +5,14 @@ use crate::{
         debug::TaskDescription,
         env::Env,
         inference::{Direction, InferVarKind},
-        predicates::{Predicate, chain_isnt_provably, red_perm_is_provably},
+        predicates::{Predicate, chain_is_provably, chain_isnt_provably},
         red::RedPerm,
         report::{ArcOrElse, Because, OrElse},
     },
     ir::{indices::InferVarIndex, variables::SymVariable},
 };
 
-use super::{red_ty_is_provably, require_red_perm_is, require_red_perm_isnt};
+use super::{red_ty_is_provably, require_chain_is, require_chain_isnt};
 
 pub fn test_var_is_provably<'db>(
     env: &mut Env<'db>,
@@ -148,14 +148,18 @@ pub async fn test_ty_infer_is_known_to_be(
     let mut storage = None;
     loop {
         let Some((is, isnt, bound)) = env
-            .watch_inference_var(infer, &mut storage, |data| {
-                Some((
-                    data.is_known_to_provably_be(predicate).is_some(),
-                    data.is_known_not_to_provably_be(predicate).is_some(),
-                    data.red_ty_bound(predicate.bound_direction())
-                        .map(|pair| pair.0),
-                ))
-            })
+            .watch_inference_var(
+                infer,
+                |data| {
+                    (
+                        data.is_known_to_provably_be(predicate).is_some(),
+                        data.is_known_not_to_provably_be(predicate).is_some(),
+                        data.red_ty_bound(predicate.bound_direction())
+                            .map(|pair| pair.0),
+                    )
+                },
+                &mut storage,
+            )
             .await
         else {
             return Err(report_type_annotations_needed(env, infer, predicate));
@@ -178,17 +182,28 @@ pub async fn test_perm_infer_is_known_to_be<'db>(
     predicate: Predicate,
 ) -> Errors<bool> {
     assert_eq!(env.infer_var_kind(infer), InferVarKind::Perm);
+    let bound_direction = predicate.bound_direction();
     let mut storage = None;
     loop {
-        let Some((is, isnt, bound)) = env
-            .watch_inference_var(infer, &mut storage, |data| {
-                Some((
-                    data.is_known_to_provably_be(predicate).is_some(),
-                    data.is_known_not_to_provably_be(predicate).is_some(),
-                    data.red_perm_bound(predicate.bound_direction())
-                        .map(|b| b.0),
-                ))
-            })
+        let Some((is, isnt, lower_chains, upper_chains)) = env
+            .watch_inference_var(
+                infer,
+                |data| {
+                    (
+                        data.is_known_to_provably_be(predicate).is_some(),
+                        data.is_known_not_to_provably_be(predicate).is_some(),
+                        data.chain_bounds(Direction::FromBelow)
+                            .iter()
+                            .map(|pair| pair.0.clone())
+                            .collect::<Vec<RedPerm<'db>>>(),
+                        data.chain_bounds(Direction::FromAbove)
+                            .iter()
+                            .map(|pair| pair.0.clone())
+                            .collect::<Vec<RedPerm<'db>>>(),
+                    )
+                },
+                &mut storage,
+            )
             .await
         else {
             return Err(report_type_annotations_needed(env, infer, predicate));
@@ -198,8 +213,44 @@ pub async fn test_perm_infer_is_known_to_be<'db>(
             return Ok(true);
         } else if isnt {
             return Ok(false);
-        } else if let Some(bound) = bound {
-            return red_perm_is_provably(env, &bound, predicate).await;
+        } else {
+            // I'm not 100% sure about this part.
+            match bound_direction {
+                // `FromBelow` bounds are bound like `Copy` or `Lent`, which cannot be lost
+                // through upcasting. Therefore, if we find any lower chain for which the predicate
+                // holds, then the final type must meet this predicate. Similarly, if we can find
+                // an upper chain bound for which the predicate does NOT hold, then there is an error.
+                Direction::FromBelow => {
+                    if env
+                        .exists(lower_chains, async |env, chain| {
+                            chain_is_provably(env, &chain, predicate).await
+                        })
+                        .await?
+                    {
+                        return Ok(true);
+                    }
+
+                    if env
+                        .exists(upper_chains, async |env, chain| {
+                            chain_isnt_provably(env, &chain, predicate).await
+                        })
+                        .await?
+                    {
+                        return Ok(true);
+                    }
+                }
+
+                Direction::FromAbove => {
+                    if env
+                        .exists(lower_chains, async |env, chain| {
+                            chain_isnt_provably(env, &chain, predicate).await
+                        })
+                        .await?
+                    {
+                        return Ok(false);
+                    }
+                }
+            };
         }
     }
 }
@@ -214,7 +265,7 @@ fn defer_require_bounds_provably_predicate<'db>(
     env.spawn(
         TaskDescription::RequireBoundsProvablyPredicate(infer, predicate),
         async move |env| {
-            env.require_for_all_perm_bound(
+            env.require_for_all_chain_bounds(
                 perm_infer,
                 // We need to ensure that the *supertype* bound meets the predicate.
                 // This doesn't really depend on the predicate.
@@ -227,7 +278,7 @@ fn defer_require_bounds_provably_predicate<'db>(
                 //
                 // Analogous reasoning applies to `lent` and `owned`.
                 Direction::FromAbove,
-                async |env, chain| require_red_perm_is(env, &chain, predicate, &or_else).await,
+                async |env, chain| require_chain_is(env, &chain, predicate, &or_else).await,
             )
             .await
         },
@@ -247,8 +298,8 @@ fn defer_require_bounds_not_provably_predicate<'db>(
             // we need to ensure that the supertype isn't `Copy`.
             //
             // To show that it isn't `Move`, either suffices.
-            env.require_for_all_perm_bound(infer, Direction::FromAbove, async |env, chain| {
-                require_red_perm_isnt(env, &chain, predicate, &or_else).await
+            env.require_for_all_chain_bounds(infer, Direction::FromAbove, async |env, chain| {
+                require_chain_isnt(env, &chain, predicate, &or_else).await
             })
             .await
         },

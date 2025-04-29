@@ -248,65 +248,110 @@ impl<'db> Env<'db> {
     }
 
     #[track_caller]
-    pub fn require_for_all_perm_bound(
+    pub fn exists_chain_bound(
+        &mut self,
+        infer: InferVarIndex,
+        direction: Direction,
+        mut op: impl AsyncFnMut(&mut Env<'db>, RedPerm<'db>) -> Errors<bool>,
+    ) -> impl Future<Output = Errors<bool>> {
+        let compiler_location = Location::caller();
+
+        async move {
+            self.indent_with_compiler_location(
+                compiler_location,
+                "exists_chain_bound",
+                &[&infer],
+                async |env| {
+                    let mut observed = 0;
+                    let mut stack = vec![];
+
+                    loop {
+                        env.extract_bounding_chains(infer, &mut observed, &mut stack, direction)
+                            .await;
+
+                        while let Some(chain) = stack.pop() {
+                            env.log("new bound", &[&chain]);
+                            match op(env, chain).await {
+                                Ok(true) => return Ok(true),
+                                Ok(false) => (),
+                                Err(reported) => return Err(reported),
+                            }
+                        }
+                    }
+                },
+            )
+            .await
+        }
+    }
+
+    /// Invoke `op` on every bounding chain (either upper or lower determined by `direction`).
+    /// Typically never returns as the full set of bounds on an inference variable is never known.
+    /// Exception is if an `Err` occurs, it is propagated.
+    #[track_caller]
+    pub fn require_for_all_chain_bounds(
         &mut self,
         infer: InferVarIndex,
         direction: Direction,
         mut op: impl AsyncFnMut(&mut Env<'db>, RedPerm<'db>) -> Errors<()>,
     ) -> impl Future<Output = Errors<()>> {
         let compiler_location = Location::caller();
-        async move {
-            let mut storage = None;
-            loop {
-                let Some(value) = self
-                    .watch_inference_var_loc(
-                        infer,
-                        compiler_location,
-                        &mut storage,
-                        &mut |data: &InferenceVarData<'db>| {
-                            data.red_perm_bound(direction).map(|b| b.0)
-                        },
-                    )
-                    .await
-                else {
-                    return Ok(());
-                };
 
-                op(self, value).await?;
-            }
+        async move {
+            self.indent_with_compiler_location(
+                compiler_location,
+                "require_for_all_chain_bounds",
+                &[&infer],
+                async |env| {
+                    let mut observed = 0;
+                    let mut stack = vec![];
+
+                    while env
+                        .extract_bounding_chains(infer, &mut observed, &mut stack, direction)
+                        .await
+                    {
+                        while let Some(chain) = stack.pop() {
+                            env.log("new bound", &[&chain]);
+                            match op(env, chain).await {
+                                Ok(()) => (),
+                                Err(reported) => return Err(reported),
+                            }
+                        }
+                    }
+
+                    Ok(())
+                },
+            )
+            .await
         }
     }
 
-    #[track_caller]
-    pub fn exists_perm_bound(
+    /// Monitor the inference variable `infer` and push new bounding chains (either upper or lower
+    /// depending on `direction`) onto `stack`. The variable `observed` is used to track which
+    /// chains have been observed from previous invocations; it should begin as `0` and it will be
+    /// incremented during the call.
+    ///
+    /// Returns true if bounds were extracted and false if inference has completed and no more
+    /// bounds are forthcoming.
+    pub async fn extract_bounding_chains(
         &mut self,
         infer: InferVarIndex,
+        observed: &mut usize,
+        stack: &mut Vec<RedPerm<'db>>,
         direction: Direction,
-        mut op: impl AsyncFnMut(RedPerm<'db>) -> Errors<bool>,
-    ) -> impl Future<Output = Errors<bool>> {
-        let compiler_location = Location::caller();
-        async move {
-            let mut storage = None;
-            loop {
-                let Some(value) = self
-                    .watch_inference_var_loc(
-                        infer,
-                        compiler_location,
-                        &mut storage,
-                        &mut |data: &InferenceVarData<'db>| {
-                            data.red_perm_bound(direction).map(|b| b.0)
-                        },
-                    )
-                    .await
-                else {
-                    return Ok(false);
-                };
-
-                if op(value).await? {
-                    return Ok(true);
-                }
+    ) -> bool {
+        self.loop_on_inference_var(infer, |data| {
+            let chains = data.chain_bounds(direction);
+            assert!(stack.is_empty());
+            if *observed == chains.len() {
+                None
+            } else {
+                stack.extend(chains.iter().skip(*observed).map(|pair| pair.0.clone()));
+                *observed = chains.len();
+                Some(())
             }
-        }
+        })
+        .await
+        .is_some()
     }
 
     #[track_caller]
@@ -331,31 +376,16 @@ impl<'db> Env<'db> {
     pub fn watch_inference_var<T>(
         &self,
         infer: InferVarIndex,
+        mut op: impl FnMut(&InferenceVarData<'db>) -> T,
         storage: &mut Option<T>,
-        op: impl FnMut(&InferenceVarData<'db>) -> Option<T>,
     ) -> impl Future<Output = Option<T>>
     where
         T: Serialize + Eq + Clone,
     {
         let compiler_location = Location::caller();
-        self.watch_inference_var_loc(infer, compiler_location, storage, op)
-    }
-
-    /// Like [`Self::watch_inference_var`][] but takes an explicit compiler location.
-    /// Useful when calling from other `track_caller` methods.
-    pub fn watch_inference_var_loc<T>(
-        &self,
-        infer: InferVarIndex,
-        compiler_location: &'static Location<'static>,
-        storage: &mut Option<T>,
-        mut op: impl FnMut(&InferenceVarData<'db>) -> Option<T>,
-    ) -> impl Future<Output = Option<T>>
-    where
-        T: Serialize + Eq + Clone,
-    {
         self.runtime
             .loop_on_inference_var(infer, compiler_location, &self.log, move |data| {
-                let new_value = op(data)?;
+                let new_value = op(data);
 
                 if let Some(old_value) = &storage {
                     if *old_value == new_value {

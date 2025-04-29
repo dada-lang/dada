@@ -3,7 +3,6 @@
 //! They are used in borrow checking and for producing the final version of each inference variable.
 
 use dada_ir_ast::diagnostic::{Err, Reported};
-use dada_util::vecset::VecSet;
 use salsa::Update;
 use serde::Serialize;
 
@@ -19,24 +18,20 @@ use crate::ir::{
 /// which in turn had data leased from `q` (which in turn owned the data).
 #[derive(Debug, PartialEq, Eq, Clone, PartialOrd, Ord, Update, Serialize)]
 pub struct RedPerm<'db> {
-    pub links: Vec<RedPermLink<'db>>,
+    pub liens: Vec<Lien<'db>>,
 }
 
 impl<'db> RedPerm<'db> {
     /// Create a new [`Chain`].
-    pub fn new(_db: &'db dyn crate::Db, links: Vec<RedPermLink<'db>>) -> Self {
-        Self { links }
+    pub fn new(_db: &'db dyn crate::Db, links: Vec<Lien<'db>>) -> Self {
+        Self { liens: links }
     }
 
-    pub fn from_head_tail(
-        _db: &'db dyn crate::Db,
-        head: RedPermLink<'db>,
-        tail: &[RedPermLink<'db>],
-    ) -> Self {
+    pub fn from_head_tail(_db: &'db dyn crate::Db, head: Lien<'db>, tail: &[Lien<'db>]) -> Self {
         let mut liens = Vec::with_capacity(tail.len() + 1);
         liens.push(head);
-        liens.extend(tail.iter().cloned());
-        Self { links: liens }
+        liens.extend(tail);
+        Self { liens }
     }
 
     /// Create a "fully owned" lien chain.
@@ -46,65 +41,59 @@ impl<'db> RedPerm<'db> {
 
     /// Create a "shared ownership" lien chain.
     pub fn our(db: &'db dyn crate::Db) -> Self {
-        Self::new(db, vec![RedPermLink::Our])
+        Self::new(db, vec![Lien::Our])
     }
 
     /// Create a variable lien chain.
     pub fn var(db: &'db dyn crate::Db, v: SymVariable<'db>) -> Self {
-        Self::new(db, vec![RedPermLink::Var(v)])
+        Self::new(db, vec![Lien::Var(v)])
     }
 
     /// Create an inference lien chain.
     pub fn infer(db: &'db dyn crate::Db, v: InferVarIndex) -> Self {
-        Self::new(db, vec![RedPermLink::Infer(v)])
+        Self::new(db, vec![Lien::Infer(v)])
     }
 
     /// Create a lien chain representing "shared from `place`".
-    pub fn shared1(db: &'db dyn crate::Db, place: SymPlace<'db>) -> Self {
-        Self::shared(db, vec![place])
-    }
-
-    /// Create a lien chain representing "shared from `places`".
-    pub fn shared(db: &'db dyn crate::Db, places: Vec<SymPlace<'db>>) -> Self {
-        Self::new(db, vec![RedPermLink::Shared(places)])
+    pub fn shared(db: &'db dyn crate::Db, places: SymPlace<'db>) -> Self {
+        Self::new(db, vec![Lien::Shared(places)])
     }
 
     /// Create a lien chain representing "leased from `place`".
-    pub fn leased1(db: &'db dyn crate::Db, place: SymPlace<'db>) -> Self {
-        Self::leased(db, vec![place])
+    pub fn leased(db: &'db dyn crate::Db, places: SymPlace<'db>) -> Self {
+        Self::new(db, vec![Lien::Leased(places)])
     }
 
-    /// Create a lien chain representing "leased from `places`".
-    pub fn leased(db: &'db dyn crate::Db, places: Vec<SymPlace<'db>>) -> Self {
-        Self::new(db, vec![RedPermLink::Leased(places)])
+    pub fn extend(&mut self, liens: &[Lien<'db>]) {
+        self.liens.extend_from_slice(liens);
     }
 }
 
 impl<'db> std::ops::Deref for RedPerm<'db> {
-    type Target = [RedPermLink<'db>];
+    type Target = [Lien<'db>];
 
     fn deref(&self) -> &Self::Target {
-        &self.links
+        &self.liens
     }
 }
 
 impl<'db> Err<'db> for RedPerm<'db> {
     fn err(db: &'db dyn crate::Db, reported: Reported) -> Self {
-        RedPerm::new(db, vec![RedPermLink::Error(reported)])
+        RedPerm::new(db, vec![Lien::Error(reported)])
     }
 }
 
 /// An individual unit in a [`Chain`][], representing a particular way of reaching data.
-#[derive(Debug, PartialEq, Eq, Clone, PartialOrd, Ord, Update, Serialize)]
-pub enum RedPermLink<'db> {
+#[derive(Debug, PartialEq, Eq, Copy, Clone, PartialOrd, Ord, Update, Serialize)]
+pub enum Lien<'db> {
     /// Data mutually owned by many variables. This lien is always first in a chain.
     Our,
 
     /// Data shared from the given place. This lien is always first in a chain.
-    Shared(Vec<SymPlace<'db>>),
+    Shared(SymPlace<'db>),
 
     /// Data leased from the given place.
-    Leased(Vec<SymPlace<'db>>),
+    Leased(SymPlace<'db>),
 
     /// Data given from a generic variable (could be a type or permission variable).
     Var(SymVariable<'db>),
@@ -116,7 +105,7 @@ pub enum RedPermLink<'db> {
     Error(Reported),
 }
 
-impl<'db> RedPermLink<'db> {
+impl<'db> Lien<'db> {
     /// Convert a (head, ..tail) to a permission.
     pub fn head_tail_to_perm(db: &'db dyn crate::Db, head: Self, tail: &[Self]) -> SymPerm<'db> {
         if tail.is_empty() {
@@ -136,21 +125,21 @@ impl<'db> RedPermLink<'db> {
     }
 
     /// Convert this lien to an equivalent [`SymPerm`].
-    pub fn to_perm(&self, db: &'db dyn crate::Db) -> SymPerm<'db> {
+    pub fn to_perm(self, db: &'db dyn crate::Db) -> SymPerm<'db> {
         match self {
-            RedPermLink::Our => SymPerm::our(db),
-            RedPermLink::Shared(places) => SymPerm::shared(db, places.clone().into()),
-            RedPermLink::Leased(places) => SymPerm::leased(db, places.clone().into()),
-            RedPermLink::Var(v) => SymPerm::var(db, *v),
-            RedPermLink::Infer(v) => SymPerm::infer(db, *v),
-            RedPermLink::Error(reported) => SymPerm::err(db, *reported),
+            Lien::Our => SymPerm::our(db),
+            Lien::Shared(place) => SymPerm::shared(db, vec![place]),
+            Lien::Leased(place) => SymPerm::leased(db, vec![place]),
+            Lien::Var(v) => SymPerm::var(db, v),
+            Lien::Infer(v) => SymPerm::infer(db, v),
+            Lien::Error(reported) => SymPerm::err(db, reported),
         }
     }
 }
 
-impl<'db> Err<'db> for RedPermLink<'db> {
+impl<'db> Err<'db> for Lien<'db> {
     fn err(_db: &'db dyn crate::Db, reported: Reported) -> Self {
-        RedPermLink::Error(reported)
+        Lien::Error(reported)
     }
 }
 

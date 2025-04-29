@@ -13,7 +13,7 @@ use super::{
     Env,
     inference::{Direction, InferVarKind},
     predicates::Predicate,
-    red::{RedPerm, RedPermLink, RedTy},
+    red::{Lien, RedPerm, RedTy},
 };
 
 pub struct Resolver<'env, 'db> {
@@ -175,7 +175,7 @@ impl<'env, 'db> Resolver<'env, 'db> {
     ) -> Result<SymPerm<'db>, ResolverError<'db>> {
         let runtime = self.env.runtime().clone();
         runtime.with_inference_var_data(infer, |data| {
-            let chains = data.red_perm_bound(direction);
+            let chains = data.chain_bounds(direction);
             self.merge_lien_chains(chains.iter().map(|pair| &pair.0), direction)
         })
     }
@@ -587,21 +587,21 @@ impl<'env, 'db> Resolver<'env, 'db> {
     }
 
     /// Convert a list of `Lien`s into a `SymPerm`.
-    fn liens_to_perm(&mut self, liens: &[RedPermLink<'db>]) -> SymPerm<'db> {
+    fn liens_to_perm(&mut self, liens: &[Lien<'db>]) -> SymPerm<'db> {
         let Some((first, rest)) = liens.split_first() else {
             return SymPerm::my(self.db);
         };
 
         let first_perm = match *first {
-            RedPermLink::Our => {
+            Lien::Our => {
                 assert!(rest.is_empty());
                 return SymPerm::our(self.db);
             }
-            RedPermLink::Shared(sym_places) => SymPerm::shared(self.db, sym_places),
-            RedPermLink::Leased(sym_places) => SymPerm::leased(self.db, sym_places),
-            RedPermLink::Var(sym_variable) => SymPerm::var(self.db, sym_variable),
-            RedPermLink::Error(reported) => return SymPerm::err(self.db, reported),
-            RedPermLink::Infer(infer) => self.resolve(SymPerm::infer(self.db, infer)),
+            Lien::Shared(sym_place) => SymPerm::shared(self.db, vec![sym_place]),
+            Lien::Leased(sym_place) => SymPerm::leased(self.db, vec![sym_place]),
+            Lien::Var(sym_variable) => SymPerm::var(self.db, sym_variable),
+            Lien::Error(reported) => return SymPerm::err(self.db, reported),
+            Lien::Infer(infer) => self.resolve(SymPerm::infer(self.db, infer)),
         };
 
         if rest.is_empty() {
