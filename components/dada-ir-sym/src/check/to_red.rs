@@ -2,6 +2,8 @@
 //! They can only be produced after inference is complete as they require enumerating the bounds of inference variables.
 //! They are used in borrow checking and for producing the final version of each inference variable.
 
+use std::pin::Pin;
+
 use dada_ir_ast::diagnostic::{Err, Errors};
 use dada_util::{boxed_async_fn, vecset::VecSet};
 
@@ -12,64 +14,18 @@ use crate::ir::{
 
 use super::{
     Env,
+    inference::Direction,
     live_places::LivePlaces,
     places::PlaceTy,
     predicates::{
         Predicate, is_provably_copy::place_is_provably_copy, test_perm_infer_is_known_to_be,
         test_var_is_provably,
     },
-    red::{Lien, RedPerm, RedTy},
+    red::{RedChain, RedLink, RedPerm, RedTy},
+    report,
     runtime::Runtime,
+    stream::Consumer,
 };
-
-trait ChainExt<'db>: Sized {
-    /// Concatenate two lien chains; if `other` is copy, just returns `other`.
-    async fn concat(&self, env: &mut Env<'db>, other: &Self) -> Errors<Self>;
-
-    /// Check if the chain is copy. Will block if this chain contains an inference variable.
-    async fn is_copy(&self, env: &mut Env<'db>) -> Errors<bool>;
-}
-
-impl<'db> ChainExt<'db> for RedPerm<'db> {
-    /// See [`ChainExt::concat`][].
-    async fn concat(&self, env: &mut Env<'db>, other: &Self) -> Errors<Self> {
-        if other.is_copy(env).await? {
-            Ok(other.clone())
-        } else {
-            let mut links = self.liens.clone();
-            links.extend(other.liens.iter());
-            Ok(Self::new(env.db(), links))
-        }
-    }
-
-    /// See [`ChainExt::is_copy`][].
-    async fn is_copy(&self, env: &mut Env<'db>) -> Errors<bool> {
-        for lien in &self.liens {
-            if lien.is_copy(env).await? {
-                return Ok(true);
-            }
-        }
-        Ok(false)
-    }
-}
-
-trait LienExt<'db>: Sized {
-    /// Check if the lien is copy, blocking if inference info is needed.
-    async fn is_copy(&self, env: &mut Env<'db>) -> Errors<bool>;
-}
-
-impl<'db> LienExt<'db> for Lien<'db> {
-    /// See [`LienExt::is_copy`][].
-    async fn is_copy(&self, env: &mut Env<'db>) -> Errors<bool> {
-        match *self {
-            Lien::Our | Lien::Shared(_) => Ok(true),
-            Lien::Leased(_) => Ok(false),
-            Lien::Var(v) => Ok(test_var_is_provably(env, v, Predicate::Copy)),
-            Lien::Infer(v) => test_perm_infer_is_known_to_be(env, v, Predicate::Copy).await,
-            Lien::Error(reported) => Err(reported),
-        }
-    }
-}
 
 pub trait RedTyExt<'db>: Sized {
     fn display<'a>(&'a self, env: &'a Env<'db>) -> impl std::fmt::Display;
@@ -163,107 +119,264 @@ impl<'db> ToRedTy<'db> for SymPerm<'db> {
     }
 }
 
-pub trait ToRedPerms<'db> {
-    async fn to_red_perms(
+pub trait ToRedPerm<'db> {
+    async fn to_red_perm(
         &self,
         env: &mut Env<'db>,
         live_after: LivePlaces,
-    ) -> Errors<VecSet<RedPerm<'db>>>;
+        direction: Direction,
+        consumer: Consumer<'db, RedPerm<'db>, Errors<()>>,
+    ) -> Errors<()> {
+    }
 }
 
-impl<'db> ToRedPerms<'db> for SymPerm<'db> {
-    #[boxed_async_fn]
-    async fn to_red_perms(
+/// Create a `RedChain`, which is a canonical list of permissions.
+/// Canonical means that
+///
+/// * inference variables have been bounded,
+/// * permissions have been flattened (`ref[p, q] => ref[p], ref[q]`),
+/// * copy applications reduced (`mut[p] ref[q] => ref[q]`),
+/// * and tails expanded (`mut[q] => mut[q] mut[p]`, given `let q: mut[p] String`).
+///
+/// The `consumer` callback may be invoked multiple times as a result of
+/// flattening and inference variable bounding. Each callback corresponds
+/// to a result of [`some_expanded_red_chain` in dada-model][dm].
+///
+/// [dm]: https://github.com/dada-lang/dada-model/blob/main/src/type_system/redperms.rs
+pub trait ToRedChains<'db> {
+    async fn to_red_chains(
         &self,
         env: &mut Env<'db>,
         live_after: LivePlaces,
-    ) -> Errors<VecSet<RedPerm<'db>>> {
-        let mut output = VecSet::new();
+        direction: Direction,
+        consumer: Consumer<'db, Vec<RedChain<'db>>, Errors<()>>,
+    ) -> Errors<()>;
+}
+
+impl<'db> ToRedChains<'db> for SymPerm<'db> {
+    async fn to_red_chains(
+        &self,
+        env: &mut Env<'db>,
+        live_after: LivePlaces,
+        direction: Direction,
+        mut consumer: Consumer<'db, Vec<RedChain<'db>>, Errors<()>>,
+    ) -> Errors<()> {
+        self.to_red_links(
+            env,
+            live_after,
+            direction,
+            Consumer::new(async |env, links: Vec<RedLink<'db>>| {
+                expand_tail(env, live_after, direction, links, &mut consumer).await
+            }),
+        )
+        .await
+    }
+}
+
+/// After we've done the initial expansion to red links, we may end up with a chain
+/// that ends in something like `mut[p]` or `ref[p]`. In that case, we need to
+/// find the permissions from `p` and append them to the chain. This is called
+/// "expansion" in the dada-model code. This function expands the tail recursively
+/// until there are no more permissions to add and then invokes `consumer.consume`.
+#[boxed_async_fn]
+async fn expand_tail<'db>(
+    env: &mut Env<'db>,
+    live_after: LivePlaces,
+    direction: Direction,
+    links: Vec<Vec<RedLink<'db>>>,
+    consumer: &mut Consumer<'db, Vec<RedChain<'db>>, Errors<()>>,
+) -> Errors<()> {
+    let db = env.db();
+
+    // XXX
+    let Some(last) = links.last() else {
+        return consumer.consume(env, RedChain::my(db)).await;
+    };
+
+    let place = match *last {
+        RedLink::RefLive(place)
+        | RedLink::RefDead(place)
+        | RedLink::MutLive(place)
+        | RedLink::MutDead(place) => place,
+        RedLink::Our => return consumer.consume(env, RedChain::new(db, links)).await,
+        RedLink::Var(_) => return consumer.consume(env, RedChain::new(db, links)).await,
+        RedLink::Error(reported) => return Err(reported),
+    };
+
+    place
+        .to_red_links(
+            env,
+            live_after,
+            direction,
+            Consumer::new(async |env, links_place: Vec<_>| {
+                if links_place.is_empty() {
+                    consumer.consume(env, RedChain::new(db, &links)).await
+                } else {
+                    let output = concat_links(env, &links, links_place)?;
+                    expand_tail(env, live_after, direction, output, consumer).await
+                }
+            }),
+        )
+        .await
+}
+
+/// Convert the permission into a vector of red-links.
+///
+/// This is part of the red permission process and does three forms of processing.
+///
+/// * Copy links drop their prefix, so e.g. `mut[p] ref[q]` becomes just `[ref[q]]`
+/// * Flattening, so `ref[p,q]` becomes `[ref[p], ref[q]]`.
+/// * If inference variables are involved, we block waiting for their bounds.
+///
+/// The `consumer` callback may be invoked multiple times as a result of inference bounds.
+/// Each callback has a list of lists of links.
+pub trait ToRedLinks<'db> {
+    async fn to_red_links(
+        &self,
+        env: &mut Env<'db>,
+        live_after: LivePlaces,
+        direction: Direction,
+        consumer: Consumer<'db, Vec<Vec<RedLink<'db>>>, Errors<()>>,
+    ) -> Errors<()>;
+}
+
+impl<'db> ToRedLinks<'db> for SymPerm<'db> {
+    #[boxed_async_fn]
+    async fn to_red_links(
+        &self,
+        env: &mut Env<'db>,
+        live_after: LivePlaces,
+        direction: Direction,
+        mut consumer: Consumer<'db, Vec<Vec<RedLink<'db>>>, Errors<()>>,
+    ) -> Errors<()> {
         let db = env.db();
         match *self.kind(db) {
-            SymPermKind::My => {
-                output.insert(RedPerm::my(db));
-            }
-            SymPermKind::Our => {
-                output.insert(RedPerm::our(db));
-            }
+            SymPermKind::My => consumer.consume(env, vec![vec![]]).await,
+            SymPermKind::Our => consumer.consume(env, vec![vec![RedLink::Our]]).await,
             SymPermKind::Shared(ref places) => {
-                for &place in places {
-                    if place_is_provably_copy(env, place).await.is_ok() {
-                        output.extend(place.to_red_perms(env, live_after).await?);
-                    } else {
-                        output.insert(RedPerm::shared(env.db(), place));
-                    }
-                }
+                let links = places
+                    .iter()
+                    .map(|&place| {
+                        if live_after.is_live(env, place) {
+                            RedLink::RefLive(place)
+                        } else {
+                            RedLink::RefDead(place)
+                        }
+                    })
+                    .map(|link| vec![link])
+                    .collect::<Vec<_>>();
+                consumer.consume(env, links).await
             }
             SymPermKind::Leased(ref places) => {
-                for &place in places {
-                    if place_is_provably_copy(env, place).await.is_ok() {
-                        output.extend(place.to_red_perms(env, live_after).await?);
-                    } else {
-                        output.insert(RedPerm::leased(db, place));
-                    }
-                }
+                let links = places
+                    .iter()
+                    .map(|&place| {
+                        if live_after.is_live(env, place) {
+                            RedLink::MutLive(place)
+                        } else {
+                            RedLink::MutDead(place)
+                        }
+                    })
+                    .map(|link| vec![link])
+                    .collect::<Vec<_>>();
+                consumer.consume(env, links).await
             }
             SymPermKind::Apply(lhs, rhs) => {
-                let lhs_chains = lhs.to_red_perms(env, live_after).await?;
-                let rhs_chains = rhs.to_red_perms(env, live_after).await?;
-                for lhs_chain in &lhs_chains {
-                    for rhs_chain in &rhs_chains {
-                        output.insert(lhs_chain.concat(env, rhs_chain).await?);
-                    }
-                }
+                lhs.to_red_links(
+                    env,
+                    live_after,
+                    direction,
+                    Consumer::new(async |env, links_lhs: Vec<Vec<RedLink<'db>>>| {
+                        rhs.to_red_links(
+                            env,
+                            live_after,
+                            direction,
+                            Consumer::new(async |env, links_rhs: Vec<Vec<_>>| {
+                                let links = concat_links2(env, &links_lhs, &links_rhs)?;
+                                consumer.consume(env, links).await
+                            }),
+                        )
+                        .await
+                    }),
+                )
+                .await
             }
             SymPermKind::Infer(v) => {
-                output.insert(RedPerm::infer(db, v));
+                env.require_for_all_red_perm_bounds(v, direction, async |env, red_perm| {
+                    for &chain in red_perm.chains(db) {
+                        let links = chain.links(db).to_vec();
+                        consumer.consume(env, vec![links]).await?;
+                    }
+                    Ok(())
+                })
+                .await
             }
-            SymPermKind::Var(v) => {
-                output.insert(RedPerm::var(db, v));
-            }
+            SymPermKind::Var(v) => consumer.consume(env, vec![vec![RedLink::Var(v)]]).await,
             SymPermKind::Error(reported) => return Err(reported),
         }
-        Ok(output)
     }
 }
 
-impl<'db> ToRedPerms<'db> for SymPlace<'db> {
-    async fn to_red_perms(
-        &self,
-        env: &mut Env<'db>,
-        live_after: LivePlaces,
-    ) -> Errors<VecSet<RedPerm<'db>>> {
-        let ty = self.place_ty(env).await;
-        ty.to_red_perms(env, live_after).await
-    }
-}
-
-impl<'db> ToRedPerms<'db> for SymTy<'db> {
+impl<'db> ToRedLinks<'db> for SymPlace<'db> {
     #[boxed_async_fn]
-    async fn to_red_perms(
+    async fn to_red_links(
         &self,
         env: &mut Env<'db>,
         live_after: LivePlaces,
-    ) -> Errors<VecSet<RedPerm<'db>>> {
-        let mut output = VecSet::new();
-        let db = env.db();
-        match *self.kind(db) {
-            SymTyKind::Perm(lhs, rhs) => {
-                let lhs_chains = lhs.to_red_perms(env, live_after).await?;
-                let rhs_chains = rhs.to_red_perms(env, live_after).await?;
-                for lhs_chain in &lhs_chains {
-                    for rhs_chain in &rhs_chains {
-                        output.insert(lhs_chain.concat(env, rhs_chain).await?);
-                    }
-                }
-            }
-            SymTyKind::Infer(infer) => {
-                output.insert(RedPerm::infer(db, env.perm_infer(infer)));
-            }
-            SymTyKind::Never | SymTyKind::Named(..) | SymTyKind::Var(_) => {
-                output.insert(RedPerm::my(db));
-            }
-            SymTyKind::Error(reported) => return Err(reported),
-        }
-        Ok(output)
+        direction: Direction,
+        consumer: Consumer<'db, Vec<Vec<RedLink<'db>>>, Errors<()>>,
+    ) -> Errors<()> {
+        let ty = self.place_ty(env).await;
+        ty.to_red_links(env, live_after, direction, consumer).await
     }
+}
+
+impl<'db> ToRedLinks<'db> for SymTy<'db> {
+    #[boxed_async_fn]
+    async fn to_red_links(
+        &self,
+        env: &mut Env<'db>,
+        live_after: LivePlaces,
+        direction: Direction,
+        mut consumer: Consumer<'db, Vec<Vec<RedLink<'db>>>, Errors<()>>,
+    ) -> Errors<()> {
+        if let (_, Some(perm)) = self.to_red_ty(env) {
+            perm.to_red_links(env, live_after, direction, consumer)
+                .await
+        } else {
+            consumer.consume(env, vec![]).await
+        }
+    }
+}
+
+fn concat_links2<'db>(
+    env: &mut Env<'db>,
+    lhs: &[Vec<RedLink<'db>>],
+    mut rhs: &[Vec<RedLink<'db>>],
+) -> Errors<Vec<Vec<RedLink<'db>>>> {
+    let mut output = vec![];
+    for l in lhs {
+        for r in rhs {
+            output.push(concat_links(env, l, r)?);
+        }
+    }
+    Ok(output)
+}
+
+fn concat_links<'db>(
+    env: &mut Env<'db>,
+    lhs: &[RedLink<'db>],
+    mut rhs: &[RedLink<'db>],
+) -> Errors<Vec<RedLink<'db>>> {
+    let mut lhs = lhs.to_vec();
+
+    while let Some((rhs_head, rhs_tail)) = rhs.split_first() {
+        if rhs_head.is_copy(env)? {
+            return Ok(rhs.to_vec());
+        }
+        lhs.push(*rhs_head);
+        rhs = rhs_tail;
+    }
+
+    Ok(lhs)
 }

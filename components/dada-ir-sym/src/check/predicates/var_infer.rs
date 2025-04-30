@@ -192,11 +192,11 @@ pub async fn test_perm_infer_is_known_to_be<'db>(
                     (
                         data.is_known_to_provably_be(predicate).is_some(),
                         data.is_known_not_to_provably_be(predicate).is_some(),
-                        data.chain_bounds(Direction::FromBelow)
+                        data.red_perm_bounds(Direction::FromBelow)
                             .iter()
                             .map(|pair| pair.0.clone())
                             .collect::<Vec<RedPerm<'db>>>(),
-                        data.chain_bounds(Direction::FromAbove)
+                        data.red_perm_bounds(Direction::FromAbove)
                             .iter()
                             .map(|pair| pair.0.clone())
                             .collect::<Vec<RedPerm<'db>>>(),
@@ -265,7 +265,7 @@ fn defer_require_bounds_provably_predicate<'db>(
     env.spawn(
         TaskDescription::RequireBoundsProvablyPredicate(infer, predicate),
         async move |env| {
-            env.require_for_all_chain_bounds(
+            env.require_for_all_red_perm_bounds(
                 perm_infer,
                 // We need to ensure that the *supertype* bound meets the predicate.
                 // This doesn't really depend on the predicate.
@@ -298,7 +298,7 @@ fn defer_require_bounds_not_provably_predicate<'db>(
             // we need to ensure that the supertype isn't `Copy`.
             //
             // To show that it isn't `Move`, either suffices.
-            env.require_for_all_chain_bounds(infer, Direction::FromAbove, async |env, chain| {
+            env.require_for_all_red_perm_bounds(infer, Direction::FromAbove, async |env, chain| {
                 require_chain_isnt(env, &chain, predicate, &or_else).await
             })
             .await

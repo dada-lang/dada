@@ -330,7 +330,7 @@ async fn require_lower_chain<'db>(
         async move |env| -> Result<(), dada_ir_ast::diagnostic::Reported> {
             env.log("RequireLowerChain", &[&lower_chain, &upper_head]);
 
-            env.require_for_all_chain_bounds(
+            env.require_for_all_red_perm_bounds(
                 upper_head,
                 Direction::FromAbove,
                 async |env, upper_chain| {
@@ -384,7 +384,7 @@ async fn splice_upper_bound<'db>(
     or_else: &dyn OrElse<'db>,
 ) -> Errors<bool> {
     let lower_chain = RedPerm::from_head_tail(env.db(), lower_head, lower_tail);
-    env.exists_chain_bound(
+    env.exists_red_perm_bound(
         upper_head,
         Direction::FromAbove,
         async |env, mut upper_chain| {
@@ -432,7 +432,7 @@ async fn splice_lower_bound<'db>(
     or_else: &dyn OrElse<'db>,
 ) -> Errors<bool> {
     let upper_chain = RedPerm::from_head_tail(env.db(), upper_head, upper_tail);
-    env.exists_chain_bound(
+    env.exists_red_perm_bound(
         lower_head,
         Direction::FromBelow,
         async |env, mut lower_chain| {

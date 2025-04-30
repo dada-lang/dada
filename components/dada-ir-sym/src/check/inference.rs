@@ -166,7 +166,7 @@ impl<'db> InferenceVarData<'db> {
     ///
     /// If this is not a permission variable.
     #[track_caller]
-    pub fn chain_bounds(&self, direction: Direction) -> &[(RedPerm<'db>, ArcOrElse<'db>)] {
+    pub fn red_perm_bounds(&self, direction: Direction) -> &[(RedPerm<'db>, ArcOrElse<'db>)] {
         match &self.bounds {
             InferenceVarBounds::Perm { lower, upper, .. } => match direction {
                 Direction::FromBelow => lower,
@@ -204,7 +204,7 @@ impl<'db> InferenceVarData<'db> {
 
     /// Insert a chain as a lower bound.
     /// Returns `Some(or_else.to_arc())` if this is a new upper bound.
-    pub fn insert_chain_bound(
+    pub fn insert_red_perm_bound(
         &mut self,
         chain: &RedPerm<'db>,
         direction: Direction,

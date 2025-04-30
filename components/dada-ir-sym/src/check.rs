@@ -27,6 +27,7 @@ pub(crate) mod scope;
 pub(crate) mod scope_tree;
 pub(crate) mod signature;
 mod statements;
+mod stream;
 mod subst_impls;
 mod subtype;
 mod temporaries;

@@ -248,7 +248,7 @@ impl<'db> Env<'db> {
     }
 
     #[track_caller]
-    pub fn exists_chain_bound(
+    pub fn exists_red_perm_bound(
         &mut self,
         infer: InferVarIndex,
         direction: Direction,
@@ -266,7 +266,7 @@ impl<'db> Env<'db> {
                     let mut stack = vec![];
 
                     loop {
-                        env.extract_bounding_chains(infer, &mut observed, &mut stack, direction)
+                        env.extract_red_perm_bounds(infer, &mut observed, &mut stack, direction)
                             .await;
 
                         while let Some(chain) = stack.pop() {
@@ -288,7 +288,7 @@ impl<'db> Env<'db> {
     /// Typically never returns as the full set of bounds on an inference variable is never known.
     /// Exception is if an `Err` occurs, it is propagated.
     #[track_caller]
-    pub fn require_for_all_chain_bounds(
+    pub fn require_for_all_red_perm_bounds(
         &mut self,
         infer: InferVarIndex,
         direction: Direction,
@@ -306,7 +306,7 @@ impl<'db> Env<'db> {
                     let mut stack = vec![];
 
                     while env
-                        .extract_bounding_chains(infer, &mut observed, &mut stack, direction)
+                        .extract_red_perm_bounds(infer, &mut observed, &mut stack, direction)
                         .await
                     {
                         while let Some(chain) = stack.pop() {
@@ -332,7 +332,7 @@ impl<'db> Env<'db> {
     ///
     /// Returns true if bounds were extracted and false if inference has completed and no more
     /// bounds are forthcoming.
-    pub async fn extract_bounding_chains(
+    pub async fn extract_red_perm_bounds(
         &mut self,
         infer: InferVarIndex,
         observed: &mut usize,
@@ -340,7 +340,7 @@ impl<'db> Env<'db> {
         direction: Direction,
     ) -> bool {
         self.loop_on_inference_var(infer, |data| {
-            let chains = data.chain_bounds(direction);
+            let chains = data.red_perm_bounds(direction);
             assert!(stack.is_empty());
             if *observed == chains.len() {
                 None

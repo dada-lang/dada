@@ -595,7 +595,7 @@ impl<'db> Env<'db> {
     ) -> Option<ArcOrElse<'db>> {
         self.runtime
             .mutate_inference_var_data(infer, &self.log, |data| {
-                data.insert_chain_bound(chain, direction, or_else)
+                data.insert_red_perm_bound(chain, direction, or_else)
             })
     }
 

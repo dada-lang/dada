@@ -175,7 +175,7 @@ impl<'env, 'db> Resolver<'env, 'db> {
     ) -> Result<SymPerm<'db>, ResolverError<'db>> {
         let runtime = self.env.runtime().clone();
         runtime.with_inference_var_data(infer, |data| {
-            let chains = data.chain_bounds(direction);
+            let chains = data.red_perm_bounds(direction);
             self.merge_lien_chains(chains.iter().map(|pair| &pair.0), direction)
         })
     }
