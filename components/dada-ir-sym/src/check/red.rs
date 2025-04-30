@@ -8,8 +8,8 @@ use salsa::Update;
 use serde::Serialize;
 
 use crate::ir::{
-    indices::{FromInfer, InferVarIndex},
-    types::{SymGenericTerm, SymPerm, SymPlace, SymTyName},
+    indices::InferVarIndex,
+    types::{SymGenericTerm, SymPlace, SymTyName},
     variables::SymVariable,
 };
 
@@ -78,7 +78,7 @@ impl<'db> RedLink<'db> {
             RedLink::Our => Ok(true),
             RedLink::RefLive(_) | RedLink::RefDead(_) => Ok(true),
             RedLink::MutLive(_) | RedLink::MutDead(_) => Ok(false),
-            RedLink::Var(v) => Ok(env.var_is_declared_to_be(v, Predicate::Copy)),
+            RedLink::Var(v) => Ok(env.var_is_declared_to_be(*v, Predicate::Copy)),
             RedLink::Error(reported) => Err(*reported),
         }
     }

@@ -2,10 +2,8 @@
 //! They can only be produced after inference is complete as they require enumerating the bounds of inference variables.
 //! They are used in borrow checking and for producing the final version of each inference variable.
 
-use std::pin::Pin;
-
 use dada_ir_ast::diagnostic::{Err, Errors};
-use dada_util::{boxed_async_fn, vecset::VecSet};
+use dada_util::boxed_async_fn;
 
 use crate::ir::{
     indices::FromInfer,
@@ -17,12 +15,7 @@ use super::{
     inference::Direction,
     live_places::LivePlaces,
     places::PlaceTy,
-    predicates::{
-        Predicate, is_provably_copy::place_is_provably_copy, test_perm_infer_is_known_to_be,
-        test_var_is_provably,
-    },
     red::{RedChain, RedLink, RedPerm, RedTy},
-    report,
     runtime::Runtime,
     stream::Consumer,
 };
@@ -126,25 +119,47 @@ pub trait ToRedPerm<'db> {
         live_after: LivePlaces,
         direction: Direction,
         consumer: Consumer<'db, RedPerm<'db>, Errors<()>>,
+    ) -> Errors<()>;
+}
+
+impl<'db, T: ToRedChainVec<'db>> ToRedPerm<'db> for T {
+    async fn to_red_perm(
+        &self,
+        env: &mut Env<'db>,
+        live_after: LivePlaces,
+        direction: Direction,
+        mut consumer: Consumer<'db, RedPerm<'db>, Errors<()>>,
     ) -> Errors<()> {
+        self.to_red_chain_vec(
+            env,
+            live_after,
+            direction,
+            Consumer::new(async |env, chainvec| {
+                consumer
+                    .consume(env, RedPerm::new(env.db(), chainvec))
+                    .await
+            }),
+        )
+        .await
     }
 }
 
-/// Create a `RedChain`, which is a canonical list of permissions.
+/// Create a `Vec<RedChain>`, each of which are a canonical list of permissions.
 /// Canonical means that
 ///
 /// * inference variables have been bounded,
-/// * permissions have been flattened (`ref[p, q] => ref[p], ref[q]`),
+/// * permissions have been flattened into distinct chains (`ref[p, q] => ref[p], ref[q]`),
 /// * copy applications reduced (`mut[p] ref[q] => ref[q]`),
 /// * and tails expanded (`mut[q] => mut[q] mut[p]`, given `let q: mut[p] String`).
 ///
 /// The `consumer` callback may be invoked multiple times as a result of
-/// flattening and inference variable bounding. Each callback corresponds
-/// to a result of [`some_expanded_red_chain` in dada-model][dm].
+/// inference variable bounding. Each callback is given a vector
+/// corresponding to the collected results from
+/// [`some_expanded_red_chain` in dada-model][dm].
 ///
 /// [dm]: https://github.com/dada-lang/dada-model/blob/main/src/type_system/redperms.rs
-pub trait ToRedChains<'db> {
-    async fn to_red_chains(
+pub trait ToRedChainVec<'db> {
+    async fn to_red_chain_vec(
         &self,
         env: &mut Env<'db>,
         live_after: LivePlaces,
@@ -153,20 +168,20 @@ pub trait ToRedChains<'db> {
     ) -> Errors<()>;
 }
 
-impl<'db> ToRedChains<'db> for SymPerm<'db> {
-    async fn to_red_chains(
+impl<'db, T: ToRedLinkVecs<'db>> ToRedChainVec<'db> for T {
+    async fn to_red_chain_vec(
         &self,
         env: &mut Env<'db>,
         live_after: LivePlaces,
         direction: Direction,
         mut consumer: Consumer<'db, Vec<RedChain<'db>>, Errors<()>>,
     ) -> Errors<()> {
-        self.to_red_links(
+        self.to_red_linkvecs(
             env,
             live_after,
             direction,
-            Consumer::new(async |env, links: Vec<RedLink<'db>>| {
-                expand_tail(env, live_after, direction, links, &mut consumer).await
+            Consumer::new(async |env, linkvecs| {
+                expand_tail(env, live_after, direction, linkvecs, vec![], &mut consumer).await
             }),
         )
         .await
@@ -183,38 +198,92 @@ async fn expand_tail<'db>(
     env: &mut Env<'db>,
     live_after: LivePlaces,
     direction: Direction,
-    links: Vec<Vec<RedLink<'db>>>,
+    mut unexpanded_linkvecs: Vec<Vec<RedLink<'db>>>,
+    mut expanded_chains: Vec<RedChain<'db>>,
     consumer: &mut Consumer<'db, Vec<RedChain<'db>>, Errors<()>>,
 ) -> Errors<()> {
     let db = env.db();
 
-    // XXX
-    let Some(last) = links.last() else {
-        return consumer.consume(env, RedChain::my(db)).await;
+    // This is super annoying. We have a vector of "pseudo-chains" (Vec<RedLink>)
+    // like `[[mut[a]], [ref[b]], [my]]`. We want to take the tail of each
+    // of those chains and expand it, so, e.g., if `a: mut[x] String`,
+    // then we might expand to `[[mut[a] mut[x]], [ref[b]], [my]]`.
+    // But if `x: mut[y, z] String`, then we have to expand again,
+    // and this time with some flattening, yielding
+    // `[[mut[a] mut[x] muy[y]], [mut[a] mut[x] mut[z]], [ref[b]], [my]]`.
+    // And we haven't even started in on `ref[b]`.
+    // To make it more often, we need to expect multiple callbacks because
+    // of inference, so we have to write everything in a "callback, recursive"
+    // style and can't readily return values.
+    //
+    // We do this by popping links from `unexpected_links`, examining them,
+    // and then either expanding them or else pushing onto `expanded_links`.
+
+    let Some(linkvec) = unexpanded_linkvecs.pop() else {
+        // Nothing left to expand! Great.
+        return consumer.consume(env, expanded_chains).await;
     };
 
-    let place = match *last {
-        RedLink::RefLive(place)
-        | RedLink::RefDead(place)
-        | RedLink::MutLive(place)
-        | RedLink::MutDead(place) => place,
-        RedLink::Our => return consumer.consume(env, RedChain::new(db, links)).await,
-        RedLink::Var(_) => return consumer.consume(env, RedChain::new(db, links)).await,
-        RedLink::Error(reported) => return Err(reported),
+    let place = match linkvec.last() {
+        Some(RedLink::RefLive(place))
+        | Some(RedLink::RefDead(place))
+        | Some(RedLink::MutLive(place))
+        | Some(RedLink::MutDead(place)) => place,
+
+        // If the last link does not reference a place,
+        // or there is no last link (i.e., we have `my`),
+        // then we are done expanding. Push resulting chain and recurse.
+        Some(RedLink::Our) | Some(RedLink::Var(_)) | None => {
+            expanded_chains.push(RedChain::new(db, linkvec));
+            return expand_tail(
+                env,
+                live_after,
+                direction,
+                unexpanded_linkvecs,
+                expanded_chains,
+                consumer,
+            )
+            .await;
+        }
+
+        Some(RedLink::Error(reported)) => return Err(*reported),
     };
 
+    // Otherwise, convert expand that place to red-links. This will yield
+    // a vector so we have to "flat map" the result onto the list of expanded
+    // chains.
     place
-        .to_red_links(
+        .to_red_linkvecs(
             env,
             live_after,
             direction,
-            Consumer::new(async |env, links_place: Vec<_>| {
-                if links_place.is_empty() {
-                    consumer.consume(env, RedChain::new(db, &links)).await
-                } else {
-                    let output = concat_links(env, &links, links_place)?;
-                    expand_tail(env, live_after, direction, output, consumer).await
+            Consumer::new(async |env, linkvecs_place: Vec<Vec<_>>| {
+                let mut unexpanded_linkvecs = unexpanded_linkvecs.clone();
+                let mut expanded_chains = expanded_chains.clone();
+
+                for linkvec_place in linkvecs_place {
+                    if linkvec_place.is_empty() {
+                        // If the link vec we get back is `my`, then push a fully expanded chain.
+                        // This corresponds to e.g. `mut[a]` where `a: my String` -- the permission
+                        // is complete.
+                        expanded_chains.push(RedChain::new(db, linkvec.clone()));
+                    } else {
+                        // Otherwise, concatenate this new link vec with our original
+                        // and push it back onto the "unexpanded" list. We will recursively
+                        // examine it.
+                        let output = concat_linkvecs(env, &linkvec, &linkvec_place)?;
+                        unexpanded_linkvecs.push(output);
+                    }
                 }
+                expand_tail(
+                    env,
+                    live_after,
+                    direction,
+                    unexpanded_linkvecs,
+                    expanded_chains,
+                    consumer,
+                )
+                .await
             }),
         )
         .await
@@ -230,8 +299,8 @@ async fn expand_tail<'db>(
 ///
 /// The `consumer` callback may be invoked multiple times as a result of inference bounds.
 /// Each callback has a list of lists of links.
-pub trait ToRedLinks<'db> {
-    async fn to_red_links(
+pub trait ToRedLinkVecs<'db> {
+    async fn to_red_linkvecs(
         &self,
         env: &mut Env<'db>,
         live_after: LivePlaces,
@@ -240,9 +309,9 @@ pub trait ToRedLinks<'db> {
     ) -> Errors<()>;
 }
 
-impl<'db> ToRedLinks<'db> for SymPerm<'db> {
+impl<'db> ToRedLinkVecs<'db> for SymPerm<'db> {
     #[boxed_async_fn]
-    async fn to_red_links(
+    async fn to_red_linkvecs(
         &self,
         env: &mut Env<'db>,
         live_after: LivePlaces,
@@ -282,17 +351,17 @@ impl<'db> ToRedLinks<'db> for SymPerm<'db> {
                 consumer.consume(env, links).await
             }
             SymPermKind::Apply(lhs, rhs) => {
-                lhs.to_red_links(
+                lhs.to_red_linkvecs(
                     env,
                     live_after,
                     direction,
-                    Consumer::new(async |env, links_lhs: Vec<Vec<RedLink<'db>>>| {
-                        rhs.to_red_links(
+                    Consumer::new(async |env, linkvecs_lhs: Vec<Vec<RedLink<'db>>>| {
+                        rhs.to_red_linkvecs(
                             env,
                             live_after,
                             direction,
-                            Consumer::new(async |env, links_rhs: Vec<Vec<_>>| {
-                                let links = concat_links2(env, &links_lhs, &links_rhs)?;
+                            Consumer::new(async |env, linkvecs_rhs: Vec<Vec<_>>| {
+                                let links = concat_linkvecvecs(env, &linkvecs_lhs, &linkvecs_rhs)?;
                                 consumer.consume(env, links).await
                             }),
                         )
@@ -317,9 +386,9 @@ impl<'db> ToRedLinks<'db> for SymPerm<'db> {
     }
 }
 
-impl<'db> ToRedLinks<'db> for SymPlace<'db> {
+impl<'db> ToRedLinkVecs<'db> for SymPlace<'db> {
     #[boxed_async_fn]
-    async fn to_red_links(
+    async fn to_red_linkvecs(
         &self,
         env: &mut Env<'db>,
         live_after: LivePlaces,
@@ -327,13 +396,14 @@ impl<'db> ToRedLinks<'db> for SymPlace<'db> {
         consumer: Consumer<'db, Vec<Vec<RedLink<'db>>>, Errors<()>>,
     ) -> Errors<()> {
         let ty = self.place_ty(env).await;
-        ty.to_red_links(env, live_after, direction, consumer).await
+        ty.to_red_linkvecs(env, live_after, direction, consumer)
+            .await
     }
 }
 
-impl<'db> ToRedLinks<'db> for SymTy<'db> {
+impl<'db> ToRedLinkVecs<'db> for SymTy<'db> {
     #[boxed_async_fn]
-    async fn to_red_links(
+    async fn to_red_linkvecs(
         &self,
         env: &mut Env<'db>,
         live_after: LivePlaces,
@@ -341,7 +411,7 @@ impl<'db> ToRedLinks<'db> for SymTy<'db> {
         mut consumer: Consumer<'db, Vec<Vec<RedLink<'db>>>, Errors<()>>,
     ) -> Errors<()> {
         if let (_, Some(perm)) = self.to_red_ty(env) {
-            perm.to_red_links(env, live_after, direction, consumer)
+            perm.to_red_linkvecs(env, live_after, direction, consumer)
                 .await
         } else {
             consumer.consume(env, vec![]).await
@@ -349,21 +419,21 @@ impl<'db> ToRedLinks<'db> for SymTy<'db> {
     }
 }
 
-fn concat_links2<'db>(
+fn concat_linkvecvecs<'db>(
     env: &mut Env<'db>,
     lhs: &[Vec<RedLink<'db>>],
-    mut rhs: &[Vec<RedLink<'db>>],
+    rhs: &[Vec<RedLink<'db>>],
 ) -> Errors<Vec<Vec<RedLink<'db>>>> {
     let mut output = vec![];
     for l in lhs {
         for r in rhs {
-            output.push(concat_links(env, l, r)?);
+            output.push(concat_linkvecs(env, l, r)?);
         }
     }
     Ok(output)
 }
 
-fn concat_links<'db>(
+fn concat_linkvecs<'db>(
     env: &mut Env<'db>,
     lhs: &[RedLink<'db>],
     mut rhs: &[RedLink<'db>],
