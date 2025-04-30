@@ -118,7 +118,7 @@ pub trait ToRedPerm<'db> {
         env: &mut Env<'db>,
         live_after: LivePlaces,
         direction: Direction,
-        consumer: Consumer<'db, RedPerm<'db>, Errors<()>>,
+        consumer: Consumer<'_, 'db, RedPerm<'db>, Errors<()>>,
     ) -> Errors<()>;
 }
 
@@ -128,7 +128,7 @@ impl<'db, T: ToRedChainVec<'db>> ToRedPerm<'db> for T {
         env: &mut Env<'db>,
         live_after: LivePlaces,
         direction: Direction,
-        mut consumer: Consumer<'db, RedPerm<'db>, Errors<()>>,
+        mut consumer: Consumer<'_, 'db, RedPerm<'db>, Errors<()>>,
     ) -> Errors<()> {
         self.to_red_chain_vec(
             env,
@@ -164,7 +164,7 @@ pub trait ToRedChainVec<'db> {
         env: &mut Env<'db>,
         live_after: LivePlaces,
         direction: Direction,
-        consumer: Consumer<'db, Vec<RedChain<'db>>, Errors<()>>,
+        consumer: Consumer<'_, 'db, Vec<RedChain<'db>>, Errors<()>>,
     ) -> Errors<()>;
 }
 
@@ -174,7 +174,7 @@ impl<'db, T: ToRedLinkVecs<'db>> ToRedChainVec<'db> for T {
         env: &mut Env<'db>,
         live_after: LivePlaces,
         direction: Direction,
-        mut consumer: Consumer<'db, Vec<RedChain<'db>>, Errors<()>>,
+        mut consumer: Consumer<'_, 'db, Vec<RedChain<'db>>, Errors<()>>,
     ) -> Errors<()> {
         self.to_red_linkvecs(
             env,
@@ -200,7 +200,7 @@ async fn expand_tail<'db>(
     direction: Direction,
     mut unexpanded_linkvecs: Vec<Vec<RedLink<'db>>>,
     mut expanded_chains: Vec<RedChain<'db>>,
-    consumer: &mut Consumer<'db, Vec<RedChain<'db>>, Errors<()>>,
+    consumer: &mut Consumer<'_, 'db, Vec<RedChain<'db>>, Errors<()>>,
 ) -> Errors<()> {
     let db = env.db();
 
@@ -305,7 +305,7 @@ pub trait ToRedLinkVecs<'db> {
         env: &mut Env<'db>,
         live_after: LivePlaces,
         direction: Direction,
-        consumer: Consumer<'db, Vec<Vec<RedLink<'db>>>, Errors<()>>,
+        consumer: Consumer<'_, 'db, Vec<Vec<RedLink<'db>>>, Errors<()>>,
     ) -> Errors<()>;
 }
 
@@ -316,7 +316,7 @@ impl<'db> ToRedLinkVecs<'db> for SymPerm<'db> {
         env: &mut Env<'db>,
         live_after: LivePlaces,
         direction: Direction,
-        mut consumer: Consumer<'db, Vec<Vec<RedLink<'db>>>, Errors<()>>,
+        mut consumer: Consumer<'_, 'db, Vec<Vec<RedLink<'db>>>, Errors<()>>,
     ) -> Errors<()> {
         let db = env.db();
         match *self.kind(db) {
@@ -393,7 +393,7 @@ impl<'db> ToRedLinkVecs<'db> for SymPlace<'db> {
         env: &mut Env<'db>,
         live_after: LivePlaces,
         direction: Direction,
-        consumer: Consumer<'db, Vec<Vec<RedLink<'db>>>, Errors<()>>,
+        consumer: Consumer<'_, 'db, Vec<Vec<RedLink<'db>>>, Errors<()>>,
     ) -> Errors<()> {
         let ty = self.place_ty(env).await;
         ty.to_red_linkvecs(env, live_after, direction, consumer)
@@ -408,7 +408,7 @@ impl<'db> ToRedLinkVecs<'db> for SymTy<'db> {
         env: &mut Env<'db>,
         live_after: LivePlaces,
         direction: Direction,
-        mut consumer: Consumer<'db, Vec<Vec<RedLink<'db>>>, Errors<()>>,
+        mut consumer: Consumer<'_, 'db, Vec<Vec<RedLink<'db>>>, Errors<()>>,
     ) -> Errors<()> {
         if let (_, Some(perm)) = self.to_red_ty(env) {
             perm.to_red_linkvecs(env, live_after, direction, consumer)

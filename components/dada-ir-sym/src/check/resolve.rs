@@ -13,7 +13,7 @@ use super::{
     Env,
     inference::{Direction, InferVarKind},
     predicates::Predicate,
-    red::{Lien, RedPerm, RedTy},
+    red::{RedPerm, RedTy},
 };
 
 pub struct Resolver<'env, 'db> {

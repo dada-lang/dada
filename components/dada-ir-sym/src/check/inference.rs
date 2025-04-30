@@ -202,11 +202,11 @@ impl<'db> InferenceVarData<'db> {
         }
     }
 
-    /// Insert a chain as a lower bound.
-    /// Returns `Some(or_else.to_arc())` if this is a new upper bound.
+    /// Insert a red perm as a (lower|upper) bound.
+    /// Returns `Some(or_else.to_arc())` if this is a new (lower|upper) bound.
     pub fn insert_red_perm_bound(
         &mut self,
-        chain: &RedPerm<'db>,
+        red_perm: RedPerm<'db>,
         direction: Direction,
         or_else: &dyn OrElse<'db>,
     ) -> Option<ArcOrElse<'db>> {
@@ -220,11 +220,11 @@ impl<'db> InferenceVarData<'db> {
                 self.kind()
             ),
         };
-        if chain_bounds.iter().any(|pair| pair.0 == *chain) {
+        if chain_bounds.iter().any(|pair| pair.0 == red_perm) {
             return None;
         }
         let or_else = or_else.to_arc();
-        chain_bounds.push((chain.clone(), or_else.clone()));
+        chain_bounds.push((red_perm, or_else.clone()));
         Some(or_else)
     }
 

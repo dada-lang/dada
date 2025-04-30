@@ -1,16 +1,22 @@
 use std::pin::Pin;
 
-use dada_ir_ast::diagnostic::Errors;
-
 use super::env::Env;
 
-pub struct Consumer<'db, A, R> {
-    op: Pin<Box<dyn ErasedConsumer<'db, A, R>>>,
+pub struct Consumer<'c, 'db, A, R>
+where
+    A: 'c,
+    R: 'c,
+{
+    op: Box<dyn ErasedConsumer<'db, A, R> + 'c>,
 }
 
-impl<'db, A, R> Consumer<'db, A, R> {
-    pub fn new(op: impl AsyncFnMut(&mut Env<'db>, A) -> R) -> Self {
-        Consumer { op: Box::pin(op) }
+impl<'c, 'db, A, R> Consumer<'c, 'db, A, R>
+where
+    A: 'c,
+    R: 'c,
+{
+    pub fn new(op: impl AsyncFnMut(&mut Env<'db>, A) -> R + 'c) -> Self {
+        Consumer { op: Box::new(op) }
     }
 
     pub async fn consume(&mut self, env: &mut Env<'db>, arg: A) -> R {
@@ -24,18 +30,23 @@ trait ErasedConsumer<'db, A, R> {
         &'a mut self,
         env: &'a mut Env<'db>,
         arg: A,
-    ) -> Pin<Box<dyn Future<Output = R> + 'a>>;
+    ) -> Pin<Box<dyn Future<Output = R> + 'a>>
+    where
+        A: 'a;
 }
 
 impl<'db, F, A, R> ErasedConsumer<'db, A, R> for F
 where
-    F: AsyncFn(&mut Env<'db>, A) -> R,
+    F: AsyncFnMut(&mut Env<'db>, A) -> R,
 {
     fn consume<'a>(
         &'a mut self,
         env: &'a mut Env<'db>,
         arg: A,
-    ) -> Pin<Box<dyn Future<Output = R> + 'a>> {
+    ) -> Pin<Box<dyn Future<Output = R> + 'a>>
+    where
+        A: 'a,
+    {
         Box::pin(self(env, arg))
     }
 }
