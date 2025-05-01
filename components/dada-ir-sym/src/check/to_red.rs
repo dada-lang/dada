@@ -397,6 +397,29 @@ impl<'db> ToRedLinkVecs<'db> for SymPerm<'db> {
                 consumer.consume(env, vec![linkvec]).await
             }
             SymPermKind::Error(reported) => return Err(reported),
+            SymPermKind::Or(perm1, perm2) => {
+                perm1
+                    .to_red_linkvecs(
+                        env,
+                        live_after,
+                        direction,
+                        Consumer::new(async |env, linkvecs1: Vec<Vec<_>>| {
+                            perm2
+                                .to_red_linkvecs(
+                                    env,
+                                    live_after,
+                                    direction,
+                                    Consumer::new(async |env, linkvecs2: Vec<Vec<_>>| {
+                                        let linkvecs3 =
+                                            linkvecs1.iter().chain(&linkvecs2).cloned().collect();
+                                        consumer.consume(env, linkvecs3).await
+                                    }),
+                                )
+                                .await
+                        }),
+                    )
+                    .await
+            }
         }
     }
 }
