@@ -124,15 +124,10 @@ async fn require_perm_isnt_provably_copy<'db>(
     let db = env.db();
     match *perm.kind(db) {
         SymPermKind::Error(reported) => Err(reported),
-
         SymPermKind::My => Ok(()),
-
         SymPermKind::Our => Err(or_else.report(env, Because::JustSo)),
-
         SymPermKind::Shared(_) => Err(or_else.report(env, Because::JustSo)),
-
         SymPermKind::Leased(ref places) => {
-            // If there is at least one place `p` that is move, this will result in a `leased[p]` chain.
             env.require(
                 async |env| {
                     env.exists(places, async |env, &place| {
@@ -144,14 +139,11 @@ async fn require_perm_isnt_provably_copy<'db>(
             )
             .await
         }
-
-        // Apply
         SymPermKind::Apply(lhs, rhs) => {
             require_application_isnt_provably_copy(env, lhs.into(), rhs.into(), or_else).await
         }
-
-        // Variable and inference
         SymPermKind::Var(var) => require_var_isnt(env, var, Predicate::Copy, or_else),
         SymPermKind::Infer(infer) => require_infer_isnt(env, infer, Predicate::Copy, or_else),
+        SymPermKind::Or(..) => todo!(),
     }
 }

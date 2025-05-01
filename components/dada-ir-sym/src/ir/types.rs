@@ -495,6 +495,11 @@ impl<'db> SymPerm<'db> {
         SymPerm::new(db, SymPermKind::Apply(perm1, perm2))
     }
 
+    /// Returns a permission `perm1 | perm2`
+    pub fn or(db: &'db dyn crate::Db, perm1: SymPerm<'db>, perm2: SymPerm<'db>) -> Self {
+        SymPerm::new(db, SymPermKind::Or(perm1, perm2))
+    }
+
     /// Apply this permission to the given type (if `self` is not `my`).
     pub fn apply_to_ty(self, db: &'db dyn crate::Db, ty: SymTy<'db>) -> SymTy<'db> {
         match self.kind(db) {
@@ -617,6 +622,9 @@ pub enum SymPermKind<'db> {
 
     /// A generic variable (e.g., `T`).
     Var(SymVariable<'db>),
+
+    /// Either `P | Q`
+    Or(SymPerm<'db>, SymPerm<'db>),
 
     /// An error occurred and has been reported to the user.
     Error(Reported),

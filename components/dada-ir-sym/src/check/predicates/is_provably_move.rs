@@ -106,6 +106,8 @@ pub(crate) async fn perm_is_provably_move<'db>(
         SymPermKind::Infer(infer) => {
             test_perm_infer_is_known_to_be(env, infer, Predicate::Move).await
         }
+
+        SymPermKind::Or(_, _) => todo!(),
     }
 }
 
