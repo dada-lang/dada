@@ -15,6 +15,7 @@ use super::{
     inference::Direction,
     live_places::LivePlaces,
     places::PlaceTy,
+    predicates::Predicate,
     red::{RedChain, RedLink, RedPerm, RedTy},
     runtime::Runtime,
     stream::Consumer,
@@ -245,8 +246,6 @@ async fn expand_tail<'db>(
             )
             .await;
         }
-
-        Some(RedLink::Error(reported)) => return Err(*reported),
     };
 
     // Otherwise, convert expand that place to red-links. This will yield
@@ -271,7 +270,7 @@ async fn expand_tail<'db>(
                         // Otherwise, concatenate this new link vec with our original
                         // and push it back onto the "unexpanded" list. We will recursively
                         // examine it.
-                        let output = concat_linkvecs(env, &linkvec, &linkvec_place)?;
+                        let output = concat_linkvecs(env, &linkvec, &linkvec_place);
                         unexpanded_linkvecs.push(output);
                     }
                 }
@@ -361,7 +360,7 @@ impl<'db> ToRedLinkVecs<'db> for SymPerm<'db> {
                             live_after,
                             direction,
                             Consumer::new(async |env, linkvecs_rhs: Vec<Vec<_>>| {
-                                let links = concat_linkvecvecs(env, &linkvecs_lhs, &linkvecs_rhs)?;
+                                let links = concat_linkvecvecs(env, &linkvecs_lhs, &linkvecs_rhs);
                                 consumer.consume(env, links).await
                             }),
                         )
@@ -380,7 +379,23 @@ impl<'db> ToRedLinkVecs<'db> for SymPerm<'db> {
                 })
                 .await
             }
-            SymPermKind::Var(v) => consumer.consume(env, vec![vec![RedLink::Var(v)]]).await,
+            SymPermKind::Var(v) => {
+                let linkvec = {
+                    if env.var_is_declared_to_be(v, Predicate::Owned)
+                        && env.var_is_declared_to_be(v, Predicate::Move)
+                    {
+                        vec![]
+                    } else if env.var_is_declared_to_be(v, Predicate::Owned)
+                        && env.var_is_declared_to_be(v, Predicate::Move)
+                    {
+                        vec![RedLink::Our]
+                    } else {
+                        vec![RedLink::Var(v)]
+                    }
+                };
+
+                consumer.consume(env, vec![linkvec]).await
+            }
             SymPermKind::Error(reported) => return Err(reported),
         }
     }
@@ -423,30 +438,30 @@ fn concat_linkvecvecs<'db>(
     env: &mut Env<'db>,
     lhs: &[Vec<RedLink<'db>>],
     rhs: &[Vec<RedLink<'db>>],
-) -> Errors<Vec<Vec<RedLink<'db>>>> {
-    let mut output = vec![];
+) -> Vec<Vec<RedLink<'db>>> {
+    let mut output = Vec::with_capacity(lhs.len() * rhs.len());
     for l in lhs {
         for r in rhs {
-            output.push(concat_linkvecs(env, l, r)?);
+            output.push(concat_linkvecs(env, l, r));
         }
     }
-    Ok(output)
+    output
 }
 
 fn concat_linkvecs<'db>(
     env: &mut Env<'db>,
     lhs: &[RedLink<'db>],
     mut rhs: &[RedLink<'db>],
-) -> Errors<Vec<RedLink<'db>>> {
+) -> Vec<RedLink<'db>> {
     let mut lhs = lhs.to_vec();
 
     while let Some((rhs_head, rhs_tail)) = rhs.split_first() {
-        if rhs_head.is_copy(env)? {
-            return Ok(rhs.to_vec());
+        if rhs_head.is_copy(env) {
+            return rhs.to_vec();
         }
         lhs.push(*rhs_head);
         rhs = rhs_tail;
     }
 
-    Ok(lhs)
+    lhs
 }

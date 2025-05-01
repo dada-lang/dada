@@ -8,7 +8,6 @@ use crate::{
             Predicate,
             var_infer::{require_infer_is, require_var_is},
         },
-        red::Lien,
         report::{Because, OrElse},
     },
     ir::{
@@ -30,17 +29,6 @@ pub(crate) async fn require_term_is_move<'db>(
         SymGenericTerm::Place(place) => panic!("unexpected place term: {place:?}"),
         SymGenericTerm::Error(reported) => Err(reported),
     }
-}
-
-/// Requires that the given chain is `move`.
-pub(crate) async fn require_chain_is_move<'db>(
-    env: &mut Env<'db>,
-    chain: &[Lien<'db>],
-    or_else: &dyn OrElse<'db>,
-) -> Errors<()> {
-    let db = env.db();
-    let perm = Lien::chain_to_perm(db, chain);
-    require_perm_is_move(env, perm, or_else).await
 }
 
 /// Requires that `(lhs rhs)` is `move`.

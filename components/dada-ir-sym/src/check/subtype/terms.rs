@@ -102,15 +102,15 @@ async fn propagate_bounds<'db>(
                 Ok(())
             },
         )
-        .require(
-            // Can only be a subtype of something that isn't copy if you aren't copy
-            async |env| {
-                if term_isnt_provably_copy(env, upper).await? {
-                    require_term_isnt_provably_copy(env, lower, or_else).await?;
-                }
-                Ok(())
-            },
-        )
+        // .require(
+        //     // Can only be a subtype of something that isn't copy if you aren't copy
+        //     async |env| {
+        //         if term_isnt_provably_copy(env, upper).await? {
+        //             require_term_isnt_provably_copy(env, lower, or_else).await?;
+        //         }
+        //         Ok(())
+        //     },
+        // )
         .require(
             // Can only be a subtype of something owned if you are owned
             async |env| {

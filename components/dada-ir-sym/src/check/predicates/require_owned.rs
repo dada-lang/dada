@@ -9,7 +9,6 @@ use crate::{
             Predicate,
             var_infer::{require_infer_is, require_var_is},
         },
-        red::Lien,
         report::OrElse,
     },
     ir::types::{SymGenericTerm, SymPerm, SymPermKind, SymPlace, SymTy, SymTyKind},
@@ -28,17 +27,6 @@ pub(crate) async fn require_term_is_owned<'db>(
         SymGenericTerm::Place(place) => panic!("unexpected place term: {place:?}"),
         SymGenericTerm::Error(reported) => Err(reported),
     }
-}
-
-/// Requires that the given chain is `owned`.
-pub(crate) async fn require_chain_is_owned<'db>(
-    env: &mut Env<'db>,
-    chain: &[Lien<'db>],
-    or_else: &dyn OrElse<'db>,
-) -> Errors<()> {
-    let db = env.db();
-    let perm = Lien::chain_to_perm(db, chain);
-    require_perm_is_owned(env, perm, or_else).await
 }
 
 /// Requires that `(lhs rhs)` satisfies the given predicate.

@@ -12,25 +12,21 @@ pub mod var_infer;
 
 use dada_ir_ast::diagnostic::Errors;
 use dada_util::boxed_async_fn;
-use is_provably_copy::{perm_is_provably_copy, red_ty_is_provably_copy};
-use is_provably_lent::{perm_is_provably_lent, red_ty_is_provably_lent, term_is_provably_lent};
-use is_provably_move::{perm_is_provably_move, red_ty_is_provably_move, term_is_provably_move};
-use is_provably_owned::{perm_is_provably_owned, red_ty_is_provably_owned, term_is_provably_owned};
-use isnt_provably_copy::perm_isnt_provably_copy;
-use require_copy::require_chain_is_copy;
-use require_isnt_provably_copy::require_chain_isnt_provably_copy;
-use require_lent::{require_chain_is_lent, require_term_is_lent};
-use require_move::{require_chain_is_move, require_term_is_move};
-use require_owned::{require_chain_is_owned, require_term_is_owned};
+use is_provably_copy::red_ty_is_provably_copy;
+use is_provably_lent::{red_ty_is_provably_lent, term_is_provably_lent};
+use is_provably_move::{red_ty_is_provably_move, term_is_provably_move};
+use is_provably_owned::{red_ty_is_provably_owned, term_is_provably_owned};
+use require_lent::require_term_is_lent;
+use require_move::require_term_is_move;
+use require_owned::require_term_is_owned;
 use serde::Serialize;
-pub use var_infer::{test_perm_infer_is_known_to_be, test_var_is_provably};
 
 use crate::ir::types::SymGenericTerm;
 
 use super::{
     env::Env,
     inference::Direction,
-    red::{Lien, RedPerm, RedTy},
+    red::{RedPerm, RedTy},
     report::OrElse,
 };
 
@@ -113,36 +109,6 @@ pub(crate) async fn term_is_provably_leased<'db>(
 }
 
 #[boxed_async_fn]
-pub async fn require_chain_is<'db>(
-    env: &mut Env<'db>,
-    chain: &RedPerm<'db>,
-    predicate: Predicate,
-    or_else: &dyn OrElse<'db>,
-) -> Errors<()> {
-    match predicate {
-        Predicate::Copy => require_chain_is_copy(env, chain, or_else).await,
-        Predicate::Move => require_chain_is_move(env, chain, or_else).await,
-        Predicate::Owned => require_chain_is_owned(env, chain, or_else).await,
-        Predicate::Lent => require_chain_is_lent(env, chain, or_else).await,
-    }
-}
-
-#[boxed_async_fn]
-pub async fn require_chain_isnt<'db>(
-    env: &mut Env<'db>,
-    chain: &RedPerm<'db>,
-    predicate: Predicate,
-    or_else: &dyn OrElse<'db>,
-) -> Errors<()> {
-    match predicate {
-        Predicate::Copy => require_chain_isnt_provably_copy(env, chain, or_else).await,
-        Predicate::Move => todo!(),
-        Predicate::Owned => todo!(),
-        Predicate::Lent => todo!(),
-    }
-}
-
-#[boxed_async_fn]
 pub(crate) async fn red_ty_is_provably<'db>(
     env: &mut Env<'db>,
     red_ty: RedTy<'db>,
@@ -189,36 +155,4 @@ pub(crate) async fn term_is_provably_my<'db>(
         async |env| term_is_provably_owned(env, term).await,
     )
     .await
-}
-
-#[boxed_async_fn]
-pub async fn chain_is_provably<'db>(
-    env: &mut Env<'db>,
-    chain: &RedPerm<'db>,
-    predicate: Predicate,
-) -> Errors<bool> {
-    let db = env.db();
-    let perm = Lien::chain_to_perm(db, chain);
-    match predicate {
-        Predicate::Copy => perm_is_provably_copy(env, perm).await,
-        Predicate::Move => perm_is_provably_move(env, perm).await,
-        Predicate::Owned => perm_is_provably_owned(env, perm).await,
-        Predicate::Lent => perm_is_provably_lent(env, perm).await,
-    }
-}
-
-#[boxed_async_fn]
-pub async fn chain_isnt_provably<'db>(
-    env: &mut Env<'db>,
-    chain: &RedPerm<'db>,
-    predicate: Predicate,
-) -> Errors<bool> {
-    let db = env.db();
-    let perm = Lien::chain_to_perm(db, chain);
-    match predicate {
-        Predicate::Copy => perm_isnt_provably_copy(env, perm).await,
-        Predicate::Move => todo!(),
-        Predicate::Owned => todo!(),
-        Predicate::Lent => todo!(),
-    }
 }
