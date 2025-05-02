@@ -15,6 +15,8 @@ use crate::ir::{
 
 use super::{env::Env, predicates::Predicate};
 
+mod glb;
+
 /// A "lien chain" is a list of permissions by which some data may have been reached.
 /// An empty lien chain corresponds to owned data (`my`, in surface Dada syntax).
 /// A lien chain like `shared[p] leased[q]` would correspond to data shared from a variable `p`
