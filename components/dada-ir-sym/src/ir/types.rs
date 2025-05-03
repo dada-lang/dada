@@ -662,20 +662,14 @@ impl<'db> SymPlace<'db> {
     /// # Definition
     ///
     /// A place P *covers* another place Q if P includes all of Q. E.g., `a` covers `a.b`.
-    pub fn covers(self, db: &'db dyn crate::Db, other: SymPlace<'db>) -> bool {
+    pub fn is_prefix_of(self, db: &'db dyn crate::Db, other: SymPlace<'db>) -> bool {
         assert!(self.no_inference_vars(db));
         assert!(other.no_inference_vars(db));
         self == other
             || match (self.kind(db), other.kind(db)) {
-                (_, SymPlaceKind::Field(p2, _)) => self.covers(db, *p2),
+                (_, SymPlaceKind::Field(p2, _)) => self.is_prefix_of(db, *p2),
                 _ => false,
             }
-    }
-
-    /// True if `self` is covered by `other`. Neither place may contain inference variables.
-    /// See [`Self::covers`] for the definition of coverage.
-    pub fn is_covered_by(self, db: &'db dyn crate::Db, other: SymPlace<'db>) -> bool {
-        other.covers(db, self)
     }
 }
 

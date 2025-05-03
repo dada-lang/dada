@@ -261,7 +261,7 @@ fn test_red_links_sub_red_links<'db>(
                 tail_u @ ..,
             ],
         ) => {
-            test_place_sub_place(env, *place_l, *place_u)
+            place_u.is_prefix_of(env.db(), *place_l)
             && test_red_links_sub_red_links(env, tail_l, tail_u)
         },
 
@@ -271,12 +271,4 @@ fn test_red_links_sub_red_links<'db>(
 
 
     }
-}
-
-fn test_place_sub_place<'db>(
-    env: &Env<'db>,
-    place_l: SymPlace<'db>,
-    place_r: SymPlace<'db>,
-) -> bool {
-    place_l.is_covered_by(env.db(), place_r)
 }
