@@ -5,14 +5,14 @@ use crate::{
         env::Env,
         inference::Direction,
         live_places::LivePlaces,
-        red::{RedLink, RedPerm},
+        red::{RedLink, RedPerm, sub::chain_sub_chain},
         report::{Because, OrElse},
         stream::Consumer,
         to_red::ToRedPerm,
     },
     ir::{
         indices::InferVarIndex,
-        types::{SymPerm, SymPermKind, SymPlace},
+        types::{SymPerm, SymPermKind},
     },
 };
 
@@ -193,82 +193,14 @@ fn require_red_perm_sub_red_perm<'db>(
     or_else: &dyn OrElse<'db>,
 ) -> Errors<()> {
     let db = env.db();
-    if let Some(_unmatched_chain) = lower_perm.chains(db).iter().find(|lower_chain| {
-        upper_perm.chains(db).iter().all(|upper_chain| {
-            !test_red_links_sub_red_links(env, lower_chain.links(db), upper_chain.links(db))
-        })
+    if let Some(_unmatched_chain) = lower_perm.chains(db).iter().find(|&&lower_chain| {
+        upper_perm
+            .chains(db)
+            .iter()
+            .all(|&upper_chain| !chain_sub_chain(env, lower_chain, upper_chain))
     }) {
         Err(or_else.report(env, Because::JustSo))
     } else {
         Ok(())
-    }
-}
-
-fn test_red_links_sub_red_links<'db>(
-    env: &Env<'db>,
-    lower_links: &[RedLink<'db>],
-    upper_links: &[RedLink<'db>],
-) -> bool {
-    macro_rules! rules {
-        ($($pat:pat => $cond:expr,)*) => {
-            match (lower_links, upper_links) {
-                $(
-                    $pat if $cond => true,
-                )*
-                _ => false,
-            }
-        };
-    }
-
-    rules! {
-        ([], []) => true,
-
-        ([RedLink::Our], links_u) => RedLink::are_copy(env, links_u),
-
-        ([RedLink::Our, tail_l @ ..], [head_u, tail_u @ ..]) => {
-            head_u.is_copy(env)
-            && test_red_links_sub_red_links(env, tail_l, tail_u)
-        },
-
-        (
-            [
-                RedLink::RefLive(place_l) | RedLink::RefDead(place_l),
-                tail_l @ ..,
-            ],
-            [
-                RedLink::RefLive(place_u) | RedLink::RefDead(place_u),
-                tail_u @ ..,
-            ],
-        )
-        | (
-            [
-                RedLink::MutLive(place_l) | RedLink::MutDead(place_l),
-                tail_l @ ..,
-            ],
-            [
-                RedLink::MutLive(place_u) | RedLink::MutDead(place_u),
-                tail_u @ ..,
-            ],
-        )
-        | (
-            [
-                RedLink::RefLive(place_l) | RedLink::RefDead(place_l),
-                tail_l @ ..,
-            ],
-            [
-                RedLink::Our,
-                RedLink::MutLive(place_u) | RedLink::MutDead(place_u),
-                tail_u @ ..,
-            ],
-        ) => {
-            place_u.is_prefix_of(env.db(), *place_l)
-            && test_red_links_sub_red_links(env, tail_l, tail_u)
-        },
-
-        ([RedLink::Var(var_l), tail_l @ ..], [RedLink::Var(var_u), tail_u @ ..]) => {
-            var_l == var_u && test_red_links_sub_red_links(env, tail_l, tail_u)
-        },
-
-
     }
 }

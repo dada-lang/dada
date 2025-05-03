@@ -15,7 +15,8 @@ use crate::ir::{
 
 use super::{env::Env, predicates::Predicate};
 
-mod glb;
+pub mod lattice;
+pub mod sub;
 
 /// A "lien chain" is a list of permissions by which some data may have been reached.
 /// An empty lien chain corresponds to owned data (`my`, in surface Dada syntax).
@@ -66,12 +67,13 @@ impl<'db> RedChain<'db> {
 #[derive(Copy, Clone, Debug, PartialEq, Eq, PartialOrd, Ord, Hash, Serialize)]
 pub enum RedLink<'db> {
     Our,
-    RefLive(SymPlace<'db>),
-    RefDead(SymPlace<'db>),
-    MutLive(SymPlace<'db>),
-    MutDead(SymPlace<'db>),
+    Ref(Live, SymPlace<'db>),
+    Mut(Live, SymPlace<'db>),
     Var(SymVariable<'db>),
 }
+
+#[derive(Copy, Clone, Debug, PartialEq, Eq, PartialOrd, Ord, Hash, Serialize)]
+pub struct Live(pub bool);
 
 impl<'db> RedLink<'db> {
     pub fn are_copy(env: &Env<'db>, links: &[Self]) -> bool {
@@ -100,11 +102,7 @@ impl<'db> RedLink<'db> {
                     && env.var_is_declared_to_be(*v, Predicate::Owned)
             }
 
-            RedLink::Our
-            | RedLink::RefLive(_)
-            | RedLink::RefDead(_)
-            | RedLink::MutLive(_)
-            | RedLink::MutDead(_) => false,
+            RedLink::Our | RedLink::Ref(..) | RedLink::Mut(..) => false,
         }
     }
 
@@ -116,10 +114,7 @@ impl<'db> RedLink<'db> {
                     && env.var_is_declared_to_be(*v, Predicate::Owned)
             }
 
-            RedLink::RefLive(_)
-            | RedLink::RefDead(_)
-            | RedLink::MutLive(_)
-            | RedLink::MutDead(_) => false,
+            RedLink::Ref(..) | RedLink::Mut(..) => false,
         }
     }
 
@@ -128,19 +123,13 @@ impl<'db> RedLink<'db> {
             RedLink::Our => true,
             RedLink::Var(v) => env.var_is_declared_to_be(*v, Predicate::Owned),
 
-            RedLink::RefLive(_)
-            | RedLink::RefDead(_)
-            | RedLink::MutLive(_)
-            | RedLink::MutDead(_) => false,
+            RedLink::Ref(..) | RedLink::Mut(..) => false,
         }
     }
 
     pub fn is_lent(&self, env: &Env<'db>) -> bool {
         match self {
-            RedLink::RefLive(_)
-            | RedLink::RefDead(_)
-            | RedLink::MutLive(_)
-            | RedLink::MutDead(_) => true,
+            RedLink::Ref(..) | RedLink::Mut(..) => true,
             RedLink::Var(v) => env.var_is_declared_to_be(*v, Predicate::Lent),
 
             RedLink::Our => false,
@@ -149,19 +138,19 @@ impl<'db> RedLink<'db> {
 
     pub fn is_move(&self, env: &Env<'db>) -> bool {
         match self {
-            RedLink::MutLive(_) | RedLink::MutDead(_) => true,
+            RedLink::Mut(..) => true,
             RedLink::Var(v) => env.var_is_declared_to_be(*v, Predicate::Move),
 
-            RedLink::Our | RedLink::RefLive(_) | RedLink::RefDead(_) => false,
+            RedLink::Our | RedLink::Ref(..) => false,
         }
     }
 
     pub fn is_copy(&self, env: &Env<'db>) -> bool {
         match self {
-            RedLink::Our | RedLink::RefLive(_) | RedLink::RefDead(_) => true,
+            RedLink::Our | RedLink::Ref(..) => true,
             RedLink::Var(v) => env.var_is_declared_to_be(*v, Predicate::Copy),
 
-            RedLink::MutLive(_) | RedLink::MutDead(_) => false,
+            RedLink::Mut(..) => false,
         }
     }
 }

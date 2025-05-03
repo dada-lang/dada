@@ -16,7 +16,7 @@ use super::{
     live_places::LivePlaces,
     places::PlaceTy,
     predicates::Predicate,
-    red::{RedChain, RedLink, RedPerm, RedTy},
+    red::{Live, RedChain, RedLink, RedPerm, RedTy},
     runtime::Runtime,
     stream::Consumer,
 };
@@ -226,10 +226,7 @@ async fn expand_tail<'db>(
     };
 
     let place = match linkvec.last() {
-        Some(RedLink::RefLive(place))
-        | Some(RedLink::RefDead(place))
-        | Some(RedLink::MutLive(place))
-        | Some(RedLink::MutDead(place)) => place,
+        Some(RedLink::Ref(_, place)) | Some(RedLink::Mut(_, place)) => place,
 
         // If the last link does not reference a place,
         // or there is no last link (i.e., we have `my`),
@@ -324,13 +321,7 @@ impl<'db> ToRedLinkVecs<'db> for SymPerm<'db> {
             SymPermKind::Shared(ref places) => {
                 let links = places
                     .iter()
-                    .map(|&place| {
-                        if live_after.is_live(env, place) {
-                            RedLink::RefLive(place)
-                        } else {
-                            RedLink::RefDead(place)
-                        }
-                    })
+                    .map(|&place| RedLink::Ref(Live(live_after.is_live(env, place)), place))
                     .map(|link| vec![link])
                     .collect::<Vec<_>>();
                 consumer.consume(env, links).await
@@ -338,13 +329,7 @@ impl<'db> ToRedLinkVecs<'db> for SymPerm<'db> {
             SymPermKind::Leased(ref places) => {
                 let links = places
                     .iter()
-                    .map(|&place| {
-                        if live_after.is_live(env, place) {
-                            RedLink::MutLive(place)
-                        } else {
-                            RedLink::MutDead(place)
-                        }
-                    })
+                    .map(|&place| RedLink::Mut(Live(live_after.is_live(env, place)), place))
                     .map(|link| vec![link])
                     .collect::<Vec<_>>();
                 consumer.consume(env, links).await

@@ -10,6 +10,7 @@ dada-util = { version = "0.1.0", path = "../dada-util" }
 either = "1.13.0"
 erased-serde = "0.4.6"
 futures = "0.3.31"
+itertools = "0.14.0"
 ordered-float = { version = "4.5.0", features = ["serde"] }
 salsa = { workspace = true }
 serde = { version = "1.0.219", features = ["derive"] }

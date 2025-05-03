@@ -202,12 +202,8 @@ impl<'env, 'db> Resolver<'env, 'db> {
     fn red_link_to_perm(&self, link: RedLink<'db>) -> SymPerm<'db> {
         match link {
             RedLink::Our => SymPerm::our(self.db),
-            RedLink::RefLive(place) | RedLink::RefDead(place) => {
-                SymPerm::shared(self.db, vec![place])
-            }
-            RedLink::MutLive(place) | RedLink::MutDead(place) => {
-                SymPerm::leased(self.db, vec![place])
-            }
+            RedLink::Ref(_, place) => SymPerm::shared(self.db, vec![place]),
+            RedLink::Mut(_, place) => SymPerm::leased(self.db, vec![place]),
             RedLink::Var(v) => SymPerm::var(self.db, v),
         }
     }
