@@ -183,108 +183,119 @@ pub async fn test_perm_infer_is_known_to_be<'db>(
     predicate: Predicate,
 ) -> Errors<bool> {
     assert_eq!(env.infer_var_kind(infer), InferVarKind::Perm);
-    let mut storage = None;
-    loop {
-        let Some((is, isnt, lower_red_perms, upper_red_perms)) = env
-            .watch_inference_var(
-                infer,
-                |data| {
-                    (
-                        data.is_known_to_provably_be(predicate).is_some(),
-                        data.is_known_not_to_provably_be(predicate).is_some(),
-                        data.red_perm_bounds(Direction::FromBelow)
-                            .iter()
-                            .map(|pair| pair.0.clone())
-                            .collect::<Vec<RedPerm<'db>>>(),
-                        data.red_perm_bounds(Direction::FromAbove)
-                            .iter()
-                            .map(|pair| pair.0.clone())
-                            .collect::<Vec<RedPerm<'db>>>(),
-                    )
-                },
-                &mut storage,
-            )
-            .await
-        else {
-            return Err(report_type_annotations_needed(env, infer, predicate));
-        };
 
-        if is {
-            return Ok(true);
-        } else if isnt {
-            return Ok(false);
-        } else {
-            match predicate {
-                Predicate::Owned => {
-                    // An "owned" perm can be upcast into a "lent" perm.
-                    // e.g., `our <: ref[x]` for any `x`.
-                    //
-                    // So an *owned* lower bound (e.g., `our`)
-                    // does not imply the result is owned,
-                    // as a second lower bound that is lent (e.g., `ref[x]`) could
-                    // come later, and the lub of `our` and `ref[x]` is `ref[x]`.
-                    //
-                    // Similarly, a non-owned upper bound (e.g., `ref[x]`)
-                    // does not imply the result is NOT owned,
-                    // as a second upper bound that IS owned (e.g., `our) could
-                    // come later, and the glb of `our` and `ref[x]` is `our`.
-                    //
-                    // However, a *non-owned* lower bound (e.g., `ref[X]` or `perm X`)
-                    // DOES imply the result cannot be owned. Even if an owned lower bound
-                    // comes later, the lub will still not be owned.
-                    //
-                    // Conversely, an *owned* upper bound (e.g., `our`)
-                    // implies the result MUST be owned.  Even if a lent upper bound
-                    // comes later, the glb will still be owned.
+    match predicate {
+        Predicate::Copy | Predicate::Move => {
+            // Copy/move predicates are preserved by up/downcasting:
+            //
+            // * All copy perms (`our`, `ref[_]`, `our mut[_]`, `copy perm X`)
+            //   are only subtypes of other copy perms.
+            // * All move perms (`my`, `mut[_]`, `move perm X`)
+            //   are only subtypes of other move perms.
+            //
+            // Therefore, if any lower or upper bound meets the predicate, then,
+            // we know the predicate must hold.
+            //
+            // Similarly, if any lower or upper bound is known NOT to meet the predicate,
+            // then the predicate cannot hold: e.g.,:
+            //
+            // * if we have `perm X` as a lower or upper bound
+            //   and nothing is known about `X`, then we will never be able to say that
+            //   this variable is `copy` (or `owned`, etc).
+            // * if we have a lower bound of `our`, then we know the variable
+            //   will never be `move`.
 
-                    if lower_red_perms
-                        .iter()
-                        .any(|perm| !perm.is_provably(env, Predicate::Owned))
-                    {
-                        return Ok(false);
-                    }
-
-                    if upper_red_perms
-                        .iter()
-                        .any(|perm| perm.is_provably(env, Predicate::Owned))
-                    {
-                        return Ok(true);
-                    }
-                }
-
-                Predicate::Copy | Predicate::Move | Predicate::Lent => {
-                    // Other predicates cannot be lost through upcasting:
-                    //
-                    // * All copy perms (`our`, `ref[_]`, `our mut[_]`, `copy perm X`)
-                    //   are only subtypes of other copy perms.
-                    // * All move perms (`my`, `mut[_]`, `move perm X`)
-                    //   are only subtypes of other copy perms.
-                    // * All lent perms (`ref[_]`, `mut[_]`, `lent perm X`)
-                    //   are only subtypes of other copy perms.
-                    //
-                    // Therefore, if any lower or upper bound meets the predicate, then,
-                    // we know the predicate must hold.
-                    //
-                    // Similarly, if any lower or upper bound is known NOT to meet the predicate,
-                    // then the predicate cannot hold: e.g.,:
-                    //
-                    // * if we have `perm X` as a lower or upper bound
-                    //   and nothing is known about `X`, then we will never be able to say that
-                    //   this variable is `copy` (or `owned`, etc).
-                    // * if we have a lower bound of `our`, then we know the variable
-                    //   will never be `move`.
-
-                    let bounding_perms = || lower_red_perms.iter().chain(upper_red_perms.iter());
-
-                    if bounding_perms().any(|perm| !perm.is_provably(env, predicate)) {
-                        return Ok(false);
-                    }
-
-                    if bounding_perms().any(|perm| perm.is_provably(env, predicate)) {
-                        return Ok(true);
-                    }
-                }
+            if let Some((_, bound)) = env.next_perm_bound(infer, None, &mut None).await {
+                Ok(bound.is_provably(env, predicate))
+            } else {
+                // We never got any inference bound, so we can't say anything useful.
+                Ok(false)
             }
+        }
+
+        Predicate::Lent => {
+            // "Lent" predicates cannot be removed from
+            Ok(env
+                .find_red_perm_bound(infer, None, async |env, direction, bound| match direction {
+                    Direction::FromBelow => {
+                        if bound.is_provably(env, Predicate::Lent) {
+                            // `ref[x] <: ?X` or `mut[x] <: ?X` or `lent perm Y <: ?X`:
+                            // This implies that `?X` must be lent.
+                            Ok(Some(true))
+                        } else if bound.is_our(env) {
+                            // `our <: ?X` could later be upcast to `ref[x]` or `our mut[x]`
+                            Ok(None)
+                        } else {
+                            // `my <: ?X` or `perm Y <: ?X` -- `?X` cannot become something known to be lent
+                            Ok(Some(false))
+                        }
+                    }
+
+                    Direction::FromAbove => {
+                        // In an upper bound...
+                        //
+                        if bound.is_provably(env, Predicate::Lent) {
+                            if bound.is_provably(env, Predicate::Copy) {
+                                // `?X <: ref[x]`-- `?X` could be `our`, so this this does
+                                // not tell us anything useful.
+                                Ok(None)
+                            } else {
+                                // `?X <: mut[x]` -- `?X` must be `mut[x]`, so must be lent
+                                Ok(Some(true))
+                            }
+                        } else {
+                            // `?X <: our` or `?X <: X`
+                            //
+                            // `?X` cannot be `ref[x]` and friends.
+                            Ok(Some(false))
+                        }
+                    }
+                })
+                .await?
+                .unwrap_or(false))
+        }
+
+        Predicate::Owned => {
+            // An "owned" perm can be upcast into a "lent" perm.
+            // e.g., `our <: ref[x]` for any `x`.
+            //
+            // So an *owned* lower bound (e.g., `our`)
+            // does not imply the result is owned,
+            // as a second lower bound that is lent (e.g., `ref[x]`) could
+            // come later, and the lub of `our` and `ref[x]` is `ref[x]`.
+            //
+            // Similarly, a non-owned upper bound (e.g., `ref[x]`)
+            // does not imply the result is NOT owned,
+            // as a second upper bound that IS owned (e.g., `our) could
+            // come later, and the glb of `our` and `ref[x]` is `our`.
+            //
+            // However, a *non-owned* lower bound (e.g., `ref[X]` or `perm X`)
+            // DOES imply the result cannot be owned. Even if an owned lower bound
+            // comes later, the lub will still not be owned.
+            //
+            // Conversely, an *owned* upper bound (e.g., `our`)
+            // implies the result MUST be owned.  Even if a lent upper bound
+            // comes later, the glb will still be owned.
+            Ok(env
+                .find_red_perm_bound(infer, None, async |env, direction, bound| match direction {
+                    Direction::FromAbove => {
+                        if bound.is_provably(env, Predicate::Owned) {
+                            Ok(Some(true))
+                        } else {
+                            Ok(None)
+                        }
+                    }
+
+                    Direction::FromBelow => {
+                        if bound.is_not_known_to_be(env, Predicate::Owned) {
+                            Ok(Some(false))
+                        } else {
+                            Ok(None)
+                        }
+                    }
+                })
+                .await?
+                .unwrap_or(false))
         }
     }
 }

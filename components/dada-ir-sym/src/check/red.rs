@@ -35,6 +35,14 @@ impl<'db> RedPerm<'db> {
         assert!(!chains.is_empty());
         chains.iter().all(|chain| chain.is_provably(env, predicate))
     }
+
+    pub fn is_my(self, env: &Env<'db>) -> bool {
+        self.is_provably(env, Predicate::Move) && self.is_provably(env, Predicate::Owned)
+    }
+
+    pub fn is_our(self, env: &Env<'db>) -> bool {
+        self.is_provably(env, Predicate::Copy) && self.is_provably(env, Predicate::Owned)
+    }
 }
 
 #[derive(SalsaSerialize)]

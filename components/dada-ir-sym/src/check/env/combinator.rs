@@ -247,77 +247,101 @@ impl<'db> Env<'db> {
         }
     }
 
+    /// Invoke `op` each time `infer`'s bounds get tighter.
+    /// If `op` returns `Some`, return that.
+    /// If `op` returns `None`, wait until tighter bounds arrive.
+    /// Returns `None` if inference completes before finding a bound for which `op`
+    /// returns `Some`.
     #[track_caller]
-    pub fn exists_red_perm_bound(
+    pub fn find_red_perm_bound(
         &mut self,
         infer: InferVarIndex,
-        direction: Direction,
-        mut op: impl AsyncFnMut(&mut Env<'db>, RedPerm<'db>) -> Errors<bool>,
-    ) -> impl Future<Output = Errors<bool>> {
+        direction: Option<Direction>,
+        mut op: impl AsyncFnMut(&mut Env<'db>, Direction, RedPerm<'db>) -> Errors<Option<bool>>,
+    ) -> impl Future<Output = Errors<Option<bool>>> {
         let compiler_location = Location::caller();
 
         async move {
             self.indent_with_compiler_location(
                 compiler_location,
-                "exists_chain_bound",
+                "find_red_perm_bound",
                 &[&infer],
                 async |env| {
-                    let mut observed = 0;
-                    let mut stack = vec![];
-
-                    loop {
-                        env.extract_red_perm_bounds(infer, &mut observed, &mut stack, direction)
-                            .await;
-
-                        while let Some(chain) = stack.pop() {
-                            env.log("new bound", &[&chain]);
-                            match op(env, chain).await {
-                                Ok(true) => return Ok(true),
-                                Ok(false) => (),
-                                Err(reported) => return Err(reported),
-                            }
+                    let mut storage = None;
+                    while let Some((d, b)) =
+                        env.next_perm_bound(infer, direction, &mut storage).await
+                    {
+                        match op(env, d, b).await? {
+                            Some(b) => return Ok(Some(b)),
+                            None => (),
                         }
                     }
+                    Ok(None)
                 },
             )
             .await
         }
     }
 
-    /// Invoke `op` on every bounding chain (either upper or lower determined by `direction`).
-    /// Typically never returns as the full set of bounds on an inference variable is never known.
-    /// Exception is if an `Err` occurs, it is propagated.
+    /// Observe the red-perm bound on `infer` from the given direction
+    /// and invoke `op` each time it gets tighter. If `op` returns true,
+    /// return true. If we never observe a value that is true, return false.
+    ///
+    /// This makes sense if `op` is monotonic with respect
+    /// to tightening bounds from the given direction.
+    #[track_caller]
+    pub fn exists_red_perm_bound(
+        &mut self,
+        infer: InferVarIndex,
+        direction: Option<Direction>,
+        mut op: impl AsyncFnMut(&mut Env<'db>, Direction, RedPerm<'db>) -> Errors<bool>,
+    ) -> impl Future<Output = Errors<bool>> {
+        let compiler_location = Location::caller();
+
+        async move {
+            self.indent_with_compiler_location(
+                compiler_location,
+                "exists_red_perm_bound",
+                &[&infer],
+                async |env| {
+                    self.find_red_perm_bound(infer, direction, async |env, d, b| {
+                        if op(env, d, b).await? {
+                            Ok(Some(true))
+                        } else {
+                            Ok(None)
+                        }
+                    })
+                    .await
+                },
+            )
+            .await
+        }
+    }
+
+    /// Observe the red-perm bound on `infer` from the given direction
+    /// and invoke `op` each time it changes. If `op` ever results in an
+    /// error, propagate it.
     #[track_caller]
     pub fn require_for_all_red_perm_bounds(
         &mut self,
         infer: InferVarIndex,
-        direction: Direction,
-        mut op: impl AsyncFnMut(&mut Env<'db>, RedPerm<'db>) -> Errors<()>,
+        direction: Option<Direction>,
+        mut op: impl AsyncFnMut(&mut Env<'db>, Direction, RedPerm<'db>) -> Errors<()>,
     ) -> impl Future<Output = Errors<()>> {
         let compiler_location = Location::caller();
 
         async move {
             self.indent_with_compiler_location(
                 compiler_location,
-                "require_for_all_chain_bounds",
+                "require_for_all_red_perm_bounds",
                 &[&infer],
                 async |env| {
-                    let mut observed = 0;
-                    let mut stack = vec![];
-
-                    while env
-                        .extract_red_perm_bounds(infer, &mut observed, &mut stack, direction)
-                        .await
+                    let mut storage = None;
+                    while let Some((d, b)) =
+                        env.next_perm_bound(infer, direction, &mut storage).await
                     {
-                        while let Some(chain) = stack.pop() {
-                            env.log("new bound", &[&chain]);
-                            match op(env, chain).await {
-                                Ok(()) => (),
-                                Err(reported) => return Err(reported),
-                            }
-                        }
+                        op(env, d, b).await?;
                     }
-
                     Ok(())
                 },
             )
@@ -325,33 +349,49 @@ impl<'db> Env<'db> {
         }
     }
 
-    /// Monitor the inference variable `infer` and push new bounding chains (either upper or lower
-    /// depending on `direction`) onto `stack`. The variable `observed` is used to track which
-    /// chains have been observed from previous invocations; it should begin as `0` and it will be
-    /// incremented during the call.
-    ///
-    /// Returns true if bounds were extracted and false if inference has completed and no more
-    /// bounds are forthcoming.
-    pub async fn extract_red_perm_bounds(
-        &mut self,
+    #[track_caller]
+    pub async fn next_perm_bound(
+        &self,
         infer: InferVarIndex,
-        observed: &mut usize,
-        stack: &mut Vec<RedPerm<'db>>,
-        direction: Direction,
-    ) -> bool {
-        self.loop_on_inference_var(infer, |data| {
-            let chains = data.red_perm_bounds(direction);
-            assert!(stack.is_empty());
-            if *observed == chains.len() {
-                None
-            } else {
-                stack.extend(chains.iter().skip(*observed).map(|pair| pair.0.clone()));
-                *observed = chains.len();
-                Some(())
+        direction: Option<Direction>,
+        storage: &mut Option<Option<(Direction, RedPerm<'db>)>>,
+    ) -> Option<(Direction, RedPerm<'db>)> {
+        loop {
+            let bound = self
+                .watch_inference_var(
+                    infer,
+                    |data| {
+                        let from_above = || {
+                            data.red_perm_bound(Direction::FromAbove)
+                                .map(|pair| (Direction::FromAbove, pair.0))
+                        };
+
+                        let from_below = || {
+                            data.red_perm_bound(Direction::FromBelow)
+                                .map(|pair| (Direction::FromBelow, pair.0))
+                        };
+
+                        match direction {
+                            Some(Direction::FromAbove) => from_above(),
+                            Some(Direction::FromBelow) => from_below(),
+                            None => from_above().or_else(from_below),
+                        }
+                    },
+                    storage,
+                )
+                .await;
+
+            match bound {
+                // Inference is complete.
+                None => return None,
+
+                // New bound value.
+                Some(Some(b)) => return Some(b),
+
+                // No current bound. Loop until one arrives.
+                Some(None) => (),
             }
-        })
-        .await
-        .is_some()
+        }
     }
 
     #[track_caller]
