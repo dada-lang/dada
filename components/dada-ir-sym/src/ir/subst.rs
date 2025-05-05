@@ -278,7 +278,6 @@ impl<'db> SubstWith<'db, SymGenericTerm<'db>> for SymPerm<'db> {
         subst_fns: &mut SubstitutionFns<'_, 'db, SymGenericTerm<'db>>,
     ) -> Self::Output {
         match self.kind(db) {
-            // Variables
             SymPermKind::Var(var) => subst_var(db, bound_vars, subst_fns, *var),
             SymPermKind::Infer(v) => {
                 if let Some(term) = (subst_fns.infer_var)(*v) {
@@ -287,8 +286,6 @@ impl<'db> SubstWith<'db, SymGenericTerm<'db>> for SymPerm<'db> {
                     self.identity()
                 }
             }
-
-            // Structural cases
             SymPermKind::Shared(vec) => SymPerm::new(
                 db,
                 SymPermKind::Shared(
@@ -314,6 +311,13 @@ impl<'db> SubstWith<'db, SymGenericTerm<'db>> for SymPerm<'db> {
             SymPermKind::Apply(left, right) => SymPerm::new(
                 db,
                 SymPermKind::Apply(
+                    left.subst_with(db, bound_vars, subst_fns),
+                    right.subst_with(db, bound_vars, subst_fns),
+                ),
+            ),
+            SymPermKind::Or(left, right) => SymPerm::new(
+                db,
+                SymPermKind::Or(
                     left.subst_with(db, bound_vars, subst_fns),
                     right.subst_with(db, bound_vars, subst_fns),
                 ),

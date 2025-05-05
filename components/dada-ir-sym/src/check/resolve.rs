@@ -4,16 +4,15 @@ use dada_ir_ast::diagnostic::{Diagnostic, Err, Level, Reported};
 use dada_util::Set;
 
 use crate::ir::{
-    indices::{FromInfer, InferVarIndex},
+    indices::InferVarIndex,
     subst::Subst,
-    types::{SymGenericTerm, SymPerm, SymPermKind, SymPlace, SymTy, SymTyKind},
+    types::{SymGenericTerm, SymPerm, SymTy, SymTyKind},
 };
 
 use super::{
     Env,
     inference::{Direction, InferVarKind},
-    predicates::Predicate,
-    red::{RedChain, RedLink, RedPerm, RedTy},
+    red::RedTy,
 };
 
 pub struct Resolver<'env, 'db> {
@@ -144,7 +143,7 @@ impl<'env, 'db> Resolver<'env, 'db> {
     ) -> Result<Option<SymTy<'db>>, ResolverError<'db>> {
         let db = self.env.db();
 
-        let bound = self.env.red_ty_bound(infer, direction).peek();
+        let bound = self.env.red_bound(infer, direction).peek_ty();
 
         let Some((red_ty, _)) = bound else {
             return Ok(None);
@@ -174,38 +173,10 @@ impl<'env, 'db> Resolver<'env, 'db> {
         direction: Direction,
     ) -> Result<SymPerm<'db>, ResolverError<'db>> {
         let runtime = self.env.runtime().clone();
-        runtime.with_inference_var_data(infer, |data| {
-            let chains = data.red_perm_bounds(direction);
-            // XXX what do we do here -- we have multiple bounds that must hold which is NOT the same
-            // as an `our` bound`
-            self.merge_lien_chains(chains.iter().map(|pair| &pair.0), direction)
+        runtime.with_inference_var_data(infer, |data| match data.red_perm_bound(direction) {
+            Some((bound, _)) => Ok(bound.to_sym_perm(self.db)),
+            None => Err(ResolverError::NoBounds),
         })
-    }
-
-    fn red_perm_to_perm(&self, perm: RedPerm<'db>) -> SymPerm<'db> {
-        perm.chains(self.db)
-            .iter()
-            .map(|&chain| self.red_chain_to_perm(chain))
-            .reduce(|perm1, perm2| SymPerm::or(self.db, perm1, perm2))
-            .unwrap()
-    }
-
-    fn red_chain_to_perm(&self, chain: RedChain<'db>) -> SymPerm<'db> {
-        chain
-            .links(self.db)
-            .iter()
-            .map(|&link| self.red_link_to_perm(link))
-            .reduce(|perm1, perm2| SymPerm::apply(self.db, perm1, perm2))
-            .unwrap_or_else(|| SymPerm::my(self.db))
-    }
-
-    fn red_link_to_perm(&self, link: RedLink<'db>) -> SymPerm<'db> {
-        match link {
-            RedLink::Our => SymPerm::our(self.db),
-            RedLink::Ref(_, place) => SymPerm::shared(self.db, vec![place]),
-            RedLink::Mut(_, place) => SymPerm::leased(self.db, vec![place]),
-            RedLink::Var(v) => SymPerm::var(self.db, v),
-        }
     }
 }
 

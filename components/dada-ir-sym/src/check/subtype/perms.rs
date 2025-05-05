@@ -5,7 +5,7 @@ use crate::{
         env::Env,
         inference::Direction,
         live_places::LivePlaces,
-        red::{RedLink, RedPerm, sub::chain_sub_chain},
+        red::{RedLink, RedPerm, lattice::glb_perms, sub::chain_sub_chain},
         report::{Because, OrElse},
         stream::Consumer,
         to_red::ToRedPerm,
@@ -88,13 +88,29 @@ async fn require_sub_perms<'db>(
             let SymPermKind::Infer(lower_infer) = lower_perm.kind(db) else {
                 return Ok(());
             };
-            require_infer_sub_perm(env, live_after, *lower_infer, upper_perm, or_else).await
+            require_infer_bounded_by_perm(
+                env,
+                live_after,
+                *lower_infer,
+                Direction::FromAbove,
+                upper_perm,
+                or_else,
+            )
+            .await
         })
         .require(async |env| {
             let SymPermKind::Infer(upper_infer) = upper_perm.kind(db) else {
                 return Ok(());
             };
-            require_perm_sub_infer(env, live_after, lower_perm, *upper_infer, or_else).await
+            require_infer_bounded_by_perm(
+                env,
+                live_after,
+                *upper_infer,
+                Direction::FromBelow,
+                lower_perm,
+                or_else,
+            )
+            .await
         })
         .require(async |env| {
             require_perm_sub_perm(env, live_after, lower_perm, upper_perm, or_else).await
@@ -103,50 +119,46 @@ async fn require_sub_perms<'db>(
         .await
 }
 
-async fn require_infer_sub_perm<'db>(
+async fn require_infer_bounded_by_perm<'db>(
     env: &mut Env<'db>,
     live_after: LivePlaces,
-    lower_infer: InferVarIndex,
-    upper_perm: SymPerm<'db>,
+    infer: InferVarIndex,
+    direction: Direction,
+    new_sym_bound: SymPerm<'db>,
     or_else: &dyn OrElse<'db>,
 ) -> Errors<()> {
-    upper_perm
+    new_sym_bound
         .to_red_perm(
             env,
             live_after,
-            Direction::FromAbove,
-            Consumer::new(async |env, upper_red_perm: RedPerm<'db>| {
-                env.insert_red_perm_bound(
-                    lower_infer,
-                    upper_red_perm,
-                    Direction::FromAbove,
-                    or_else,
-                );
-                Ok(())
-            }),
-        )
-        .await
-}
+            direction,
+            Consumer::new(async |env, new_red_bound: RedPerm<'db>| {
+                match env.red_bound(infer, direction).peek_perm() {
+                    Some((old_red_bound, old_or_else)) => {
+                        match glb_perms(env, old_red_bound, new_red_bound) {
+                            Some(red_perm_glb) => {
+                                env.red_bound(infer, direction)
+                                    .set_perm(red_perm_glb, or_else);
+                            }
+                            None => {
+                                or_else.report(
+                                    env,
+                                    Because::InferredPermBound(
+                                        direction,
+                                        old_red_bound,
+                                        old_or_else,
+                                    ),
+                                );
+                            }
+                        }
+                    }
 
-async fn require_perm_sub_infer<'db>(
-    env: &mut Env<'db>,
-    live_after: LivePlaces,
-    lower_perm: SymPerm<'db>,
-    upper_infer: InferVarIndex,
-    or_else: &dyn OrElse<'db>,
-) -> Errors<()> {
-    lower_perm
-        .to_red_perm(
-            env,
-            live_after,
-            Direction::FromBelow,
-            Consumer::new(async |env, upper_red_perm: RedPerm<'db>| {
-                env.insert_red_perm_bound(
-                    upper_infer,
-                    upper_red_perm,
-                    Direction::FromBelow,
-                    or_else,
-                );
+                    None => {
+                        env.red_bound(infer, direction)
+                            .set_perm(new_red_bound, or_else);
+                    }
+                }
+
                 Ok(())
             }),
         )
@@ -193,14 +205,18 @@ fn require_red_perm_sub_red_perm<'db>(
     or_else: &dyn OrElse<'db>,
 ) -> Errors<()> {
     let db = env.db();
-    if let Some(_unmatched_chain) = lower_perm.chains(db).iter().find(|&&lower_chain| {
-        upper_perm
-            .chains(db)
-            .iter()
-            .all(|&upper_chain| !chain_sub_chain(env, lower_chain, upper_chain))
-    }) {
-        Err(or_else.report(env, Because::JustSo))
-    } else {
-        Ok(())
+
+    // Require that forall lower there exists an upper where lower <= upper
+    'lower: for &lower_chain in lower_perm.chains(db) {
+        for &upper_chain in upper_perm.chains(db) {
+            if chain_sub_chain(env, lower_chain, upper_chain)? {
+                continue 'lower;
+            }
+        }
+
+        // No suitable upper chain for `lower_chain`
+        return Err(or_else.report(env, Because::JustSo));
     }
+
+    Ok(())
 }

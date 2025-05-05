@@ -63,8 +63,8 @@ fn field_ty<'db>(
         RedTy::Infer(infer) => {
             // To have constructed this place there must have been a valid inference bound already
             let (infer_red_ty, _) = env
-                .red_ty_bound(infer, Direction::FromBelow)
-                .peek()
+                .red_bound(infer, Direction::FromBelow)
+                .peek_ty()
                 .unwrap();
             field_ty(env, owner_place, owner_perm, infer_red_ty, sym_field)
         }

@@ -243,6 +243,8 @@ async fn expand_tail<'db>(
             )
             .await;
         }
+
+        Some(RedLink::Err(reported)) => return Err(*reported),
     };
 
     // Otherwise, convert expand that place to red-links. This will yield
@@ -267,7 +269,7 @@ async fn expand_tail<'db>(
                         // Otherwise, concatenate this new link vec with our original
                         // and push it back onto the "unexpanded" list. We will recursively
                         // examine it.
-                        let output = concat_linkvecs(env, &linkvec, &linkvec_place);
+                        let output = concat_linkvecs(env, &linkvec, &linkvec_place)?;
                         unexpanded_linkvecs.push(output);
                     }
                 }
@@ -345,7 +347,7 @@ impl<'db> ToRedLinkVecs<'db> for SymPerm<'db> {
                             live_after,
                             direction,
                             Consumer::new(async |env, linkvecs_rhs: Vec<Vec<_>>| {
-                                let links = concat_linkvecvecs(env, &linkvecs_lhs, &linkvecs_rhs);
+                                let links = concat_linkvecvecs(env, &linkvecs_lhs, &linkvecs_rhs)?;
                                 consumer.consume(env, links).await
                             }),
                         )
@@ -355,7 +357,7 @@ impl<'db> ToRedLinkVecs<'db> for SymPerm<'db> {
                 .await
             }
             SymPermKind::Infer(v) => {
-                env.require_for_all_red_perm_bounds(v, direction, async |env, red_perm| {
+                env.require_for_all_red_perm_bounds(v, Some(direction), async |env, _, red_perm| {
                     for &chain in red_perm.chains(db) {
                         let links = chain.links(db).to_vec();
                         consumer.consume(env, vec![links]).await?;
@@ -446,30 +448,30 @@ fn concat_linkvecvecs<'db>(
     env: &mut Env<'db>,
     lhs: &[Vec<RedLink<'db>>],
     rhs: &[Vec<RedLink<'db>>],
-) -> Vec<Vec<RedLink<'db>>> {
+) -> Errors<Vec<Vec<RedLink<'db>>>> {
     let mut output = Vec::with_capacity(lhs.len() * rhs.len());
     for l in lhs {
         for r in rhs {
-            output.push(concat_linkvecs(env, l, r));
+            output.push(concat_linkvecs(env, l, r)?);
         }
     }
-    output
+    Ok(output)
 }
 
 fn concat_linkvecs<'db>(
     env: &mut Env<'db>,
     lhs: &[RedLink<'db>],
     mut rhs: &[RedLink<'db>],
-) -> Vec<RedLink<'db>> {
+) -> Errors<Vec<RedLink<'db>>> {
     let mut lhs = lhs.to_vec();
 
     while let Some((rhs_head, rhs_tail)) = rhs.split_first() {
-        if rhs_head.is_copy(env) {
-            return rhs.to_vec();
+        if rhs_head.is_copy(env)? {
+            return Ok(rhs.to_vec());
         }
         lhs.push(*rhs_head);
         rhs = rhs_tail;
     }
 
-    lhs
+    Ok(lhs)
 }

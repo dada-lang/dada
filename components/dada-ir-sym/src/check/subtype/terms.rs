@@ -11,10 +11,9 @@ use crate::{
         predicates::{
             is_provably_copy::term_is_provably_copy, is_provably_lent::term_is_provably_lent,
             is_provably_move::term_is_provably_move, is_provably_owned::term_is_provably_owned,
-            isnt_provably_copy::term_isnt_provably_copy, require_copy::require_term_is_copy,
-            require_isnt_provably_copy::require_term_isnt_provably_copy,
-            require_lent::require_term_is_lent, require_move::require_term_is_move,
-            require_owned::require_term_is_owned, require_term_is_leased, term_is_provably_leased,
+            require_copy::require_term_is_copy, require_lent::require_term_is_lent,
+            require_move::require_term_is_move, require_owned::require_term_is_owned,
+            require_term_is_leased, term_is_provably_leased,
         },
         red::RedTy,
         report::{Because, OrElse},
@@ -430,14 +429,14 @@ async fn require_infer_has_bound<'db>(
     infer: InferVarIndex,
     or_else: &dyn OrElse<'db>,
 ) -> Errors<RedTy<'db>> {
-    match env.red_ty_bound(infer, direction).peek() {
+    match env.red_bound(infer, direction).peek_ty() {
         None => {
             // Inference variable does not currently have a red-ty bound.
             // Create a generalized version of `bound` and use that.
             let span = env.infer_var_span(infer);
             let generalized = generalize(env, bound, span)?;
-            env.red_ty_bound(infer, direction)
-                .set(generalized.clone(), or_else);
+            env.red_bound(infer, direction)
+                .set_ty(generalized.clone(), or_else);
             Ok(generalized)
         }
 

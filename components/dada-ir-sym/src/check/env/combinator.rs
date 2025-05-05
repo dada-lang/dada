@@ -284,41 +284,6 @@ impl<'db> Env<'db> {
     }
 
     /// Observe the red-perm bound on `infer` from the given direction
-    /// and invoke `op` each time it gets tighter. If `op` returns true,
-    /// return true. If we never observe a value that is true, return false.
-    ///
-    /// This makes sense if `op` is monotonic with respect
-    /// to tightening bounds from the given direction.
-    #[track_caller]
-    pub fn exists_red_perm_bound(
-        &mut self,
-        infer: InferVarIndex,
-        direction: Option<Direction>,
-        mut op: impl AsyncFnMut(&mut Env<'db>, Direction, RedPerm<'db>) -> Errors<bool>,
-    ) -> impl Future<Output = Errors<bool>> {
-        let compiler_location = Location::caller();
-
-        async move {
-            self.indent_with_compiler_location(
-                compiler_location,
-                "exists_red_perm_bound",
-                &[&infer],
-                async |env| {
-                    self.find_red_perm_bound(infer, direction, async |env, d, b| {
-                        if op(env, d, b).await? {
-                            Ok(Some(true))
-                        } else {
-                            Ok(None)
-                        }
-                    })
-                    .await
-                },
-            )
-            .await
-        }
-    }
-
-    /// Observe the red-perm bound on `infer` from the given direction
     /// and invoke `op` each time it changes. If `op` ever results in an
     /// error, propagate it.
     #[track_caller]

@@ -2,14 +2,14 @@
 //! They can only be produced after inference is complete as they require enumerating the bounds of inference variables.
 //! They are used in borrow checking and for producing the final version of each inference variable.
 
-use dada_ir_ast::diagnostic::{Err, Reported};
+use dada_ir_ast::diagnostic::{Err, Errors, Reported};
 use dada_util::SalsaSerialize;
 use salsa::Update;
 use serde::Serialize;
 
 use crate::ir::{
     indices::InferVarIndex,
-    types::{SymGenericTerm, SymPlace, SymTyName},
+    types::{SymGenericTerm, SymPerm, SymPlace, SymTyName},
     variables::SymVariable,
 };
 
@@ -30,18 +30,37 @@ pub struct RedPerm<'db> {
 }
 
 impl<'db> RedPerm<'db> {
-    pub fn is_provably(self, env: &Env<'db>, predicate: Predicate) -> bool {
+    pub fn is_provably(self, env: &Env<'db>, predicate: Predicate) -> Errors<bool> {
         let chains = self.chains(env.db());
         assert!(!chains.is_empty());
-        chains.iter().all(|chain| chain.is_provably(env, predicate))
+        for chain in chains {
+            if !chain.is_provably(env, predicate)? {
+                return Ok(false);
+            }
+        }
+        Ok(true)
     }
 
-    pub fn is_my(self, env: &Env<'db>) -> bool {
-        self.is_provably(env, Predicate::Move) && self.is_provably(env, Predicate::Owned)
+    pub fn is_my(self, env: &Env<'db>) -> Errors<bool> {
+        Ok(self.is_provably(env, Predicate::Move)? && self.is_provably(env, Predicate::Owned)?)
     }
 
-    pub fn is_our(self, env: &Env<'db>) -> bool {
-        self.is_provably(env, Predicate::Copy) && self.is_provably(env, Predicate::Owned)
+    pub fn is_our(self, env: &Env<'db>) -> Errors<bool> {
+        Ok(self.is_provably(env, Predicate::Copy)? && self.is_provably(env, Predicate::Owned)?)
+    }
+
+    pub fn to_sym_perm(self, db: &'db dyn crate::Db) -> SymPerm<'db> {
+        self.chains(db)
+            .iter()
+            .map(|&chain| chain.to_sym_perm(db))
+            .reduce(|perm1, perm2| SymPerm::or(db, perm1, perm2))
+            .unwrap()
+    }
+}
+
+impl<'db> Err<'db> for RedPerm<'db> {
+    fn err(db: &'db dyn dada_ir_ast::Db, reported: Reported) -> Self {
+        RedPerm::new(db, vec![RedChain::err(db, reported)])
     }
 }
 
@@ -61,7 +80,7 @@ impl<'db> RedChain<'db> {
         RedChain::new(db, [RedLink::Our])
     }
 
-    pub fn is_provably(self, env: &Env<'db>, predicate: Predicate) -> bool {
+    pub fn is_provably(self, env: &Env<'db>, predicate: Predicate) -> Errors<bool> {
         let db = env.db();
         match predicate {
             Predicate::Copy => RedLink::are_copy(env, self.links(db)),
@@ -69,6 +88,20 @@ impl<'db> RedChain<'db> {
             Predicate::Owned => RedLink::are_owned(env, self.links(db)),
             Predicate::Lent => RedLink::are_lent(env, self.links(db)),
         }
+    }
+
+    fn to_sym_perm(self, db: &'db dyn crate::Db) -> SymPerm<'db> {
+        self.links(db)
+            .iter()
+            .map(|&link| link.to_sym_perm(db))
+            .reduce(|perm1, perm2| SymPerm::apply(db, perm1, perm2))
+            .unwrap_or_else(|| SymPerm::my(db))
+    }
+}
+
+impl<'db> Err<'db> for RedChain<'db> {
+    fn err(db: &'db dyn dada_ir_ast::Db, reported: Reported) -> Self {
+        RedChain::new(db, vec![RedLink::err(db, reported)])
     }
 }
 
@@ -78,88 +111,116 @@ pub enum RedLink<'db> {
     Ref(Live, SymPlace<'db>),
     Mut(Live, SymPlace<'db>),
     Var(SymVariable<'db>),
+    Err(Reported),
 }
 
 #[derive(Copy, Clone, Debug, PartialEq, Eq, PartialOrd, Ord, Hash, Serialize)]
 pub struct Live(pub bool);
 
 impl<'db> RedLink<'db> {
-    pub fn are_copy(env: &Env<'db>, links: &[Self]) -> bool {
+    pub fn are_copy(env: &Env<'db>, links: &[Self]) -> Errors<bool> {
         let Some(first) = links.first() else {
-            return false;
+            return Ok(false);
         };
         first.is_copy(env)
     }
 
-    pub fn are_move(env: &Env<'db>, links: &[Self]) -> bool {
-        links.iter().all(|link| link.is_move(env))
-    }
-
-    pub fn are_owned(env: &Env<'db>, links: &[Self]) -> bool {
-        links.iter().all(|link| link.is_owned(env))
-    }
-
-    pub fn are_lent(env: &Env<'db>, links: &[Self]) -> bool {
-        links.iter().any(|link| link.is_lent(env))
-    }
-
-    pub fn is_my(&self, env: &Env<'db>) -> bool {
-        match self {
-            RedLink::Var(v) => {
-                env.var_is_declared_to_be(*v, Predicate::Move)
-                    && env.var_is_declared_to_be(*v, Predicate::Owned)
+    pub fn are_move(env: &Env<'db>, links: &[Self]) -> Errors<bool> {
+        for link in links {
+            if !link.is_move(env)? {
+                return Ok(false);
             }
-
-            RedLink::Our | RedLink::Ref(..) | RedLink::Mut(..) => false,
         }
+        Ok(true)
     }
 
-    pub fn is_our(&self, env: &Env<'db>) -> bool {
-        match self {
-            RedLink::Our => true,
-            RedLink::Var(v) => {
-                env.var_is_declared_to_be(*v, Predicate::Copy)
-                    && env.var_is_declared_to_be(*v, Predicate::Owned)
+    pub fn are_owned(env: &Env<'db>, links: &[Self]) -> Errors<bool> {
+        for link in links {
+            if !link.is_owned(env)? {
+                return Ok(false);
             }
+        }
+        Ok(true)
+    }
 
-            RedLink::Ref(..) | RedLink::Mut(..) => false,
+    pub fn are_lent(env: &Env<'db>, links: &[Self]) -> Errors<bool> {
+        for link in links {
+            if !link.is_lent(env)? {
+                return Ok(true);
+            }
+        }
+        Ok(false)
+    }
+
+    pub fn is_my(self, env: &Env<'db>) -> Errors<bool> {
+        match self {
+            RedLink::Var(v) => Ok(env.var_is_declared_to_be(v, Predicate::Move)
+                && env.var_is_declared_to_be(v, Predicate::Owned)),
+            RedLink::Our | RedLink::Ref(..) | RedLink::Mut(..) => Ok(false),
+            RedLink::Err(reported) => Err(reported),
         }
     }
 
-    pub fn is_owned(&self, env: &Env<'db>) -> bool {
+    pub fn is_our(&self, env: &Env<'db>) -> Errors<bool> {
         match self {
-            RedLink::Our => true,
-            RedLink::Var(v) => env.var_is_declared_to_be(*v, Predicate::Owned),
-
-            RedLink::Ref(..) | RedLink::Mut(..) => false,
+            RedLink::Our => Ok(true),
+            RedLink::Var(v) => Ok(env.var_is_declared_to_be(*v, Predicate::Copy)
+                && env.var_is_declared_to_be(*v, Predicate::Owned)),
+            RedLink::Ref(..) | RedLink::Mut(..) => Ok(false),
+            RedLink::Err(reported) => Err(*reported),
         }
     }
 
-    pub fn is_lent(&self, env: &Env<'db>) -> bool {
+    pub fn is_owned(&self, env: &Env<'db>) -> Errors<bool> {
         match self {
-            RedLink::Ref(..) | RedLink::Mut(..) => true,
-            RedLink::Var(v) => env.var_is_declared_to_be(*v, Predicate::Lent),
-
-            RedLink::Our => false,
+            RedLink::Our => Ok(true),
+            RedLink::Var(v) => Ok(env.var_is_declared_to_be(*v, Predicate::Owned)),
+            RedLink::Ref(..) | RedLink::Mut(..) => Ok(false),
+            RedLink::Err(reported) => Err(*reported),
         }
     }
 
-    pub fn is_move(&self, env: &Env<'db>) -> bool {
+    pub fn is_lent(&self, env: &Env<'db>) -> Errors<bool> {
         match self {
-            RedLink::Mut(..) => true,
-            RedLink::Var(v) => env.var_is_declared_to_be(*v, Predicate::Move),
-
-            RedLink::Our | RedLink::Ref(..) => false,
+            RedLink::Ref(..) | RedLink::Mut(..) => Ok(true),
+            RedLink::Var(v) => Ok(env.var_is_declared_to_be(*v, Predicate::Lent)),
+            RedLink::Our => Ok(false),
+            RedLink::Err(reported) => Err(*reported),
         }
     }
 
-    pub fn is_copy(&self, env: &Env<'db>) -> bool {
+    pub fn is_move(&self, env: &Env<'db>) -> Errors<bool> {
         match self {
-            RedLink::Our | RedLink::Ref(..) => true,
-            RedLink::Var(v) => env.var_is_declared_to_be(*v, Predicate::Copy),
-
-            RedLink::Mut(..) => false,
+            RedLink::Mut(..) => Ok(true),
+            RedLink::Var(v) => Ok(env.var_is_declared_to_be(*v, Predicate::Move)),
+            RedLink::Our | RedLink::Ref(..) => Ok(false),
+            RedLink::Err(reported) => Err(*reported),
         }
+    }
+
+    pub fn is_copy(&self, env: &Env<'db>) -> Errors<bool> {
+        match self {
+            RedLink::Our | RedLink::Ref(..) => Ok(true),
+            RedLink::Var(v) => Ok(env.var_is_declared_to_be(*v, Predicate::Copy)),
+            RedLink::Mut(..) => Ok(false),
+            RedLink::Err(reported) => Err(*reported),
+        }
+    }
+
+    pub fn to_sym_perm(self, db: &'db dyn crate::Db) -> SymPerm<'db> {
+        match self {
+            RedLink::Our => SymPerm::our(db),
+            RedLink::Ref(_, place) => SymPerm::shared(db, vec![place]),
+            RedLink::Mut(_, place) => SymPerm::leased(db, vec![place]),
+            RedLink::Var(v) => SymPerm::var(db, v),
+            RedLink::Err(reported) => SymPerm::err(db, reported),
+        }
+    }
+}
+
+impl<'db> Err<'db> for RedLink<'db> {
+    fn err(_db: &'db dyn dada_ir_ast::Db, reported: Reported) -> Self {
+        RedLink::Err(reported)
     }
 }
 

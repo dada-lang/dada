@@ -64,7 +64,7 @@ async fn require_future_red_type<'db>(
             // and check if it is numeric. Since the bound can only get tighter,
             // that is sufficient (indeed, numeric types have no subtypes).
             let Some((lower_red_ty, arc_or_else)) =
-                env.red_ty_bound(infer, Direction::FromBelow).await
+                env.red_bound(infer, Direction::FromBelow).ty().await
             else {
                 return Err(
                     or_else.report(env, Because::UnconstrainedInfer(env.infer_var_span(infer)))

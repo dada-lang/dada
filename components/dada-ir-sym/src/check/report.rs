@@ -17,7 +17,11 @@ use crate::{
     },
 };
 
-use super::{red::RedTy, to_red::RedTyExt};
+use super::{
+    inference::Direction,
+    red::{RedPerm, RedTy},
+    to_red::RedTyExt,
+};
 
 /// The `OrElse` trait captures error reporting context.
 /// Primitive type operations like subtyping are given an `&dyn OrElse<'db>`
@@ -185,6 +189,10 @@ pub enum Because<'db> {
     /// Name mismatch
     NameMismatch(SymTyName<'db>, SymTyName<'db>),
 
+    /// Indicates that there was a previous constraint from elsewhere in the
+    /// program that caused a conflict with the current value
+    InferredPermBound(Direction, RedPerm<'db>, ArcOrElse<'db>),
+
     /// Inference determined that the variable must be
     /// known to be `Predicate` "or else" the given error would occur.
     InferredIs(Predicate, ArcOrElse<'db>),
@@ -280,6 +288,24 @@ impl<'db> Because<'db> {
                 span,
                 format!("`{n1}` and `{n2}` are distinct types"),
             )),
+            Because::InferredPermBound(direction, red_perm, or_else) => {
+                let or_else_diagnostic = or_else.or_else(env, Because::JustSo);
+                Some(
+                    Diagnostic::info(
+                        db,
+                        span,
+                        format!(
+                            "I inferred that the perm must be {assignable_from_or_to} `{bound}` or else this error will occur",
+                            assignable_from_or_to = match direction {
+                                Direction::FromBelow => "assignable from",
+                                Direction::FromAbove => "assignable to",
+                            },
+                            bound = format!("{red_perm:?}"), // FIXME
+                        ),
+                    )
+                    .child(or_else_diagnostic),
+                )
+            }
             Because::InferredIs(predicate, or_else) => {
                 let or_else_diagnostic = or_else.or_else(env, Because::JustSo);
                 Some(Diagnostic::info(

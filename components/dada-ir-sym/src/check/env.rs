@@ -585,25 +585,11 @@ impl<'db> Env<'db> {
             })
     }
 
-    #[track_caller]
-    pub fn set_red_perm_bound(
-        &mut self,
-        infer: InferVarIndex,
-        direction: Direction,
-        red_perm: RedPerm<'db>,
-        or_else: &dyn OrElse<'db>,
-    ) {
-        self.runtime
-            .mutate_inference_var_data(infer, &self.log, |data| {
-                data.set_red_perm_bound(direction, red_perm, or_else)
-            });
-    }
-
     /// Return a struct that gives ability to peek, modify, or block on the lower or upper red-ty-bound
     /// on the given inference variable.
     #[track_caller]
-    pub fn red_ty_bound(&self, infer: InferVarIndex, direction: Direction) -> RedTyBound<'_, 'db> {
-        RedTyBound {
+    pub fn red_bound(&self, infer: InferVarIndex, direction: Direction) -> RedBound<'_, 'db> {
+        RedBound {
             env: self,
             infer,
             direction,
@@ -612,23 +598,23 @@ impl<'db> Env<'db> {
     }
 }
 
-/// Accessor for the bounding red-ty on an inference variable.
-/// Can be used to [read](`Self::peek`) or [modify](`Self::set`)
-/// the current value but can also be awaited through the [`IntoFuture`][]
+/// Accessor for the bounding red-ty or red-perm on an inference variable.
+/// Can be used to read or modify the current values but
+/// can also be awaited through
 /// impl, which will block until a value is set by another task.
 /// Note that red-ty bounds can be set more than once but must always
 /// get tighter each time they are modified.
-pub struct RedTyBound<'env, 'db> {
+pub struct RedBound<'env, 'db> {
     env: &'env Env<'db>,
     infer: InferVarIndex,
     direction: Direction,
     compiler_location: &'static Location<'static>,
 }
 
-impl<'env, 'db> RedTyBound<'env, 'db> {
+impl<'env, 'db> RedBound<'env, 'db> {
     /// Read the current value of the bound
     #[track_caller]
-    pub fn peek(self) -> Option<(RedTy<'db>, ArcOrElse<'db>)> {
+    pub fn peek_ty(self) -> Option<(RedTy<'db>, ArcOrElse<'db>)> {
         self.env
             .runtime
             .with_inference_var_data(self.infer, |data| data.red_ty_bound(self.direction))
@@ -636,28 +622,40 @@ impl<'env, 'db> RedTyBound<'env, 'db> {
 
     /// Modify the current value of the bound
     #[track_caller]
-    pub fn set(self, red_ty: RedTy<'db>, or_else: &dyn OrElse<'db>) {
+    pub fn set_ty(self, red_ty: RedTy<'db>, or_else: &dyn OrElse<'db>) {
         self.env
             .runtime
             .mutate_inference_var_data(self.infer, &self.env.log, |data| {
                 data.set_red_ty_bound(self.direction, red_ty, or_else)
             })
     }
-}
 
-/// Convert to a future that blocks until a bound is set
-impl<'env, 'db> IntoFuture for RedTyBound<'env, 'db> {
-    type Output = Option<(RedTy<'db>, ArcOrElse<'db>)>;
-
-    type IntoFuture = LocalFutureObj<'env, Option<(RedTy<'db>, ArcOrElse<'db>)>>;
-
-    fn into_future(self) -> Self::IntoFuture {
-        LocalFutureObj::new(Box::new(self.env.runtime.loop_on_inference_var(
+    /// Convert to a future that blocks until the red-ty future is set
+    pub fn ty(self) -> impl Future<Output = Option<(RedTy<'db>, ArcOrElse<'db>)>> {
+        self.env.runtime.loop_on_inference_var(
             self.infer,
             self.compiler_location,
             &self.env.log,
             move |data| data.red_ty_bound(self.direction),
-        )))
+        )
+    }
+
+    /// Read the current value of the bound
+    #[track_caller]
+    pub fn peek_perm(self) -> Option<(RedPerm<'db>, ArcOrElse<'db>)> {
+        self.env
+            .runtime
+            .with_inference_var_data(self.infer, |data| data.red_perm_bound(self.direction))
+    }
+
+    /// Modify the current value of the bound
+    #[track_caller]
+    pub fn set_perm(self, red_perm: RedPerm<'db>, or_else: &dyn OrElse<'db>) {
+        self.env
+            .runtime
+            .mutate_inference_var_data(self.infer, &self.env.log, |data| {
+                data.set_red_perm_bound(self.direction, red_perm, or_else)
+            })
     }
 }
 

@@ -1,5 +1,6 @@
 use std::collections::BTreeSet;
 
+use dada_ir_ast::diagnostic::{Err, Errors};
 use dada_util::Set;
 use itertools::Itertools;
 
@@ -45,7 +46,12 @@ pub fn lub_perms<'db>(env: &Env<'db>, perm1: RedPerm<'db>, perm2: RedPerm<'db>) 
         .filter(|&c| dedup.insert(c))
         .collect::<Vec<_>>();
 
-    simplify(env, &mut candidates);
+    match simplify(env, &mut candidates) {
+        Ok(()) => (),
+        Err(reported) => {
+            return RedPerm::err(db, reported);
+        }
+    }
 
     RedPerm::new(db, candidates)
 }
@@ -122,7 +128,12 @@ impl<'db> GreatestLowerBound<'db> for RedPerm<'db> {
         // Remove any chain `c1` which is a subchain of some other chain `c2`.
         //
         // so e.g. if you have `[our, ref[x]]`, `our <: ref[x]`, so remove `our`.
-        simplify(env, &mut candidates);
+        match simplify(env, &mut candidates) {
+            Ok(()) => (),
+            Err(reported) => {
+                return Ok(RedPerm::err(db, reported));
+            }
+        }
 
         if candidates.is_empty() {
             Err(NoGlb)
@@ -147,10 +158,10 @@ impl<'db> GreatestLowerBound<'db> for RedChain<'db> {
                     // The only way to get `RedLink::Our` as the only item in the list
                     // is if it is the first thing in the list.
                     assert!(links_glb.is_empty());
-                    return if RedLink::are_copy(env, o) {
-                        Ok(RedChain::our(db))
-                    } else {
-                        Err(NoGlb)
+                    return match RedLink::are_copy(env, o) {
+                        Ok(true) => Ok(RedChain::our(db)),
+                        Ok(false) => Err(NoGlb),
+                        Err(reported) => Ok(RedChain::err(db, reported)),
                     };
                 }
 
@@ -198,6 +209,8 @@ impl<'db> GreatestLowerBound<'db> for RedChain<'db> {
 impl<'db> GreatestLowerBound<'db> for RedLink<'db> {
     fn glb(env: &Env<'db>, l1: RedLink<'db>, l2: RedLink<'db>) -> Glb<RedLink<'db>> {
         match (l1, l2) {
+            (RedLink::Err(reported), _) | (_, RedLink::Err(reported)) => Ok(RedLink::Err(reported)),
+
             (RedLink::Our, RedLink::Ref(..))
             | (RedLink::Ref(..), RedLink::Our)
             | (RedLink::Our, RedLink::Our) => Ok(RedLink::Our),
@@ -273,18 +286,19 @@ fn glb_live(Live(l1): Live, Live(l2): Live) -> Live {
 /// Remove each candidate `c1 \in candidates` where
 /// there exists another candidates `c2 \in candidates`
 /// and `c1 <: c2`
-fn simplify<'db>(env: &Env<'db>, candidates: &mut Vec<RedChain<'db>>) {
+fn simplify<'db>(env: &Env<'db>, candidates: &mut Vec<RedChain<'db>>) -> Errors<()> {
     let mut redundant = Set::default();
     for [c1, c2] in (0..candidates.len()).array_combinations() {
         let c1 = candidates[c1];
         let c2 = candidates[c2];
 
-        if chain_sub_chain(env, c1, c2) {
+        if chain_sub_chain(env, c1, c2)? {
             redundant.insert(c1);
-        } else if chain_sub_chain(env, c2, c1) {
+        } else if chain_sub_chain(env, c2, c1)? {
             redundant.insert(c2);
         }
     }
 
     candidates.retain(|c| !redundant.contains(c));
+    Ok(())
 }

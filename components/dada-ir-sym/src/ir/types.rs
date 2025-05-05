@@ -217,6 +217,7 @@ impl<'db> SymGenericTerm<'db> {
                 | SymPermKind::Leased(_)
                 | SymPermKind::Var(_)
                 | SymPermKind::Error(_)
+                | SymPermKind::Or(..)
                 | SymPermKind::Apply(..) => None,
             },
             SymGenericTerm::Place(place) => match place.kind(db) {
@@ -507,33 +508,6 @@ impl<'db> SymPerm<'db> {
             _ => SymTy::perm(db, self, ty),
         }
     }
-
-    /// Iterate over the "leaves" of this permission (i.e., non-application permissions)
-    /// in left-to-right order (e.g., for `shared[x] leased[y]` the order is `shared[x], leased[y]`).
-    pub fn leaves(self, db: &'db dyn crate::Db) -> impl Iterator<Item = SymPerm<'db>> {
-        let mut stack = vec![self];
-        std::iter::from_fn(move || {
-            while let Some(perm) = stack.pop() {
-                match *perm.kind(db) {
-                    SymPermKind::Apply(left, right) => {
-                        stack.push(right);
-                        stack.push(left);
-                    }
-
-                    SymPermKind::My
-                    | SymPermKind::Our
-                    | SymPermKind::Shared(_)
-                    | SymPermKind::Leased(_)
-                    | SymPermKind::Infer(..)
-                    | SymPermKind::Var(..)
-                    | SymPermKind::Error(..) => {
-                        return Some(perm);
-                    }
-                }
-            }
-            None
-        })
-    }
 }
 
 impl<'db> FromInfer<'db> for SymPerm<'db> {
@@ -572,6 +546,7 @@ impl std::fmt::Display for SymPerm<'_> {
                 SymPermKind::Apply(perm1, perm2) => write!(f, "{} {}", perm1, perm2),
                 SymPermKind::Infer(infer_var_index) => write!(f, "?{}", infer_var_index.as_usize()),
                 SymPermKind::Var(sym_variable) => write!(f, "{sym_variable}"),
+                SymPermKind::Or(l, r) => write!(f, "({l} | {r})"),
                 SymPermKind::Error(_) => write!(f, "<error>"),
             }
         })

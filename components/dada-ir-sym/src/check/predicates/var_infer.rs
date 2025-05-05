@@ -206,7 +206,7 @@ pub async fn test_perm_infer_is_known_to_be<'db>(
             //   will never be `move`.
 
             if let Some((_, bound)) = env.next_perm_bound(infer, None, &mut None).await {
-                Ok(bound.is_provably(env, predicate))
+                bound.is_provably(env, predicate)
             } else {
                 // We never got any inference bound, so we can't say anything useful.
                 Ok(false)
@@ -214,15 +214,16 @@ pub async fn test_perm_infer_is_known_to_be<'db>(
         }
 
         Predicate::Lent => {
-            // "Lent" predicates cannot be removed from
+            // "Lent" predicates are influenced by the fact that `our` (owned) is a subtype of `ref[x]` and
+            // other lent predicates.
             Ok(env
                 .find_red_perm_bound(infer, None, async |env, direction, bound| match direction {
                     Direction::FromBelow => {
-                        if bound.is_provably(env, Predicate::Lent) {
+                        if bound.is_provably(env, Predicate::Lent)? {
                             // `ref[x] <: ?X` or `mut[x] <: ?X` or `lent perm Y <: ?X`:
                             // This implies that `?X` must be lent.
                             Ok(Some(true))
-                        } else if bound.is_our(env) {
+                        } else if bound.is_our(env)? {
                             // `our <: ?X` could later be upcast to `ref[x]` or `our mut[x]`
                             Ok(None)
                         } else {
@@ -233,9 +234,8 @@ pub async fn test_perm_infer_is_known_to_be<'db>(
 
                     Direction::FromAbove => {
                         // In an upper bound...
-                        //
-                        if bound.is_provably(env, Predicate::Lent) {
-                            if bound.is_provably(env, Predicate::Copy) {
+                        if bound.is_provably(env, Predicate::Lent)? {
+                            if bound.is_provably(env, Predicate::Copy)? {
                                 // `?X <: ref[x]`-- `?X` could be `our`, so this this does
                                 // not tell us anything useful.
                                 Ok(None)
@@ -279,18 +279,38 @@ pub async fn test_perm_infer_is_known_to_be<'db>(
             Ok(env
                 .find_red_perm_bound(infer, None, async |env, direction, bound| match direction {
                     Direction::FromAbove => {
-                        if bound.is_provably(env, Predicate::Owned) {
+                        // `?X <: B`...
+                        if bound.is_provably(env, Predicate::Owned)? {
                             Ok(Some(true))
-                        } else {
+                        } else if bound.is_provably(env, Predicate::Copy)? {
+                            // A non-owned copy bound could be `ref[x]`, `our mut[x]`,
+                            // or `copy perm P`, and in any of those cases,
+                            // it could be tightened to `our`.
                             Ok(None)
+                        } else {
+                            // If not owned nor copy (or not *known* to be copy), then
+                            // the bound must be either `mut[x]` or `perm P`,
+                            // and in either case, it can't be tightened to something owned.
+                            Ok(Some(false))
                         }
                     }
 
                     Direction::FromBelow => {
-                        if bound.is_not_known_to_be(env, Predicate::Owned) {
-                            Ok(Some(false))
+                        // `B <: ?X`
+                        if bound.is_provably(env, Predicate::Owned)? {
+                            if bound.is_provably(env, Predicate::Copy)? {
+                                // `our <: ?X` does not imply `?X` is owned.
+                                // It could be tightened to `ref[x]`.
+                                Ok(None)
+                            } else {
+                                // `my <: ?X` or `owned perm P <: ?X` both
+                                // imply `?X` must be owned.
+                                Ok(Some(true))
+                            }
                         } else {
-                            Ok(None)
+                            // If `ref[x] <: ?X` or `mut[x] <: ?X` etc,
+                            // then `?X` cannot be owned.
+                            Ok(Some(false))
                         }
                     }
                 })
@@ -370,48 +390,52 @@ fn defer_require_bounds_not_provably_predicate<'db>(
             // we need to ensure that the supertype isn't `Copy`.
             //
             // To show that it isn't `Move`, either suffices.
-            env.require_for_all_red_perm_bounds(infer, Direction::FromAbove, async |env, chain| {
-                match predicate {
-                    Predicate::Owned => {
-                        // If something must not be provably Owned,
-                        // then it cannot have an Owned upper bound.
-                        // Owned lower bounds like `our` are ok as it could still be inferred to `ref[_]`.
-                        require_bounds_not_provably_predicate(
-                            env,
-                            perm_infer,
-                            Direction::FromAbove,
-                            predicate,
-                            &or_else,
-                        )
-                        .await
+            env.require_for_all_red_perm_bounds(
+                infer,
+                Some(Direction::FromAbove),
+                async |env, _, chain| {
+                    match predicate {
+                        Predicate::Owned => {
+                            // If something must not be provably Owned,
+                            // then it cannot have an Owned upper bound.
+                            // Owned lower bounds like `our` are ok as it could still be inferred to `ref[_]`.
+                            require_bounds_not_provably_predicate(
+                                env,
+                                perm_infer,
+                                Direction::FromAbove,
+                                predicate,
+                                &or_else,
+                            )
+                            .await
+                        }
+                        Predicate::Copy | Predicate::Move | Predicate::Lent => {
+                            env.require_both(
+                                async |env| {
+                                    require_bounds_provably_predicate(
+                                        env,
+                                        perm_infer,
+                                        Direction::FromAbove,
+                                        predicate,
+                                        &or_else,
+                                    )
+                                    .await
+                                },
+                                async |env| {
+                                    require_bounds_provably_predicate(
+                                        env,
+                                        perm_infer,
+                                        Direction::FromBelow,
+                                        predicate,
+                                        &or_else,
+                                    )
+                                    .await
+                                },
+                            )
+                            .await
+                        }
                     }
-                    Predicate::Copy | Predicate::Move | Predicate::Lent => {
-                        env.require_both(
-                            async |env| {
-                                require_bounds_provably_predicate(
-                                    env,
-                                    perm_infer,
-                                    Direction::FromAbove,
-                                    predicate,
-                                    &or_else,
-                                )
-                                .await
-                            },
-                            async |env| {
-                                require_bounds_provably_predicate(
-                                    env,
-                                    perm_infer,
-                                    Direction::FromBelow,
-                                    predicate,
-                                    &or_else,
-                                )
-                                .await
-                            },
-                        )
-                        .await
-                    }
-                }
-            })
+                },
+            )
             .await
         },
     );
@@ -424,8 +448,8 @@ async fn require_bounds_provably_predicate<'db>(
     predicate: Predicate,
     or_else: &dyn OrElse<'db>,
 ) -> Errors<()> {
-    env.require_for_all_red_perm_bounds(perm_infer, direction, async |env, red_perm| {
-        if red_perm.is_provably(env, predicate) {
+    env.require_for_all_red_perm_bounds(perm_infer, Some(direction), async |env, _, red_perm| {
+        if red_perm.is_provably(env, predicate)? {
             Ok(())
         } else {
             Err(or_else.report(env, Because::JustSo))
@@ -441,8 +465,8 @@ async fn require_bounds_not_provably_predicate<'db>(
     predicate: Predicate,
     or_else: &dyn OrElse<'db>,
 ) -> Errors<()> {
-    env.require_for_all_red_perm_bounds(perm_infer, direction, async |env, red_perm| {
-        if !red_perm.is_provably(env, predicate) {
+    env.require_for_all_red_perm_bounds(perm_infer, Some(direction), async |env, _, red_perm| {
+        if !red_perm.is_provably(env, predicate)? {
             Ok(())
         } else {
             Err(or_else.report(env, Because::JustSo))
