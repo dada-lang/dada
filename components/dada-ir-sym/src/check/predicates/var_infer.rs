@@ -6,7 +6,6 @@ use crate::{
         env::Env,
         inference::{Direction, InferVarKind},
         predicates::Predicate,
-        red::RedPerm,
         report::{ArcOrElse, Because, OrElse},
     },
     ir::{indices::InferVarIndex, variables::SymVariable},
@@ -32,19 +31,6 @@ pub(super) fn require_var_is<'db>(
         Ok(())
     } else {
         Err(or_else.report(env, Because::VarNotDeclaredToBe(var, predicate)))
-    }
-}
-
-pub(super) fn require_var_isnt<'db>(
-    env: &mut Env<'db>,
-    var: SymVariable<'db>,
-    predicate: Predicate,
-    or_else: &dyn OrElse<'db>,
-) -> Errors<()> {
-    if !env.var_is_declared_to_be(var, predicate) {
-        Ok(())
-    } else {
-        Err(or_else.report(env, Because::VarDeclaredToBe(var, predicate)))
     }
 }
 
@@ -99,40 +85,6 @@ pub fn require_infer_is<'db>(
         {
             // If we just learned that the inference variable must be `our`...
         }
-    }
-
-    Ok(())
-}
-
-/// Requires the inference variable to meet the given predicate (possibly reporting an error
-/// if that is contradictory).
-pub(super) fn require_infer_isnt<'db>(
-    env: &mut Env<'db>,
-    infer: InferVarIndex,
-    predicate: Predicate,
-    or_else: &dyn OrElse<'db>,
-) -> Errors<()> {
-    let (is_already, isnt_already) = env.runtime().with_inference_var_data(infer, |data| {
-        (
-            data.is_known_to_provably_be(predicate),
-            data.is_known_not_to_provably_be(predicate),
-        )
-    });
-
-    // Check if we are already required not to be the predicate.
-    if isnt_already.is_some() {
-        return Ok(());
-    }
-
-    // Check if were already required to be the predicate
-    // and report an error if so.
-    if let Some(prev_or_else) = is_already {
-        return Err(or_else.report(env, Because::InferredIs(predicate, prev_or_else)));
-    }
-
-    // Record the requirement in the runtime, awakening any tasks that may be impacted.
-    if let Some(or_else) = env.require_inference_var_isnt(infer, predicate, or_else) {
-        defer_require_bounds_not_provably_predicate(env, infer, predicate, or_else);
     }
 
     Ok(())
@@ -376,71 +328,6 @@ fn defer_require_bounds_provably_predicate<'db>(
     );
 }
 
-fn defer_require_bounds_not_provably_predicate<'db>(
-    env: &mut Env<'db>,
-    infer: InferVarIndex,
-    predicate: Predicate,
-    or_else: ArcOrElse<'db>,
-) {
-    let perm_infer = env.perm_infer(infer);
-    env.spawn(
-        TaskDescription::RequireBoundsNotProvablyPredicate(infer, predicate),
-        async move |env| {
-            // As above, if we want to prove that something *isn't* `Copy`,
-            // we need to ensure that the supertype isn't `Copy`.
-            //
-            // To show that it isn't `Move`, either suffices.
-            env.require_for_all_red_perm_bounds(
-                infer,
-                Some(Direction::FromAbove),
-                async |env, _, chain| {
-                    match predicate {
-                        Predicate::Owned => {
-                            // If something must not be provably Owned,
-                            // then it cannot have an Owned upper bound.
-                            // Owned lower bounds like `our` are ok as it could still be inferred to `ref[_]`.
-                            require_bounds_not_provably_predicate(
-                                env,
-                                perm_infer,
-                                Direction::FromAbove,
-                                predicate,
-                                &or_else,
-                            )
-                            .await
-                        }
-                        Predicate::Copy | Predicate::Move | Predicate::Lent => {
-                            env.require_both(
-                                async |env| {
-                                    require_bounds_provably_predicate(
-                                        env,
-                                        perm_infer,
-                                        Direction::FromAbove,
-                                        predicate,
-                                        &or_else,
-                                    )
-                                    .await
-                                },
-                                async |env| {
-                                    require_bounds_provably_predicate(
-                                        env,
-                                        perm_infer,
-                                        Direction::FromBelow,
-                                        predicate,
-                                        &or_else,
-                                    )
-                                    .await
-                                },
-                            )
-                            .await
-                        }
-                    }
-                },
-            )
-            .await
-        },
-    );
-}
-
 async fn require_bounds_provably_predicate<'db>(
     env: &mut Env<'db>,
     perm_infer: InferVarIndex,
@@ -450,23 +337,6 @@ async fn require_bounds_provably_predicate<'db>(
 ) -> Errors<()> {
     env.require_for_all_red_perm_bounds(perm_infer, Some(direction), async |env, _, red_perm| {
         if red_perm.is_provably(env, predicate)? {
-            Ok(())
-        } else {
-            Err(or_else.report(env, Because::JustSo))
-        }
-    })
-    .await
-}
-
-async fn require_bounds_not_provably_predicate<'db>(
-    env: &mut Env<'db>,
-    perm_infer: InferVarIndex,
-    direction: Direction,
-    predicate: Predicate,
-    or_else: &dyn OrElse<'db>,
-) -> Errors<()> {
-    env.require_for_all_red_perm_bounds(perm_infer, Some(direction), async |env, _, red_perm| {
-        if !red_perm.is_provably(env, predicate)? {
             Ok(())
         } else {
             Err(or_else.report(env, Because::JustSo))

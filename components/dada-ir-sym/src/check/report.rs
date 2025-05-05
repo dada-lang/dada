@@ -165,9 +165,6 @@ pub enum Because<'db> {
     /// Universal variable was not declared to be `predicate` (and it must be)
     VarNotDeclaredToBe(SymVariable<'db>, Predicate),
 
-    /// Universal variable was declared to be `predicate` (but ought not to be)
-    VarDeclaredToBe(SymVariable<'db>, Predicate),
-
     /// The never type is not copy
     NeverIsNotCopy,
 
@@ -192,10 +189,6 @@ pub enum Because<'db> {
     /// Indicates that there was a previous constraint from elsewhere in the
     /// program that caused a conflict with the current value
     InferredPermBound(Direction, RedPerm<'db>, ArcOrElse<'db>),
-
-    /// Inference determined that the variable must be
-    /// known to be `Predicate` "or else" the given error would occur.
-    InferredIs(Predicate, ArcOrElse<'db>),
 
     /// Inference determined that the variable cannot be
     /// known to be `Predicate` "or else" the given error would occur.
@@ -231,11 +224,6 @@ impl<'db> Because<'db> {
                     "to conclude that `{}` is `{}`, I would need you to add a declaration",
                     v, predicate
                 ),
-            )),
-            Because::VarDeclaredToBe(v, predicate) => Some(Diagnostic::info(
-                db,
-                span,
-                format!("`{}` is declared to be `{}`", v, predicate),
             )),
             Because::NeverIsNotCopy => Some(Diagnostic::info(
                 db,
@@ -305,17 +293,6 @@ impl<'db> Because<'db> {
                     )
                     .child(or_else_diagnostic),
                 )
-            }
-            Because::InferredIs(predicate, or_else) => {
-                let or_else_diagnostic = or_else.or_else(env, Because::JustSo);
-                Some(Diagnostic::info(
-                            db,
-                            span,
-                            format!(
-                                "I inferred that `{predicate}` must be true because otherwise it would cause this error"
-                            ),
-                        )
-                        .child(or_else_diagnostic))
             }
             Because::InferredIsnt(predicate, or_else) => {
                 let or_else_diagnostic = or_else.or_else(env, Because::JustSo);

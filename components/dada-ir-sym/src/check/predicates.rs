@@ -2,9 +2,7 @@ pub mod is_provably_copy;
 pub mod is_provably_lent;
 pub mod is_provably_move;
 pub mod is_provably_owned;
-pub mod isnt_provably_copy;
 pub mod require_copy;
-pub mod require_isnt_provably_copy;
 pub mod require_lent;
 pub mod require_move;
 pub mod require_owned;
@@ -15,20 +13,14 @@ use dada_util::boxed_async_fn;
 use is_provably_copy::red_ty_is_provably_copy;
 use is_provably_lent::{red_ty_is_provably_lent, term_is_provably_lent};
 use is_provably_move::{red_ty_is_provably_move, term_is_provably_move};
-use is_provably_owned::{red_ty_is_provably_owned, term_is_provably_owned};
+use is_provably_owned::red_ty_is_provably_owned;
 use require_lent::require_term_is_lent;
 use require_move::require_term_is_move;
-use require_owned::require_term_is_owned;
 use serde::Serialize;
 
 use crate::ir::types::SymGenericTerm;
 
-use super::{
-    env::Env,
-    inference::Direction,
-    red::{RedPerm, RedTy},
-    report::OrElse,
-};
+use super::{env::Env, inference::Direction, red::RedTy, report::OrElse};
 
 #[derive(Copy, Clone, Debug, Eq, PartialEq, Hash, Ord, PartialOrd, Serialize)]
 pub enum Predicate {
@@ -130,29 +122,6 @@ pub(crate) async fn require_term_is_leased<'db>(
     env.require_both(
         async |env| require_term_is_move(env, term, or_else).await,
         async |env| require_term_is_lent(env, term, or_else).await,
-    )
-    .await
-}
-
-pub(crate) async fn require_term_is_my<'db>(
-    env: &mut Env<'db>,
-    term: SymGenericTerm<'db>,
-    or_else: &dyn OrElse<'db>,
-) -> Errors<()> {
-    env.require_both(
-        async |env| require_term_is_move(env, term, or_else).await,
-        async |env| require_term_is_owned(env, term, or_else).await,
-    )
-    .await
-}
-
-pub(crate) async fn term_is_provably_my<'db>(
-    env: &mut Env<'db>,
-    term: SymGenericTerm<'db>,
-) -> Errors<bool> {
-    env.both(
-        async |env| term_is_provably_move(env, term).await,
-        async |env| term_is_provably_owned(env, term).await,
     )
     .await
 }

@@ -5,7 +5,11 @@ use crate::{
         env::Env,
         inference::Direction,
         live_places::LivePlaces,
-        red::{RedLink, RedPerm, lattice::glb_perms, sub::chain_sub_chain},
+        red::{
+            RedPerm,
+            lattice::{glb_perms, lub_perms},
+            sub::chain_sub_chain,
+        },
         report::{Because, OrElse},
         stream::Consumer,
         to_red::ToRedPerm,
@@ -135,7 +139,13 @@ async fn require_infer_bounded_by_perm<'db>(
             Consumer::new(async |env, new_red_bound: RedPerm<'db>| {
                 match env.red_bound(infer, direction).peek_perm() {
                     Some((old_red_bound, old_or_else)) => {
-                        match glb_perms(env, old_red_bound, new_red_bound) {
+                        let perm_combined = match direction {
+                            Direction::FromAbove => {
+                                Some(lub_perms(env, old_red_bound, new_red_bound))
+                            }
+                            Direction::FromBelow => glb_perms(env, old_red_bound, new_red_bound),
+                        };
+                        match perm_combined {
                             Some(red_perm_glb) => {
                                 env.red_bound(infer, direction)
                                     .set_perm(red_perm_glb, or_else);

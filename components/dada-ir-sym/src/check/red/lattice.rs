@@ -1,5 +1,3 @@
-use std::collections::BTreeSet;
-
 use dada_ir_ast::diagnostic::{Err, Errors};
 use dada_util::Set;
 use itertools::Itertools;

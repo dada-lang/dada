@@ -144,23 +144,6 @@ impl<'db> InferenceVarData<'db> {
         Some(or_else)
     }
 
-    /// Insert a predicate into the [`isnt`](`Self::isnt`) set,
-    /// returning `Some` if this is a new bound.
-    pub fn require_isnt(
-        &mut self,
-        predicate: Predicate,
-        or_else: &dyn OrElse<'db>,
-    ) -> Option<ArcOrElse<'db>> {
-        assert!(self.is_known_to_provably_be(predicate).is_none());
-        if self.is_known_not_to_provably_be(predicate).is_none() {
-            let or_else = or_else.to_arc();
-            self.isnt[predicate.index()] = Some(or_else.clone());
-            Some(or_else)
-        } else {
-            None
-        }
-    }
-
     /// Returns the upper or lower bounds on this permission variable.
     ///
     /// # Panics

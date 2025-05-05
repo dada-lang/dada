@@ -24,7 +24,7 @@ pub mod sub;
 /// which in turn had data leased from `q` (which in turn owned the data).
 #[derive(SalsaSerialize)]
 #[salsa::interned(debug)]
-pub struct RedPerm<'db> {
+pub(crate) struct RedPerm<'db> {
     #[return_ref]
     pub chains: Vec<RedChain<'db>>,
 }
@@ -39,10 +39,6 @@ impl<'db> RedPerm<'db> {
             }
         }
         Ok(true)
-    }
-
-    pub fn is_my(self, env: &Env<'db>) -> Errors<bool> {
-        Ok(self.is_provably(env, Predicate::Move)? && self.is_provably(env, Predicate::Owned)?)
     }
 
     pub fn is_our(self, env: &Env<'db>) -> Errors<bool> {
@@ -66,16 +62,12 @@ impl<'db> Err<'db> for RedPerm<'db> {
 
 #[derive(SalsaSerialize)]
 #[salsa::interned(debug)]
-pub struct RedChain<'db> {
+pub(crate) struct RedChain<'db> {
     #[return_ref]
     pub links: Vec<RedLink<'db>>,
 }
 
 impl<'db> RedChain<'db> {
-    pub fn my(db: &'db dyn crate::Db) -> Self {
-        RedChain::new(db, [])
-    }
-
     pub fn our(db: &'db dyn crate::Db) -> Self {
         RedChain::new(db, [RedLink::Our])
     }
@@ -106,7 +98,7 @@ impl<'db> Err<'db> for RedChain<'db> {
 }
 
 #[derive(Copy, Clone, Debug, PartialEq, Eq, PartialOrd, Ord, Hash, Serialize)]
-pub enum RedLink<'db> {
+pub(crate) enum RedLink<'db> {
     Our,
     Ref(Live, SymPlace<'db>),
     Mut(Live, SymPlace<'db>),
@@ -150,25 +142,6 @@ impl<'db> RedLink<'db> {
             }
         }
         Ok(false)
-    }
-
-    pub fn is_my(self, env: &Env<'db>) -> Errors<bool> {
-        match self {
-            RedLink::Var(v) => Ok(env.var_is_declared_to_be(v, Predicate::Move)
-                && env.var_is_declared_to_be(v, Predicate::Owned)),
-            RedLink::Our | RedLink::Ref(..) | RedLink::Mut(..) => Ok(false),
-            RedLink::Err(reported) => Err(reported),
-        }
-    }
-
-    pub fn is_our(&self, env: &Env<'db>) -> Errors<bool> {
-        match self {
-            RedLink::Our => Ok(true),
-            RedLink::Var(v) => Ok(env.var_is_declared_to_be(*v, Predicate::Copy)
-                && env.var_is_declared_to_be(*v, Predicate::Owned)),
-            RedLink::Ref(..) | RedLink::Mut(..) => Ok(false),
-            RedLink::Err(reported) => Err(*reported),
-        }
     }
 
     pub fn is_owned(&self, env: &Env<'db>) -> Errors<bool> {

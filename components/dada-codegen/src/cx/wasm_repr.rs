@@ -85,15 +85,10 @@ impl<'g, 'db> WasmReprCx<'g, 'db> {
     fn wasm_repr_of_perm_type(&mut self, sym_perm: SymPerm<'db>, sym_ty: SymTy<'db>) -> WasmRepr {
         let db = self.db;
         match *sym_perm.kind(db) {
-            // A leased type is a pointer to the data.
             SymPermKind::Leased(_) => self.wasm_pointer(),
-
-            // Owned or shared types are copies of the data.
             SymPermKind::My | SymPermKind::Our | SymPermKind::Shared(_) => {
                 self.wasm_repr_of_type(sym_ty)
             }
-
-            // Substitute generics.
             SymPermKind::Var(sym_variable) => {
                 let result = self
                     .generics
@@ -102,13 +97,13 @@ impl<'g, 'db> WasmReprCx<'g, 'db> {
                     .assert_perm(db);
                 self.wasm_repr_of_perm_type(result, sym_ty)
             }
-
-            // Error types are zero-sized.
             SymPermKind::Error(_) => WasmRepr::Nothing,
-
             SymPermKind::Apply(left, _) => self.wasm_repr_of_perm_type(left, sym_ty),
-
             SymPermKind::Infer(_infer_var_index) => unreachable!(),
+            SymPermKind::Or(perm_l, _perm_r) => {
+                // the type check should ensure `perm_l` and `perm_r` are compatible
+                self.wasm_repr_of_perm_type(perm_l, sym_ty)
+            }
         }
     }
 

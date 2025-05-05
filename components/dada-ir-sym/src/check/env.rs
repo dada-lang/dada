@@ -23,7 +23,6 @@ use dada_ir_ast::{
     span::Span,
 };
 use dada_util::{Map, debug};
-use futures::task::LocalFutureObj;
 
 use crate::{check::runtime::Runtime, check::universe::Universe, ir::exprs::SymExpr};
 
@@ -570,19 +569,6 @@ impl<'db> Env<'db> {
     ) -> Option<ArcOrElse<'db>> {
         self.runtime
             .mutate_inference_var_data(infer, &self.log, |data| data.require_is(predicate, or_else))
-    }
-
-    #[track_caller]
-    pub fn require_inference_var_isnt(
-        &mut self,
-        infer: InferVarIndex,
-        predicate: Predicate,
-        or_else: &dyn OrElse<'db>,
-    ) -> Option<ArcOrElse<'db>> {
-        self.runtime
-            .mutate_inference_var_data(infer, &self.log, |data| {
-                data.require_isnt(predicate, or_else)
-            })
     }
 
     /// Return a struct that gives ability to peek, modify, or block on the lower or upper red-ty-bound

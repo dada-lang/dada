@@ -6,7 +6,6 @@ use runtime::Runtime;
 
 use crate::ir::types::SymTy;
 
-mod alternatives;
 pub(crate) mod blocks;
 mod debug;
 mod env;

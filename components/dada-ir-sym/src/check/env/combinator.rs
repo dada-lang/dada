@@ -1,15 +1,15 @@
-use std::{panic::Location, pin::pin, task::Poll};
+use std::{panic::Location, pin::pin};
 
 use dada_ir_ast::diagnostic::{Errors, Reported};
 use futures::{
-    FutureExt, StreamExt,
+    StreamExt,
     future::{Either, LocalBoxFuture},
     stream::FuturesUnordered,
 };
 use serde::Serialize;
 
 use crate::{
-    check::{alternatives::Alternative, debug::TaskDescription, inference::Direction, red::RedTy},
+    check::{debug::TaskDescription, inference::Direction, red::RedTy},
     ir::indices::InferVarIndex,
 };
 
@@ -314,7 +314,6 @@ impl<'db> Env<'db> {
         }
     }
 
-    #[track_caller]
     pub async fn next_perm_bound(
         &self,
         infer: InferVarIndex,
@@ -401,46 +400,6 @@ impl<'db> Env<'db> {
                 *storage = Some(new_value.clone());
                 Some(new_value)
             })
-    }
-    /// Choose between two options:
-    ///
-    /// * If the current node is required, then execute `if_required`. This is preferred
-    ///   because it will generate stronger inference constraints.
-    /// * If the current node is not required, execute `not_required` until it returns
-    ///   true or false.
-    #[track_caller]
-    pub fn if_required(
-        &mut self,
-        alternative: &mut Alternative<'_>,
-        mut is_required: impl AsyncFnMut(&mut Env<'db>) -> Errors<()>,
-        mut not_required: impl AsyncFnMut(&mut Env<'db>) -> Errors<bool>,
-    ) -> impl Future<Output = Errors<bool>> {
-        let this = &*self;
-        let compiler_location = Location::caller();
-
-        let mut is_required = Box::pin(async move {
-            let mut env =
-                this.fork(|log| log.spawn(compiler_location, TaskDescription::IfRequired));
-            is_required(&mut env).await
-        });
-
-        let mut not_required = Box::pin(async move {
-            let mut env =
-                this.fork(|log| log.spawn(compiler_location, TaskDescription::IfNotRequired));
-            not_required(&mut env).await
-        });
-
-        std::future::poll_fn(move |cx| {
-            if alternative.is_required() {
-                match is_required.poll_unpin(cx) {
-                    Poll::Ready(Ok(())) => Poll::Ready(Ok(true)),
-                    Poll::Ready(Err(reported)) => Poll::Ready(Err(reported)),
-                    Poll::Pending => Poll::Pending,
-                }
-            } else {
-                not_required.poll_unpin(cx)
-            }
-        })
     }
 
     /// Invoke `op` for each new lower (or upper, depending on direction) bound on `?X`.
