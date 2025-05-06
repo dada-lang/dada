@@ -8,13 +8,6 @@ use crate::{
         env::Env,
         inference::{Direction, InferVarKind},
         live_places::LivePlaces,
-        predicates::{
-            is_provably_copy::term_is_provably_copy, is_provably_lent::term_is_provably_lent,
-            is_provably_move::term_is_provably_move, is_provably_owned::term_is_provably_owned,
-            require_copy::require_term_is_copy, require_lent::require_term_is_lent,
-            require_move::require_term_is_move, require_owned::require_term_is_owned,
-            require_term_is_leased, term_is_provably_leased,
-        },
         red::RedTy,
         report::{Because, OrElse},
         to_red::ToRedTy,
@@ -51,94 +44,9 @@ pub async fn require_sub_terms<'db>(
     or_else: &dyn OrElse<'db>,
 ) -> Errors<()> {
     env.log("require_sub_terms", &[&lower, &upper]);
-    env.require_both(
-        async |env| propagate_bounds(env, lower, upper, or_else).await,
-        async |env| {
-            // Reduce and relate chains
-            let red_term_lower = lower.to_red_ty(env);
-            let red_term_upper = upper.to_red_ty(env);
-            require_sub_red_terms(env, live_after, red_term_lower, red_term_upper, or_else).await
-        },
-    )
-    .await
-}
-
-/// Whenever we require that `lower <: upper`, we can also propagate certain bounds,
-/// such as copy/lent and owned/move, from lower-to-upper and upper-to-lower.
-/// This can unblock inference.
-async fn propagate_bounds<'db>(
-    env: &mut Env<'db>,
-    lower: SymGenericTerm<'db>,
-    upper: SymGenericTerm<'db>,
-    or_else: &dyn OrElse<'db>,
-) -> Errors<()> {
-    env.log("propagate_bounds", &[&lower, &upper]);
-    env.require_all()
-        .require(
-            // If subtype is copy, supertype must be
-            async |env| {
-                if term_is_provably_copy(env, lower).await? {
-                    require_term_is_copy(env, upper, or_else).await?;
-                }
-                Ok(())
-            },
-        )
-        .require(
-            // If subtype is lent, supertype must be
-            async |env| {
-                if term_is_provably_lent(env, lower).await? {
-                    require_term_is_lent(env, upper, or_else).await?;
-                }
-                Ok(())
-            },
-        )
-        .require(
-            // Can only be a subtype of something move if you are move
-            async |env| {
-                if term_is_provably_move(env, upper).await? {
-                    require_term_is_move(env, lower, or_else).await?;
-                }
-                Ok(())
-            },
-        )
-        // .require(
-        //     // Can only be a subtype of something that isn't copy if you aren't copy
-        //     async |env| {
-        //         if term_isnt_provably_copy(env, upper).await? {
-        //             require_term_isnt_provably_copy(env, lower, or_else).await?;
-        //         }
-        //         Ok(())
-        //     },
-        // )
-        .require(
-            // Can only be a subtype of something owned if you are owned
-            async |env| {
-                if term_is_provably_owned(env, upper).await? {
-                    require_term_is_owned(env, lower, or_else).await?;
-                }
-                Ok(())
-            },
-        )
-        .require(
-            // Can only be a supertype of something leased if you are leased
-            async |env| {
-                if term_is_provably_leased(env, lower).await? {
-                    require_term_is_leased(env, upper, or_else).await?;
-                }
-                Ok(())
-            },
-        )
-        .require(
-            // Can only be a subtype of something leased if you are leased
-            async |env| {
-                if term_is_provably_leased(env, upper).await? {
-                    require_term_is_leased(env, lower, or_else).await?;
-                }
-                Ok(())
-            },
-        )
-        .finish()
-        .await
+    let red_term_lower = lower.to_red_ty(env);
+    let red_term_upper = upper.to_red_ty(env);
+    require_sub_red_terms(env, live_after, red_term_lower, red_term_upper, or_else).await
 }
 
 #[boxed_async_fn]
