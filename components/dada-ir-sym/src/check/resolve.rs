@@ -63,6 +63,8 @@ impl<'env, 'db> Resolver<'env, 'db> {
                         } else if let Some(ty) = self.bounding_ty(infer, Direction::FromAbove)? {
                             Ok(ty.into())
                         } else {
+                            self.env
+                                .log("no bounds found for type inference variable", &[&infer]);
                             Err(ResolverError::NoBounds)
                         }
                     }
@@ -135,7 +137,13 @@ impl<'env, 'db> Resolver<'env, 'db> {
         let runtime = self.env.runtime().clone();
         runtime.with_inference_var_data(infer, |data| match data.red_perm_bound(direction) {
             Some((bound, _)) => Ok(bound.to_sym_perm(self.db)),
-            None => Err(ResolverError::NoBounds),
+            None => {
+                self.env.log(
+                    "no bounds found for perm inference variable",
+                    &[&infer, &direction],
+                );
+                Err(ResolverError::NoBounds)
+            }
         })
     }
 }

@@ -125,15 +125,16 @@ impl<'db> Runtime<'db> {
         runtime.mark_complete();
         runtime.drain();
 
-        // Dump debug info
-        runtime.root_log.dump(span);
-
-        match channel_rx.try_recv() {
+        let result = match channel_rx.try_recv() {
             Ok(v) => cleanup(v),
 
             // FIXME: Obviously we need a better error message than this!
             Err(_) => R::err(db, runtime.report_type_annotations_needed(span)),
-        }
+        };
+
+        runtime.root_log.dump(span);
+
+        result
     }
 
     fn new(
