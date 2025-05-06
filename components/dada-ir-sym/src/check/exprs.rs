@@ -110,7 +110,11 @@ async fn check_expr<'db>(
                         ty,
                         SymExprKind::Primitive(SymLiteral::Integral { bits }),
                     );
-                    env.spawn_require_numeric_type(ty, &NumericTypeExpected::new(sym_expr, ty));
+                    env.spawn_require_my_numeric_type(
+                        LivePlaces::fixme(),
+                        ty,
+                        &NumericTypeExpected::new(sym_expr, ty),
+                    );
                     ExprResult {
                         temporaries: vec![],
                         span: expr_span,
@@ -650,18 +654,19 @@ async fn check_expr<'db>(
                 let Some(expected_return_ty) = env.return_ty else {
                     return ExprResult::err(
                         db,
-                        Diagnostic::error(
-                            db,
-                            expr_span,
-                            "unexpected `return` statement".to_string(),
-                        )
-                        .label(
-                            db,
-                            Level::Error,
-                            expr_span,
-                            "I did not expect to see a `return` statement here".to_string(),
-                        )
-                        .report(db),
+                        env.report(
+                            Diagnostic::error(
+                                db,
+                                expr_span,
+                                "unexpected `return` statement".to_string(),
+                            )
+                            .label(
+                                db,
+                                Level::Error,
+                                expr_span,
+                                "I did not expect to see a `return` statement here".to_string(),
+                            ),
+                        ),
                     );
                 };
 
@@ -1035,35 +1040,36 @@ async fn check_method_call<'db>(
             if function_generics.len() != generics.len() {
                 return ExprResult::err(
                     db,
-                    Diagnostic::error(
-                        db,
-                        id_span,
-                        format!(
-                            "expected {expected} generic arguments, but found {found}",
-                            expected = function_generics.len(),
-                            found = generics.len()
+                    env.report(
+                        Diagnostic::error(
+                            db,
+                            id_span,
+                            format!(
+                                "expected {expected} generic arguments, but found {found}",
+                                expected = function_generics.len(),
+                                found = generics.len()
+                            ),
+                        )
+                        .label(
+                            db,
+                            Level::Error,
+                            id_span,
+                            format!(
+                                "{found} generic arguments were provided",
+                                found = generics.len()
+                            ),
+                        )
+                        .label(
+                            db,
+                            Level::Error,
+                            function.name_span(db),
+                            format!(
+                                "the function `{name}` is declared with {expected} generic arguments",
+                                name = function.name(db),
+                                expected = function_generics.len(),
+                            ),
                         ),
-                    )
-                    .label(
-                        db,
-                        Level::Error,
-                        id_span,
-                        format!(
-                            "{found} generic arguments were provided",
-                            found = generics.len()
-                        ),
-                    )
-                    .label(
-                        db,
-                        Level::Error,
-                        function.name_span(db),
-                        format!(
-                            "the function `{name}` is declared with {expected} generic arguments",
-                            name = function.name(db),
-                            expected = function_generics.len(),
-                        ),
-                    )
-                    .report(db),
+                    ),
                 );
             }
 
@@ -1074,34 +1080,35 @@ async fn check_method_call<'db>(
                 if !generic_term.has_kind(db, var.kind(db)) {
                     return ExprResult::err(
                         db,
-                        Diagnostic::error(
-                            db,
-                            ast_generic_term.span(db),
-                            format!(
-                                "expected `{expected_kind}`, found `{found_kind}`",
-                                expected_kind = var.kind(db),
-                                found_kind = generic_term.kind().unwrap(),
+                        env.report(
+                            Diagnostic::error(
+                                db,
+                                ast_generic_term.span(db),
+                                format!(
+                                    "expected `{expected_kind}`, found `{found_kind}`",
+                                    expected_kind = var.kind(db),
+                                    found_kind = generic_term.kind().unwrap(),
+                                ),
+                            )
+                            .label(
+                                db,
+                                Level::Error,
+                                id_span,
+                                format!(
+                                    "this is a `{found_kind}`",
+                                    found_kind = generic_term.kind().unwrap(),
+                                ),
+                            )
+                            .label(
+                                db,
+                                Level::Info,
+                                var.span(db),
+                                format!(
+                                    "I expected to find a `{expected_kind}`",
+                                    expected_kind = var.kind(db),
+                                ),
                             ),
-                        )
-                        .label(
-                            db,
-                            Level::Error,
-                            id_span,
-                            format!(
-                                "this is a `{found_kind}`",
-                                found_kind = generic_term.kind().unwrap(),
-                            ),
-                        )
-                        .label(
-                            db,
-                            Level::Info,
-                            var.span(db),
-                            format!(
-                                "I expected to find a `{expected_kind}`",
-                                expected_kind = var.kind(db),
-                            ),
-                        )
-                        .report(db),
+                        ),
                     );
                 }
                 substitution.push(generic_term);
@@ -1153,24 +1160,25 @@ async fn check_call_common<'db>(
         let function_name = function.name(db);
         return ExprResult::err(
             db,
-            Diagnostic::error(
-                db,
-                callee_span,
-                format!("expected {expected_inputs} arguments, found {found_inputs}"),
-            )
-            .label(
-                db,
-                Level::Error,
-                callee_span,
-                format!("I expected `{function_name}` to take {expected_inputs} arguments but I found {found_inputs}",),
-            )
-            .label(
-                db,
-                Level::Info,
-                function.name_span(db),
-                format!("`{function_name}` defined here"),
-            )
-            .report(db),
+            env.report(
+                Diagnostic::error(
+                    db,
+                    callee_span,
+                    format!("expected {expected_inputs} arguments, found {found_inputs}"),
+                )
+                .label(
+                    db,
+                    Level::Error,
+                    callee_span,
+                    format!("I expected `{function_name}` to take {expected_inputs} arguments but I found {found_inputs}",),
+                )
+                .label(
+                    db,
+                    Level::Info,
+                    function.name_span(db),
+                    format!("`{function_name}` defined here"),
+                )
+            ),
         );
     }
 

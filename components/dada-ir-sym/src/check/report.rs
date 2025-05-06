@@ -36,7 +36,8 @@ use super::{
 pub trait OrElse<'db> {
     /// Report the diagnostic created by [`OrElse::or_else`][].
     fn report(&self, env: &mut Env<'db>, because: Because<'db>) -> Reported {
-        self.or_else(env, because).report(env.db())
+        let diagnostic = self.or_else(env, because);
+        env.report(diagnostic)
     }
 
     /// Create a diagnostic representing the error.

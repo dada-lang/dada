@@ -19,7 +19,7 @@ use crate::{
 };
 use dada_ir_ast::{
     ast::AstTy,
-    diagnostic::{Diagnostic, Err},
+    diagnostic::{Diagnostic, Err, Reported},
     span::Span,
 };
 use dada_util::{Map, debug};
@@ -36,7 +36,8 @@ use super::{
     report::{ArcOrElse, BooleanTypeRequired, OrElse},
     runtime::DeferResult,
     subtype::{
-        is_future::require_future_type, is_numeric::require_numeric_type,
+        is_future::require_future_type,
+        is_numeric::{require_my_numeric_type, require_numeric_type},
         terms::reconcile_ty_bounds,
     },
 };
@@ -391,6 +392,23 @@ impl<'db> Env<'db> {
         )
     }
 
+    /// Check that the value is a numeric type and has the permission `my`.
+    #[track_caller]
+    pub(super) fn spawn_require_my_numeric_type(
+        &mut self,
+        live_after: LivePlaces,
+        ty: SymTy<'db>,
+        or_else: &dyn OrElse<'db>,
+    ) {
+        let or_else = or_else.to_arc();
+        self.runtime.spawn(
+            self,
+            TaskDescription::RequireMyNumericType(ty),
+            async move |env| require_my_numeric_type(env, live_after, ty, &or_else).await,
+        )
+    }
+
+    /// Check that the value is a numeric type with any permission.
     #[track_caller]
     pub(super) fn spawn_require_numeric_type(&mut self, ty: SymTy<'db>, or_else: &dyn OrElse<'db>) {
         let or_else = or_else.to_arc();
@@ -490,6 +508,11 @@ impl<'db> Env<'db> {
     /// If `infer` is a permission variable, just returns `infer`.
     pub fn perm_infer(&self, infer: InferVarIndex) -> InferVarIndex {
         self.runtime().perm_infer(infer)
+    }
+
+    pub fn report(&self, diagnostic: Diagnostic) -> Reported {
+        self.log("report diagnostic", &[&diagnostic]);
+        diagnostic.report(self.db())
     }
 
     #[track_caller]

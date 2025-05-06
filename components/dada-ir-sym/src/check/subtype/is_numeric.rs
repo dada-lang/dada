@@ -5,6 +5,7 @@ use crate::{
     check::{
         env::Env,
         inference::Direction,
+        live_places::LivePlaces,
         predicates::{Predicate, var_infer::require_infer_is},
         red::RedTy,
         report::{Because, OrElse, OrElseHelper},
@@ -15,6 +16,22 @@ use crate::{
         types::{SymTy, SymTyName},
     },
 };
+
+use super::perms::require_sub_opt_perms;
+
+pub async fn require_my_numeric_type<'db>(
+    env: &mut Env<'db>,
+    live_after: LivePlaces,
+    ty: SymTy<'db>,
+    or_else: &dyn OrElse<'db>,
+) -> Errors<()> {
+    let (red_ty, perm) = ty.to_red_ty(env);
+    env.require_both(
+        async |env| require_sub_opt_perms(env, live_after, None, perm, or_else).await,
+        async |env| require_numeric_red_type(env, red_ty, or_else).await,
+    )
+    .await
+}
 
 pub async fn require_numeric_type<'db>(
     env: &mut Env<'db>,

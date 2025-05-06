@@ -533,6 +533,7 @@ pub enum TaskDescription<'db> {
     IfNotRequired,
     RequireAssignableType(SymTy<'db>, SymTy<'db>),
     RequireEqualTypes(SymTy<'db>, SymTy<'db>),
+    RequireMyNumericType(SymTy<'db>),
     RequireNumericType(SymTy<'db>),
     RequireFutureType(SymTy<'db>),
     RequireBoundsProvablyPredicate(InferVarIndex, Predicate),
