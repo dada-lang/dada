@@ -21,34 +21,13 @@ pub enum Direction {
 pub(crate) struct InferenceVarData<'db> {
     span: Span<'db>,
 
-    /// If the element for a given predicate is `Some`, then the predicate is known to be true
-    /// for this inference variable due to code at the given span. If the element is `None`,
-    /// then it is not known that the predicate is true (but it still could be, depending
-    /// on what value we ultimately infer).
-    ///
-    /// **Subtle:** For ty inference variables, this applies only to the red-ty bounds.
-    /// The associated permission variable tracks predicates separately.
-    ///
-    /// See also the `isnt` field.
-    is: [Option<ArcOrElse<'db>>; Predicate::LEN],
-
-    /// Like [`Self::is`][] except it records if the predicate is known to not be provable.
-    /// Note that knowing that a variable `isnt (known to be) copy` doesn't
-    /// imply that it is `is (known to be) move`. It means "you will never be able to prove this is copy".
-    isnt: [Option<ArcOrElse<'db>>; Predicate::LEN],
-
     /// Bounds on this variable suitable for its kind.
     bounds: InferenceVarBounds<'db>,
 }
 
 impl<'db> InferenceVarData<'db> {
     fn new(span: Span<'db>, bounds: InferenceVarBounds<'db>) -> Self {
-        Self {
-            span,
-            bounds,
-            is: [None, None, None, None],
-            isnt: [None, None, None, None],
-        }
+        Self { span, bounds }
     }
 
     /// Create the data for a new permission inference variable.
@@ -86,62 +65,6 @@ impl<'db> InferenceVarData<'db> {
             InferenceVarBounds::Perm { .. } => InferVarKind::Perm,
             InferenceVarBounds::Ty { .. } => InferVarKind::Type,
         }
-    }
-
-    /// Returns `Some(s)` if the predicate is known to be in the [`is`](`Self::is`) set.
-    pub fn is_known_to_provably_be(&self, predicate: Predicate) -> Option<ArcOrElse<'db>> {
-        self.is[predicate.index()].clone()
-    }
-
-    /// Returns `Some(s)` if the predicate is found in the [`isnt`](`Self::isnt`) set.
-    pub fn is_known_not_to_provably_be(&self, predicate: Predicate) -> Option<ArcOrElse<'db>> {
-        self.isnt[predicate.index()].clone()
-    }
-
-    /// Insert a predicate into the [`is`](`Self::is`) set and its invert into the [`isnt`](`Self::isnt`) set.
-    /// Returns `None` if these are not new requirements.
-    /// Otherwise, returns `Some(o)` where `o` is the Arc-ified version of `or_else`.
-    /// Low-level method invoked by runtime only.
-    ///
-    /// # Panics
-    ///
-    /// * If the inference variable is required to satisfy a contradictory predicate.
-    pub fn require_is(
-        &mut self,
-        predicate: Predicate,
-        or_else: &dyn OrElse<'db>,
-    ) -> Option<ArcOrElse<'db>> {
-        let predicate_invert = predicate.invert();
-
-        let predicate_is = self.is_known_to_provably_be(predicate).is_some();
-        let predicate_isnt = self.is_known_not_to_provably_be(predicate).is_some();
-        let inverted_is = self.is_known_to_provably_be(predicate_invert).is_some();
-        let inverted_isnt = self.is_known_not_to_provably_be(predicate_invert).is_some();
-
-        // Check that we haven't been given contradictory constraints.
-        assert!(
-            !predicate_isnt,
-            "require_is: {predicate} already required to be isnt"
-        );
-        assert!(
-            !inverted_is,
-            "require_is: {predicate_invert} already required to be is"
-        );
-
-        // If these constraints are already recorded, just return.
-        if predicate_is && inverted_isnt {
-            return None;
-        }
-
-        // Otherwise record.
-        let or_else = or_else.to_arc();
-        if !predicate_is {
-            self.is[predicate.index()] = Some(or_else.clone());
-        }
-        if !inverted_isnt {
-            self.isnt[predicate_invert.index()] = Some(or_else.clone());
-        }
-        Some(or_else)
     }
 
     /// Returns the upper or lower bounds on this permission variable.

@@ -510,6 +510,7 @@ impl<'db> Env<'db> {
         self.runtime().perm_infer(infer)
     }
 
+    #[track_caller]
     pub fn report(&self, diagnostic: Diagnostic) -> Reported {
         self.log("report diagnostic", &[&diagnostic]);
         diagnostic.report(self.db())
@@ -581,17 +582,6 @@ impl<'db> Env<'db> {
         assert_ne!(lower, upper);
         self.runtime
             .insert_sub_infer_var_pair(lower, upper, &self.log)
-    }
-
-    #[track_caller]
-    pub fn require_inference_var_is(
-        &mut self,
-        infer: InferVarIndex,
-        predicate: Predicate,
-        or_else: &dyn OrElse<'db>,
-    ) -> Option<ArcOrElse<'db>> {
-        self.runtime
-            .mutate_inference_var_data(infer, &self.log, |data| data.require_is(predicate, or_else))
     }
 
     /// Return a struct that gives ability to peek, modify, or block on the lower or upper red-ty-bound

@@ -87,6 +87,8 @@ async fn require_sub_perms<'db>(
     // but we are not smart enough. Instead, we'll just wait for any lower bounds on `?A` to show
     // up and compare them against `mut[x]`.
 
+    env.log("require_sub_perms", &[&lower_perm, &upper_perm]);
+
     env.require_all()
         .require(async |env| {
             let SymPermKind::Infer(lower_infer) = lower_perm.kind(db) else {

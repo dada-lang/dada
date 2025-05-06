@@ -35,6 +35,7 @@ use super::{
 /// extract the reason for that original constraint.
 pub trait OrElse<'db> {
     /// Report the diagnostic created by [`OrElse::or_else`][].
+    #[track_caller]
     fn report(&self, env: &mut Env<'db>, because: Because<'db>) -> Reported {
         let diagnostic = self.or_else(env, because);
         env.report(diagnostic)
