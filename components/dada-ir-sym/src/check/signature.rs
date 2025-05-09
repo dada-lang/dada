@@ -24,24 +24,55 @@ pub fn check_function_signature<'db>(
         db,
         function.name_span(db),
         async move |runtime| -> Errors<SymFunctionSignature<'db>> {
-            let (env, _, input_output) = prepare_env(db, runtime, function).await;
+            let PreparedEnv {
+                env,
+                input_tys,
+                output_ty_caller,
+                ..
+            } = prepare_env(db, runtime, function).await;
 
             let scope = env.into_scope();
             Ok(SymFunctionSignature::new(
                 db,
                 function.symbols(db).clone(),
-                scope.into_bound_value(db, input_output),
+                scope.into_bound_value(
+                    db,
+                    SymInputOutput {
+                        input_tys,
+                        output_ty: output_ty_caller,
+                    },
+                ),
             ))
         },
         |v| v,
     )
 }
 
+pub struct PreparedEnv<'db> {
+    /// The env that should be used to type check the body
+    pub env: Env<'db>,
+
+    /// The generic variables declared on the fn
+    pub input_symbols: Vec<SymVariable<'db>>,
+
+    /// The types of the fn inputs
+    pub input_tys: Vec<SymTy<'db>>,
+
+    /// The return type the block should generate.
+    /// This is the type that the user wrote.
+    /// In the case of an async fn, this is not a future.
+    pub output_ty_body: SymTy<'db>,
+
+    /// The return type of the fn from the perspective of the caller.
+    /// For an async fn, this is a future.
+    pub output_ty_caller: SymTy<'db>,
+}
+
 pub async fn prepare_env<'db>(
     db: &'db dyn crate::Db,
     runtime: &Runtime<'db>,
     function: SymFunction<'db>,
-) -> (Env<'db>, Vec<SymVariable<'db>>, SymInputOutput<'db>) {
+) -> PreparedEnv<'db> {
     let source = function.source(db);
     let inputs = source.inputs(db);
     let input_symbols = inputs
@@ -64,20 +95,22 @@ pub async fn prepare_env<'db>(
     }
 
     // Symbolify the output type.
-    let mut output_ty: SymTy<'db> = output_ty(&mut env, &function).await;
-    if function.effects(db).async_effect {
-        output_ty = SymTy::named(db, SymTyName::Future, vec![output_ty.into()]);
-    }
-    env.set_return_ty(output_ty);
+    let output_ty_body: SymTy<'db> = output_ty(&mut env, &function).await;
+    env.set_return_ty(output_ty_body);
 
-    (
+    let output_ty_caller = if function.effects(db).async_effect {
+        SymTy::named(db, SymTyName::Future, vec![output_ty_body.into()])
+    } else {
+        output_ty_body
+    };
+
+    PreparedEnv {
         env,
         input_symbols,
-        SymInputOutput {
-            input_tys,
-            output_ty,
-        },
-    )
+        input_tys,
+        output_ty_body,
+        output_ty_caller,
+    }
 }
 
 async fn set_variable_ty_from_input<'db>(env: &mut Env<'db>, input: &AstFunctionInput<'db>) {

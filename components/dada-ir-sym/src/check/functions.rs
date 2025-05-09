@@ -1,5 +1,7 @@
+use std::process::Output;
+
 use crate::{
-    check::CheckTyInEnv,
+    check::{CheckTyInEnv, signature::PreparedEnv},
     ir::{
         classes::SymAggregate,
         functions::{SymFunction, SymFunctionSource, SymInputOutput},
@@ -47,14 +49,12 @@ fn check_function_body_class_constructor<'db>(
         db,
         function.name_span(db),
         async move |runtime| -> SymExpr<'db> {
-            let (
+            let PreparedEnv {
                 ref mut env,
                 input_symbols,
-                SymInputOutput {
-                    input_tys,
-                    output_ty: _,
-                },
-            ) = prepare_env(db, runtime, function).await;
+                input_tys,
+                ..
+            } = prepare_env(db, runtime, function).await;
 
             let scope = env.scope.clone();
             let self_ty = sym_class.self_ty(db, &scope).check_in_env(env).await;
@@ -117,22 +117,19 @@ fn check_function_body_ast_block<'db>(
         db,
         function.name_span(db),
         async move |runtime| {
-            let (
+            let PreparedEnv {
                 mut env,
-                _,
-                SymInputOutput {
-                    input_tys: _,
-                    output_ty,
-                },
-            ) = prepare_env(db, runtime, function).await;
+                output_ty_body,
+                ..
+            } = prepare_env(db, runtime, function).await;
             env.log("check_function_body_ast_block", &[&function, &body]);
             let live_after = LivePlaces::none(&env);
             let expr = body.check_in_env(&mut env, live_after).await;
             env.spawn_require_assignable_type(
                 live_after,
                 expr.ty(db),
-                output_ty,
-                &InvalidReturnValue::new(expr, output_ty),
+                output_ty_body,
+                &InvalidReturnValue::new(expr, output_ty_body),
             );
             (env, expr)
         },
