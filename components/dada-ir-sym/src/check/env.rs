@@ -43,7 +43,7 @@ use super::{
 };
 
 pub mod combinator;
-
+pub mod infer_bounds;
 pub(crate) struct Env<'db> {
     pub log: LogHandle<'db>,
 
@@ -582,6 +582,37 @@ impl<'db> Env<'db> {
         assert_ne!(lower, upper);
         self.runtime
             .insert_sub_infer_var_pair(lower, upper, &self.log)
+    }
+
+    /// Check if `infer` is required to meet the given predicate.
+    /// If so, returns the error that would result if that were not true.
+    #[track_caller]
+    pub fn infer_is(&self, infer: InferVarIndex, predicate: Predicate) -> Option<ArcOrElse<'db>> {
+        self.log
+            .infer(Location::caller(), "infer_is", infer, &[&predicate]);
+        self.runtime()
+            .with_inference_var_data(infer, |data| data.is(predicate))
+    }
+
+    /// Modify the state of `infer` to record that it must meet the given predicate.
+    ///
+    /// # Panics
+    ///
+    /// If the inference variable is already required to meet the given predicate or
+    /// if it is required to meet the predicate's inverse.
+    #[track_caller]
+    pub fn set_infer_is(
+        &self,
+        infer: InferVarIndex,
+        predicate: Predicate,
+        or_else: &dyn OrElse<'db>,
+    ) {
+        self.log
+            .infer(Location::caller(), "set_infer_is", infer, &[&predicate]);
+        self.runtime()
+            .mutate_inference_var_data(infer, &self.log, |data| {
+                data.set_is(predicate, or_else);
+            })
     }
 
     /// Return a struct that gives ability to peek, modify, or block on the lower or upper red-ty-bound

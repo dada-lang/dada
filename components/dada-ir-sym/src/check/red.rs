@@ -8,8 +8,8 @@ use salsa::Update;
 use serde::Serialize;
 
 use crate::ir::{
-    indices::InferVarIndex,
-    types::{SymGenericTerm, SymPerm, SymPlace, SymTyName},
+    indices::{FromInfer, InferVarIndex},
+    types::{SymGenericTerm, SymPerm, SymPlace, SymTy, SymTyKind, SymTyName},
     variables::SymVariable,
 };
 
@@ -223,5 +223,18 @@ pub enum RedTy<'db> {
 impl<'db> Err<'db> for RedTy<'db> {
     fn err(_db: &'db dyn crate::Db, reported: Reported) -> Self {
         RedTy::Error(reported)
+    }
+}
+
+impl<'db> RedTy<'db> {
+    pub fn to_sym_ty(self, db: &'db dyn crate::Db) -> SymTy<'db> {
+        match self {
+            RedTy::Error(reported) => SymTy::err(db, reported),
+            RedTy::Named(name, terms) => SymTy::named(db, name, terms),
+            RedTy::Never => SymTy::never(db),
+            RedTy::Infer(var_index) => SymTy::infer(db, var_index),
+            RedTy::Var(variable) => SymTy::var(db, variable),
+            RedTy::Perm => panic!("unexpected RedTy (perm)"),
+        }
     }
 }

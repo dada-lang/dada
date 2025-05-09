@@ -357,14 +357,14 @@ impl<'db> ToRedLinkVecs<'db> for SymPerm<'db> {
                 .await
             }
             SymPermKind::Infer(v) => {
-                env.require_for_all_red_perm_bounds(v, Some(direction), async |env, _, red_perm| {
+                let mut bounds = env.red_perm_bounds(v, Some(direction));
+                while let Some((_, red_perm)) = bounds.next(env).await {
                     for &chain in red_perm.chains(db) {
                         let links = chain.links(db).to_vec();
                         consumer.consume(env, vec![links]).await?;
                     }
-                    Ok(())
-                })
-                .await
+                }
+                Ok(())
             }
             SymPermKind::Var(v) => {
                 let linkvec = {

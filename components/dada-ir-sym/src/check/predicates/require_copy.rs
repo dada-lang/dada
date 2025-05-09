@@ -80,7 +80,7 @@ async fn require_ty_is_copy<'db>(
         SymTyKind::Never => Err(or_else.report(env, Because::NeverIsNotCopy)),
 
         // Inference variables
-        SymTyKind::Infer(infer) => require_infer_is(env, infer, Predicate::Copy, or_else),
+        SymTyKind::Infer(infer) => require_infer_is(env, infer, Predicate::Copy, or_else).await,
 
         // Universal variables
         SymTyKind::Var(var) => require_var_is(env, var, Predicate::Copy, or_else),
@@ -145,7 +145,8 @@ async fn require_perm_is_copy<'db>(
 
         // Variable and inference
         SymPermKind::Var(var) => require_var_is(env, var, Predicate::Copy, or_else),
-        SymPermKind::Infer(infer) => require_infer_is(env, infer, Predicate::Copy, or_else),
+
+        SymPermKind::Infer(infer) => require_infer_is(env, infer, Predicate::Copy, or_else).await,
 
         SymPermKind::Or(_, _) => todo!(),
     }

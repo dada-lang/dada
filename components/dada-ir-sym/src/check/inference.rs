@@ -21,13 +21,21 @@ pub enum Direction {
 pub(crate) struct InferenceVarData<'db> {
     span: Span<'db>,
 
+    /// Records whether the inference variable is required to meet a given predicate
+    /// (and what error results if it doesn't).
+    is: [Option<ArcOrElse<'db>>; Predicate::LEN],
+
     /// Bounds on this variable suitable for its kind.
     bounds: InferenceVarBounds<'db>,
 }
 
 impl<'db> InferenceVarData<'db> {
     fn new(span: Span<'db>, bounds: InferenceVarBounds<'db>) -> Self {
-        Self { span, bounds }
+        Self {
+            span,
+            is: [None, None, None, None],
+            bounds,
+        }
     }
 
     /// Create the data for a new permission inference variable.
@@ -65,6 +73,20 @@ impl<'db> InferenceVarData<'db> {
             InferenceVarBounds::Perm { .. } => InferVarKind::Perm,
             InferenceVarBounds::Ty { .. } => InferVarKind::Type,
         }
+    }
+
+    /// If this inference variable must meet `predicate`,
+    /// returns `Some(_)` with the error that will result otherwise.
+    pub fn is(&self, predicate: Predicate) -> Option<ArcOrElse<'db>> {
+        self.is[predicate.index()].clone()
+    }
+
+    /// Record that this inference variable must meet `predicate`
+    /// or else the error `or_else` will result.
+    pub fn set_is(&mut self, predicate: Predicate, or_else: &dyn OrElse<'db>) {
+        assert!(!self.is[predicate.index()].is_some());
+        assert!(!self.is[predicate.invert().index()].is_some());
+        self.is[predicate.index()] = Some(or_else.to_arc());
     }
 
     /// Returns the upper or lower bounds on this permission variable.

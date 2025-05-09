@@ -5,10 +5,7 @@ use crate::{
     check::{
         env::Env,
         places::PlaceTy,
-        predicates::{
-            Predicate,
-            var_infer::{test_perm_infer_is_known_to_be, test_var_is_provably},
-        },
+        predicates::{Predicate, var_infer::test_var_is_provably},
         red::RedTy,
         to_red::ToRedTy,
     },
@@ -18,7 +15,7 @@ use crate::{
     },
 };
 
-use super::{is_provably_move::place_is_provably_move, var_infer::test_ty_infer_is_known_to_be};
+use super::{is_provably_move::place_is_provably_move, var_infer::infer_is_provably};
 
 pub async fn term_is_provably_lent<'db>(
     env: &mut Env<'db>,
@@ -41,7 +38,7 @@ pub async fn term_is_provably_lent<'db>(
 pub async fn red_ty_is_provably_lent<'db>(env: &mut Env<'db>, ty: RedTy<'db>) -> Errors<bool> {
     let db = env.db();
     match ty {
-        RedTy::Infer(infer) => test_ty_infer_is_known_to_be(env, infer, Predicate::Lent).await,
+        RedTy::Infer(infer) => infer_is_provably(env, infer, Predicate::Lent).await,
         RedTy::Var(var) => Ok(test_var_is_provably(env, var, Predicate::Lent)),
         RedTy::Never => Ok(false),
         RedTy::Error(reported) => Err(reported),
@@ -115,9 +112,7 @@ pub(crate) async fn perm_is_provably_lent<'db>(
             Ok(application_is_provably_lent(env, lhs.into(), rhs.into()).await?)
         }
         SymPermKind::Var(var) => Ok(test_var_is_provably(env, var, Predicate::Lent)),
-        SymPermKind::Infer(infer) => {
-            test_perm_infer_is_known_to_be(env, infer, Predicate::Lent).await
-        }
+        SymPermKind::Infer(infer) => infer_is_provably(env, infer, Predicate::Lent).await,
         SymPermKind::Or(_, _) => todo!(),
     }
 }

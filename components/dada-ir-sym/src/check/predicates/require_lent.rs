@@ -81,7 +81,7 @@ async fn require_ty_is_lent<'db>(
         SymTyKind::Never => Err(or_else.report(env, Because::NeverIsNotLent)),
 
         // Variable and inference
-        SymTyKind::Infer(infer) => require_infer_is(env, infer, Predicate::Lent, or_else),
+        SymTyKind::Infer(infer) => require_infer_is(env, infer, Predicate::Lent, or_else).await,
         SymTyKind::Var(var) => require_var_is(env, var, Predicate::Lent, or_else),
 
         // Named types
@@ -172,7 +172,7 @@ async fn require_perm_is_lent<'db>(
 
         // Variable and inference
         SymPermKind::Var(var) => require_var_is(env, var, Predicate::Lent, or_else),
-        SymPermKind::Infer(infer) => require_infer_is(env, infer, Predicate::Lent, or_else),
+        SymPermKind::Infer(infer) => require_infer_is(env, infer, Predicate::Lent, or_else).await,
         SymPermKind::Or(_, _) => todo!(),
     }
 }

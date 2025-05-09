@@ -13,7 +13,9 @@ use crate::{
     ir::indices::InferVarIndex,
 };
 
-use crate::check::{env::Env, inference::InferenceVarData, red::RedPerm, report::ArcOrElse};
+use crate::check::{env::Env, inference::InferenceVarData, report::ArcOrElse};
+
+use super::infer_bounds::{RedPermBoundIterator, RedTyBoundIterator, SymGenericTermBoundIterator};
 
 impl<'db> Env<'db> {
     pub async fn require(
@@ -247,115 +249,54 @@ impl<'db> Env<'db> {
         }
     }
 
-    /// Invoke `op` each time `infer`'s bounds get tighter.
-    /// If `op` returns `Some`, return that.
-    /// If `op` returns `None`, wait until tighter bounds arrive.
-    /// Returns `None` if inference completes before finding a bound for which `op`
-    /// returns `Some`.
-    #[track_caller]
-    pub fn find_red_perm_bound(
-        &mut self,
-        infer: InferVarIndex,
-        direction: Option<Direction>,
-        mut op: impl AsyncFnMut(&mut Env<'db>, Direction, RedPerm<'db>) -> Errors<Option<bool>>,
-    ) -> impl Future<Output = Errors<Option<bool>>> {
-        let compiler_location = Location::caller();
-
-        async move {
-            self.indent_with_compiler_location(
-                compiler_location,
-                "find_red_perm_bound",
-                &[&infer],
-                async |env| {
-                    let mut storage = None;
-                    while let Some((d, b)) =
-                        env.next_perm_bound(infer, direction, &mut storage).await
-                    {
-                        match op(env, d, b).await? {
-                            Some(b) => return Ok(Some(b)),
-                            None => (),
-                        }
-                    }
-                    Ok(None)
-                },
-            )
-            .await
-        }
-    }
-
-    /// Observe the red-perm bound on `infer` from the given direction
-    /// and invoke `op` each time it changes. If `op` ever results in an
-    /// error, propagate it.
-    #[track_caller]
-    pub fn require_for_all_red_perm_bounds(
-        &mut self,
-        infer: InferVarIndex,
-        direction: Option<Direction>,
-        mut op: impl AsyncFnMut(&mut Env<'db>, Direction, RedPerm<'db>) -> Errors<()>,
-    ) -> impl Future<Output = Errors<()>> {
-        let compiler_location = Location::caller();
-
-        async move {
-            self.indent_with_compiler_location(
-                compiler_location,
-                "require_for_all_red_perm_bounds",
-                &[&infer],
-                async |env| {
-                    let mut storage = None;
-                    while let Some((d, b)) =
-                        env.next_perm_bound(infer, direction, &mut storage).await
-                    {
-                        op(env, d, b).await?;
-                    }
-                    Ok(())
-                },
-            )
-            .await
-        }
-    }
-
-    pub async fn next_perm_bound(
+    /// Returns an iterator over the bounds on an inference variable
+    /// yielding terms:
+    ///
+    /// * If this is a permission inference variable, the result are series of permission terms.
+    ///   These are directly converted from the [`RedPerm`] bounds you get if you call [`Self::red_perm_bounds`].
+    /// * If this is a type inference variable, the result are series of type terms.
+    ///   Unlike the [`RedTy`] bounds returned by [`Self::red_ty_bounds`], these include the
+    ///   associated permission inference variable and hence represent the complete
+    ///   inferred type.
+    ///
+    /// In both cases, you get back bounds from the direction you provide or from
+    /// either direction if you provide `None`. Multiple bounds from the same direction
+    /// indicate that the bounds got tighter.
+    pub fn term_bounds(
         &self,
         infer: InferVarIndex,
         direction: Option<Direction>,
-        storage: &mut Option<Option<(Direction, RedPerm<'db>)>>,
-    ) -> Option<(Direction, RedPerm<'db>)> {
-        loop {
-            let bound = self
-                .watch_inference_var(
-                    infer,
-                    |data| {
-                        let from_above = || {
-                            data.red_perm_bound(Direction::FromAbove)
-                                .map(|pair| (Direction::FromAbove, pair.0))
-                        };
+    ) -> SymGenericTermBoundIterator<'db> {
+        SymGenericTermBoundIterator::new(self, infer, direction)
+    }
 
-                        let from_below = || {
-                            data.red_perm_bound(Direction::FromBelow)
-                                .map(|pair| (Direction::FromBelow, pair.0))
-                        };
+    /// Returns an iterator over the red perm bounds on a permission inference variable.
+    ///
+    /// You get back bounds from the direction you provide or from
+    /// either direction if you provide `None`. Multiple bounds from the same direction
+    /// indicate that the bounds got tighter.
+    pub fn red_perm_bounds(
+        &self,
+        infer: InferVarIndex,
+        direction: Option<Direction>,
+    ) -> RedPermBoundIterator<'db> {
+        RedPermBoundIterator::new(self, infer, direction)
+    }
 
-                        match direction {
-                            Some(Direction::FromAbove) => from_above(),
-                            Some(Direction::FromBelow) => from_below(),
-                            None => from_above().or_else(from_below),
-                        }
-                    },
-                    storage,
-                )
-                .await;
-
-            match bound {
-                // Inference is complete.
-                None => return None,
-
-                // New bound value.
-                Some(Some(b)) => return Some(b),
-
-                // No current bound. Loop until one arrives.
-                Some(None) => (),
-            }
-        }
+    /// Returns an iterator over the red ty bounds on a type inference variable.
+    /// Note that each type inference variable has an associated permission
+    /// inference variable and that this permission is not reflected in the red ty
+    /// bound. Use [`Self::term_bounds`] to get back the complete inferred type.
+    ///
+    /// You get back bounds from the direction you provide or from
+    /// either direction if you provide `None`. Multiple bounds from the same direction
+    /// indicate that the bounds got tighter.
+    pub fn red_ty_bounds(
+        &self,
+        infer: InferVarIndex,
+        direction: Option<Direction>,
+    ) -> RedTyBoundIterator<'db> {
+        RedTyBoundIterator::new(self, infer, direction)
     }
 
     #[track_caller]
