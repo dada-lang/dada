@@ -4,6 +4,7 @@ use dada_ir_ast::diagnostic::{Diagnostic, Err, Reported};
 use dada_util::Set;
 
 use crate::ir::{
+    classes::SymAggregateStyle,
     indices::InferVarIndex,
     subst::Subst,
     types::{SymGenericTerm, SymPerm, SymTy, SymTyKind},
@@ -111,21 +112,27 @@ impl<'env, 'db> Resolver<'env, 'db> {
             return Ok(None);
         };
 
-        let sym_ty = match red_ty {
+        let apply_perm = |this: &mut Self, sym_ty: SymTy<'db>| {
+            let perm_infer = this.env.perm_infer(infer);
+            let sym_perm = this.bounding_perm(perm_infer, direction)?;
+            Ok(SymTy::new(db, SymTyKind::Perm(sym_perm, sym_ty)))
+        };
+
+        Ok(Some(match red_ty {
             RedTy::Error(reported) => SymTy::err(db, reported),
             RedTy::Named(name, args) => {
                 let args = self.resolve(args);
-                SymTy::new(db, SymTyKind::Named(name, args))
+                let ty = SymTy::new(db, SymTyKind::Named(name, args));
+                match name.style(db) {
+                    SymAggregateStyle::Struct => ty,
+                    SymAggregateStyle::Class => apply_perm(self, ty)?,
+                }
             }
             RedTy::Never => SymTy::new(db, SymTyKind::Never),
             RedTy::Infer(_) => panic!("infer bound cannot be another infer"),
-            RedTy::Var(var) => SymTy::new(db, SymTyKind::Var(var)),
+            RedTy::Var(var) => apply_perm(self, SymTy::new(db, SymTyKind::Var(var)))?,
             RedTy::Perm => panic!("infer bound cannot be a perm"),
-        };
-
-        let perm_infer = self.env.perm_infer(infer);
-        let sym_perm = self.bounding_perm(perm_infer, direction)?;
-        Ok(Some(SymTy::new(db, SymTyKind::Perm(sym_perm, sym_ty))))
+        }))
     }
 
     /// Return the bounding perm on the permission inference variable `v` from the given `direction`.
