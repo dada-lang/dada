@@ -22,10 +22,37 @@ use serde::Serialize;
 use super::classes::SymAggregateStyle;
 
 #[derive(Copy, Clone, PartialEq, Eq, PartialOrd, Ord, Hash, Debug, Serialize)]
-pub enum Variance {
-    Covariant,
-    Contravariant,
-    Invariant,
+pub struct Variance {
+    /// If true, then `T[P] <: T[Q]` requires `P <: Q` (necessary, not sufficient)
+    pub at_least_covariant: bool,
+
+    /// If true, then `T[P] <: T[Q]` requires `Q <: P` (necessary, not sufficient)
+    pub at_least_contravariant: bool,
+
+    /// Indicates that this type or permission
+    /// is not directly owned by the struct/class but
+    /// rather is relative to something else.
+    ///
+    /// Non-relative generics inherit permissions
+    ///
+    /// # Examples
+    ///
+    /// * `class Foo[type T](T)` -- `T` is NOT relative, so `our Foo[String]` becomes `our Foo[our String]`
+    /// * `class Foo[perm P, type T](P T)` -- `P` is not relative, but `T` IS,
+    ///   so `our Foo[my, String]` becomes `our Foo[our, String]`
+    ///
+    /// FIXME: Need a better name.
+    pub relative: bool,
+}
+
+impl Variance {
+    pub fn covariant() -> Self {
+        Self {
+            at_least_covariant: true,
+            at_least_contravariant: false,
+            relative: false,
+        }
+    }
 }
 
 #[derive(Copy, Clone, PartialEq, Eq, PartialOrd, Ord, Hash, Update, Debug, Serialize)]
@@ -499,6 +526,23 @@ impl<'db> SymPerm<'db> {
     /// Returns a permission `perm1 | perm2`
     pub fn or(db: &'db dyn crate::Db, perm1: SymPerm<'db>, perm2: SymPerm<'db>) -> Self {
         SymPerm::new(db, SymPermKind::Or(perm1, perm2))
+    }
+
+    /// Apply this permission to the given term (if `self` is not `my`).
+    pub fn apply_to_term(
+        self,
+        db: &'db dyn crate::Db,
+        term: SymGenericTerm<'db>,
+    ) -> SymGenericTerm<'db> {
+        match self.kind(db) {
+            SymPermKind::My => term,
+            _ => match term {
+                SymGenericTerm::Type(ty) => self.apply_to_ty(db, ty).into(),
+                SymGenericTerm::Perm(perm) => SymPerm::apply(db, self, perm).into(),
+                SymGenericTerm::Place(_) => panic!("cannot apply a perm to a place"),
+                SymGenericTerm::Error(_) => return term,
+            },
+        }
     }
 
     /// Apply this permission to the given type (if `self` is not `my`).

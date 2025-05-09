@@ -68,7 +68,7 @@ impl<'db> SymAggregate<'db> {
     pub fn variances(&self, db: &'db dyn crate::Db) -> Vec<Variance> {
         let len_generics = self.len_generics(db);
         // FIXME
-        vec![Variance::Covariant; len_generics]
+        vec![Variance::covariant(); len_generics]
     }
 
     /// Kinds of generic parameters

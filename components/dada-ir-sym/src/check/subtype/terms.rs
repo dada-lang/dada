@@ -16,6 +16,7 @@ use crate::{
         classes::SymAggregateStyle,
         indices::{FromInfer, InferVarIndex},
         types::{SymGenericKind, SymGenericTerm, SymPerm, SymTy, SymTyKind, SymTyName, Variance},
+        variables,
     },
 };
 
@@ -114,30 +115,24 @@ pub async fn require_sub_red_terms<'db>(
                     variances
                         .iter()
                         .zip(lower_generics.iter().zip(upper_generics)),
-                    async |env, (&variance, (&lower_generic, &upper_generic))| match variance {
-                        Variance::Covariant => {
-                            require_sub_terms(
-                                env,
-                                live_after,
-                                lower_generic,
-                                upper_generic,
-                                or_else,
-                            )
-                            .await
+                    async |env, (&variance, (&lower_generic, &upper_generic))| {
+                        let db = env.db();
+                        let mut lower_generic = lower_generic;
+                        let mut upper_generic = upper_generic;
+
+                        if !variance.relative {
+                            if let Some(lower_perm) = lower_perm {
+                                lower_generic = lower_perm.apply_to_term(db, lower_generic);
+                            }
+
+                            if let Some(upper_perm) = upper_perm {
+                                upper_generic = upper_perm.apply_to_term(db, upper_generic);
+                            }
                         }
-                        Variance::Contravariant => {
-                            require_sub_terms(
-                                env,
-                                live_after,
-                                upper_generic,
-                                lower_generic,
-                                or_else,
-                            )
-                            .await
-                        }
-                        Variance::Invariant => {
-                            env.require_both(
-                                async |env| {
+
+                        env.require_both(
+                            async |env| {
+                                if variance.at_least_covariant {
                                     require_sub_terms(
                                         env,
                                         live_after,
@@ -146,8 +141,12 @@ pub async fn require_sub_red_terms<'db>(
                                         or_else,
                                     )
                                     .await
-                                },
-                                async |env| {
+                                } else {
+                                    Ok(())
+                                }
+                            },
+                            async |env| {
+                                if variance.at_least_contravariant {
                                     require_sub_terms(
                                         env,
                                         live_after,
@@ -156,10 +155,12 @@ pub async fn require_sub_red_terms<'db>(
                                         or_else,
                                     )
                                     .await
-                                },
-                            )
-                            .await
-                        }
+                                } else {
+                                    Ok(())
+                                }
+                            },
+                        )
+                        .await
                     },
                 )
                 .await?;

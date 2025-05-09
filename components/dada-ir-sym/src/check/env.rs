@@ -498,8 +498,8 @@ impl<'db> Env<'db> {
     pub(crate) fn variances(&self, n: SymTyName<'db>) -> Vec<Variance> {
         match n {
             SymTyName::Primitive(_) => vec![],
-            SymTyName::Future => vec![Variance::Covariant],
-            SymTyName::Tuple { arity } => vec![Variance::Covariant; arity],
+            SymTyName::Future => vec![Variance::covariant()],
+            SymTyName::Tuple { arity } => vec![Variance::covariant(); arity],
             SymTyName::Aggregate(aggr) => aggr.variances(self.db()),
         }
     }
