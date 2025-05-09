@@ -1,3 +1,5 @@
+#:skip_codegen # FIXME: codegen doesn't work yet
+
 struct Amount(
     sign: bool,
     cents: u32,

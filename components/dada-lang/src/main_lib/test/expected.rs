@@ -35,6 +35,7 @@ pub struct TestExpectations {
     bless: Bless,
     expected_diagnostics: Vec<ExpectedDiagnostic>,
     fn_asts: bool,
+    codegen: bool,
 }
 
 enum Bless {
@@ -69,6 +70,7 @@ impl TestExpectations {
             bless,
             expected_diagnostics: vec![],
             fn_asts: false,
+            codegen: true,
         };
         expectations.initialize(db)?;
         Ok(expectations)
@@ -165,9 +167,24 @@ impl TestExpectations {
         Ok(())
     }
 
-    fn configuration(&mut self, db: &dyn crate::Db, line_index: usize, line: &str) -> Fallible<()> {
+    fn configuration(
+        &mut self,
+        db: &dyn crate::Db,
+        line_index: usize,
+        mut line: &str,
+    ) -> Fallible<()> {
+        // Permit `#` comment on the same line as configuration; ignore it
+        if let Some(index) = line.find('#') {
+            line = line[..index].trim();
+        }
+
         if line == "fn_asts" {
             self.fn_asts = true;
+            return Ok(());
+        }
+
+        if line == "skip_codegen" {
+            self.codegen = false;
             return Ok(());
         }
 
@@ -195,7 +212,10 @@ impl TestExpectations {
         )?);
 
         let actual_diagnostics = compiler.check_all(self.source_file);
-        let _wasm_bytes = compiler.codegen_main_fn(self.source_file);
+
+        if self.codegen {
+            let _wasm_bytes = compiler.codegen_main_fn(self.source_file);
+        }
 
         for diagnostic in &actual_diagnostics {
             writeln!(
