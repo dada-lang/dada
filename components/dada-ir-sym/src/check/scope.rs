@@ -32,6 +32,7 @@ pub struct Scope<'scope, 'db> {
     span: Span<'db>,
     chain: ScopeChain<'scope, 'db>,
 }
+
 impl<'scope, 'db> Scope<'scope, 'db> {
     /// A base scope containing only the primitive names.
     pub(crate) fn new(db: &'db dyn crate::Db, span: Span<'db>) -> Self {
@@ -107,10 +108,10 @@ impl<'scope, 'db> Scope<'scope, 'db> {
     }
 
     /// Return the innermost class in scope (if any).
-    pub fn class(&self) -> Option<SymAggregate<'db>> {
+    pub fn aggregate(&self) -> Option<SymAggregate<'db>> {
         for link in self.chain.iter() {
-            if let ScopeChainKind::SymClass(class) = &link.kind {
-                return Some(*class);
+            if let ScopeChainKind::SymAggr(aggr) = &link.kind {
+                return Some(*aggr);
             }
         }
         None
@@ -211,7 +212,7 @@ impl<'scope, 'db> Scope<'scope, 'db> {
             match &link.kind {
                 ScopeChainKind::Primitives
                 | ScopeChainKind::SymModule(_)
-                | ScopeChainKind::SymClass(_) => {}
+                | ScopeChainKind::SymAggr(_) => {}
                 ScopeChainKind::ForAll(cow) => {
                     vec.push(cow.iter().copied().collect());
                 }
@@ -245,7 +246,7 @@ pub enum ScopeChainKind<'scope, 'db> {
     SymModule(SymModule<'db>),
 
     /// Records that we are in the scope of a class
-    SymClass(SymAggregate<'db>),
+    SymAggr(SymAggregate<'db>),
 
     /// Introduces the given symbols into scope.
     ForAll(Cow<'scope, [SymVariable<'db>]>),
@@ -545,7 +546,7 @@ impl<'scope, 'db> ScopeChain<'scope, 'db> {
                 })
                 .next(),
 
-            ScopeChainKind::SymClass(_) => None,
+            ScopeChainKind::SymAggr(_) => None,
 
             ScopeChainKind::SymModule(sym) => {
                 // Somewhat subtle: we give definitions precedence over uses. If the same name appears
@@ -603,7 +604,7 @@ impl<'scope, 'db> ScopeChain<'scope, 'db> {
 
     fn binds_symbol(&self, _db: &'db dyn crate::Db, sym: SymVariable<'db>) -> bool {
         match &self.kind {
-            ScopeChainKind::SymClass(_)
+            ScopeChainKind::SymAggr(_)
             | ScopeChainKind::Primitives
             | ScopeChainKind::SymModule(_) => false,
 

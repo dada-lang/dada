@@ -118,7 +118,7 @@ async fn set_variable_ty_from_input<'db>(env: &mut Env<'db>, input: &AstFunction
     let lv = input.symbol(db);
     match input {
         AstFunctionInput::SelfArg(arg) => {
-            let self_ty = if let Some(aggregate) = env.scope.class() {
+            let self_ty = if let Some(aggregate) = env.scope.aggregate() {
                 let aggr_ty = aggregate.self_ty(db, &env.scope);
                 let ast_perm = arg.perm(db);
                 let sym_perm = ast_perm.check_in_env(env).await;
