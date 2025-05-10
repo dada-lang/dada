@@ -663,17 +663,15 @@ impl<'scope, 'db> ScopeChain<'scope, 'db> {
         }
     }
 
+    /// Resolve an identifier like `x` that we mapped to some item in a module.
     fn internal_module_item(
         &self,
-        db: &'db dyn crate::Db,
+        _db: &'db dyn crate::Db,
         sym: impl ScopeTreeNode<'db> + Into<NameResolutionSym<'db>> + Copy,
     ) -> NameResolution<'db> {
         NameResolution {
-            generics: sym
-                .transitive_generic_parameters(db)
-                .iter()
-                .map(|v| SymGenericTerm::var(db, *v))
-                .collect(),
+            // No generic arguments have been provided yet.
+            generics: vec![],
             sym: sym.into(),
         }
     }
