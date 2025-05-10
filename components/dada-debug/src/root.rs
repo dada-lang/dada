@@ -69,14 +69,16 @@ fn extract_span(
     end: AbsoluteOffset,
 ) -> anyhow::Result<(Option<String>, usize, usize, usize, usize)> {
     // special case a path like `/prelude.dada`
-    if let Some(path) = url.path().strip_prefix('/') {
-        if !path.contains('/') {
-            return Ok((None, 0, 0, 0, 0));
-        }
+    let path_without_leading_slash = url.path().trim_start_matches('/');
+    if !path_without_leading_slash.contains('/') {
+        return Ok((None, 0, 0, 0, 0));
     }
 
     // otherwise try to load the contents and create an excerpt
-    let contents = std::fs::read_to_string(url.path())?;
+    let contents = match std::fs::read_to_string(url.path()) {
+        Ok(s) => s,
+        Err(e) => anyhow::bail!("failed to read `{}`: {e}", url.path()),
+    };
     let start = start.as_usize();
     let end = end.as_usize();
     let text = &contents[start..end];
