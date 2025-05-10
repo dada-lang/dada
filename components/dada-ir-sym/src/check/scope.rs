@@ -6,7 +6,7 @@ use dada_ir_ast::{
     inputs::Krate,
     span::{Span, Spanned},
 };
-use dada_util::{FromImpls, indirect};
+use dada_util::{FromImpls, boxed_async_fn, indirect};
 use salsa::Update;
 use serde::Serialize;
 
@@ -276,65 +276,25 @@ impl<'db> NameResolution<'db> {
         self.sym.describe(db)
     }
 
-    /// Attempt to resolve a single identifier;
-    /// only works if `self` is a module or other "lexically resolved" name resolution.
-    ///
-    /// Returns `Ok(Ok(r))` if resolution succeeded.
-    ///
-    /// Returns `Ok(Err(self))` if resolution failed because this is not a lexically resolved result.
-    /// Type checking will have to handle it.
-    ///
-    /// Returns error only if this was a lexically resolved name resolution and the identifier is not found.
-    ///
-    /// FIXME: Remove all error reporting from here and push it further up the chain,
-    /// since the context of the lookup may matter to how we report the error.
+    /// Like [`NameResolutionSym::resolve_relative_id`] but also threads the
+    /// generic arguments through.
     pub(crate) fn resolve_relative_id(
         self,
         db: &'db dyn crate::Db,
         id: SpannedIdentifier<'db>,
     ) -> Errors<Result<NameResolution<'db>, NameResolution<'db>>> {
-        match self.sym {
-            NameResolutionSym::SymModule(sym_module) => match sym_module
-                .resolve_name_against_definitions(db, id.id)
-            {
-                Some(sym) => Ok(Ok(NameResolution {
-                    generics: self.generics,
-                    sym,
-                })),
-                None => Err(
-                    Diagnostic::error(db, id.span, "nothing named `{}` found in module")
-                        .label(
-                            db,
-                            Level::Error,
-                            id.span,
-                            format!(
-                                "I could not find anything named `{}` in the module `{}`",
-                                id.id,
-                                sym_module.name(db),
-                            ),
-                        )
-                        .report(db),
-                ),
-            },
+        match self.sym.resolve_relative_id(db, id) {
+            Ok(Ok(sym)) => Ok(Ok(NameResolution {
+                generics: self.generics,
+                sym,
+            })),
 
-            // FIXME: When we add traits, we have to decide how we want to manage trait member lookup.
-            // * Does this mean we have to merge name resolution plus type checking?
-            // * Do we not support `SomeClass.TraitMember` and instead prefer `SomeTrait.Member[SomeClass]`?
-            // * Do we only support `SomeClass.TraitMember` in expression contexts?
-            NameResolutionSym::SymClass(sym_class) => match sym_class.inherent_member(db, id.id) {
-                Some(class_member) => match class_member {
-                    SymClassMember::SymFunction(sym) => Ok(Ok(NameResolution {
-                        generics: self.generics,
-                        sym: NameResolutionSym::SymFunction(sym),
-                    })),
+            Ok(Err(s)) => {
+                assert_eq!(self.sym, s);
+                Ok(Err(self))
+            }
 
-                    // FIXME: we should probably have a NameResolutionSym::Field?
-                    SymClassMember::SymField(_) => Ok(Err(self)),
-                },
-                None => Ok(Err(self)),
-            },
-
-            _ => Ok(Err(self)),
+            Err(e) => Err(e),
         }
     }
 
@@ -415,6 +375,62 @@ impl<'db> NameResolutionSym<'db> {
         }
     }
 
+    /// Attempt to resolve a single identifier;
+    /// only works if `self` is a module or other "lexically resolved" name resolution.
+    ///
+    /// Returns `Ok(Ok(r))` if resolution succeeded.
+    ///
+    /// Returns `Ok(Err(self))` if resolution failed because this is not a lexically resolved result.
+    /// Type checking will have to handle it.
+    ///
+    /// Returns error only if this was a lexically resolved name resolution and the identifier is not found.
+    ///
+    /// FIXME: Remove all error reporting from here and push it further up the chain,
+    /// since the context of the lookup may matter to how we report the error.
+    pub(crate) fn resolve_relative_id(
+        self,
+        db: &'db dyn crate::Db,
+        id: SpannedIdentifier<'db>,
+    ) -> Errors<Result<NameResolutionSym<'db>, NameResolutionSym<'db>>> {
+        match self {
+            NameResolutionSym::SymModule(sym_module) => match sym_module
+                .resolve_name_against_definitions(db, id.id)
+            {
+                Some(sym) => Ok(Ok(sym)),
+                None => Err(
+                    Diagnostic::error(db, id.span, "nothing named `{}` found in module")
+                        .label(
+                            db,
+                            Level::Error,
+                            id.span,
+                            format!(
+                                "I could not find anything named `{}` in the module `{}`",
+                                id.id,
+                                sym_module.name(db),
+                            ),
+                        )
+                        .report(db),
+                ),
+            },
+
+            // FIXME: When we add traits, we have to decide how we want to manage trait member lookup.
+            // * Does this mean we have to merge name resolution plus type checking?
+            // * Do we not support `SomeClass.TraitMember` and instead prefer `SomeTrait.Member[SomeClass]`?
+            // * Do we only support `SomeClass.TraitMember` in expression contexts?
+            NameResolutionSym::SymClass(sym_class) => match sym_class.inherent_member(db, id.id) {
+                Some(class_member) => match class_member {
+                    SymClassMember::SymFunction(sym) => Ok(Ok(sym.into())),
+
+                    // FIXME: we should probably have a NameResolutionSym::Field?
+                    SymClassMember::SymField(_) => Ok(Err(self)),
+                },
+                None => Ok(Err(self)),
+            },
+
+            _ => Ok(Err(self)),
+        }
+    }
+
     /// Returns a string describing `self` that fits the mold "an X named `foo`".
     pub fn describe(self, db: &'db dyn crate::Db) -> impl Display + 'db {
         match self {
@@ -446,9 +462,7 @@ impl<'db> NameResolutionSym<'db> {
             NameResolutionSym::SymVariable(_) => 0,
         }
     }
-}
 
-impl<'db> NameResolutionSym<'db> {
     fn span(&self, db: &'db dyn crate::Db) -> Option<Span<'db>> {
         match self {
             NameResolutionSym::SymModule(sym) => Some(sym.span(db)),
@@ -460,6 +474,63 @@ impl<'db> NameResolutionSym<'db> {
     }
 }
 
+/// Partial name resolution: This simply extracts what symbol has been named by the
+/// user in a path. It can by synchronous and only requires a scope, not a type checking
+/// environment. This is used when creating default permissions, as we want to be able
+/// to do that before type checking has truly begun.
+pub trait ResolveToSym<'db> {
+    fn resolve_to_sym(
+        self,
+        db: &'db dyn crate::Db,
+        scope: &Scope<'_, 'db>,
+    ) -> Errors<NameResolutionSym<'db>>;
+}
+
+impl<'db> ResolveToSym<'db> for AstPath<'db> {
+    fn resolve_to_sym(
+        self,
+        db: &'db dyn crate::Db,
+        scope: &Scope<'_, 'db>,
+    ) -> Errors<NameResolutionSym<'db>> {
+        // This is "similar but different" to the code for `AstPath::resolve_in`.
+        // This code ignores generic arguments, but they are otherwise the same.
+        match self.kind(db) {
+            AstPathKind::Identifier(first_id) => first_id.resolve_to_sym(db, scope),
+            AstPathKind::GenericArgs { path, args: _ } => path.resolve_to_sym(db, scope),
+            AstPathKind::Member { path, id } => {
+                let base = path.resolve_to_sym(db, scope)?;
+                match base.resolve_relative_id(db, *id)? {
+                    Ok(r) => Ok(r),
+                    Err(base) => Err(report_path_referencing_field(db, id, base)),
+                }
+            }
+        }
+    }
+}
+
+/// Reports an error if the user gave a path like `Foo.Bar` and `Foo` wound up being a class
+/// that doesn't have nested items.
+fn report_path_referencing_field<'db>(
+    db: &'db dyn crate::Db,
+    id: &SpannedIdentifier<'_>,
+    base: NameResolutionSym<'_>,
+) -> Reported {
+    Diagnostic::error(db, id.span, "unexpected `.` in path")
+        .label(
+            db,
+            Level::Error,
+            id.span,
+            format!(
+                "I don't know how to interpret `.` applied to {} here",
+                base.categorize(db),
+            ),
+        )
+        .report(db)
+}
+
+/// Full name resolution: This requires converting generic arguments into symbols
+/// which entails some amount of type checking and interacting with the environment.
+/// This is therefore an `async` function.
 pub trait Resolve<'db> {
     async fn resolve_in(self, env: &mut Env<'db>) -> Errors<NameResolution<'db>>;
 }
@@ -467,9 +538,12 @@ pub trait Resolve<'db> {
 impl<'db> Resolve<'db> for AstPath<'db> {
     /// Given a path that must resolve to some kind of name resolution,
     /// resolve it if we can (reporting errors if it is invalid).
+    #[boxed_async_fn]
     async fn resolve_in(self, env: &mut Env<'db>) -> Errors<NameResolution<'db>> {
+        // This is "similar but different" to the code for `AstPath::resolve_to_sym`.
+        // That code ignores generic arguments, but they are otherwise the same.
         let db = env.db();
-        indirect(async || match self.kind(db) {
+        match self.kind(db) {
             AstPathKind::Identifier(first_id) => first_id.resolve_in(env).await,
             AstPathKind::GenericArgs { path, args } => {
                 let base = path.resolve_in(env).await?;
@@ -479,21 +553,21 @@ impl<'db> Resolve<'db> for AstPath<'db> {
                 let base = path.resolve_in(env).await?;
                 match base.resolve_relative_id(db, *id)? {
                     Ok(r) => Ok(r),
-                    Err(base) => Err(Diagnostic::error(db, id.span, "unexpected `.` in path")
-                        .label(
-                            db,
-                            Level::Error,
-                            id.span,
-                            format!(
-                                "I don't know how to interpret `.` applied to {} here",
-                                base.categorize(db),
-                            ),
-                        )
-                        .report(db)),
+                    Err(base) => Err(report_path_referencing_field(db, id, base.sym)),
                 }
             }
-        })
-        .await
+        }
+    }
+}
+
+impl<'db> ResolveToSym<'db> for SpannedIdentifier<'db> {
+    fn resolve_to_sym(
+        self,
+        db: &'db dyn crate::Db,
+        scope: &Scope<'_, 'db>,
+    ) -> Errors<NameResolutionSym<'db>> {
+        let NameResolution { sym, generics: _ } = scope.resolve_name(db, self.id, self.span)?;
+        Ok(sym)
     }
 }
 
