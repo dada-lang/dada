@@ -784,7 +784,7 @@ impl<'db> AnonymousPermSymbol<'db> for AstPerm<'db> {
     #[salsa::tracked]
     fn anonymous_perm_symbol(self, db: &'db dyn crate::Db) -> SymVariable<'db> {
         match self.kind(db) {
-            AstPermKind::ImplicitShared
+            AstPermKind::Default
             | AstPermKind::Shared(None)
             | AstPermKind::Leased(None)
             | AstPermKind::Given(None) => {

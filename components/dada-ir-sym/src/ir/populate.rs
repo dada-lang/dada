@@ -56,7 +56,7 @@ impl<'db> PopulateSignatureSymbols<'db> for AstPerm<'db> {
             | AstPermKind::Leased(Some(_))
             | AstPermKind::Given(Some(_)) => (),
 
-            AstPermKind::ImplicitShared
+            AstPermKind::Default
             | AstPermKind::Shared(None)
             | AstPermKind::Leased(None)
             | AstPermKind::Given(None) => {

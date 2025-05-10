@@ -206,7 +206,7 @@ impl<'db> Parse<'db> for AstSelfArg<'db> {
             Ok(Some(AstSelfArg::new(db, perm, self_span)))
         } else if let Ok(span) = parser.eat_keyword(Keyword::Self_) {
             // ...otherwise, it could be self...
-            let perm = AstPerm::new(db, span, dada_ir_ast::ast::AstPermKind::ImplicitShared);
+            let perm = AstPerm::new(db, span, dada_ir_ast::ast::AstPermKind::Default);
             Ok(Some(AstSelfArg::new(db, perm, span)))
         } else {
             // ...otherwise it ain't.

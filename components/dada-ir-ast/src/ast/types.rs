@@ -48,8 +48,8 @@ impl<'db> Spanned<'db> for AstPerm<'db> {
 
 #[derive(Clone, PartialEq, Eq, PartialOrd, Ord, Hash, Update, Debug, Serialize)]
 pub enum AstPermKind<'db> {
-    /// User wrote nothing but in a context where the default is `shared`
-    ImplicitShared,
+    /// User wrote nothing but in a context where defaults are allowed
+    Default,
 
     /// User wrote `shared` or `shared[place1, place2]`
     Shared(Option<SpanVec<'db, AstPath<'db>>>),
