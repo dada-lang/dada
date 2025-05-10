@@ -540,7 +540,7 @@ impl<'db> SymPerm<'db> {
                 SymGenericTerm::Type(ty) => self.apply_to_ty(db, ty).into(),
                 SymGenericTerm::Perm(perm) => SymPerm::apply(db, self, perm).into(),
                 SymGenericTerm::Place(_) => panic!("cannot apply a perm to a place"),
-                SymGenericTerm::Error(_) => return term,
+                SymGenericTerm::Error(_) => term,
             },
         }
     }
