@@ -11,7 +11,7 @@ use crate::{
     well_known,
 };
 use dada_ir_ast::{
-    ast::{AstGenericDecl, AstGenericKind, AstPerm, AstPermKind},
+    ast::{AstGenericDecl, AstGenericKind, AstPerm, AstPermKind, AstSelfArg, VariableDecl},
     diagnostic::{Err, Errors, Reported},
     span::Spanned,
 };
@@ -784,10 +784,7 @@ impl<'db> AnonymousPermSymbol<'db> for AstPerm<'db> {
     #[salsa::tracked]
     fn anonymous_perm_symbol(self, db: &'db dyn crate::Db) -> SymVariable<'db> {
         match self.kind(db) {
-            AstPermKind::Default
-            | AstPermKind::Shared(None)
-            | AstPermKind::Leased(None)
-            | AstPermKind::Given(None) => {
+            AstPermKind::Shared(None) | AstPermKind::Leased(None) | AstPermKind::Given(None) => {
                 SymVariable::new(db, SymGenericKind::Perm, None, self.span(db))
             }
             AstPermKind::Our
@@ -800,6 +797,34 @@ impl<'db> AnonymousPermSymbol<'db> for AstPerm<'db> {
                 panic!("`anonymous_perm_symbol` invoked on inappropriate perm: {self:?}")
             }
         }
+    }
+}
+
+/// Create a generic symbol for an anonymous permission like `self`.
+/// This is not always needed; see the implementation of [`PopulateSignatureSymbols`][]
+/// for [`AstSelfArg`][].
+///
+/// Tracked so that it occurs at most once per `self` declaration.
+#[salsa::tracked]
+impl<'db> AnonymousPermSymbol<'db> for AstSelfArg<'db> {
+    #[salsa::tracked]
+    fn anonymous_perm_symbol(self, db: &'db dyn crate::Db) -> SymVariable<'db> {
+        assert!(self.perm(db).is_none());
+        SymVariable::new(db, SymGenericKind::Perm, None, self.span(db))
+    }
+}
+
+/// Create a generic symbol for a variable declaration that has no explicit
+/// permission, like `x: String`. This is not always needed; see the
+/// implementation of [`PopulateSignatureSymbols`][] for [`VariableDecl`][].
+///
+/// Tracked so that it occurs at most once per `self` declaration.
+#[salsa::tracked]
+impl<'db> AnonymousPermSymbol<'db> for VariableDecl<'db> {
+    #[salsa::tracked]
+    fn anonymous_perm_symbol(self, db: &'db dyn crate::Db) -> SymVariable<'db> {
+        assert!(self.perm(db).is_none());
+        SymVariable::new(db, SymGenericKind::Perm, None, self.span(db))
     }
 }
 

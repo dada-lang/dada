@@ -8,7 +8,8 @@ use crate::{
     check::{env::Env, runtime::Runtime},
     ir::{
         functions::{SymFunction, SymFunctionSignature, SymFunctionSource, SymInputOutput},
-        types::{SymTy, SymTyName},
+        populate::self_arg_requires_default_perm,
+        types::{AnonymousPermSymbol, SymPerm, SymTy, SymTyName},
         variables::SymVariable,
     },
     prelude::Symbol,
@@ -48,6 +49,7 @@ pub fn check_function_signature<'db>(
     )
 }
 
+#[derive(Debug)]
 pub struct PreparedEnv<'db> {
     /// The env that should be used to type check the body
     pub env: Env<'db>,
@@ -120,9 +122,15 @@ async fn set_variable_ty_from_input<'db>(env: &mut Env<'db>, input: &AstFunction
         AstFunctionInput::SelfArg(arg) => {
             let self_ty = if let Some(aggregate) = env.scope.aggregate() {
                 let aggr_ty = aggregate.self_ty(db, &env.scope);
-                let ast_perm = arg.perm(db);
-                let sym_perm = ast_perm.check_in_env(env).await;
-                SymTy::perm(db, sym_perm, aggr_ty)
+                if let Some(ast_perm) = arg.perm(db) {
+                    let sym_perm = ast_perm.check_in_env(env).await;
+                    SymTy::perm(db, sym_perm, aggr_ty)
+                } else if self_arg_requires_default_perm(db, *arg, &env.scope) {
+                    let sym_perm = SymPerm::var(db, arg.anonymous_perm_symbol(db));
+                    SymTy::perm(db, sym_perm, aggr_ty)
+                } else {
+                    aggr_ty
+                }
             } else {
                 SymTy::err(
                     db,
@@ -136,9 +144,7 @@ async fn set_variable_ty_from_input<'db>(env: &mut Env<'db>, input: &AstFunction
             };
             env.set_variable_sym_ty(lv, self_ty);
         }
-        AstFunctionInput::Variable(var) => {
-            env.set_variable_ast_ty(lv, var.ty(db));
-        }
+        AstFunctionInput::Variable(decl) => env.set_variable_ast_ty(lv, *decl),
     }
 }
 

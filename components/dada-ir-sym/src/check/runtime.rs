@@ -1,6 +1,7 @@
 #![allow(clippy::arc_with_non_send_sync)] // FIXME: we may want to do this later?
 
 use std::{
+    fmt::Debug,
     future::Future,
     panic::Location,
     rc::Rc,
@@ -105,7 +106,7 @@ impl<'db> Runtime<'db> {
     ) -> R
     where
         T: 'db,
-        R: 'db + Err<'db>,
+        R: 'db + Err<'db> + erased_serde::Serialize + Debug,
     {
         let compiler_location = Location::caller();
         let runtime = Runtime::new(db, compiler_location, span);
@@ -131,6 +132,10 @@ impl<'db> Runtime<'db> {
             // FIXME: Obviously we need a better error message than this!
             Err(_) => R::err(db, runtime.report_type_annotations_needed(span)),
         };
+
+        runtime
+            .root_log
+            .log(compiler_location, "final result", &[&result]);
 
         runtime.root_log.dump(span);
 

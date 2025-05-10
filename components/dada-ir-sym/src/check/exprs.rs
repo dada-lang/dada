@@ -945,6 +945,9 @@ async fn check_function_call<'db>(
 ) -> ExprResult<'db> {
     let db = env.db();
 
+    env.log("check_function_call", &[&function]);
+    env.log("generics", &[&generics]);
+
     // Get the signature.
     let signature = match function.checked_signature(db) {
         Ok(signature) => signature,
@@ -957,8 +960,11 @@ async fn check_function_call<'db>(
     };
     let input_output = signature.input_output(db);
 
+    env.log("input_output", &[&input_output]);
+
     // Create inference variables for any generic arguments not provided.
     let expected_generics = function.transitive_generic_parameters(db);
+    env.log("expected_generics", &[&expected_generics]);
     let mut substitution = generics.clone();
     substitution.extend(
         expected_generics[generics.len()..]
@@ -1149,6 +1155,9 @@ async fn check_call_common<'db>(
 ) -> ExprResult<'db> {
     let db = env.db();
 
+    env.log("check_call_common", &[]);
+    env.log("substitution", &[&substitution]);
+
     // Instantiate the input-output with the substitution.
     let input_output = input_output.substitute(db, &substitution);
 
@@ -1203,6 +1212,10 @@ async fn check_call_common<'db>(
 
     // Instantiate the final level of binding with those temporaries
     let input_output = input_output.substitute(db, &arg_temp_terms);
+
+    env.log("arg_temp_symbols", &[&arg_temp_symbols]);
+    env.log("arg_temp_terms", &[&arg_temp_terms]);
+    env.log("input_output", &[&input_output]);
 
     // Function to type check a single argument and check it has the correct type.
     let check_arg = async |i: usize| -> ExprResult<'db> {

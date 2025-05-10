@@ -1,8 +1,11 @@
-use dada_ir_ast::diagnostic::{Err, Errors, Reported};
+use dada_ir_ast::diagnostic::{Diagnostic, Err, Errors, Level, Reported};
 
 use crate::{
     check::{env::Env, runtime::Runtime},
-    ir::{binder::Binder, classes::SymField, types::SymTy},
+    ir::{
+        binder::Binder, classes::SymField, populate::variable_decl_requires_default_perm,
+        types::SymTy,
+    },
 };
 
 use super::CheckTyInEnv;
@@ -20,9 +23,31 @@ pub(crate) fn check_field<'db>(
         async move |runtime| -> Errors<Binder<'db, Binder<'db, SymTy<'db>>>> {
             let scope = field.into_scope(db);
             let mut env = Env::new(runtime, scope);
-            let ast_ty = field.source(db).variable(db).ty(db);
-            let ty = ast_ty.check_in_env(&mut env).await;
-            let bound_ty = env.into_scope().into_bound_value(db, ty);
+
+            let decl = field.source(db).variable(db);
+
+            // In fields, we don't permit something like `x: String`,
+            // user must write `x: my String`.
+            if variable_decl_requires_default_perm(db, decl, &env.scope) {
+                Diagnostic::new(
+                    db,
+                    Level::Error,
+                    decl.base_ty(db).span(db),
+                    "explicit permission required",
+                )
+                .report(db);
+            }
+
+            let ast_base_ty = decl.base_ty(db);
+            let sym_base_ty = ast_base_ty.check_in_env(&mut env).await;
+            let sym_ty = if let Some(ast_perm) = decl.perm(db) {
+                let sym_perm = ast_perm.check_in_env(&mut env).await;
+                SymTy::perm(db, sym_perm, sym_base_ty)
+            } else {
+                sym_base_ty
+            };
+
+            let bound_ty = env.into_scope().into_bound_value(db, sym_ty);
             Ok(bound_ty)
         },
         |bound_ty| bound_ty,

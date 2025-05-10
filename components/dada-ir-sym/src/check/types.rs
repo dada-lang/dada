@@ -280,10 +280,7 @@ impl<'db> CheckTyInEnv<'db> for AstPerm<'db> {
                 SymPerm::new(db, SymPermKind::Leased(places))
             }
             AstPermKind::Given(Some(ref _span_vec)) => todo!(),
-            AstPermKind::Default
-            | AstPermKind::Shared(None)
-            | AstPermKind::Leased(None)
-            | AstPermKind::Given(None) => {
+            AstPermKind::Shared(None) | AstPermKind::Leased(None) | AstPermKind::Given(None) => {
                 let sym_var = self.anonymous_perm_symbol(db);
                 SymPerm::var(db, sym_var)
             }

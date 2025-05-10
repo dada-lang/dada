@@ -119,6 +119,9 @@ impl<'db> SymAggregate<'db> {
         let mut signature_symbols = SignatureSymbols::new(self);
         self.source(db)
             .populate_signature_symbols(db, &mut signature_symbols);
+
+        // NB: classes have no default symbols
+
         signature_symbols
     }
 

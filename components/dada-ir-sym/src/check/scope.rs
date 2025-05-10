@@ -14,7 +14,7 @@ use crate::{
     check::{CheckTyInEnv, scope_tree::ScopeTreeNode},
     ir::{
         binder::BoundTerm,
-        classes::{SymAggregate, SymClassMember},
+        classes::{SymAggregate, SymAggregateStyle, SymClassMember},
         functions::SymFunction,
         module::SymModule,
         primitive::{SymPrimitive, primitives},
@@ -472,6 +472,18 @@ impl<'db> NameResolutionSym<'db> {
             NameResolutionSym::SymFunction(sym) => Some(sym.span(db)),
             NameResolutionSym::SymPrimitive(_) => None,
             NameResolutionSym::SymVariable(sym) => Some(sym.span(db)),
+        }
+    }
+
+    /// If this symbol references an aggregate (class, struct, etc) returns the
+    /// aggregate style. Else returns `None`.
+    pub fn style(self, db: &'db dyn crate::Db) -> Option<SymAggregateStyle> {
+        match self {
+            NameResolutionSym::SymModule(_) => None,
+            NameResolutionSym::SymAggregate(aggr) => Some(aggr.style(db)),
+            NameResolutionSym::SymFunction(_) => None,
+            NameResolutionSym::SymPrimitive(_) => None,
+            NameResolutionSym::SymVariable(_) => None,
         }
     }
 }

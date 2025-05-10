@@ -9,16 +9,17 @@ use crate::{
     ir::{
         binder::BoundTerm,
         indices::{FromInfer, InferVarIndex},
+        populate::variable_decl_requires_default_perm,
         subst::SubstWith,
         types::{
-            Assumption, AssumptionKind, SymGenericKind, SymGenericTerm, SymPerm, SymTy, SymTyName,
-            Variance,
+            AnonymousPermSymbol, Assumption, AssumptionKind, SymGenericKind, SymGenericTerm,
+            SymPerm, SymTy, SymTyName, Variance,
         },
         variables::SymVariable,
     },
 };
 use dada_ir_ast::{
-    ast::AstTy,
+    ast::{AstTy, VariableDecl},
     diagnostic::{Diagnostic, Err, Reported},
     span::Span,
 };
@@ -222,7 +223,7 @@ impl<'db> Env<'db> {
 
     /// Sets the AST type for a parameter that is in scope already.
     /// This AST type will be lazily symbolified when requested.
-    pub fn set_variable_ast_ty(&mut self, lv: SymVariable<'db>, ty: AstTy<'db>) {
+    pub fn set_variable_ast_ty(&mut self, lv: SymVariable<'db>, decl: VariableDecl<'db>) {
         assert!(
             self.scope.generic_sym_in_scope(self.db(), lv),
             "variable `{lv:?}` not in scope"
@@ -231,7 +232,7 @@ impl<'db> Env<'db> {
             !self.variable_tys.contains_key(&lv),
             "variable `{lv:?}` already has a type"
         );
-        Arc::make_mut(&mut self.variable_tys).insert(lv, VariableTypeCell::ast(lv, ty));
+        Arc::make_mut(&mut self.variable_tys).insert(lv, VariableTypeCell::ast(lv, decl));
     }
 
     /// Extends the scope with a new program variable given its type.
@@ -703,33 +704,45 @@ impl<'db> VariableTypeCell<'db> {
         }
     }
 
-    fn ast(lv: SymVariable<'db>, ty: AstTy<'db>) -> Self {
+    fn ast(lv: SymVariable<'db>, decl: VariableDecl<'db>) -> Self {
         Self {
             lv,
-            state: Cell::new(VariableType::Ast(ty)),
+            state: Cell::new(VariableType::Ast(decl)),
         }
     }
 
     async fn get(&self, env: &mut Env<'db>) -> SymTy<'db> {
+        let db = env.db();
         match self.state.get() {
-            VariableType::Ast(ast_ty) => {
-                self.state.set(VariableType::InProgress(ast_ty));
-                let sym_ty = ast_ty.check_in_env(env).await;
+            VariableType::Ast(decl) => {
+                self.state.set(VariableType::InProgress(decl));
+                let sym_base_ty = decl.base_ty(db).check_in_env(env).await;
+
+                let sym_ty = if let Some(ast_perm) = decl.perm(db) {
+                    let sym_perm = ast_perm.check_in_env(env).await;
+                    SymTy::perm(db, sym_perm, sym_base_ty)
+                } else if variable_decl_requires_default_perm(db, decl, &env.scope) {
+                    let sym_perm = SymPerm::var(db, decl.anonymous_perm_symbol(db));
+                    SymTy::perm(db, sym_perm, sym_base_ty)
+                } else {
+                    sym_base_ty
+                };
+
                 // update state to symbolic unless it was already set to an error
                 if let VariableType::InProgress(_) = self.state.get() {
                     self.state.set(VariableType::Symbolic(sym_ty));
                 }
                 sym_ty
             }
-            VariableType::InProgress(ast_ty) => {
+            VariableType::InProgress(decl) => {
                 let ty_err = SymTy::err(
-                    env.db(),
+                    db,
                     Diagnostic::error(
-                        env.db(),
-                        ast_ty.span(env.db()),
+                        db,
+                        decl.base_ty(db).span(db),
                         format!("type of `{}` references itself", self.lv),
                     )
-                    .report(env.db()),
+                    .report(db),
                 );
                 self.state.set(VariableType::Symbolic(ty_err));
                 ty_err
@@ -751,14 +764,20 @@ enum VariableType<'db> {
     /// `y` then `x`, but that is not clear at first. So instead we begin with `x`, mark it as
     /// in progress, and then to convert `y` to a symbolic expression, wind up converting
     /// the type of `y`. If `y` did refer to `x`, this would result in an error.
-    Ast(AstTy<'db>),
+    Ast(VariableDecl<'db>),
 
     /// AST form of the type is available and we have begun symbolifying it.
     /// When in this state, a repeated request for the variable's type will report an error.
-    InProgress(AstTy<'db>),
+    InProgress(VariableDecl<'db>),
 
     /// Symbolic type is available. For local variables, we introduce the type directly
     /// in this form, but for parameters or other cases where there are a set of variables
     /// introduced at once, we have to begin with AST form.
     Symbolic(SymTy<'db>),
+}
+
+impl<'db> std::fmt::Debug for Env<'db> {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        f.debug_struct("Env").finish()
+    }
 }
