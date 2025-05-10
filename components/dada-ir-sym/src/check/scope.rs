@@ -353,7 +353,7 @@ impl<'db> NameResolution<'db> {
 #[allow(clippy::enum_variant_names)]
 pub enum NameResolutionSym<'db> {
     SymModule(SymModule<'db>),
-    SymClass(SymAggregate<'db>),
+    SymAggregate(SymAggregate<'db>),
     SymFunction(SymFunction<'db>),
     SymPrimitive(SymPrimitive<'db>),
     SymVariable(SymVariable<'db>),
@@ -364,7 +364,7 @@ impl<'db> NameResolutionSym<'db> {
     pub fn categorize(self, db: &'db dyn crate::Db) -> impl Display + 'db {
         match self {
             NameResolutionSym::SymModule(_) => Box::new("a module") as Box<dyn Display + 'db>,
-            NameResolutionSym::SymClass(_) => Box::new("a class"),
+            NameResolutionSym::SymAggregate(_) => Box::new("a class"),
             NameResolutionSym::SymFunction(_) => Box::new("a function"),
             NameResolutionSym::SymVariable(var) => match var.kind(db) {
                 SymGenericKind::Type => Box::new("a generic type"),
@@ -417,15 +417,17 @@ impl<'db> NameResolutionSym<'db> {
             // * Does this mean we have to merge name resolution plus type checking?
             // * Do we not support `SomeClass.TraitMember` and instead prefer `SomeTrait.Member[SomeClass]`?
             // * Do we only support `SomeClass.TraitMember` in expression contexts?
-            NameResolutionSym::SymClass(sym_class) => match sym_class.inherent_member(db, id.id) {
-                Some(class_member) => match class_member {
-                    SymClassMember::SymFunction(sym) => Ok(Ok(sym.into())),
+            NameResolutionSym::SymAggregate(sym_class) => {
+                match sym_class.inherent_member(db, id.id) {
+                    Some(class_member) => match class_member {
+                        SymClassMember::SymFunction(sym) => Ok(Ok(sym.into())),
 
-                    // FIXME: we should probably have a NameResolutionSym::Field?
-                    SymClassMember::SymField(_) => Ok(Err(self)),
-                },
-                None => Ok(Err(self)),
-            },
+                        // FIXME: we should probably have a NameResolutionSym::Field?
+                        SymClassMember::SymField(_) => Ok(Err(self)),
+                    },
+                    None => Ok(Err(self)),
+                }
+            }
 
             _ => Ok(Err(self)),
         }
@@ -437,7 +439,7 @@ impl<'db> NameResolutionSym<'db> {
             NameResolutionSym::SymModule(sym_module) => {
                 format!("a module named `{}`", sym_module.name(db))
             }
-            NameResolutionSym::SymClass(sym_class) => {
+            NameResolutionSym::SymAggregate(sym_class) => {
                 format!("a class named `{}`", sym_class.name(db))
             }
             NameResolutionSym::SymFunction(sym_function) => {
@@ -456,7 +458,7 @@ impl<'db> NameResolutionSym<'db> {
     fn expected_generic_parameters(&self, db: &'db dyn crate::Db) -> usize {
         match self {
             NameResolutionSym::SymModule(sym) => sym.expected_generic_parameters(db),
-            NameResolutionSym::SymClass(sym) => sym.expected_generic_parameters(db),
+            NameResolutionSym::SymAggregate(sym) => sym.expected_generic_parameters(db),
             NameResolutionSym::SymFunction(sym) => sym.expected_generic_parameters(db),
             NameResolutionSym::SymPrimitive(_) => 0,
             NameResolutionSym::SymVariable(_) => 0,
@@ -466,7 +468,7 @@ impl<'db> NameResolutionSym<'db> {
     fn span(&self, db: &'db dyn crate::Db) -> Option<Span<'db>> {
         match self {
             NameResolutionSym::SymModule(sym) => Some(sym.span(db)),
-            NameResolutionSym::SymClass(sym) => Some(sym.span(db)),
+            NameResolutionSym::SymAggregate(sym) => Some(sym.span(db)),
             NameResolutionSym::SymFunction(sym) => Some(sym.span(db)),
             NameResolutionSym::SymPrimitive(_) => None,
             NameResolutionSym::SymVariable(sym) => Some(sym.span(db)),
@@ -631,7 +633,7 @@ impl<'scope, 'db> ScopeChain<'scope, 'db> {
                         NameResolutionSym::SymModule(sym) => {
                             Some(self.internal_module_item(db, sym))
                         }
-                        NameResolutionSym::SymClass(sym) => {
+                        NameResolutionSym::SymAggregate(sym) => {
                             Some(self.internal_module_item(db, sym))
                         }
                         NameResolutionSym::SymFunction(sym) => {

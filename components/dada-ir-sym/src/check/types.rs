@@ -94,7 +94,7 @@ fn name_resolution_to_sym_ty<'db>(
             SymTy::named(db, sym_primitive.into(), vec![])
         }
 
-        NameResolutionSym::SymClass(sym_class) => {
+        NameResolutionSym::SymAggregate(sym_class) => {
             let expected = sym_class.len_generics(db);
             let found = generics.len();
             if found != expected {
@@ -314,7 +314,7 @@ fn name_resolution_to_sym_perm<'db>(
         }
 
         NameResolutionSym::SymModule(_)
-        | NameResolutionSym::SymClass(_)
+        | NameResolutionSym::SymAggregate(_)
         | NameResolutionSym::SymFunction(_)
         | NameResolutionSym::SymVariable(_)
         | NameResolutionSym::SymPrimitive(_) => SymPerm::err(

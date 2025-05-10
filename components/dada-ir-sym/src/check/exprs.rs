@@ -610,7 +610,7 @@ async fn check_expr<'db>(
                         kind:
                             ExprResultKind::Other(
                                 name_resolution @ NameResolution {
-                                    sym: NameResolutionSym::SymClass(class_sym),
+                                    sym: NameResolutionSym::SymAggregate(class_sym),
                                     ..
                                 },
                             ),
@@ -1303,7 +1303,7 @@ impl<'db> ExprResult<'db> {
             // FIXME: Should functions be expressions?
             NameResolutionSym::SymFunction(_)
             | NameResolutionSym::SymModule(_)
-            | NameResolutionSym::SymClass(_)
+            | NameResolutionSym::SymAggregate(_)
             | NameResolutionSym::SymPrimitive(_)
             | NameResolutionSym::SymVariable(..) => Self {
                 temporaries: vec![],
