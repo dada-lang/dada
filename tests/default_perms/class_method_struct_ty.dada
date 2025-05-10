@@ -1,0 +1,12 @@
+struct Point(x: u32, y: u32)
+
+class Foo {
+    fn m1(self, s: Point) {
+        self.m2(s.give)
+    }
+
+    fn m2(self, s: my Point) {
+        #          ^^ permission not relevant to struct type
+
+    }
+}

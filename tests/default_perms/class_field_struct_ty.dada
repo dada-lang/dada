@@ -1,0 +1,7 @@
+struct Point(x: u32, y: u32)
+
+class Foo(x: Point) {}
+
+class Bar {
+    x: Point
+}

@@ -385,7 +385,7 @@ impl<'db> OrElse<'db> for BadSubtypeError<'db> {
                 db,
                 Level::Error,
                 span,
-                format!("I expected `{lower} <: {upper}`, what gives?"),
+                format!("expected `{upper}`, found `{lower}`"),
             ),
         )
     }

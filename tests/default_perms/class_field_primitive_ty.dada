@@ -1,0 +1,5 @@
+class Foo(x: u32) {}
+
+class Bar {
+    x: u32
+}

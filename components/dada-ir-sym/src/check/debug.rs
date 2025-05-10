@@ -453,9 +453,9 @@ fn event_argument(values: &[&dyn erased_serde::Serialize]) -> String {
     let value = if values.is_empty() {
         serde_json::Value::Null
     } else if values.len() == 1 {
-        fixed_depth_json::to_json_value_max_depth(values[0], 5)
+        fixed_depth_json::to_json_value_max_depth(values[0], 22)
     } else {
-        fixed_depth_json::to_json_value_max_depth(&values, 5)
+        fixed_depth_json::to_json_value_max_depth(&values, 22)
     };
 
     serde_json::to_string(&value).unwrap()

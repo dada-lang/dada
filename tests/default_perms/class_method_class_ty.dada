@@ -1,0 +1,12 @@
+# Test that a class field that is a class must have an explicit permission.
+
+class Foo {
+    fn m1(self, s: String) {
+        self.m2(s.give)
+        #!      ^^^^^^ subtype expected
+    }
+
+    fn m2(self, s: my String) {
+
+    }
+}
