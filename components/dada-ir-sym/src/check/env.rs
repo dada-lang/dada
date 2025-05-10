@@ -9,40 +9,42 @@ use crate::{
     ir::{
         binder::BoundTerm,
         indices::{FromInfer, InferVarIndex},
+        populate::variable_decl_requires_default_perm,
         subst::SubstWith,
         types::{
-            Assumption, AssumptionKind, SymGenericKind, SymGenericTerm, SymPerm, SymTy, SymTyName,
-            Variance,
+            AnonymousPermSymbol, Assumption, AssumptionKind, SymGenericKind, SymGenericTerm,
+            SymPerm, SymTy, SymTyName, Variance,
         },
         variables::SymVariable,
     },
 };
 use dada_ir_ast::{
-    ast::AstTy,
-    diagnostic::{Diagnostic, Err},
+    ast::{AstTy, VariableDecl},
+    diagnostic::{Diagnostic, Err, Reported},
     span::Span,
 };
 use dada_util::{Map, debug};
-use futures::task::LocalFutureObj;
 
 use crate::{check::runtime::Runtime, check::universe::Universe, ir::exprs::SymExpr};
 
 use super::{
-    CheckInEnv,
+    CheckTyInEnv,
     debug::LogHandle,
     inference::{Direction, InferVarKind, InferenceVarData},
+    live_places::LivePlaces,
     predicates::Predicate,
-    red::{Chain, RedTy},
+    red::{RedPerm, RedTy},
     report::{ArcOrElse, BooleanTypeRequired, OrElse},
     runtime::DeferResult,
     subtype::{
-        is_future::require_future_type, is_numeric::require_numeric_type,
+        is_future::require_future_type,
+        is_numeric::{require_my_numeric_type, require_numeric_type},
         terms::reconcile_ty_bounds,
     },
 };
 
 pub mod combinator;
-
+pub mod infer_bounds;
 pub(crate) struct Env<'db> {
     pub log: LogHandle<'db>,
 
@@ -221,7 +223,7 @@ impl<'db> Env<'db> {
 
     /// Sets the AST type for a parameter that is in scope already.
     /// This AST type will be lazily symbolified when requested.
-    pub fn set_variable_ast_ty(&mut self, lv: SymVariable<'db>, ty: AstTy<'db>) {
+    pub fn set_variable_ast_ty(&mut self, lv: SymVariable<'db>, decl: VariableDecl<'db>) {
         assert!(
             self.scope.generic_sym_in_scope(self.db(), lv),
             "variable `{lv:?}` not in scope"
@@ -230,7 +232,7 @@ impl<'db> Env<'db> {
             !self.variable_tys.contains_key(&lv),
             "variable `{lv:?}` already has a type"
         );
-        Arc::make_mut(&mut self.variable_tys).insert(lv, VariableTypeCell::ast(lv, ty));
+        Arc::make_mut(&mut self.variable_tys).insert(lv, VariableTypeCell::ast(lv, decl));
     }
 
     /// Extends the scope with a new program variable given its type.
@@ -326,6 +328,7 @@ impl<'db> Env<'db> {
     #[track_caller]
     pub(super) fn spawn_require_assignable_type(
         &mut self,
+        live_after: LivePlaces,
         value_ty: SymTy<'db>,
         place_ty: SymTy<'db>,
         or_else: &dyn OrElse<'db>,
@@ -338,7 +341,10 @@ impl<'db> Env<'db> {
             async move |env| {
                 debug!("require_assignable_object_type", value_ty, place_ty);
 
-                if let Ok(()) = require_assignable_type(env, value_ty, place_ty, &or_else).await {}
+                if let Ok(()) =
+                    require_assignable_type(env, live_after, value_ty, place_ty, &or_else).await
+                {
+                }
             },
         )
     }
@@ -347,6 +353,7 @@ impl<'db> Env<'db> {
     #[track_caller]
     pub(super) fn spawn_require_equal_types(
         &self,
+        live_after: LivePlaces,
         expected_ty: SymTy<'db>,
         found_ty: SymTy<'db>,
         or_else: &dyn OrElse<'db>,
@@ -361,10 +368,24 @@ impl<'db> Env<'db> {
 
                 env.require_both(
                     async |env| {
-                        require_sub_terms(env, expected_ty.into(), found_ty.into(), &or_else).await
+                        require_sub_terms(
+                            env,
+                            live_after,
+                            expected_ty.into(),
+                            found_ty.into(),
+                            &or_else,
+                        )
+                        .await
                     },
                     async |env| {
-                        require_sub_terms(env, found_ty.into(), expected_ty.into(), &or_else).await
+                        require_sub_terms(
+                            env,
+                            live_after,
+                            found_ty.into(),
+                            expected_ty.into(),
+                            &or_else,
+                        )
+                        .await
                     },
                 )
                 .await
@@ -372,6 +393,23 @@ impl<'db> Env<'db> {
         )
     }
 
+    /// Check that the value is a numeric type and has the permission `my`.
+    #[track_caller]
+    pub(super) fn spawn_require_my_numeric_type(
+        &mut self,
+        live_after: LivePlaces,
+        ty: SymTy<'db>,
+        or_else: &dyn OrElse<'db>,
+    ) {
+        let or_else = or_else.to_arc();
+        self.runtime.spawn(
+            self,
+            TaskDescription::RequireMyNumericType(ty),
+            async move |env| require_my_numeric_type(env, live_after, ty, &or_else).await,
+        )
+    }
+
+    /// Check that the value is a numeric type with any permission.
     #[track_caller]
     pub(super) fn spawn_require_numeric_type(&mut self, ty: SymTy<'db>, or_else: &dyn OrElse<'db>) {
         let or_else = or_else.to_arc();
@@ -385,6 +423,7 @@ impl<'db> Env<'db> {
     #[track_caller]
     pub(super) fn spawn_require_future_type(
         &self,
+        live_after: LivePlaces,
         ty: SymTy<'db>,
         awaited_ty: SymTy<'db>,
         or_else: &dyn OrElse<'db>,
@@ -393,7 +432,7 @@ impl<'db> Env<'db> {
         self.runtime.spawn(
             self,
             TaskDescription::RequireFutureType(ty),
-            async move |env| require_future_type(env, ty, awaited_ty, &or_else).await,
+            async move |env| require_future_type(env, live_after, ty, awaited_ty, &or_else).await,
         )
     }
 
@@ -430,10 +469,11 @@ impl<'db> Env<'db> {
             .spawn(self, task_description, async move |env| op(env).await)
     }
 
-    pub(crate) fn require_expr_has_bool_ty(&mut self, expr: SymExpr<'db>) {
+    pub(crate) fn require_expr_has_bool_ty(&mut self, live_after: LivePlaces, expr: SymExpr<'db>) {
         let db = self.db();
         let boolean_ty = SymTy::boolean(db);
         self.spawn_require_assignable_type(
+            live_after,
             expr.ty(db),
             boolean_ty,
             &BooleanTypeRequired::new(expr),
@@ -459,8 +499,8 @@ impl<'db> Env<'db> {
     pub(crate) fn variances(&self, n: SymTyName<'db>) -> Vec<Variance> {
         match n {
             SymTyName::Primitive(_) => vec![],
-            SymTyName::Future => vec![Variance::Covariant],
-            SymTyName::Tuple { arity } => vec![Variance::Covariant; arity],
+            SymTyName::Future => vec![Variance::covariant()],
+            SymTyName::Tuple { arity } => vec![Variance::covariant(); arity],
             SymTyName::Aggregate(aggr) => aggr.variances(self.db()),
         }
     }
@@ -469,6 +509,12 @@ impl<'db> Env<'db> {
     /// If `infer` is a permission variable, just returns `infer`.
     pub fn perm_infer(&self, infer: InferVarIndex) -> InferVarIndex {
         self.runtime().perm_infer(infer)
+    }
+
+    #[track_caller]
+    pub fn report(&self, diagnostic: Diagnostic) -> Reported {
+        self.log("report diagnostic", &[&diagnostic]);
+        diagnostic.report(self.db())
     }
 
     #[track_caller]
@@ -539,61 +585,42 @@ impl<'db> Env<'db> {
             .insert_sub_infer_var_pair(lower, upper, &self.log)
     }
 
+    /// Check if `infer` is required to meet the given predicate.
+    /// If so, returns the error that would result if that were not true.
     #[track_caller]
-    pub fn require_inference_var_is(
-        &mut self,
+    pub fn infer_is(&self, infer: InferVarIndex, predicate: Predicate) -> Option<ArcOrElse<'db>> {
+        self.log
+            .infer(Location::caller(), "infer_is", infer, &[&predicate]);
+        self.runtime()
+            .with_inference_var_data(infer, |data| data.is(predicate))
+    }
+
+    /// Modify the state of `infer` to record that it must meet the given predicate.
+    ///
+    /// # Panics
+    ///
+    /// If the inference variable is already required to meet the given predicate or
+    /// if it is required to meet the predicate's inverse.
+    #[track_caller]
+    pub fn set_infer_is(
+        &self,
         infer: InferVarIndex,
         predicate: Predicate,
         or_else: &dyn OrElse<'db>,
-    ) -> Option<ArcOrElse<'db>> {
-        self.runtime
-            .mutate_inference_var_data(infer, &self.log, |data| data.require_is(predicate, or_else))
-    }
-
-    #[track_caller]
-    pub fn require_inference_var_isnt(
-        &mut self,
-        infer: InferVarIndex,
-        predicate: Predicate,
-        or_else: &dyn OrElse<'db>,
-    ) -> Option<ArcOrElse<'db>> {
-        self.runtime
+    ) {
+        self.log
+            .infer(Location::caller(), "set_infer_is", infer, &[&predicate]);
+        self.runtime()
             .mutate_inference_var_data(infer, &self.log, |data| {
-                data.require_isnt(predicate, or_else)
-            })
-    }
-
-    #[track_caller]
-    pub fn insert_lower_chain(
-        &mut self,
-        infer: InferVarIndex,
-        chain: &Chain<'db>,
-        or_else: &dyn OrElse<'db>,
-    ) -> Option<ArcOrElse<'db>> {
-        self.runtime
-            .mutate_inference_var_data(infer, &self.log, |data| {
-                data.insert_lower_chain(chain, or_else)
-            })
-    }
-
-    #[track_caller]
-    pub fn insert_upper_chain(
-        &mut self,
-        infer: InferVarIndex,
-        chain: &Chain<'db>,
-        or_else: &dyn OrElse<'db>,
-    ) -> Option<ArcOrElse<'db>> {
-        self.runtime
-            .mutate_inference_var_data(infer, &self.log, |data| {
-                data.insert_upper_chain(chain, or_else)
+                data.set_is(predicate, or_else);
             })
     }
 
     /// Return a struct that gives ability to peek, modify, or block on the lower or upper red-ty-bound
     /// on the given inference variable.
     #[track_caller]
-    pub fn red_ty_bound(&self, infer: InferVarIndex, direction: Direction) -> RedTyBound<'_, 'db> {
-        RedTyBound {
+    pub fn red_bound(&self, infer: InferVarIndex, direction: Direction) -> RedBound<'_, 'db> {
+        RedBound {
             env: self,
             infer,
             direction,
@@ -602,23 +629,23 @@ impl<'db> Env<'db> {
     }
 }
 
-/// Accessor for the bounding red-ty on an inference variable.
-/// Can be used to [read](`Self::peek`) or [modify](`Self::set`)
-/// the current value but can also be awaited through the [`IntoFuture`][]
+/// Accessor for the bounding red-ty or red-perm on an inference variable.
+/// Can be used to read or modify the current values but
+/// can also be awaited through
 /// impl, which will block until a value is set by another task.
 /// Note that red-ty bounds can be set more than once but must always
 /// get tighter each time they are modified.
-pub struct RedTyBound<'env, 'db> {
+pub struct RedBound<'env, 'db> {
     env: &'env Env<'db>,
     infer: InferVarIndex,
     direction: Direction,
     compiler_location: &'static Location<'static>,
 }
 
-impl<'env, 'db> RedTyBound<'env, 'db> {
+impl<'env, 'db> RedBound<'env, 'db> {
     /// Read the current value of the bound
     #[track_caller]
-    pub fn peek(self) -> Option<(RedTy<'db>, ArcOrElse<'db>)> {
+    pub fn peek_ty(self) -> Option<(RedTy<'db>, ArcOrElse<'db>)> {
         self.env
             .runtime
             .with_inference_var_data(self.infer, |data| data.red_ty_bound(self.direction))
@@ -626,28 +653,40 @@ impl<'env, 'db> RedTyBound<'env, 'db> {
 
     /// Modify the current value of the bound
     #[track_caller]
-    pub fn set(self, red_ty: RedTy<'db>, or_else: &dyn OrElse<'db>) {
+    pub fn set_ty(self, red_ty: RedTy<'db>, or_else: &dyn OrElse<'db>) {
         self.env
             .runtime
             .mutate_inference_var_data(self.infer, &self.env.log, |data| {
                 data.set_red_ty_bound(self.direction, red_ty, or_else)
             })
     }
-}
 
-/// Convert to a future that blocks until a bound is set
-impl<'env, 'db> IntoFuture for RedTyBound<'env, 'db> {
-    type Output = Option<(RedTy<'db>, ArcOrElse<'db>)>;
-
-    type IntoFuture = LocalFutureObj<'env, Option<(RedTy<'db>, ArcOrElse<'db>)>>;
-
-    fn into_future(self) -> Self::IntoFuture {
-        LocalFutureObj::new(Box::new(self.env.runtime.loop_on_inference_var(
+    /// Convert to a future that blocks until the red-ty future is set
+    pub fn ty(self) -> impl Future<Output = Option<(RedTy<'db>, ArcOrElse<'db>)>> {
+        self.env.runtime.loop_on_inference_var(
             self.infer,
             self.compiler_location,
             &self.env.log,
             move |data| data.red_ty_bound(self.direction),
-        )))
+        )
+    }
+
+    /// Read the current value of the bound
+    #[track_caller]
+    pub fn peek_perm(self) -> Option<(RedPerm<'db>, ArcOrElse<'db>)> {
+        self.env
+            .runtime
+            .with_inference_var_data(self.infer, |data| data.red_perm_bound(self.direction))
+    }
+
+    /// Modify the current value of the bound
+    #[track_caller]
+    pub fn set_perm(self, red_perm: RedPerm<'db>, or_else: &dyn OrElse<'db>) {
+        self.env
+            .runtime
+            .mutate_inference_var_data(self.infer, &self.env.log, |data| {
+                data.set_red_perm_bound(self.direction, red_perm, or_else)
+            })
     }
 }
 
@@ -665,33 +704,45 @@ impl<'db> VariableTypeCell<'db> {
         }
     }
 
-    fn ast(lv: SymVariable<'db>, ty: AstTy<'db>) -> Self {
+    fn ast(lv: SymVariable<'db>, decl: VariableDecl<'db>) -> Self {
         Self {
             lv,
-            state: Cell::new(VariableType::Ast(ty)),
+            state: Cell::new(VariableType::Ast(decl)),
         }
     }
 
     async fn get(&self, env: &mut Env<'db>) -> SymTy<'db> {
+        let db = env.db();
         match self.state.get() {
-            VariableType::Ast(ast_ty) => {
-                self.state.set(VariableType::InProgress(ast_ty));
-                let sym_ty = ast_ty.check_in_env(env).await;
+            VariableType::Ast(decl) => {
+                self.state.set(VariableType::InProgress(decl));
+                let sym_base_ty = decl.base_ty(db).check_in_env(env).await;
+
+                let sym_ty = if let Some(ast_perm) = decl.perm(db) {
+                    let sym_perm = ast_perm.check_in_env(env).await;
+                    SymTy::perm(db, sym_perm, sym_base_ty)
+                } else if variable_decl_requires_default_perm(db, decl, &env.scope) {
+                    let sym_perm = SymPerm::var(db, decl.anonymous_perm_symbol(db));
+                    SymTy::perm(db, sym_perm, sym_base_ty)
+                } else {
+                    sym_base_ty
+                };
+
                 // update state to symbolic unless it was already set to an error
                 if let VariableType::InProgress(_) = self.state.get() {
                     self.state.set(VariableType::Symbolic(sym_ty));
                 }
                 sym_ty
             }
-            VariableType::InProgress(ast_ty) => {
+            VariableType::InProgress(decl) => {
                 let ty_err = SymTy::err(
-                    env.db(),
+                    db,
                     Diagnostic::error(
-                        env.db(),
-                        ast_ty.span(env.db()),
+                        db,
+                        decl.base_ty(db).span(db),
                         format!("type of `{}` references itself", self.lv),
                     )
-                    .report(env.db()),
+                    .report(db),
                 );
                 self.state.set(VariableType::Symbolic(ty_err));
                 ty_err
@@ -713,14 +764,20 @@ enum VariableType<'db> {
     /// `y` then `x`, but that is not clear at first. So instead we begin with `x`, mark it as
     /// in progress, and then to convert `y` to a symbolic expression, wind up converting
     /// the type of `y`. If `y` did refer to `x`, this would result in an error.
-    Ast(AstTy<'db>),
+    Ast(VariableDecl<'db>),
 
     /// AST form of the type is available and we have begun symbolifying it.
     /// When in this state, a repeated request for the variable's type will report an error.
-    InProgress(AstTy<'db>),
+    InProgress(VariableDecl<'db>),
 
     /// Symbolic type is available. For local variables, we introduce the type directly
     /// in this form, but for parameters or other cases where there are a set of variables
     /// introduced at once, we have to begin with AST form.
     Symbolic(SymTy<'db>),
+}
+
+impl<'db> std::fmt::Debug for Env<'db> {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        f.debug_struct("Env").finish()
+    }
 }

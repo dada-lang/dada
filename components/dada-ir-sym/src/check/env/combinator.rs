@@ -1,19 +1,21 @@
-use std::{panic::Location, pin::pin, task::Poll};
+use std::{panic::Location, pin::pin};
 
 use dada_ir_ast::diagnostic::{Errors, Reported};
 use futures::{
-    FutureExt, StreamExt,
+    StreamExt,
     future::{Either, LocalBoxFuture},
     stream::FuturesUnordered,
 };
 use serde::Serialize;
 
 use crate::{
-    check::{alternatives::Alternative, debug::TaskDescription, inference::Direction, red::RedTy},
+    check::{debug::TaskDescription, inference::Direction, red::RedTy},
     ir::indices::InferVarIndex,
 };
 
-use crate::check::{env::Env, inference::InferenceVarData, red::Chain, report::ArcOrElse};
+use crate::check::{env::Env, inference::InferenceVarData, report::ArcOrElse};
+
+use super::infer_bounds::{RedPermBoundIterator, RedTyBoundIterator, SymGenericTermBoundIterator};
 
 impl<'db> Env<'db> {
     pub async fn require(
@@ -111,8 +113,8 @@ impl<'db> Env<'db> {
     #[track_caller]
     pub fn either(
         &mut self,
-        mut a: impl AsyncFnMut(&mut Env<'db>) -> Errors<bool>,
-        mut b: impl AsyncFnMut(&mut Env<'db>) -> Errors<bool>,
+        a: impl AsyncFnOnce(&mut Env<'db>) -> Errors<bool>,
+        b: impl AsyncFnOnce(&mut Env<'db>) -> Errors<bool>,
     ) -> impl Future<Output = Errors<bool>> {
         let caller = Location::caller();
 
@@ -216,8 +218,8 @@ impl<'db> Env<'db> {
     #[track_caller]
     pub fn both(
         &mut self,
-        mut a: impl AsyncFnMut(&mut Env<'db>) -> Errors<bool>,
-        mut b: impl AsyncFnMut(&mut Env<'db>) -> Errors<bool>,
+        a: impl AsyncFnOnce(&mut Env<'db>) -> Errors<bool>,
+        b: impl AsyncFnOnce(&mut Env<'db>) -> Errors<bool>,
     ) -> impl Future<Output = Errors<bool>> {
         let compiler_location = Location::caller();
 
@@ -247,111 +249,54 @@ impl<'db> Env<'db> {
         }
     }
 
-    #[track_caller]
-    pub fn exists_infer_bound(
-        &mut self,
-        infer: InferVarIndex,
-        direction: impl for<'a> Fn(&'a InferenceVarData<'db>) -> &'a [(Chain<'db>, ArcOrElse<'db>)],
-        mut op: impl AsyncFnMut(&mut Env<'db>, Chain<'db>) -> Errors<bool>,
-    ) -> impl Future<Output = Errors<bool>> {
-        let compiler_location = Location::caller();
-
-        async move {
-            self.indent_with_compiler_location(
-                compiler_location,
-                "exists_infer_bound",
-                &[&infer],
-                async |env| {
-                    let mut observed = 0;
-                    let mut stack = vec![];
-
-                    loop {
-                        env.extract_bounding_chains(infer, &mut observed, &mut stack, &direction)
-                            .await;
-
-                        while let Some(chain) = stack.pop() {
-                            env.log("new bound", &[&chain]);
-                            match op(env, chain).await {
-                                Ok(true) => return Ok(true),
-                                Ok(false) => (),
-                                Err(reported) => return Err(reported),
-                            }
-                        }
-                    }
-                },
-            )
-            .await
-        }
-    }
-
-    /// Invoke `op` on every bounding chain (either upper or lower determined by `direction`).
-    /// Typically never returns as the full set of bounds on an inference variable is never known.
-    /// Exception is if an `Err` occurs, it is propagated.
-    #[track_caller]
-    pub fn require_for_all_infer_bounds(
-        &mut self,
-        infer: InferVarIndex,
-        direction: impl for<'a> Fn(&'a InferenceVarData<'db>) -> &'a [(Chain<'db>, ArcOrElse<'db>)],
-        mut op: impl AsyncFnMut(&mut Env<'db>, Chain<'db>) -> Errors<()>,
-    ) -> impl Future<Output = Errors<()>> {
-        let compiler_location = Location::caller();
-
-        async move {
-            self.indent_with_compiler_location(
-                compiler_location,
-                "require_for_all_infer_bounds",
-                &[&infer],
-                async |env| {
-                    let mut observed = 0;
-                    let mut stack = vec![];
-
-                    while env
-                        .extract_bounding_chains(infer, &mut observed, &mut stack, &direction)
-                        .await
-                    {
-                        while let Some(chain) = stack.pop() {
-                            env.log("new bound", &[&chain]);
-                            match op(env, chain).await {
-                                Ok(()) => (),
-                                Err(reported) => return Err(reported),
-                            }
-                        }
-                    }
-
-                    Ok(())
-                },
-            )
-            .await
-        }
-    }
-
-    /// Monitor the inference variable `infer` and push new bounding chains (either upper or lower
-    /// depending on `direction`) onto `stack`. The variable `observed` is used to track which
-    /// chains have been observed from previous invocations; it should begin as `0` and it will be
-    /// incremented during the call.
+    /// Returns an iterator over the bounds on an inference variable
+    /// yielding terms:
     ///
-    /// Returns true if bounds were extracted and false if inference has completed and no more
-    /// bounds are forthcoming.
-    pub async fn extract_bounding_chains(
-        &mut self,
+    /// * If this is a permission inference variable, the result are series of permission terms.
+    ///   These are directly converted from the [`RedPerm`] bounds you get if you call [`Self::red_perm_bounds`].
+    /// * If this is a type inference variable, the result are series of type terms.
+    ///   Unlike the [`RedTy`] bounds returned by [`Self::red_ty_bounds`], these include the
+    ///   associated permission inference variable and hence represent the complete
+    ///   inferred type.
+    ///
+    /// In both cases, you get back bounds from the direction you provide or from
+    /// either direction if you provide `None`. Multiple bounds from the same direction
+    /// indicate that the bounds got tighter.
+    pub fn term_bounds(
+        &self,
         infer: InferVarIndex,
-        observed: &mut usize,
-        stack: &mut Vec<Chain<'db>>,
-        direction: impl for<'a> Fn(&'a InferenceVarData<'db>) -> &'a [(Chain<'db>, ArcOrElse<'db>)],
-    ) -> bool {
-        self.loop_on_inference_var(infer, |data| {
-            let chains = direction(data);
-            assert!(stack.is_empty());
-            if *observed == chains.len() {
-                None
-            } else {
-                stack.extend(chains.iter().skip(*observed).map(|pair| pair.0.clone()));
-                *observed = chains.len();
-                Some(())
-            }
-        })
-        .await
-        .is_some()
+        direction: Option<Direction>,
+    ) -> SymGenericTermBoundIterator<'db> {
+        SymGenericTermBoundIterator::new(self, infer, direction)
+    }
+
+    /// Returns an iterator over the red perm bounds on a permission inference variable.
+    ///
+    /// You get back bounds from the direction you provide or from
+    /// either direction if you provide `None`. Multiple bounds from the same direction
+    /// indicate that the bounds got tighter.
+    pub fn red_perm_bounds(
+        &self,
+        infer: InferVarIndex,
+        direction: Option<Direction>,
+    ) -> RedPermBoundIterator<'db> {
+        RedPermBoundIterator::new(self, infer, direction)
+    }
+
+    /// Returns an iterator over the red ty bounds on a type inference variable.
+    /// Note that each type inference variable has an associated permission
+    /// inference variable and that this permission is not reflected in the red ty
+    /// bound. Use [`Self::term_bounds`] to get back the complete inferred type.
+    ///
+    /// You get back bounds from the direction you provide or from
+    /// either direction if you provide `None`. Multiple bounds from the same direction
+    /// indicate that the bounds got tighter.
+    pub fn red_ty_bounds(
+        &self,
+        infer: InferVarIndex,
+        direction: Option<Direction>,
+    ) -> RedTyBoundIterator<'db> {
+        RedTyBoundIterator::new(self, infer, direction)
     }
 
     #[track_caller]
@@ -368,45 +313,34 @@ impl<'db> Env<'db> {
             .loop_on_inference_var(infer, compiler_location, &self.log, op)
     }
 
-    /// Choose between two options:
-    ///
-    /// * If the current node is required, then execute `if_required`. This is preferred
-    ///   because it will generate stronger inference constraints.
-    /// * If the current node is not required, execute `not_required` until it returns
-    ///   true or false.
+    /// Given a function `op` that extracts value from an inference var,
+    /// returns a future that blocks until a new value is observed.
+    /// A "new" value here means one not already found in `storage`;
+    /// the `storage` parameter is updated to track values across invocations.
     #[track_caller]
-    pub fn if_required(
-        &mut self,
-        alternative: &mut Alternative<'_>,
-        mut is_required: impl AsyncFnMut(&mut Env<'db>) -> Errors<()>,
-        mut not_required: impl AsyncFnMut(&mut Env<'db>) -> Errors<bool>,
-    ) -> impl Future<Output = Errors<bool>> {
-        let this = &*self;
+    pub fn watch_inference_var<T>(
+        &self,
+        infer: InferVarIndex,
+        mut op: impl FnMut(&InferenceVarData<'db>) -> T,
+        storage: &mut Option<T>,
+    ) -> impl Future<Output = Option<T>>
+    where
+        T: Serialize + Eq + Clone,
+    {
         let compiler_location = Location::caller();
+        self.runtime
+            .loop_on_inference_var(infer, compiler_location, &self.log, move |data| {
+                let new_value = op(data);
 
-        let mut is_required = Box::pin(async move {
-            let mut env =
-                this.fork(|log| log.spawn(compiler_location, TaskDescription::IfRequired));
-            is_required(&mut env).await
-        });
-
-        let mut not_required = Box::pin(async move {
-            let mut env =
-                this.fork(|log| log.spawn(compiler_location, TaskDescription::IfNotRequired));
-            not_required(&mut env).await
-        });
-
-        std::future::poll_fn(move |cx| {
-            if alternative.is_required() {
-                match is_required.poll_unpin(cx) {
-                    Poll::Ready(Ok(())) => Poll::Ready(Ok(true)),
-                    Poll::Ready(Err(reported)) => Poll::Ready(Err(reported)),
-                    Poll::Pending => Poll::Pending,
+                if let Some(old_value) = &storage {
+                    if *old_value == new_value {
+                        return None;
+                    }
                 }
-            } else {
-                not_required.poll_unpin(cx)
-            }
-        })
+
+                *storage = Some(new_value.clone());
+                Some(new_value)
+            })
     }
 
     /// Invoke `op` for each new lower (or upper, depending on direction) bound on `?X`.

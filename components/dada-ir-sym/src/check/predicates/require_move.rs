@@ -8,7 +8,6 @@ use crate::{
             Predicate,
             var_infer::{require_infer_is, require_var_is},
         },
-        red::Lien,
         report::{Because, OrElse},
     },
     ir::{
@@ -30,17 +29,6 @@ pub(crate) async fn require_term_is_move<'db>(
         SymGenericTerm::Place(place) => panic!("unexpected place term: {place:?}"),
         SymGenericTerm::Error(reported) => Err(reported),
     }
-}
-
-/// Requires that the given chain is `move`.
-pub(crate) async fn require_chain_is_move<'db>(
-    env: &mut Env<'db>,
-    chain: &[Lien<'db>],
-    or_else: &dyn OrElse<'db>,
-) -> Errors<()> {
-    let db = env.db();
-    let perm = Lien::chain_to_perm(db, chain);
-    require_perm_is_move(env, perm, or_else).await
 }
 
 /// Requires that `(lhs rhs)` is `move`.
@@ -81,7 +69,7 @@ async fn require_ty_is_move<'db>(
         SymTyKind::Never => Ok(()),
 
         // Variable and inference
-        SymTyKind::Infer(infer) => require_infer_is(env, infer, Predicate::Move, or_else),
+        SymTyKind::Infer(infer) => require_infer_is(env, infer, Predicate::Move, or_else).await,
         SymTyKind::Var(var) => require_var_is(env, var, Predicate::Move, or_else),
 
         // Named types
@@ -160,6 +148,8 @@ async fn require_perm_is_move<'db>(
 
         // Variable and inference
         SymPermKind::Var(var) => require_var_is(env, var, Predicate::Move, or_else),
-        SymPermKind::Infer(infer) => require_infer_is(env, infer, Predicate::Move, or_else),
+        SymPermKind::Infer(infer) => require_infer_is(env, infer, Predicate::Move, or_else).await,
+
+        SymPermKind::Or(_, _) => todo!(),
     }
 }

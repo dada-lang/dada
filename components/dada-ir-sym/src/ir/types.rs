@@ -11,7 +11,7 @@ use crate::{
     well_known,
 };
 use dada_ir_ast::{
-    ast::{AstGenericDecl, AstGenericKind, AstPerm, AstPermKind},
+    ast::{AstGenericDecl, AstGenericKind, AstPerm, AstPermKind, AstSelfArg, VariableDecl},
     diagnostic::{Err, Errors, Reported},
     span::Spanned,
 };
@@ -22,10 +22,37 @@ use serde::Serialize;
 use super::classes::SymAggregateStyle;
 
 #[derive(Copy, Clone, PartialEq, Eq, PartialOrd, Ord, Hash, Debug, Serialize)]
-pub enum Variance {
-    Covariant,
-    Contravariant,
-    Invariant,
+pub struct Variance {
+    /// If true, then `T[P] <: T[Q]` requires `P <: Q` (necessary, not sufficient)
+    pub at_least_covariant: bool,
+
+    /// If true, then `T[P] <: T[Q]` requires `Q <: P` (necessary, not sufficient)
+    pub at_least_contravariant: bool,
+
+    /// Indicates that this type or permission
+    /// is not directly owned by the struct/class but
+    /// rather is relative to something else.
+    ///
+    /// Non-relative generics inherit permissions
+    ///
+    /// # Examples
+    ///
+    /// * `class Foo[type T](T)` -- `T` is NOT relative, so `our Foo[String]` becomes `our Foo[our String]`
+    /// * `class Foo[perm P, type T](P T)` -- `P` is not relative, but `T` IS,
+    ///   so `our Foo[my, String]` becomes `our Foo[our, String]`
+    ///
+    /// FIXME: Need a better name.
+    pub relative: bool,
+}
+
+impl Variance {
+    pub fn covariant() -> Self {
+        Self {
+            at_least_covariant: true,
+            at_least_contravariant: false,
+            relative: false,
+        }
+    }
 }
 
 #[derive(Copy, Clone, PartialEq, Eq, PartialOrd, Ord, Hash, Update, Debug, Serialize)]
@@ -217,6 +244,7 @@ impl<'db> SymGenericTerm<'db> {
                 | SymPermKind::Leased(_)
                 | SymPermKind::Var(_)
                 | SymPermKind::Error(_)
+                | SymPermKind::Or(..)
                 | SymPermKind::Apply(..) => None,
             },
             SymGenericTerm::Place(place) => match place.kind(db) {
@@ -495,39 +523,34 @@ impl<'db> SymPerm<'db> {
         SymPerm::new(db, SymPermKind::Apply(perm1, perm2))
     }
 
+    /// Returns a permission `perm1 | perm2`
+    pub fn or(db: &'db dyn crate::Db, perm1: SymPerm<'db>, perm2: SymPerm<'db>) -> Self {
+        SymPerm::new(db, SymPermKind::Or(perm1, perm2))
+    }
+
+    /// Apply this permission to the given term (if `self` is not `my`).
+    pub fn apply_to_term(
+        self,
+        db: &'db dyn crate::Db,
+        term: SymGenericTerm<'db>,
+    ) -> SymGenericTerm<'db> {
+        match self.kind(db) {
+            SymPermKind::My => term,
+            _ => match term {
+                SymGenericTerm::Type(ty) => self.apply_to_ty(db, ty).into(),
+                SymGenericTerm::Perm(perm) => SymPerm::apply(db, self, perm).into(),
+                SymGenericTerm::Place(_) => panic!("cannot apply a perm to a place"),
+                SymGenericTerm::Error(_) => term,
+            },
+        }
+    }
+
     /// Apply this permission to the given type (if `self` is not `my`).
     pub fn apply_to_ty(self, db: &'db dyn crate::Db, ty: SymTy<'db>) -> SymTy<'db> {
         match self.kind(db) {
             SymPermKind::My => ty,
             _ => SymTy::perm(db, self, ty),
         }
-    }
-
-    /// Iterate over the "leaves" of this permission (i.e., non-application permissions)
-    /// in left-to-right order (e.g., for `shared[x] leased[y]` the order is `shared[x], leased[y]`).
-    pub fn leaves(self, db: &'db dyn crate::Db) -> impl Iterator<Item = SymPerm<'db>> {
-        let mut stack = vec![self];
-        std::iter::from_fn(move || {
-            while let Some(perm) = stack.pop() {
-                match *perm.kind(db) {
-                    SymPermKind::Apply(left, right) => {
-                        stack.push(right);
-                        stack.push(left);
-                    }
-
-                    SymPermKind::My
-                    | SymPermKind::Our
-                    | SymPermKind::Shared(_)
-                    | SymPermKind::Leased(_)
-                    | SymPermKind::Infer(..)
-                    | SymPermKind::Var(..)
-                    | SymPermKind::Error(..) => {
-                        return Some(perm);
-                    }
-                }
-            }
-            None
-        })
     }
 }
 
@@ -567,6 +590,7 @@ impl std::fmt::Display for SymPerm<'_> {
                 SymPermKind::Apply(perm1, perm2) => write!(f, "{} {}", perm1, perm2),
                 SymPermKind::Infer(infer_var_index) => write!(f, "?{}", infer_var_index.as_usize()),
                 SymPermKind::Var(sym_variable) => write!(f, "{sym_variable}"),
+                SymPermKind::Or(l, r) => write!(f, "({l} | {r})"),
                 SymPermKind::Error(_) => write!(f, "<error>"),
             }
         })
@@ -618,6 +642,9 @@ pub enum SymPermKind<'db> {
     /// A generic variable (e.g., `T`).
     Var(SymVariable<'db>),
 
+    /// Either `P | Q`
+    Or(SymPerm<'db>, SymPerm<'db>),
+
     /// An error occurred and has been reported to the user.
     Error(Reported),
 }
@@ -654,20 +681,14 @@ impl<'db> SymPlace<'db> {
     /// # Definition
     ///
     /// A place P *covers* another place Q if P includes all of Q. E.g., `a` covers `a.b`.
-    pub fn covers(self, db: &'db dyn crate::Db, other: SymPlace<'db>) -> bool {
+    pub fn is_prefix_of(self, db: &'db dyn crate::Db, other: SymPlace<'db>) -> bool {
         assert!(self.no_inference_vars(db));
         assert!(other.no_inference_vars(db));
         self == other
             || match (self.kind(db), other.kind(db)) {
-                (_, SymPlaceKind::Field(p2, _)) => self.covers(db, *p2),
+                (_, SymPlaceKind::Field(p2, _)) => self.is_prefix_of(db, *p2),
                 _ => false,
             }
-    }
-
-    /// True if `self` is covered by `other`. Neither place may contain inference variables.
-    /// See [`Self::covers`] for the definition of coverage.
-    pub fn is_covered_by(self, db: &'db dyn crate::Db, other: SymPlace<'db>) -> bool {
-        other.covers(db, self)
     }
 }
 
@@ -763,10 +784,7 @@ impl<'db> AnonymousPermSymbol<'db> for AstPerm<'db> {
     #[salsa::tracked]
     fn anonymous_perm_symbol(self, db: &'db dyn crate::Db) -> SymVariable<'db> {
         match self.kind(db) {
-            AstPermKind::ImplicitShared
-            | AstPermKind::Shared(None)
-            | AstPermKind::Leased(None)
-            | AstPermKind::Given(None) => {
+            AstPermKind::Shared(None) | AstPermKind::Leased(None) | AstPermKind::Given(None) => {
                 SymVariable::new(db, SymGenericKind::Perm, None, self.span(db))
             }
             AstPermKind::Our
@@ -779,6 +797,34 @@ impl<'db> AnonymousPermSymbol<'db> for AstPerm<'db> {
                 panic!("`anonymous_perm_symbol` invoked on inappropriate perm: {self:?}")
             }
         }
+    }
+}
+
+/// Create a generic symbol for an anonymous permission like `self`.
+/// This is not always needed; see the implementation of [`PopulateSignatureSymbols`][]
+/// for [`AstSelfArg`][].
+///
+/// Tracked so that it occurs at most once per `self` declaration.
+#[salsa::tracked]
+impl<'db> AnonymousPermSymbol<'db> for AstSelfArg<'db> {
+    #[salsa::tracked]
+    fn anonymous_perm_symbol(self, db: &'db dyn crate::Db) -> SymVariable<'db> {
+        assert!(self.perm(db).is_none());
+        SymVariable::new(db, SymGenericKind::Perm, None, self.span(db))
+    }
+}
+
+/// Create a generic symbol for a variable declaration that has no explicit
+/// permission, like `x: String`. This is not always needed; see the
+/// implementation of [`PopulateSignatureSymbols`][] for [`VariableDecl`][].
+///
+/// Tracked so that it occurs at most once per `self` declaration.
+#[salsa::tracked]
+impl<'db> AnonymousPermSymbol<'db> for VariableDecl<'db> {
+    #[salsa::tracked]
+    fn anonymous_perm_symbol(self, db: &'db dyn crate::Db) -> SymVariable<'db> {
+        assert!(self.perm(db).is_none());
+        SymVariable::new(db, SymGenericKind::Perm, None, self.span(db))
     }
 }
 

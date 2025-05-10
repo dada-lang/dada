@@ -17,7 +17,11 @@ use crate::{
     },
 };
 
-use super::{red::RedTy, to_red::RedTyExt};
+use super::{
+    inference::Direction,
+    red::{RedPerm, RedTy},
+    to_red::RedTyExt,
+};
 
 /// The `OrElse` trait captures error reporting context.
 /// Primitive type operations like subtyping are given an `&dyn OrElse<'db>`
@@ -31,8 +35,10 @@ use super::{red::RedTy, to_red::RedTyExt};
 /// extract the reason for that original constraint.
 pub trait OrElse<'db> {
     /// Report the diagnostic created by [`OrElse::or_else`][].
+    #[track_caller]
     fn report(&self, env: &mut Env<'db>, because: Because<'db>) -> Reported {
-        self.or_else(env, because).report(env.db())
+        let diagnostic = self.or_else(env, because);
+        env.report(diagnostic)
     }
 
     /// Create a diagnostic representing the error.
@@ -161,9 +167,6 @@ pub enum Because<'db> {
     /// Universal variable was not declared to be `predicate` (and it must be)
     VarNotDeclaredToBe(SymVariable<'db>, Predicate),
 
-    /// Universal variable was declared to be `predicate` (but ought not to be)
-    VarDeclaredToBe(SymVariable<'db>, Predicate),
-
     /// The never type is not copy
     NeverIsNotCopy,
 
@@ -185,9 +188,9 @@ pub enum Because<'db> {
     /// Name mismatch
     NameMismatch(SymTyName<'db>, SymTyName<'db>),
 
-    /// Inference determined that the variable must be
-    /// known to be `Predicate` "or else" the given error would occur.
-    InferredIs(Predicate, ArcOrElse<'db>),
+    /// Indicates that there was a previous constraint from elsewhere in the
+    /// program that caused a conflict with the current value
+    InferredPermBound(Direction, RedPerm<'db>, ArcOrElse<'db>),
 
     /// Inference determined that the variable cannot be
     /// known to be `Predicate` "or else" the given error would occur.
@@ -223,11 +226,6 @@ impl<'db> Because<'db> {
                     "to conclude that `{}` is `{}`, I would need you to add a declaration",
                     v, predicate
                 ),
-            )),
-            Because::VarDeclaredToBe(v, predicate) => Some(Diagnostic::info(
-                db,
-                span,
-                format!("`{}` is declared to be `{}`", v, predicate),
             )),
             Because::NeverIsNotCopy => Some(Diagnostic::info(
                 db,
@@ -280,16 +278,23 @@ impl<'db> Because<'db> {
                 span,
                 format!("`{n1}` and `{n2}` are distinct types"),
             )),
-            Because::InferredIs(predicate, or_else) => {
+            Because::InferredPermBound(direction, red_perm, or_else) => {
                 let or_else_diagnostic = or_else.or_else(env, Because::JustSo);
-                Some(Diagnostic::info(
-                            db,
-                            span,
-                            format!(
-                                "I inferred that `{predicate}` must be true because otherwise it would cause this error"
-                            ),
-                        )
-                        .child(or_else_diagnostic))
+                Some(
+                    Diagnostic::info(
+                        db,
+                        span,
+                        format!(
+                            "I inferred that the perm must be {assignable_from_or_to} `{bound}` or else this error will occur",
+                            assignable_from_or_to = match direction {
+                                Direction::FromBelow => "assignable from",
+                                Direction::FromAbove => "assignable to",
+                            },
+                            bound = format!("{red_perm:?}"), // FIXME
+                        ),
+                    )
+                    .child(or_else_diagnostic),
+                )
             }
             Because::InferredIsnt(predicate, or_else) => {
                 let or_else_diagnostic = or_else.or_else(env, Because::JustSo);
@@ -380,7 +385,7 @@ impl<'db> OrElse<'db> for BadSubtypeError<'db> {
                 db,
                 Level::Error,
                 span,
-                format!("I expected `{lower} <: {upper}`, what gives?"),
+                format!("expected `{upper}`, found `{lower}`"),
             ),
         )
     }

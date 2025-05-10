@@ -2,166 +2,198 @@
 //! They can only be produced after inference is complete as they require enumerating the bounds of inference variables.
 //! They are used in borrow checking and for producing the final version of each inference variable.
 
-use dada_ir_ast::diagnostic::{Err, Reported};
-use dada_util::vecset::VecSet;
+use dada_ir_ast::diagnostic::{Err, Errors, Reported};
+use dada_util::SalsaSerialize;
 use salsa::Update;
 use serde::Serialize;
 
 use crate::ir::{
     indices::{FromInfer, InferVarIndex},
-    types::{SymGenericTerm, SymPerm, SymPlace, SymTyName},
+    types::{SymGenericTerm, SymPerm, SymPlace, SymTy, SymTyKind, SymTyName},
     variables::SymVariable,
 };
 
-/// A "red(uced) term" combines the possible permissions (a [`VecSet`] of [`Chain`])
-/// with the type of the term (a [`RedTy`]). It can be used to represent either permissions or types.
-#[derive(Debug, PartialEq, Eq, Clone, PartialOrd, Ord, Update, Serialize)]
-pub struct RedTerm<'db> {
-    pub chains: VecSet<Chain<'db>>,
-    pub ty: RedTy<'db>,
-}
+use super::{env::Env, predicates::Predicate};
 
-impl<'db> RedTerm<'db> {
-    /// Create a new [`RedTerm`].
-    pub fn new(_db: &'db dyn crate::Db, chains: VecSet<Chain<'db>>, ty: RedTy<'db>) -> Self {
-        Self { ty, chains }
-    }
-}
-
-impl<'db> Err<'db> for RedTerm<'db> {
-    fn err(db: &'db dyn crate::Db, reported: Reported) -> Self {
-        RedTerm::new(db, Default::default(), RedTy::err(db, reported))
-    }
-}
+pub mod lattice;
+pub mod sub;
 
 /// A "lien chain" is a list of permissions by which some data may have been reached.
 /// An empty lien chain corresponds to owned data (`my`, in surface Dada syntax).
 /// A lien chain like `shared[p] leased[q]` would correspond to data shared from a variable `p`
 /// which in turn had data leased from `q` (which in turn owned the data).
-#[derive(Debug, PartialEq, Eq, Clone, PartialOrd, Ord, Update, Serialize)]
-pub struct Chain<'db> {
-    pub liens: Vec<Lien<'db>>,
+#[derive(SalsaSerialize)]
+#[salsa::interned(debug)]
+pub(crate) struct RedPerm<'db> {
+    #[return_ref]
+    pub chains: Vec<RedChain<'db>>,
 }
 
-impl<'db> Chain<'db> {
-    /// Create a new [`Chain`].
-    pub fn new(_db: &'db dyn crate::Db, links: Vec<Lien<'db>>) -> Self {
-        Self { liens: links }
+impl<'db> RedPerm<'db> {
+    pub fn is_provably(self, env: &Env<'db>, predicate: Predicate) -> Errors<bool> {
+        let chains = self.chains(env.db());
+        assert!(!chains.is_empty());
+        for chain in chains {
+            if !chain.is_provably(env, predicate)? {
+                return Ok(false);
+            }
+        }
+        Ok(true)
     }
 
-    pub fn from_head_tail(_db: &'db dyn crate::Db, head: Lien<'db>, tail: &[Lien<'db>]) -> Self {
-        let mut liens = Vec::with_capacity(tail.len() + 1);
-        liens.push(head);
-        liens.extend(tail);
-        Self { liens }
+    pub fn is_our(self, env: &Env<'db>) -> Errors<bool> {
+        Ok(self.is_provably(env, Predicate::Copy)? && self.is_provably(env, Predicate::Owned)?)
     }
 
-    /// Create a "fully owned" lien chain.
-    pub fn my(db: &'db dyn crate::Db) -> Self {
-        Self::new(db, vec![])
+    pub fn to_sym_perm(self, db: &'db dyn crate::Db) -> SymPerm<'db> {
+        self.chains(db)
+            .iter()
+            .map(|&chain| chain.to_sym_perm(db))
+            .reduce(|perm1, perm2| SymPerm::or(db, perm1, perm2))
+            .unwrap()
     }
+}
 
-    /// Create a "shared ownership" lien chain.
+impl<'db> Err<'db> for RedPerm<'db> {
+    fn err(db: &'db dyn dada_ir_ast::Db, reported: Reported) -> Self {
+        RedPerm::new(db, vec![RedChain::err(db, reported)])
+    }
+}
+
+#[derive(SalsaSerialize)]
+#[salsa::interned(debug)]
+pub(crate) struct RedChain<'db> {
+    #[return_ref]
+    pub links: Vec<RedLink<'db>>,
+}
+
+impl<'db> RedChain<'db> {
     pub fn our(db: &'db dyn crate::Db) -> Self {
-        Self::new(db, vec![Lien::Our])
+        RedChain::new(db, [RedLink::Our])
     }
 
-    /// Create a variable lien chain.
-    pub fn var(db: &'db dyn crate::Db, v: SymVariable<'db>) -> Self {
-        Self::new(db, vec![Lien::Var(v)])
-    }
-
-    /// Create an inference lien chain.
-    pub fn infer(db: &'db dyn crate::Db, v: InferVarIndex) -> Self {
-        Self::new(db, vec![Lien::Infer(v)])
-    }
-
-    /// Create a lien chain representing "shared from `place`".
-    pub fn shared(db: &'db dyn crate::Db, places: SymPlace<'db>) -> Self {
-        Self::new(db, vec![Lien::Shared(places)])
-    }
-
-    /// Create a lien chain representing "leased from `place`".
-    pub fn leased(db: &'db dyn crate::Db, places: SymPlace<'db>) -> Self {
-        Self::new(db, vec![Lien::Leased(places)])
-    }
-
-    pub fn extend(&mut self, liens: &[Lien<'db>]) {
-        self.liens.extend_from_slice(liens);
-    }
-}
-
-impl<'db> std::ops::Deref for Chain<'db> {
-    type Target = [Lien<'db>];
-
-    fn deref(&self) -> &Self::Target {
-        &self.liens
-    }
-}
-
-impl<'db> Err<'db> for Chain<'db> {
-    fn err(db: &'db dyn crate::Db, reported: Reported) -> Self {
-        Chain::new(db, vec![Lien::Error(reported)])
-    }
-}
-
-/// An individual unit in a [`Chain`][], representing a particular way of reaching data.
-#[derive(Debug, PartialEq, Eq, Copy, Clone, PartialOrd, Ord, Update, Serialize)]
-pub enum Lien<'db> {
-    /// Data mutually owned by many variables. This lien is always first in a chain.
-    Our,
-
-    /// Data shared from the given place. This lien is always first in a chain.
-    Shared(SymPlace<'db>),
-
-    /// Data leased from the given place.
-    Leased(SymPlace<'db>),
-
-    /// Data given from a generic variable (could be a type or permission variable).
-    Var(SymVariable<'db>),
-
-    /// Data given from a inference variable.
-    Infer(InferVarIndex),
-
-    /// An error occurred while processing this lien.
-    Error(Reported),
-}
-
-impl<'db> Lien<'db> {
-    /// Convert a (head, ..tail) to a permission.
-    pub fn head_tail_to_perm(db: &'db dyn crate::Db, head: Self, tail: &[Self]) -> SymPerm<'db> {
-        if tail.is_empty() {
-            head.to_perm(db)
-        } else {
-            SymPerm::apply(db, head.to_perm(db), Self::chain_to_perm(db, tail))
+    pub fn is_provably(self, env: &Env<'db>, predicate: Predicate) -> Errors<bool> {
+        let db = env.db();
+        match predicate {
+            Predicate::Copy => RedLink::are_copy(env, self.links(db)),
+            Predicate::Move => RedLink::are_move(env, self.links(db)),
+            Predicate::Owned => RedLink::are_owned(env, self.links(db)),
+            Predicate::Lent => RedLink::are_lent(env, self.links(db)),
         }
     }
 
-    /// Convert a list of liens to a permission.
-    pub fn chain_to_perm(db: &'db dyn crate::Db, liens: &[Self]) -> SymPerm<'db> {
-        liens
+    fn to_sym_perm(self, db: &'db dyn crate::Db) -> SymPerm<'db> {
+        self.links(db)
             .iter()
-            .map(|lien| lien.to_perm(db))
-            .reduce(|lhs, rhs| SymPerm::apply(db, lhs, rhs))
+            .map(|&link| link.to_sym_perm(db))
+            .reduce(|perm1, perm2| SymPerm::apply(db, perm1, perm2))
             .unwrap_or_else(|| SymPerm::my(db))
     }
+}
 
-    /// Convert this lien to an equivalent [`SymPerm`].
-    pub fn to_perm(self, db: &'db dyn crate::Db) -> SymPerm<'db> {
+impl<'db> Err<'db> for RedChain<'db> {
+    fn err(db: &'db dyn dada_ir_ast::Db, reported: Reported) -> Self {
+        RedChain::new(db, vec![RedLink::err(db, reported)])
+    }
+}
+
+#[derive(Copy, Clone, Debug, PartialEq, Eq, PartialOrd, Ord, Hash, Serialize)]
+pub(crate) enum RedLink<'db> {
+    Our,
+    Ref(Live, SymPlace<'db>),
+    Mut(Live, SymPlace<'db>),
+    Var(SymVariable<'db>),
+    Err(Reported),
+}
+
+#[derive(Copy, Clone, Debug, PartialEq, Eq, PartialOrd, Ord, Hash, Serialize)]
+pub struct Live(pub bool);
+
+impl<'db> RedLink<'db> {
+    pub fn are_copy(env: &Env<'db>, links: &[Self]) -> Errors<bool> {
+        let Some(first) = links.first() else {
+            return Ok(false);
+        };
+        first.is_copy(env)
+    }
+
+    pub fn are_move(env: &Env<'db>, links: &[Self]) -> Errors<bool> {
+        for link in links {
+            if !link.is_move(env)? {
+                return Ok(false);
+            }
+        }
+        Ok(true)
+    }
+
+    pub fn are_owned(env: &Env<'db>, links: &[Self]) -> Errors<bool> {
+        for link in links {
+            if !link.is_owned(env)? {
+                return Ok(false);
+            }
+        }
+        Ok(true)
+    }
+
+    pub fn are_lent(env: &Env<'db>, links: &[Self]) -> Errors<bool> {
+        for link in links {
+            if !link.is_lent(env)? {
+                return Ok(true);
+            }
+        }
+        Ok(false)
+    }
+
+    pub fn is_owned(&self, env: &Env<'db>) -> Errors<bool> {
         match self {
-            Lien::Our => SymPerm::our(db),
-            Lien::Shared(place) => SymPerm::shared(db, vec![place]),
-            Lien::Leased(place) => SymPerm::leased(db, vec![place]),
-            Lien::Var(v) => SymPerm::var(db, v),
-            Lien::Infer(v) => SymPerm::infer(db, v),
-            Lien::Error(reported) => SymPerm::err(db, reported),
+            RedLink::Our => Ok(true),
+            RedLink::Var(v) => Ok(env.var_is_declared_to_be(*v, Predicate::Owned)),
+            RedLink::Ref(..) | RedLink::Mut(..) => Ok(false),
+            RedLink::Err(reported) => Err(*reported),
+        }
+    }
+
+    pub fn is_lent(&self, env: &Env<'db>) -> Errors<bool> {
+        match self {
+            RedLink::Ref(..) | RedLink::Mut(..) => Ok(true),
+            RedLink::Var(v) => Ok(env.var_is_declared_to_be(*v, Predicate::Lent)),
+            RedLink::Our => Ok(false),
+            RedLink::Err(reported) => Err(*reported),
+        }
+    }
+
+    pub fn is_move(&self, env: &Env<'db>) -> Errors<bool> {
+        match self {
+            RedLink::Mut(..) => Ok(true),
+            RedLink::Var(v) => Ok(env.var_is_declared_to_be(*v, Predicate::Move)),
+            RedLink::Our | RedLink::Ref(..) => Ok(false),
+            RedLink::Err(reported) => Err(*reported),
+        }
+    }
+
+    pub fn is_copy(&self, env: &Env<'db>) -> Errors<bool> {
+        match self {
+            RedLink::Our | RedLink::Ref(..) => Ok(true),
+            RedLink::Var(v) => Ok(env.var_is_declared_to_be(*v, Predicate::Copy)),
+            RedLink::Mut(..) => Ok(false),
+            RedLink::Err(reported) => Err(*reported),
+        }
+    }
+
+    pub fn to_sym_perm(self, db: &'db dyn crate::Db) -> SymPerm<'db> {
+        match self {
+            RedLink::Our => SymPerm::our(db),
+            RedLink::Ref(_, place) => SymPerm::shared(db, vec![place]),
+            RedLink::Mut(_, place) => SymPerm::leased(db, vec![place]),
+            RedLink::Var(v) => SymPerm::var(db, v),
+            RedLink::Err(reported) => SymPerm::err(db, reported),
         }
     }
 }
 
-impl<'db> Err<'db> for Lien<'db> {
-    fn err(_db: &'db dyn crate::Db, reported: Reported) -> Self {
-        Lien::Error(reported)
+impl<'db> Err<'db> for RedLink<'db> {
+    fn err(_db: &'db dyn dada_ir_ast::Db, reported: Reported) -> Self {
+        RedLink::Err(reported)
     }
 }
 
@@ -191,5 +223,18 @@ pub enum RedTy<'db> {
 impl<'db> Err<'db> for RedTy<'db> {
     fn err(_db: &'db dyn crate::Db, reported: Reported) -> Self {
         RedTy::Error(reported)
+    }
+}
+
+impl<'db> RedTy<'db> {
+    pub fn to_sym_ty(self, db: &'db dyn crate::Db) -> SymTy<'db> {
+        match self {
+            RedTy::Error(reported) => SymTy::err(db, reported),
+            RedTy::Named(name, terms) => SymTy::named(db, name, terms),
+            RedTy::Never => SymTy::never(db),
+            RedTy::Infer(var_index) => SymTy::infer(db, var_index),
+            RedTy::Var(variable) => SymTy::var(db, variable),
+            RedTy::Perm => panic!("unexpected RedTy (perm)"),
+        }
     }
 }

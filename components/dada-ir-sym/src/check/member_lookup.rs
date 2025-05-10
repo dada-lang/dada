@@ -238,7 +238,8 @@ async fn non_infer_lower_bound<'db>(
     let (red_ty, perm) = ty.to_red_ty(env);
     if let RedTy::Infer(infer_var_index) = red_ty {
         match env
-            .red_ty_bound(infer_var_index, Direction::FromBelow)
+            .red_bound(infer_var_index, Direction::FromBelow)
+            .ty()
             .await
         {
             Some((bound_red_ty, _)) => (bound_red_ty, perm),

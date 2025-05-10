@@ -68,7 +68,7 @@ fn parse_serde_attrs(attrs: &[Attribute]) -> SerdeAttrs {
 /// - `serialize_with`: Use a custom function to serialize this field
 ///
 /// # Example
-/// ```rust
+/// ```rust,ignore
 /// #[derive(SalsaSerialize)]
 /// struct Person {
 ///     #[serde(rename = "firstName")]

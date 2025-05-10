@@ -21,9 +21,9 @@ use crate::{
     prelude::Symbol,
 };
 
-use super::{CheckInEnv, exprs::ExprResult, member_lookup::MemberLookup};
+use super::{CheckTyInEnv, exprs::ExprResult, member_lookup::MemberLookup};
 
-impl<'db> CheckInEnv<'db> for AstTy<'db> {
+impl<'db> CheckTyInEnv<'db> for AstTy<'db> {
     type Output = SymTy<'db>;
 
     async fn check_in_env(&self, env: &mut Env<'db>) -> Self::Output {
@@ -94,7 +94,7 @@ fn name_resolution_to_sym_ty<'db>(
             SymTy::named(db, sym_primitive.into(), vec![])
         }
 
-        NameResolutionSym::SymClass(sym_class) => {
+        NameResolutionSym::SymAggregate(sym_class) => {
             let expected = sym_class.len_generics(db);
             let found = generics.len();
             if found != expected {
@@ -234,7 +234,7 @@ fn name_resolution_to_sym_ty<'db>(
     }
 }
 
-impl<'db> CheckInEnv<'db> for AstGenericTerm<'db> {
+impl<'db> CheckTyInEnv<'db> for AstGenericTerm<'db> {
     type Output = SymGenericTerm<'db>;
 
     async fn check_in_env(&self, env: &mut Env<'db>) -> Self::Output {
@@ -265,7 +265,7 @@ fn name_resolution_to_generic_term<'db>(
     }
 }
 
-impl<'db> CheckInEnv<'db> for AstPerm<'db> {
+impl<'db> CheckTyInEnv<'db> for AstPerm<'db> {
     type Output = SymPerm<'db>;
 
     async fn check_in_env(&self, env: &mut Env<'db>) -> Self::Output {
@@ -280,10 +280,7 @@ impl<'db> CheckInEnv<'db> for AstPerm<'db> {
                 SymPerm::new(db, SymPermKind::Leased(places))
             }
             AstPermKind::Given(Some(ref _span_vec)) => todo!(),
-            AstPermKind::ImplicitShared
-            | AstPermKind::Shared(None)
-            | AstPermKind::Leased(None)
-            | AstPermKind::Given(None) => {
+            AstPermKind::Shared(None) | AstPermKind::Leased(None) | AstPermKind::Given(None) => {
                 let sym_var = self.anonymous_perm_symbol(db);
                 SymPerm::var(db, sym_var)
             }
@@ -314,7 +311,7 @@ fn name_resolution_to_sym_perm<'db>(
         }
 
         NameResolutionSym::SymModule(_)
-        | NameResolutionSym::SymClass(_)
+        | NameResolutionSym::SymAggregate(_)
         | NameResolutionSym::SymFunction(_)
         | NameResolutionSym::SymVariable(_)
         | NameResolutionSym::SymPrimitive(_) => SymPerm::err(

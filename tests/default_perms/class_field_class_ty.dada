@@ -1,0 +1,9 @@
+# Test that a class field that is a class must have an explicit permission.
+
+class Foo(x: String) {}
+#!           ^^^^^^ explicit permission required
+
+class Bar {
+    x: String
+    #! ^^^^^^ explicit permission required
+}

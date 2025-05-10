@@ -2,6 +2,7 @@ use std::fmt::Debug;
 
 use dada_util::Never;
 use salsa::Update;
+use serde::Serialize;
 
 use crate::{
     ir::subst::{Subst, SubstitutionFns},
@@ -10,7 +11,7 @@ use crate::{
 };
 
 /// Indicates a binder for generic variables
-#[derive(Clone, PartialEq, Eq, PartialOrd, Ord, Hash, Update, Debug)]
+#[derive(Clone, PartialEq, Eq, PartialOrd, Ord, Hash, Update, Debug, Serialize)]
 pub struct Binder<'db, T: BoundTerm<'db>> {
     pub variables: Vec<SymVariable<'db>>,
     pub bound_value: T,

@@ -12,16 +12,23 @@ use salsa::Update;
 use serde::Serialize;
 
 use crate::{
-    check::scope::Scope,
-    check::scope_tree::{ScopeItem, ScopeTreeNode},
-    ir::binder::{Binder, LeafBoundTerm},
-    ir::classes::SymAggregate,
-    ir::populate::PopulateSignatureSymbols,
-    ir::types::SymTy,
-    ir::variables::SymVariable,
+    check::{
+        scope::Scope,
+        scope_tree::{ScopeItem, ScopeTreeNode},
+    },
+    ir::{
+        binder::{Binder, LeafBoundTerm},
+        classes::SymAggregate,
+        populate::{PopulateDefaultSymbols, PopulateSignatureSymbols},
+        types::SymTy,
+        variables::SymVariable,
+    },
 };
 
-use super::types::{HasKind, SymGenericKind};
+use super::{
+    classes::SymAggregateStyle,
+    types::{HasKind, SymGenericKind},
+};
 
 #[derive(SalsaSerialize)]
 #[salsa::tracked(debug)]
@@ -74,22 +81,40 @@ impl<'db> SymFunction<'db> {
         self.source(db).name(db).span
     }
 
+    fn scope_from_symbols<'sym>(
+        self,
+        db: &'db dyn crate::Db,
+        symbols: &'sym SignatureSymbols<'db>,
+    ) -> Scope<'sym, 'db> {
+        self.super_scope_item(db)
+            .into_scope(db)
+            .with_link(Cow::Borrowed(&symbols.generic_variables[..]))
+            .with_link(Cow::Borrowed(&symbols.input_variables[..]))
+    }
+
     #[salsa::tracked(return_ref)]
     pub fn symbols(self, db: &'db dyn crate::Db) -> SignatureSymbols<'db> {
         let source = self.source(db);
-        let mut symbols = SignatureSymbols::new(self);
-        source.populate_signature_symbols(db, &mut symbols);
-        symbols
+
+        // Before we can populate the default symbols,
+        // we need to create a temporary scope with *just* the explicit symbols.
+        // This allows us to do name resolution on the names of types and things.
+        let mut just_explicit_symbols = SignatureSymbols::new(self);
+        source.populate_signature_symbols(db, &mut just_explicit_symbols);
+        let scope = self.scope_from_symbols(db, &just_explicit_symbols);
+
+        // Now add in any default symbols.
+        let mut with_default_symbols = just_explicit_symbols.clone();
+        source.populate_default_symbols(db, &scope, &mut with_default_symbols);
+
+        with_default_symbols
     }
 
     /// Returns the scope for this function; this has the function generics
     /// and parameters in scope.
     pub fn scope(self, db: &'db dyn crate::Db) -> Scope<'db, 'db> {
         let symbols = self.symbols(db);
-        self.super_scope_item(db)
-            .into_scope(db)
-            .with_link(Cow::Borrowed(&symbols.generic_variables[..]))
-            .with_link(Cow::Borrowed(&symbols.input_variables[..]))
+        self.scope_from_symbols(db, symbols)
     }
 }
 
@@ -134,21 +159,6 @@ impl<'db> SymFunctionSource<'db> {
             ),
         }
     }
-
-    fn populate_signature_symbols(
-        self,
-        db: &'db dyn crate::Db,
-        symbols: &mut SignatureSymbols<'db>,
-    ) {
-        match self {
-            Self::Function(ast_function) => ast_function.populate_signature_symbols(db, symbols),
-            Self::Constructor(..) => {
-                self.inputs(db)
-                    .iter()
-                    .for_each(|i| i.populate_signature_symbols(db, symbols));
-            }
-        }
-    }
 }
 
 /// Set of effects that can be declared on the function.
@@ -157,6 +167,7 @@ pub struct SymFunctionEffects {
     pub async_effect: bool,
 }
 
+#[derive(SalsaSerialize)]
 #[salsa::tracked(debug)]
 pub struct SymFunctionSignature<'db> {
     #[return_ref]
@@ -170,7 +181,7 @@ pub struct SymFunctionSignature<'db> {
     pub input_output: Binder<'db, Binder<'db, SymInputOutput<'db>>>,
 }
 
-#[derive(Clone, PartialEq, Eq, PartialOrd, Ord, Hash, Update, Debug)]
+#[derive(Clone, PartialEq, Eq, PartialOrd, Ord, Hash, Update, Debug, Serialize)]
 pub struct SymInputOutput<'db> {
     pub input_tys: Vec<SymTy<'db>>,
 
@@ -179,7 +190,7 @@ pub struct SymInputOutput<'db> {
 
 impl<'db> LeafBoundTerm<'db> for SymInputOutput<'db> {}
 
-#[derive(Clone, Debug, PartialEq, Eq, Hash, Update)]
+#[derive(Clone, Debug, PartialEq, Eq, Hash, Update, Serialize)]
 pub struct SignatureSymbols<'db> {
     /// Source of these symbols
     pub source: SignatureSource<'db>,
@@ -203,15 +214,6 @@ impl<'db> SignatureSymbols<'db> {
     }
 }
 
-#[derive(Copy, Clone, Debug, PartialEq, Eq, Hash, Update, FromImpls)]
-pub enum SignatureSource<'db> {
-    Class(SymAggregate<'db>),
-    Function(SymFunction<'db>),
-
-    #[no_from_impl]
-    Dummy,
-}
-
 impl<'db> SignatureSymbols<'db> {
     /// Create an empty set of signature symbols from a given source.
     /// The actual symbols themselves are populated via the trait
@@ -221,6 +223,21 @@ impl<'db> SignatureSymbols<'db> {
             source: source.into(),
             generic_variables: Vec::new(),
             input_variables: Vec::new(),
+        }
+    }
+}
+
+#[derive(Copy, Clone, Debug, PartialEq, Eq, Hash, Update, FromImpls, Serialize)]
+pub enum SignatureSource<'db> {
+    Class(SymAggregate<'db>),
+    Function(SymFunction<'db>),
+}
+
+impl<'db> SignatureSource<'db> {
+    pub fn aggr_style(self, db: &'db dyn crate::Db) -> Option<SymAggregateStyle> {
+        match self {
+            SignatureSource::Class(aggr) => Some(aggr.style(db)),
+            SignatureSource::Function(_) => None,
         }
     }
 }

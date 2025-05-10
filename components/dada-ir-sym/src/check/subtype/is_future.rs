@@ -5,6 +5,7 @@ use crate::{
     check::{
         env::Env,
         inference::Direction,
+        live_places::LivePlaces,
         red::RedTy,
         report::{Because, OrElse, OrElseHelper},
         to_red::ToRedTy,
@@ -18,17 +19,19 @@ use super::terms::require_sub_terms;
 /// that awaits a value of type `awaited_ty`.
 pub async fn require_future_type<'db>(
     env: &mut Env<'db>,
+    live_after: LivePlaces,
     ty: SymTy<'db>,
     awaited_ty: SymTy<'db>,
     or_else: &dyn OrElse<'db>,
 ) -> Errors<()> {
     let (red_ty, _) = ty.to_red_ty(env);
-    require_future_red_type(env, red_ty, awaited_ty, or_else).await
+    require_future_red_type(env, live_after, red_ty, awaited_ty, or_else).await
 }
 
 #[boxed_async_fn]
 async fn require_future_red_type<'db>(
     env: &mut Env<'db>,
+    live_after: LivePlaces,
     red_ty: RedTy<'db>,
     awaited_ty: SymTy<'db>,
     or_else: &dyn OrElse<'db>,
@@ -40,7 +43,14 @@ async fn require_future_red_type<'db>(
         RedTy::Named(sym_ty_name, generic_args) => match sym_ty_name {
             SymTyName::Future => {
                 let future_ty_arg = generic_args[0].assert_type(db);
-                require_sub_terms(env, future_ty_arg.into(), awaited_ty.into(), or_else).await
+                require_sub_terms(
+                    env,
+                    live_after,
+                    future_ty_arg.into(),
+                    awaited_ty.into(),
+                    or_else,
+                )
+                .await
             }
             SymTyName::Primitive(_) | SymTyName::Aggregate(_) | SymTyName::Tuple { arity: _ } => {
                 Err(or_else.report(env, Because::JustSo))
@@ -54,7 +64,7 @@ async fn require_future_red_type<'db>(
             // and check if it is numeric. Since the bound can only get tighter,
             // that is sufficient (indeed, numeric types have no subtypes).
             let Some((lower_red_ty, arc_or_else)) =
-                env.red_ty_bound(infer, Direction::FromBelow).await
+                env.red_bound(infer, Direction::FromBelow).ty().await
             else {
                 return Err(
                     or_else.report(env, Because::UnconstrainedInfer(env.infer_var_span(infer)))
@@ -62,6 +72,7 @@ async fn require_future_red_type<'db>(
             };
             require_future_red_type(
                 env,
+                live_after,
                 lower_red_ty.clone(),
                 awaited_ty,
                 &or_else.map_because(move |_| {

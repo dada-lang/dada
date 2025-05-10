@@ -2,7 +2,7 @@ use dada_ir_ast::span::Span;
 use serde::Serialize;
 
 use crate::{
-    check::red::{Chain, RedTy},
+    check::red::{RedPerm, RedTy},
     ir::indices::InferVarIndex,
 };
 
@@ -15,15 +15,14 @@ use super::{InferenceVarBounds, InferenceVarData};
 struct InferenceVarDataExport<'a, 'db> {
     span: Span<'db>,
     is: Vec<bool>,
-    isnt: Vec<bool>,
     bounds: InferenceVarBoundsExport<'a, 'db>,
 }
 
 #[derive(Serialize)]
 enum InferenceVarBoundsExport<'a, 'db> {
     Perm {
-        lower: Vec<&'a Chain<'db>>,
-        upper: Vec<&'a Chain<'db>>,
+        lower: Vec<&'a RedPerm<'db>>,
+        upper: Vec<&'a RedPerm<'db>>,
     },
 
     Ty {
@@ -38,12 +37,7 @@ impl Serialize for InferenceVarData<'_> {
     where
         S: serde::Serializer,
     {
-        let Self {
-            span,
-            is,
-            isnt,
-            bounds,
-        } = self;
+        let Self { span, is, bounds } = self;
 
         let bounds = match bounds {
             InferenceVarBounds::Perm { lower, upper } => InferenceVarBoundsExport::Perm {
@@ -60,7 +54,6 @@ impl Serialize for InferenceVarData<'_> {
         let export = InferenceVarDataExport {
             span: *span,
             is: is.iter().map(|option| option.is_some()).collect(),
-            isnt: isnt.iter().map(|option| option.is_some()).collect(),
             bounds,
         };
 

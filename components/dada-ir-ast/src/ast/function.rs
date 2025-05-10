@@ -75,13 +75,19 @@ impl<'db> Spanned<'db> for AstFunctionInput<'db> {
 #[derive(SalsaSerialize)]
 #[salsa::tracked(debug)]
 pub struct AstSelfArg<'db> {
-    pub perm: AstPerm<'db>,
+    /// Permission written by the user.
+    /// If `None`, we will supply a suitable default.
+    pub perm: Option<AstPerm<'db>>,
     pub self_span: Span<'db>,
 }
 
 impl<'db> Spanned<'db> for AstSelfArg<'db> {
     fn span(&self, db: &'db dyn crate::Db) -> Span<'db> {
-        self.self_span(db).start_from(self.perm(db).span(db))
+        if let Some(perm) = self.perm(db) {
+            self.self_span(db).start_from(perm.span(db))
+        } else {
+            self.self_span(db)
+        }
     }
 }
 
@@ -95,12 +101,17 @@ pub struct VariableDecl<'db> {
     /// Variable name.
     pub name: SpannedIdentifier<'db>,
 
-    /// Variable type.
-    pub ty: AstTy<'db>,
+    /// Permission written by the user.
+    /// If `None`, we will supply a suitable default.
+    pub perm: Option<AstPerm<'db>>,
+
+    /// Variable type, excluding any permission,
+    /// which can be found in `perm`.
+    pub base_ty: AstTy<'db>,
 }
 
 impl<'db> Spanned<'db> for VariableDecl<'db> {
     fn span(&self, db: &'db dyn crate::Db) -> Span<'db> {
-        self.name(db).span.to(db, self.ty(db).span(db))
+        self.name(db).span.to(db, self.base_ty(db).span(db))
     }
 }

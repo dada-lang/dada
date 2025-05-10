@@ -8,7 +8,7 @@ pub mod exprs;
 pub mod functions;
 pub mod indices;
 pub mod module;
-mod populate;
+pub(crate) mod populate;
 pub mod primitive;
 pub mod subst;
 pub mod types;

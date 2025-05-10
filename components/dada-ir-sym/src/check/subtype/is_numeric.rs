@@ -5,6 +5,7 @@ use crate::{
     check::{
         env::Env,
         inference::Direction,
+        live_places::LivePlaces,
         predicates::{Predicate, var_infer::require_infer_is},
         red::RedTy,
         report::{Because, OrElse, OrElseHelper},
@@ -15,6 +16,22 @@ use crate::{
         types::{SymTy, SymTyName},
     },
 };
+
+use super::perms::require_sub_opt_perms;
+
+pub async fn require_my_numeric_type<'db>(
+    env: &mut Env<'db>,
+    live_after: LivePlaces,
+    ty: SymTy<'db>,
+    or_else: &dyn OrElse<'db>,
+) -> Errors<()> {
+    let (red_ty, perm) = ty.to_red_ty(env);
+    env.require_both(
+        async |env| require_sub_opt_perms(env, live_after, None, perm, or_else).await,
+        async |env| require_numeric_red_type(env, red_ty, or_else).await,
+    )
+    .await
+}
 
 pub async fn require_numeric_type<'db>(
     env: &mut Env<'db>,
@@ -53,27 +70,22 @@ async fn require_numeric_red_type<'db>(
         RedTy::Var(_) | RedTy::Never => Err(or_else.report(env, Because::JustSo)),
 
         RedTy::Infer(infer) => {
-            env.require_both(
-                async |env| require_infer_is(env, infer, Predicate::Copy, or_else),
-                async |env| {
-                    // For inference variables: find the current lower bound
-                    // and check if it is numeric. Since the bound can only get tighter,
-                    // that is sufficient (indeed, numeric types have no subtypes).
-                    let Some((lower_red_ty, arc_or_else)) =
-                        env.red_ty_bound(infer, Direction::FromBelow).await
-                    else {
-                        return Err(or_else
-                            .report(env, Because::UnconstrainedInfer(env.infer_var_span(infer))));
-                    };
-                    require_numeric_red_type(
-                        env,
-                        lower_red_ty.clone(),
-                        &or_else.map_because(move |_| {
-                            Because::InferredLowerBound(lower_red_ty.clone(), arc_or_else.clone())
-                        }),
-                    )
-                    .await
-                },
+            // For inference variables: find the current lower bound
+            // and check if it is numeric. Since the bound can only get tighter,
+            // that is sufficient (indeed, numeric types have no subtypes).
+            let Some((lower_red_ty, arc_or_else)) =
+                env.red_bound(infer, Direction::FromBelow).ty().await
+            else {
+                return Err(
+                    or_else.report(env, Because::UnconstrainedInfer(env.infer_var_span(infer)))
+                );
+            };
+            require_numeric_red_type(
+                env,
+                lower_red_ty.clone(),
+                &or_else.map_because(move |_| {
+                    Because::InferredLowerBound(lower_red_ty.clone(), arc_or_else.clone())
+                }),
             )
             .await
         }

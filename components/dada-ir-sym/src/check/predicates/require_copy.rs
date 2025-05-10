@@ -9,7 +9,6 @@ use crate::{
             Predicate,
             var_infer::{require_infer_is, require_var_is},
         },
-        red::Lien,
         report::{Because, OrElse},
     },
     ir::{
@@ -31,17 +30,6 @@ pub(crate) async fn require_term_is_copy<'db>(
         SymGenericTerm::Place(place) => panic!("unexpected place term: {place:?}"),
         SymGenericTerm::Error(reported) => Err(reported),
     }
-}
-
-/// Requires that the given chain is `copy`.
-pub(crate) async fn require_chain_is_copy<'db>(
-    env: &mut Env<'db>,
-    chain: &[Lien<'db>],
-    or_else: &dyn OrElse<'db>,
-) -> Errors<()> {
-    let db = env.db();
-    let perm = Lien::chain_to_perm(db, chain);
-    require_perm_is_copy(env, perm, or_else).await
 }
 
 /// Requires that `(lhs rhs)` satisfies the given predicate.
@@ -92,7 +80,7 @@ async fn require_ty_is_copy<'db>(
         SymTyKind::Never => Err(or_else.report(env, Because::NeverIsNotCopy)),
 
         // Inference variables
-        SymTyKind::Infer(infer) => require_infer_is(env, infer, Predicate::Copy, or_else),
+        SymTyKind::Infer(infer) => require_infer_is(env, infer, Predicate::Copy, or_else).await,
 
         // Universal variables
         SymTyKind::Var(var) => require_var_is(env, var, Predicate::Copy, or_else),
@@ -157,7 +145,10 @@ async fn require_perm_is_copy<'db>(
 
         // Variable and inference
         SymPermKind::Var(var) => require_var_is(env, var, Predicate::Copy, or_else),
-        SymPermKind::Infer(infer) => require_infer_is(env, infer, Predicate::Copy, or_else),
+
+        SymPermKind::Infer(infer) => require_infer_is(env, infer, Predicate::Copy, or_else).await,
+
+        SymPermKind::Or(_, _) => todo!(),
     }
 }
 

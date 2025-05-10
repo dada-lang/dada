@@ -1,7 +1,7 @@
 use dada_ir_ast::{
     ast::{
         AstAggregate, AstAggregateKind, AstFieldDecl, AstFunction, AstGenericDecl, AstMember,
-        AstTy, AstVisibility, SpanVec, VariableDecl, VisibilityKind,
+        AstTy, AstTyKind, AstVisibility, SpanVec, VariableDecl, VisibilityKind,
     },
     span::{Span, Spanned},
 };
@@ -242,7 +242,13 @@ impl<'db> Parse<'db> for VariableDecl<'db> {
 
         let ty = AstTy::eat(db, tokens)?;
 
-        Ok(Some(VariableDecl::new(db, mutable, name, ty)))
+        let (perm, base_ty) = match ty.kind(db) {
+            AstTyKind::Perm(ast_perm, ast_ty) => (Some(ast_perm), ast_ty),
+            AstTyKind::Named(..) => (None, ty),
+            AstTyKind::GenericDecl(..) => (None, ty),
+        };
+
+        Ok(Some(VariableDecl::new(db, mutable, name, perm, base_ty)))
     }
 
     fn expected() -> Expected {

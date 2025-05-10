@@ -1,17 +1,18 @@
 use dada_ir_ast::span::Span;
 use salsa::Update;
+use serde::Serialize;
 
 use crate::ir::{indices::InferVarIndex, types::SymGenericKind};
 
 use super::{
     predicates::Predicate,
-    red::{Chain, RedTy},
+    red::{RedPerm, RedTy},
     report::{ArcOrElse, OrElse},
 };
 
 mod serialize;
 
-#[derive(Copy, Clone, Debug)]
+#[derive(Copy, Clone, Debug, PartialEq, Eq, PartialOrd, Ord, Serialize)]
 pub enum Direction {
     FromBelow,
     FromAbove,
@@ -20,19 +21,9 @@ pub enum Direction {
 pub(crate) struct InferenceVarData<'db> {
     span: Span<'db>,
 
-    /// If the element for a given predicate is `Some`, then the predicate is known to be true
-    /// due to code at the given span. If the element is `None`, then it is not known that the
-    /// predicate is true (but it still could be, depending on what value we ultimately infer).
-    ///
-    /// See also the `isnt` field.
+    /// Records whether the inference variable is required to meet a given predicate
+    /// (and what error results if it doesn't).
     is: [Option<ArcOrElse<'db>>; Predicate::LEN],
-
-    /// If the element for a given predicate is `Some`, then the predicate is NOT known to be true
-    /// due to code at the given span.
-    ///
-    /// This is a subtle distinction. Knowing that a variable `isnt (known to be) copy` doesn't
-    /// imply that it is `is (known to be) move`. It means "you will never be able to prove this is copy".
-    isnt: [Option<ArcOrElse<'db>>; Predicate::LEN],
 
     /// Bounds on this variable suitable for its kind.
     bounds: InferenceVarBounds<'db>,
@@ -42,9 +33,8 @@ impl<'db> InferenceVarData<'db> {
     fn new(span: Span<'db>, bounds: InferenceVarBounds<'db>) -> Self {
         Self {
             span,
-            bounds,
             is: [None, None, None, None],
-            isnt: [None, None, None, None],
+            bounds,
         }
     }
 
@@ -85,111 +75,32 @@ impl<'db> InferenceVarData<'db> {
         }
     }
 
-    /// Returns `Some(s)` if the predicate is known to be true (where `s` is the span of code
-    /// which required the predicate to be true).
-    pub fn is_known_to_provably_be(&self, predicate: Predicate) -> Option<ArcOrElse<'db>> {
+    /// If this inference variable must meet `predicate`,
+    /// returns `Some(_)` with the error that will result otherwise.
+    pub fn is(&self, predicate: Predicate) -> Option<ArcOrElse<'db>> {
         self.is[predicate.index()].clone()
     }
 
-    /// Returns `Some(s)` if the predicate is not known to be true (where `s` is the span of code
-    /// which required the predicate to not be known to be true).
-    ///
-    /// This is different from being known to be false. It means we know we won't be able to know.
-    /// Can occur with generics etc.
-    pub fn is_known_not_to_provably_be(&self, predicate: Predicate) -> Option<ArcOrElse<'db>> {
-        self.isnt[predicate.index()].clone()
+    /// Record that this inference variable must meet `predicate`
+    /// or else the error `or_else` will result.
+    pub fn set_is(&mut self, predicate: Predicate, or_else: &dyn OrElse<'db>) {
+        assert!(!self.is[predicate.index()].is_some());
+        assert!(!self.is[predicate.invert().index()].is_some());
+        self.is[predicate.index()] = Some(or_else.to_arc());
     }
 
-    /// Insert a predicate into the `is` set and its invert into the `isnt` set.
-    /// Returns `None` if these are not new requirements.
-    /// Otherwise, returns `Some(o)` where `o` is the Arc-ified version of `or_else`.
-    /// Low-level method invoked by runtime only.
-    ///
-    /// # Panics
-    ///
-    /// * If the inference variable is required to satisfy a contradictory predicate.
-    pub fn require_is(
-        &mut self,
-        predicate: Predicate,
-        or_else: &dyn OrElse<'db>,
-    ) -> Option<ArcOrElse<'db>> {
-        let predicate_invert = predicate.invert();
-
-        let predicate_is = self.is_known_to_provably_be(predicate).is_some();
-        let predicate_isnt = self.is_known_not_to_provably_be(predicate).is_some();
-        let inverted_is = self.is_known_to_provably_be(predicate_invert).is_some();
-        let inverted_isnt = self.is_known_not_to_provably_be(predicate_invert).is_some();
-
-        // Check that we haven't been given contradictory constraints.
-        assert!(
-            !predicate_isnt,
-            "require_is: {predicate} already required to be isnt"
-        );
-        assert!(
-            !inverted_is,
-            "require_is: {predicate_invert} already required to be is"
-        );
-
-        // If these constraints are already recorded, just return.
-        if predicate_is && inverted_isnt {
-            return None;
-        }
-
-        // Otherwise record.
-        let or_else = or_else.to_arc();
-        if !predicate_is {
-            self.is[predicate.index()] = Some(or_else.clone());
-        }
-        if !inverted_isnt {
-            self.isnt[predicate_invert.index()] = Some(or_else.clone());
-        }
-        Some(or_else)
-    }
-
-    /// Insert a predicate into the `isnt` set.
-    /// Returns `true` if the predicate was not already in the set.
-    /// Low-level method invoked by runtime only.
-    ///
-    /// # Panics
-    ///
-    /// * If the inference variable is required to satisfy a contradictory predicate.
-    pub fn require_isnt(
-        &mut self,
-        predicate: Predicate,
-        or_else: &dyn OrElse<'db>,
-    ) -> Option<ArcOrElse<'db>> {
-        assert!(self.is_known_to_provably_be(predicate).is_none());
-        if self.is_known_not_to_provably_be(predicate).is_none() {
-            let or_else = or_else.to_arc();
-            self.isnt[predicate.index()] = Some(or_else.clone());
-            Some(or_else)
-        } else {
-            None
-        }
-    }
-
-    /// Returns the lower bounds on this permission variable.
+    /// Returns the upper or lower bounds on this permission variable.
     ///
     /// # Panics
     ///
     /// If this is not a permission variable.
     #[track_caller]
-    pub fn lower_chains(&self) -> &[(Chain<'db>, ArcOrElse<'db>)] {
+    pub fn red_perm_bound(&self, direction: Direction) -> Option<(RedPerm<'db>, ArcOrElse<'db>)> {
         match &self.bounds {
-            InferenceVarBounds::Perm { lower, .. } => lower,
-            _ => panic!("lower_chains invoked on a var of kind `{:?}`", self.kind()),
-        }
-    }
-
-    /// Returns the upper bounds on this permission variable.
-    ///
-    /// # Panics
-    ///
-    /// If this is not a permission variable.
-    #[track_caller]
-    pub fn upper_chains(&self) -> &[(Chain<'db>, ArcOrElse<'db>)] {
-        match &self.bounds {
-            InferenceVarBounds::Perm { upper, .. } => upper,
+            InferenceVarBounds::Perm { lower, upper, .. } => match direction {
+                Direction::FromBelow => lower.clone(),
+                Direction::FromAbove => upper.clone(),
+            },
             _ => panic!("lower_chains invoked on a var of kind `{:?}`", self.kind()),
         }
     }
@@ -220,48 +131,25 @@ impl<'db> InferenceVarData<'db> {
         }
     }
 
-    /// Insert a chain as a lower bound.
-    /// Returns `Some(or_else.to_arc())` if this is a new upper bound.
-    pub fn insert_lower_chain(
+    /// Insert a red perm as a (lower|upper) bound.
+    /// Returns `Some(or_else.to_arc())` if this is a new (lower|upper) bound.
+    pub fn set_red_perm_bound(
         &mut self,
-        chain: &Chain<'db>,
+        direction: Direction,
+        red_perm: RedPerm<'db>,
         or_else: &dyn OrElse<'db>,
-    ) -> Option<ArcOrElse<'db>> {
-        let lower_chains = match &mut self.bounds {
-            InferenceVarBounds::Perm { lower, .. } => lower,
+    ) {
+        let perm_bound = match &mut self.bounds {
+            InferenceVarBounds::Perm { lower, upper, .. } => match direction {
+                Direction::FromBelow => lower,
+                Direction::FromAbove => upper,
+            },
             _ => panic!(
                 "insert_lower_chain invoked on a var of kind `{:?}`",
                 self.kind()
             ),
         };
-        if lower_chains.iter().any(|pair| pair.0 == *chain) {
-            return None;
-        }
-        let or_else = or_else.to_arc();
-        lower_chains.push((chain.clone(), or_else.clone()));
-        Some(or_else)
-    }
-
-    /// Insert a chain as an upper bound.
-    /// Returns `Some(or_else.to_arc())` if this is a new upper bound.
-    pub fn insert_upper_chain(
-        &mut self,
-        chain: &Chain<'db>,
-        or_else: &dyn OrElse<'db>,
-    ) -> Option<ArcOrElse<'db>> {
-        let upper_chains = match &mut self.bounds {
-            InferenceVarBounds::Perm { upper, .. } => upper,
-            _ => panic!(
-                "insert_upper_chain invoked on a var of kind `{:?}`",
-                self.kind()
-            ),
-        };
-        if upper_chains.iter().any(|pair| pair.0 == *chain) {
-            return None;
-        }
-        let or_else = or_else.to_arc();
-        upper_chains.push((chain.clone(), or_else.clone()));
-        Some(or_else)
+        *perm_bound = Some((red_perm, or_else.to_arc()));
     }
 
     /// Overwrite the lower or upper bounding red ty, depending on `direction`.
@@ -307,13 +195,13 @@ pub enum InferenceVarBounds<'db> {
     /// The inferred permission `?P` must meet
     ///
     /// * `L <: ?P` for each `L` in `lower`
-    /// * `U <: ?P` for each `U` in `upper`
+    /// * `?P <: U` for each `U` in `upper`
     ///
     /// This in turn implies that `L <: U`
     /// for all `L in lower`, `U in upper`.
     Perm {
-        lower: Vec<(Chain<'db>, ArcOrElse<'db>)>,
-        upper: Vec<(Chain<'db>, ArcOrElse<'db>)>,
+        lower: Option<(RedPerm<'db>, ArcOrElse<'db>)>,
+        upper: Option<(RedPerm<'db>, ArcOrElse<'db>)>,
     },
 
     /// Bounds for a type:

@@ -68,7 +68,7 @@ impl<'db> SymAggregate<'db> {
     pub fn variances(&self, db: &'db dyn crate::Db) -> Vec<Variance> {
         let len_generics = self.len_generics(db);
         // FIXME
-        vec![Variance::Covariant; len_generics]
+        vec![Variance::covariant(); len_generics]
     }
 
     /// Kinds of generic parameters
@@ -119,6 +119,9 @@ impl<'db> SymAggregate<'db> {
         let mut signature_symbols = SignatureSymbols::new(self);
         self.source(db)
             .populate_signature_symbols(db, &mut signature_symbols);
+
+        // NB: classes have no default symbols
+
         signature_symbols
     }
 

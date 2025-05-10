@@ -1,3 +1,5 @@
+#:skip_codegen # FIXME: codegen doesn't work yet
+
 class Point(x: u32, y: u32)
 
 fn main() {

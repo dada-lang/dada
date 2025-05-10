@@ -1,21 +1,19 @@
-use dada_ir_ast::diagnostic::Errors;
+use dada_ir_ast::diagnostic::{Diagnostic, Errors, Level, Reported};
+use dada_util::boxed_async_fn;
 
 use crate::{
     check::{
-        debug::TaskDescription,
         env::Env,
-        inference::InferenceVarData,
-        predicates::Predicate,
-        report::{ArcOrElse, Because, OrElse},
+        inference::{Direction, InferVarKind},
+        predicates::{Predicate, term_is_provably},
+        report::{Because, OrElse},
     },
     ir::{indices::InferVarIndex, variables::SymVariable},
 };
 
 use super::{
-    require_copy::require_chain_is_copy,
-    require_isnt_provably_copy::require_chain_isnt_provably_copy,
-    require_lent::require_chain_is_lent, require_move::require_chain_is_move,
-    require_owned::require_chain_is_owned,
+    is_provably_copy::term_is_provably_copy, is_provably_lent::term_is_provably_lent,
+    is_provably_owned::term_is_provably_owned, require_term_is,
 };
 
 pub fn test_var_is_provably<'db>(
@@ -39,215 +37,222 @@ pub(super) fn require_var_is<'db>(
     }
 }
 
-pub(super) fn require_var_isnt<'db>(
-    env: &mut Env<'db>,
-    var: SymVariable<'db>,
-    predicate: Predicate,
-    or_else: &dyn OrElse<'db>,
-) -> Errors<()> {
-    if !env.var_is_declared_to_be(var, predicate) {
-        Ok(())
-    } else {
-        Err(or_else.report(env, Because::VarDeclaredToBe(var, predicate)))
-    }
-}
-
 /// Requires the inference variable to meet the given predicate (possibly reporting an error
 /// if that is contradictory).
-pub fn require_infer_is<'db>(
+pub async fn require_infer_is<'db>(
     env: &mut Env<'db>,
     infer: InferVarIndex,
     predicate: Predicate,
     or_else: &dyn OrElse<'db>,
 ) -> Errors<()> {
-    let (is_already, isnt_already) = env.runtime().with_inference_var_data(infer, |data| {
-        (
-            data.is_known_to_provably_be(predicate),
-            data.is_known_not_to_provably_be(predicate),
-        )
-    });
-
-    // Check if we are already required to be the predicate.
-    if is_already.is_some() {
+    if env.infer_is(infer, predicate).is_some() {
+        // Already required to meet this predicate.
         return Ok(());
     }
 
-    // Check if were already required to not be the predicate
-    // and report an error if so.
-    if let Some(prev_or_else) = isnt_already {
-        return Err(or_else.report(env, Because::InferredIsnt(predicate, prev_or_else)));
+    if let Some(_or_else_invert) = env.infer_is(infer, predicate.invert()) {
+        // Already required NOT to meet this predicate.
+        return Err(or_else.report(env, Because::JustSo)); // FIXME we can do better than JustSo
     }
 
-    // Record the requirement in the runtime, awakening any tasks that may be impacted.
-    if let Some(or_else) = env.require_inference_var_is(infer, predicate, or_else) {
-        defer_require_bounds_provably_predicate(env, infer, predicate, or_else);
+    // Record that `infer` is required to meet the predicate.
+    env.set_infer_is(infer, predicate, or_else);
 
-        let (is_move, is_copy, is_owned) = env.runtime().with_inference_var_data(infer, |data| {
-            (
-                data.is_known_to_provably_be(Predicate::Move).is_some(),
-                data.is_known_to_provably_be(Predicate::Copy).is_some(),
-                data.is_known_to_provably_be(Predicate::Owned).is_some(),
+    // Enforce the result implications of that
+    match predicate {
+        Predicate::Lent => {
+            // If `infer` must be lent, its upper bounds must be lent.
+            // Lower bounds don't have to be.
+            //
+            // FIXME: Well, lower bounds have to be "maybe" lent.
+            require_bounding_terms_are(
+                env,
+                infer,
+                Some(Direction::FromAbove),
+                Predicate::Lent,
+                or_else,
             )
-        });
-
-        if let Predicate::Move | Predicate::Owned = predicate
-            && is_move
-            && is_owned
-        {
-            // If we just learned that the inference variable must be `my`...
+            .await
         }
 
-        if let Predicate::Copy | Predicate::Owned = predicate
-            && is_copy
-            && is_owned
-        {
-            // If we just learned that the inference variable must be `our`...
+        Predicate::Owned => {
+            // If `infer` must be owned, its lower bounds must be owned.
+            // Upper bounds don't have to be.
+            //
+            // FIXME: Well, upper bounds have to be "maybe" owned.
+            require_bounding_terms_are(
+                env,
+                infer,
+                Some(Direction::FromBelow),
+                Predicate::Owned,
+                or_else,
+            )
+            .await
+        }
+
+        Predicate::Copy | Predicate::Move => {
+            require_bounding_terms_are(env, infer, None, predicate, or_else).await
         }
     }
-
-    Ok(())
 }
 
-/// Requires the inference variable to meet the given predicate (possibly reporting an error
-/// if that is contradictory).
-pub(super) fn require_infer_isnt<'db>(
+async fn require_bounding_terms_are<'db>(
     env: &mut Env<'db>,
     infer: InferVarIndex,
+    direction: Option<Direction>,
     predicate: Predicate,
     or_else: &dyn OrElse<'db>,
 ) -> Errors<()> {
-    let (is_already, isnt_already) = env.runtime().with_inference_var_data(infer, |data| {
-        (
-            data.is_known_to_provably_be(predicate),
-            data.is_known_not_to_provably_be(predicate),
-        )
-    });
-
-    // Check if we are already required not to be the predicate.
-    if isnt_already.is_some() {
-        return Ok(());
+    let mut bounds = env.term_bounds(infer, direction);
+    while let Some((_, bound)) = bounds.next(env).await {
+        require_term_is(env, bound, predicate, or_else).await?;
     }
-
-    // Check if were already required to be the predicate
-    // and report an error if so.
-    if let Some(prev_or_else) = is_already {
-        return Err(or_else.report(env, Because::InferredIs(predicate, prev_or_else)));
-    }
-
-    // Record the requirement in the runtime, awakening any tasks that may be impacted.
-    if let Some(or_else) = env.require_inference_var_isnt(infer, predicate, or_else) {
-        defer_require_bounds_not_provably_predicate(env, infer, predicate, or_else);
-    }
-
     Ok(())
 }
 
-/// Wait until we know that the inference variable IS (or IS NOT) the given predicate.
-pub async fn test_infer_is_known_to_be(
-    env: &mut Env<'_>,
+/// Wait until we know whether the inference variable IS the given predicate
+/// or we know that we'll never be able to prove that it is.
+#[boxed_async_fn]
+pub async fn infer_is_provably<'db>(
+    env: &mut Env<'db>,
     infer: InferVarIndex,
     predicate: Predicate,
-) -> bool {
-    env.loop_on_inference_var(infer, |data| {
-        let (is, isnt) = (
-            data.is_known_to_provably_be(predicate),
-            data.is_known_not_to_provably_be(predicate),
-        );
-        if is.is_some() {
-            Some(true)
-        } else if isnt.is_some() {
-            Some(false)
-        } else {
-            // We do not yet have a constraint on whether the inference variable
-            // is known to be `predicate`, so block to see what new constraints
-            // are added in the future.
-            None
+) -> Errors<bool> {
+    assert_eq!(env.infer_var_kind(infer), InferVarKind::Perm);
+
+    match predicate {
+        Predicate::Copy | Predicate::Move => {
+            // Copy/move predicates are preserved by up/downcasting:
+            //
+            // * All copy perms (`our`, `ref[_]`, `our mut[_]`, `copy perm X`)
+            //   are only subtypes of other copy perms.
+            // * All move perms (`my`, `mut[_]`, `move perm X`)
+            //   are only subtypes of other move perms.
+            //
+            // Therefore, if any lower or upper bound meets the predicate, then,
+            // we know the predicate must hold.
+            //
+            // Similarly, if any lower or upper bound is known NOT to meet the predicate,
+            // then the predicate cannot hold: e.g.,:
+            //
+            // * if we have `perm X` as a lower or upper bound
+            //   and nothing is known about `X`, then we will never be able to say that
+            //   this variable is `copy` (or `owned`, etc).
+            // * if we have a lower bound of `our`, then we know the variable
+            //   will never be `move`.
+
+            let mut bounds = env.term_bounds(infer, None);
+            if let Some((_, bound)) = bounds.next(env).await {
+                term_is_provably(env, bound, predicate).await
+            } else {
+                // We never got any inference bound, so we can't say anything useful.
+                Ok(false)
+            }
         }
-    })
-    .await
-    .unwrap_or({
-        // If `None` is returned, it indicates that we terminated without ever
-        // adding a constrain on the inference variable one way or the other.
-        // This implies that the variable is not KNOWN to be `predicate` (though of course
-        // it may be).
-        false
-    })
+
+        Predicate::Lent => {
+            // "Lent" predicates are influenced by the fact that `our` (owned) is a subtype of `ref[x]` and
+            // other lent predicates.
+            let mut bounds = env.term_bounds(infer, None);
+            while let Some((direction, bound)) = bounds.next(env).await {
+                match direction {
+                    Direction::FromBelow
+                        if term_is_provably(env, bound, Predicate::Lent).await? =>
+                    {
+                        return Ok(true);
+                    }
+
+                    Direction::FromAbove
+                        if term_is_provably(env, bound, Predicate::Owned).await? =>
+                    {
+                        return Ok(false);
+                    }
+
+                    _ => {
+                        // Not clear yet whether result is true or false.
+                        //
+                        // FIXME: We could "fail faster" than this in some cases.
+                        // For example, given a lower bound of `perm X` (not `lent perm X`)
+                        // we can be sure that it will never be tightened to anything `lent`,
+                        // but for now we wait until the end to return `false`.
+                    }
+                }
+            }
+            Ok(false)
+        }
+
+        Predicate::Owned => {
+            // An "owned" perm can be upcast into a "lent" perm.
+            // e.g., `our <: ref[x]` for any `x`.
+            //
+            // So an *owned* lower bound (e.g., `our`)
+            // does not imply the result is owned,
+            // as a second lower bound that is lent (e.g., `ref[x]`) could
+            // come later, and the lub of `our` and `ref[x]` is `ref[x]`.
+            //
+            // Similarly, a non-owned upper bound (e.g., `ref[x]`)
+            // does not imply the result is NOT owned,
+            // as a second upper bound that IS owned (e.g., `our) could
+            // come later, and the glb of `our` and `ref[x]` is `our`.
+            //
+            // However, a *non-owned* lower bound (e.g., `ref[X]` or `perm X`)
+            // DOES imply the result cannot be owned. Even if an owned lower bound
+            // comes later, the lub will still not be owned.
+            //
+            // Conversely, an *owned* upper bound (e.g., `our`)
+            // implies the result MUST be owned.  Even if a lent upper bound
+            // comes later, the glb will still be owned.
+            let mut bounds = env.term_bounds(infer, None);
+            while let Some((direction, bound)) = bounds.next(env).await {
+                match direction {
+                    Direction::FromBelow
+                        if term_is_provably(env, bound, Predicate::Lent).await? =>
+                    {
+                        return Ok(false);
+                    }
+
+                    Direction::FromAbove
+                        if term_is_provably(env, bound, Predicate::Owned).await? =>
+                    {
+                        return Ok(true);
+                    }
+
+                    _ => {
+                        // Not clear yet whether result is true or false.
+                        //
+                        // FIXME: We could "fail faster" than this in some cases.
+                        // For example, given a lower bound of `perm X` (not `owned perm X`)
+                        // we can be sure that it will never be tightened to anything `owned`,
+                        // but for now we wait until the end to return `false`.
+                    }
+                }
+            }
+            Ok(false)
+        }
+    }
 }
 
-fn defer_require_bounds_provably_predicate<'db>(
-    env: &mut Env<'db>,
+fn report_type_annotations_needed<'db>(
+    env: &Env<'db>,
     infer: InferVarIndex,
     predicate: Predicate,
-    or_else: ArcOrElse<'db>,
-) {
-    let perm_infer = env.perm_infer(infer);
-    env.spawn(
-        TaskDescription::RequireBoundsProvablyPredicate(infer, predicate),
-        async move |env| match predicate {
-            Predicate::Copy => {
-                env.require_for_all_infer_bounds(
-                    perm_infer,
-                    InferenceVarData::upper_chains,
-                    async |env, chain| require_chain_is_copy(env, &chain, &or_else).await,
-                )
-                .await
-            }
-            Predicate::Move => {
-                env.require_for_all_infer_bounds(
-                    perm_infer,
-                    InferenceVarData::lower_chains,
-                    async |env, chain| require_chain_is_move(env, &chain, &or_else).await,
-                )
-                .await
-            }
-            Predicate::Owned => {
-                env.require_for_all_infer_bounds(
-                    perm_infer,
-                    InferenceVarData::lower_chains,
-                    async |env, chain| require_chain_is_owned(env, &chain, &or_else).await,
-                )
-                .await
-            }
-            Predicate::Lent => {
-                env.require_for_all_infer_bounds(
-                    perm_infer,
-                    InferenceVarData::upper_chains,
-                    async |env, chain| require_chain_is_lent(env, &chain, &or_else).await,
-                )
-                .await
-            }
-        },
-    );
-}
-
-fn defer_require_bounds_not_provably_predicate<'db>(
-    env: &mut Env<'db>,
-    infer: InferVarIndex,
-    predicate: Predicate,
-    or_else: ArcOrElse<'db>,
-) {
-    env.spawn(
-        TaskDescription::RequireBoundsNotProvablyPredicate(infer, predicate),
-        async move |env| match predicate {
-            Predicate::Copy => {
-                env.require_for_all_infer_bounds(
-                    infer,
-                    InferenceVarData::upper_chains,
-                    async |env, chain| {
-                        require_chain_isnt_provably_copy(env, &chain, &or_else).await
-                    },
-                )
-                .await
-            }
-            Predicate::Move => {
-                todo!()
-            }
-            Predicate::Owned => {
-                todo!()
-            }
-            Predicate::Lent => {
-                todo!()
-            }
-        },
-    );
+) -> Reported {
+    let db = env.db();
+    let span = env.infer_var_span(infer);
+    env.report(
+    Diagnostic::error(db, span, "type annotation needed")
+        .label(
+            db,
+            Level::Error,
+            span,
+            "I could not infer the correct type here, can you annotate it?",
+        )
+        .child(Diagnostic::info(
+            db,
+            span,
+            format!(
+                "I was trying to figure out whether the type was `{predicate}` and I got stuck :("
+            ),
+        ))
+    )
 }
