@@ -134,21 +134,6 @@ impl<'db> SymFunctionSource<'db> {
             ),
         }
     }
-
-    fn populate_signature_symbols(
-        self,
-        db: &'db dyn crate::Db,
-        symbols: &mut SignatureSymbols<'db>,
-    ) {
-        match self {
-            Self::Function(ast_function) => ast_function.populate_signature_symbols(db, symbols),
-            Self::Constructor(..) => {
-                self.inputs(db)
-                    .iter()
-                    .for_each(|i| i.populate_signature_symbols(db, symbols));
-            }
-        }
-    }
 }
 
 /// Set of effects that can be declared on the function.

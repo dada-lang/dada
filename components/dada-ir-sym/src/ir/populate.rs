@@ -5,6 +5,8 @@ use dada_ir_ast::ast::{
 
 use crate::{ir::functions::SignatureSymbols, ir::types::AnonymousPermSymbol, prelude::Symbol};
 
+use super::functions::SymFunctionSource;
+
 /// Iterate over the items in a signature (function, class, impl, etc)
 /// and create the symbols for generic types and/or parameters declared within.
 ///
@@ -147,5 +149,22 @@ impl<'db> PopulateSignatureSymbols<'db> for AstAggregate<'db> {
             .iter()
             .flatten()
             .for_each(|g| g.populate_signature_symbols(db, symbols));
+    }
+}
+
+impl<'db> PopulateSignatureSymbols<'db> for SymFunctionSource<'db> {
+    fn populate_signature_symbols(
+        &self,
+        db: &'db dyn crate::Db,
+        symbols: &mut SignatureSymbols<'db>,
+    ) {
+        match self {
+            Self::Function(ast_function) => ast_function.populate_signature_symbols(db, symbols),
+            Self::Constructor(..) => {
+                self.inputs(db)
+                    .iter()
+                    .for_each(|i| i.populate_signature_symbols(db, symbols));
+            }
+        }
     }
 }
