@@ -11,10 +11,43 @@ use dada_ir_sym::{
     prelude::{CheckedBody, Symbol},
 };
 
+/// Probe for the type of an expression found in a given file at a given span.
+/// Returns the type of the smallest expression that contains the given span.
+pub fn probe_expression_type<'db>(db: &'db dyn crate::Db, span: AbsoluteSpan) -> Option<String> {
+    // First find the smallest expression containing the span
+    let expr = find_smallest_containing_expr(db, span)?;
+
+    // Return its type as a string
+    Some(expr.ty(db).to_string())
+}
+
+/// Helper function to find the smallest expression that contains the given span
+fn find_smallest_containing_expr<'db>(
+    db: &'db dyn crate::Db,
+    span: AbsoluteSpan,
+) -> Option<SymExpr<'db>> {
+    let mut result = None;
+    let mut smallest_size = usize::MAX;
+
+    visit_exprs(db, span, &mut |expr| {
+        let expr_span = expr.source_span(db).absolute_span(db);
+        if expr_span.contains(span) {
+            let size = expr_span.end.as_usize() - expr_span.start.as_usize();
+            if size < smallest_size {
+                result = Some(expr);
+                smallest_size = size;
+            }
+        }
+        ControlFlow::<()>::Continue(())
+    });
+
+    result
+}
+
 /// Probe for the type of a variable found in a given file at a given span.
 pub fn probe_variable_type<'db>(db: &'db dyn crate::Db, span: AbsoluteSpan) -> Option<String> {
     // We expect `span` to be located in
-    visit_exprs(db, span, &|expr| {
+    visit_exprs(db, span, &mut |expr| {
         if let SymExprKind::LetIn {
             lv,
             ty,
@@ -54,7 +87,7 @@ fn find_func<'db>(db: &'db dyn crate::Db, span: AbsoluteSpan) -> Option<SymFunct
 fn visit_exprs<'db, B>(
     db: &'db dyn crate::Db,
     span: AbsoluteSpan,
-    op: &dyn Fn(SymExpr<'db>) -> ControlFlow<B>,
+    op: &mut dyn FnMut(SymExpr<'db>) -> ControlFlow<B>,
 ) -> Option<B> {
     let func = find_func(db, span)?;
     let expr = func.checked_body(db)?;
@@ -65,7 +98,7 @@ fn walk_expr_and_visit<'db, B>(
     db: &'db dyn crate::Db,
     expr: SymExpr<'db>,
     span: AbsoluteSpan,
-    op: &dyn Fn(SymExpr<'db>) -> ControlFlow<B>,
+    op: &mut dyn FnMut(SymExpr<'db>) -> ControlFlow<B>,
 ) -> Option<B> {
     if !expr.source_span(db).absolute_span(db).contains(span) {
         return None;
