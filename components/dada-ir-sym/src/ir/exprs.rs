@@ -32,9 +32,17 @@ use serde::Serialize;
 #[derive(SalsaSerialize)]
 #[salsa::tracked(debug)]
 pub struct SymExpr<'db> {
+    /// Span of this expression in the source file.
+    ///
+    /// This must represent the entire expression for
+    /// IDE integration to work, as we use it to compute
+    /// hover information and things like that.
     pub span: Span<'db>,
+
+    /// Type of the value produced by this expression.
     pub ty: SymTy<'db>,
 
+    /// Expression kind.
     #[return_ref]
     pub kind: SymExprKind<'db>,
 }

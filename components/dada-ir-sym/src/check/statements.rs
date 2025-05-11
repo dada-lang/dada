@@ -62,9 +62,10 @@ pub async fn check_block_statements<'db>(
                 .await;
 
             // Create `let lv: ty = lv = initializer; remainder`
+            let span = s.span(db).to(db, body.span(db));
             SymExpr::new(
                 db,
-                s.name(db).span,
+                span,
                 body.ty(db),
                 SymExprKind::LetIn {
                     lv,

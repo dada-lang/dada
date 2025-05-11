@@ -277,7 +277,7 @@ impl<'db> Parse<'db> for AstLetStatement<'db> {
         db: &'db dyn crate::Db,
         parser: &mut Parser<'_, 'db>,
     ) -> Result<Option<Self::Output>, crate::ParseFail<'db>> {
-        let Ok(_) = parser.eat_keyword(Keyword::Let) else {
+        let Ok(let_span) = parser.eat_keyword(Keyword::Let) else {
             return Ok(None);
         };
         let mutable = parser.eat_keyword(Keyword::Mut).ok();
@@ -286,6 +286,7 @@ impl<'db> Parse<'db> for AstLetStatement<'db> {
         let initializer = AstExpr::opt_parse_guarded(operator::EQ, db, parser)?;
         Ok(Some(AstLetStatement::new(
             db,
+            let_span.to(db, parser.last_span()),
             mutable,
             name,
             ty,
