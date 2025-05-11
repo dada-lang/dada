@@ -61,10 +61,12 @@ impl<'db> PopulateSignatureSymbols<'db> for AstPerm<'db> {
     ) {
         match self.kind(db) {
             AstPermKind::Referenced(Some(_))
-            | AstPermKind::Leased(Some(_))
+            | AstPermKind::Mutable(Some(_))
             | AstPermKind::Given(Some(_)) => (),
 
-            AstPermKind::Referenced(None) | AstPermKind::Leased(None) | AstPermKind::Given(None) => {
+            AstPermKind::Referenced(None)
+            | AstPermKind::Mutable(None)
+            | AstPermKind::Given(None) => {
                 symbols
                     .generic_variables
                     .push(self.anonymous_perm_symbol(db));

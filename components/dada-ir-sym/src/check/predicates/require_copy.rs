@@ -130,8 +130,8 @@ async fn require_perm_is_copy<'db>(
 
         SymPermKind::Referenced(_) => Ok(()),
 
-        SymPermKind::Leased(ref places) => {
-            // For a leased[p] to be copy, all the places in `p` must have copy permission.
+        SymPermKind::Mutable(ref places) => {
+            // For a mutable[p] to be copy, all the places in `p` must have copy permission.
             env.require_for_all(places, async |env, &place| {
                 require_place_is_copy(env, place, or_else).await
             })

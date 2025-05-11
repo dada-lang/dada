@@ -128,7 +128,7 @@ impl<'cx, 'db> ExprCodegen<'cx, 'db> {
             SymExprKind::PermissionOp(permission_op, object_place_expr) => {
                 let wasm_place_repr = self.place(object_place_expr);
                 match permission_op {
-                    PermissionOp::Lease => {
+                    PermissionOp::Mutate => {
                         self.push_leased_from(&wasm_place_repr);
                     }
 

@@ -25,9 +25,9 @@ use crate::{
 // * `my <= C`
 // * `our <= C1 if C1 is copy`
 // * `(our C0) <= (our C1) if C0 <= C1`
-// * `(leased[place0] C0) <= (leased[place1] C1) if place1 <= place0 && C0 <= C1`
+// * `(mutable[place0] C0) <= (mutable[place1] C1) if place1 <= place0 && C0 <= C1`
 // * `(shared[place0] C0) <= (shared[place1] C1) if place1 <= place0 && C0 <= C1`
-// * `(shared[place0] C0) <= (our C1) if (leased[place0] C0) <= C1`
+// * `(shared[place0] C0) <= (our C1) if (mutable[place0] C0) <= C1`
 // * `X C0 <= X C1 if C0 <= C1`
 // * `X <= our if X is copy+owned`
 // * `X <= my if X is move+owned`

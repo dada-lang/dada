@@ -332,8 +332,8 @@ impl<'db> Parse<'db> for PermissionOp {
     ) -> Result<Option<Self::Output>, crate::ParseFail<'db>> {
         if parser.eat_keyword(Keyword::Give).is_ok() {
             Ok(Some(PermissionOp::Give))
-        } else if parser.eat_keyword(Keyword::Lease).is_ok() {
-            Ok(Some(PermissionOp::Lease))
+        } else if parser.eat_keyword(Keyword::Mut).is_ok() {
+            Ok(Some(PermissionOp::Mutate))
         } else if parser.eat_keyword(Keyword::Ref).is_ok() {
             Ok(Some(PermissionOp::Reference))
         } else {

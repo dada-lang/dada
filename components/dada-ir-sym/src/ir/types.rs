@@ -241,7 +241,7 @@ impl<'db> SymGenericTerm<'db> {
                 SymPermKind::My
                 | SymPermKind::Our
                 | SymPermKind::Referenced(_)
-                | SymPermKind::Leased(_)
+                | SymPermKind::Mutable(_)
                 | SymPermKind::Var(_)
                 | SymPermKind::Error(_)
                 | SymPermKind::Or(..)
@@ -353,11 +353,11 @@ impl<'db> SymTy<'db> {
         )
     }
 
-    /// Returns a version of this type leased from `place`.
-    pub fn leased(self, db: &'db dyn Db, place: SymPlace<'db>) -> Self {
+    /// Returns a version of this type mutable from `place`.
+    pub fn mutable(self, db: &'db dyn Db, place: SymPlace<'db>) -> Self {
         SymTy::new(
             db,
-            SymTyKind::Perm(SymPerm::new(db, SymPermKind::Leased(vec![place])), self),
+            SymTyKind::Perm(SymPerm::new(db, SymPermKind::Mutable(vec![place])), self),
         )
     }
 }
@@ -508,9 +508,9 @@ impl<'db> SymPerm<'db> {
         SymPerm::new(db, SymPermKind::Referenced(places))
     }
 
-    /// Returns a permission `leased` with the given places.
-    pub fn leased(db: &'db dyn crate::Db, places: Vec<SymPlace<'db>>) -> Self {
-        SymPerm::new(db, SymPermKind::Leased(places))
+    /// Returns a permission `mutable` with the given places.
+    pub fn mutable(db: &'db dyn crate::Db, places: Vec<SymPlace<'db>>) -> Self {
+        SymPerm::new(db, SymPermKind::Mutable(places))
     }
 
     /// Returns a generic permission with the given generic variable `var`.
@@ -518,7 +518,7 @@ impl<'db> SymPerm<'db> {
         SymPerm::new(db, SymPermKind::Var(var))
     }
 
-    /// Returns a permission `perm1 perm2` (e.g., `shared[x] leased[y]`).
+    /// Returns a permission `perm1 perm2` (e.g., `shared[x] mutable[y]`).
     pub fn apply(db: &'db dyn crate::Db, perm1: SymPerm<'db>, perm2: SymPerm<'db>) -> Self {
         SymPerm::new(db, SymPermKind::Apply(perm1, perm2))
     }
@@ -577,8 +577,8 @@ impl std::fmt::Display for SymPerm<'_> {
                     }
                     write!(f, "]")
                 }
-                SymPermKind::Leased(places) => {
-                    write!(f, "leased[")?;
+                SymPermKind::Mutable(places) => {
+                    write!(f, "mutable[")?;
                     for (i, place) in places.iter().enumerate() {
                         if i > 0 {
                             write!(f, ", ")?;
@@ -630,10 +630,10 @@ pub enum SymPermKind<'db> {
     /// `ref[x]`
     Referenced(Vec<SymPlace<'db>>),
 
-    /// `leased[x]`
-    Leased(Vec<SymPlace<'db>>),
+    /// `mutable[x]`
+    Mutable(Vec<SymPlace<'db>>),
 
-    /// `perm1 perm2` (e.g., `shared[x] leased[y]`)
+    /// `perm1 perm2` (e.g., `shared[x] mutable[y]`)
     Apply(SymPerm<'db>, SymPerm<'db>),
 
     /// An inference variable (e.g., `?X`).
@@ -775,17 +775,17 @@ pub(crate) trait AnonymousPermSymbol<'db> {
     fn anonymous_perm_symbol(self, db: &'db dyn crate::Db) -> SymVariable<'db>;
 }
 
-/// Create the generic symbol for an anonymous permission like `shared T` or `leased T`.
+/// Create the generic symbol for an anonymous permission like `shared T` or `mutable T`.
 /// This is desugared into the equivalent of `(perm:shared) T`.
 ///
-/// Tracked so that it occurs at most once per `shared|leased|given` declaration.
+/// Tracked so that it occurs at most once per `shared|mutable|given` declaration.
 #[salsa::tracked]
 impl<'db> AnonymousPermSymbol<'db> for AstPerm<'db> {
     #[salsa::tracked]
     fn anonymous_perm_symbol(self, db: &'db dyn crate::Db) -> SymVariable<'db> {
         match self.kind(db) {
             AstPermKind::Referenced(None)
-            | AstPermKind::Leased(None)
+            | AstPermKind::Mutable(None)
             | AstPermKind::Given(None) => {
                 SymVariable::new(db, SymGenericKind::Perm, None, self.span(db))
             }
@@ -793,7 +793,7 @@ impl<'db> AnonymousPermSymbol<'db> for AstPerm<'db> {
             | AstPermKind::Variable(_)
             | AstPermKind::GenericDecl(_)
             | AstPermKind::Referenced(Some(_))
-            | AstPermKind::Leased(Some(_))
+            | AstPermKind::Mutable(Some(_))
             | AstPermKind::Given(Some(_))
             | AstPermKind::My => {
                 panic!("`anonymous_perm_symbol` invoked on inappropriate perm: {self:?}")
@@ -841,7 +841,7 @@ pub enum AssumptionKind {
     Lent,
     Referenced,
     Move,
-    Leased,
+    Mutable,
     Owned,
     Copy,
     My,

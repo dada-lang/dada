@@ -103,8 +103,6 @@ keywords! {
         False = "false",
         Fn = "fn",
         If = "if",
-        Lease = "lease",
-        Leased = "leased",
         Lent = "lent",
         Let = "let",
         Move = "move",

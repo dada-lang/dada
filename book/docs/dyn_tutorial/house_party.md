@@ -6,16 +6,16 @@ Given that you can
 -   lease an object `m` via `m.lease`,
 -   and share an object `m` via `m.ref`
 
-you may be wondering what would happen if were to _share_ a _leased object_. I.e., what would happen if you did `m.lease.ref`? The answer is that you get back a shleased reference, but there is a subtle difference between `m.shlease` and `m.lease.ref`. It has to do with the way that `m` can terminate the shlease. Let's explore!
+you may be wondering what would happen if were to _share_ a _leased object_. I.e., what would happen if you did `m.mut.ref`? The answer is that you get back a shleased reference, but there is a subtle difference between `m.shlease` and `m.mut.ref`. It has to do with the way that `m` can terminate the shlease. Let's explore!
 
 ## Sharing a lease
 
-Let's start by looking at `m.lease.ref` in detail. Consider this example:
+Let's start by looking at `m.mut.ref` in detail. Consider this example:
 
 ```
 class Pair(a: our, b: our)
 let m: my = Pair(22, 44)
-let l: leased = m.lease
+let l: mutable = m.lease
 let s: shleased = l.ref
 ```
 
@@ -24,7 +24,7 @@ As you can see, sharing the lease `l` results in a `shleased` variable `s`. Try 
 ```
 class Pair(our a, our b)
 let m: my = Pair(22, 44)
-let l: leased = m.lease
+let l: mutable = m.lease
 let s: shleased = l.ref
 #                   ▲
 # ──────────────────┘
@@ -34,13 +34,13 @@ let s: shleased = l.ref
 # ┌───┐            ┌───────┐
 # │ m ├╌my╌╌╌╌╌╌╌╌►│ Pair  │
 # │   │            │ ───── │
-# │ l ├╌leased╌╌╌╌►│ a: 22 │
+# │ l ├╌mutable╌╌╌╌►│ a: 22 │
 # │   │            │ b: 44 │
 # │ s ├─shleased──►│       │
 # └───┘            └───────┘
 ```
 
-As you can see, the object `m` is considered leased via an ordinary, exclusive lease to `l`. `l` is then in turn the lessor on a [sublease](./sublease.md), or rather, a sub*sh*lease, to `s`. This is interesting because leases and shleases are canceled in different ways:
+As you can see, the object `m` is considered mutable via an ordinary, exclusive lease to `l`. `l` is then in turn the lessor on a [sublease](./sublease.md), or rather, a sub*sh*lease, to `s`. This is interesting because leases and shleases are canceled in different ways:
 
 -   A _lease_ is canceled if the lessor accesses the object **in any way**.
 -   A _shlease_ is canceled if the lessor **writes to the object**.
@@ -50,7 +50,7 @@ This means that if `m` reads from the object, that will cancel `l`, which will i
 ```
 class Pair(a: our, b: our)
 let m: my = Pair(22, 44)
-let l: leased = m.lease
+let l: mutable = m.lease
 let s: shleased = l.ref
 
 print(m.a).await           # Reads from `m`, canceling `l` and `s`
@@ -105,5 +105,5 @@ print(s.a).await           # Error!
 
 As you can see, there is a subtle difference between having a _shared sublease of a lease_ and having a _shlease_:
 
--   In the first case, the person who leased the object was still promised unique access, but they have then chosen to share that unique access with others. This doesn't give access to the original owner though!
+-   In the first case, the person who mutable the object was still promised unique access, but they have then chosen to share that unique access with others. This doesn't give access to the original owner though!
 -   In the _second_ case, the owner granted a shlease, which only promises that the object will not be mutated while the shlease is active. This means that the owner can continue to read from the object without canceling the shlease. It's only when the owner goes to mutate the object that the shlease is canceled.

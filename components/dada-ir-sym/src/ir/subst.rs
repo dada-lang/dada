@@ -294,9 +294,9 @@ impl<'db> SubstWith<'db, SymGenericTerm<'db>> for SymPerm<'db> {
                         .collect(),
                 ),
             ),
-            SymPermKind::Leased(vec) => SymPerm::new(
+            SymPermKind::Mutable(vec) => SymPerm::new(
                 db,
-                SymPermKind::Leased(
+                SymPermKind::Mutable(
                     vec.iter()
                         .map(|g| g.subst_with(db, bound_vars, subst_fns))
                         .collect(),

@@ -24,11 +24,11 @@ In Dada, variables don't just store a reference to an object, like they do in Py
 Permissions in Dada can be divided across two axes. We'll cover those two axes separately:
 
 -   **Read** vs **write** -- covered now!
--   **Owned** vs **leased** -- covered later, in the chapters on ownership
+-   **Owned** vs **mutable** -- covered later, in the chapters on ownership
 
 ## Read permission is the default
 
-When you write something like `let q = p` in Dada, the default is that you get a **leased, read permission**. Leasing will be covered in more detail later, but for now it suffices to say that the permission for `q` is tied to the permission from `p`; when `p` goes out of scope, for example, then `q`'s permission will also be canceled.
+When you write something like `let q = p` in Dada, the default is that you get a **mutable, read permission**. Leasing will be covered in more detail later, but for now it suffices to say that the permission for `q` is tied to the permission from `p`; when `p` goes out of scope, for example, then `q`'s permission will also be canceled.
 
 As the name suggests, **read permissions** can only be used to read fields. This is why we get an error!
 

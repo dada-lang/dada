@@ -816,7 +816,7 @@ async fn check_expr<'db>(
                         db,
                         expr_span,
                         match op {
-                            PermissionOp::Lease => place_expr.ty(db).leased(db, sym_place),
+                            PermissionOp::Mutate => place_expr.ty(db).mutable(db, sym_place),
                             PermissionOp::Reference => place_expr.ty(db).referenced(db, sym_place),
                             PermissionOp::Give => place_expr.ty(db),
                         },

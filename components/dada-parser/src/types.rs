@@ -216,12 +216,12 @@ impl<'db> Parse<'db> for KeywordPerm {
                 tokens,
                 AstPermKind::Referenced,
             )?))
-        } else if let Ok(span) = tokens.eat_keyword(Keyword::Leased) {
+        } else if let Ok(span) = tokens.eat_keyword(Keyword::Mut) {
             Ok(Some(parse_path_perm(
                 db,
                 span,
                 tokens,
-                AstPermKind::Leased,
+                AstPermKind::Mutable,
             )?))
         } else if let Ok(span) = tokens.eat_keyword(Keyword::Given) {
             Ok(Some(parse_path_perm(db, span, tokens, AstPermKind::Given)?))

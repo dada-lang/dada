@@ -87,7 +87,7 @@ pub(crate) async fn perm_is_provably_lent<'db>(
         SymPermKind::Error(reported) => Err(reported),
         SymPermKind::My => Ok(false),
         SymPermKind::Our => Ok(false),
-        SymPermKind::Referenced(ref places) | SymPermKind::Leased(ref places) => {
+        SymPermKind::Referenced(ref places) | SymPermKind::Mutable(ref places) => {
             // This one is tricky. If the places are copy,
             // then we will reduce to their chains, but then
             // we would be lent if they are lent; but if they are not

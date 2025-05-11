@@ -328,7 +328,7 @@ impl<'db> ToRedLinkVecs<'db> for SymPerm<'db> {
                     .collect::<Vec<_>>();
                 consumer.consume(env, links).await
             }
-            SymPermKind::Leased(ref places) => {
+            SymPermKind::Mutable(ref places) => {
                 let links = places
                     .iter()
                     .map(|&place| RedLink::Mut(Live(live_after.is_live(env, place)), place))

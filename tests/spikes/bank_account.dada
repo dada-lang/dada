@@ -52,17 +52,17 @@ class Account(name: my String, mut amount: Amount) {
         self.amount.is_negative()
     }
 
-    fn deposit(leased self, amount: Amount) {
+    fn deposit(mut self, amount: Amount) {
         self.amount = self.amount.plus(amount)
     }
 
-    fn withdraw(leased self, amount: Amount) {
+    fn withdraw(mut self, amount: Amount) {
         self.amount = self.amount.minus(amount)
     }
 
-    fn transfer_to(leased self, account: leased Account, amount: Amount) {
-        self.lease.withdraw(amount)
-        account.lease.deposit(amount)
+    fn transfer_to(mut self, account: mut Account, amount: Amount) {
+        self.mut.withdraw(amount)
+        account.mut.deposit(amount)
     }
 }
 
@@ -74,10 +74,10 @@ async fn main() {
     print("Accounts: Jackson {jackson} Jill {jill} Jack {jack}").await
 
     # First Jackson transfers $22 to Jill -- oh, shoot, he's broke!
-    jackson.lease.transfer_to(jill.lease, Amount(true, 22))
+    jackson.mut.transfer_to(jill.mut, Amount(true, 22))
     print("Accounts: Jackson {jackson} Jill {jill} Jack {jack}").await
 
     # Then his parent Jack transfers $22 to Jack. Much better!
-    jack.lease.transfer_to(jackson.lease, Amount(true, 22))
+    jack.mut.transfer_to(jackson.mut, Amount(true, 22))
     print("Accounts: Jackson {jackson} Jill {jill} Jack {jack}").await
 }

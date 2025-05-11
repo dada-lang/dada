@@ -20,8 +20,8 @@ pub mod sub;
 
 /// A "lien chain" is a list of permissions by which some data may have been reached.
 /// An empty lien chain corresponds to owned data (`my`, in surface Dada syntax).
-/// A lien chain like `shared[p] leased[q]` would correspond to data shared from a variable `p`
-/// which in turn had data leased from `q` (which in turn owned the data).
+/// A lien chain like `ref[p] mut[q]` would correspond to data referencing a variable `p`
+/// which in turn had data mutable from `q` (which in turn owned the data).
 #[derive(SalsaSerialize)]
 #[salsa::interned(debug)]
 pub(crate) struct RedPerm<'db> {
@@ -192,7 +192,7 @@ impl<'db> RedLink<'db> {
         match self {
             RedLink::Our => SymPerm::our(db),
             RedLink::Ref(_, place) => SymPerm::referenced(db, vec![place]),
-            RedLink::Mut(_, place) => SymPerm::leased(db, vec![place]),
+            RedLink::Mut(_, place) => SymPerm::mutable(db, vec![place]),
             RedLink::Var(v) => SymPerm::var(db, v),
             RedLink::Err(reported) => SymPerm::err(db, reported),
         }

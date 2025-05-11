@@ -275,13 +275,13 @@ impl<'db> CheckTyInEnv<'db> for AstPerm<'db> {
                 let places = paths_to_sym_places(env, paths).await;
                 SymPerm::new(db, SymPermKind::Referenced(places))
             }
-            AstPermKind::Leased(Some(ref paths)) => {
+            AstPermKind::Mutable(Some(ref paths)) => {
                 let places = paths_to_sym_places(env, paths).await;
-                SymPerm::new(db, SymPermKind::Leased(places))
+                SymPerm::new(db, SymPermKind::Mutable(places))
             }
             AstPermKind::Given(Some(ref _span_vec)) => todo!(),
             AstPermKind::Referenced(None)
-            | AstPermKind::Leased(None)
+            | AstPermKind::Mutable(None)
             | AstPermKind::Given(None) => {
                 let sym_var = self.anonymous_perm_symbol(db);
                 SymPerm::var(db, sym_var)

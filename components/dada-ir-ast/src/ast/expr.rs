@@ -109,7 +109,7 @@ pub enum AstExprKind<'db> {
 
 #[derive(Copy, Clone, PartialEq, Eq, PartialOrd, Ord, Hash, Update, Debug, Serialize)]
 pub enum PermissionOp {
-    Lease,
+    Mutate,
     Reference,
     Give,
 }

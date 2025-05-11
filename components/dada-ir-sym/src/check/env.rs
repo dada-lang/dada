@@ -140,7 +140,7 @@ impl<'db> Env<'db> {
             Predicate::Move => self.assumed(var, |kind| {
                 matches!(
                     kind,
-                    AssumptionKind::Move | AssumptionKind::My | AssumptionKind::Leased
+                    AssumptionKind::Move | AssumptionKind::My | AssumptionKind::Mutable
                 )
             }),
             Predicate::Owned => self.assumed(var, |kind| {
@@ -152,7 +152,7 @@ impl<'db> Env<'db> {
             Predicate::Lent => self.assumed(var, |kind| {
                 matches!(
                     kind,
-                    AssumptionKind::Lent | AssumptionKind::Leased | AssumptionKind::Referenced
+                    AssumptionKind::Lent | AssumptionKind::Mutable | AssumptionKind::Referenced
                 )
             }),
         };
@@ -480,7 +480,7 @@ impl<'db> Env<'db> {
         );
     }
 
-    /// Check if the given (perm, type) variable is declared as leased.
+    /// Check if the given (perm, type) variable is declared as mutable.
     #[expect(dead_code)]
     pub fn is_leased_var(&self, _var: SymVariable<'db>) -> bool {
         false // FIXME

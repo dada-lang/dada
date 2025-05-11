@@ -5,11 +5,11 @@ We've nearly completed our tour of Dada's permissions. It's time to visit the la
 |            | Unique                 | Shared               |
 | ---------- | ---------------------- | -------------------- |
 | Owned      | [`my`](./my.md)        | [`our`](./our.md)    |
-| **Leased** | [`leased`](./lease.md) | ⭐ **`shleased`** ⭐ |
+| **Mutable** | [`mutable`](./lease.md) | ⭐ **`shleased`** ⭐ |
 
-A shlease[^pronounced] is a _shared lease_ and it combines attributes of a `leased` value and an `our` value:
+A shlease[^pronounced] is a _shared lease_ and it combines attributes of a `mutable` value and an `our` value:
 
--   Like a `leased` permission, `shleased` permissions are _temporary_. The lessor can terminate the shlease and reclaim their full permission.
+-   Like a `mutable` permission, `shleased` permissions are _temporary_. The lessor can terminate the shlease and reclaim their full permission.
 -   Like an `our` permission, `shleased` permissions are _shared_. They can be copied freely, and hence -- because [friends don't let friends mutate shared data](./sharing_xor_mutation.md) -- shleased objects are read-only so long as the shlease lasts.
 
 [^pronounced]: Pronounced "shlease".

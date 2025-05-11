@@ -88,7 +88,7 @@ pub(crate) async fn perm_is_provably_copy<'db>(
         SymPermKind::Error(reported) => Err(reported),
         SymPermKind::My => Ok(false),
         SymPermKind::Our | SymPermKind::Referenced(_) => Ok(true),
-        SymPermKind::Leased(ref places) => places_are_ktb_copy(env, places).await,
+        SymPermKind::Mutable(ref places) => places_are_ktb_copy(env, places).await,
         SymPermKind::Apply(lhs, rhs) => {
             Ok(application_is_provably_copy(env, lhs.into(), rhs.into()).await?)
         }

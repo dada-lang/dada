@@ -12,7 +12,7 @@ The `my` permission is in many ways the most basic. It declares that a variable 
 
 ## Ownership vs leasing
 
-In many ways, owned permissions ought to be familiar to you, because they are most like other languages. In Java or JavaScript, for example, if you have access to an object, you have a kind of "ownership" over it -- you can keep using it as long as you like, or copy it to other variables. In Dada, that's not a given. Owned permissions are permanent, but the leased permissions we'll see later can be canceled.
+In many ways, owned permissions ought to be familiar to you, because they are most like other languages. In Java or JavaScript, for example, if you have access to an object, you have a kind of "ownership" over it -- you can keep using it as long as you like, or copy it to other variables. In Dada, that's not a given. Owned permissions are permanent, but the mutable permissions we'll see later can be canceled.
 
 ## Unique: me and nobody else
 
