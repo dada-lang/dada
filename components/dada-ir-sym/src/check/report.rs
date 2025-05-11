@@ -192,10 +192,6 @@ pub enum Because<'db> {
     /// program that caused a conflict with the current value
     InferredPermBound(Direction, RedPerm<'db>, ArcOrElse<'db>),
 
-    /// Inference determined that the variable cannot be
-    /// known to be `Predicate` "or else" the given error would occur.
-    InferredIsnt(Predicate, ArcOrElse<'db>),
-
     /// Inference determined that the variable must have
     /// this lower bound "or else" the given error would occur.
     InferredLowerBound(RedTy<'db>, ArcOrElse<'db>),
@@ -295,17 +291,6 @@ impl<'db> Because<'db> {
                     )
                     .child(or_else_diagnostic),
                 )
-            }
-            Because::InferredIsnt(predicate, or_else) => {
-                let or_else_diagnostic = or_else.or_else(env, Because::JustSo);
-                Some(Diagnostic::info(
-                        db,
-                        span,
-                        format!(
-                            "I inferred that `{predicate}` must not be true because otherwise it would cause this error"
-                        ),
-                    )
-                    .child(or_else_diagnostic))
             }
             Because::InferredLowerBound(red_ty, or_else) => {
                 let or_else_diagnostic = or_else.or_else(env, Because::JustSo);

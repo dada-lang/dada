@@ -15,8 +15,7 @@ use crate::{
     ir::{
         classes::SymAggregateStyle,
         indices::{FromInfer, InferVarIndex},
-        types::{SymGenericKind, SymGenericTerm, SymPerm, SymTy, SymTyKind, SymTyName, Variance},
-        variables,
+        types::{SymGenericKind, SymGenericTerm, SymPerm, SymTy, SymTyKind, SymTyName},
     },
 };
 

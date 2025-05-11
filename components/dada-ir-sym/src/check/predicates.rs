@@ -1,3 +1,5 @@
+#![expect(dead_code)]
+
 pub mod is_provably_copy;
 pub mod is_provably_lent;
 pub mod is_provably_move;

@@ -36,6 +36,40 @@ pub struct TestExpectations {
     expected_diagnostics: Vec<ExpectedDiagnostic>,
     fn_asts: bool,
     codegen: bool,
+    probes: Vec<Probe>,
+}
+
+/// A "probe" is a test where we inspect some piece of compiler state
+/// at a particular location, for example, to find out the inferred
+/// type of a variable or expression.
+///
+/// Probes are denoted with `#? kind: expected` or `#? ^^^ kind: expected`.
+///
+/// The first syntax indicates the probe occurs at the column of the `#`.
+///
+/// The second syntax indicates a probe with a span.
+///
+/// The "kind" is some string matching `[a-z_]+` indicating the sort of probe
+/// to perform.
+///
+/// The "expected" part is a string (or `/string` for a regular expression)
+/// that the probe should return.
+#[derive(Clone, Debug)]
+pub struct Probe {
+    /// Location of the probe.
+    pub span: AbsoluteSpan,
+
+    /// Kind of probe.
+    pub kind: ProbeKind,
+
+    /// Message expected
+    pub message: Regex,
+}
+
+#[derive(Copy, Clone, Debug)]
+pub enum ProbeKind {
+    /// Tests the type of the variable declared here
+    VariableType,
 }
 
 enum Bless {
@@ -49,7 +83,15 @@ lazy_static::lazy_static! {
 }
 
 lazy_static::lazy_static! {
-    static ref DIAGNOSTIC_RE: Regex = Regex::new(r"^(?P<pre>[^#]*)#!(?P<pad>\s*)(?P<col>\^+)?(?P<re> /)?\s*(?P<msg>.*)").unwrap();
+    static ref DIAGNOSTIC_RE: Regex = Regex::new(r"^(?P<pre>[^#]*)#!(?P<pad>\s*)(?P<col>\^+)?\s*(?P<re>/)?(?P<msg>.*)").unwrap();
+}
+
+lazy_static::lazy_static! {
+    static ref PROBE_RE: Regex = Regex::new(r"^(?P<pre>[^#]*)#\?(?P<pad>\s*)(?P<col>\^+)?\s+(?P<kind>[A-Za-z_]+):\s*(?P<re>/)?(?P<msg>.*)").unwrap();
+}
+
+lazy_static::lazy_static! {
+    static ref ERROR_RE: Regex = Regex::new(r"^(?P<pre>[^#]*)(?<suspicious>#[^ a-zA-Z0-9])").unwrap();
 }
 
 impl TestExpectations {
@@ -71,6 +113,7 @@ impl TestExpectations {
             expected_diagnostics: vec![],
             fn_asts: false,
             codegen: true,
+            probes: vec![],
         };
         expectations.initialize(db)?;
         Ok(expectations)
@@ -117,49 +160,112 @@ impl TestExpectations {
             }
 
             // Check if this line contains an expected diagnostic.
-            let Some(c) = DIAGNOSTIC_RE.captures(line) else {
-                continue;
-            };
+            if let Some(c) = DIAGNOSTIC_RE.captures(line) {
+                // Find the line on which the diagnostic will be expected to occur.
+                let Some(last_interesting_line) = last_interesting_line else {
+                    bail!("found diagnostic on line with no previous interesting line");
+                };
 
-            // Find the line on which the diagnostic will be expected to occur.
-            let Some(last_interesting_line) = last_interesting_line else {
-                bail!("found diagnostic on line with no previous interesting line");
-            };
+                // Extract the expected span: if the comment contains `^^^` markers, it needs to be
+                // exactly as given, but otherwise it just has to start somewhere on the line.
+                let pre = c.name("pre").unwrap().as_str();
+                let pad = c.name("pad").unwrap().as_str();
+                let span = match c.name("col") {
+                    Some(c) => {
+                        let carrot_start =
+                            line_starts[last_interesting_line] + pre.len() + 2 + pad.len();
+                        let carrot_end = carrot_start + c.as_str().len();
 
-            // Extract the expected span: if the comment contains `^^^` markers, it needs to be
-            // exactly as given, but otherwise it just has to start somewhere on the line.
-            let pre = c.name("pre").unwrap().as_str();
-            let pad = c.name("pad").unwrap().as_str();
-            let span = match c.name("col") {
-                Some(c) => {
-                    let carrot_start =
-                        line_starts[last_interesting_line] + pre.len() + 2 + pad.len();
-                    let carrot_end = carrot_start + c.as_str().len();
-
-                    ExpectedSpan::MustEqual(AbsoluteSpan {
+                        ExpectedSpan::MustEqual(AbsoluteSpan {
+                            source_file: self.source_file,
+                            start: AbsoluteOffset::from(carrot_start),
+                            end: AbsoluteOffset::from(carrot_end),
+                        })
+                    }
+                    None => ExpectedSpan::MustStartWithin(AbsoluteSpan {
                         source_file: self.source_file,
-                        start: AbsoluteOffset::from(carrot_start),
-                        end: AbsoluteOffset::from(carrot_end),
-                    })
-                }
-                None => ExpectedSpan::MustStartWithin(AbsoluteSpan {
-                    source_file: self.source_file,
-                    start: AbsoluteOffset::from(line_starts[last_interesting_line]),
-                    end: AbsoluteOffset::from(
-                        line_starts[last_interesting_line + 1].saturating_sub(1),
-                    ),
-                }),
-            };
+                        start: AbsoluteOffset::from(line_starts[last_interesting_line]),
+                        end: AbsoluteOffset::from(
+                            line_starts[last_interesting_line + 1].saturating_sub(1),
+                        ),
+                    }),
+                };
 
-            // Find the expected message (which may be a regular expression).
-            let message = match c.name("re") {
-                Some(_) => Regex::new(c.name("msg").unwrap().as_str())?,
-                None => Regex::new(&regex::escape(c.name("msg").unwrap().as_str()))?,
-            };
+                // Find the expected message (which may be a regular expression).
+                let message = match c.name("re") {
+                    Some(_) => Regex::new(c.name("msg").unwrap().as_str())?,
+                    None => Regex::new(&regex::escape(c.name("msg").unwrap().as_str()))?,
+                };
 
-            // Push onto the list of expected diagnostics.
-            self.expected_diagnostics
-                .push(ExpectedDiagnostic { span, message });
+                // Push onto the list of expected diagnostics.
+                self.expected_diagnostics
+                    .push(ExpectedDiagnostic { span, message });
+            } else if let Some(c) = PROBE_RE.captures(line) {
+                // Find the line on which the diagnostic will be expected to occur.
+                let Some(last_interesting_line) = last_interesting_line else {
+                    bail!("found probe on line with no previous interesting line");
+                };
+
+                // Extract the expected span: if the probe contains `^^^` markers, use the span
+                // of the `^^^` markers, but otherwise use the single `#` character.
+                let pre = c.name("pre").unwrap().as_str();
+                let pad = c.name("pad").unwrap().as_str();
+                let span = match c.name("col") {
+                    Some(c) => {
+                        let carrot_start =
+                            line_starts[last_interesting_line] + pre.len() + 2 + pad.len();
+                        let carrot_end = carrot_start + c.as_str().len();
+
+                        AbsoluteSpan {
+                            source_file: self.source_file,
+                            start: AbsoluteOffset::from(carrot_start),
+                            end: AbsoluteOffset::from(carrot_end),
+                        }
+                    }
+                    None => {
+                        let hash_start = line_starts[last_interesting_line] + pre.len();
+                        AbsoluteSpan {
+                            source_file: self.source_file,
+                            start: AbsoluteOffset::from(hash_start),
+                            end: AbsoluteOffset::from(hash_start + 1),
+                        }
+                    }
+                };
+
+                let valid_probe_kinds = &[("VariableType", ProbeKind::VariableType)];
+                let user_probe_kind = c.name("kind").unwrap().as_str();
+                let Some(&(_, kind)) = valid_probe_kinds
+                    .iter()
+                    .find(|pair| pair.0 == user_probe_kind)
+                else {
+                    bail!(
+                        "unknown probe kind: `{user_probe_kind}`, valid probes are: {}",
+                        valid_probe_kinds
+                            .iter()
+                            .map(|pair| pair.0)
+                            .collect::<Vec<_>>()
+                            .join(", ")
+                    )
+                };
+
+                // Find the expected message (which may be a regular expression).
+                let message = match c.name("re") {
+                    Some(_) => Regex::new(c.name("msg").unwrap().as_str())?,
+                    None => Regex::new(&regex::escape(c.name("msg").unwrap().as_str()))?,
+                };
+
+                // Push onto the list of expected diagnostics.
+                self.probes.push(Probe {
+                    span,
+                    kind,
+                    message,
+                });
+            } else if let Some(c) = ERROR_RE.captures(line) {
+                bail!(
+                    "comment starting with `{p}` looks suspiciously like an annotation but we didn't recognize it",
+                    p = c.name("suspicious").unwrap().as_str()
+                );
+            }
         }
 
         self.expected_diagnostics.sort_by_key(|e| *e.span());
@@ -217,6 +323,8 @@ impl TestExpectations {
             let _wasm_bytes = compiler.codegen_main_fn(self.source_file);
         }
 
+        test.failures.extend(self.perform_probes(compiler));
+
         for diagnostic in &actual_diagnostics {
             writeln!(
                 test.full_compiler_output,
@@ -233,6 +341,28 @@ impl TestExpectations {
         } else {
             Ok(Some(test))
         }
+    }
+
+    fn perform_probes(&self, compiler: &Compiler) -> Vec<Failure> {
+        self.probes
+            .iter()
+            .filter_map(|probe| {
+                let actual = match probe.kind {
+                    ProbeKind::VariableType => compiler
+                        .probe_variable_type(probe.span)
+                        .unwrap_or_else(|| "<no variable found>".to_string()),
+                };
+
+                if probe.message.is_match(&actual) {
+                    None
+                } else {
+                    Some(Failure::Probe {
+                        probe: probe.clone(),
+                        actual,
+                    })
+                }
+            })
+            .collect()
     }
 
     fn generate_fn_asts(&self, compiler: &mut Compiler) -> String {

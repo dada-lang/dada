@@ -1,7 +1,6 @@
 use std::pin::pin;
 
 use dada_util::FromImpls;
-use either::Either;
 
 use crate::{
     check::{

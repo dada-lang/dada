@@ -19,7 +19,7 @@ use crate::{
     },
 };
 use dada_ir_ast::{
-    ast::{AstTy, VariableDecl},
+    ast::VariableDecl,
     diagnostic::{Diagnostic, Err, Reported},
     span::Span,
 };

@@ -1,0 +1,8 @@
+fn main() {
+    let x = get()
+    #?  ^ VariableType: u32
+}
+
+fn get() -> u32 {
+    22
+}

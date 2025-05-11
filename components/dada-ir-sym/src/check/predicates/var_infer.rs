@@ -11,10 +11,7 @@ use crate::{
     ir::{indices::InferVarIndex, variables::SymVariable},
 };
 
-use super::{
-    is_provably_copy::term_is_provably_copy, is_provably_lent::term_is_provably_lent,
-    is_provably_owned::term_is_provably_owned, require_term_is,
-};
+use super::require_term_is;
 
 pub fn test_var_is_provably<'db>(
     env: &mut Env<'db>,

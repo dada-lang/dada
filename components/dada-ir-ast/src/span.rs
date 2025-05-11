@@ -112,6 +112,11 @@ impl AbsoluteSpan {
             end: Offset::from(self.end),
         }
     }
+
+    /// True if `self` contains all of `other`
+    pub fn contains(self, other: AbsoluteSpan) -> bool {
+        self.source_file == other.source_file && self.start <= other.start && self.end >= other.end
+    }
 }
 
 impl<'db> Span<'db> {
@@ -197,6 +202,14 @@ impl<'db> Spanned<'db> for Span<'db> {
 /// For symbols, yields a span intended for use in error reporting.
 pub trait Spanned<'db> {
     fn span(&self, db: &'db dyn crate::Db) -> Span<'db>;
+}
+
+/// Returns the span of this item in the source.
+///
+/// This is distinct from the [`Spanned`] impl, which returns
+/// the span best used in error reporting.
+pub trait SourceSpanned<'db> {
+    fn source_span(&self, db: &'db dyn crate::Db) -> Span<'db>;
 }
 
 /// Either `Span` or `Option<Span>`.

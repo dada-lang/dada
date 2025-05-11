@@ -5,7 +5,7 @@ use dada_ir_ast::{
         AstAggregate, AstFunction, AstFunctionEffects, AstFunctionInput, Identifier,
         SpannedIdentifier,
     },
-    span::{Span, Spanned},
+    span::{SourceSpanned, Span, Spanned},
 };
 use dada_util::{FromImpls, SalsaSerialize};
 use salsa::Update;
@@ -66,6 +66,12 @@ impl<'db> ScopeTreeNode<'db> for SymFunction<'db> {
 impl<'db> Spanned<'db> for SymFunction<'db> {
     fn span(&self, db: &'db dyn dada_ir_ast::Db) -> Span<'db> {
         self.source(db).name(db).span
+    }
+}
+
+impl<'db> SourceSpanned<'db> for SymFunction<'db> {
+    fn source_span(&self, db: &'db dyn dada_ir_ast::Db) -> Span<'db> {
+        self.source(db).source_span(db)
     }
 }
 
@@ -157,6 +163,15 @@ impl<'db> SymFunctionSource<'db> {
                     .map(|i| i.variable(db).into())
                     .collect::<Vec<_>>(),
             ),
+        }
+    }
+}
+
+impl<'db> SourceSpanned<'db> for SymFunctionSource<'db> {
+    fn source_span(&self, db: &'db dyn dada_ir_ast::Db) -> Span<'db> {
+        match self {
+            SymFunctionSource::Function(ast_function) => ast_function.span(db),
+            SymFunctionSource::Constructor(_, ast_aggregate) => ast_aggregate.span(db),
         }
     }
 }

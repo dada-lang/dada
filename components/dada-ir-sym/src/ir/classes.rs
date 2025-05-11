@@ -2,7 +2,7 @@ use std::borrow::Cow;
 
 use dada_ir_ast::{
     ast::{AstAggregate, AstAggregateKind, AstFieldDecl, AstMember, Identifier, SpannedIdentifier},
-    span::{Span, Spanned},
+    span::{SourceSpanned, Span, Spanned},
 };
 use dada_parser::prelude::*;
 use dada_util::{FromImpls, SalsaSerialize};
@@ -254,6 +254,18 @@ impl<'db> ScopeTreeNode<'db> for SymAggregate<'db> {
     }
 }
 
+impl<'db> Spanned<'db> for SymAggregate<'db> {
+    fn span(&self, db: &'db dyn dada_ir_ast::Db) -> Span<'db> {
+        self.name_span(db)
+    }
+}
+
+impl<'db> SourceSpanned<'db> for SymAggregate<'db> {
+    fn source_span(&self, db: &'db dyn dada_ir_ast::Db) -> Span<'db> {
+        self.source(db).span(db)
+    }
+}
+
 #[derive(Copy, Clone, PartialEq, Eq, PartialOrd, Ord, Debug)]
 pub enum SymAggregateStyle {
     Struct,
@@ -285,6 +297,15 @@ impl<'db> Spanned<'db> for SymClassMember<'db> {
         match self {
             SymClassMember::SymField(f) => f.name_span(db),
             SymClassMember::SymFunction(f) => f.name_span(db),
+        }
+    }
+}
+
+impl<'db> SourceSpanned<'db> for SymClassMember<'db> {
+    fn source_span(&self, db: &'db dyn dada_ir_ast::Db) -> Span<'db> {
+        match self {
+            SymClassMember::SymField(f) => f.source_span(db),
+            SymClassMember::SymFunction(f) => f.source_span(db),
         }
     }
 }
@@ -327,15 +348,15 @@ impl<'db> SymField<'db> {
     }
 }
 
-impl<'db> Spanned<'db> for SymAggregate<'db> {
-    fn span(&self, db: &'db dyn dada_ir_ast::Db) -> Span<'db> {
+impl<'db> Spanned<'db> for SymField<'db> {
+    fn span(&self, db: &'db dyn dada_ir_ast::Db) -> dada_ir_ast::span::Span<'db> {
         self.name_span(db)
     }
 }
 
-impl<'db> Spanned<'db> for SymField<'db> {
-    fn span(&self, db: &'db dyn dada_ir_ast::Db) -> dada_ir_ast::span::Span<'db> {
-        self.name_span(db)
+impl<'db> SourceSpanned<'db> for SymField<'db> {
+    fn source_span(&self, db: &'db dyn dada_ir_ast::Db) -> Span<'db> {
+        self.source(db).span(db)
     }
 }
 

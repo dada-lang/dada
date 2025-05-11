@@ -22,7 +22,7 @@ use crate::{
 use dada_ir_ast::{
     ast::{AstBinaryOp, PermissionOp},
     diagnostic::{Err, Reported},
-    span::Span,
+    span::{SourceSpanned, Span},
 };
 use dada_util::SalsaSerialize;
 use ordered_float::OrderedFloat;
@@ -85,6 +85,12 @@ impl<'db> SymExpr<'db> {
                 ],
             },
         )
+    }
+}
+
+impl<'db> SourceSpanned<'db> for SymExpr<'db> {
+    fn source_span(&self, db: &'db dyn dada_ir_ast::Db) -> Span<'db> {
+        self.span(db)
     }
 }
 
