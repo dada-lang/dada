@@ -6,7 +6,7 @@ use dada_ir_ast::{
     inputs::Krate,
     span::{Span, Spanned},
 };
-use dada_util::{FromImpls, boxed_async_fn, indirect};
+use dada_util::{FromImpls, boxed_async_fn};
 use salsa::Update;
 use serde::Serialize;
 
@@ -19,7 +19,7 @@ use crate::{
         module::SymModule,
         primitive::{SymPrimitive, primitives},
         types::{SymGenericKind, SymGenericTerm},
-        variables::{FromVar, SymVariable},
+        variables::SymVariable,
     },
     prelude::Symbol,
 };

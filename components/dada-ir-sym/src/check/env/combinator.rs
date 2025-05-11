@@ -156,7 +156,7 @@ impl<'db> Env<'db> {
         async move {
             let this = &*self;
             let test_fn = &test_fn;
-            let mut unordered = FuturesUnordered::new();
+            let unordered = FuturesUnordered::new();
             for (item, index) in items.into_iter().zip(0..) {
                 unordered.push(async move {
                     let mut env = this.fork(|handle| {
@@ -192,7 +192,7 @@ impl<'db> Env<'db> {
         async move {
             let this = &*self;
             let test_fn = &test_fn;
-            let mut unordered = FuturesUnordered::new();
+            let unordered = FuturesUnordered::new();
             for (item, index) in items.into_iter().zip(0..) {
                 unordered.push(async move {
                     let mut env = this.fork(|handle| {
@@ -291,6 +291,7 @@ impl<'db> Env<'db> {
     /// You get back bounds from the direction you provide or from
     /// either direction if you provide `None`. Multiple bounds from the same direction
     /// indicate that the bounds got tighter.
+    #[expect(dead_code)]
     pub fn red_ty_bounds(
         &self,
         infer: InferVarIndex,

@@ -2,7 +2,7 @@ use dada_ir_ast::{
     ast::{AstItem, AstModule, AstUse, Identifier},
     diagnostic::{Diagnostic, Level},
     inputs::SourceFile,
-    span::{Span, Spanned},
+    span::{SourceSpanned, Span, Spanned},
 };
 use dada_parser::prelude::SourceFileParse;
 use dada_util::{FromImpls, Map, SalsaSerialize};
@@ -239,6 +239,16 @@ impl<'db> Spanned<'db> for SymItem<'db> {
         match self {
             SymItem::SymClass(sym_class) => sym_class.span(db),
             SymItem::SymFunction(sym_function) => sym_function.span(db),
+            SymItem::SymPrimitive(_) => well_known::prelude_span(db),
+        }
+    }
+}
+
+impl<'db> SourceSpanned<'db> for SymItem<'db> {
+    fn source_span(&self, db: &'db dyn dada_ir_ast::Db) -> Span<'db> {
+        match self {
+            SymItem::SymClass(a) => a.source_span(db),
+            SymItem::SymFunction(f) => f.source_span(db),
             SymItem::SymPrimitive(_) => well_known::prelude_span(db),
         }
     }

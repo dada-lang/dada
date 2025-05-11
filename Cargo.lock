@@ -372,6 +372,7 @@ dependencies = [
  "dada-ir-ast",
  "dada-ir-sym",
  "dada-parser",
+ "dada-probe",
  "dada-util",
  "extension-trait",
  "rust-embed",
@@ -476,6 +477,17 @@ name = "dada-parser"
 version = "0.1.0"
 dependencies = [
  "dada-ir-ast",
+ "dada-util",
+ "salsa",
+]
+
+[[package]]
+name = "dada-probe"
+version = "0.1.0"
+dependencies = [
+ "dada-ir-ast",
+ "dada-ir-sym",
+ "dada-parser",
  "dada-util",
  "salsa",
 ]

@@ -1,7 +1,5 @@
 //! "Symbolic IR": High-level, type checked representaton. Derived from the AST.
 
-#![feature(let_chains)]
-
 pub use dada_ir_ast::Db;
 
 mod check;

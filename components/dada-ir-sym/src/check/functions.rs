@@ -1,10 +1,8 @@
-use std::process::Output;
-
 use crate::{
     check::{CheckTyInEnv, signature::PreparedEnv},
     ir::{
         classes::SymAggregate,
-        functions::{SymFunction, SymFunctionSource, SymInputOutput},
+        functions::{SymFunction, SymFunctionSource},
     },
 };
 use dada_ir_ast::{

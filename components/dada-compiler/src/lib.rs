@@ -8,6 +8,7 @@ use dada_ir_ast::{
     ast::{AstFunction, AstItem, AstMember, Identifier},
     diagnostic::Diagnostic,
     inputs::{CompilationRoot, Krate, SourceFile},
+    span::AbsoluteSpan,
 };
 use dada_util::{Fallible, FromImpls, Map, Set, bail, debug};
 use salsa::{Database as _, Durability, Event, EventKind, Setter};
@@ -161,6 +162,11 @@ impl Compiler {
     /// Compute all diagnostics for a source file.
     pub fn check_all(&self, source_file: SourceFile) -> Vec<&Diagnostic> {
         Self::deduplicated(check_all::accumulated::<Diagnostic>(self, source_file))
+    }
+
+    /// Return type of the variable found at the given `span` or `None` if there is no variable there.
+    pub fn probe_variable_type(&self, span: AbsoluteSpan) -> Option<String> {
+        self.attach(|db| dada_probe::probe_variable_type(db, span))
     }
 
     fn deduplicated(mut diagnostics: Vec<&Diagnostic>) -> Vec<&Diagnostic> {

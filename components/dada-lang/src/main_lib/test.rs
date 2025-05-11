@@ -6,7 +6,7 @@ use std::{
 use dada_compiler::{Compiler, RealFs};
 use dada_ir_ast::diagnostic::Diagnostic;
 use dada_util::{Fallible, bail};
-use expected::ExpectedDiagnostic;
+use expected::{ExpectedDiagnostic, Probe};
 use indicatif::ProgressBar;
 use panic_hook::CapturedPanic;
 use rayon::prelude::*;
@@ -38,6 +38,15 @@ enum Failure {
     MultipleMatches(ExpectedDiagnostic, Diagnostic),
     MissingDiagnostic(ExpectedDiagnostic),
     InternalCompilerError(Option<CapturedPanic>),
+
+    /// The probe at the given location did not yield the expected result.
+    Probe {
+        /// Probe performed
+        probe: Probe,
+
+        /// Actual result returned
+        actual: String,
+    },
 
     /// Auxiliary file at `path` did not have expected contents.
     ///
@@ -318,6 +327,56 @@ impl FailedTest {
                         writeln!(result, "{}", captured_panic.render())?;
                     } else {
                         writeln!(result, "No details available. :(")?;
+                    }
+                }
+                Failure::Probe { probe, actual } => {
+                    writeln!(result)?;
+                    writeln!(result, "# Probe return unexpected result")?;
+                    writeln!(result)?;
+
+                    let (probe_line, probe_start_col) =
+                        probe.span.source_file.line_col(db, probe.span.start);
+                    let (probe_end_line, probe_end_col) =
+                        probe.span.source_file.line_col(db, probe.span.end);
+                    assert_eq!(
+                        probe_line, probe_end_line,
+                        "multiline probe not currently possible"
+                    );
+
+                    writeln!(
+                        result,
+                        "Probe location: {u}:{l}:{c}:{l}:{e}",
+                        u = probe.span.source_file.url_display(db),
+                        l = probe_line.as_u32() + 1,
+                        c = probe_start_col.as_u32() + 1,
+                        e = probe_end_col.as_u32() + 1,
+                    )?;
+                    writeln!(result, "Probe expected: {e}", e = probe.message)?;
+                    writeln!(result, "Probe got: {actual}")?;
+
+                    let file_text = probe.span.source_file.contents_if_ok(db);
+                    let line_range = probe.span.source_file.line_range(db, probe_line);
+                    if let Some(line_text) =
+                        file_text.get(line_range.start.as_usize()..line_range.end.as_usize())
+                    {
+                        writeln!(result)?;
+                        writeln!(result, "```")?;
+                        write!(result, "{line_text}")?;
+                        writeln!(
+                            result,
+                            "{s}{c} probe `{k:?}` expected `{e}`, got `{a}`",
+                            s = std::iter::repeat(' ')
+                                .take(probe_start_col.as_usize())
+                                .collect::<String>(),
+                            c = std::iter::repeat('^')
+                                .take((probe_end_col - probe_start_col).as_usize())
+                                .collect::<String>(),
+                            k = probe.kind,
+                            e = probe.message,
+                            a = actual,
+                        )?;
+                        writeln!(result, "```")?;
+                        writeln!(result)?;
                     }
                 }
             }

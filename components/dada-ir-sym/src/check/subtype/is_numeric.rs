@@ -6,7 +6,6 @@ use crate::{
         env::Env,
         inference::Direction,
         live_places::LivePlaces,
-        predicates::{Predicate, var_infer::require_infer_is},
         red::RedTy,
         report::{Because, OrElse, OrElseHelper},
         to_red::ToRedTy,
