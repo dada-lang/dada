@@ -320,7 +320,7 @@ impl<'db> ToRedLinkVecs<'db> for SymPerm<'db> {
         match *self.kind(db) {
             SymPermKind::My => consumer.consume(env, vec![vec![]]).await,
             SymPermKind::Our => consumer.consume(env, vec![vec![RedLink::Our]]).await,
-            SymPermKind::Shared(ref places) => {
+            SymPermKind::Referenced(ref places) => {
                 let links = places
                     .iter()
                     .map(|&place| RedLink::Ref(Live(live_after.is_live(env, place)), place))

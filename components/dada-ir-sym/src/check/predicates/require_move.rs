@@ -125,7 +125,7 @@ async fn require_perm_is_move<'db>(
 
         SymPermKind::Our => Err(or_else.report(env, Because::JustSo)),
 
-        SymPermKind::Shared(_) => Err(or_else.report(env, Because::JustSo)),
+        SymPermKind::Referenced(_) => Err(or_else.report(env, Because::JustSo)),
 
         SymPermKind::Leased(ref places) => {
             // If there is at least one place `p` that is move, this will result in a `leased[p]` chain.

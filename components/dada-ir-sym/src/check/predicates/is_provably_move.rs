@@ -86,7 +86,7 @@ pub(crate) async fn perm_is_provably_move<'db>(
     match *perm.kind(db) {
         SymPermKind::Error(reported) => Err(reported),
         SymPermKind::My => Ok(true),
-        SymPermKind::Our | SymPermKind::Shared(_) => Ok(false),
+        SymPermKind::Our | SymPermKind::Referenced(_) => Ok(false),
         SymPermKind::Leased(ref places) => {
             env.exists(places, async |env, &place| {
                 place_is_provably_move(env, place).await

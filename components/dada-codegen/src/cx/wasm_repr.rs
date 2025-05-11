@@ -86,7 +86,7 @@ impl<'g, 'db> WasmReprCx<'g, 'db> {
         let db = self.db;
         match *sym_perm.kind(db) {
             SymPermKind::Leased(_) => self.wasm_pointer(),
-            SymPermKind::My | SymPermKind::Our | SymPermKind::Shared(_) => {
+            SymPermKind::My | SymPermKind::Our | SymPermKind::Referenced(_) => {
                 self.wasm_repr_of_type(sym_ty)
             }
             SymPermKind::Var(sym_variable) => {

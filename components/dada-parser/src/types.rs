@@ -209,12 +209,12 @@ impl<'db> Parse<'db> for KeywordPerm {
         db: &'db dyn crate::Db,
         tokens: &mut Parser<'_, 'db>,
     ) -> Result<Option<AstPerm<'db>>, ParseFail<'db>> {
-        if let Ok(span) = tokens.eat_keyword(Keyword::Shared) {
+        if let Ok(span) = tokens.eat_keyword(Keyword::Ref) {
             Ok(Some(parse_path_perm(
                 db,
                 span,
                 tokens,
-                AstPermKind::Shared,
+                AstPermKind::Referenced,
             )?))
         } else if let Ok(span) = tokens.eat_keyword(Keyword::Leased) {
             Ok(Some(parse_path_perm(

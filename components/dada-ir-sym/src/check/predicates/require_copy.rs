@@ -128,7 +128,7 @@ async fn require_perm_is_copy<'db>(
 
         SymPermKind::Our => Ok(()),
 
-        SymPermKind::Shared(_) => Ok(()),
+        SymPermKind::Referenced(_) => Ok(()),
 
         SymPermKind::Leased(ref places) => {
             // For a leased[p] to be copy, all the places in `p` must have copy permission.

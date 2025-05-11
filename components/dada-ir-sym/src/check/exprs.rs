@@ -817,7 +817,7 @@ async fn check_expr<'db>(
                         expr_span,
                         match op {
                             PermissionOp::Lease => place_expr.ty(db).leased(db, sym_place),
-                            PermissionOp::Share => place_expr.ty(db).shared(db, sym_place),
+                            PermissionOp::Reference => place_expr.ty(db).referenced(db, sym_place),
                             PermissionOp::Give => place_expr.ty(db),
                         },
                         SymExprKind::PermissionOp(*op, place_expr),
@@ -1436,8 +1436,8 @@ impl<'db> ExprResult<'db> {
                 SymExpr::new(
                     db,
                     place_expr.span(db),
-                    place_expr.ty(db).shared(db, sym_place),
-                    SymExprKind::PermissionOp(PermissionOp::Share, place_expr),
+                    place_expr.ty(db).referenced(db, sym_place),
+                    SymExprKind::PermissionOp(PermissionOp::Reference, place_expr),
                 )
             }
 

@@ -141,7 +141,7 @@ async fn require_perm_is_lent<'db>(
         SymPermKind::Our => Err(or_else.report(env, Because::JustSo)),
 
         // Shared = Copy & Lent, Leased = Move & Lent
-        SymPermKind::Shared(ref places) | SymPermKind::Leased(ref places) => {
+        SymPermKind::Referenced(ref places) | SymPermKind::Leased(ref places) => {
             // This one is tricky. If the places are copy,
             // then we will reduce to their chains, but then
             // we would be lent if they are lent; but if they are not

@@ -134,7 +134,7 @@ impl<'db> Env<'db> {
             Predicate::Copy => self.assumed(var, |kind| {
                 matches!(
                     kind,
-                    AssumptionKind::Copy | AssumptionKind::Our | AssumptionKind::Shared
+                    AssumptionKind::Copy | AssumptionKind::Our | AssumptionKind::Referenced
                 )
             }),
             Predicate::Move => self.assumed(var, |kind| {
@@ -152,7 +152,7 @@ impl<'db> Env<'db> {
             Predicate::Lent => self.assumed(var, |kind| {
                 matches!(
                     kind,
-                    AssumptionKind::Lent | AssumptionKind::Leased | AssumptionKind::Shared
+                    AssumptionKind::Lent | AssumptionKind::Leased | AssumptionKind::Referenced
                 )
             }),
         };

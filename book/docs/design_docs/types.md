@@ -188,9 +188,9 @@ n = name(c.give) # takes ownership of the name
 
 n = name(c.lease) # gets back a `leased String` with `c` as the lessor
 
-n = name(c.share) # gets back a `shared String` with `c` as the lessor
+n = name(c.ref) # gets back a `shared String` with `c` as the lessor
 
-n = name(c) # `c` defaults to `c.share`, so equivalent to the previous one
+n = name(c) # `c` defaults to `c.ref`, so equivalent to the previous one
 ```
 
 ### Returning my when lease *may* be expected
@@ -209,7 +209,7 @@ fn name(c: Character) -> given{c} String {
 This function returns a `my String`. It sometimes works:
 
 * If you invoke `name(c.give)`, it works. The return value of `my String` is expected.
-* If you invoke `name(c.share)`, it works. The return value of `my String` is allowed when a shared result is expected.
+* If you invoke `name(c.ref)`, it works. The return value of `my String` is allowed when a shared result is expected.
 
 But it sometimes fails:
 
@@ -254,7 +254,7 @@ Some calls can fail:
 
 Other calls work out:
 
-* e.g., `pick_name(a.share, b.lease)` returns a `shared{a} String`; the test requires something leased from `a` or `b`, so that works.
+* e.g., `pick_name(a.ref, b.lease)` returns a `shared{a} String`; the test requires something leased from `a` or `b`, so that works.
 
 The static type check would, I think, succeed. But maybe it should fail, per the above. Imagine `let x: given{c1, c2} String = ...` in the code?
 

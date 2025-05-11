@@ -132,7 +132,7 @@ impl<'cx, 'db> ExprCodegen<'cx, 'db> {
                         self.push_leased_from(&wasm_place_repr);
                     }
 
-                    PermissionOp::Share => {
+                    PermissionOp::Reference => {
                         self.push_shared_from(&wasm_place_repr);
                     }
 

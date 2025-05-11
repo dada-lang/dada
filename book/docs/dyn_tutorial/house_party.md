@@ -4,19 +4,19 @@ Given that you can
 
 -   shlease an object `m` via `m.shlease`,
 -   lease an object `m` via `m.lease`,
--   and share an object `m` via `m.share`
+-   and share an object `m` via `m.ref`
 
-you may be wondering what would happen if were to _share_ a _leased object_. I.e., what would happen if you did `m.lease.share`? The answer is that you get back a shleased reference, but there is a subtle difference between `m.shlease` and `m.lease.share`. It has to do with the way that `m` can terminate the shlease. Let's explore!
+you may be wondering what would happen if were to _share_ a _leased object_. I.e., what would happen if you did `m.lease.ref`? The answer is that you get back a shleased reference, but there is a subtle difference between `m.shlease` and `m.lease.ref`. It has to do with the way that `m` can terminate the shlease. Let's explore!
 
 ## Sharing a lease
 
-Let's start by looking at `m.lease.share` in detail. Consider this example:
+Let's start by looking at `m.lease.ref` in detail. Consider this example:
 
 ```
 class Pair(a: our, b: our)
 let m: my = Pair(22, 44)
 let l: leased = m.lease
-let s: shleased = l.share
+let s: shleased = l.ref
 ```
 
 As you can see, sharing the lease `l` results in a `shleased` variable `s`. Try putting your cursor on that final line!
@@ -25,7 +25,7 @@ As you can see, sharing the lease `l` results in a `shleased` variable `s`. Try 
 class Pair(our a, our b)
 let m: my = Pair(22, 44)
 let l: leased = m.lease
-let s: shleased = l.share
+let s: shleased = l.ref
 #                   ▲
 # ──────────────────┘
 
@@ -51,7 +51,7 @@ This means that if `m` reads from the object, that will cancel `l`, which will i
 class Pair(a: our, b: our)
 let m: my = Pair(22, 44)
 let l: leased = m.lease
-let s: shleased = l.share
+let s: shleased = l.ref
 
 print(m.a).await           # Reads from `m`, canceling `l` and `s`
 

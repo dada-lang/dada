@@ -60,11 +60,11 @@ impl<'db> PopulateSignatureSymbols<'db> for AstPerm<'db> {
         symbols: &mut crate::ir::functions::SignatureSymbols<'db>,
     ) {
         match self.kind(db) {
-            AstPermKind::Shared(Some(_))
+            AstPermKind::Referenced(Some(_))
             | AstPermKind::Leased(Some(_))
             | AstPermKind::Given(Some(_)) => (),
 
-            AstPermKind::Shared(None) | AstPermKind::Leased(None) | AstPermKind::Given(None) => {
+            AstPermKind::Referenced(None) | AstPermKind::Leased(None) | AstPermKind::Given(None) => {
                 symbols
                     .generic_variables
                     .push(self.anonymous_perm_symbol(db));

@@ -73,6 +73,6 @@ class Pair(a: our, b: our)
 let m: my = Pair(22, 44)
 let s1: any = m.shlease
 let s2: any = s1.give    # s2 is just a copy of s1
-let s3: any = s1.share   # s3 is also just a copy of s1
+let s3: any = s1.ref   # s3 is also just a copy of s1
 let s4: any = s1.lease   # s4 is ALSO just a copy of s1
 ```

@@ -240,7 +240,7 @@ impl<'db> SymGenericTerm<'db> {
                 SymPermKind::Infer(infer) => Some(*infer),
                 SymPermKind::My
                 | SymPermKind::Our
-                | SymPermKind::Shared(_)
+                | SymPermKind::Referenced(_)
                 | SymPermKind::Leased(_)
                 | SymPermKind::Var(_)
                 | SymPermKind::Error(_)
@@ -346,10 +346,10 @@ impl<'db> SymTy<'db> {
     }
 
     /// Returns a version of this type shared from `place`.
-    pub fn shared(self, db: &'db dyn Db, place: SymPlace<'db>) -> Self {
+    pub fn referenced(self, db: &'db dyn Db, place: SymPlace<'db>) -> Self {
         SymTy::new(
             db,
-            SymTyKind::Perm(SymPerm::new(db, SymPermKind::Shared(vec![place])), self),
+            SymTyKind::Perm(SymPerm::new(db, SymPermKind::Referenced(vec![place])), self),
         )
     }
 
@@ -504,8 +504,8 @@ impl<'db> SymPerm<'db> {
     }
 
     /// Returns a permission `shared` with the given places.
-    pub fn shared(db: &'db dyn crate::Db, places: Vec<SymPlace<'db>>) -> Self {
-        SymPerm::new(db, SymPermKind::Shared(places))
+    pub fn referenced(db: &'db dyn crate::Db, places: Vec<SymPlace<'db>>) -> Self {
+        SymPerm::new(db, SymPermKind::Referenced(places))
     }
 
     /// Returns a permission `leased` with the given places.
@@ -567,8 +567,8 @@ impl std::fmt::Display for SymPerm<'_> {
             match self.kind(db) {
                 SymPermKind::My => write!(f, "my"),
                 SymPermKind::Our => write!(f, "our"),
-                SymPermKind::Shared(places) => {
-                    write!(f, "shared[")?;
+                SymPermKind::Referenced(places) => {
+                    write!(f, "ref[")?;
                     for (i, place) in places.iter().enumerate() {
                         if i > 0 {
                             write!(f, ", ")?;
@@ -627,8 +627,8 @@ pub enum SymPermKind<'db> {
     /// `our`
     Our,
 
-    /// `shared[x]`
-    Shared(Vec<SymPlace<'db>>),
+    /// `ref[x]`
+    Referenced(Vec<SymPlace<'db>>),
 
     /// `leased[x]`
     Leased(Vec<SymPlace<'db>>),
@@ -784,13 +784,15 @@ impl<'db> AnonymousPermSymbol<'db> for AstPerm<'db> {
     #[salsa::tracked]
     fn anonymous_perm_symbol(self, db: &'db dyn crate::Db) -> SymVariable<'db> {
         match self.kind(db) {
-            AstPermKind::Shared(None) | AstPermKind::Leased(None) | AstPermKind::Given(None) => {
+            AstPermKind::Referenced(None)
+            | AstPermKind::Leased(None)
+            | AstPermKind::Given(None) => {
                 SymVariable::new(db, SymGenericKind::Perm, None, self.span(db))
             }
             AstPermKind::Our
             | AstPermKind::Variable(_)
             | AstPermKind::GenericDecl(_)
-            | AstPermKind::Shared(Some(_))
+            | AstPermKind::Referenced(Some(_))
             | AstPermKind::Leased(Some(_))
             | AstPermKind::Given(Some(_))
             | AstPermKind::My => {
@@ -837,7 +839,7 @@ pub struct Assumption<'db> {
 #[derive(Copy, Clone, PartialEq, Eq, PartialOrd, Ord, Hash, Update, Debug)]
 pub enum AssumptionKind {
     Lent,
-    Shared,
+    Referenced,
     Move,
     Leased,
     Owned,

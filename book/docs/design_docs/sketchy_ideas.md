@@ -60,14 +60,14 @@ my map = [key: value, ...]
 
 ```
 for x in list { <takes ownership> }
-for x in list.share { <shares the things within> }
+for x in list.ref { <shares the things within> }
 for x in list.lease { <leases the things within> }
 ```
 
 ### Iterable and iterator
 
 ```
-my iterator = list.share.iter()
+my iterator = list.ref.iter()
 x.next()
 ```
 

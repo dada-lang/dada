@@ -191,7 +191,7 @@ impl<'db> RedLink<'db> {
     pub fn to_sym_perm(self, db: &'db dyn crate::Db) -> SymPerm<'db> {
         match self {
             RedLink::Our => SymPerm::our(db),
-            RedLink::Ref(_, place) => SymPerm::shared(db, vec![place]),
+            RedLink::Ref(_, place) => SymPerm::referenced(db, vec![place]),
             RedLink::Mut(_, place) => SymPerm::leased(db, vec![place]),
             RedLink::Var(v) => SymPerm::var(db, v),
             RedLink::Err(reported) => SymPerm::err(db, reported),

@@ -334,8 +334,8 @@ impl<'db> Parse<'db> for PermissionOp {
             Ok(Some(PermissionOp::Give))
         } else if parser.eat_keyword(Keyword::Lease).is_ok() {
             Ok(Some(PermissionOp::Lease))
-        } else if parser.eat_keyword(Keyword::Share).is_ok() {
-            Ok(Some(PermissionOp::Share))
+        } else if parser.eat_keyword(Keyword::Ref).is_ok() {
+            Ok(Some(PermissionOp::Reference))
         } else {
             Ok(None)
         }

@@ -105,7 +105,7 @@ async fn require_perm_is_owned<'db>(
         SymPermKind::Our => Ok(()),
 
         // Shared = Copy & Lent, Leased = Move & Lent
-        SymPermKind::Shared(ref places) | SymPermKind::Leased(ref places) => {
+        SymPermKind::Referenced(ref places) | SymPermKind::Leased(ref places) => {
             // In order for a shared[p] or leased[p] type to be owned,
             // the `p` values must be `our` -- copy so that the shared/leased
             // doesn't apply, and then themselves owned.

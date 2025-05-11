@@ -286,9 +286,9 @@ impl<'db> SubstWith<'db, SymGenericTerm<'db>> for SymPerm<'db> {
                     self.identity()
                 }
             }
-            SymPermKind::Shared(vec) => SymPerm::new(
+            SymPermKind::Referenced(vec) => SymPerm::new(
                 db,
-                SymPermKind::Shared(
+                SymPermKind::Referenced(
                     vec.iter()
                         .map(|g| g.subst_with(db, bound_vars, subst_fns))
                         .collect(),
