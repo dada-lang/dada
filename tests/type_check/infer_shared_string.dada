@@ -1,0 +1,8 @@
+class Contents {
+    s: my String
+}
+
+fn test(c: my Contents) {
+    let x = c.s
+    #?  ^ VariableType: shared[c.s] String
+}
