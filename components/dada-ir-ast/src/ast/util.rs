@@ -1,4 +1,4 @@
-use std::ops::Deref;
+use std::ops::{Deref, DerefMut};
 
 use salsa::Update;
 use serde::Serialize;
@@ -17,6 +17,12 @@ impl<T: Update> Deref for SpanVec<'_, T> {
 
     fn deref(&self) -> &Self::Target {
         &self.values
+    }
+}
+
+impl<T: Update> DerefMut for SpanVec<'_, T> {
+    fn deref_mut(&mut self) -> &mut Self::Target {
+        &mut self.values
     }
 }
 
