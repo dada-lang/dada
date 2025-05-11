@@ -43,7 +43,7 @@ impl<'db> RedPerm<'db> {
 
     #[expect(dead_code)]
     pub fn is_our(self, env: &Env<'db>) -> Errors<bool> {
-        Ok(self.is_provably(env, Predicate::Copy)? && self.is_provably(env, Predicate::Owned)?)
+        Ok(self.is_provably(env, Predicate::Shared)? && self.is_provably(env, Predicate::Owned)?)
     }
 
     pub fn to_sym_perm(self, db: &'db dyn crate::Db) -> SymPerm<'db> {
@@ -77,7 +77,7 @@ impl<'db> RedChain<'db> {
     pub fn is_provably(self, env: &Env<'db>, predicate: Predicate) -> Errors<bool> {
         let db = env.db();
         match predicate {
-            Predicate::Copy => RedLink::are_copy(env, self.links(db)),
+            Predicate::Shared => RedLink::are_copy(env, self.links(db)),
             Predicate::Move => RedLink::are_move(env, self.links(db)),
             Predicate::Owned => RedLink::are_owned(env, self.links(db)),
             Predicate::Lent => RedLink::are_lent(env, self.links(db)),
@@ -182,7 +182,7 @@ impl<'db> RedLink<'db> {
     pub fn is_copy(&self, env: &Env<'db>) -> Errors<bool> {
         match self {
             RedLink::Our | RedLink::Ref(..) => Ok(true),
-            RedLink::Var(v) => Ok(env.var_is_declared_to_be(*v, Predicate::Copy)),
+            RedLink::Var(v) => Ok(env.var_is_declared_to_be(*v, Predicate::Shared)),
             RedLink::Mut(..) => Ok(false),
             RedLink::Err(reported) => Err(*reported),
         }

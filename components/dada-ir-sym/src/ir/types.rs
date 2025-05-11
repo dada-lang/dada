@@ -843,7 +843,7 @@ pub enum AssumptionKind {
     Move,
     Mutable,
     Owned,
-    Copy,
+    Shared,
     My,
     Our,
 }

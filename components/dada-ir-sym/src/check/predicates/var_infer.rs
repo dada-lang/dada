@@ -87,7 +87,7 @@ pub async fn require_infer_is<'db>(
             .await
         }
 
-        Predicate::Copy | Predicate::Move => {
+        Predicate::Shared | Predicate::Move => {
             require_bounding_terms_are(env, infer, None, predicate, or_else).await
         }
     }
@@ -118,7 +118,7 @@ pub async fn infer_is_provably<'db>(
     assert_eq!(env.infer_var_kind(infer), InferVarKind::Perm);
 
     match predicate {
-        Predicate::Copy | Predicate::Move => {
+        Predicate::Shared | Predicate::Move => {
             // Copy/move predicates are preserved by up/downcasting:
             //
             // * All copy perms (`our`, `ref[_]`, `our mut[_]`, `copy perm X`)

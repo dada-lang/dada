@@ -214,7 +214,7 @@ impl<'db> GreatestLowerBound<'db> for RedLink<'db> {
             | (RedLink::Our, RedLink::Our) => Ok(RedLink::Our),
 
             (RedLink::Our, RedLink::Var(v)) | (RedLink::Var(v), RedLink::Our) => {
-                if env.var_is_declared_to_be(v, Predicate::Copy) {
+                if env.var_is_declared_to_be(v, Predicate::Shared) {
                     Ok(RedLink::Our)
                 } else {
                     Err(NoGlb)
@@ -244,7 +244,7 @@ impl<'db> GreatestLowerBound<'db> for RedLink<'db> {
             (RedLink::Ref(..), RedLink::Var(v)) | (RedLink::Var(v), RedLink::Ref(..)) => {
                 // Subtle: we canonicalize vars to `Our` if we can
                 debug_assert!(
-                    !env.var_is_declared_to_be(v, Predicate::Copy)
+                    !env.var_is_declared_to_be(v, Predicate::Shared)
                         || !env.var_is_declared_to_be(v, Predicate::Owned)
                 );
 

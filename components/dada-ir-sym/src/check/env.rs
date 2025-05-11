@@ -131,10 +131,10 @@ impl<'db> Env<'db> {
     /// True if the given variable is declared to meet the given predicate.
     pub fn var_is_declared_to_be(&self, var: SymVariable<'db>, predicate: Predicate) -> bool {
         let result = match predicate {
-            Predicate::Copy => self.assumed(var, |kind| {
+            Predicate::Shared => self.assumed(var, |kind| {
                 matches!(
                     kind,
-                    AssumptionKind::Copy | AssumptionKind::Our | AssumptionKind::Referenced
+                    AssumptionKind::Shared | AssumptionKind::Our | AssumptionKind::Referenced
                 )
             }),
             Predicate::Move => self.assumed(var, |kind| {
