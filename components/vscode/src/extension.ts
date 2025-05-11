@@ -12,7 +12,7 @@ let client: LanguageClient | undefined;
 export function activate(context: vscode.ExtensionContext) {
   // Get server path using our utility
   const serverPath = getServerPath(context);
-  const { command, args } = getServerOptions(serverPath);
+  const { command, args, options } = getServerOptions(context, serverPath);
   
   // Create output channel for logging
   const outputChannel = vscode.window.createOutputChannel('Dada Language Server');
@@ -29,8 +29,8 @@ export function activate(context: vscode.ExtensionContext) {
 
   // Create the server options
   const serverOptions: ServerOptions = {
-    run: { command, args, transport: TransportKind.stdio },
-    debug: { command, args, transport: TransportKind.stdio }
+    run: { command, args, options, transport: TransportKind.stdio },
+    debug: { command, args, options, transport: TransportKind.stdio }
   };
 
   // Create and start the client
