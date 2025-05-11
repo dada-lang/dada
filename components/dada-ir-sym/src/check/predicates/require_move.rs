@@ -69,8 +69,8 @@ async fn require_ty_is_move<'db>(
         SymTyKind::Never => Ok(()),
 
         // Variable and inference
-        SymTyKind::Infer(infer) => require_infer_is(env, infer, Predicate::Move, or_else).await,
-        SymTyKind::Var(var) => require_var_is(env, var, Predicate::Move, or_else),
+        SymTyKind::Infer(infer) => require_infer_is(env, infer, Predicate::Unique, or_else).await,
+        SymTyKind::Var(var) => require_var_is(env, var, Predicate::Unique, or_else),
 
         // Named types
         SymTyKind::Named(sym_ty_name, ref generics) => match sym_ty_name {
@@ -147,8 +147,8 @@ async fn require_perm_is_move<'db>(
         }
 
         // Variable and inference
-        SymPermKind::Var(var) => require_var_is(env, var, Predicate::Move, or_else),
-        SymPermKind::Infer(infer) => require_infer_is(env, infer, Predicate::Move, or_else).await,
+        SymPermKind::Var(var) => require_var_is(env, var, Predicate::Unique, or_else),
+        SymPermKind::Infer(infer) => require_infer_is(env, infer, Predicate::Unique, or_else).await,
 
         SymPermKind::Or(_, _) => todo!(),
     }

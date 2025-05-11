@@ -38,8 +38,8 @@ pub async fn term_is_provably_move<'db>(
 pub async fn red_ty_is_provably_move<'db>(env: &mut Env<'db>, ty: RedTy<'db>) -> Errors<bool> {
     let db = env.db();
     match ty {
-        RedTy::Infer(infer) => infer_is_provably(env, infer, Predicate::Move).await,
-        RedTy::Var(var) => Ok(test_var_is_provably(env, var, Predicate::Move)),
+        RedTy::Infer(infer) => infer_is_provably(env, infer, Predicate::Unique).await,
+        RedTy::Var(var) => Ok(test_var_is_provably(env, var, Predicate::Unique)),
         RedTy::Never => Ok(true),
         RedTy::Error(reported) => Err(reported),
         RedTy::Named(sym_ty_name, ref generics) => match sym_ty_name {
@@ -98,9 +98,9 @@ pub(crate) async fn perm_is_provably_move<'db>(
             Ok(application_is_provably_move(env, lhs.into(), rhs.into()).await?)
         }
 
-        SymPermKind::Var(var) => Ok(test_var_is_provably(env, var, Predicate::Move)),
+        SymPermKind::Var(var) => Ok(test_var_is_provably(env, var, Predicate::Unique)),
 
-        SymPermKind::Infer(infer) => infer_is_provably(env, infer, Predicate::Move).await,
+        SymPermKind::Infer(infer) => infer_is_provably(env, infer, Predicate::Unique).await,
 
         SymPermKind::Or(_, _) => todo!(),
     }

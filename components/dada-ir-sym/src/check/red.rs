@@ -78,7 +78,7 @@ impl<'db> RedChain<'db> {
         let db = env.db();
         match predicate {
             Predicate::Shared => RedLink::are_copy(env, self.links(db)),
-            Predicate::Move => RedLink::are_move(env, self.links(db)),
+            Predicate::Unique => RedLink::are_move(env, self.links(db)),
             Predicate::Owned => RedLink::are_owned(env, self.links(db)),
             Predicate::Lent => RedLink::are_lent(env, self.links(db)),
         }
@@ -173,7 +173,7 @@ impl<'db> RedLink<'db> {
     pub fn is_move(&self, env: &Env<'db>) -> Errors<bool> {
         match self {
             RedLink::Mut(..) => Ok(true),
-            RedLink::Var(v) => Ok(env.var_is_declared_to_be(*v, Predicate::Move)),
+            RedLink::Var(v) => Ok(env.var_is_declared_to_be(*v, Predicate::Unique)),
             RedLink::Our | RedLink::Ref(..) => Ok(false),
             RedLink::Err(reported) => Err(*reported),
         }

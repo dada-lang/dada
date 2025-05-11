@@ -369,11 +369,11 @@ impl<'db> ToRedLinkVecs<'db> for SymPerm<'db> {
             SymPermKind::Var(v) => {
                 let linkvec = {
                     if env.var_is_declared_to_be(v, Predicate::Owned)
-                        && env.var_is_declared_to_be(v, Predicate::Move)
+                        && env.var_is_declared_to_be(v, Predicate::Unique)
                     {
                         vec![]
                     } else if env.var_is_declared_to_be(v, Predicate::Owned)
-                        && env.var_is_declared_to_be(v, Predicate::Move)
+                        && env.var_is_declared_to_be(v, Predicate::Unique)
                     {
                         vec![RedLink::Our]
                     } else {

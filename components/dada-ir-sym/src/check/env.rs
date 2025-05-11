@@ -137,10 +137,10 @@ impl<'db> Env<'db> {
                     AssumptionKind::Shared | AssumptionKind::Our | AssumptionKind::Referenced
                 )
             }),
-            Predicate::Move => self.assumed(var, |kind| {
+            Predicate::Unique => self.assumed(var, |kind| {
                 matches!(
                     kind,
-                    AssumptionKind::Move | AssumptionKind::My | AssumptionKind::Mutable
+                    AssumptionKind::Unique | AssumptionKind::My | AssumptionKind::Mutable
                 )
             }),
             Predicate::Owned => self.assumed(var, |kind| {

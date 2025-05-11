@@ -28,7 +28,7 @@ use super::{env::Env, inference::Direction, report::OrElse};
 #[derive(Copy, Clone, Debug, Eq, PartialEq, Hash, Ord, PartialOrd, Serialize)]
 pub enum Predicate {
     Shared,
-    Move,
+    Unique,
     Owned,
     Lent,
 }
@@ -36,7 +36,7 @@ pub enum Predicate {
 impl Predicate {
     pub const ALL: [Predicate; 4] = [
         Predicate::Shared,
-        Predicate::Move,
+        Predicate::Unique,
         Predicate::Owned,
         Predicate::Lent,
     ];
@@ -45,7 +45,7 @@ impl Predicate {
     pub fn index(self) -> usize {
         match self {
             Predicate::Shared => 0,
-            Predicate::Move => 1,
+            Predicate::Unique => 1,
             Predicate::Owned => 2,
             Predicate::Lent => 3,
         }
@@ -56,8 +56,8 @@ impl Predicate {
     /// for thr same term.
     pub fn invert(self) -> Predicate {
         match self {
-            Predicate::Shared => Predicate::Move,
-            Predicate::Move => Predicate::Shared,
+            Predicate::Shared => Predicate::Unique,
+            Predicate::Unique => Predicate::Shared,
             Predicate::Owned => Predicate::Lent,
             Predicate::Lent => Predicate::Owned,
         }
@@ -69,14 +69,14 @@ impl Predicate {
     /// * [`Shared`](`Predicate::Shared`) and [`Lent`](`Predicate::Lent`) are [`FromBelow`](`Direction::FromBelow`)
     ///   predicates, meaning that if a type `T` is `Copy` or `Lent`, then all *super*types of `T` are also
     ///   `Copy` and `Lent` (these predicates are "viral" in a sense, they can't be upcast away).
-    /// * [`Move`](`Predicate::Move`) and [`Owned`](`Predicate::Owned`) are [`FromAbove`](`Direction::FromAbove`)
+    /// * [`Unique`](`Predicate::Unique`) and [`Owned`](`Predicate::Owned`) are [`FromAbove`](`Direction::FromAbove`)
     ///   predicates, meaning that if a type `T` is `Move` or `Owned`, then all *sub*types of `T` are also
     ///   `Move` and `Owned`. This reflects the fact that a `Move` type like `my` can be assigned to a `Copy`
     ///   type like `our`; but you cannot assign an `our` into a `my` slot.
     pub fn bound_direction(self) -> Direction {
         match self {
             Predicate::Shared | Predicate::Lent => Direction::FromBelow,
-            Predicate::Move | Predicate::Owned => Direction::FromAbove,
+            Predicate::Unique | Predicate::Owned => Direction::FromAbove,
         }
     }
 }
@@ -85,7 +85,7 @@ impl std::fmt::Display for Predicate {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
         match self {
             Predicate::Shared => write!(f, "copy"),
-            Predicate::Move => write!(f, "move"),
+            Predicate::Unique => write!(f, "move"),
             Predicate::Owned => write!(f, "owned"),
             Predicate::Lent => write!(f, "lent"),
         }
@@ -124,7 +124,7 @@ pub(crate) async fn require_term_is<'db>(
     let term: SymGenericTerm<'db> = term.into();
     match predicate {
         Predicate::Shared => require_term_is_copy(env, term, or_else).await,
-        Predicate::Move => require_term_is_move(env, term, or_else).await,
+        Predicate::Unique => require_term_is_move(env, term, or_else).await,
         Predicate::Owned => require_term_is_owned(env, term, or_else).await,
         Predicate::Lent => require_term_is_lent(env, term, or_else).await,
     }
@@ -138,7 +138,7 @@ pub(crate) async fn term_is_provably<'db>(
     let term: SymGenericTerm<'db> = term.into();
     match predicate {
         Predicate::Shared => term_is_provably_copy(env, term).await,
-        Predicate::Move => term_is_provably_move(env, term).await,
+        Predicate::Unique => term_is_provably_move(env, term).await,
         Predicate::Owned => term_is_provably_owned(env, term).await,
         Predicate::Lent => term_is_provably_lent(env, term).await,
     }

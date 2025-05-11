@@ -840,7 +840,7 @@ pub struct Assumption<'db> {
 pub enum AssumptionKind {
     Lent,
     Referenced,
-    Move,
+    Unique,
     Mutable,
     Owned,
     Shared,
