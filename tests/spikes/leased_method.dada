@@ -1,9 +1,9 @@
 class Account() {
-    fn transfer_to(leased self) {
+    fn transfer_to(mut self) {
     }
 }
 
 async fn main() {
     let mut jackson = Account()
-    jackson.lease.transfer_to()
+    jackson.mut.transfer_to()
 }

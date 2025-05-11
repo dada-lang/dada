@@ -131,16 +131,16 @@ impl<'db> Env<'db> {
     /// True if the given variable is declared to meet the given predicate.
     pub fn var_is_declared_to_be(&self, var: SymVariable<'db>, predicate: Predicate) -> bool {
         let result = match predicate {
-            Predicate::Copy => self.assumed(var, |kind| {
+            Predicate::Shared => self.assumed(var, |kind| {
                 matches!(
                     kind,
-                    AssumptionKind::Copy | AssumptionKind::Our | AssumptionKind::Shared
+                    AssumptionKind::Shared | AssumptionKind::Our | AssumptionKind::Referenced
                 )
             }),
-            Predicate::Move => self.assumed(var, |kind| {
+            Predicate::Unique => self.assumed(var, |kind| {
                 matches!(
                     kind,
-                    AssumptionKind::Move | AssumptionKind::My | AssumptionKind::Leased
+                    AssumptionKind::Unique | AssumptionKind::My | AssumptionKind::Mutable
                 )
             }),
             Predicate::Owned => self.assumed(var, |kind| {
@@ -152,7 +152,7 @@ impl<'db> Env<'db> {
             Predicate::Lent => self.assumed(var, |kind| {
                 matches!(
                     kind,
-                    AssumptionKind::Lent | AssumptionKind::Leased | AssumptionKind::Shared
+                    AssumptionKind::Lent | AssumptionKind::Mutable | AssumptionKind::Referenced
                 )
             }),
         };
@@ -480,7 +480,7 @@ impl<'db> Env<'db> {
         );
     }
 
-    /// Check if the given (perm, type) variable is declared as leased.
+    /// Check if the given (perm, type) variable is declared as mutable.
     #[expect(dead_code)]
     pub fn is_leased_var(&self, _var: SymVariable<'db>) -> bool {
         false // FIXME

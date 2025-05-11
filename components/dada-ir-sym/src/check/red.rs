@@ -20,8 +20,8 @@ pub mod sub;
 
 /// A "lien chain" is a list of permissions by which some data may have been reached.
 /// An empty lien chain corresponds to owned data (`my`, in surface Dada syntax).
-/// A lien chain like `shared[p] leased[q]` would correspond to data shared from a variable `p`
-/// which in turn had data leased from `q` (which in turn owned the data).
+/// A lien chain like `ref[p] mut[q]` would correspond to data referencing a variable `p`
+/// which in turn had data mutable from `q` (which in turn owned the data).
 #[derive(SalsaSerialize)]
 #[salsa::interned(debug)]
 pub(crate) struct RedPerm<'db> {
@@ -43,7 +43,7 @@ impl<'db> RedPerm<'db> {
 
     #[expect(dead_code)]
     pub fn is_our(self, env: &Env<'db>) -> Errors<bool> {
-        Ok(self.is_provably(env, Predicate::Copy)? && self.is_provably(env, Predicate::Owned)?)
+        Ok(self.is_provably(env, Predicate::Shared)? && self.is_provably(env, Predicate::Owned)?)
     }
 
     pub fn to_sym_perm(self, db: &'db dyn crate::Db) -> SymPerm<'db> {
@@ -77,8 +77,8 @@ impl<'db> RedChain<'db> {
     pub fn is_provably(self, env: &Env<'db>, predicate: Predicate) -> Errors<bool> {
         let db = env.db();
         match predicate {
-            Predicate::Copy => RedLink::are_copy(env, self.links(db)),
-            Predicate::Move => RedLink::are_move(env, self.links(db)),
+            Predicate::Shared => RedLink::are_copy(env, self.links(db)),
+            Predicate::Unique => RedLink::are_move(env, self.links(db)),
             Predicate::Owned => RedLink::are_owned(env, self.links(db)),
             Predicate::Lent => RedLink::are_lent(env, self.links(db)),
         }
@@ -173,7 +173,7 @@ impl<'db> RedLink<'db> {
     pub fn is_move(&self, env: &Env<'db>) -> Errors<bool> {
         match self {
             RedLink::Mut(..) => Ok(true),
-            RedLink::Var(v) => Ok(env.var_is_declared_to_be(*v, Predicate::Move)),
+            RedLink::Var(v) => Ok(env.var_is_declared_to_be(*v, Predicate::Unique)),
             RedLink::Our | RedLink::Ref(..) => Ok(false),
             RedLink::Err(reported) => Err(*reported),
         }
@@ -182,7 +182,7 @@ impl<'db> RedLink<'db> {
     pub fn is_copy(&self, env: &Env<'db>) -> Errors<bool> {
         match self {
             RedLink::Our | RedLink::Ref(..) => Ok(true),
-            RedLink::Var(v) => Ok(env.var_is_declared_to_be(*v, Predicate::Copy)),
+            RedLink::Var(v) => Ok(env.var_is_declared_to_be(*v, Predicate::Shared)),
             RedLink::Mut(..) => Ok(false),
             RedLink::Err(reported) => Err(*reported),
         }
@@ -191,8 +191,8 @@ impl<'db> RedLink<'db> {
     pub fn to_sym_perm(self, db: &'db dyn crate::Db) -> SymPerm<'db> {
         match self {
             RedLink::Our => SymPerm::our(db),
-            RedLink::Ref(_, place) => SymPerm::shared(db, vec![place]),
-            RedLink::Mut(_, place) => SymPerm::leased(db, vec![place]),
+            RedLink::Ref(_, place) => SymPerm::referenced(db, vec![place]),
+            RedLink::Mut(_, place) => SymPerm::mutable(db, vec![place]),
             RedLink::Var(v) => SymPerm::var(db, v),
             RedLink::Err(reported) => SymPerm::err(db, reported),
         }

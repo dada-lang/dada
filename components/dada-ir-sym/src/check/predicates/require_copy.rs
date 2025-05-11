@@ -80,10 +80,10 @@ async fn require_ty_is_copy<'db>(
         SymTyKind::Never => Err(or_else.report(env, Because::NeverIsNotCopy)),
 
         // Inference variables
-        SymTyKind::Infer(infer) => require_infer_is(env, infer, Predicate::Copy, or_else).await,
+        SymTyKind::Infer(infer) => require_infer_is(env, infer, Predicate::Shared, or_else).await,
 
         // Universal variables
-        SymTyKind::Var(var) => require_var_is(env, var, Predicate::Copy, or_else),
+        SymTyKind::Var(var) => require_var_is(env, var, Predicate::Shared, or_else),
 
         // Named types
         SymTyKind::Named(sym_ty_name, ref generics) => match sym_ty_name {
@@ -128,10 +128,10 @@ async fn require_perm_is_copy<'db>(
 
         SymPermKind::Our => Ok(()),
 
-        SymPermKind::Shared(_) => Ok(()),
+        SymPermKind::Referenced(_) => Ok(()),
 
-        SymPermKind::Leased(ref places) => {
-            // For a leased[p] to be copy, all the places in `p` must have copy permission.
+        SymPermKind::Mutable(ref places) => {
+            // For a mutable[p] to be copy, all the places in `p` must have copy permission.
             env.require_for_all(places, async |env, &place| {
                 require_place_is_copy(env, place, or_else).await
             })
@@ -144,9 +144,9 @@ async fn require_perm_is_copy<'db>(
         }
 
         // Variable and inference
-        SymPermKind::Var(var) => require_var_is(env, var, Predicate::Copy, or_else),
+        SymPermKind::Var(var) => require_var_is(env, var, Predicate::Shared, or_else),
 
-        SymPermKind::Infer(infer) => require_infer_is(env, infer, Predicate::Copy, or_else).await,
+        SymPermKind::Infer(infer) => require_infer_is(env, infer, Predicate::Shared, or_else).await,
 
         SymPermKind::Or(_, _) => todo!(),
     }

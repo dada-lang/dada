@@ -320,7 +320,7 @@ impl<'db> ToRedLinkVecs<'db> for SymPerm<'db> {
         match *self.kind(db) {
             SymPermKind::My => consumer.consume(env, vec![vec![]]).await,
             SymPermKind::Our => consumer.consume(env, vec![vec![RedLink::Our]]).await,
-            SymPermKind::Shared(ref places) => {
+            SymPermKind::Referenced(ref places) => {
                 let links = places
                     .iter()
                     .map(|&place| RedLink::Ref(Live(live_after.is_live(env, place)), place))
@@ -328,7 +328,7 @@ impl<'db> ToRedLinkVecs<'db> for SymPerm<'db> {
                     .collect::<Vec<_>>();
                 consumer.consume(env, links).await
             }
-            SymPermKind::Leased(ref places) => {
+            SymPermKind::Mutable(ref places) => {
                 let links = places
                     .iter()
                     .map(|&place| RedLink::Mut(Live(live_after.is_live(env, place)), place))
@@ -369,11 +369,11 @@ impl<'db> ToRedLinkVecs<'db> for SymPerm<'db> {
             SymPermKind::Var(v) => {
                 let linkvec = {
                     if env.var_is_declared_to_be(v, Predicate::Owned)
-                        && env.var_is_declared_to_be(v, Predicate::Move)
+                        && env.var_is_declared_to_be(v, Predicate::Unique)
                     {
                         vec![]
                     } else if env.var_is_declared_to_be(v, Predicate::Owned)
-                        && env.var_is_declared_to_be(v, Predicate::Move)
+                        && env.var_is_declared_to_be(v, Predicate::Unique)
                     {
                         vec![RedLink::Our]
                     } else {

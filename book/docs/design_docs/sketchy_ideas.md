@@ -43,7 +43,7 @@ as in Rust you can use leasing
 ```
 match option.lease {
     None => ...
-    Some(x) => ... # x is leased
+    Some(x) => ... # x is mutable
 }
 ```
 
@@ -60,14 +60,14 @@ my map = [key: value, ...]
 
 ```
 for x in list { <takes ownership> }
-for x in list.share { <shares the things within> }
+for x in list.ref { <shares the things within> }
 for x in list.lease { <leases the things within> }
 ```
 
 ### Iterable and iterator
 
 ```
-my iterator = list.share.iter()
+my iterator = list.ref.iter()
 x.next()
 ```
 
@@ -118,7 +118,7 @@ a type is:
 
 ```
 Type = Mode ClassName `<` Parameters `>`
-Mode = `my`, `our`, `leased`, `our leased` ... need to track lessor
+Mode = `my`, `our`, `mutable`, `our mutable` ... need to track lessor
 Parameter = Type, Lessor ... figure that stuff out
 ```
 

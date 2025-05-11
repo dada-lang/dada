@@ -146,9 +146,9 @@ In the same way, the `share` keyword is a way to make conversion into something 
 ```
 class Point(x: our, y: our)
 let p: my = Point(22, 44)
-let q: our = p.share
+let q: our = p.ref
 #         ~~~~~ sharing from a `my` variable makes it give up ownership
-let r: our = q.share
+let r: our = q.ref
 #         ~~~~~ sharing an `our` object is just a copy
 ```
 

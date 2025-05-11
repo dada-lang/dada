@@ -4,5 +4,5 @@ class Contents {
 
 fn test(c: my Contents) {
     let x = c.s
-    #?  ^ VariableType: shared[c.s] String
+    #?  ^ VariableType: ref[c.s] String
 }

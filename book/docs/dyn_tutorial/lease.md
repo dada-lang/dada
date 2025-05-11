@@ -12,12 +12,12 @@ Sometimes, though, we want to give people **temporary** access to an object that
 
 ## The permissions table
 
-Leased permissions complete the "permissions table" that we saw earlier:
+Mutable permissions complete the "permissions table" that we saw earlier:
 
 |            | Unique             | Shared                     |
 | ---------- | ------------------ | -------------------------- |
 | Owned      | [`my`](./my.md)    | [`our`](./our.md)          |
-| **Leased** | ⭐ **`leased`** ⭐ | [`shleased`](./shlease.md) |
+| **Mutable** | ⭐ **`mutable`** ⭐ | [`shleased`](./shlease.md) |
 
 We'll start by talking about _unique leases_, written `lease`, and then cover _shared leases_, which we call a `shlease` (pronounced, um, "sh-lease", kind of like the German "schliese"[^notreal]).
 
@@ -26,28 +26,28 @@ We'll start by talking about _unique leases_, written `lease`, and then cover _s
 
 ## Unique leases
 
-In this example, the line `let l: leased = p` declares a variable `l` that has a _unique lease_ to the object stored in `p`:
+In this example, the line `let l: mutable = p` declares a variable `l` that has a _unique lease_ to the object stored in `p`:
 
 ```
 class Point(x: our, y: our)
 
 let p: my = Point(22, 44)
-let l: leased = p
+let l: mutable = p
 l.x += 1
 print(l.x).await             # Prints `23`
 print(p.x).await             # Prints `23`
 ```
 
-As you can see, a unique lease can be used just like the original object. Modifications to the leased object like `l.x += 1` affect the original object too, so when we print `p.x` we see `23`.
+As you can see, a unique lease can be used just like the original object. Modifications to the mutable object like `l.x += 1` affect the original object too, so when we print `p.x` we see `23`.
 
-If you position your cursor right after `let l: leased = p`, you will see the following diagram, which shows that both `p` and `l` store the same object. The `my` arrow from `p` has been "dashed" to indicate that, while `p` retains ownership, the object is currently leased to another variable:
+If you position your cursor right after `let l: mutable = p`, you will see the following diagram, which shows that both `p` and `l` store the same object. The `my` arrow from `p` has been "dashed" to indicate that, while `p` retains ownership, the object is currently mutable to another variable:
 
 ```
 ┌───┐
 │   │                  ┌───────┐
 │ p ├╌my╌╌╌╌╌╌╌╌╌╌╌╌╌╌►│ Point │
 │   │                  │ ───── │
-│ l ├─leased──────────►│ x: 22 │
+│ l ├─mutable──────────►│ x: 22 │
 │   │                  │ y: 44 │
 └───┘                  └───────┘
 ```
@@ -60,7 +60,7 @@ Unique leases are called unique because, so long as the lease has not been cance
 
 A unique lease can be _terminated_ in two ways:
 
--   The leased variable `l` goes out of scope.
+-   The mutable variable `l` goes out of scope.
 -   The owner (or lessor) variable `p` is used again. Because `l` had a unique lease, once `p` starts using the object, that implies the unique lease is canceled -- otherwise it wouldn't be unique, would it?
 
 You can see this second case by positioning your cursor after the `print(p).await` line in our original example. You will see that the `l` variable no longer has a value, and the `p` line is no longer 'dashed':
@@ -69,7 +69,7 @@ You can see this second case by positioning your cursor after the `print(p).awai
 class Point(x: our, y: our)
 
 let p: my = Point(22, 44)
-let l: leased = p
+let l: mutable = p
 l.x += 1
 print(l.x).await             # Prints `23`
 print(p.x).await             # Prints `23`
@@ -91,7 +91,7 @@ What do you think will happen if we try to use `l` again? Try it and find out!
 
 ## The `lease` keyword
 
-In addition to assigning to a `leased` variable, we can explicitly create a lease with the `lease` keyword. This is particularly useful when combined with [`any` permissions](./any.md). In this example, `let l: any = p.lease` is equivalent to the `let l: leased = p` that we saw earlier:
+In addition to assigning to a `mutable` variable, we can explicitly create a lease with the `lease` keyword. This is particularly useful when combined with [`any` permissions](./any.md). In this example, `let l: any = p.lease` is equivalent to the `let l: mutable = p` that we saw earlier:
 
 ```
 class Point(x: our, y: our)
@@ -101,6 +101,6 @@ let l: any = p.lease
 l.x += 1
 ```
 
-# Giving a leased value
+# Giving a mutable value
 
-You may be wondering what happens when you `give` a leased value. As always, giving a value means creating a second value with the same permissions -- but to explain exactly how giving works on a leased value, we have to introduce one more concept, the _sublease_. That's covered in the next section.
+You may be wondering what happens when you `give` a mutable value. As always, giving a value means creating a second value with the same permissions -- but to explain exactly how giving works on a mutable value, we have to introduce one more concept, the _sublease_. That's covered in the next section.

@@ -140,8 +140,8 @@ async fn require_perm_is_lent<'db>(
         // Our = Copy & Owned
         SymPermKind::Our => Err(or_else.report(env, Because::JustSo)),
 
-        // Shared = Copy & Lent, Leased = Move & Lent
-        SymPermKind::Shared(ref places) | SymPermKind::Leased(ref places) => {
+        // Shared = Copy & Lent, Mutable = Move & Lent
+        SymPermKind::Referenced(ref places) | SymPermKind::Mutable(ref places) => {
             // This one is tricky. If the places are copy,
             // then we will reduce to their chains, but then
             // we would be lent if they are lent; but if they are not
@@ -150,7 +150,7 @@ async fn require_perm_is_lent<'db>(
                 async |env| {
                     env.for_all(places, async |env, &place| {
                         env.either(
-                            // If the place `p` is move, then the result will be `shared[p]` or `leased[p]` perm,
+                            // If the place `p` is move, then the result will be `shared[p]` or `mutable[p]` perm,
                             // which is lent.
                             async |env| place_is_provably_move(env, place).await,
                             // Or, if the place `p` is not move and hence may be copy, then it must itself be `lent`.

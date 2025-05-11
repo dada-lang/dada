@@ -48,11 +48,11 @@ impl<'db> Spanned<'db> for AstPerm<'db> {
 
 #[derive(Clone, PartialEq, Eq, PartialOrd, Ord, Hash, Update, Debug, Serialize)]
 pub enum AstPermKind<'db> {
-    /// User wrote `shared` or `shared[place1, place2]`
-    Shared(Option<SpanVec<'db, AstPath<'db>>>),
+    /// User wrote `ref` or `ref[place1, place2]`
+    Referenced(Option<SpanVec<'db, AstPath<'db>>>),
 
-    /// User wrote `leased` or `leased[place1, place2]`
-    Leased(Option<SpanVec<'db, AstPath<'db>>>),
+    /// User wrote `mutable` or `mutable[place1, place2]`
+    Mutable(Option<SpanVec<'db, AstPath<'db>>>),
 
     /// User wrote `given` or `given[place1, place2]`
     Given(Option<SpanVec<'db, AstPath<'db>>>),

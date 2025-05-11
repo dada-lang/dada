@@ -91,7 +91,7 @@ pub enum AstExprKind<'db> {
         await_keyword: Span<'db>,
     },
 
-    /// `x.lease`, `x.share`, or `x.give`
+    /// `x.lease`, `x.ref`, or `x.give`
     PermissionOp {
         value: AstExpr<'db>,
         op: PermissionOp,
@@ -109,8 +109,8 @@ pub enum AstExprKind<'db> {
 
 #[derive(Copy, Clone, PartialEq, Eq, PartialOrd, Ord, Hash, Update, Debug, Serialize)]
 pub enum PermissionOp {
-    Lease,
-    Share,
+    Mutate,
+    Reference,
     Give,
 }
 

@@ -217,7 +217,7 @@ error: use of invalidated lease
      ^^^^^^^^ invalidated lease used here
 ```
 
-If you step through this program, you can see what's going on. Initially, we [see](https://asciiflow.com/#/share/eJyrVspLzE1VslJyyknMUNJRykmsTC0CcqtjlCpilKwsLYx1YpQqgSwjSyMgqyS1ogTIiVF6NGUPMUgBGRCnDo%2BqmJg8kNrk1JwcQ0JqUdC0XSB9zkB9YD2otikE5GfmlSggzEeVRfMBip3YTHs0pQEZKaC624gMd5cl5pSmQvUkluTnZiajq6iwUjAyItoH2GQeTWlSqLRSMDFBmEKz%2BJ2CFkQwRNj1IKFpm6DKCkDRZkhKcGJNTSi2Ee%2FzGKVapVoAhvupNw%3D%3D) that `point1` is leased from `cell1`:
+If you step through this program, you can see what's going on. Initially, we [see](https://asciiflow.com/#/share/eJyrVspLzE1VslJyyknMUNJRykmsTC0CcqtjlCpilKwsLYx1YpQqgSwjSyMgqyS1ogTIiVF6NGUPMUgBGRCnDo%2BqmJg8kNrk1JwcQ0JqUdC0XSB9zkB9YD2otikE5GfmlSggzEeVRfMBip3YTHs0pQEZKaC624gMd5cl5pSmQvUkluTnZiajq6iwUjAyItoH2GQeTWlSqLRSMDFBmEKz%2BJ2CFkQwRNj1IKFpm6DKCkDRZkhKcGJNTSi2Ee%2FzGKVapVoAhvupNw%3D%3D) that `point1` is mutable from `cell1`:
 
 ```
 class Point(x, y)
@@ -246,7 +246,7 @@ async fn main() {
 // │           │             │       │           │ y: 44 │
 // ├───────────┤             └───────┘           └───────┘
 // │           │                ▲
-// │ point1    ├─leased(cell1)──┘
+// │ point1    ├─mutable(cell1)──┘
 // │           │
 // └───────────┘
 ```
@@ -285,7 +285,7 @@ async fn main() {
 // └───────────┘
 ```
 
-If you think back to the rules on [leasing](./lease.md), this makes sense: a lease lasts until the lessor ends it by using the value. **In this case, though, the value that was leased had not one lessor (`cell1`) but _two_, because it is jointly owned.** Either of those lessors can end the lease by using the value again.
+If you think back to the rules on [leasing](./lease.md), this makes sense: a lease lasts until the lessor ends it by using the value. **In this case, though, the value that was mutable had not one lessor (`cell1`) but _two_, because it is jointly owned.** Either of those lessors can end the lease by using the value again.
 
 To see why this is useful, imagine for a moment that you were writing a function that takes two cells as arguments. Just like the [`transfer`] function that we described in the [sharing xor mutability][sxm] chapter, you don't realize that `cell1` and `cell2` refer to the same object. In that case, this code that you wrote above is probably wrong! It is going to read the value of `x`, mutate it, and then mutate it again, ignoring that write in between. This is precisely the bug we showed as a "data race", but occurring within a single thread. Dada's rules detect this problem and eliminate it.
 

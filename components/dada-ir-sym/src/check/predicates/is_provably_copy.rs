@@ -60,8 +60,8 @@ pub async fn red_ty_is_provably_copy<'db>(env: &mut Env<'db>, ty: RedTy<'db>) ->
             }
         },
         RedTy::Never => Ok(false),
-        RedTy::Infer(infer) => infer_is_provably(env, infer, Predicate::Copy).await,
-        RedTy::Var(var) => Ok(test_var_is_provably(env, var, Predicate::Copy)),
+        RedTy::Infer(infer) => infer_is_provably(env, infer, Predicate::Shared).await,
+        RedTy::Var(var) => Ok(test_var_is_provably(env, var, Predicate::Shared)),
         RedTy::Perm => todo!(),
     }
 }
@@ -87,13 +87,13 @@ pub(crate) async fn perm_is_provably_copy<'db>(
     match *perm.kind(db) {
         SymPermKind::Error(reported) => Err(reported),
         SymPermKind::My => Ok(false),
-        SymPermKind::Our | SymPermKind::Shared(_) => Ok(true),
-        SymPermKind::Leased(ref places) => places_are_ktb_copy(env, places).await,
+        SymPermKind::Our | SymPermKind::Referenced(_) => Ok(true),
+        SymPermKind::Mutable(ref places) => places_are_ktb_copy(env, places).await,
         SymPermKind::Apply(lhs, rhs) => {
             Ok(application_is_provably_copy(env, lhs.into(), rhs.into()).await?)
         }
-        SymPermKind::Var(var) => Ok(test_var_is_provably(env, var, Predicate::Copy)),
-        SymPermKind::Infer(infer) => infer_is_provably(env, infer, Predicate::Copy).await,
+        SymPermKind::Var(var) => Ok(test_var_is_provably(env, var, Predicate::Shared)),
+        SymPermKind::Infer(infer) => infer_is_provably(env, infer, Predicate::Shared).await,
         SymPermKind::Or(_, _) => todo!(),
     }
 }

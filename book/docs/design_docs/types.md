@@ -6,14 +6,14 @@ A full Dada type consists of a *permission*, a *class*, and *generic arguments* 
 
 * `my String`
 * `our Vec[String]`
-* `leased{p} Vec[String]`
+* `mutable{p} Vec[String]`
 
 *Permissions* have the structure of
 
 * `my`, which is shorthand for `given{}` and means "fully owned by this variable"
 * `our`, which is shorthand for `shared{}` and means "shared" (jointly owned by this variable and possibly others)
-* `leased{path1, ..., pathN}` which means "leased from one of the paths in `path1...pathN`"
-    * leased values are owned by another variable, but this variable has unique access
+* `mutable{path1, ..., pathN}` which means "mutable from one of the paths in `path1...pathN`"
+    * mutable values are owned by another variable, but this variable has unique access
     * there cannot be an empty set of paths.
 * `shared{path1, ..., pathN}` which means "shared from one of the paths in `path1...pathN`"
     * if the set of paths is non-empty, then the value is owned by one of them (or by their lessors)
@@ -43,16 +43,16 @@ You can map the user's permissions to ...
 
 * `my = {is_share: false, has_lessor: false}`
 * `our = {is_share: true, has_lessor: false}`
-* `leased{a_0,..,a_N} = {is_share: false, has_lessor: true}` where `P` appears (transitively) as a tenant of some `a_i`
+* `mutable{a_0,..,a_N} = {is_share: false, has_lessor: true}` where `P` appears (transitively) as a tenant of some `a_i`
 * `shared{a_0,..,a_N} = {is_share: true, has_lessor: true}` where `P` appears (transitively) as a tenant of some `a_i`
 
-But there is this weird discontinuity: if something is *leased*, it must be represented as a pointer when fully compiled (but not in the abstract machine).
+But there is this weird discontinuity: if something is *mutable*, it must be represented as a pointer when fully compiled (but not in the abstract machine).
 
 ### Representation at interpreter vs compilation time
 
 In the Dada interpreter, everything is a pointer, and everything is fine.
 
-In the compiler, given/shared values are represented "by value", but "unique leased" values must be represented by pointer. This creates a challenge, particularly since you cannot convert a given value into uleased one (uleased can be converted into shared by loading).
+In the compiler, given/shared values are represented "by value", but "unique mutable" values must be represented by pointer. This creates a challenge, particularly since you cannot convert a given value into uleased one (uleased can be converted into shared by loading).
 
 ## Checking static types at runtime
 
@@ -83,12 +83,12 @@ When `test_fn` is invoked, `P` becomes a set of two permissions of the string in
 Dada has two forms of where-clauses for now:
 
 * `shared{P}`
-* `leased{P}`
+* `mutable{P}`
 
 These are tested as follows:
 
 * `shared{P}` is true if all the permissions in `P` have `is_shared: true`.
-* `leased{P}` is true if all the permissions in `P` have `is_shared: false` and `has_lessor: true`.
+* `mutable{P}` is true if all the permissions in `P` have `is_shared: false` and `has_lessor: true`.
 
 ### Checking known permissions
 
@@ -126,7 +126,7 @@ fn matches_leased(perm_target: Perm, permissions: Vec<Variable>) -> true {
 /// characteristics desired by its return type:
 /// 
 /// * `is_shared` -- if false, i.e., return type demands a unique return, then `perm_target` must be unique
-/// * `lessors` -- `perm_target` must be leased from one of the lessors in this list, 
+/// * `lessors` -- `perm_target` must be mutable from one of the lessors in this list, 
 fn matches_test(perm_target: Perm, is_shared: bool, lessors: Vec<Permission>) -> true { 
     // If the return type demands a unique value, but a shared type was returned, false.
     if perm_target.is_shared && !is_shared {
@@ -135,13 +135,13 @@ fn matches_test(perm_target: Perm, is_shared: bool, lessors: Vec<Permission>) ->
 
     // If the value returned has a lessor...
     if perm_target.has_lessor {
-        // ...then `perm_target` must be leased from a member of `lessors`.
+        // ...then `perm_target` must be mutable from a member of `lessors`.
         return lessors.iter().any(|l| l.transitive_lessor_of(perm_target));
     }
 
     // Otherwise, the return value is owned. That is ok if the return type is
     // shared or `my`, but we can't have an owned return value when the return
-    // type is something like `leased{a}`. In that case the value HAS to be leased
+    // type is something like `mutable{a}`. In that case the value HAS to be mutable
     // from `a`. This is required because the compiler will represent it as a pointer
     // to `a`, so we can't substitute an owned value.
     is_shared || lessors.is_empty()
@@ -181,16 +181,16 @@ fn name(c: Character) -> given{c} String {
 
 This function takes in a character with some permission `P` and returns data *given* from that character. As described in the dyn tutorial, giving data gives all permissions to a new value -- so this effectively means the return value has permission `P` as well.
 
-This means callers can either get shared, leased, or given access to `name`:
+This means callers can either get shared, mutable, or given access to `name`:
 
 ```
 n = name(c.give) # takes ownership of the name
 
-n = name(c.lease) # gets back a `leased String` with `c` as the lessor
+n = name(c.lease) # gets back a `mutable String` with `c` as the lessor
 
-n = name(c.share) # gets back a `shared String` with `c` as the lessor
+n = name(c.ref) # gets back a `shared String` with `c` as the lessor
 
-n = name(c) # `c` defaults to `c.share`, so equivalent to the previous one
+n = name(c) # `c` defaults to `c.ref`, so equivalent to the previous one
 ```
 
 ### Returning my when lease *may* be expected
@@ -209,11 +209,11 @@ fn name(c: Character) -> given{c} String {
 This function returns a `my String`. It sometimes works:
 
 * If you invoke `name(c.give)`, it works. The return value of `my String` is expected.
-* If you invoke `name(c.share)`, it works. The return value of `my String` is allowed when a shared result is expected.
+* If you invoke `name(c.ref)`, it works. The return value of `my String` is allowed when a shared result is expected.
 
 But it sometimes fails:
 
-* If you invoke `name(c.lease)`, it false. The return value should be been leased from `c`, and it's not.
+* If you invoke `name(c.lease)`, it false. The return value should be been mutable from `c`, and it's not.
 
 Therefore, it should fail the static type check too, once we get there. It will, because `my String` will not be coercible to the type `given{c}`.
 
@@ -230,7 +230,7 @@ fn name(c: Character) -> shared{c} String {
 }
 ```
 
-This function always works. Even if `c` is leased, the resulting value is `my` (or `our`), doesn't matter, and so passes the test for `shared`.
+This function always works. Even if `c` is mutable, the resulting value is `my` (or `our`), doesn't matter, and so passes the test for `shared`.
 
 ### Signatures that are generic over permissions
 
@@ -245,34 +245,34 @@ fn pick_name(c1: Character, c2: Character) -> given{c1, c2} String {
 }
 ```
 
-Interesting example, particularly given the fact that `leased` has this weird "twist" that it has to be represented as a pointer.
+Interesting example, particularly given the fact that `mutable` has this weird "twist" that it has to be represented as a pointer.
 I'm still not sure if it's going to become a huge problem.
 
 Some calls can fail:
 
-* e.g,. `pick_name(a.give, b.lease)` would return a `my String` but the test requires something leased from `a` or `b`
+* e.g,. `pick_name(a.give, b.lease)` would return a `my String` but the test requires something mutable from `a` or `b`
 
 Other calls work out:
 
-* e.g., `pick_name(a.share, b.lease)` returns a `shared{a} String`; the test requires something leased from `a` or `b`, so that works.
+* e.g., `pick_name(a.ref, b.lease)` returns a `shared{a} String`; the test requires something mutable from `a` or `b`, so that works.
 
 The static type check would, I think, succeed. But maybe it should fail, per the above. Imagine `let x: given{c1, c2} String = ...` in the code?
 
 Two options:
 
 * Implied bounds that add something like `OK(given{c1,c2})`, ensuring that the permissions can be combined.
-* Error at the declaration site that `given{c1,c2}` is ill-formed, requiring you to write either `shared{c1,c2}`, `leased{c1,c2}`, or some more details on the arguments. Annoyingly, you can't quite right the thing you *want*, which is that "if c1 is leased or c2 is leased, then both are".
+* Error at the declaration site that `given{c1,c2}` is ill-formed, requiring you to write either `shared{c1,c2}`, `mutable{c1,c2}`, or some more details on the arguments. Annoyingly, you can't quite right the thing you *want*, which is that "if c1 is mutable or c2 is mutable, then both are".
 
 
 ### Inner lease (Bug!)
 
 ```
-fn pick_name(c1: leased Vec[leased String]) -> leased(c1) String {
+fn pick_name(c1: mutable Vec[mutable String]) -> mutable(c1) String {
     if true { c1.name.give } else { c2.name.give }
 }
 ```
 
-This is expanded to `P Vec[Q String]` where `leased(P, Q)`. We get back a value with a lease of both P and Q. The test above is happy because we needed a lease of P.
+This is expanded to `P Vec[Q String]` where `mutable(P, Q)`. We get back a value with a lease of both P and Q. The test above is happy because we needed a lease of P.
 
 Note that static type system would have to track dep between P and Q, because in fact it's possible that Q could be invalidated but not P otherwise. Example:
 

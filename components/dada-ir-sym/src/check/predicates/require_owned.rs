@@ -104,10 +104,10 @@ async fn require_perm_is_owned<'db>(
         // Our = Copy & Owned
         SymPermKind::Our => Ok(()),
 
-        // Shared = Copy & Lent, Leased = Move & Lent
-        SymPermKind::Shared(ref places) | SymPermKind::Leased(ref places) => {
-            // In order for a shared[p] or leased[p] type to be owned,
-            // the `p` values must be `our` -- copy so that the shared/leased
+        // Shared = Copy & Lent, Mutable = Move & Lent
+        SymPermKind::Referenced(ref places) | SymPermKind::Mutable(ref places) => {
+            // In order for a shared[p] or mutable[p] type to be owned,
+            // the `p` values must be `our` -- copy so that the shared/mutable
             // doesn't apply, and then themselves owned.
             env.require_for_all(places, async |env, &place| {
                 env.require_both(

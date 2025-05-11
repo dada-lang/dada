@@ -69,8 +69,8 @@ async fn require_ty_is_move<'db>(
         SymTyKind::Never => Ok(()),
 
         // Variable and inference
-        SymTyKind::Infer(infer) => require_infer_is(env, infer, Predicate::Move, or_else).await,
-        SymTyKind::Var(var) => require_var_is(env, var, Predicate::Move, or_else),
+        SymTyKind::Infer(infer) => require_infer_is(env, infer, Predicate::Unique, or_else).await,
+        SymTyKind::Var(var) => require_var_is(env, var, Predicate::Unique, or_else),
 
         // Named types
         SymTyKind::Named(sym_ty_name, ref generics) => match sym_ty_name {
@@ -125,10 +125,10 @@ async fn require_perm_is_move<'db>(
 
         SymPermKind::Our => Err(or_else.report(env, Because::JustSo)),
 
-        SymPermKind::Shared(_) => Err(or_else.report(env, Because::JustSo)),
+        SymPermKind::Referenced(_) => Err(or_else.report(env, Because::JustSo)),
 
-        SymPermKind::Leased(ref places) => {
-            // If there is at least one place `p` that is move, this will result in a `leased[p]` chain.
+        SymPermKind::Mutable(ref places) => {
+            // If there is at least one place `p` that is move, this will result in a `mutable[p]` chain.
             env.require(
                 async |env| {
                     env.exists(places, async |env, &place| {
@@ -147,8 +147,8 @@ async fn require_perm_is_move<'db>(
         }
 
         // Variable and inference
-        SymPermKind::Var(var) => require_var_is(env, var, Predicate::Move, or_else),
-        SymPermKind::Infer(infer) => require_infer_is(env, infer, Predicate::Move, or_else).await,
+        SymPermKind::Var(var) => require_var_is(env, var, Predicate::Unique, or_else),
+        SymPermKind::Infer(infer) => require_infer_is(env, infer, Predicate::Unique, or_else).await,
 
         SymPermKind::Or(_, _) => todo!(),
     }

@@ -16,13 +16,13 @@ let my_p: any = Point(22, 44)
 let my_p_now: any = my_p.give
 
 # You can `share` it
-let our_p: any = my_p_now.share
+let our_p: any = my_p_now.ref
 
 # Giving a shared thing is a copy
 let also_our_p: any = our_p.give
 
 # So is sharing
-let and_our_p_too: any = our_p.share
+let and_our_p_too: any = our_p.ref
 ```
 
 ## Using `any` to operate on multiple permissions with one function

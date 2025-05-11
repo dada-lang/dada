@@ -271,16 +271,18 @@ impl<'db> CheckTyInEnv<'db> for AstPerm<'db> {
     async fn check_in_env(&self, env: &mut Env<'db>) -> Self::Output {
         let db = env.db();
         match *self.kind(db) {
-            AstPermKind::Shared(Some(ref paths)) => {
+            AstPermKind::Referenced(Some(ref paths)) => {
                 let places = paths_to_sym_places(env, paths).await;
-                SymPerm::new(db, SymPermKind::Shared(places))
+                SymPerm::new(db, SymPermKind::Referenced(places))
             }
-            AstPermKind::Leased(Some(ref paths)) => {
+            AstPermKind::Mutable(Some(ref paths)) => {
                 let places = paths_to_sym_places(env, paths).await;
-                SymPerm::new(db, SymPermKind::Leased(places))
+                SymPerm::new(db, SymPermKind::Mutable(places))
             }
             AstPermKind::Given(Some(ref _span_vec)) => todo!(),
-            AstPermKind::Shared(None) | AstPermKind::Leased(None) | AstPermKind::Given(None) => {
+            AstPermKind::Referenced(None)
+            | AstPermKind::Mutable(None)
+            | AstPermKind::Given(None) => {
                 let sym_var = self.anonymous_perm_symbol(db);
                 SymPerm::var(db, sym_var)
             }
