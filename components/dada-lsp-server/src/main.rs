@@ -16,7 +16,7 @@ use lsp_types::{
 };
 use lsp_types::{InitializeParams, ServerCapabilities};
 
-use salsa::Setter;
+use salsa::{Database, Setter};
 use url::Url;
 
 mod lsp;
@@ -151,45 +151,47 @@ impl lsp::Lsp for Server {
 
         // Get the source file
         let source_file = self.db.get_previously_opened_source_file(uri.as_str())?;
-        
+
         // Convert LSP position to absolute offset
         let line = position.line as usize;
         let character = position.character as usize;
-        
+
         // Get line starts
         let line_starts = source_file.line_starts(&self.db);
-        
+
         // Make sure the line is valid
         if line >= line_starts.len() - 1 {
             return Ok(None);
         }
-        
+
         // Get the start offset of the line
         let line_start = line_starts[line];
-        
+
         // Calculate the absolute offset
         let offset = AbsoluteOffset::from(line_start.as_usize() + character);
-        
+
         // Create a span at the position
         let span = AbsoluteSpan {
             source_file,
             start: offset,
             end: offset,
         };
-        
+
         // Use probe_expression_type to get the type
-        if let Some(type_str) = dada_probe::probe_expression_type(&self.db, span) {
-            // Return hover response with the type
-            return Ok(Some(lsp_types::Hover {
-                contents: lsp_types::HoverContents::Markup(lsp_types::MarkupContent {
-                    kind: lsp_types::MarkupKind::Markdown,
-                    value: format!("Type: `{}`", type_str),
-                }),
-                range: None,
-            }));
-        }
-        
-        Ok(None)
+        self.db.attach(|db| {
+            if let Some(type_str) = dada_probe::probe_expression_type(db, span) {
+                // Return hover response with the type
+                return Ok(Some(lsp_types::Hover {
+                    contents: lsp_types::HoverContents::Markup(lsp_types::MarkupContent {
+                        kind: lsp_types::MarkupKind::Markdown,
+                        value: format!("Type: `{}`", type_str),
+                    }),
+                    range: None,
+                }));
+            }
+
+            Ok(None)
+        })
     }
 }
 
