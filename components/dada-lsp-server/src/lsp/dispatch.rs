@@ -6,8 +6,8 @@ use std::{
 };
 
 use dada_util::Fallible;
-use lsp_server::{Connection, Message, Notification};
-use lsp_types::{PublishDiagnosticsParams, notification};
+use lsp_server::{Connection, Message, Notification, Request, Response};
+use lsp_types::{PublishDiagnosticsParams, notification, request};
 
 use super::{Editor, Lsp};
 
@@ -15,6 +15,7 @@ pub(super) struct LspDispatch<'l, L: Lsp + 'l> {
     connection: Arc<Connection>,
     lsp: L,
     notification_arms: Vec<Box<dyn NotificationArm<L> + 'l>>,
+    request_arms: Vec<Box<dyn RequestArm<L> + 'l>>,
 }
 
 trait NotificationArm<L> {
@@ -26,12 +27,22 @@ trait NotificationArm<L> {
     ) -> Fallible<ControlFlow<(), Notification>>;
 }
 
+trait RequestArm<L> {
+    fn execute(
+        &self,
+        context: &mut L,
+        editor: &mut dyn Editor<L>,
+        request: Request,
+    ) -> Fallible<ControlFlow<Response, Request>>;
+}
+
 impl<'l, L: Lsp + 'l> LspDispatch<'l, L> {
     pub fn new(connection: Connection, lsp: L) -> Self {
         Self {
             lsp,
             connection: Arc::new(connection),
             notification_arms: vec![],
+            request_arms: vec![],
         }
     }
 
@@ -71,6 +82,53 @@ impl<'l, L: Lsp + 'l> LspDispatch<'l, L> {
 
         self.notification_arms.push(Box::new(NotificationArmImpl {
             notification: PhantomData::<(N, L)>,
+            execute,
+        }));
+
+        self
+    }
+
+    pub fn on_request<R>(
+        mut self,
+        execute: impl Fn(&mut L, &mut dyn Editor<L>, R::Params) -> Fallible<R::Result> + 'l,
+    ) -> Self
+    where
+        R: request::Request + 'l,
+    {
+        struct RequestArmImpl<R, F, L> {
+            request: PhantomData<(R, L)>,
+            execute: F,
+        }
+
+        impl<L, R, F> RequestArm<L> for RequestArmImpl<R, F, L>
+        where
+            R: request::Request,
+            F: Fn(&mut L, &mut dyn Editor<L>, R::Params) -> Fallible<R::Result>,
+        {
+            fn execute(
+                &self,
+                lsp: &mut L,
+                editor: &mut dyn Editor<L>,
+                request: Request,
+            ) -> Fallible<ControlFlow<Response, Request>> {
+                if request.method != R::METHOD {
+                    return Ok(ControlFlow::Continue(request));
+                }
+
+                let params: R::Params = serde_json::from_value(request.params)?;
+                let result = (self.execute)(lsp, editor, params)?;
+                let response = Response {
+                    id: request.id,
+                    result: Some(serde_json::to_value(result)?),
+                    error: None,
+                };
+
+                Ok(ControlFlow::Break(response))
+            }
+        }
+
+        self.request_arms.push(Box::new(RequestArmImpl {
+            request: PhantomData::<(R, L)>,
             execute,
         }));
 
@@ -130,7 +188,36 @@ impl<'l, L: Lsp + 'l> LspDispatch<'l, L> {
         message: Message,
     ) -> Fallible<()> {
         match message {
-            Message::Request(_request) => Ok(()),
+            Message::Request(request) => {
+                let mut editor = LspDispatchEditor {
+                    connection: &self.connection,
+                    spawned_tasks_tx,
+                };
+                
+                let mut req = request;
+                for arm in &self.request_arms {
+                    match arm.execute(&mut self.lsp, &mut editor, req)? {
+                        ControlFlow::Break(response) => {
+                            self.connection.sender.send(Message::Response(response))?;
+                            return Ok(());
+                        }
+                        ControlFlow::Continue(r) => req = r,
+                    }
+                }
+                
+                // If we get here, no handler was found
+                let response = Response {
+                    id: req.id,
+                    result: None,
+                    error: Some(lsp_server::ResponseError {
+                        code: lsp_server::ErrorCode::MethodNotFound as i32,
+                        message: format!("Method not found: {}", req.method),
+                        data: None,
+                    }),
+                };
+                self.connection.sender.send(Message::Response(response))?;
+                Ok(())
+            },
             Message::Response(_response) => Ok(()),
             Message::Notification(mut notification) => {
                 let mut editor = LspDispatchEditor {

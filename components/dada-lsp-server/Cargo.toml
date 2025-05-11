@@ -7,7 +7,9 @@ edition.workspace = true
 crossbeam-channel = "0.5.13"
 dada-compiler = { version = "0.1.0", path = "../dada-compiler" }
 dada-ir-ast = { version = "0.1.0", path = "../dada-ir-ast" }
+dada-ir-sym = { version = "0.1.0", path = "../dada-ir-sym" }
 dada-lang = { version = "0.1.0", path = "../dada-lang" }
+dada-probe = { version = "0.1.0", path = "../dada-probe" }
 dada-util = { version = "0.1.0", path = "../dada-util" }
 futures = "0.3.31"
 lsp-server = "0.7.7"
