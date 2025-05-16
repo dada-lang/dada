@@ -54,7 +54,7 @@ impl<'member, 'db> MemberLookup<'member, 'db> {
     fn confirm_member(
         &mut self,
         owner: ExprResult<'db>,
-        owner_perm: Option<SymPerm<'db>>,
+        owner_perm: SymPerm<'db>,
         member: SearchResult<'db>,
         id: SpannedIdentifier<'db>,
     ) -> ExprResult<'db> {
@@ -74,10 +74,7 @@ impl<'member, 'db> MemberLookup<'member, 'db> {
                 // * the permission from the owner applied
                 let owner_place_expr = owner.into_place_expr(self.env, &mut temporaries);
                 let field_ty = field_ty.substitute(db, &[owner_place_expr.into_sym_place(db)]);
-                let field_ty_with_perm = match owner_perm {
-                    None => field_ty,
-                    Some(p) => SymTy::perm(db, p, field_ty),
-                };
+                let field_ty_with_perm = owner_perm.apply_to(db, field_ty);
 
                 // construct the place expression
                 let place_expr = SymPlaceExpr::new(
@@ -234,7 +231,7 @@ enum SearchResult<'db> {
 async fn non_infer_lower_bound<'db>(
     env: &mut Env<'db>,
     ty: SymTy<'db>,
-) -> (RedTy<'db>, Option<SymPerm<'db>>) {
+) -> (RedTy<'db>, SymPerm<'db>) {
     let (red_ty, perm) = ty.to_red_ty(env);
     if let RedTy::Infer(infer_var_index) = red_ty {
         match env

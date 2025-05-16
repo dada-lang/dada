@@ -10,6 +10,7 @@ use crate::{
         live_places::LivePlaces,
         red::RedTy,
         report::{Because, OrElse},
+        subtype::perms::require_sub_perms,
         to_red::ToRedTy,
     },
     ir::{
@@ -18,8 +19,6 @@ use crate::{
         types::{SymGenericKind, SymGenericTerm, SymPerm, SymTy, SymTyKind, SymTyName},
     },
 };
-
-use super::perms::require_sub_opt_perms;
 
 pub async fn require_assignable_type<'db>(
     env: &mut Env<'db>,
@@ -53,8 +52,8 @@ pub async fn require_sub_terms<'db>(
 pub async fn require_sub_red_terms<'db>(
     env: &mut Env<'db>,
     live_after: LivePlaces,
-    (lower_red_ty, lower_perm): (RedTy<'db>, Option<SymPerm<'db>>),
-    (upper_red_ty, upper_perm): (RedTy<'db>, Option<SymPerm<'db>>),
+    (lower_red_ty, lower_perm): (RedTy<'db>, SymPerm<'db>),
+    (upper_red_ty, upper_perm): (RedTy<'db>, SymPerm<'db>),
     or_else: &dyn OrElse<'db>,
 ) -> Errors<()> {
     env.log(
@@ -120,13 +119,8 @@ pub async fn require_sub_red_terms<'db>(
                         let mut upper_generic = upper_generic;
 
                         if !variance.relative {
-                            if let Some(lower_perm) = lower_perm {
-                                lower_generic = lower_perm.apply_to_term(db, lower_generic);
-                            }
-
-                            if let Some(upper_perm) = upper_perm {
-                                upper_generic = upper_perm.apply_to_term(db, upper_generic);
-                            }
+                            lower_generic = lower_perm.apply_to(db, lower_generic);
+                            upper_generic = upper_perm.apply_to(db, upper_generic);
                         }
 
                         env.require_both(
@@ -167,8 +161,7 @@ pub async fn require_sub_red_terms<'db>(
                 match name_lower.style(env.db()) {
                     SymAggregateStyle::Struct => {}
                     SymAggregateStyle::Class => {
-                        require_sub_opt_perms(env, live_after, lower_perm, upper_perm, or_else)
-                            .await?;
+                        require_sub_perms(env, live_after, lower_perm, upper_perm, or_else).await?;
                     }
                 }
 
@@ -182,13 +175,13 @@ pub async fn require_sub_red_terms<'db>(
         }
 
         (&RedTy::Never, &RedTy::Never) => {
-            require_sub_opt_perms(env, live_after, lower_perm, upper_perm, or_else).await
+            require_sub_perms(env, live_after, lower_perm, upper_perm, or_else).await
         }
         (&RedTy::Never, _) | (_, &RedTy::Never) => Err(or_else.report(env, Because::JustSo)),
 
         (&RedTy::Var(var_lower), &RedTy::Var(var_upper)) => {
             if var_lower == var_upper {
-                require_sub_opt_perms(env, live_after, lower_perm, upper_perm, or_else).await
+                require_sub_perms(env, live_after, lower_perm, upper_perm, or_else).await
             } else {
                 Err(or_else.report(env, Because::UniversalMismatch(var_lower, var_upper)))
             }
@@ -196,7 +189,7 @@ pub async fn require_sub_red_terms<'db>(
         (&RedTy::Var(_), _) | (_, &RedTy::Var(_)) => Err(or_else.report(env, Because::JustSo)),
 
         (&RedTy::Perm, &RedTy::Perm) => {
-            require_sub_opt_perms(env, live_after, lower_perm, upper_perm, or_else).await
+            require_sub_perms(env, live_after, lower_perm, upper_perm, or_else).await
         }
     }
 }
@@ -209,9 +202,9 @@ pub async fn require_sub_red_terms<'db>(
 async fn require_infer_sub_infer<'db>(
     env: &mut Env<'db>,
     live_after: LivePlaces,
-    lower_perm: Option<SymPerm<'db>>,
+    lower_perm: SymPerm<'db>,
     lower_infer: InferVarIndex,
-    upper_perm: Option<SymPerm<'db>>,
+    upper_perm: SymPerm<'db>,
     upper_infer: InferVarIndex,
     or_else: &dyn OrElse<'db>,
 ) -> Errors<()> {
@@ -270,9 +263,9 @@ async fn require_infer_sub_infer<'db>(
 async fn require_ty_sub_infer<'db>(
     env: &mut Env<'db>,
     live_after: LivePlaces,
-    lower_perm: Option<SymPerm<'db>>,
+    lower_perm: SymPerm<'db>,
     lower_ty: RedTy<'db>,
-    upper_perm: Option<SymPerm<'db>>,
+    upper_perm: SymPerm<'db>,
     upper_infer: InferVarIndex,
     or_else: &dyn OrElse<'db>,
 ) -> Errors<()> {
@@ -302,9 +295,9 @@ async fn require_ty_sub_infer<'db>(
 async fn require_infer_sub_ty<'db>(
     env: &mut Env<'db>,
     live_after: LivePlaces,
-    lower_perm: Option<SymPerm<'db>>,
+    lower_perm: SymPerm<'db>,
     lower_infer: InferVarIndex,
-    upper_perm: Option<SymPerm<'db>>,
+    upper_perm: SymPerm<'db>,
     upper_ty: RedTy<'db>,
     or_else: &dyn OrElse<'db>,
 ) -> Errors<()> {
@@ -475,10 +468,10 @@ async fn propagate_inverse_bound<'db>(
                         env,
                         LivePlaces::fixme(),
                         // Combine `B1` with the permission variable from `?X`
-                        Some(perm_infer),
+                        perm_infer,
                         opposite_bound,
                         // Pass `?X` along with its permission variable as the upper term
-                        Some(perm_infer),
+                        perm_infer,
                         infer,
                         &or_else,
                     )
@@ -490,10 +483,10 @@ async fn propagate_inverse_bound<'db>(
                         env,
                         LivePlaces::fixme(),
                         // Pass `?X` along with its permission variable as the lower term
-                        Some(perm_infer),
+                        perm_infer,
                         infer,
                         // Combine `B1` with the permission variable from `?X`
-                        Some(perm_infer),
+                        perm_infer,
                         opposite_bound,
                         &or_else,
                     )

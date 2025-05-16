@@ -24,13 +24,7 @@ pub async fn term_is_provably_copy<'db>(
     let (red_ty, perm) = term.to_red_ty(env);
     env.either(
         async |env| red_ty_is_provably_copy(env, red_ty).await,
-        async |env| {
-            if let Some(perm) = perm {
-                perm_is_provably_copy(env, perm).await
-            } else {
-                Ok(false)
-            }
-        },
+        async |env| perm_is_provably_copy(env, perm).await,
     )
     .await
 }

@@ -16,6 +16,7 @@ use dada_ir_ast::{
     span::Spanned,
 };
 use dada_util::{FromImpls, SalsaSerialize};
+use futures::io::SeeKRelative;
 use salsa::Update;
 use serde::Serialize;
 
@@ -529,27 +530,43 @@ impl<'db> SymPerm<'db> {
     }
 
     /// Apply this permission to the given term (if `self` is not `my`).
-    pub fn apply_to_term(
-        self,
-        db: &'db dyn crate::Db,
-        term: SymGenericTerm<'db>,
-    ) -> SymGenericTerm<'db> {
+    pub fn apply_to<T>(self, db: &'db dyn crate::Db, term: T) -> T
+    where
+        T: Applicable<'db>,
+    {
         match self.kind(db) {
             SymPermKind::My => term,
-            _ => match term {
-                SymGenericTerm::Type(ty) => self.apply_to_ty(db, ty).into(),
-                SymGenericTerm::Perm(perm) => SymPerm::apply(db, self, perm).into(),
-                SymGenericTerm::Place(_) => panic!("cannot apply a perm to a place"),
-                SymGenericTerm::Error(_) => term,
-            },
+            _ => term.apply_from(db, self),
         }
     }
+}
 
-    /// Apply this permission to the given type (if `self` is not `my`).
-    pub fn apply_to_ty(self, db: &'db dyn crate::Db, ty: SymTy<'db>) -> SymTy<'db> {
+pub trait Applicable<'db> {
+    fn apply_from(self, db: &'db dyn crate::Db, perm: SymPerm<'db>) -> Self;
+}
+
+impl<'db> Applicable<'db> for SymGenericTerm<'db> {
+    fn apply_from(self, db: &'db dyn crate::Db, perm: SymPerm<'db>) -> Self {
+        match self {
+            SymGenericTerm::Type(ty) => ty.apply_from(db, perm).into(),
+            SymGenericTerm::Perm(perm1) => perm1.apply_from(db, perm).into(),
+            SymGenericTerm::Place(_) => panic!("cannot apply a perm to a place"),
+            SymGenericTerm::Error(_) => self,
+        }
+    }
+}
+
+impl<'db> Applicable<'db> for SymTy<'db> {
+    fn apply_from(self, db: &'db dyn crate::Db, perm: SymPerm<'db>) -> Self {
+        SymTy::perm(db, perm, self)
+    }
+}
+
+impl<'db> Applicable<'db> for SymPerm<'db> {
+    fn apply_from(self, db: &'db dyn crate::Db, perm: SymPerm<'db>) -> Self {
         match self.kind(db) {
-            SymPermKind::My => ty,
-            _ => SymTy::perm(db, self, ty),
+            SymPermKind::My => perm,
+            _ => SymPerm::apply(db, perm, self),
         }
     }
 }
