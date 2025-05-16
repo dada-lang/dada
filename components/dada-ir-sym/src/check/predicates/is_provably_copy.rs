@@ -22,25 +22,15 @@ pub async fn term_is_provably_copy<'db>(
     term: SymGenericTerm<'db>,
 ) -> Errors<bool> {
     let (red_ty, perm) = term.to_red_ty(env);
-    env.either(
-        async |env| red_ty_is_provably_copy(env, red_ty).await,
-        async |env| perm_is_provably_copy(env, perm).await,
-    )
-    .await
-}
-
-#[boxed_async_fn]
-pub async fn red_ty_is_provably_copy<'db>(env: &mut Env<'db>, ty: RedTy<'db>) -> Errors<bool> {
     let db = env.db();
-    let perm = SymPerm::my(db); // FIXME
-    match ty {
+    match red_ty {
         RedTy::Error(reported) => Err(reported),
         RedTy::Named(name, generics) => match name {
             SymTyName::Primitive(_) => Ok(true),
             SymTyName::Aggregate(aggr) => match aggr.style(db) {
                 SymAggregateStyle::Struct => {
                     env.for_all(generics, async |env, generic| {
-                        term_is_provably_copy(env, generic).await
+                        term_is_provably_copy(env, perm.apply_to(db, generic)).await
                     })
                     .await
                 }
@@ -49,13 +39,13 @@ pub async fn red_ty_is_provably_copy<'db>(env: &mut Env<'db>, ty: RedTy<'db>) ->
             SymTyName::Future => perm_is_provably_copy(env, perm).await,
             SymTyName::Tuple { arity: _ } => {
                 env.for_all(generics, async |env, generic| {
-                    term_is_provably_copy(env, generic).await
+                    term_is_provably_copy(env, perm.apply_to(db, generic)).await
                 })
                 .await
             }
         },
         RedTy::Never => Ok(false),
-        RedTy::Infer(infer) => infer_is_provably(env, infer, Predicate::Shared).await,
+        RedTy::Infer(infer) => infer_is_provably(env, perm, infer, Predicate::Shared).await,
         RedTy::Var(var) => Ok(test_var_is_provably(env, var, Predicate::Shared)),
         RedTy::Perm => perm_is_provably_copy(env, perm).await,
     }
@@ -88,7 +78,9 @@ pub(crate) async fn perm_is_provably_copy<'db>(
             Ok(application_is_provably_copy(env, lhs.into(), rhs.into()).await?)
         }
         SymPermKind::Var(var) => Ok(test_var_is_provably(env, var, Predicate::Shared)),
-        SymPermKind::Infer(infer) => infer_is_provably(env, infer, Predicate::Shared).await,
+        SymPermKind::Infer(infer) => {
+            infer_is_provably(env, SymPerm::my(db), infer, Predicate::Shared).await
+        }
         SymPermKind::Or(_, _) => todo!(),
     }
 }

@@ -8,15 +8,21 @@ use crate::{
         red::{RedPerm, RedTy},
     },
     ir::{
-        indices::{FromInfer, InferVarIndex},
-        types::{SymGenericTerm, SymPerm, SymTy},
+        indices::InferVarIndex,
+        types::{SymGenericTerm, SymPerm},
     },
 };
 
 use super::Env;
 
+/// Iterates over bounds on an inference variable in a given permission context.
+/// Carries a permission that is applied to each bound as extract it.
 pub struct SymGenericTermBoundIterator<'db> {
-    infer: InferVarIndex,
+    /// The permission context in which this infer variable appears.
+    /// This permission will eb applied to the bounds we extract.
+    perm: SymPerm<'db>,
+
+    /// A bounds iterator of suitable kind, depending on the kind of inference variable.
     kind: SymGenericTermBoundIteratorKind<'db>,
 }
 
@@ -27,9 +33,14 @@ enum SymGenericTermBoundIteratorKind<'db> {
 }
 
 impl<'db> SymGenericTermBoundIterator<'db> {
-    pub fn new(env: &Env<'db>, infer: InferVarIndex, direction: Option<Direction>) -> Self {
+    pub fn new(
+        env: &Env<'db>,
+        perm: SymPerm<'db>,
+        infer: InferVarIndex,
+        direction: Option<Direction>,
+    ) -> Self {
         Self {
-            infer,
+            perm,
             kind: match env.infer_var_kind(infer) {
                 InferVarKind::Type => RedTyBoundIterator::new(env, infer, direction).into(),
                 InferVarKind::Perm => RedPermBoundIterator::new(env, infer, direction).into(),
@@ -43,18 +54,19 @@ impl<'db> SymGenericTermBoundIterator<'db> {
             SymGenericTermBoundIteratorKind::Ty(iter) => {
                 let (direction, red_ty) = iter.next(env).await?;
                 let sym_ty = red_ty.to_sym_ty(db);
-                let perm = SymPerm::infer(db, env.perm_infer(self.infer));
-                Some((direction, SymTy::perm(db, perm, sym_ty).into()))
+                Some((direction, self.perm.apply_to(db, sym_ty).into()))
             }
             SymGenericTermBoundIteratorKind::Perm(iter) => {
                 let (direction, red_perm) = iter.next(env).await?;
                 let sym_perm = red_perm.to_sym_perm(db);
-                Some((direction, sym_perm.into()))
+                Some((direction, self.perm.apply_to(db, sym_perm).into()))
             }
         }
     }
 }
 
+/// Iterator over the red-ty bounds applied to `infer`
+/// that are coming from a given direction (above/below).
 pub struct RedTyBoundIterator<'db> {
     infer: InferVarIndex,
     direction: Option<Direction>,
@@ -129,6 +141,8 @@ impl<'db> RedTyBoundIterator<'db> {
     }
 }
 
+/// Iterator over the red-perm bounds applied to `infer`
+/// that are coming from a given direction (above/below).
 pub struct RedPermBoundIterator<'db> {
     infer: InferVarIndex,
     direction: Option<Direction>,

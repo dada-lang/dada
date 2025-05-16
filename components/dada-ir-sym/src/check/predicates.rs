@@ -22,7 +22,7 @@ use serde::Serialize;
 
 use crate::ir::types::SymGenericTerm;
 
-use super::{env::Env, inference::Direction, report::OrElse};
+use super::{env::Env, report::OrElse};
 
 #[derive(Copy, Clone, Debug, Eq, PartialEq, Hash, Ord, PartialOrd, Serialize)]
 pub enum Predicate {
@@ -61,23 +61,6 @@ impl Predicate {
             Predicate::Lent => Predicate::Owned,
         }
     }
-
-    /// The "bound direction" for a predicate indicate how the predicate
-    /// interacts with subtyping:
-    ///
-    /// * [`Shared`](`Predicate::Shared`) and [`Lent`](`Predicate::Lent`) are [`FromBelow`](`Direction::FromBelow`)
-    ///   predicates, meaning that if a type `T` is `Copy` or `Lent`, then all *super*types of `T` are also
-    ///   `Copy` and `Lent` (these predicates are "viral" in a sense, they can't be upcast away).
-    /// * [`Unique`](`Predicate::Unique`) and [`Owned`](`Predicate::Owned`) are [`FromAbove`](`Direction::FromAbove`)
-    ///   predicates, meaning that if a type `T` is `Move` or `Owned`, then all *sub*types of `T` are also
-    ///   `Move` and `Owned`. This reflects the fact that a `Move` type like `my` can be assigned to a `Copy`
-    ///   type like `our`; but you cannot assign an `our` into a `my` slot.
-    pub fn bound_direction(self) -> Direction {
-        match self {
-            Predicate::Shared | Predicate::Lent => Direction::FromBelow,
-            Predicate::Unique | Predicate::Owned => Direction::FromAbove,
-        }
-    }
 }
 
 impl std::fmt::Display for Predicate {
@@ -89,29 +72,6 @@ impl std::fmt::Display for Predicate {
             Predicate::Lent => write!(f, "lent"),
         }
     }
-}
-
-pub(crate) async fn term_is_provably_leased<'db>(
-    env: &mut Env<'db>,
-    term: SymGenericTerm<'db>,
-) -> Errors<bool> {
-    env.both(
-        async |env| term_is_provably_move(env, term).await,
-        async |env| term_is_provably_lent(env, term).await,
-    )
-    .await
-}
-
-pub(crate) async fn require_term_is_leased<'db>(
-    env: &mut Env<'db>,
-    term: SymGenericTerm<'db>,
-    or_else: &dyn OrElse<'db>,
-) -> Errors<()> {
-    env.require_both(
-        async |env| require_term_is_move(env, term, or_else).await,
-        async |env| require_term_is_lent(env, term, or_else).await,
-    )
-    .await
 }
 
 pub(crate) async fn require_term_is<'db>(

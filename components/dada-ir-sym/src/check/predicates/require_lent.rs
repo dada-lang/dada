@@ -8,11 +8,13 @@ use crate::{
             Predicate,
             var_infer::{require_infer_is, require_var_is},
         },
+        red::RedTy,
         report::{Because, OrElse},
+        to_red::ToRedTy,
     },
     ir::{
         classes::SymAggregateStyle,
-        types::{SymGenericTerm, SymPerm, SymPermKind, SymTy, SymTyKind, SymTyName},
+        types::{SymGenericTerm, SymPerm, SymPermKind, SymTy, SymTyName},
     },
 };
 
@@ -68,58 +70,53 @@ async fn require_ty_is_lent<'db>(
     or_else: &dyn OrElse<'db>,
 ) -> Errors<()> {
     let db = env.db();
-    match *term.kind(db) {
+    let (red_ty, perm) = term.to_red_ty(env);
+    match red_ty {
         // Error cases first
-        SymTyKind::Error(reported) => Err(reported),
-
-        // Apply
-        SymTyKind::Perm(sym_perm, sym_ty) => {
-            require_application_is_lent(env, sym_perm.into(), sym_ty.into(), or_else).await
-        }
+        RedTy::Error(reported) => Err(reported),
 
         // Never
-        SymTyKind::Never => Err(or_else.report(env, Because::NeverIsNotLent)),
+        RedTy::Never => require_perm_is_lent(env, perm, or_else).await,
 
-        // Variable and inference
-        SymTyKind::Infer(infer) => require_infer_is(env, infer, Predicate::Lent, or_else).await,
-        SymTyKind::Var(var) => require_var_is(env, var, Predicate::Lent, or_else),
+        // Inference
+        RedTy::Infer(infer) => require_infer_is(env, perm, infer, Predicate::Lent, or_else).await,
+
+        // Generic variable
+        RedTy::Var(var) => {
+            if env.var_is_declared_to_be(var, Predicate::Lent) {
+                Ok(())
+            } else if env.var_is_declared_to_be(var, Predicate::Unique) {
+                // If the perm is not known to be unique,
+                // it might be a shared type, in which case,
+                // even if `perm` is lent it doesn't matter.
+                require_perm_is_lent(env, perm, or_else).await
+            } else {
+                Err(or_else.report(env, Because::JustSo))
+            }
+        }
 
         // Named types
-        SymTyKind::Named(sym_ty_name, ref generics) => match sym_ty_name {
-            SymTyName::Primitive(_sym_primitive) => Ok(()),
+        RedTy::Named(sym_ty_name, ref generics) => match sym_ty_name {
+            SymTyName::Primitive(_sym_primitive) => Err(or_else.report(env, Because::JustSo)),
 
             SymTyName::Aggregate(sym_aggregate) => match sym_aggregate.style(db) {
-                SymAggregateStyle::Class => Err(or_else.report(env, Because::JustSo)),
-                SymAggregateStyle::Struct => {
-                    env.require(
-                        async |env| {
-                            env.exists(generics, async |env, &generic| {
-                                term_is_provably_lent(env, generic).await
-                            })
-                            .await
-                        },
-                        |env| or_else.report(env, Because::JustSo),
-                    )
-                    .await
-                }
+                SymAggregateStyle::Class => require_perm_is_lent(env, perm, or_else).await,
+
+                // Curently I am saying that `Option[ref[x] String]`
+                // is not `lent` because the value (may) contain *some* owned parts
+                // and *some* lent parts. Not sure if this is the right thing.
+                SymAggregateStyle::Struct => Err(or_else.report(env, Because::JustSo)),
             },
 
             SymTyName::Future => Err(or_else.report(env, Because::JustSo)),
 
             SymTyName::Tuple { arity } => {
                 assert_eq!(arity, generics.len());
-                env.require(
-                    async |env| {
-                        env.exists(generics, async |env, &generic| {
-                            term_is_provably_lent(env, generic).await
-                        })
-                        .await
-                    },
-                    |env| or_else.report(env, Because::JustSo),
-                )
-                .await
+                Err(or_else.report(env, Because::JustSo))
             }
         },
+
+        RedTy::Perm => require_perm_is_lent(env, perm, or_else).await,
     }
 }
 
@@ -172,7 +169,9 @@ async fn require_perm_is_lent<'db>(
 
         // Variable and inference
         SymPermKind::Var(var) => require_var_is(env, var, Predicate::Lent, or_else),
-        SymPermKind::Infer(infer) => require_infer_is(env, infer, Predicate::Lent, or_else).await,
+        SymPermKind::Infer(infer) => {
+            require_infer_is(env, SymPerm::my(db), infer, Predicate::Lent, or_else).await
+        }
         SymPermKind::Or(_, _) => todo!(),
     }
 }

@@ -16,7 +16,6 @@ use dada_ir_ast::{
     span::Spanned,
 };
 use dada_util::{FromImpls, SalsaSerialize};
-use futures::io::SeeKRelative;
 use salsa::Update;
 use serde::Serialize;
 

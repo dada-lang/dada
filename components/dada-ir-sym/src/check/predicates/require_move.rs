@@ -8,11 +8,13 @@ use crate::{
             Predicate,
             var_infer::{require_infer_is, require_var_is},
         },
+        red::RedTy,
         report::{Because, OrElse},
+        to_red::ToRedTy,
     },
     ir::{
         classes::SymAggregateStyle,
-        types::{SymGenericTerm, SymPerm, SymPermKind, SymTy, SymTyKind, SymTyName},
+        types::{SymGenericTerm, SymPerm, SymPermKind, SymTy, SymTyName},
     },
 };
 
@@ -56,39 +58,27 @@ async fn require_ty_is_move<'db>(
     or_else: &dyn OrElse<'db>,
 ) -> Errors<()> {
     let db = env.db();
-    match *term.kind(db) {
+    let (red_ty, perm) = term.to_red_ty(env);
+    match red_ty {
         // Error cases first
-        SymTyKind::Error(reported) => Err(reported),
-
-        // Apply
-        SymTyKind::Perm(sym_perm, sym_ty) => {
-            require_application_is_move(env, sym_perm.into(), sym_ty.into(), or_else).await
-        }
+        RedTy::Error(reported) => Err(reported),
 
         // Never
-        SymTyKind::Never => Ok(()),
+        RedTy::Never => Ok(()),
 
         // Variable and inference
-        SymTyKind::Infer(infer) => require_infer_is(env, infer, Predicate::Unique, or_else).await,
-        SymTyKind::Var(var) => require_var_is(env, var, Predicate::Unique, or_else),
+        RedTy::Infer(infer) => require_infer_is(env, perm, infer, Predicate::Unique, or_else).await,
+
+        RedTy::Var(var) => require_var_is(env, var, Predicate::Unique, or_else),
 
         // Named types
-        SymTyKind::Named(sym_ty_name, ref generics) => match sym_ty_name {
+        RedTy::Named(sym_ty_name, ref generics) => match sym_ty_name {
             SymTyName::Primitive(prim) => Err(or_else.report(env, Because::PrimitiveIsCopy(prim))),
 
             SymTyName::Aggregate(sym_aggregate) => match sym_aggregate.style(db) {
                 SymAggregateStyle::Class => Ok(()),
                 SymAggregateStyle::Struct => {
-                    env.require(
-                        async |env| {
-                            env.exists(generics, async |env, &generic| {
-                                term_is_provably_move(env, generic).await
-                            })
-                            .await
-                        },
-                        |env| or_else.report(env, Because::JustSo),
-                    )
-                    .await
+                    require_some_generic_is_move(env, perm, generics, or_else).await
                 }
             },
 
@@ -96,19 +86,31 @@ async fn require_ty_is_move<'db>(
 
             SymTyName::Tuple { arity } => {
                 assert_eq!(arity, generics.len());
-                env.require(
-                    async |env| {
-                        env.exists(generics, async |env, &generic| {
-                            term_is_provably_move(env, generic).await
-                        })
-                        .await
-                    },
-                    |env| or_else.report(env, Because::JustSo),
-                )
-                .await
+                require_some_generic_is_move(env, perm, generics, or_else).await
             }
         },
+
+        RedTy::Perm => require_perm_is_move(env, perm, or_else).await,
     }
+}
+
+async fn require_some_generic_is_move<'db>(
+    env: &mut Env<'db>,
+    perm: SymPerm<'db>,
+    generics: &[SymGenericTerm<'db>],
+    or_else: &dyn OrElse<'db>,
+) -> Errors<()> {
+    let db = env.db();
+    env.require(
+        async |env| {
+            env.exists(generics, async |env, &generic| {
+                term_is_provably_move(env, perm.apply_to(db, generic)).await
+            })
+            .await
+        },
+        |env| or_else.report(env, Because::JustSo),
+    )
+    .await
 }
 
 #[boxed_async_fn]
@@ -148,7 +150,9 @@ async fn require_perm_is_move<'db>(
 
         // Variable and inference
         SymPermKind::Var(var) => require_var_is(env, var, Predicate::Unique, or_else),
-        SymPermKind::Infer(infer) => require_infer_is(env, infer, Predicate::Unique, or_else).await,
+        SymPermKind::Infer(infer) => {
+            require_infer_is(env, perm, infer, Predicate::Unique, or_else).await
+        }
 
         SymPermKind::Or(_, _) => todo!(),
     }

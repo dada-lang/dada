@@ -9,15 +9,17 @@ use crate::{
             Predicate,
             var_infer::{require_infer_is, require_var_is},
         },
+        red::RedTy,
         report::{Because, OrElse},
+        to_red::ToRedTy,
     },
     ir::{
         classes::SymAggregateStyle,
-        types::{SymGenericTerm, SymPerm, SymPermKind, SymPlace, SymTy, SymTyKind, SymTyName},
+        types::{SymGenericTerm, SymPerm, SymPermKind, SymPlace, SymTy, SymTyName},
     },
 };
 
-use super::is_provably_copy::term_is_provably_copy;
+use super::is_provably_copy::{perm_is_provably_copy, term_is_provably_copy};
 
 pub(crate) async fn require_term_is_copy<'db>(
     env: &mut Env<'db>,
@@ -67,51 +69,66 @@ async fn require_ty_is_copy<'db>(
     or_else: &dyn OrElse<'db>,
 ) -> Errors<()> {
     let db = env.db();
-    match *term.kind(db) {
+    let (red_ty, perm) = term.to_red_ty(env);
+    match red_ty {
         // Error cases first
-        SymTyKind::Error(reported) => Err(reported),
-
-        // Apply
-        SymTyKind::Perm(sym_perm, sym_ty) => {
-            require_either_is_copy(env, sym_perm.into(), sym_ty.into(), or_else).await
-        }
+        RedTy::Error(reported) => Err(reported),
 
         // Never
-        SymTyKind::Never => Err(or_else.report(env, Because::NeverIsNotCopy)),
+        RedTy::Never => Err(or_else.report(env, Because::NeverIsNotCopy)),
 
         // Inference variables
-        SymTyKind::Infer(infer) => require_infer_is(env, infer, Predicate::Shared, or_else).await,
+        RedTy::Infer(infer) => require_infer_is(env, perm, infer, Predicate::Shared, or_else).await,
 
         // Universal variables
-        SymTyKind::Var(var) => require_var_is(env, var, Predicate::Shared, or_else),
+        RedTy::Var(var) => {
+            env.require(
+                async |env| {
+                    env.either(
+                        async |env| perm_is_provably_copy(env, perm).await,
+                        async |env| Ok(env.var_is_declared_to_be(var, Predicate::Shared)),
+                    )
+                    .await
+                },
+                |env| or_else.report(env, Because::JustSo),
+            )
+            .await
+        }
 
         // Named types
-        SymTyKind::Named(sym_ty_name, ref generics) => match sym_ty_name {
+        RedTy::Named(sym_ty_name, ref generics) => match sym_ty_name {
             SymTyName::Primitive(_) => Ok(()),
 
             SymTyName::Aggregate(sym_aggregate) => match sym_aggregate.style(db) {
-                SymAggregateStyle::Class => {
-                    Err(or_else.report(env, Because::ClassIsNotCopy(sym_ty_name)))
-                }
+                SymAggregateStyle::Class => require_perm_is_copy(env, perm, or_else).await,
                 SymAggregateStyle::Struct => {
-                    env.require_for_all(generics, async |env, &generic| {
-                        require_term_is_copy(env, generic, or_else).await
-                    })
-                    .await
+                    require_generics_are_copy(env, perm, generics, or_else).await
                 }
             },
 
-            SymTyName::Future => Err(or_else.report(env, Because::ClassIsNotCopy(sym_ty_name))),
+            SymTyName::Future => require_perm_is_copy(env, perm, or_else).await,
 
             SymTyName::Tuple { arity } => {
                 assert_eq!(arity, generics.len());
-                env.require_for_all(generics, async |env, &generic| {
-                    require_term_is_copy(env, generic, or_else).await
-                })
-                .await
+                require_generics_are_copy(env, perm, generics, or_else).await
             }
         },
+
+        RedTy::Perm => require_perm_is_copy(env, perm, or_else).await,
     }
+}
+
+async fn require_generics_are_copy<'db>(
+    env: &mut Env<'db>,
+    perm: SymPerm<'db>,
+    generics: &[SymGenericTerm<'db>],
+    or_else: &dyn OrElse<'db>,
+) -> Errors<()> {
+    let db = env.db();
+    env.require_for_all(generics, async |env, &generic| {
+        require_term_is_copy(env, perm.apply_to(db, generic), or_else).await
+    })
+    .await
 }
 
 #[boxed_async_fn]
@@ -146,7 +163,9 @@ async fn require_perm_is_copy<'db>(
         // Variable and inference
         SymPermKind::Var(var) => require_var_is(env, var, Predicate::Shared, or_else),
 
-        SymPermKind::Infer(infer) => require_infer_is(env, infer, Predicate::Shared, or_else).await,
+        SymPermKind::Infer(infer) => {
+            require_infer_is(env, SymPerm::my(db), infer, Predicate::Shared, or_else).await
+        }
 
         SymPermKind::Or(_, _) => todo!(),
     }

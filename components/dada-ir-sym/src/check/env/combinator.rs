@@ -10,7 +10,7 @@ use serde::Serialize;
 
 use crate::{
     check::{debug::TaskDescription, inference::Direction, red::RedTy},
-    ir::indices::InferVarIndex,
+    ir::{indices::InferVarIndex, types::SymPerm},
 };
 
 use crate::check::{env::Env, inference::InferenceVarData, report::ArcOrElse};
@@ -250,24 +250,23 @@ impl<'db> Env<'db> {
     }
 
     /// Returns an iterator over the bounds on an inference variable
-    /// yielding terms:
+    /// that appears under `perm`, yielding terms:
     ///
     /// * If this is a permission inference variable, the result are series of permission terms.
     ///   These are directly converted from the [`RedPerm`] bounds you get if you call [`Self::red_perm_bounds`].
     /// * If this is a type inference variable, the result are series of type terms.
-    ///   Unlike the [`RedTy`] bounds returned by [`Self::red_ty_bounds`], these include the
-    ///   associated permission inference variable and hence represent the complete
-    ///   inferred type.
+    ///   They do not include the permission inference variable.
     ///
     /// In both cases, you get back bounds from the direction you provide or from
     /// either direction if you provide `None`. Multiple bounds from the same direction
     /// indicate that the bounds got tighter.
     pub fn term_bounds(
         &self,
+        perm: SymPerm<'db>,
         infer: InferVarIndex,
         direction: Option<Direction>,
     ) -> SymGenericTermBoundIterator<'db> {
-        SymGenericTermBoundIterator::new(self, infer, direction)
+        SymGenericTermBoundIterator::new(self, perm, infer, direction)
     }
 
     /// Returns an iterator over the red perm bounds on a permission inference variable.

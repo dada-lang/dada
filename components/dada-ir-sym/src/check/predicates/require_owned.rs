@@ -9,9 +9,11 @@ use crate::{
             Predicate,
             var_infer::{require_infer_is, require_var_is},
         },
+        red::RedTy,
         report::OrElse,
+        to_red::ToRedTy,
     },
-    ir::types::{SymGenericTerm, SymPerm, SymPermKind, SymPlace, SymTy, SymTyKind},
+    ir::types::{SymGenericTerm, SymPerm, SymPermKind, SymPlace, SymTy},
 };
 
 use super::{is_provably_copy::term_is_provably_copy, require_copy::require_place_is_copy};
@@ -60,30 +62,35 @@ async fn require_ty_is_owned<'db>(
     term: SymTy<'db>,
     or_else: &dyn OrElse<'db>,
 ) -> Errors<()> {
-    let db = env.db();
-    match *term.kind(db) {
+    let (red_ty, perm) = term.to_red_ty(env);
+    match red_ty {
         // Error cases first
-        SymTyKind::Error(reported) => Err(reported),
-
-        // Apply
-        SymTyKind::Perm(lhs, rhs) => {
-            require_both_are_owned(env, lhs.into(), rhs.into(), or_else).await
-        }
+        RedTy::Error(reported) => Err(reported),
 
         // Never
-        SymTyKind::Never => Ok(()),
+        RedTy::Never => require_perm_is_owned(env, perm, or_else).await,
 
-        // Variable and inference
-        SymTyKind::Infer(infer) => require_infer_is(env, infer, Predicate::Owned, or_else).await,
-        SymTyKind::Var(var) => require_var_is(env, var, Predicate::Owned, or_else),
+        // Inference
+        RedTy::Infer(infer) => require_infer_is(env, perm, infer, Predicate::Owned, or_else).await,
+
+        // Generic variables
+        RedTy::Var(var) => {
+            env.require_both(
+                async |env| require_perm_is_owned(env, perm, or_else).await,
+                async |env| require_var_is(env, var, Predicate::Owned, or_else),
+            )
+            .await
+        }
 
         // Named types: owned if all their generics are owned
-        SymTyKind::Named(_sym_ty_name, ref generics) => {
+        RedTy::Named(_sym_ty_name, ref generics) => {
             env.require_for_all(generics, async |env, &generic| {
                 require_term_is_owned(env, generic, or_else).await
             })
             .await
         }
+
+        RedTy::Perm => require_perm_is_owned(env, perm, or_else).await,
     }
 }
 
@@ -126,7 +133,9 @@ async fn require_perm_is_owned<'db>(
 
         // Variable and inference
         SymPermKind::Var(var) => require_var_is(env, var, Predicate::Owned, or_else),
-        SymPermKind::Infer(infer) => require_infer_is(env, infer, Predicate::Owned, or_else).await,
+        SymPermKind::Infer(infer) => {
+            require_infer_is(env, perm, infer, Predicate::Owned, or_else).await
+        }
 
         SymPermKind::Or(_, _) => todo!(),
     }

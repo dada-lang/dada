@@ -171,12 +171,6 @@ pub enum Because<'db> {
     /// The never type is not copy
     NeverIsNotCopy,
 
-    /// The never type is not copy
-    NeverIsNotLent,
-
-    /// Classes are not copy
-    ClassIsNotCopy(SymTyName<'db>),
-
     /// Primitive types are copy
     PrimitiveIsCopy(SymPrimitive<'db>),
 
@@ -228,16 +222,6 @@ impl<'db> Because<'db> {
                 db,
                 span,
                 "the never type (`!`) is not considered `copy`",
-            )),
-            Because::NeverIsNotLent => Some(Diagnostic::info(
-                db,
-                span,
-                "the never type (`!`) is not considered `lent`",
-            )),
-            Because::ClassIsNotCopy(name) => Some(Diagnostic::info(
-                db,
-                span,
-                format!("class types (like `{name}`) are never considered `copy`"),
             )),
             Because::PrimitiveIsCopy(prim) => Some(Diagnostic::info(
                 db,

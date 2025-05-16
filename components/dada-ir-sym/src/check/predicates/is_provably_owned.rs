@@ -22,40 +22,38 @@ pub async fn term_is_provably_owned<'db>(
     term: SymGenericTerm<'db>,
 ) -> Errors<bool> {
     let (red_ty, perm) = term.to_red_ty(env);
-    env.both(
-        async |env| red_ty_is_provably_owned(env, red_ty).await,
-        async |env| perm_is_provably_owned(env, perm).await,
-    )
-    .await
-}
-
-pub async fn red_ty_is_provably_owned<'db>(env: &mut Env<'db>, ty: RedTy<'db>) -> Errors<bool> {
     let db = env.db();
-    match ty {
-        RedTy::Infer(infer) => infer_is_provably(env, infer, Predicate::Owned).await,
-        RedTy::Var(var) => Ok(test_var_is_provably(env, var, Predicate::Owned)),
-        RedTy::Never => Ok(false),
+    match red_ty {
+        RedTy::Infer(infer) => infer_is_provably(env, perm, infer, Predicate::Owned).await,
+        RedTy::Var(var) => {
+            env.both(
+                async |env| Ok(test_var_is_provably(env, var, Predicate::Owned)),
+                async |env| perm_is_provably_owned(env, perm).await,
+            )
+            .await
+        }
+        RedTy::Never => perm_is_provably_owned(env, perm).await,
         RedTy::Error(reported) => Err(reported),
         RedTy::Named(sym_ty_name, ref generics) => match sym_ty_name {
             SymTyName::Primitive(_) => Ok(true),
             SymTyName::Aggregate(sym_aggregate) => match sym_aggregate.style(db) {
                 SymAggregateStyle::Struct => {
                     env.for_all(generics, async |env, &generic| {
-                        term_is_provably_owned(env, generic).await
+                        term_is_provably_owned(env, perm.apply_to(db, generic)).await
                     })
                     .await
                 }
-                SymAggregateStyle::Class => Ok(false),
+                SymAggregateStyle::Class => perm_is_provably_owned(env, perm).await,
             },
-            SymTyName::Future => Ok(false),
+            SymTyName::Future => perm_is_provably_owned(env, perm).await,
             SymTyName::Tuple { arity: _ } => {
                 env.for_all(generics, async |env, &generic| {
-                    term_is_provably_owned(env, generic).await
+                    term_is_provably_owned(env, perm.apply_to(db, generic)).await
                 })
                 .await
             }
         },
-        RedTy::Perm => Ok(true),
+        RedTy::Perm => perm_is_provably_owned(env, perm).await,
     }
 }
 
@@ -94,7 +92,9 @@ pub(crate) async fn perm_is_provably_owned<'db>(
 
         SymPermKind::Var(var) => Ok(test_var_is_provably(env, var, Predicate::Owned)),
 
-        SymPermKind::Infer(infer) => infer_is_provably(env, infer, Predicate::Owned).await,
+        SymPermKind::Infer(infer) => {
+            infer_is_provably(env, SymPerm::my(db), infer, Predicate::Owned).await
+        }
 
         SymPermKind::Or(_, _) => todo!(),
     }

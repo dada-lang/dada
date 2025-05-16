@@ -21,27 +21,19 @@ pub async fn term_is_provably_lent<'db>(
     env: &mut Env<'db>,
     term: SymGenericTerm<'db>,
 ) -> Errors<bool> {
-    let (red_ty, perm) = term.to_red_ty(env);
-    env.either(
-        async |env| red_ty_is_provably_lent(env, red_ty).await,
-        async |env| perm_is_provably_lent(env, perm).await,
-    )
-    .await
-}
-
-pub async fn red_ty_is_provably_lent<'db>(env: &mut Env<'db>, ty: RedTy<'db>) -> Errors<bool> {
     let db = env.db();
-    match ty {
-        RedTy::Infer(infer) => infer_is_provably(env, infer, Predicate::Lent).await,
+    let (red_ty, perm) = term.to_red_ty(env);
+    match red_ty {
+        RedTy::Infer(infer) => infer_is_provably(env, perm, infer, Predicate::Lent).await,
         RedTy::Var(var) => Ok(test_var_is_provably(env, var, Predicate::Lent)),
-        RedTy::Never => Ok(false),
+        RedTy::Never => perm_is_provably_lent(env, perm).await,
         RedTy::Error(reported) => Err(reported),
         RedTy::Named(name, generics) => match name {
-            SymTyName::Primitive(_) => Ok(true),
+            SymTyName::Primitive(_) => Ok(false),
             SymTyName::Aggregate(sym_aggregate) => match sym_aggregate.style(db) {
                 SymAggregateStyle::Struct => {
                     env.exists(generics, async |env, generic| {
-                        term_is_provably_lent(env, generic).await
+                        term_is_provably_lent(env, perm.apply_to(db, generic)).await
                     })
                     .await
                 }
@@ -50,12 +42,12 @@ pub async fn red_ty_is_provably_lent<'db>(env: &mut Env<'db>, ty: RedTy<'db>) ->
             SymTyName::Future => Ok(false),
             SymTyName::Tuple { arity: _ } => {
                 env.exists(generics, async |env, generic| {
-                    term_is_provably_lent(env, generic).await
+                    term_is_provably_lent(env, perm.apply_to(db, generic)).await
                 })
                 .await
             }
         },
-        RedTy::Perm => Ok(false),
+        RedTy::Perm => perm_is_provably_lent(env, perm).await,
     }
 }
 
@@ -106,7 +98,7 @@ pub(crate) async fn perm_is_provably_lent<'db>(
             Ok(application_is_provably_lent(env, lhs.into(), rhs.into()).await?)
         }
         SymPermKind::Var(var) => Ok(test_var_is_provably(env, var, Predicate::Lent)),
-        SymPermKind::Infer(infer) => infer_is_provably(env, infer, Predicate::Lent).await,
+        SymPermKind::Infer(infer) => infer_is_provably(env, perm, infer, Predicate::Lent).await,
         SymPermKind::Or(_, _) => todo!(),
     }
 }
