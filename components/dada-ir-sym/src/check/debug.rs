@@ -12,7 +12,7 @@ use dada_util::fixed_depth_json;
 use export::{CompilerLocation, TimeStamp};
 use serde::Serialize;
 
-use crate::ir::{indices::InferVarIndex, types::SymTy};
+use crate::ir::{generics::SymWhereClause, indices::InferVarIndex, types::SymTy};
 
 use super::predicates::Predicate;
 
@@ -538,6 +538,7 @@ pub enum TaskDescription<'db> {
     RequireFutureType(SymTy<'db>),
     RequireBoundsProvablyPredicate(InferVarIndex, Predicate),
     RequireBoundsNotProvablyPredicate(InferVarIndex, Predicate),
+    RequireWhereClause(SymWhereClause<'db>),
     RequireLowerChain,
     IfNotNever,
     Misc,

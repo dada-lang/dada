@@ -13,7 +13,12 @@ use crate::{
     ir::variables::{FromVar, SymVariable},
 };
 
-use super::{classes::SymField, functions::SymFunction, indices::InferVarIndex};
+use super::{
+    classes::SymField,
+    functions::SymFunction,
+    generics::{SymWhereClause, SymWhereClauseKind},
+    indices::InferVarIndex,
+};
 
 pub struct SubstitutionFns<'s, 'db, Term> {
     /// Invoked for free variables.
@@ -362,6 +367,31 @@ impl<'db> SubstWith<'db, SymGenericTerm<'db>> for SymPlace<'db> {
     }
 }
 
+impl<'db> Subst<'db> for SymWhereClause<'db> {
+    type GenericTerm = SymGenericTerm<'db>;
+}
+
+impl<'db> SubstWith<'db, SymGenericTerm<'db>> for SymWhereClause<'db> {
+    type Output = SymWhereClause<'db>;
+
+    fn identity(&self) -> Self::Output {
+        *self
+    }
+
+    fn subst_with<'subst>(
+        &'subst self,
+        db: &'db dyn crate::Db,
+        bound_vars: &mut Vec<SymVariable<'db>>,
+        subst_fns: &mut SubstitutionFns<'_, 'db, SymGenericTerm<'db>>,
+    ) -> Self::Output {
+        SymWhereClause::new(
+            db,
+            self.subject(db).subst_with(db, bound_vars, subst_fns),
+            self.kind(db).subst_with(db, bound_vars, subst_fns),
+        )
+    }
+}
+
 impl<'db, T: BoundTerm<'db>> Subst<'db> for Binder<'db, T>
 where
     T::Output: BoundTerm<'db>,
@@ -441,6 +471,7 @@ impl<'db> SubstWith<'db, SymGenericTerm<'db>> for SymInputOutput<'db> {
         SymInputOutput {
             input_tys: self.input_tys.subst_with(db, bound_vars, subst_fns),
             output_ty: self.output_ty.subst_with(db, bound_vars, subst_fns),
+            where_clauses: self.where_clauses.subst_with(db, bound_vars, subst_fns),
         }
     }
 }
@@ -534,6 +565,7 @@ identity_subst! {
         Span<'db>,
         SymFunction<'db>,
         SymField<'db>,
+        SymWhereClauseKind,
     }
 }
 

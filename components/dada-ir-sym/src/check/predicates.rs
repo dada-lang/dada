@@ -1,5 +1,3 @@
-#![expect(dead_code)]
-
 pub mod is_provably_copy;
 pub mod is_provably_lent;
 pub mod is_provably_move;
@@ -8,6 +6,7 @@ pub mod require_copy;
 pub mod require_lent;
 pub mod require_move;
 pub mod require_owned;
+pub mod require_where_clause;
 pub mod var_infer;
 
 use dada_ir_ast::diagnostic::Errors;

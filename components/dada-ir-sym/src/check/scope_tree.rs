@@ -1,4 +1,4 @@
-use dada_ir_ast::ast::AstModule;
+use dada_ir_ast::ast::{AstModule, AstWhereClause};
 use dada_util::FromImpls;
 use salsa::Update;
 use serde::Serialize;
@@ -18,6 +18,8 @@ pub enum ScopeItem<'db> {
 
     /// A module
     SymModule(SymModule<'db>),
+
+    /// A class or other aggregate
     Class(SymAggregate<'db>),
 
     /// A function or method
@@ -62,6 +64,13 @@ pub trait ScopeTreeNode<'db>: Sized + Into<ScopeItem<'db>> {
             .copied()
             .count()
     }
+
+    fn push_direct_ast_where_clauses(self, db: &'db dyn crate::Db, out: &mut Vec<AstWhereClause<'db>>);
+
+    fn push_transitive_where_clauses(self, db: &'db dyn crate::Db, out: &mut Vec<AstWhereClause<'db>>) {
+        self.iter_super_scopes(db)
+        .for_each(|s| s.push_direct_ast_where_clauses(db, out));
+    }
 }
 
 impl<'db> ScopeTreeNode<'db> for ScopeItem<'db> {
@@ -89,6 +98,19 @@ impl<'db> ScopeTreeNode<'db> for ScopeItem<'db> {
             ScopeItem::SymModule(sym) => sym.into_scope(db),
             ScopeItem::Class(sym) => sym.into_scope(db),
             ScopeItem::SymFunction(sym) => sym.into_scope(db),
+        }
+    }
+    
+    fn push_direct_ast_where_clauses(self, db: &'db dyn crate::Db, out: &mut Vec<AstWhereClause<'db>>) {
+        match self {
+            ScopeItem::AstModule(_) => {}
+            ScopeItem::SymModule(_) => {}
+            ScopeItem::Class(sym) => {
+                sym.push_direct_ast_where_clauses(db, out);
+            }
+            ScopeItem::SymFunction(sym) => {
+                sym.push_direct_ast_where_clauses(db, out);
+            }
         }
     }
 }

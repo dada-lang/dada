@@ -38,6 +38,7 @@ pub async fn term_is_provably_copy<'db>(
 #[boxed_async_fn]
 pub async fn red_ty_is_provably_copy<'db>(env: &mut Env<'db>, ty: RedTy<'db>) -> Errors<bool> {
     let db = env.db();
+    let perm = SymPerm::my(db); // FIXME
     match ty {
         RedTy::Error(reported) => Err(reported),
         RedTy::Named(name, generics) => match name {
@@ -49,9 +50,9 @@ pub async fn red_ty_is_provably_copy<'db>(env: &mut Env<'db>, ty: RedTy<'db>) ->
                     })
                     .await
                 }
-                SymAggregateStyle::Class => Ok(false),
+                SymAggregateStyle::Class => perm_is_provably_copy(env, perm).await,
             },
-            SymTyName::Future => Ok(false),
+            SymTyName::Future => perm_is_provably_copy(env, perm).await,
             SymTyName::Tuple { arity: _ } => {
                 env.for_all(generics, async |env, generic| {
                     term_is_provably_copy(env, generic).await
@@ -62,7 +63,7 @@ pub async fn red_ty_is_provably_copy<'db>(env: &mut Env<'db>, ty: RedTy<'db>) ->
         RedTy::Never => Ok(false),
         RedTy::Infer(infer) => infer_is_provably(env, infer, Predicate::Shared).await,
         RedTy::Var(var) => Ok(test_var_is_provably(env, var, Predicate::Shared)),
-        RedTy::Perm => todo!(),
+        RedTy::Perm => perm_is_provably_copy(env, perm).await,
     }
 }
 

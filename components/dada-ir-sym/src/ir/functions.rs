@@ -27,6 +27,7 @@ use crate::{
 
 use super::{
     classes::SymAggregateStyle,
+    generics::SymWhereClause,
     types::{HasKind, SymGenericKind},
 };
 
@@ -34,6 +35,7 @@ use super::{
 #[salsa::tracked(debug)]
 pub struct SymFunction<'db> {
     pub super_scope_item: ScopeItem<'db>,
+
     #[tracked]
     pub source: SymFunctionSource<'db>,
 }
@@ -60,6 +62,21 @@ impl<'db> ScopeTreeNode<'db> for SymFunction<'db> {
 
     fn direct_generic_parameters(self, db: &'db dyn crate::Db) -> &'db Vec<SymVariable<'db>> {
         &self.symbols(db).generic_variables
+    }
+
+    fn push_direct_ast_where_clauses(
+        self,
+        db: &'db dyn crate::Db,
+        out: &mut Vec<dada_ir_ast::ast::AstWhereClause<'db>>,
+    ) {
+        let wc = match self.source(db) {
+            SymFunctionSource::Function(ast) => ast.where_clauses(db),
+            SymFunctionSource::Constructor(_, ast) => ast.where_clauses(db),
+        };
+
+        if let Some(wc) = wc {
+            out.extend(wc.clauses(db));
+        }
     }
 }
 
@@ -199,8 +216,8 @@ pub struct SymFunctionSignature<'db> {
 #[derive(Clone, PartialEq, Eq, PartialOrd, Ord, Hash, Update, Debug, Serialize)]
 pub struct SymInputOutput<'db> {
     pub input_tys: Vec<SymTy<'db>>,
-
     pub output_ty: SymTy<'db>,
+    pub where_clauses: Vec<SymWhereClause<'db>>,
 }
 
 impl<'db> LeafBoundTerm<'db> for SymInputOutput<'db> {}

@@ -1,8 +1,8 @@
 use dada_ir_ast::{
     ast::{
         AstBlock, AstExpr, AstFunction, AstFunctionEffects, AstFunctionInput, AstGenericDecl,
-        AstLetStatement, AstPerm, AstSelfArg, AstStatement, AstTy, AstVisibility, SpanVec,
-        VariableDecl,
+        AstLetStatement, AstPerm, AstSelfArg, AstStatement, AstTy, AstVisibility, AstWhereClauses,
+        SpanVec, VariableDecl,
     },
     diagnostic::{Diagnostic, Level},
     span::Span,
@@ -60,6 +60,8 @@ impl<'db> Parse<'db> for AstFunction<'db> {
 
         let return_ty = AstTy::opt_parse_guarded(operator::ARROW, db, parser)?;
 
+        let where_clauses = AstWhereClauses::opt_parse(db, parser)?;
+
         let body = parser.defer_delimited(Delimiter::CurlyBraces).ok();
 
         Ok(Some(AstFunction::new(
@@ -72,6 +74,7 @@ impl<'db> Parse<'db> for AstFunction<'db> {
             generics,
             arguments,
             return_ty,
+            where_clauses,
             body,
         )))
     }

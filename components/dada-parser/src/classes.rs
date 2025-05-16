@@ -1,7 +1,7 @@
 use dada_ir_ast::{
     ast::{
         AstAggregate, AstAggregateKind, AstFieldDecl, AstFunction, AstGenericDecl, AstMember,
-        AstTy, AstTyKind, AstVisibility, SpanVec, VariableDecl, VisibilityKind,
+        AstTy, AstTyKind, AstVisibility, AstWhereClauses, SpanVec, VariableDecl, VisibilityKind,
     },
     span::{Span, Spanned},
 };
@@ -51,6 +51,8 @@ impl<'db> Parse<'db> for AstAggregate<'db> {
             AstFieldDecl::eat_comma,
         )?;
 
+        let where_clauses = AstWhereClauses::opt_parse(db, parser)?;
+
         let body = parser.defer_delimited(Delimiter::CurlyBraces).ok();
 
         Ok(Some(AstAggregate::new(
@@ -62,6 +64,7 @@ impl<'db> Parse<'db> for AstAggregate<'db> {
             id.span,
             generics,
             inputs,
+            where_clauses,
             body,
         )))
     }

@@ -93,6 +93,14 @@ impl<'db> ScopeTreeNode<'db> for SymModule<'db> {
     fn into_scope(self, db: &'db dyn crate::Db) -> Scope<'db, 'db> {
         self.mod_scope(db)
     }
+
+    fn push_direct_ast_where_clauses(
+        self,
+        _db: &'db dyn crate::Db,
+        _out: &mut Vec<dada_ir_ast::ast::AstWhereClause<'db>>,
+    ) {
+        // FIXME: we expect to add these in the future
+    }
 }
 
 impl<'db> Symbol<'db> for SourceFile {
@@ -165,6 +173,15 @@ impl<'db> ScopeTreeNode<'db> for AstModule<'db> {
     fn into_scope(self, db: &'db dyn crate::Db) -> Scope<'db, 'db> {
         self.symbol(db).into_scope(db)
     }
+
+    fn push_direct_ast_where_clauses(
+        self,
+        db: &'db dyn crate::Db,
+        out: &mut Vec<dada_ir_ast::ast::AstWhereClause<'db>>,
+    ) {
+        self.symbol(db).push_direct_ast_where_clauses(db, out);
+    }
+
 }
 
 fn insert<'db, V: Spanned<'db>>(

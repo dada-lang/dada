@@ -11,6 +11,7 @@ use crate::{
     check::{debug::export, env::Env, predicates::Predicate},
     ir::{
         exprs::{SymExpr, SymPlaceExpr},
+        generics::SymWhereClause,
         primitive::SymPrimitive,
         types::{SymPlace, SymTy, SymTyName},
         variables::SymVariable,
@@ -371,6 +372,60 @@ impl<'db> OrElse<'db> for BadSubtypeError<'db> {
                 Level::Error,
                 span,
                 format!("expected `{upper}`, found `{lower}`"),
+            ),
+        )
+    }
+
+    fn to_arc(&self) -> ArcOrElse<'db> {
+        Arc::new(*self).into()
+    }
+
+    fn compiler_location(&self) -> &'static Location<'static> {
+        self.compiler_location
+    }
+}
+
+/// Give a really bad subtype error.
+///
+/// Every usage of this is a bug.
+#[derive(Copy, Clone, Debug)]
+pub struct WhereClauseError<'db> {
+    span: Span<'db>,
+    where_clause: SymWhereClause<'db>,
+    compiler_location: &'static Location<'static>,
+}
+
+impl<'db> WhereClauseError<'db> {
+    #[track_caller]
+    pub fn new(span: Span<'db>, where_clause: SymWhereClause<'db>) -> Self {
+        Self {
+            span,
+            where_clause,
+            compiler_location: Location::caller(),
+        }
+    }
+}
+
+impl<'db> OrElse<'db> for WhereClauseError<'db> {
+    fn or_else(&self, env: &mut Env<'db>, because: Because<'db>) -> Diagnostic {
+        let db = env.db();
+        let Self {
+            span,
+            where_clause,
+            compiler_location: _,
+        } = *self;
+        because.annotate_diagnostic(
+            env,
+            Diagnostic::error(
+                db,
+                span,
+                "where clause on function not satisfied".to_string(),
+            )
+            .label(
+                db,
+                Level::Error,
+                span,
+                format!("expected `{where_clause:?}`"),
             ),
         )
     }

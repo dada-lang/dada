@@ -12,6 +12,7 @@ mod env;
 mod exprs;
 pub(crate) mod fields;
 pub(crate) mod functions;
+mod generics;
 mod inference;
 mod live_places;
 mod member_lookup;

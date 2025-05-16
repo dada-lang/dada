@@ -6,7 +6,7 @@ use crate::{
     span::{Span, Spanned},
 };
 
-use super::{AstGenericDecl, Identifier, SpanVec};
+use super::{AstGenericDecl, AstWhereClauses, Identifier, SpanVec};
 
 /// Some kind of aggregate, like a class, struct, etc.
 ///
@@ -31,6 +31,9 @@ pub struct AstAggregate<'db> {
     /// If a `()` section is present...
     #[return_ref]
     pub inputs: Option<SpanVec<'db, AstFieldDecl<'db>>>,
+
+    #[return_ref]
+    pub where_clauses: Option<AstWhereClauses<'db>>,
 
     /// The unparsed contents of the class.
     /// This can be parsed via the `members`

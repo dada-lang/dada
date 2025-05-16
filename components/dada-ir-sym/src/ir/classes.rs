@@ -252,6 +252,16 @@ impl<'db> ScopeTreeNode<'db> for SymAggregate<'db> {
     fn into_scope(self, db: &'db dyn crate::Db) -> Scope<'db, 'db> {
         self.class_scope(db)
     }
+
+    fn push_direct_ast_where_clauses(
+        self,
+        db: &'db dyn crate::Db,
+        out: &mut Vec<dada_ir_ast::ast::AstWhereClause<'db>>,
+    ) {
+        if let Some(wc) = self.source(db).where_clauses(db) {
+            out.extend(wc.clauses(db));
+        }
+    }
 }
 
 impl<'db> Spanned<'db> for SymAggregate<'db> {

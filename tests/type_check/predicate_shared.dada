@@ -1,0 +1,11 @@
+#:skip_codegen # FIXME: codegen doesn't work yet
+
+async fn main() {
+    let i: u32 = 22
+    is_shared(i)
+}
+
+fn is_shared(t: type T)
+where
+    T is shared,
+{}
