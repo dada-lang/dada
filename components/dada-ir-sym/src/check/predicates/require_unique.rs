@@ -20,39 +20,21 @@ use crate::{
 
 use super::is_provably_move::{place_is_provably_move, term_is_provably_move};
 
-pub(crate) async fn require_term_is_move<'db>(
+pub(crate) async fn require_term_is_unique<'db>(
     env: &mut Env<'db>,
     term: SymGenericTerm<'db>,
     or_else: &dyn OrElse<'db>,
 ) -> Errors<()> {
     match term {
-        SymGenericTerm::Type(sym_ty) => require_ty_is_move(env, sym_ty, or_else).await,
-        SymGenericTerm::Perm(sym_perm) => require_perm_is_move(env, sym_perm, or_else).await,
+        SymGenericTerm::Type(sym_ty) => require_ty_is_unique(env, sym_ty, or_else).await,
+        SymGenericTerm::Perm(sym_perm) => require_perm_is_unique(env, sym_perm, or_else).await,
         SymGenericTerm::Place(place) => panic!("unexpected place term: {place:?}"),
         SymGenericTerm::Error(reported) => Err(reported),
     }
 }
 
-/// Requires that `(lhs rhs)` is `move`.
-/// This requires both `lhs` and `rhs` to be `move` independently.
-async fn require_application_is_move<'db>(
-    env: &mut Env<'db>,
-    lhs: SymGenericTerm<'db>,
-    rhs: SymGenericTerm<'db>,
-    or_else: &dyn OrElse<'db>,
-) -> Errors<()> {
-    // Simultaneously test for whether LHS/RHS is `predicate`.
-    // If either is, we are done.
-    // If either is *not*, the other must be.
-    env.require_both(
-        async |env| require_term_is_move(env, lhs, or_else).await,
-        async |env| require_term_is_move(env, rhs, or_else).await,
-    )
-    .await
-}
-
 #[boxed_async_fn]
-async fn require_ty_is_move<'db>(
+async fn require_ty_is_unique<'db>(
     env: &mut Env<'db>,
     term: SymTy<'db>,
     or_else: &dyn OrElse<'db>,
@@ -78,7 +60,7 @@ async fn require_ty_is_move<'db>(
             SymTyName::Aggregate(sym_aggregate) => match sym_aggregate.style(db) {
                 SymAggregateStyle::Class => Ok(()),
                 SymAggregateStyle::Struct => {
-                    require_some_generic_is_move(env, perm, generics, or_else).await
+                    require_some_generic_is_unique(env, perm, generics, or_else).await
                 }
             },
 
@@ -86,15 +68,15 @@ async fn require_ty_is_move<'db>(
 
             SymTyName::Tuple { arity } => {
                 assert_eq!(arity, generics.len());
-                require_some_generic_is_move(env, perm, generics, or_else).await
+                require_some_generic_is_unique(env, perm, generics, or_else).await
             }
         },
 
-        RedTy::Perm => require_perm_is_move(env, perm, or_else).await,
+        RedTy::Perm => require_perm_is_unique(env, perm, or_else).await,
     }
 }
 
-async fn require_some_generic_is_move<'db>(
+async fn require_some_generic_is_unique<'db>(
     env: &mut Env<'db>,
     perm: SymPerm<'db>,
     generics: &[SymGenericTerm<'db>],
@@ -114,7 +96,7 @@ async fn require_some_generic_is_move<'db>(
 }
 
 #[boxed_async_fn]
-async fn require_perm_is_move<'db>(
+async fn require_perm_is_unique<'db>(
     env: &mut Env<'db>,
     perm: SymPerm<'db>,
     or_else: &dyn OrElse<'db>,
@@ -145,7 +127,11 @@ async fn require_perm_is_move<'db>(
 
         // Apply
         SymPermKind::Apply(lhs, rhs) => {
-            require_application_is_move(env, lhs.into(), rhs.into(), or_else).await
+            env.require_both(
+                async |env| require_perm_is_unique(env, lhs, or_else).await,
+                async |env| require_perm_is_unique(env, rhs, or_else).await,
+            )
+            .await
         }
 
         // Variable and inference

@@ -2,10 +2,10 @@ pub mod is_provably_copy;
 pub mod is_provably_lent;
 pub mod is_provably_move;
 pub mod is_provably_owned;
-pub mod require_copy;
 pub mod require_lent;
-pub mod require_move;
 pub mod require_owned;
+pub mod require_shared;
+pub mod require_unique;
 pub mod require_where_clause;
 pub mod var_infer;
 
@@ -14,10 +14,10 @@ use is_provably_copy::term_is_provably_copy;
 use is_provably_lent::term_is_provably_lent;
 use is_provably_move::term_is_provably_move;
 use is_provably_owned::term_is_provably_owned;
-use require_copy::require_term_is_copy;
 use require_lent::require_term_is_lent;
-use require_move::require_term_is_move;
 use require_owned::require_term_is_owned;
+use require_shared::require_term_is_copy;
+use require_unique::require_term_is_unique;
 use serde::Serialize;
 
 use crate::ir::types::SymGenericTerm;
@@ -83,7 +83,7 @@ pub(crate) async fn require_term_is<'db>(
     let term: SymGenericTerm<'db> = term.into();
     match predicate {
         Predicate::Shared => require_term_is_copy(env, term, or_else).await,
-        Predicate::Unique => require_term_is_move(env, term, or_else).await,
+        Predicate::Unique => require_term_is_unique(env, term, or_else).await,
         Predicate::Owned => require_term_is_owned(env, term, or_else).await,
         Predicate::Lent => require_term_is_lent(env, term, or_else).await,
     }
