@@ -13,7 +13,10 @@ use crate::{
         report::OrElse,
         to_red::ToRedTy,
     },
-    ir::types::{SymGenericTerm, SymPerm, SymPermKind, SymPlace, SymTy},
+    ir::{
+        classes::SymAggregateStyle,
+        types::{SymGenericTerm, SymPerm, SymPermKind, SymPlace, SymTy, SymTyName},
+    },
 };
 
 use super::{is_provably_shared::term_is_provably_copy, require_shared::require_place_is_copy};
@@ -62,36 +65,64 @@ async fn require_ty_is_owned<'db>(
     term: SymTy<'db>,
     or_else: &dyn OrElse<'db>,
 ) -> Errors<()> {
-    let (red_ty, perm) = term.to_red_ty(env);
-    match red_ty {
-        // Error cases first
-        RedTy::Error(reported) => Err(reported),
+    env.indent("require_ty_is_owned", &[&term], async |env| {
+        let db = env.db();
+        let (red_ty, perm) = term.to_red_ty(env);
+        match red_ty {
+            // Error cases first
+            RedTy::Error(reported) => Err(reported),
 
-        // Never
-        RedTy::Never => require_perm_is_owned(env, perm, or_else).await,
+            // Never
+            RedTy::Never => require_perm_is_owned(env, perm, or_else).await,
 
-        // Inference
-        RedTy::Infer(infer) => require_infer_is(env, perm, infer, Predicate::Owned, or_else).await,
+            // Inference
+            RedTy::Infer(infer) => {
+                require_infer_is(env, perm, infer, Predicate::Owned, or_else).await
+            }
 
-        // Generic variables
-        RedTy::Var(var) => {
-            env.require_both(
-                async |env| require_perm_is_owned(env, perm, or_else).await,
-                async |env| require_var_is(env, var, Predicate::Owned, or_else),
-            )
-            .await
+            // Generic variables
+            RedTy::Var(var) => {
+                env.require_both(
+                    async |env| require_perm_is_owned(env, perm, or_else).await,
+                    async |env| require_var_is(env, var, Predicate::Owned, or_else),
+                )
+                .await
+            }
+
+            // Named types: owned if all their generics are owned
+            RedTy::Named(sym_ty_name, ref generics) => match sym_ty_name.style(db) {
+                SymAggregateStyle::Struct => {
+                    require_generics_are_owned(env, perm, generics, or_else).await
+                }
+                SymAggregateStyle::Class => {
+                    env.require_both(
+                        async |env| require_perm_is_owned(env, perm, or_else).await,
+                        async |env| {
+                            require_generics_are_owned(env, SymPerm::my(db), generics, or_else)
+                                .await
+                        },
+                    )
+                    .await
+                }
+            },
+
+            RedTy::Perm => require_perm_is_owned(env, perm, or_else).await,
         }
+    })
+    .await
+}
 
-        // Named types: owned if all their generics are owned
-        RedTy::Named(_sym_ty_name, ref generics) => {
-            env.require_for_all(generics, async |env, &generic| {
-                require_term_is_owned(env, generic, or_else).await
-            })
-            .await
-        }
-
-        RedTy::Perm => require_perm_is_owned(env, perm, or_else).await,
-    }
+async fn require_generics_are_owned<'db>(
+    env: &mut Env<'db>,
+    perm: SymPerm<'db>,
+    generics: &[SymGenericTerm<'db>],
+    or_else: &dyn OrElse<'db>,
+) -> Errors<()> {
+    let db = env.db();
+    env.require_for_all(generics, async |env, &generic| {
+        require_term_is_owned(env, perm.apply_to(db, generic), or_else).await
+    })
+    .await
 }
 
 #[boxed_async_fn]
@@ -100,45 +131,48 @@ async fn require_perm_is_owned<'db>(
     perm: SymPerm<'db>,
     or_else: &dyn OrElse<'db>,
 ) -> Errors<()> {
-    let db = env.db();
-    match *perm.kind(db) {
-        // Error cases first
-        SymPermKind::Error(reported) => Err(reported),
+    env.indent("require_perm_is_owned", &[&perm], async |env| {
+        let db = env.db();
+        match *perm.kind(db) {
+            // Error cases first
+            SymPermKind::Error(reported) => Err(reported),
 
-        // My = Move & Owned
-        SymPermKind::My => Ok(()),
+            // My = Move & Owned
+            SymPermKind::My => Ok(()),
 
-        // Our = Copy & Owned
-        SymPermKind::Our => Ok(()),
+            // Our = Copy & Owned
+            SymPermKind::Our => Ok(()),
 
-        // Shared = Copy & Lent, Mutable = Move & Lent
-        SymPermKind::Referenced(ref places) | SymPermKind::Mutable(ref places) => {
-            // In order for a shared[p] or mutable[p] type to be owned,
-            // the `p` values must be `our` -- copy so that the shared/mutable
-            // doesn't apply, and then themselves owned.
-            env.require_for_all(places, async |env, &place| {
-                env.require_both(
-                    async |env| require_place_is_copy(env, place, or_else).await,
-                    async |env| require_place_is_owned(env, place, or_else).await,
-                )
+            // Shared = Copy & Lent, Mutable = Move & Lent
+            SymPermKind::Referenced(ref places) | SymPermKind::Mutable(ref places) => {
+                // In order for a shared[p] or mutable[p] type to be owned,
+                // the `p` values must be `our` -- copy so that the shared/mutable
+                // doesn't apply, and then themselves owned.
+                env.require_for_all(places, async |env, &place| {
+                    env.require_both(
+                        async |env| require_place_is_copy(env, place, or_else).await,
+                        async |env| require_place_is_owned(env, place, or_else).await,
+                    )
+                    .await
+                })
                 .await
-            })
-            .await
-        }
+            }
 
-        // Apply
-        SymPermKind::Apply(lhs, rhs) => {
-            require_both_are_owned(env, lhs.into(), rhs.into(), or_else).await
-        }
+            // Apply
+            SymPermKind::Apply(lhs, rhs) => {
+                require_both_are_owned(env, lhs.into(), rhs.into(), or_else).await
+            }
 
-        // Variable and inference
-        SymPermKind::Var(var) => require_var_is(env, var, Predicate::Owned, or_else),
-        SymPermKind::Infer(infer) => {
-            require_infer_is(env, perm, infer, Predicate::Owned, or_else).await
-        }
+            // Variable and inference
+            SymPermKind::Var(var) => require_var_is(env, var, Predicate::Owned, or_else),
+            SymPermKind::Infer(infer) => {
+                require_infer_is(env, perm, infer, Predicate::Owned, or_else).await
+            }
 
-        SymPermKind::Or(_, _) => todo!(),
-    }
+            SymPermKind::Or(_, _) => todo!(),
+        }
+    })
+    .await
 }
 
 async fn require_place_is_owned<'db>(
@@ -146,6 +180,9 @@ async fn require_place_is_owned<'db>(
     place: SymPlace<'db>,
     or_else: &dyn OrElse<'db>,
 ) -> Errors<()> {
-    let ty = place.place_ty(env).await;
-    require_ty_is_owned(env, ty, or_else).await
+    env.indent("require_place_is_owned", &[&place], async |env| {
+        let ty = place.place_ty(env).await;
+        require_ty_is_owned(env, ty, or_else).await
+    })
+    .await
 }

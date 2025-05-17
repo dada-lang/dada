@@ -39,41 +39,41 @@ async fn require_ty_is_unique<'db>(
     term: SymTy<'db>,
     or_else: &dyn OrElse<'db>,
 ) -> Errors<()> {
-    let db = env.db();
-    let (red_ty, perm) = term.to_red_ty(env);
-    match red_ty {
-        // Error cases first
-        RedTy::Error(reported) => Err(reported),
+    env.indent("require_ty_is_unique", &[&term], async |env| {
+        let db = env.db();
+        let (red_ty, perm) = term.to_red_ty(env);
+        match red_ty {
+            // Error cases first
+            RedTy::Error(reported) => Err(reported),
 
-        // Never
-        RedTy::Never => Ok(()),
+            // Never
+            RedTy::Never => Ok(()),
 
-        // Variable and inference
-        RedTy::Infer(infer) => require_infer_is(env, perm, infer, Predicate::Unique, or_else).await,
+            // Variable and inference
+            RedTy::Infer(infer) => require_infer_is(env, perm, infer, Predicate::Unique, or_else).await,
 
-        RedTy::Var(var) => require_var_is(env, var, Predicate::Unique, or_else),
+            RedTy::Var(var) => require_var_is(env, var, Predicate::Unique, or_else),
 
-        // Named types
-        RedTy::Named(sym_ty_name, ref generics) => match sym_ty_name {
-            SymTyName::Primitive(prim) => Err(or_else.report(env, Because::PrimitiveIsCopy(prim))),
-
-            SymTyName::Aggregate(sym_aggregate) => match sym_aggregate.style(db) {
-                SymAggregateStyle::Class => Ok(()),
+            // Named types
+            RedTy::Named(sym_ty_name, ref generics) => match sym_ty_name.style(db) {
                 SymAggregateStyle::Struct => {
                     require_some_generic_is_unique(env, perm, generics, or_else).await
                 }
+                SymAggregateStyle::Class => {
+                    env.require_both(
+                        async |env| require_perm_is_unique(env, perm, or_else).await,
+                        async |env| {
+                            require_some_generic_is_unique(env, SymPerm::my(db), generics, or_else)
+                                .await
+                        },
+                    )
+                    .await
+                }
             },
 
-            SymTyName::Future => Ok(()),
-
-            SymTyName::Tuple { arity } => {
-                assert_eq!(arity, generics.len());
-                require_some_generic_is_unique(env, perm, generics, or_else).await
-            }
-        },
-
-        RedTy::Perm => require_perm_is_unique(env, perm, or_else).await,
-    }
+            RedTy::Perm => require_perm_is_unique(env, perm, or_else).await,
+        }
+    }).await
 }
 
 async fn require_some_generic_is_unique<'db>(
@@ -101,45 +101,47 @@ async fn require_perm_is_unique<'db>(
     perm: SymPerm<'db>,
     or_else: &dyn OrElse<'db>,
 ) -> Errors<()> {
-    let db = env.db();
-    match *perm.kind(db) {
-        SymPermKind::Error(reported) => Err(reported),
+    env.indent("require_perm_is_unique", &[&perm], async |env| {
+        let db = env.db();
+        match *perm.kind(db) {
+            SymPermKind::Error(reported) => Err(reported),
 
-        SymPermKind::My => Ok(()),
+            SymPermKind::My => Ok(()),
 
-        SymPermKind::Our => Err(or_else.report(env, Because::JustSo)),
+            SymPermKind::Our => Err(or_else.report(env, Because::JustSo)),
 
-        SymPermKind::Referenced(_) => Err(or_else.report(env, Because::JustSo)),
+            SymPermKind::Referenced(_) => Err(or_else.report(env, Because::JustSo)),
 
-        SymPermKind::Mutable(ref places) => {
-            // If there is at least one place `p` that is move, this will result in a `mutable[p]` chain.
-            env.require(
-                async |env| {
-                    env.exists(places, async |env, &place| {
-                        place_is_provably_move(env, place).await
-                    })
-                    .await
-                },
-                |env| or_else.report(env, Because::LeasedFromCopyIsCopy(places.to_vec())),
-            )
-            .await
+            SymPermKind::Mutable(ref places) => {
+                // If there is at least one place `p` that is move, this will result in a `mutable[p]` chain.
+                env.require(
+                    async |env| {
+                        env.exists(places, async |env, &place| {
+                            place_is_provably_move(env, place).await
+                        })
+                        .await
+                    },
+                    |env| or_else.report(env, Because::LeasedFromCopyIsCopy(places.to_vec())),
+                )
+                .await
+            }
+
+            // Apply
+            SymPermKind::Apply(lhs, rhs) => {
+                env.require_both(
+                    async |env| require_perm_is_unique(env, lhs, or_else).await,
+                    async |env| require_perm_is_unique(env, rhs, or_else).await,
+                )
+                .await
+            }
+
+            // Variable and inference
+            SymPermKind::Var(var) => require_var_is(env, var, Predicate::Unique, or_else),
+            SymPermKind::Infer(infer) => {
+                require_infer_is(env, perm, infer, Predicate::Unique, or_else).await
+            }
+
+            SymPermKind::Or(_, _) => todo!(),
         }
-
-        // Apply
-        SymPermKind::Apply(lhs, rhs) => {
-            env.require_both(
-                async |env| require_perm_is_unique(env, lhs, or_else).await,
-                async |env| require_perm_is_unique(env, rhs, or_else).await,
-            )
-            .await
-        }
-
-        // Variable and inference
-        SymPermKind::Var(var) => require_var_is(env, var, Predicate::Unique, or_else),
-        SymPermKind::Infer(infer) => {
-            require_infer_is(env, perm, infer, Predicate::Unique, or_else).await
-        }
-
-        SymPermKind::Or(_, _) => todo!(),
-    }
+    }).await
 }
