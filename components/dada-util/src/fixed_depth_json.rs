@@ -10,6 +10,7 @@ lazy_static! {
     pub static ref DEBUG_FIELD_DENY_LIST: HashSet<&'static str> = {
         let mut set = HashSet::new();
         set.insert("super_scope");
+        set.insert("super_scope_item");
         set.insert("contents");
         set
     };
