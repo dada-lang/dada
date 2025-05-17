@@ -156,7 +156,11 @@ impl<'db> Runtime<'db> {
                 ready_to_execute: Default::default(),
                 waiting_on_inference_var: Default::default(),
                 next_task_id: Default::default(),
-                root_log: LogHandle::root(db, compiler_location, RootTaskDescription { span }),
+                root_log: LogHandle::root(db, compiler_location, RootTaskDescription { 
+                    span,
+                    message: None,
+                    values: None,
+                }),
             }),
         }
     }

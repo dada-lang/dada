@@ -117,6 +117,8 @@ impl<'db> Parse<'db> for AstWhereClauseKind<'db> {
             Ok(Some(AstWhereClauseKind::Shared(span)))
         } else if let Ok(span) = parser.eat_keyword(Keyword::Owned) {
             Ok(Some(AstWhereClauseKind::Owned(span)))
+        } else if let Ok(span) = parser.eat_keyword(Keyword::Unique) {
+            Ok(Some(AstWhereClauseKind::Unique(span)))
         } else if let Ok(span) = parser.eat_keyword(Keyword::Lent) {
             Ok(Some(AstWhereClauseKind::Lent(span)))
         } else {

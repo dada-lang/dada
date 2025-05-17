@@ -53,6 +53,9 @@ fn check_function_body_class_constructor<'db>(
                 input_tys,
                 ..
             } = prepare_env(db, runtime, function).await;
+            
+            // Update the root event info with the function and class constructor information
+            env.log.update_root_info("check_function_body_class_constructor", &[&function, &sym_class, &ast_class_item]);
 
             let scope = env.scope.clone();
             let self_ty = sym_class.self_ty(db, &scope).check_in_env(env).await;
@@ -120,6 +123,10 @@ fn check_function_body_ast_block<'db>(
                 output_ty_body,
                 ..
             } = prepare_env(db, runtime, function).await;
+            
+            // Update the root event info with the function and body information
+            env.log.update_root_info("check_function_body_ast_block", &[&function, &body]);
+            
             env.log("check_function_body_ast_block", &[&function, &body]);
             let live_after = LivePlaces::none(&env);
             let expr = body.check_in_env(&mut env, live_after).await;

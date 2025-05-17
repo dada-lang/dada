@@ -107,11 +107,18 @@ async fn require_bounding_terms_are<'db>(
     predicate: Predicate,
     or_else: &dyn OrElse<'db>,
 ) -> Errors<()> {
-    let mut bounds = env.term_bounds(perm, infer, direction);
-    while let Some((_, bound)) = bounds.next(env).await {
-        require_term_is(env, bound, predicate, or_else).await?;
-    }
-    Ok(())
+    env.indent(
+        "require_bounding_terms_are",
+        &[&perm, &infer],
+        async |env| {
+            let mut bounds = env.term_bounds(perm, infer, direction);
+            while let Some((_, bound)) = bounds.next(env).await {
+                require_term_is(env, bound, predicate, or_else).await?;
+            }
+            Ok(())
+        },
+    )
+    .await
 }
 
 /// Wait until we know whether the inference variable IS the given predicate
@@ -172,12 +179,15 @@ async fn exists_bounding_term<'db>(
     direction: Option<Direction>,
     predicate: Predicate,
 ) -> Errors<bool> {
-    let db = env.db();
-    let mut bounds = env.term_bounds(perm, infer, direction);
-    while let Some((_, bound)) = bounds.next(env).await {
-        if term_is_provably(env, perm.apply_to(db, bound), predicate).await? {
-            return Ok(true);
+    env.indent("exists_bounding_term", &[&perm, &infer], async |env| {
+        let db = env.db();
+        let mut bounds = env.term_bounds(perm, infer, direction);
+        while let Some((_, bound)) = bounds.next(env).await {
+            if term_is_provably(env, perm.apply_to(db, bound), predicate).await? {
+                return Ok(true);
+            }
         }
-    }
-    Ok(false)
+        Ok(false)
+    })
+    .await
 }

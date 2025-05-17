@@ -43,10 +43,33 @@
             color: #666;
             margin-left: 10px;
         }
+
+        .root-info {
+            background-color: #f5f5f5;
+            padding: 15px;
+            border-radius: 5px;
+            margin-bottom: 20px;
+            border-left: 4px solid #007bff;
+        }
+
+        .root-event-info, .event-count {
+            margin: 10px 0;
+            font-size: 14px;
+        }
     </style>
 </head>
 
 <body>
+    <div class="root-info">
+        <h2>Root Event Information</h2>
+        <div class="root-event-info">
+            <strong>Root Event Description:</strong> <span class="jsontree">{{root_event_info.description}}</span>
+        </div>
+        <div class="event-count">
+            <strong>Total Events:</strong> {{total_events}}
+        </div>
+    </div>
+
     <h1>Nested</h1>
 
     <div id="tasks">

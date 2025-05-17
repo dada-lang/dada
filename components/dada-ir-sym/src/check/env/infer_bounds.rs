@@ -22,6 +22,9 @@ pub struct SymGenericTermBoundIterator<'db> {
     /// This permission will eb applied to the bounds we extract.
     perm: SymPerm<'db>,
 
+    /// Remember the inference variable
+    infer: InferVarIndex,
+
     /// A bounds iterator of suitable kind, depending on the kind of inference variable.
     kind: SymGenericTermBoundIteratorKind<'db>,
 }
@@ -41,6 +44,7 @@ impl<'db> SymGenericTermBoundIterator<'db> {
     ) -> Self {
         Self {
             perm,
+            infer,
             kind: match env.infer_var_kind(infer) {
                 InferVarKind::Type => RedTyBoundIterator::new(env, infer, direction).into(),
                 InferVarKind::Perm => RedPermBoundIterator::new(env, infer, direction).into(),
@@ -54,12 +58,16 @@ impl<'db> SymGenericTermBoundIterator<'db> {
             SymGenericTermBoundIteratorKind::Ty(iter) => {
                 let (direction, red_ty) = iter.next(env).await?;
                 let sym_ty = red_ty.to_sym_ty(db);
-                Some((direction, self.perm.apply_to(db, sym_ty).into()))
+                let result = self.perm.apply_to(db, sym_ty);
+                env.log("next_bound", &[&self.infer, &result]);
+                Some((direction, result.into()))
             }
             SymGenericTermBoundIteratorKind::Perm(iter) => {
                 let (direction, red_perm) = iter.next(env).await?;
                 let sym_perm = red_perm.to_sym_perm(db);
-                Some((direction, self.perm.apply_to(db, sym_perm).into()))
+                let result = self.perm.apply_to(db, sym_perm);
+                env.log("next_bound", &[&self.infer, &result]);
+                Some((direction, result.into()))
             }
         }
     }

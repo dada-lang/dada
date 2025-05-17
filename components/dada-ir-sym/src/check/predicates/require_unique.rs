@@ -18,7 +18,7 @@ use crate::{
     },
 };
 
-use super::is_provably_move::{place_is_provably_move, term_is_provably_move};
+use super::is_provably_unique::{place_is_provably_move, term_is_provably_unique};
 
 pub(crate) async fn require_term_is_unique<'db>(
     env: &mut Env<'db>,
@@ -86,7 +86,7 @@ async fn require_some_generic_is_unique<'db>(
     env.require(
         async |env| {
             env.exists(generics, async |env, &generic| {
-                term_is_provably_move(env, perm.apply_to(db, generic)).await
+                term_is_provably_unique(env, perm.apply_to(db, generic)).await
             })
             .await
         },

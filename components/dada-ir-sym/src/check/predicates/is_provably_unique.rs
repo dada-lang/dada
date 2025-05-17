@@ -17,7 +17,7 @@ use crate::{
 
 use super::var_infer::infer_is_provably;
 
-pub async fn term_is_provably_move<'db>(
+pub async fn term_is_provably_unique<'db>(
     env: &mut Env<'db>,
     term: SymGenericTerm<'db>,
 ) -> Errors<bool> {
@@ -39,7 +39,7 @@ pub async fn term_is_provably_move<'db>(
             SymTyName::Aggregate(sym_aggregate) => match sym_aggregate.style(db) {
                 SymAggregateStyle::Struct => {
                     env.exists(generics, async |env, &generic| {
-                        term_is_provably_move(env, generic).await
+                        term_is_provably_unique(env, generic).await
                     })
                     .await
                 }
@@ -48,7 +48,7 @@ pub async fn term_is_provably_move<'db>(
             SymTyName::Future => Ok(false),
             SymTyName::Tuple { arity: _ } => {
                 env.exists(generics, async |env, &generic| {
-                    term_is_provably_move(env, generic).await
+                    term_is_provably_unique(env, generic).await
                 })
                 .await
             }
@@ -57,14 +57,14 @@ pub async fn term_is_provably_move<'db>(
     }
 }
 
-async fn application_is_provably_move<'db>(
+async fn application_is_provably_unique<'db>(
     env: &mut Env<'db>,
     lhs: SymGenericTerm<'db>,
     rhs: SymGenericTerm<'db>,
 ) -> Errors<bool> {
     env.both(
-        async |env| term_is_provably_move(env, lhs).await,
-        async |env| term_is_provably_move(env, rhs).await,
+        async |env| term_is_provably_unique(env, lhs).await,
+        async |env| term_is_provably_unique(env, rhs).await,
     )
     .await
 }
@@ -87,7 +87,7 @@ pub(crate) async fn perm_is_provably_move<'db>(
         }
 
         SymPermKind::Apply(lhs, rhs) => {
-            Ok(application_is_provably_move(env, lhs.into(), rhs.into()).await?)
+            Ok(application_is_provably_unique(env, lhs.into(), rhs.into()).await?)
         }
 
         SymPermKind::Var(var) => Ok(test_var_is_provably(env, var, Predicate::Unique)),
@@ -105,5 +105,5 @@ pub(crate) async fn place_is_provably_move<'db>(
     place: SymPlace<'db>,
 ) -> Errors<bool> {
     let ty = place.place_ty(env).await;
-    term_is_provably_move(env, ty.into()).await
+    term_is_provably_unique(env, ty.into()).await
 }

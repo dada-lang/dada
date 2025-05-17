@@ -16,7 +16,7 @@ use crate::{
     ir::types::{SymGenericTerm, SymPerm, SymPermKind, SymPlace, SymTy},
 };
 
-use super::{is_provably_copy::term_is_provably_copy, require_shared::require_place_is_copy};
+use super::{is_provably_shared::term_is_provably_copy, require_shared::require_place_is_copy};
 
 pub(crate) async fn require_term_is_owned<'db>(
     env: &mut Env<'db>,

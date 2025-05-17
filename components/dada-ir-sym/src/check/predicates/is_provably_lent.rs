@@ -15,7 +15,7 @@ use crate::{
     },
 };
 
-use super::{is_provably_move::place_is_provably_move, var_infer::infer_is_provably};
+use super::{is_provably_unique::place_is_provably_move, var_infer::infer_is_provably};
 
 pub async fn term_is_provably_lent<'db>(
     env: &mut Env<'db>,

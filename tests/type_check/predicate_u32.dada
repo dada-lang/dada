@@ -1,0 +1,41 @@
+#:skip_codegen # FIXME: codegen doesn't work yet
+
+fn gimme() -> u32 { 22 }
+
+fn test_shared() {
+    is_shared(gimme())
+}
+
+fn is_shared(t: type T)
+where
+    T is shared,
+{}
+
+fn test_unique() {
+    is_unique(gimme())  #! /where clause.*not satisfied
+}
+
+fn is_unique(t: type T)
+where
+    T is unique,
+{
+
+}
+
+fn test_lent() {
+    is_lent(gimme()) #! /where clause.*not satisfied
+}
+
+fn is_lent(t: type T)
+where
+    T is lent,
+{}
+
+fn test_owned() {
+    is_owned(gimme())
+}
+
+fn is_owned(t: type T)
+where
+    T is owned,
+{}

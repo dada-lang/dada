@@ -24,6 +24,21 @@ pub struct LogHandle<'db> {
 }
 
 impl<'db> LogHandle<'db> {
+    /// Update the root event info with a message and values
+    pub fn update_root_info(&self, message: &'static str, values: &[&dyn erased_serde::Serialize]) {
+        let Some(log) = &self.log else {
+            return;
+        };
+        
+        let mut log = log.lock().unwrap();
+        if let Some(task) = log.tasks.get_mut(0) {
+            if let TaskDescription::Root(root_desc) = &mut task.task_description {
+                root_desc.message = Some(message);
+                root_desc.values = Some(event_argument(values));
+            }
+        }
+    }
+
     pub fn root(
         db: &'db dyn crate::Db,
         compiler_location: &'static Location<'static>,
@@ -333,11 +348,23 @@ impl<'db> Log<'db> {
             .map(|(task, index)| self.export_task(task, index))
             .collect();
 
+        // Create the root event info
+        let root_event = &self.events[0]; // The first event is the root event
+        let root_task = &self.tasks[0];   // The first task is the root task
+        
+        let root_event_info = export::RootEventInfo {
+            compiler_location: CompilerLocation::from(root_event.compiler_location),
+            description: event_argument(&[&root_task.task_description]),
+        };
+        
         export::Log {
             events_flat,
             nested_event,
             tasks,
             infers,
+            // New fields
+            root_event_info,
+            total_events: self.events.len(),
         }
     }
 
@@ -520,6 +547,8 @@ pub enum EventKind {
 #[derive(Serialize)]
 pub struct RootTaskDescription<'db> {
     pub span: Span<'db>,
+    pub message: Option<&'static str>,
+    pub values: Option<String>,
 }
 
 #[derive(Serialize)]

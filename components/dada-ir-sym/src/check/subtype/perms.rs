@@ -120,6 +120,10 @@ async fn require_infer_bounded_by_perm<'db>(
     new_sym_bound: SymPerm<'db>,
     or_else: &dyn OrElse<'db>,
 ) -> Errors<()> {
+    env.log(
+        "require_infer_bounded_by_perm",
+        &[&infer, &direction, &new_sym_bound],
+    );
     new_sym_bound
         .to_red_perm(
             env,

@@ -1,7 +1,7 @@
-pub mod is_provably_copy;
 pub mod is_provably_lent;
-pub mod is_provably_move;
 pub mod is_provably_owned;
+pub mod is_provably_shared;
+pub mod is_provably_unique;
 pub mod require_lent;
 pub mod require_owned;
 pub mod require_shared;
@@ -10,10 +10,10 @@ pub mod require_where_clause;
 pub mod var_infer;
 
 use dada_ir_ast::diagnostic::Errors;
-use is_provably_copy::term_is_provably_copy;
 use is_provably_lent::term_is_provably_lent;
-use is_provably_move::term_is_provably_move;
 use is_provably_owned::term_is_provably_owned;
+use is_provably_shared::term_is_provably_copy;
+use is_provably_unique::term_is_provably_unique;
 use require_lent::require_term_is_lent;
 use require_owned::require_term_is_owned;
 use require_shared::require_term_is_copy;
@@ -97,7 +97,7 @@ pub(crate) async fn term_is_provably<'db>(
     let term: SymGenericTerm<'db> = term.into();
     match predicate {
         Predicate::Shared => term_is_provably_copy(env, term).await,
-        Predicate::Unique => term_is_provably_move(env, term).await,
+        Predicate::Unique => term_is_provably_unique(env, term).await,
         Predicate::Owned => term_is_provably_owned(env, term).await,
         Predicate::Lent => term_is_provably_lent(env, term).await,
     }

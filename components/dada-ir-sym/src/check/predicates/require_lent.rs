@@ -20,7 +20,7 @@ use crate::{
 
 use super::{
     is_provably_lent::{place_is_provably_lent, term_is_provably_lent},
-    is_provably_move::{place_is_provably_move, term_is_provably_move},
+    is_provably_unique::{place_is_provably_move, term_is_provably_unique},
 };
 
 pub(crate) async fn require_term_is_lent<'db>(
@@ -50,7 +50,7 @@ async fn require_application_is_lent<'db>(
                 async |env| term_is_provably_lent(env, rhs).await,
                 async |env| {
                     env.both(
-                        async |env| term_is_provably_move(env, rhs).await,
+                        async |env| term_is_provably_unique(env, rhs).await,
                         async |env| term_is_provably_lent(env, lhs).await,
                     )
                     .await

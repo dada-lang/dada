@@ -19,7 +19,7 @@ use crate::{
     },
 };
 
-use super::is_provably_copy::{perm_is_provably_copy, term_is_provably_copy};
+use super::is_provably_shared::{perm_is_provably_copy, term_is_provably_copy};
 
 pub(crate) async fn require_term_is_copy<'db>(
     env: &mut Env<'db>,
