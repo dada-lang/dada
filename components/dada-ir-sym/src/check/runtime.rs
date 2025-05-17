@@ -24,7 +24,7 @@ use serde::Serialize;
 use crate::{check::env::Env, check::inference::InferenceVarData};
 
 use super::{
-    debug::{LogHandle, RootTaskDescription, TaskDescription},
+    debug::{event_argument, LogHandle, RootTaskDescription, TaskDescription},
     inference::InferenceVarDataChanged,
 };
 
@@ -101,6 +101,8 @@ impl<'db> Runtime<'db> {
     pub(crate) fn execute<T, R>(
         db: &'db dyn crate::Db,
         span: Span<'db>,
+        message: &'static str,
+        values: &[&dyn erased_serde::Serialize],
         constrain: impl AsyncFnOnce(&Runtime<'db>) -> T + 'db,
         cleanup: impl FnOnce(T) -> R + 'db,
     ) -> R
@@ -109,7 +111,7 @@ impl<'db> Runtime<'db> {
         R: 'db + Err<'db> + erased_serde::Serialize + Debug,
     {
         let compiler_location = Location::caller();
-        let runtime = Runtime::new(db, compiler_location, span);
+        let runtime = Runtime::new(db, compiler_location, span, message, values);
         let (channel_tx, channel_rx) = std::sync::mpsc::channel();
         runtime.spawn_future({
             let runtime = runtime.clone();
@@ -146,6 +148,8 @@ impl<'db> Runtime<'db> {
         db: &'db dyn crate::Db,
         compiler_location: &'static Location<'static>,
         span: Span<'db>,
+        message: &'static str,
+        values: &[&dyn erased_serde::Serialize],
     ) -> Self {
         Self {
             data: Rc::new(RuntimeData {
@@ -158,8 +162,8 @@ impl<'db> Runtime<'db> {
                 next_task_id: Default::default(),
                 root_log: LogHandle::root(db, compiler_location, RootTaskDescription { 
                     span,
-                    message: None,
-                    values: None,
+                    message: Some(message),
+                    values: Some(event_argument(values)),
                 }),
             }),
         }

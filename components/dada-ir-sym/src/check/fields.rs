@@ -20,6 +20,8 @@ pub(crate) fn check_field<'db>(
     Runtime::execute(
         db,
         field.name_span(db),
+        "check_field",
+        &[&field],
         async move |runtime| -> Errors<Binder<'db, Binder<'db, SymTy<'db>>>> {
             let scope = field.into_scope(db);
             let mut env = Env::new(runtime, scope);

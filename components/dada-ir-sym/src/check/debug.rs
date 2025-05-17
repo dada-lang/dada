@@ -24,21 +24,6 @@ pub struct LogHandle<'db> {
 }
 
 impl<'db> LogHandle<'db> {
-    /// Update the root event info with a message and values
-    pub fn update_root_info(&self, message: &'static str, values: &[&dyn erased_serde::Serialize]) {
-        let Some(log) = &self.log else {
-            return;
-        };
-        
-        let mut log = log.lock().unwrap();
-        if let Some(task) = log.tasks.get_mut(0) {
-            if let TaskDescription::Root(root_desc) = &mut task.task_description {
-                root_desc.message = Some(message);
-                root_desc.values = Some(event_argument(values));
-            }
-        }
-    }
-
     pub fn root(
         db: &'db dyn crate::Db,
         compiler_location: &'static Location<'static>,
@@ -474,7 +459,7 @@ impl<'db> Log<'db> {
     }
 }
 
-fn event_argument(values: &[&dyn erased_serde::Serialize]) -> String {
+pub fn event_argument(values: &[&dyn erased_serde::Serialize]) -> String {
     // FIXME: rewrite `fixed_depth_json` to not create a value
 
     let value = if values.is_empty() {

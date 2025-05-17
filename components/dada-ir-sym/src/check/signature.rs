@@ -25,6 +25,8 @@ pub fn check_function_signature<'db>(
     Runtime::execute(
         db,
         function.name_span(db),
+        "check_function_signature",
+        &[&function],
         async move |runtime| -> Errors<SymFunctionSignature<'db>> {
             let PreparedEnv {
                 env,
