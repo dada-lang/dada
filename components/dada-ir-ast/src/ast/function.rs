@@ -4,7 +4,7 @@ use serde::Serialize;
 
 use super::{AstGenericDecl, AstPerm, AstTy, SpanVec, SpannedIdentifier};
 use crate::{
-    ast::{AstVisibility, DeferredParse},
+    ast::{AstVisibility, AstWhereClauses, DeferredParse},
     span::{Span, Spanned},
 };
 
@@ -37,6 +37,10 @@ pub struct AstFunction<'db> {
 
     /// Return type of the function (if provided)
     pub output_ty: Option<AstTy<'db>>,
+
+    /// Where clauses (if any)
+    #[return_ref]
+    pub where_clauses: Option<AstWhereClauses<'db>>,
 
     /// Body (if provided)
     #[return_ref]

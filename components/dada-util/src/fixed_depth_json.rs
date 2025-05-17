@@ -1,7 +1,20 @@
+use lazy_static::lazy_static;
 use serde::ser::{
     self, Error, Serialize, SerializeMap, SerializeSeq, SerializeStruct, SerializeStructVariant,
     SerializeTuple, SerializeTupleStruct, SerializeTupleVariant,
 };
+use std::collections::HashSet;
+
+// Global deny list for fields to exclude from debug JSON output
+lazy_static! {
+    pub static ref DEBUG_FIELD_DENY_LIST: HashSet<&'static str> = {
+        let mut set = HashSet::new();
+        set.insert("super_scope");
+        set.insert("super_scope_item");
+        set.insert("contents");
+        set
+    };
+}
 
 /// Create a JSON value for `value` but only up to a limited depth.
 /// Values past that depth are represented as a "..." string.
@@ -486,6 +499,11 @@ impl SerializeStruct for MaxDepthMap {
     where
         T: ?Sized + Serialize,
     {
+        // Skip fields in the deny list
+        if DEBUG_FIELD_DENY_LIST.contains(key) {
+            return Ok(());
+        }
+
         SerializeMap::serialize_key(self, key)?;
         SerializeMap::serialize_value(self, value)
     }
@@ -503,6 +521,11 @@ impl SerializeStructVariant for MaxDepthMap {
     where
         T: ?Sized + Serialize,
     {
+        // Skip fields in the deny list
+        if DEBUG_FIELD_DENY_LIST.contains(key) {
+            return Ok(());
+        }
+
         match self {
             MaxDepthMap::Active {
                 serializer, map, ..

@@ -169,6 +169,11 @@ impl Compiler {
         self.attach(|db| dada_probe::probe_variable_type(db, span))
     }
 
+    /// Return type of the variable found at the given `span` or `None` if there is no variable there.
+    pub fn probe_expression_type(&self, span: AbsoluteSpan) -> Option<String> {
+        self.attach(|db| dada_probe::probe_expression_type(db, span))
+    }
+
     fn deduplicated(mut diagnostics: Vec<&Diagnostic>) -> Vec<&Diagnostic> {
         let mut new = Set::default();
         diagnostics.retain(|&d| new.insert(d));

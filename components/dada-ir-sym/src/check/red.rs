@@ -73,7 +73,6 @@ impl<'db> RedChain<'db> {
         RedChain::new(db, [RedLink::Our])
     }
 
-    #[expect(dead_code)]
     pub fn is_provably(self, env: &Env<'db>, predicate: Predicate) -> Errors<bool> {
         let db = env.db();
         match predicate {
@@ -119,7 +118,6 @@ impl<'db> RedLink<'db> {
         first.is_copy(env)
     }
 
-    #[expect(dead_code)]
     pub fn are_move(env: &Env<'db>, links: &[Self]) -> Errors<bool> {
         for link in links {
             if !link.is_move(env)? {
@@ -129,7 +127,6 @@ impl<'db> RedLink<'db> {
         Ok(true)
     }
 
-    #[expect(dead_code)]
     pub fn are_owned(env: &Env<'db>, links: &[Self]) -> Errors<bool> {
         for link in links {
             if !link.is_owned(env)? {
@@ -139,7 +136,6 @@ impl<'db> RedLink<'db> {
         Ok(true)
     }
 
-    #[expect(dead_code)]
     pub fn are_lent(env: &Env<'db>, links: &[Self]) -> Errors<bool> {
         for link in links {
             if !link.is_lent(env)? {
@@ -149,7 +145,6 @@ impl<'db> RedLink<'db> {
         Ok(false)
     }
 
-    #[expect(dead_code)]
     pub fn is_owned(&self, env: &Env<'db>) -> Errors<bool> {
         match self {
             RedLink::Our => Ok(true),
@@ -159,7 +154,6 @@ impl<'db> RedLink<'db> {
         }
     }
 
-    #[expect(dead_code)]
     pub fn is_lent(&self, env: &Env<'db>) -> Errors<bool> {
         match self {
             RedLink::Ref(..) | RedLink::Mut(..) => Ok(true),
@@ -169,7 +163,6 @@ impl<'db> RedLink<'db> {
         }
     }
 
-    #[expect(dead_code)]
     pub fn is_move(&self, env: &Env<'db>) -> Errors<bool> {
         match self {
             RedLink::Mut(..) => Ok(true),

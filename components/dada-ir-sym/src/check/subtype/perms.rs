@@ -32,20 +32,7 @@ use crate::{
 // * `X <= our if X is copy+owned`
 // * `X <= my if X is move+owned`
 
-pub async fn require_sub_opt_perms<'db>(
-    env: &mut Env<'db>,
-    live_after: LivePlaces,
-    lower_perm: Option<SymPerm<'db>>,
-    upper_perm: Option<SymPerm<'db>>,
-    or_else: &dyn OrElse<'db>,
-) -> Errors<()> {
-    let db = env.db();
-    let lower_perm = lower_perm.unwrap_or_else(|| SymPerm::my(db));
-    let upper_perm = upper_perm.unwrap_or_else(|| SymPerm::my(db));
-    require_sub_perms(env, live_after, lower_perm, upper_perm, or_else).await
-}
-
-async fn require_sub_perms<'db>(
+pub async fn require_sub_perms<'db>(
     env: &mut Env<'db>,
     live_after: LivePlaces,
     lower_perm: SymPerm<'db>,
@@ -133,6 +120,10 @@ async fn require_infer_bounded_by_perm<'db>(
     new_sym_bound: SymPerm<'db>,
     or_else: &dyn OrElse<'db>,
 ) -> Errors<()> {
+    env.log(
+        "require_infer_bounded_by_perm",
+        &[&infer, &direction, &new_sym_bound],
+    );
     new_sym_bound
         .to_red_perm(
             env,

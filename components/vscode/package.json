@@ -1,21 +1,24 @@
 {
-  "name": "dada",
-  "displayName": "Dada",
-  "description": "Dada language",
-  "version": "0.0.1",
+  "name": "dada-language",
+  "displayName": "Dada Language",
+  "description": "Language support for Dada programming language",
+  "version": "0.1.0",
+  "publisher": "dada-lang",
+  "repository": {
+    "type": "git",
+    "url": "https://github.com/dada-lang/dada"
+  },
   "engines": {
-    "vscode": "^1.95.0"
+    "vscode": "^1.74.0"
   },
   "categories": [
-    "Other"
+    "Programming Languages"
   ],
-  "activationEvents": [],
-  "main": "./out/extension.js",
   "contributes": {
     "commands": [
       {
-        "command": "dada.helloWorld",
-        "title": "Hello World"
+        "command": "dada.restartServer",
+        "title": "Dada: Restart Language Server"
       }
     ],
     "languages": [
@@ -37,31 +40,52 @@
         "scopeName": "source.dada",
         "path": "./syntaxes/dada.tmLanguage.json"
       }
-    ]
+    ],
+    "configuration": {
+      "type": "object",
+      "title": "Dada",
+      "properties": {
+        "dada.serverPath": {
+          "type": "string",
+          "default": "",
+          "description": "Path to the Dada language server executable"
+        },
+        "dada.trace.server": {
+          "type": "string",
+          "enum": [
+            "off",
+            "messages",
+            "verbose"
+          ],
+          "default": "off",
+          "description": "Traces the communication between VS Code and the Dada language server"
+        }
+      }
+    }
   },
+  "activationEvents": [
+    "onLanguage:dada"
+  ],
+  "main": "./out/extension.js",
   "scripts": {
-    "vscode:prepublish": "npm run compile",
-    "compile": "cargo xtask build && tsc -p ./",
+    "vscode:prepublish": "npm run compile && npm run package-server",
+    "compile": "tsc -p ./",
     "watch": "tsc -watch -p ./",
-    "pretest": "npm run compile && npm run lint",
-    "lint": "eslint src",
-    "test": "vscode-test"
+    "lint": "eslint src --ext ts",
+    "package-server": "node ./scripts/package-server.js"
   },
   "dependencies": {
-    "@vscode/wasm-wasi-lsp": "0.1.0-pre.8"
+    "vscode-languageclient": "^8.1.0"
   },
-  "extensionDependencies": [
-    "ms-vscode.wasm-wasi-core"
-  ],
   "devDependencies": {
-    "@types/vscode": "^1.95.0",
-    "@types/mocha": "^10.0.9",
-    "@types/node": "20.x",
-    "@typescript-eslint/eslint-plugin": "^8.10.0",
-    "@typescript-eslint/parser": "^8.7.0",
-    "eslint": "^9.13.0",
-    "typescript": "^5.6.3",
-    "@vscode/test-cli": "^0.0.10",
-    "@vscode/test-electron": "^2.4.1"
+    "@types/node": "^16.11.7",
+    "@types/vscode": "^1.74.0",
+    "@typescript-eslint/eslint-plugin": "^5.42.0",
+    "@typescript-eslint/parser": "^5.42.0",
+    "eslint": "^8.26.0",
+    "typescript": "^4.8.4"
+  },
+  "volta": {
+    "node": "22.15.0"
   }
 }

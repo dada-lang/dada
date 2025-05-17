@@ -127,3 +127,46 @@ impl<'db> Spanned<'db> for AstGenericDecl<'db> {
         }
     }
 }
+
+/// Looks like `where WC1, ... WC2,`
+#[derive(SalsaSerialize)]
+#[salsa::tracked(debug)]
+pub struct AstWhereClauses<'db> {
+    /// Span of the where-clause keyword.
+    pub where_span: Span<'db>,
+
+    /// List of clauses that came after the keyword.
+    #[return_ref]
+    pub clauses: SpanVec<'db, AstWhereClause<'db>>,
+}
+
+/// A where-clause looks like `A is shared`, `A is lent`, `A is shared + lent`, etc.
+#[derive(SalsaSerialize)]
+#[salsa::tracked(debug)]
+pub struct AstWhereClause<'db> {
+    pub subject: AstGenericTerm<'db>,
+
+    #[return_ref]
+    pub kinds: SpanVec<'db, AstWhereClauseKind<'db>>,
+}
+
+#[derive(Copy, Clone, PartialEq, Eq, PartialOrd, Ord, Hash, Update, Debug, Serialize)]
+pub enum AstWhereClauseKind<'db> {
+    /// `ref`
+    Reference(Span<'db>),
+
+    /// `mut`
+    Mutable(Span<'db>),
+
+    /// `shared`
+    Shared(Span<'db>),
+
+    /// `unique`
+    Unique(Span<'db>),
+
+    /// `owned`
+    Owned(Span<'db>),
+
+    /// `lent`
+    Lent(Span<'db>),
+}

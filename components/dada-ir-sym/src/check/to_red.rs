@@ -57,22 +57,25 @@ impl<'db> RedTyExt<'db> for RedTy<'db> {
 
 /// Convert something to a [`RedTy`] and an (optional) permission that is applied to that [`RedTy`][].
 pub trait ToRedTy<'db> {
-    fn to_red_ty(&self, env: &mut Env<'db>) -> (RedTy<'db>, Option<SymPerm<'db>>);
+    fn to_red_ty(&self, env: &mut Env<'db>) -> (RedTy<'db>, SymPerm<'db>);
 }
 
 impl<'db> ToRedTy<'db> for SymGenericTerm<'db> {
-    fn to_red_ty(&self, env: &mut Env<'db>) -> (RedTy<'db>, Option<SymPerm<'db>>) {
+    fn to_red_ty(&self, env: &mut Env<'db>) -> (RedTy<'db>, SymPerm<'db>) {
         match *self {
             SymGenericTerm::Type(ty) => ty.to_red_ty(env),
             SymGenericTerm::Perm(perm) => perm.to_red_ty(env),
             SymGenericTerm::Place(_) => panic!("cannot create a red term from a place"),
-            SymGenericTerm::Error(reported) => (RedTy::err(env.db(), reported), None),
+            SymGenericTerm::Error(reported) => {
+                let db = env.db();
+                (RedTy::err(db, reported), SymPerm::my(db))
+            }
         }
     }
 }
 
 impl<'db> ToRedTy<'db> for SymTy<'db> {
-    fn to_red_ty(&self, env: &mut Env<'db>) -> (RedTy<'db>, Option<SymPerm<'db>>) {
+    fn to_red_ty(&self, env: &mut Env<'db>) -> (RedTy<'db>, SymPerm<'db>) {
         to_red_ty_with_runtime(*self, env.runtime())
     }
 }
@@ -83,32 +86,32 @@ impl<'db> ToRedTy<'db> for SymTy<'db> {
 pub fn to_red_ty_with_runtime<'db>(
     ty: SymTy<'db>,
     runtime: &Runtime<'db>,
-) -> (RedTy<'db>, Option<SymPerm<'db>>) {
+) -> (RedTy<'db>, SymPerm<'db>) {
     let db = runtime.db;
     match *ty.kind(db) {
-        SymTyKind::Perm(perm0, sym_ty) => match to_red_ty_with_runtime(sym_ty, runtime) {
-            (red_ty, None) => (red_ty, Some(perm0)),
-            (red_ty, Some(perm1)) => (red_ty, Some(SymPerm::apply(db, perm0, perm1))),
-        },
-        SymTyKind::Named(n, ref g) => (RedTy::Named(n, g.clone()), None),
+        SymTyKind::Perm(perm0, sym_ty) => {
+            let (red_ty, perm1) = to_red_ty_with_runtime(sym_ty, runtime);
+            (red_ty, perm0.apply_to(db, perm1))
+        }
+        SymTyKind::Named(n, ref g) => (RedTy::Named(n, g.clone()), SymPerm::my(db)),
         SymTyKind::Infer(infer) => {
             // every type inference variable has an associated permission inference variable,
             // so split that off
             let perm_infer = runtime.perm_infer(infer);
-            (RedTy::Infer(infer), Some(SymPerm::infer(db, perm_infer)))
+            (RedTy::Infer(infer), SymPerm::infer(db, perm_infer))
         }
-        SymTyKind::Var(v) => (RedTy::Var(v), None),
-        SymTyKind::Never => (RedTy::Never, None),
-        SymTyKind::Error(reported) => (RedTy::err(db, reported), None),
+        SymTyKind::Var(v) => (RedTy::Var(v), SymPerm::my(db)),
+        SymTyKind::Never => (RedTy::Never, SymPerm::my(db)),
+        SymTyKind::Error(reported) => (RedTy::err(db, reported), SymPerm::my(db)),
     }
 }
 
 impl<'db> ToRedTy<'db> for SymPerm<'db> {
-    fn to_red_ty(&self, env: &mut Env<'db>) -> (RedTy<'db>, Option<SymPerm<'db>>) {
+    fn to_red_ty(&self, env: &mut Env<'db>) -> (RedTy<'db>, SymPerm<'db>) {
         let db = env.db();
         match *self.kind(db) {
-            SymPermKind::Error(reported) => (RedTy::err(db, reported), None),
-            _ => (RedTy::Perm, Some(*self)),
+            SymPermKind::Error(reported) => (RedTy::err(db, reported), SymPerm::my(db)),
+            _ => (RedTy::Perm, *self),
         }
     }
 }
@@ -433,14 +436,11 @@ impl<'db> ToRedLinkVecs<'db> for SymTy<'db> {
         env: &mut Env<'db>,
         live_after: LivePlaces,
         direction: Direction,
-        mut consumer: Consumer<'_, 'db, Vec<Vec<RedLink<'db>>>, Errors<()>>,
+        consumer: Consumer<'_, 'db, Vec<Vec<RedLink<'db>>>, Errors<()>>,
     ) -> Errors<()> {
-        if let (_, Some(perm)) = self.to_red_ty(env) {
-            perm.to_red_linkvecs(env, live_after, direction, consumer)
-                .await
-        } else {
-            consumer.consume(env, vec![]).await
-        }
+        let (_, perm) = self.to_red_ty(env);
+        perm.to_red_linkvecs(env, live_after, direction, consumer)
+            .await
     }
 }
 

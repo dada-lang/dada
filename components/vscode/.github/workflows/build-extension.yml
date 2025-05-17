@@ -1,0 +1,99 @@
+name: Build Extension
+
+on:
+  push:
+    branches: [ main ]
+    paths:
+      - 'components/vscode/**'
+      - 'components/dada-lsp-server/**'
+  pull_request:
+    branches: [ main ]
+    paths:
+      - 'components/vscode/**'
+      - 'components/dada-lsp-server/**'
+  workflow_dispatch:
+
+jobs:
+  build-server:
+    strategy:
+      matrix:
+        include:
+          - os: ubuntu-latest
+            target: linux-x64
+            artifact_name: dada-lsp-server
+          - os: macos-latest
+            target: darwin-x64
+            artifact_name: dada-lsp-server
+          - os: windows-latest
+            target: win32-x64
+            artifact_name: dada-lsp-server.exe
+            
+    runs-on: ${{ matrix.os }}
+    
+    steps:
+    - uses: actions/checkout@v3
+    
+    - name: Set up Rust
+      uses: actions-rs/toolchain@v1
+      with:
+        toolchain: stable
+        
+    - name: Build server
+      run: cargo build --release -p dada-lsp-server
+      
+    - name: Create directory
+      run: mkdir -p components/vscode/bin/${{ matrix.target }}
+      shell: bash
+      
+    - name: Copy binary (Unix)
+      if: matrix.os != 'windows-latest'
+      run: |
+        cp target/release/${{ matrix.artifact_name }} components/vscode/bin/${{ matrix.target }}/
+      
+    - name: Copy binary (Windows)
+      if: matrix.os == 'windows-latest'
+      run: |
+        copy target\release\${{ matrix.artifact_name }} components\vscode\bin\${{ matrix.target }}\
+      shell: cmd
+      
+    - name: Upload binary
+      uses: actions/upload-artifact@v3
+      with:
+        name: ${{ matrix.target }}-binary
+        path: components/vscode/bin/${{ matrix.target }}/${{ matrix.artifact_name }}
+
+  package-extension:
+    needs: build-server
+    runs-on: ubuntu-latest
+    
+    steps:
+    - uses: actions/checkout@v3
+    
+    - name: Setup Node.js
+      uses: actions/setup-node@v3
+      with:
+        node-version: '16'
+        
+    - name: Download all binaries
+      uses: actions/download-artifact@v3
+      with:
+        path: components/vscode/bin
+        
+    - name: Display structure of downloaded files
+      run: ls -R components/vscode/bin
+      shell: bash
+        
+    - name: Install dependencies
+      run: cd components/vscode && npm install
+      
+    - name: Compile TypeScript
+      run: cd components/vscode && npm run compile
+      
+    - name: Package extension
+      run: cd components/vscode && npx vsce package
+      
+    - name: Upload VSIX
+      uses: actions/upload-artifact@v3
+      with:
+        name: dada-extension
+        path: components/vscode/*.vsix

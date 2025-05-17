@@ -6,6 +6,7 @@ pub mod binder;
 pub mod classes;
 pub mod exprs;
 pub mod functions;
+pub mod generics;
 pub mod indices;
 pub mod module;
 pub(crate) mod populate;

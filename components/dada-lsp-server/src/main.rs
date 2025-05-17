@@ -5,6 +5,7 @@ use dada_compiler::{Compiler, Fork, RealFs};
 use dada_ir_ast::diagnostic::{Diagnostic, DiagnosticLabel, Level};
 use dada_ir_ast::inputs::SourceFile;
 use dada_ir_ast::span::{AbsoluteOffset, AbsoluteSpan};
+use dada_probe;
 use dada_util::{Fallible, Map, Set, bail};
 use lsp::{Editor, Lsp, LspFork};
 use lsp_types::{
@@ -15,7 +16,7 @@ use lsp_types::{
 };
 use lsp_types::{InitializeParams, ServerCapabilities};
 
-use salsa::Setter;
+use salsa::{Database, Setter};
 use url::Url;
 
 mod lsp;
@@ -132,6 +133,65 @@ impl lsp::Lsp for Server {
         editor.spawn(ServerFork::check_all_task(source_file));
 
         Ok(())
+    }
+
+    fn hover(
+        &mut self,
+        _editor: &mut dyn Editor<Self>,
+        params: lsp_types::HoverParams,
+    ) -> Fallible<Option<lsp_types::Hover>> {
+        let lsp_types::HoverParams {
+            text_document_position_params:
+                lsp_types::TextDocumentPositionParams {
+                    text_document: lsp_types::TextDocumentIdentifier { uri },
+                    position,
+                },
+            work_done_progress_params: _,
+        } = params;
+
+        // Get the source file
+        let source_file = self.db.get_previously_opened_source_file(uri.as_str())?;
+
+        // Convert LSP position to absolute offset
+        let line = position.line as usize;
+        let character = position.character as usize;
+
+        // Get line starts
+        let line_starts = source_file.line_starts(&self.db);
+
+        // Make sure the line is valid
+        if line >= line_starts.len() - 1 {
+            return Ok(None);
+        }
+
+        // Get the start offset of the line
+        let line_start = line_starts[line];
+
+        // Calculate the absolute offset
+        let offset = AbsoluteOffset::from(line_start.as_usize() + character);
+
+        // Create a span at the position
+        let span = AbsoluteSpan {
+            source_file,
+            start: offset,
+            end: offset,
+        };
+
+        // Use probe_expression_type to get the type
+        self.db.attach(|db| {
+            if let Some(type_str) = dada_probe::probe_expression_type(db, span) {
+                // Return hover response with the type
+                return Ok(Some(lsp_types::Hover {
+                    contents: lsp_types::HoverContents::Markup(lsp_types::MarkupContent {
+                        kind: lsp_types::MarkupKind::Markdown,
+                        value: format!("Type: `{}`", type_str),
+                    }),
+                    range: None,
+                }));
+            }
+
+            Ok(None)
+        })
     }
 }
 

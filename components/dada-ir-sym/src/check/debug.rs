@@ -12,7 +12,7 @@ use dada_util::fixed_depth_json;
 use export::{CompilerLocation, TimeStamp};
 use serde::Serialize;
 
-use crate::ir::{indices::InferVarIndex, types::SymTy};
+use crate::ir::{generics::SymWhereClause, indices::InferVarIndex, types::SymTy};
 
 use super::predicates::Predicate;
 
@@ -333,11 +333,23 @@ impl<'db> Log<'db> {
             .map(|(task, index)| self.export_task(task, index))
             .collect();
 
+        // Create the root event info
+        let root_event = &self.events[0]; // The first event is the root event
+        let root_task = &self.tasks[0]; // The first task is the root task
+
+        let root_event_info = export::RootEventInfo {
+            compiler_location: CompilerLocation::from(root_event.compiler_location),
+            description: event_argument(&[&root_task.task_description]),
+        };
+
         export::Log {
             events_flat,
             nested_event,
             tasks,
             infers,
+            // New fields
+            root_event_info,
+            total_events: self.events.len(),
         }
     }
 
@@ -447,7 +459,7 @@ impl<'db> Log<'db> {
     }
 }
 
-fn event_argument(values: &[&dyn erased_serde::Serialize]) -> String {
+pub fn event_argument(values: &[&dyn erased_serde::Serialize]) -> String {
     // FIXME: rewrite `fixed_depth_json` to not create a value
 
     let value = if values.is_empty() {
@@ -520,6 +532,8 @@ pub enum EventKind {
 #[derive(Serialize)]
 pub struct RootTaskDescription<'db> {
     pub span: Span<'db>,
+    pub message: Option<&'static str>,
+    pub values: Option<String>,
 }
 
 #[derive(Serialize)]
@@ -538,6 +552,7 @@ pub enum TaskDescription<'db> {
     RequireFutureType(SymTy<'db>),
     RequireBoundsProvablyPredicate(InferVarIndex, Predicate),
     RequireBoundsNotProvablyPredicate(InferVarIndex, Predicate),
+    RequireWhereClause(SymWhereClause<'db>),
     RequireLowerChain,
     IfNotNever,
     Misc,

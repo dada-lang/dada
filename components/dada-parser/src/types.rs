@@ -288,6 +288,6 @@ impl<'db> Parse<'db> for AstGenericTerm<'db> {
     }
 
     fn expected() -> Expected {
-        todo!()
+        Expected::Nonterminal("type or permission")
     }
 }

@@ -5,12 +5,15 @@ use dada_ir_ast::{
     span::Spanned,
 };
 use dada_ir_sym::{
-    ir::binder::{Binder, BoundTerm},
-    ir::classes::{SymAggregate, SymClassMember, SymField},
-    ir::functions::{SignatureSymbols, SymFunction, SymFunctionSignature, SymInputOutput},
-    ir::module::{SymItem, SymModule},
-    ir::types::{SymGenericKind, SymTy},
-    ir::variables::SymVariable,
+    ir::{
+        binder::{Binder, BoundTerm},
+        classes::{SymAggregate, SymClassMember, SymField},
+        functions::{SignatureSymbols, SymFunction, SymFunctionSignature, SymInputOutput},
+        generics::{SymWhereClause, SymWhereClauseKind},
+        module::{SymItem, SymModule},
+        types::{SymGenericKind, SymGenericTerm, SymPerm, SymPlace, SymTy},
+        variables::SymVariable,
+    },
     prelude::*,
 };
 
@@ -141,9 +144,11 @@ impl<'db> Check<'db> for SymInputOutput<'db> {
         let SymInputOutput {
             input_tys,
             output_ty,
+            where_clauses,
         } = self;
         input_tys.check(db);
         output_ty.check(db);
+        where_clauses.check(db);
     }
 }
 
@@ -181,5 +186,50 @@ impl<'db> Check<'db> for SymVariable<'db> {
         // There *are* validity checks that need to be done on types,
         // but they are done as part of the checking the item in which
         // the type appears.
+    }
+}
+
+impl<'db> Check<'db> for SymWhereClause<'db> {
+    fn check(&self, db: &'db dyn crate::Db) {
+        self.subject(db).check(db);
+        self.kind(db).check(db);
+    }
+}
+
+impl<'db> Check<'db> for SymWhereClauseKind {
+    fn check(&self, _db: &'db dyn crate::Db) {
+        match self {
+            SymWhereClauseKind::Unique => (),
+            SymWhereClauseKind::Shared => (),
+            SymWhereClauseKind::Owned => (),
+            SymWhereClauseKind::Lent => (),
+        }
+    }
+}
+
+impl<'db> Check<'db> for SymGenericTerm<'db> {
+    fn check(&self, db: &'db dyn crate::Db) {
+        match self {
+            SymGenericTerm::Type(sym_ty) => sym_ty.check(db),
+            SymGenericTerm::Perm(sym_perm) => sym_perm.check(db),
+            SymGenericTerm::Place(sym_place) => sym_place.check(db),
+            SymGenericTerm::Error(_) => (),
+        }
+    }
+}
+
+impl<'db> Check<'db> for SymPerm<'db> {
+    fn check(&self, _db: &'db dyn crate::Db) {
+        // There *are* validity checks that need to be done on permissions,
+        // but they are done as part of the checking the item in which
+        // the permission appears.
+    }
+}
+
+impl<'db> Check<'db> for SymPlace<'db> {
+    fn check(&self, _db: &'db dyn crate::Db) {
+        // There *are* validity checks that need to be done on places,
+        // but they are done as part of the checking the item in which
+        // the place appears.
     }
 }

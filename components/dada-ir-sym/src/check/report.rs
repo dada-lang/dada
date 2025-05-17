@@ -11,7 +11,7 @@ use crate::{
     check::{debug::export, env::Env, predicates::Predicate},
     ir::{
         exprs::{SymExpr, SymPlaceExpr},
-        primitive::SymPrimitive,
+        generics::SymWhereClause,
         types::{SymPlace, SymTy, SymTyName},
         variables::SymVariable,
     },
@@ -170,14 +170,12 @@ pub enum Because<'db> {
     /// The never type is not copy
     NeverIsNotCopy,
 
-    /// The never type is not copy
-    NeverIsNotLent,
+    /// A where clause would be needed on the given variable
+    NoWhereClause(SymVariable<'db>, Predicate),
 
-    /// Classes are not copy
-    ClassIsNotCopy(SymTyName<'db>),
-
-    /// Primitive types are copy
-    PrimitiveIsCopy(SymPrimitive<'db>),
+    /// Struct types are never lent, even if they have lent things in them,
+    /// as they can still have non-lent things.
+    StructsAreNotLent(SymTyName<'db>),
 
     /// Leasing from a copy place yields a copy permission (which is not desired here)
     LeasedFromCopyIsCopy(Vec<SymPlace<'db>>),
@@ -228,21 +226,6 @@ impl<'db> Because<'db> {
                 span,
                 "the never type (`!`) is not considered `copy`",
             )),
-            Because::NeverIsNotLent => Some(Diagnostic::info(
-                db,
-                span,
-                "the never type (`!`) is not considered `lent`",
-            )),
-            Because::ClassIsNotCopy(name) => Some(Diagnostic::info(
-                db,
-                span,
-                format!("class types (like `{name}`) are never considered `copy`"),
-            )),
-            Because::PrimitiveIsCopy(prim) => Some(Diagnostic::info(
-                db,
-                span,
-                format!("primitive types (like `{prim}`) are always `copy`"),
-            )),
             Because::LeasedFromCopyIsCopy(places) => {
                 if places.len() == 1 {
                     Some(Diagnostic::info(
@@ -277,37 +260,47 @@ impl<'db> Because<'db> {
             Because::InferredPermBound(direction, red_perm, or_else) => {
                 let or_else_diagnostic = or_else.or_else(env, Because::JustSo);
                 Some(
-                    Diagnostic::info(
-                        db,
-                        span,
-                        format!(
-                            "I inferred that the perm must be {assignable_from_or_to} `{bound}` or else this error will occur",
-                            assignable_from_or_to = match direction {
-                                Direction::FromBelow => "assignable from",
-                                Direction::FromAbove => "assignable to",
-                            },
-                            bound = format!("{red_perm:?}"), // FIXME
-                        ),
-                    )
-                    .child(or_else_diagnostic),
-                )
+                            Diagnostic::info(
+                                db,
+                                span,
+                                format!(
+                                    "I inferred that the perm must be {assignable_from_or_to} `{bound}` or else this error will occur",
+                                    assignable_from_or_to = match direction {
+                                        Direction::FromBelow => "assignable from",
+                                        Direction::FromAbove => "assignable to",
+                                    },
+                                    bound = format!("{red_perm:?}"), // FIXME
+                                ),
+                            )
+                            .child(or_else_diagnostic),
+                        )
             }
             Because::InferredLowerBound(red_ty, or_else) => {
                 let or_else_diagnostic = or_else.or_else(env, Because::JustSo);
                 Some(Diagnostic::info(
-                        db,
-                        span,
-                        format!(
-                            "I inferred that the type `{red_ty}` is required because otherwise it would cause this error",
-                            red_ty = red_ty.display(env),
-                        ),
-                    )
-                    .child(or_else_diagnostic))
+                                db,
+                                span,
+                                format!(
+                                    "I inferred that the type `{red_ty}` is required because otherwise it would cause this error",
+                                    red_ty = red_ty.display(env),
+                                ),
+                            )
+                            .child(or_else_diagnostic))
             }
             Because::UnconstrainedInfer(span) => Some(Diagnostic::info(
                 db,
                 *span,
                 "this error might well be bogus, I just can't infer the type here".to_string(),
+            )),
+            Because::NoWhereClause(var, predicate) => Some(Diagnostic::info(
+                db,
+                span,
+                format!("the variable `{var}` needs a where-clause to be considered `{predicate}`"),
+            )),
+            Because::StructsAreNotLent(s) => Some(Diagnostic::info(
+                db,
+                span,
+                format!("the struct type `{s}` is never considered `lent`"),
             )),
         }
     }
@@ -371,6 +364,60 @@ impl<'db> OrElse<'db> for BadSubtypeError<'db> {
                 Level::Error,
                 span,
                 format!("expected `{upper}`, found `{lower}`"),
+            ),
+        )
+    }
+
+    fn to_arc(&self) -> ArcOrElse<'db> {
+        Arc::new(*self).into()
+    }
+
+    fn compiler_location(&self) -> &'static Location<'static> {
+        self.compiler_location
+    }
+}
+
+/// Give a really bad subtype error.
+///
+/// Every usage of this is a bug.
+#[derive(Copy, Clone, Debug)]
+pub struct WhereClauseError<'db> {
+    span: Span<'db>,
+    where_clause: SymWhereClause<'db>,
+    compiler_location: &'static Location<'static>,
+}
+
+impl<'db> WhereClauseError<'db> {
+    #[track_caller]
+    pub fn new(span: Span<'db>, where_clause: SymWhereClause<'db>) -> Self {
+        Self {
+            span,
+            where_clause,
+            compiler_location: Location::caller(),
+        }
+    }
+}
+
+impl<'db> OrElse<'db> for WhereClauseError<'db> {
+    fn or_else(&self, env: &mut Env<'db>, because: Because<'db>) -> Diagnostic {
+        let db = env.db();
+        let Self {
+            span,
+            where_clause,
+            compiler_location: _,
+        } = *self;
+        because.annotate_diagnostic(
+            env,
+            Diagnostic::error(
+                db,
+                span,
+                "where clause on function not satisfied".to_string(),
+            )
+            .label(
+                db,
+                Level::Error,
+                span,
+                format!("expected `{where_clause:?}`"),
             ),
         )
     }

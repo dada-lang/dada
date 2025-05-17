@@ -40,6 +40,7 @@ use super::{
     report::{
         AwaitNonFuture, BadSubtypeError, InvalidAssignmentType, InvalidReturnValue,
         NumericTypeExpected, OperatorArgumentsMustHaveSameType, OperatorRequiresNumericType,
+        WhereClauseError,
     },
     temporaries::Temporary,
 };
@@ -1211,7 +1212,7 @@ async fn check_call_common<'db>(
         .collect::<Vec<_>>();
 
     // Instantiate the final level of binding with those temporaries
-    let input_output = input_output.substitute(db, &arg_temp_terms);
+    let input_output: SymInputOutput<'_> = input_output.substitute(db, &arg_temp_terms);
 
     env.log("arg_temp_symbols", &[&arg_temp_symbols]);
     env.log("arg_temp_terms", &[&arg_temp_terms]);
@@ -1238,6 +1239,14 @@ async fn check_call_common<'db>(
         );
         ExprResult::from_expr(env.db(), expr, arg_temporaries)
     };
+
+    // Spawn out work to check the predicates.
+    for where_clause in input_output.where_clauses {
+        env.spawn_require_where_clause(
+            where_clause,
+            &WhereClauseError::new(callee_span, where_clause),
+        );
+    }
 
     // Type check the arguments; these can proceed concurrently.
     let mut arg_exprs = vec![];

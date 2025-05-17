@@ -1,0 +1,12 @@
+fn main() {
+    let x = 22 + 44
+    #?      ^^ ExprType: u32
+    #?           ^^ ExprType: u32
+    #?      ^^^^^^^ ExprType: u32
+    #?  ^ VariableType: u32
+    set(x)
+}
+
+fn set(x: u32) {
+    
+}

@@ -5,7 +5,7 @@ use dispatch::LspDispatch;
 use lsp_server::Connection;
 use lsp_types::{
     InitializeParams, InitializeResult, PublishDiagnosticsParams, ServerCapabilities, ServerInfo,
-    notification,
+    notification, request,
 };
 
 mod dispatch;
@@ -44,6 +44,13 @@ pub trait Lsp: Sized {
         editor: &mut dyn Editor<Self>,
         item: lsp_types::DidChangeTextDocumentParams,
     ) -> Fallible<()>;
+
+    /// Handle hover requests.
+    fn hover(
+        &mut self,
+        editor: &mut dyn Editor<Self>,
+        params: lsp_types::HoverParams,
+    ) -> Fallible<Option<lsp_types::Hover>>;
 }
 
 pub trait LspFork: Sized + Send {
@@ -81,6 +88,7 @@ pub fn run_server<L: Lsp>() -> Fallible<()> {
     LspDispatch::new(connection, lsp)
         .on_notification::<notification::DidOpenTextDocument>(Lsp::did_open)
         .on_notification::<notification::DidChangeTextDocument>(Lsp::did_change)
+        .on_request::<request::HoverRequest>(Lsp::hover)
         .execute()?;
 
     io_threads.join()?;

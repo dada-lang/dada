@@ -13,6 +13,8 @@ impl<'db> CheckUseItems<'db> for SymModule<'db> {
         let _: Errors<()> = Runtime::execute(
             db,
             self.span(db),
+            "check_use_items",
+            &[&self],
             async move |runtime| {
                 let mut env = Env::new(runtime, self.mod_scope(db));
                 for item in self.ast_use_map(db).values() {

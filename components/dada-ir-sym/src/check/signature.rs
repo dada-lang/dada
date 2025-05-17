@@ -8,6 +8,7 @@ use crate::{
     check::{env::Env, runtime::Runtime},
     ir::{
         functions::{SymFunction, SymFunctionSignature, SymFunctionSource, SymInputOutput},
+        generics::SymWhereClause,
         populate::self_arg_requires_default_perm,
         types::{AnonymousPermSymbol, SymPerm, SymTy, SymTyName},
         variables::SymVariable,
@@ -15,7 +16,7 @@ use crate::{
     prelude::Symbol,
 };
 
-use super::CheckTyInEnv;
+use super::{CheckTyInEnv, generics::symbolify_ast_where_clause, scope_tree::ScopeTreeNode};
 
 pub fn check_function_signature<'db>(
     db: &'db dyn crate::Db,
@@ -24,11 +25,14 @@ pub fn check_function_signature<'db>(
     Runtime::execute(
         db,
         function.name_span(db),
+        "check_function_signature",
+        &[&function],
         async move |runtime| -> Errors<SymFunctionSignature<'db>> {
             let PreparedEnv {
                 env,
                 input_tys,
                 output_ty_caller,
+                where_clauses,
                 ..
             } = prepare_env(db, runtime, function).await;
 
@@ -41,6 +45,7 @@ pub fn check_function_signature<'db>(
                     SymInputOutput {
                         input_tys,
                         output_ty: output_ty_caller,
+                        where_clauses,
                     },
                 ),
             ))
@@ -68,6 +73,9 @@ pub struct PreparedEnv<'db> {
     /// The return type of the fn from the perspective of the caller.
     /// For an async fn, this is a future.
     pub output_ty_caller: SymTy<'db>,
+
+    /// Where clauses in scope
+    pub where_clauses: Vec<SymWhereClause<'db>>,
 }
 
 pub async fn prepare_env<'db>(
@@ -106,12 +114,21 @@ pub async fn prepare_env<'db>(
         output_ty_body
     };
 
+    // Symbolify the where-clauses
+    let mut ast_where_clauses = vec![];
+    let mut where_clauses = vec![];
+    function.push_transitive_where_clauses(db, &mut ast_where_clauses);
+    for ast_where_clause in ast_where_clauses {
+        symbolify_ast_where_clause(&mut env, ast_where_clause, &mut where_clauses).await;
+    }
+
     PreparedEnv {
         env,
         input_symbols,
         input_tys,
         output_ty_body,
         output_ty_caller,
+        where_clauses,
     }
 }
 

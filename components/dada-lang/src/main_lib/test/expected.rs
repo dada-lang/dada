@@ -70,6 +70,9 @@ pub struct Probe {
 pub enum ProbeKind {
     /// Tests the type of the variable declared here
     VariableType,
+
+    /// Tests the type of the smallest containing expression
+    ExprType,
 }
 
 enum Bless {
@@ -232,7 +235,10 @@ impl TestExpectations {
                     }
                 };
 
-                let valid_probe_kinds = &[("VariableType", ProbeKind::VariableType)];
+                let valid_probe_kinds = &[
+                    ("VariableType", ProbeKind::VariableType),
+                    ("ExprType", ProbeKind::ExprType),
+                ];
                 let user_probe_kind = c.name("kind").unwrap().as_str();
                 let Some(&(_, kind)) = valid_probe_kinds
                     .iter()
@@ -351,6 +357,9 @@ impl TestExpectations {
                     ProbeKind::VariableType => compiler
                         .probe_variable_type(probe.span)
                         .unwrap_or_else(|| "<no variable found>".to_string()),
+                    ProbeKind::ExprType => compiler
+                        .probe_expression_type(probe.span)
+                        .unwrap_or_else(|| "<no expression found>".to_string()),
                 };
 
                 if probe.message.is_match(&actual) {

@@ -46,6 +46,8 @@ fn check_function_body_class_constructor<'db>(
     Runtime::execute(
         db,
         function.name_span(db),
+        "check_function_body_class_constructor",
+        &[&function, &sym_class, &ast_class_item],
         async move |runtime| -> SymExpr<'db> {
             let PreparedEnv {
                 ref mut env,
@@ -114,12 +116,15 @@ fn check_function_body_ast_block<'db>(
     Runtime::execute(
         db,
         function.name_span(db),
+        "check_function_body_ast_block",
+        &[&function, &body],
         async move |runtime| {
             let PreparedEnv {
                 mut env,
                 output_ty_body,
                 ..
             } = prepare_env(db, runtime, function).await;
+
             env.log("check_function_body_ast_block", &[&function, &body]);
             let live_after = LivePlaces::none(&env);
             let expr = body.check_in_env(&mut env, live_after).await;

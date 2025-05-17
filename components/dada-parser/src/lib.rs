@@ -557,11 +557,20 @@ trait Parse<'db>: Sized {
         db: &'db dyn crate::Db,
         parser: &mut Parser<'_, 'db>,
     ) -> Result<Option<SpanVec<'db, Self::Output>>, ParseFail<'db>> {
+        Self::opt_parse_separated(db, parser, operator::COMMA)
+    }
+
+    /// Parse a `separator` separated list of Self
+    fn opt_parse_separated(
+        db: &'db dyn crate::Db,
+        parser: &mut Parser<'_, 'db>,
+        separator: operator::Op,
+    ) -> Result<Option<SpanVec<'db, Self::Output>>, ParseFail<'db>> {
         match Self::opt_parse(db, parser) {
             Ok(Some(item)) => {
                 let mut values = vec![item];
 
-                while parser.eat_op(operator::COMMA).is_ok() {
+                while parser.eat_op(separator).is_ok() {
                     match Self::opt_parse(db, parser) {
                         Ok(Some(item)) => values.push(item),
                         Ok(None) => break,

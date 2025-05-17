@@ -1,5 +1,8 @@
 use std::{
-    sync::{Arc, Mutex, mpsc::Receiver},
+    sync::{
+        Arc, Mutex,
+        mpsc::{Receiver, RecvTimeoutError},
+    },
     time::Duration,
 };
 
@@ -134,8 +137,12 @@ pub struct State {
 
 fn record_events(debug_rx: Receiver<DebugEvent>, state: Arc<State>) {
     while !*state.shutdown.lock().unwrap() {
-        if let Ok(event) = debug_rx.recv_timeout(Duration::from_secs(1)) {
-            state.debug_events.lock().unwrap().push(Arc::new(event));
+        match debug_rx.recv_timeout(Duration::from_secs(1)) {
+            Ok(event) => {
+                state.debug_events.lock().unwrap().push(Arc::new(event));
+            }
+            Err(RecvTimeoutError::Disconnected) => return,
+            Err(RecvTimeoutError::Timeout) => (),
         }
     }
 }

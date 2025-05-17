@@ -1,52 +1,161 @@
 {
-    "scopeName": "source.dada",
-    "name": "Dada",
-    "patterns": [
-        {
-            "include": "#comments"
-        },
-        {
-            "include": "#strings"
-        },
-        {
-            "include": "#keywords"
-        }
-    ],
-    "repository": {
-        "comments": {
-            "patterns": [
-                {
-                    "name": "comment.line.number-sign.dada",
-                    "match": "#.*$"
-                }
-            ]
-        },
-        "strings": {
-            "patterns": [
-                {
-                    "name": "string.quoted.double.dada",
-                    "begin": "\"",
-                    "end": "\"",
-                    "patterns": [
-                        {
-                            "name": "constant.character.escape.dada",
-                            "match": "\\\\."
-                        }
-                    ]
-                }
-            ]
-        },
-        "keywords": {
-            "patterns": [
-                {
-                    "name": "keyword.definition.dada",
-                    "match": "\\b(fn|class|struct|enum)\\b"
-                },
-                {
-                    "name": "keyword.control.dada",
-                    "match": "\\b(if|else|while|for|return)\\b"
-                }
-            ]
-        }
+  "$schema": "https://raw.githubusercontent.com/martinring/tmlanguage/master/tmlanguage.json",
+  "name": "Dada",
+  "patterns": [
+    {
+      "include": "#comments"
+    },
+    {
+      "include": "#keywords"
+    },
+    {
+      "include": "#strings"
+    },
+    {
+      "include": "#numbers"
+    },
+    {
+      "include": "#functions"
+    },
+    {
+      "include": "#classes"
+    },
+    {
+      "include": "#structs"
+    },
+    {
+      "include": "#types"
+    },
+    {
+      "include": "#variables"
     }
+  ],
+  "repository": {
+    "comments": {
+      "patterns": [
+        {
+          "name": "comment.line.number-sign.dada",
+          "match": "#.*$"
+        },
+        {
+          "name": "comment.line.double-slash.dada",
+          "match": "//.*$"
+        },
+        {
+          "name": "comment.block.dada",
+          "begin": "/\\*",
+          "end": "\\*/",
+          "captures": {
+            "0": {
+              "name": "punctuation.definition.comment.dada"
+            }
+          }
+        },
+        {
+          "name": "comment.line.pragma.dada",
+          "match": "#:[a-zA-Z_][a-zA-Z0-9_]*.*$"
+        },
+        {
+          "name": "comment.line.error.dada",
+          "match": "#!.*$"
+        }
+      ]
+    },
+    "keywords": {
+      "patterns": [
+        {
+          "name": "keyword.control.dada",
+          "match": "\\b(if|else|while|for|return|break|continue|await|async)\\b"
+        },
+        {
+          "name": "keyword.other.dada",
+          "match": "\\b(fn|let|mut|class|struct|self|true|false|my|our|ref)\\b"
+        }
+      ]
+    },
+    "strings": {
+      "name": "string.quoted.double.dada",
+      "begin": "\"",
+      "end": "\"",
+      "patterns": [
+        {
+          "name": "constant.character.escape.dada",
+          "match": "\\\\."
+        },
+        {
+          "name": "variable.other.interpolated.dada",
+          "match": "\\{[^\\}]+\\}"
+        }
+      ]
+    },
+    "numbers": {
+      "patterns": [
+        {
+          "name": "constant.numeric.integer.dada",
+          "match": "\\b\\d+\\b"
+        },
+        {
+          "name": "constant.numeric.float.dada",
+          "match": "\\b\\d+\\.\\d+\\b"
+        }
+      ]
+    },
+    "functions": {
+      "patterns": [
+        {
+          "name": "entity.name.function.dada",
+          "match": "\\b([a-zA-Z_][a-zA-Z0-9_]*)\\s*(?=\\()"
+        },
+        {
+          "name": "entity.name.function.declaration.dada",
+          "match": "(?<=fn\\s+)([a-zA-Z_][a-zA-Z0-9_]*)"
+        }
+      ]
+    },
+    "classes": {
+      "patterns": [
+        {
+          "name": "entity.name.type.class.dada",
+          "match": "(?<=class\\s+)([a-zA-Z_][a-zA-Z0-9_]*)"
+        }
+      ]
+    },
+    "structs": {
+      "patterns": [
+        {
+          "name": "entity.name.type.struct.dada",
+          "match": "(?<=struct\\s+)([a-zA-Z_][a-zA-Z0-9_]*)"
+        }
+      ]
+    },
+    "types": {
+      "patterns": [
+        {
+          "name": "support.type.primitive.dada",
+          "match": "\\b(u32|i32|bool|String)\\b"
+        },
+        {
+          "name": "entity.name.type.dada",
+          "match": "(?<=:\\s*)([a-zA-Z_][a-zA-Z0-9_]*)"
+        },
+        {
+          "name": "entity.name.type.dada",
+          "match": "(?<=->\\s*)([a-zA-Z_][a-zA-Z0-9_]*)"
+        }
+      ]
+    },
+    "variables": {
+      "patterns": [
+        {
+          "name": "variable.parameter.dada",
+          "match": "(?<=\\()\\s*([a-zA-Z_][a-zA-Z0-9_]*)\\s*:"
+        },
+        {
+          "name": "variable.other.dada",
+          "match": "\\b([a-zA-Z_][a-zA-Z0-9_]*)\\b"
+        }
+      ]
+    }
+  },
+  "scopeName": "source.dada"
 }

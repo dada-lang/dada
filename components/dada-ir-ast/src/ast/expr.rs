@@ -23,6 +23,7 @@ pub enum AstStatement<'db> {
 #[derive(SalsaSerialize)]
 #[salsa::tracked(debug)]
 pub struct AstLetStatement<'db> {
+    pub span: Span<'db>,
     pub mutable: Option<Span<'db>>,
     pub name: SpannedIdentifier<'db>,
     pub ty: Option<AstTy<'db>>,

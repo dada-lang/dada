@@ -8,6 +8,7 @@ use crate::{
     },
     ir::{
         binder::BoundTerm,
+        generics::SymWhereClause,
         indices::{FromInfer, InferVarIndex},
         populate::variable_decl_requires_default_perm,
         subst::SubstWith,
@@ -32,7 +33,7 @@ use super::{
     debug::LogHandle,
     inference::{Direction, InferVarKind, InferenceVarData},
     live_places::LivePlaces,
-    predicates::Predicate,
+    predicates::{Predicate, require_where_clause::require_where_clause},
     red::{RedPerm, RedTy},
     report::{ArcOrElse, BooleanTypeRequired, OrElse},
     runtime::DeferResult,
@@ -433,6 +434,20 @@ impl<'db> Env<'db> {
             self,
             TaskDescription::RequireFutureType(ty),
             async move |env| require_future_type(env, live_after, ty, awaited_ty, &or_else).await,
+        )
+    }
+
+    #[track_caller]
+    pub(super) fn spawn_require_where_clause(
+        &self,
+        where_clause: SymWhereClause<'db>,
+        or_else: &dyn OrElse<'db>,
+    ) {
+        let or_else = or_else.to_arc();
+        self.runtime.spawn(
+            self,
+            TaskDescription::RequireWhereClause(where_clause),
+            async move |env| require_where_clause(env, where_clause, &or_else).await,
         )
     }
 

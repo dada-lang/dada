@@ -2,6 +2,17 @@
 <html lang="en">
 <head>
 {{> header title="Dada Debug Log"}}
+<style>
+    .root-event-info, .event-count {
+        margin: 5px 0;
+        font-size: 14px;
+        color: #333;
+    }
+    
+    .root-event-info strong, .event-count strong {
+        color: #007bff;
+    }
+</style>
 </head>
 <body>
 <h1>Dada Debug Log</h1>
@@ -12,6 +23,16 @@
         <a href="/view/{{payload.index}}">
             Type check log from {{url}}:{{line_start}}:{{col_start}}:{{line_end}}:{{col_end}}<br>
             <code>{{text}}</code>
+            {{#if payload.root_event_info}}
+            <div class="root-event-info">
+                <strong>Root Event:</strong> {{payload.root_event_info.description}}
+            </div>
+            {{/if}}
+            {{#if payload.total_events}}
+            <div class="event-count">
+                <strong>Total Events:</strong> {{payload.total_events}}
+            </div>
+            {{/if}}
         </a>
     </li>
 {{else if (is_type payload.type "Diagnostic")}}

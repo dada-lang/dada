@@ -12,11 +12,11 @@ use crate::{
     },
     ir::{
         primitive::SymPrimitiveKind,
-        types::{SymTy, SymTyName},
+        types::{SymPerm, SymTy, SymTyName},
     },
 };
 
-use super::perms::require_sub_opt_perms;
+use super::perms::require_sub_perms;
 
 pub async fn require_my_numeric_type<'db>(
     env: &mut Env<'db>,
@@ -25,8 +25,9 @@ pub async fn require_my_numeric_type<'db>(
     or_else: &dyn OrElse<'db>,
 ) -> Errors<()> {
     let (red_ty, perm) = ty.to_red_ty(env);
+    let my_perm = SymPerm::my(env.db());
     env.require_both(
-        async |env| require_sub_opt_perms(env, live_after, None, perm, or_else).await,
+        async |env| require_sub_perms(env, live_after, my_perm, perm, or_else).await,
         async |env| require_numeric_red_type(env, red_ty, or_else).await,
     )
     .await

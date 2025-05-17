@@ -12,6 +12,16 @@ pub struct Log<'a> {
     pub nested_event: NestedEvent,
     pub infers: Vec<Infer>,
     pub tasks: Vec<Task>,
+    // New fields
+    pub root_event_info: RootEventInfo<'a>,
+    pub total_events: usize,
+}
+
+// New structure to hold detailed root event information
+#[derive(Serialize, Debug)]
+pub struct RootEventInfo<'a> {
+    pub compiler_location: CompilerLocation<'a>,
+    pub description: String,
 }
 
 #[derive(Serialize, Debug)]

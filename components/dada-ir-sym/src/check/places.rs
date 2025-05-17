@@ -38,7 +38,7 @@ impl<'db> PlaceTy<'db> for SymPlace<'db> {
 fn field_ty<'db>(
     env: &mut Env<'db>,
     owner_place: SymPlace<'db>,
-    owner_perm: Option<SymPerm<'db>>,
+    owner_perm: SymPerm<'db>,
     owner_red_ty: RedTy<'db>,
     sym_field: SymField<'db>,
 ) -> SymTy<'db> {
@@ -53,11 +53,7 @@ fn field_ty<'db>(
                 .substitute(env.db(), &generics)
                 .substitute(env.db(), &[SymGenericTerm::Place(owner_place)]);
 
-            if let Some(owner_perm) = owner_perm {
-                SymTy::perm(env.db(), owner_perm, field_ty)
-            } else {
-                field_ty
-            }
+            owner_perm.apply_to(db, field_ty)
         }
 
         RedTy::Infer(infer) => {

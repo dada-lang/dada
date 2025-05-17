@@ -37,6 +37,7 @@ impl<'db> Cx<'db> {
                 SymInputOutput {
                     input_tys,
                     output_ty,
+                    where_clauses: _,
                 },
         } = self.codegen_signature(function, generics);
 
@@ -132,6 +133,7 @@ impl<'db> Cx<'db> {
                 input_output: SymInputOutput {
                     input_tys: vec![],
                     output_ty: SymTy::err(self.db, reported),
+                    where_clauses: vec![],
                 },
             },
         }

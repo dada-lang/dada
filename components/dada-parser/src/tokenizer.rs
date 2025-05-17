@@ -102,6 +102,7 @@ keywords! {
         False = "false",
         Fn = "fn",
         If = "if",
+        Is = "is",
         Lent = "lent",
         Let = "let",
         Give = "give",

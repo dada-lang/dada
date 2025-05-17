@@ -8,17 +8,19 @@ use crate::{
             Predicate,
             var_infer::{require_infer_is, require_var_is},
         },
+        red::RedTy,
         report::{Because, OrElse},
+        to_red::ToRedTy,
     },
     ir::{
         classes::SymAggregateStyle,
-        types::{SymGenericTerm, SymPerm, SymPermKind, SymTy, SymTyKind, SymTyName},
+        types::{SymGenericTerm, SymPerm, SymPermKind, SymTy},
     },
 };
 
 use super::{
     is_provably_lent::{place_is_provably_lent, term_is_provably_lent},
-    is_provably_move::{place_is_provably_move, term_is_provably_move},
+    is_provably_unique::{place_is_provably_unique, term_is_provably_unique},
 };
 
 pub(crate) async fn require_term_is_lent<'db>(
@@ -48,7 +50,7 @@ async fn require_application_is_lent<'db>(
                 async |env| term_is_provably_lent(env, rhs).await,
                 async |env| {
                     env.both(
-                        async |env| term_is_provably_move(env, rhs).await,
+                        async |env| term_is_provably_unique(env, rhs).await,
                         async |env| term_is_provably_lent(env, lhs).await,
                     )
                     .await
@@ -67,60 +69,57 @@ async fn require_ty_is_lent<'db>(
     term: SymTy<'db>,
     or_else: &dyn OrElse<'db>,
 ) -> Errors<()> {
-    let db = env.db();
-    match *term.kind(db) {
-        // Error cases first
-        SymTyKind::Error(reported) => Err(reported),
+    env.indent("require_ty_is_lent", &[&term], async |env| {
+        let db = env.db();
+        let (red_ty, perm) = term.to_red_ty(env);
+        match red_ty {
+            // Error cases first
+            RedTy::Error(reported) => Err(reported),
 
-        // Apply
-        SymTyKind::Perm(sym_perm, sym_ty) => {
-            require_application_is_lent(env, sym_perm.into(), sym_ty.into(), or_else).await
-        }
+            // Never
+            RedTy::Never => require_perm_is_lent(env, perm, or_else).await,
 
-        // Never
-        SymTyKind::Never => Err(or_else.report(env, Because::NeverIsNotLent)),
+            // Inference
+            RedTy::Infer(infer) => {
+                require_infer_is(env, perm, infer, Predicate::Lent, or_else).await
+            }
 
-        // Variable and inference
-        SymTyKind::Infer(infer) => require_infer_is(env, infer, Predicate::Lent, or_else).await,
-        SymTyKind::Var(var) => require_var_is(env, var, Predicate::Lent, or_else),
+            // Generic variable
+            RedTy::Var(var) => {
+                if env.var_is_declared_to_be(var, Predicate::Lent) {
+                    Ok(())
+                } else if env.var_is_declared_to_be(var, Predicate::Unique) {
+                    // If the perm is not known to be unique,
+                    // it might be a shared type, in which case,
+                    // even if `perm` is lent it doesn't matter.
+                    require_perm_is_lent(env, perm, or_else).await
+                } else {
+                    Err(or_else.report(env, Because::NoWhereClause(var, Predicate::Lent)))
+                }
+            }
 
-        // Named types
-        SymTyKind::Named(sym_ty_name, ref generics) => match sym_ty_name {
-            SymTyName::Primitive(_sym_primitive) => Ok(()),
-
-            SymTyName::Aggregate(sym_aggregate) => match sym_aggregate.style(db) {
-                SymAggregateStyle::Class => Err(or_else.report(env, Because::JustSo)),
+            // Named types
+            RedTy::Named(sym_ty_name, _) => match sym_ty_name.style(db) {
                 SymAggregateStyle::Struct => {
-                    env.require(
-                        async |env| {
-                            env.exists(generics, async |env, &generic| {
-                                term_is_provably_lent(env, generic).await
-                            })
-                            .await
-                        },
-                        |env| or_else.report(env, Because::JustSo),
-                    )
-                    .await
+                    // Structs are never *lent*.
+                    //
+                    // They can always have at least some content
+                    // that is owned.
+                    Err(or_else.report(env, Because::StructsAreNotLent(sym_ty_name)))
+                }
+                SymAggregateStyle::Class => {
+                    // For a class to be lent, the permission must be lent.
+                    //
+                    // We don't consider `Vec[ref[x] String]` to be lent
+                    // (though it is also not owned).
+                    require_perm_is_lent(env, perm, or_else).await
                 }
             },
 
-            SymTyName::Future => Err(or_else.report(env, Because::JustSo)),
-
-            SymTyName::Tuple { arity } => {
-                assert_eq!(arity, generics.len());
-                env.require(
-                    async |env| {
-                        env.exists(generics, async |env, &generic| {
-                            term_is_provably_lent(env, generic).await
-                        })
-                        .await
-                    },
-                    |env| or_else.report(env, Because::JustSo),
-                )
-                .await
-            }
-        },
-    }
+            RedTy::Perm => require_perm_is_lent(env, perm, or_else).await,
+        }
+    })
+    .await
 }
 
 #[boxed_async_fn]
@@ -129,50 +128,55 @@ async fn require_perm_is_lent<'db>(
     perm: SymPerm<'db>,
     or_else: &dyn OrElse<'db>,
 ) -> Errors<()> {
-    let db = env.db();
-    match *perm.kind(db) {
-        // Error cases first
-        SymPermKind::Error(reported) => Err(reported),
+    env.indent("require_perm_is_lent", &[&perm], async |env| {
+        let db = env.db();
+        match *perm.kind(db) {
+            // Error cases first
+            SymPermKind::Error(reported) => Err(reported),
 
-        // My = Move & Owned
-        SymPermKind::My => Err(or_else.report(env, Because::JustSo)),
+            // My = Move & Owned
+            SymPermKind::My => Err(or_else.report(env, Because::JustSo)),
 
-        // Our = Copy & Owned
-        SymPermKind::Our => Err(or_else.report(env, Because::JustSo)),
+            // Our = Copy & Owned
+            SymPermKind::Our => Err(or_else.report(env, Because::JustSo)),
 
-        // Shared = Copy & Lent, Mutable = Move & Lent
-        SymPermKind::Referenced(ref places) | SymPermKind::Mutable(ref places) => {
-            // This one is tricky. If the places are copy,
-            // then we will reduce to their chains, but then
-            // we would be lent if they are lent; but if they are not
-            // copy, we are lent.
-            env.require(
-                async |env| {
-                    env.for_all(places, async |env, &place| {
-                        env.either(
-                            // If the place `p` is move, then the result will be `shared[p]` or `mutable[p]` perm,
-                            // which is lent.
-                            async |env| place_is_provably_move(env, place).await,
-                            // Or, if the place `p` is not move and hence may be copy, then it must itself be `lent`.
-                            async |env| place_is_provably_lent(env, place).await,
-                        )
+            // Shared = Copy & Lent, Mutable = Move & Lent
+            SymPermKind::Referenced(ref places) | SymPermKind::Mutable(ref places) => {
+                // This one is tricky. If the places are copy,
+                // then we will reduce to their chains, but then
+                // we would be lent if they are lent; but if they are not
+                // copy, we are lent.
+                env.require(
+                    async |env| {
+                        env.for_all(places, async |env, &place| {
+                            env.either(
+                                // If the place `p` is move, then the result will be `shared[p]` or `mutable[p]` perm,
+                                // which is lent.
+                                async |env| place_is_provably_unique(env, place).await,
+                                // Or, if the place `p` is not move and hence may be copy, then it must itself be `lent`.
+                                async |env| place_is_provably_lent(env, place).await,
+                            )
+                            .await
+                        })
                         .await
-                    })
-                    .await
-                },
-                |env| or_else.report(env, Because::JustSo),
-            )
-            .await
-        }
+                    },
+                    |env| or_else.report(env, Because::JustSo),
+                )
+                .await
+            }
 
-        // Apply
-        SymPermKind::Apply(lhs, rhs) => {
-            require_application_is_lent(env, lhs.into(), rhs.into(), or_else).await
-        }
+            // Apply
+            SymPermKind::Apply(lhs, rhs) => {
+                require_application_is_lent(env, lhs.into(), rhs.into(), or_else).await
+            }
 
-        // Variable and inference
-        SymPermKind::Var(var) => require_var_is(env, var, Predicate::Lent, or_else),
-        SymPermKind::Infer(infer) => require_infer_is(env, infer, Predicate::Lent, or_else).await,
-        SymPermKind::Or(_, _) => todo!(),
-    }
+            // Variable and inference
+            SymPermKind::Var(var) => require_var_is(env, var, Predicate::Lent, or_else),
+            SymPermKind::Infer(infer) => {
+                require_infer_is(env, SymPerm::my(db), infer, Predicate::Lent, or_else).await
+            }
+            SymPermKind::Or(_, _) => todo!(),
+        }
+    })
+    .await
 }

@@ -1,8 +1,8 @@
 use dada_ir_ast::{
     ast::{
         AstBlock, AstExpr, AstFunction, AstFunctionEffects, AstFunctionInput, AstGenericDecl,
-        AstLetStatement, AstPerm, AstSelfArg, AstStatement, AstTy, AstVisibility, SpanVec,
-        VariableDecl,
+        AstLetStatement, AstPerm, AstSelfArg, AstStatement, AstTy, AstVisibility, AstWhereClauses,
+        SpanVec, VariableDecl,
     },
     diagnostic::{Diagnostic, Level},
     span::Span,
@@ -60,6 +60,8 @@ impl<'db> Parse<'db> for AstFunction<'db> {
 
         let return_ty = AstTy::opt_parse_guarded(operator::ARROW, db, parser)?;
 
+        let where_clauses = AstWhereClauses::opt_parse(db, parser)?;
+
         let body = parser.defer_delimited(Delimiter::CurlyBraces).ok();
 
         Ok(Some(AstFunction::new(
@@ -72,6 +74,7 @@ impl<'db> Parse<'db> for AstFunction<'db> {
             generics,
             arguments,
             return_ty,
+            where_clauses,
             body,
         )))
     }
@@ -277,7 +280,7 @@ impl<'db> Parse<'db> for AstLetStatement<'db> {
         db: &'db dyn crate::Db,
         parser: &mut Parser<'_, 'db>,
     ) -> Result<Option<Self::Output>, crate::ParseFail<'db>> {
-        let Ok(_) = parser.eat_keyword(Keyword::Let) else {
+        let Ok(let_span) = parser.eat_keyword(Keyword::Let) else {
             return Ok(None);
         };
         let mutable = parser.eat_keyword(Keyword::Mut).ok();
@@ -286,6 +289,7 @@ impl<'db> Parse<'db> for AstLetStatement<'db> {
         let initializer = AstExpr::opt_parse_guarded(operator::EQ, db, parser)?;
         Ok(Some(AstLetStatement::new(
             db,
+            let_span.to(db, parser.last_span()),
             mutable,
             name,
             ty,
