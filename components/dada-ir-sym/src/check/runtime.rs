@@ -24,7 +24,7 @@ use serde::Serialize;
 use crate::{check::env::Env, check::inference::InferenceVarData};
 
 use super::{
-    debug::{event_argument, LogHandle, RootTaskDescription, TaskDescription},
+    debug::{LogHandle, RootTaskDescription, TaskDescription, event_argument},
     inference::InferenceVarDataChanged,
 };
 
@@ -160,11 +160,15 @@ impl<'db> Runtime<'db> {
                 ready_to_execute: Default::default(),
                 waiting_on_inference_var: Default::default(),
                 next_task_id: Default::default(),
-                root_log: LogHandle::root(db, compiler_location, RootTaskDescription { 
-                    span,
-                    message: Some(message),
-                    values: Some(event_argument(values)),
-                }),
+                root_log: LogHandle::root(
+                    db,
+                    compiler_location,
+                    RootTaskDescription {
+                        span,
+                        message: Some(message),
+                        values: Some(event_argument(values)),
+                    },
+                ),
             }),
         }
     }

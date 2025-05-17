@@ -124,7 +124,7 @@ fn check_function_body_ast_block<'db>(
                 output_ty_body,
                 ..
             } = prepare_env(db, runtime, function).await;
-            
+
             env.log("check_function_body_ast_block", &[&function, &body]);
             let live_after = LivePlaces::none(&env);
             let expr = body.check_in_env(&mut env, live_after).await;

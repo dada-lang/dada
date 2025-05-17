@@ -193,7 +193,7 @@ impl<'l, L: Lsp + 'l> LspDispatch<'l, L> {
                     connection: &self.connection,
                     spawned_tasks_tx,
                 };
-                
+
                 let mut req = request;
                 for arm in &self.request_arms {
                     match arm.execute(&mut self.lsp, &mut editor, req)? {
@@ -204,7 +204,7 @@ impl<'l, L: Lsp + 'l> LspDispatch<'l, L> {
                         ControlFlow::Continue(r) => req = r,
                     }
                 }
-                
+
                 // If we get here, no handler was found
                 let response = Response {
                     id: req.id,
@@ -217,7 +217,7 @@ impl<'l, L: Lsp + 'l> LspDispatch<'l, L> {
                 };
                 self.connection.sender.send(Message::Response(response))?;
                 Ok(())
-            },
+            }
             Message::Response(_response) => Ok(()),
             Message::Notification(mut notification) => {
                 let mut editor = LspDispatchEditor {

@@ -181,7 +181,6 @@ impl<'db> ScopeTreeNode<'db> for AstModule<'db> {
     ) {
         self.symbol(db).push_direct_ast_where_clauses(db, out);
     }
-
 }
 
 fn insert<'db, V: Spanned<'db>>(

@@ -335,13 +335,13 @@ impl<'db> Log<'db> {
 
         // Create the root event info
         let root_event = &self.events[0]; // The first event is the root event
-        let root_task = &self.tasks[0];   // The first task is the root task
-        
+        let root_task = &self.tasks[0]; // The first task is the root task
+
         let root_event_info = export::RootEventInfo {
             compiler_location: CompilerLocation::from(root_event.compiler_location),
             description: event_argument(&[&root_task.task_description]),
         };
-        
+
         export::Log {
             events_flat,
             nested_event,

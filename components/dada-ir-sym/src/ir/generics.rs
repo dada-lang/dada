@@ -18,4 +18,3 @@ pub enum SymWhereClauseKind {
     Owned,
     Lent,
 }
-

@@ -65,11 +65,19 @@ pub trait ScopeTreeNode<'db>: Sized + Into<ScopeItem<'db>> {
             .count()
     }
 
-    fn push_direct_ast_where_clauses(self, db: &'db dyn crate::Db, out: &mut Vec<AstWhereClause<'db>>);
+    fn push_direct_ast_where_clauses(
+        self,
+        db: &'db dyn crate::Db,
+        out: &mut Vec<AstWhereClause<'db>>,
+    );
 
-    fn push_transitive_where_clauses(self, db: &'db dyn crate::Db, out: &mut Vec<AstWhereClause<'db>>) {
+    fn push_transitive_where_clauses(
+        self,
+        db: &'db dyn crate::Db,
+        out: &mut Vec<AstWhereClause<'db>>,
+    ) {
         self.iter_super_scopes(db)
-        .for_each(|s| s.push_direct_ast_where_clauses(db, out));
+            .for_each(|s| s.push_direct_ast_where_clauses(db, out));
     }
 }
 
@@ -100,8 +108,12 @@ impl<'db> ScopeTreeNode<'db> for ScopeItem<'db> {
             ScopeItem::SymFunction(sym) => sym.into_scope(db),
         }
     }
-    
-    fn push_direct_ast_where_clauses(self, db: &'db dyn crate::Db, out: &mut Vec<AstWhereClause<'db>>) {
+
+    fn push_direct_ast_where_clauses(
+        self,
+        db: &'db dyn crate::Db,
+        out: &mut Vec<AstWhereClause<'db>>,
+    ) {
         match self {
             ScopeItem::AstModule(_) => {}
             ScopeItem::SymModule(_) => {}

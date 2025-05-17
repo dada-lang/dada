@@ -23,8 +23,10 @@ pub struct RootEvent {
 #[derive(Serialize)]
 #[serde(tag = "type")]
 enum RootEventPayload {
-    Diagnostic { message: String },
-    CheckLog { 
+    Diagnostic {
+        message: String,
+    },
+    CheckLog {
         index: usize,
         root_event_info: Option<serde_json::Value>,
         total_events: Option<usize>,
@@ -52,14 +54,17 @@ fn root_events(events: &[Arc<DebugEvent>]) -> anyhow::Result<Vec<RootEvent>> {
             DebugEventPayload::CheckLog(log_value) => {
                 // Extract root_event_info and total_events from the log_value
                 let root_event_info = log_value.get("root_event_info").cloned();
-                let total_events = log_value.get("total_events").and_then(|v| v.as_u64()).map(|v| v as usize);
-                
-                RootEventPayload::CheckLog { 
+                let total_events = log_value
+                    .get("total_events")
+                    .and_then(|v| v.as_u64())
+                    .map(|v| v as usize);
+
+                RootEventPayload::CheckLog {
                     index,
                     root_event_info,
                     total_events,
                 }
-            },
+            }
         };
         let (text, line_start, col_start, line_end, col_end) =
             extract_span(&event.url, event.start, event.end)?;
