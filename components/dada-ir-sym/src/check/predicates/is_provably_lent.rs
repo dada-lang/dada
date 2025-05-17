@@ -15,7 +15,7 @@ use crate::{
     },
 };
 
-use super::{is_provably_unique::place_is_provably_move, var_infer::infer_is_provably};
+use super::{is_provably_unique::place_is_provably_unique, var_infer::infer_is_provably};
 
 pub async fn term_is_provably_lent<'db>(
     env: &mut Env<'db>,
@@ -81,7 +81,7 @@ pub(crate) async fn perm_is_provably_lent<'db>(
             env.either(
                 async |env| {
                     env.for_all(places, async |env, &place| {
-                        place_is_provably_move(env, place).await
+                        place_is_provably_unique(env, place).await
                     })
                     .await
                 },

@@ -20,7 +20,7 @@ use crate::{
 
 use super::{
     is_provably_lent::{place_is_provably_lent, term_is_provably_lent},
-    is_provably_unique::{place_is_provably_move, term_is_provably_unique},
+    is_provably_unique::{place_is_provably_unique, term_is_provably_unique},
 };
 
 pub(crate) async fn require_term_is_lent<'db>(
@@ -63,25 +63,6 @@ async fn require_application_is_lent<'db>(
     .await
 }
 
-async fn require_some_generic_is_lent<'db>(
-    env: &mut Env<'db>,
-    perm: SymPerm<'db>,
-    generics: &[SymGenericTerm<'db>],
-    or_else: &dyn OrElse<'db>,
-) -> Errors<()> {
-    let db = env.db();
-    env.require(
-        async |env| {
-            env.exists(generics, async |env, &generic| {
-                term_is_provably_lent(env, perm.apply_to(db, generic)).await
-            })
-            .await
-        },
-        |env| or_else.report(env, Because::JustSo),
-    )
-    .await
-}
-
 #[boxed_async_fn]
 async fn require_ty_is_lent<'db>(
     env: &mut Env<'db>,
@@ -113,7 +94,7 @@ async fn require_ty_is_lent<'db>(
                     // even if `perm` is lent it doesn't matter.
                     require_perm_is_lent(env, perm, or_else).await
                 } else {
-                    Err(or_else.report(env, Because::JustSo))
+                    Err(or_else.report(env, Because::NoWhereClause(var, Predicate::Lent)))
                 }
             }
 
@@ -124,7 +105,7 @@ async fn require_ty_is_lent<'db>(
                     //
                     // They can always have at least some content
                     // that is owned.
-                    Err(or_else.report(env, Because::JustSo))
+                    Err(or_else.report(env, Because::StructsAreNotLent(sym_ty_name)))
                 }
                 SymAggregateStyle::Class => {
                     // For a class to be lent, the permission must be lent.
@@ -171,7 +152,7 @@ async fn require_perm_is_lent<'db>(
                             env.either(
                                 // If the place `p` is move, then the result will be `shared[p]` or `mutable[p]` perm,
                                 // which is lent.
-                                async |env| place_is_provably_move(env, place).await,
+                                async |env| place_is_provably_unique(env, place).await,
                                 // Or, if the place `p` is not move and hence may be copy, then it must itself be `lent`.
                                 async |env| place_is_provably_lent(env, place).await,
                             )

@@ -15,20 +15,20 @@ use crate::{
     },
     ir::{
         classes::SymAggregateStyle,
-        types::{SymGenericTerm, SymPerm, SymPermKind, SymPlace, SymTy, SymTyName},
+        types::{SymGenericTerm, SymPerm, SymPermKind, SymPlace, SymTy},
     },
 };
 
-use super::is_provably_shared::{perm_is_provably_copy, term_is_provably_copy};
+use super::is_provably_shared::{perm_is_provably_shared, term_is_provably_shared};
 
-pub(crate) async fn require_term_is_copy<'db>(
+pub(crate) async fn require_term_is_shared<'db>(
     env: &mut Env<'db>,
     term: SymGenericTerm<'db>,
     or_else: &dyn OrElse<'db>,
 ) -> Errors<()> {
     match term {
-        SymGenericTerm::Type(sym_ty) => require_ty_is_copy(env, sym_ty, or_else).await,
-        SymGenericTerm::Perm(sym_perm) => require_perm_is_copy(env, sym_perm, or_else).await,
+        SymGenericTerm::Type(sym_ty) => require_ty_is_shared(env, sym_ty, or_else).await,
+        SymGenericTerm::Perm(sym_perm) => require_perm_is_shared(env, sym_perm, or_else).await,
         SymGenericTerm::Place(place) => panic!("unexpected place term: {place:?}"),
         SymGenericTerm::Error(reported) => Err(reported),
     }
@@ -36,7 +36,7 @@ pub(crate) async fn require_term_is_copy<'db>(
 
 /// Requires that `(lhs rhs)` satisfies the given predicate.
 /// The semantics of `(lhs rhs)` is: `rhs` if `rhs is copy` or `lhs union rhs` otherwise.
-async fn require_either_is_copy<'db>(
+async fn require_either_is_shared<'db>(
     env: &mut Env<'db>,
     lhs: SymGenericTerm<'db>,
     rhs: SymGenericTerm<'db>,
@@ -47,14 +47,14 @@ async fn require_either_is_copy<'db>(
     // If either is *not*, the other must be.
     env.require_both(
         async |env| {
-            if !term_is_provably_copy(env, rhs).await? {
-                require_term_is_copy(env, lhs, or_else).await?;
+            if !term_is_provably_shared(env, rhs).await? {
+                require_term_is_shared(env, lhs, or_else).await?;
             }
             Ok(())
         },
         async |env| {
-            if !term_is_provably_copy(env, lhs).await? {
-                require_term_is_copy(env, rhs, or_else).await?;
+            if !term_is_provably_shared(env, lhs).await? {
+                require_term_is_shared(env, rhs, or_else).await?;
             }
             Ok(())
         },
@@ -63,7 +63,7 @@ async fn require_either_is_copy<'db>(
 }
 
 #[boxed_async_fn]
-async fn require_ty_is_copy<'db>(
+async fn require_ty_is_shared<'db>(
     env: &mut Env<'db>,
     term: SymTy<'db>,
     or_else: &dyn OrElse<'db>,
@@ -79,14 +79,16 @@ async fn require_ty_is_copy<'db>(
             RedTy::Never => Err(or_else.report(env, Because::NeverIsNotCopy)),
 
             // Inference variables
-            RedTy::Infer(infer) => require_infer_is(env, perm, infer, Predicate::Shared, or_else).await,
+            RedTy::Infer(infer) => {
+                require_infer_is(env, perm, infer, Predicate::Shared, or_else).await
+            }
 
             // Universal variables
             RedTy::Var(var) => {
                 env.require(
                     async |env| {
                         env.either(
-                            async |env| perm_is_provably_copy(env, perm).await,
+                            async |env| perm_is_provably_shared(env, perm).await,
                             async |env| Ok(env.var_is_declared_to_be(var, Predicate::Shared)),
                         )
                         .await
@@ -99,13 +101,13 @@ async fn require_ty_is_copy<'db>(
             // Named types
             RedTy::Named(sym_ty_name, ref generics) => match sym_ty_name.style(db) {
                 SymAggregateStyle::Struct => {
-                    require_generics_are_copy(env, perm, generics, or_else).await
+                    require_generics_are_shared(env, perm, generics, or_else).await
                 }
                 SymAggregateStyle::Class => {
                     env.require_both(
-                        async |env| require_perm_is_copy(env, perm, or_else).await,
+                        async |env| require_perm_is_shared(env, perm, or_else).await,
                         async |env| {
-                            require_generics_are_copy(env, SymPerm::my(db), generics, or_else)
+                            require_generics_are_shared(env, SymPerm::my(db), generics, or_else)
                                 .await
                         },
                     )
@@ -113,12 +115,13 @@ async fn require_ty_is_copy<'db>(
                 }
             },
 
-            RedTy::Perm => require_perm_is_copy(env, perm, or_else).await,
+            RedTy::Perm => require_perm_is_shared(env, perm, or_else).await,
         }
-    }).await
+    })
+    .await
 }
 
-async fn require_generics_are_copy<'db>(
+async fn require_generics_are_shared<'db>(
     env: &mut Env<'db>,
     perm: SymPerm<'db>,
     generics: &[SymGenericTerm<'db>],
@@ -126,13 +129,13 @@ async fn require_generics_are_copy<'db>(
 ) -> Errors<()> {
     let db = env.db();
     env.require_for_all(generics, async |env, &generic| {
-        require_term_is_copy(env, perm.apply_to(db, generic), or_else).await
+        require_term_is_shared(env, perm.apply_to(db, generic), or_else).await
     })
     .await
 }
 
 #[boxed_async_fn]
-async fn require_perm_is_copy<'db>(
+async fn require_perm_is_shared<'db>(
     env: &mut Env<'db>,
     perm: SymPerm<'db>,
     or_else: &dyn OrElse<'db>,
@@ -151,14 +154,14 @@ async fn require_perm_is_copy<'db>(
             SymPermKind::Mutable(ref places) => {
                 // For a mutable[p] to be copy, all the places in `p` must have copy permission.
                 env.require_for_all(places, async |env, &place| {
-                    require_place_is_copy(env, place, or_else).await
+                    require_place_is_shared(env, place, or_else).await
                 })
                 .await
             }
 
             // Apply
             SymPermKind::Apply(lhs, rhs) => {
-                require_either_is_copy(env, lhs.into(), rhs.into(), or_else).await
+                require_either_is_shared(env, lhs.into(), rhs.into(), or_else).await
             }
 
             // Variable and inference
@@ -170,16 +173,18 @@ async fn require_perm_is_copy<'db>(
 
             SymPermKind::Or(_, _) => todo!(),
         }
-    }).await
+    })
+    .await
 }
 
-pub(crate) async fn require_place_is_copy<'db>(
+pub(crate) async fn require_place_is_shared<'db>(
     env: &mut Env<'db>,
     place: SymPlace<'db>,
     or_else: &dyn OrElse<'db>,
 ) -> Errors<()> {
     env.indent("require_place_is_copy", &[&place], async |env| {
         let ty = place.place_ty(env).await;
-        require_ty_is_copy(env, ty, or_else).await
-    }).await
+        require_ty_is_shared(env, ty, or_else).await
+    })
+    .await
 }

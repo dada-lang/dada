@@ -14,11 +14,11 @@ use crate::{
     },
     ir::{
         classes::SymAggregateStyle,
-        types::{SymGenericTerm, SymPerm, SymPermKind, SymTy, SymTyName},
+        types::{SymGenericTerm, SymPerm, SymPermKind, SymTy},
     },
 };
 
-use super::is_provably_unique::{place_is_provably_move, term_is_provably_unique};
+use super::is_provably_unique::{place_is_provably_unique, term_is_provably_unique};
 
 pub(crate) async fn require_term_is_unique<'db>(
     env: &mut Env<'db>,
@@ -50,7 +50,9 @@ async fn require_ty_is_unique<'db>(
             RedTy::Never => Ok(()),
 
             // Variable and inference
-            RedTy::Infer(infer) => require_infer_is(env, perm, infer, Predicate::Unique, or_else).await,
+            RedTy::Infer(infer) => {
+                require_infer_is(env, perm, infer, Predicate::Unique, or_else).await
+            }
 
             RedTy::Var(var) => require_var_is(env, var, Predicate::Unique, or_else),
 
@@ -73,7 +75,8 @@ async fn require_ty_is_unique<'db>(
 
             RedTy::Perm => require_perm_is_unique(env, perm, or_else).await,
         }
-    }).await
+    })
+    .await
 }
 
 async fn require_some_generic_is_unique<'db>(
@@ -117,7 +120,7 @@ async fn require_perm_is_unique<'db>(
                 env.require(
                     async |env| {
                         env.exists(places, async |env, &place| {
-                            place_is_provably_move(env, place).await
+                            place_is_provably_unique(env, place).await
                         })
                         .await
                     },
@@ -143,5 +146,6 @@ async fn require_perm_is_unique<'db>(
 
             SymPermKind::Or(_, _) => todo!(),
         }
-    }).await
+    })
+    .await
 }

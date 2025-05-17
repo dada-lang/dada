@@ -15,11 +15,11 @@ use crate::{
     },
     ir::{
         classes::SymAggregateStyle,
-        types::{SymGenericTerm, SymPerm, SymPermKind, SymPlace, SymTy, SymTyName},
+        types::{SymGenericTerm, SymPerm, SymPermKind, SymPlace, SymTy},
     },
 };
 
-use super::{is_provably_shared::term_is_provably_copy, require_shared::require_place_is_copy};
+use super::{is_provably_shared::term_is_provably_shared, require_shared::require_place_is_shared};
 
 pub(crate) async fn require_term_is_owned<'db>(
     env: &mut Env<'db>,
@@ -49,7 +49,7 @@ async fn require_both_are_owned<'db>(
             // need to be able to conclude whether `rhs` is copy or not.
             //
             // not sure if I have the right combinator for this =)
-            if !term_is_provably_copy(env, rhs).await? {
+            if !term_is_provably_shared(env, rhs).await? {
                 require_term_is_owned(env, lhs, or_else).await
             } else {
                 Ok(())
@@ -150,7 +150,7 @@ async fn require_perm_is_owned<'db>(
                 // doesn't apply, and then themselves owned.
                 env.require_for_all(places, async |env, &place| {
                     env.require_both(
-                        async |env| require_place_is_copy(env, place, or_else).await,
+                        async |env| require_place_is_shared(env, place, or_else).await,
                         async |env| require_place_is_owned(env, place, or_else).await,
                     )
                     .await

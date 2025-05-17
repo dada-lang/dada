@@ -28,7 +28,7 @@ pub async fn term_is_provably_unique<'db>(
         RedTy::Var(var) => {
             env.both(
                 async |env| Ok(test_var_is_provably(env, var, Predicate::Unique)),
-                async |env| perm_is_provably_move(env, perm).await,
+                async |env| perm_is_provably_unique(env, perm).await,
             )
             .await
         }
@@ -70,7 +70,7 @@ async fn application_is_provably_unique<'db>(
 }
 
 #[boxed_async_fn]
-pub(crate) async fn perm_is_provably_move<'db>(
+pub(crate) async fn perm_is_provably_unique<'db>(
     env: &mut Env<'db>,
     perm: SymPerm<'db>,
 ) -> Errors<bool> {
@@ -81,7 +81,7 @@ pub(crate) async fn perm_is_provably_move<'db>(
         SymPermKind::Our | SymPermKind::Referenced(_) => Ok(false),
         SymPermKind::Mutable(ref places) => {
             env.exists(places, async |env, &place| {
-                place_is_provably_move(env, place).await
+                place_is_provably_unique(env, place).await
             })
             .await
         }
@@ -100,7 +100,7 @@ pub(crate) async fn perm_is_provably_move<'db>(
     }
 }
 
-pub(crate) async fn place_is_provably_move<'db>(
+pub(crate) async fn place_is_provably_unique<'db>(
     env: &mut Env<'db>,
     place: SymPlace<'db>,
 ) -> Errors<bool> {

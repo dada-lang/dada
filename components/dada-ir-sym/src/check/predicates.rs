@@ -12,11 +12,11 @@ pub mod var_infer;
 use dada_ir_ast::diagnostic::Errors;
 use is_provably_lent::term_is_provably_lent;
 use is_provably_owned::term_is_provably_owned;
-use is_provably_shared::term_is_provably_copy;
+use is_provably_shared::term_is_provably_shared;
 use is_provably_unique::term_is_provably_unique;
 use require_lent::require_term_is_lent;
 use require_owned::require_term_is_owned;
-use require_shared::require_term_is_copy;
+use require_shared::require_term_is_shared;
 use require_unique::require_term_is_unique;
 use serde::Serialize;
 
@@ -82,7 +82,7 @@ pub(crate) async fn require_term_is<'db>(
 ) -> Errors<()> {
     let term: SymGenericTerm<'db> = term.into();
     match predicate {
-        Predicate::Shared => require_term_is_copy(env, term, or_else).await,
+        Predicate::Shared => require_term_is_shared(env, term, or_else).await,
         Predicate::Unique => require_term_is_unique(env, term, or_else).await,
         Predicate::Owned => require_term_is_owned(env, term, or_else).await,
         Predicate::Lent => require_term_is_lent(env, term, or_else).await,
@@ -96,7 +96,7 @@ pub(crate) async fn term_is_provably<'db>(
 ) -> Errors<bool> {
     let term: SymGenericTerm<'db> = term.into();
     match predicate {
-        Predicate::Shared => term_is_provably_copy(env, term).await,
+        Predicate::Shared => term_is_provably_shared(env, term).await,
         Predicate::Unique => term_is_provably_unique(env, term).await,
         Predicate::Owned => term_is_provably_owned(env, term).await,
         Predicate::Lent => term_is_provably_lent(env, term).await,
