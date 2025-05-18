@@ -113,6 +113,7 @@ pub enum PermissionOp {
     Mutate,
     Reference,
     Give,
+    Share,
 }
 
 #[derive(Clone, PartialEq, Eq, PartialOrd, Ord, Hash, Update, Debug, Serialize)]

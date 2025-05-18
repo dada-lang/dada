@@ -139,6 +139,10 @@ impl<'cx, 'db> ExprCodegen<'cx, 'db> {
                     PermissionOp::Give => {
                         self.push_from(&wasm_place_repr);
                     }
+
+                    PermissionOp::Share => {
+                        todo!()
+                    }
                 }
             }
             SymExprKind::Call {

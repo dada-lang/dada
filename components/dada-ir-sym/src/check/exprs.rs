@@ -820,6 +820,7 @@ async fn check_expr<'db>(
                             PermissionOp::Mutate => place_expr.ty(db).mutable(db, sym_place),
                             PermissionOp::Reference => place_expr.ty(db).referenced(db, sym_place),
                             PermissionOp::Give => place_expr.ty(db),
+                            PermissionOp::Share => place_expr.ty(db).shared(db),
                         },
                         SymExprKind::PermissionOp(*op, place_expr),
                     )

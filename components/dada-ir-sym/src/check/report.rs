@@ -12,7 +12,7 @@ use crate::{
     ir::{
         exprs::{SymExpr, SymPlaceExpr},
         generics::SymWhereClause,
-        types::{SymPlace, SymTy, SymTyName},
+        types::{SymPerm, SymPlace, SymTy, SymTyName},
         variables::SymVariable,
     },
 };
@@ -177,6 +177,9 @@ pub enum Because<'db> {
     /// as they can still have non-lent things.
     StructsAreNotLent(SymTyName<'db>),
 
+    /// $perm is not $predicate
+    PermIsNot(SymPerm<'db>, Predicate),
+
     /// Leasing from a copy place yields a copy permission (which is not desired here)
     LeasedFromCopyIsCopy(Vec<SymPlace<'db>>),
 
@@ -301,6 +304,11 @@ impl<'db> Because<'db> {
                 db,
                 span,
                 format!("the struct type `{s}` is never considered `lent`"),
+            )),
+            Because::PermIsNot(perm, predicate) => Some(Diagnostic::info(
+                db,
+                span,
+                format!("the permission `{perm}` is not considered `{predicate}`"),
             )),
         }
     }

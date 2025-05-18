@@ -349,16 +349,18 @@ impl<'db> SymTy<'db> {
     pub fn referenced(self, db: &'db dyn Db, place: SymPlace<'db>) -> Self {
         SymTy::new(
             db,
-            SymTyKind::Perm(SymPerm::new(db, SymPermKind::Referenced(vec![place])), self),
+            SymTyKind::Perm(SymPerm::referenced(db, vec![place]), self),
         )
     }
 
     /// Returns a version of this type mutable from `place`.
     pub fn mutable(self, db: &'db dyn Db, place: SymPlace<'db>) -> Self {
-        SymTy::new(
-            db,
-            SymTyKind::Perm(SymPerm::new(db, SymPermKind::Mutable(vec![place])), self),
-        )
+        SymTy::new(db, SymTyKind::Perm(SymPerm::mutable(db, vec![place]), self))
+    }
+
+    /// Returns a version of this type mutable from `place`.
+    pub fn shared(self, db: &'db dyn Db) -> Self {
+        SymTy::new(db, SymTyKind::Perm(SymPerm::our(db), self))
     }
 }
 

@@ -336,6 +336,8 @@ impl<'db> Parse<'db> for PermissionOp {
             Ok(Some(PermissionOp::Mutate))
         } else if parser.eat_keyword(Keyword::Ref).is_ok() {
             Ok(Some(PermissionOp::Reference))
+        } else if parser.eat_keyword(Keyword::Share).is_ok() {
+            Ok(Some(PermissionOp::Share))
         } else {
             Ok(None)
         }
