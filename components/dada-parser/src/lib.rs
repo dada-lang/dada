@@ -86,6 +86,9 @@ impl<'token, 'db> Parser<'token, 'db> {
         this
     }
 
+    /// Parse the contents of `deferred_parse` using `op` in the context of the given `anchor`.
+    /// See [`DeferredParse`][] for an explanation of when/why we use deferred parsing.
+    #[track_caller]
     pub fn deferred<T>(
         db: &'db dyn crate::Db,
         anchor: impl Into<Anchor<'db>>,
@@ -94,27 +97,61 @@ impl<'token, 'db> Parser<'token, 'db> {
     ) -> T {
         let anchor = anchor.into();
 
-        // Compute the offset to use for the tokenizer.
-        // This is a bit subtle.
-        // We will illustrate with a class:
-        //
-        // `class Foo { ... }`
-        //            ^^^^^^^ span of the deferred parse
-        //  ^^^^^^^^^^^^^^^^^ span of the class
-        //
-        // The anchor for the tokens is going to be the class `Foo`.
-        // But those tokens shouldn't start at offset 0,
-        // because there is various front-matter.
-        //
-        // So we have to compute the offset of the deferred parse
-        // from the start of the class. In doing so, we assert
-        // that the deferred parse and the class both have spans
-        // relative to the same "grandanchor" (typically a module).
         let input_offset = {
-            let anchor_span = anchor.span(db);
-            let grandanchor = anchor_span.anchor;
-            assert_eq!(deferred_parse.span.anchor, grandanchor);
-            deferred_parse.span.start - anchor_span.start
+            // To get the spans right, we sometimes need to apply an offset.
+            // This is a bit subtle. There are two cases to consider.
+            if deferred_parse.span.anchor == anchor {
+                // CASE 1: the easy case.
+                //
+                // In this case, the deferred parse span has the same
+                // anchor as the new contents. This occurs for square bracket
+                // args, e.g.,
+                //
+                // ```notrust
+                // fn foo() { bar[String]() }
+                //                ------ deferred parse of this
+                // ```
+                //
+                // In this case, the offsets don't need to be adjusted,
+                // as the deferred parse is relative to the `fn foo`
+                // and the new contents are as well.
+                Offset::ZERO
+            } else if let anchor_span = anchor.span(db)
+                && let grandanchor = anchor_span.anchor
+                && deferred_parse.span.anchor == grandanchor
+            {
+                // CASE 2:
+                //
+                // In case 2, the deferred parse is anchored in the
+                // same context as as the item which will become
+                // the new anchor. This occurs for example with a class:
+                //
+                // ```notrust
+                // mod { class Foo { ... } }
+                //     ^           ------- span of the deferred parse
+                //     | ----------------- span of the class (will be the new anchor)
+                //     | ---------- offset we will apply below
+                //     start of the anchor span
+                // ```
+                //
+                // Here, `anchor` will be the class, and its span will be anchored
+                // to the module (we call that the `grandanchor`).
+                //
+                // The deferred parse is *also* anchored to the module, but we
+                // want to parse its contents to produce contents whose offsets
+                // are relative to the start of the *class*. Therefore we
+                // apply an offset.
+                deferred_parse.span.start - anchor_span.start
+            } else {
+                panic!(
+                    "Deferred-parse of `{contents:?}` had anchor (a) which had no known relationship to new anchor (b)\
+                    \n  (a) = {a:#?}\
+                    \n  (b) = {b:#?}",
+                    contents = deferred_parse.contents,
+                    a = deferred_parse.span.anchor,
+                    b = anchor,
+                )
+            }
         };
 
         // Tokenize the contents of the deferred parse using `anchor`

@@ -17,7 +17,7 @@ pub trait FunctionBlock<'db> {
     fn body_block(self, db: &'db dyn crate::Db) -> Option<AstBlock<'db>>;
 }
 
-/// Given a [`Function`], parse its associated body into a block
+/// Given a [`SquareBracketArgs`], parse its associated body into a block
 pub trait SquareBracketArgs<'db> {
     fn parse_as_generics(self, db: &'db dyn crate::Db) -> SpanVec<'db, AstGenericTerm<'db>>;
 }

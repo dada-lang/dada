@@ -1,0 +1,32 @@
+#:skip_codegen # FIXME: codegen doesn't work yet
+
+##################################################
+## OUR STRING
+
+fn test_shared() { is_shared[our String]() }
+fn test_unique() { is_unique[our String]() } #! /where clause.*not satisfied
+fn test_lent() { is_lent[our String]() }     #! /where clause.*not satisfied
+fn test_owned() { is_owned[our String]() }
+
+##################################################
+## TEST FUNCTIONS
+
+fn is_shared[type T]()
+where
+    T is shared,
+{}
+
+fn is_unique[type T]()
+where
+    T is unique,
+{}
+
+fn is_lent[type T]()
+where
+    T is lent,
+{}
+
+fn is_owned[type T]()
+where
+    T is owned,
+{}

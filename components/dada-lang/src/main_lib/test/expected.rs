@@ -94,7 +94,7 @@ lazy_static::lazy_static! {
 }
 
 lazy_static::lazy_static! {
-    static ref ERROR_RE: Regex = Regex::new(r"^(?P<pre>[^#]*)(?<suspicious>#[^ a-zA-Z0-9])").unwrap();
+    static ref ERROR_RE: Regex = Regex::new(r"^(?P<pre>[^#]*)(?<suspicious>#[^ a-zA-Z0-9#])").unwrap();
 }
 
 impl TestExpectations {
