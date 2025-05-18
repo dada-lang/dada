@@ -40,7 +40,7 @@ fn test_lent_identity() {
 
     # This forces the result to be `our String`
     # and so we get an error
-    let y: our String = is_lent_identity(x.share)
+    let y: our String = is_lent_identity(x.share) #! /where clause.*not satisfied
 }
 
 fn is_lent_identity(t: type T) -> T
