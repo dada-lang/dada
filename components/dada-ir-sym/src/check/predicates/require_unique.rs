@@ -91,7 +91,8 @@ async fn require_some_generic_is_unique<'db>(
             })
             .await
         },
-        |env| or_else.report(env, Because::JustSo),
+        |_env| Because::JustSo,
+        or_else,
     )
     .await
 }
@@ -122,7 +123,8 @@ async fn require_perm_is_unique<'db>(
                         })
                         .await
                     },
-                    |env| or_else.report(env, Because::LeasedFromCopyIsCopy(places.to_vec())),
+                    |_env| Because::LeasedFromCopyIsCopy(places.to_vec()),
+                    or_else,
                 )
                 .await
             }

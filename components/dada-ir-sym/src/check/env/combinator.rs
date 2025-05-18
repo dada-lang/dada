@@ -1,6 +1,6 @@
 use std::{panic::Location, pin::pin};
 
-use dada_ir_ast::diagnostic::{Errors, Reported};
+use dada_ir_ast::diagnostic::Errors;
 use futures::{
     StreamExt,
     future::{Either, LocalBoxFuture},
@@ -9,7 +9,12 @@ use futures::{
 use serde::Serialize;
 
 use crate::{
-    check::{debug::TaskDescription, inference::Direction, red::RedTy},
+    check::{
+        debug::TaskDescription,
+        inference::Direction,
+        red::RedTy,
+        report::{Because, OrElse},
+    },
     ir::{indices::InferVarIndex, types::SymPerm},
 };
 
@@ -21,12 +26,14 @@ impl<'db> Env<'db> {
     pub async fn require(
         &mut self,
         a: impl AsyncFnOnce(&mut Env<'db>) -> Errors<bool>,
-        or_else: impl FnOnce(&mut Env<'db>) -> Reported,
+        because: impl FnOnce(&mut Env<'db>) -> Because<'db>,
+        or_else: &dyn OrElse<'db>,
     ) -> Errors<()> {
         if a(self).await? {
             Ok(())
         } else {
-            Err(or_else(self))
+            let because = because(self);
+            Err(or_else.report(self, because))
         }
     }
 

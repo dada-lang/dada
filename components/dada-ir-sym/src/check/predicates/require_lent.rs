@@ -58,7 +58,7 @@ async fn require_application_is_lent<'db>(
             )
             .await
         },
-        |env| or_else.report(env, Because::JustSo),
+        |_env| Because::JustSo, or_else,
     )
     .await
 }
@@ -160,7 +160,7 @@ async fn require_perm_is_lent<'db>(
                         })
                         .await
                     },
-                    |env| or_else.report(env, Because::JustSo),
+                    |_env| Because::JustSo, or_else,
                 )
                 .await
             }
