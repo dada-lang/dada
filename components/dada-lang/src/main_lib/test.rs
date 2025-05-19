@@ -4,7 +4,7 @@ use std::{
 };
 
 use dada_compiler::{Compiler, RealFs};
-use dada_ir_ast::diagnostic::Diagnostic;
+use dada_ir_ast::diagnostic::{Diagnostic, Level};
 use dada_util::{Fallible, bail};
 use expected::{ExpectedDiagnostic, Probe};
 use indicatif::ProgressBar;
@@ -93,6 +93,13 @@ impl Main {
         let mut failed_tests = vec![];
         for failed_or_errored_test in failed_or_errored_tests {
             failed_tests.extend(failed_or_errored_test?);
+        }
+
+        if failed_tests.len() == 1 {
+            for failed_test in &failed_tests {
+                let test_report = std::fs::read_to_string(failed_test.test_report_path())?;
+                progress_bar.println(test_report);
+            }
         }
 
         if failed_tests.is_empty() {
@@ -293,7 +300,22 @@ impl FailedTest {
                     writeln!(result, "# Missing expected diagnostic")?;
                     writeln!(result)?;
 
-                    writeln!(result, "```\n{expected:#?}\n```")?;
+                    // Format this nicely
+                    let annotation_span = expected.annotation_span.into_span(db);
+                    let diagnostic = Diagnostic::new(
+                        db,
+                        Level::Error,
+                        annotation_span,
+                        "missing expected diagnostic",
+                    )
+                    .label(
+                        db,
+                        Level::Error,
+                        annotation_span,
+                        "this diagnostic was never reported",
+                    );
+                    let render = diagnostic.render(db, &opts.render_opts());
+                    writeln!(result, "```\n{render}\n```")?;
                 }
                 Failure::Auxiliary {
                     kind,

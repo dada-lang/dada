@@ -18,10 +18,13 @@ use super::{FailedTest, Failure};
 pub struct ExpectedDiagnostic {
     /// The span where this diagnostic is expected to start.
     /// The start of some actual diagnostic must fall within this span.
-    span: ExpectedSpan,
+    pub span: ExpectedSpan,
+
+    /// The span of the annotation itself
+    pub annotation_span: AbsoluteSpan,
 
     /// regular expression that message must match
-    message: Regex,
+    pub message: Regex,
 }
 
 #[derive(Copy, Clone, Debug)]
@@ -200,9 +203,19 @@ impl TestExpectations {
                     None => Regex::new(&regex::escape(c.name("msg").unwrap().as_str()))?,
                 };
 
+                // Where did the *annotation* appear
+                let annotation_span = AbsoluteSpan {
+                    source_file: self.source_file,
+                    start: AbsoluteOffset::from(line_starts[line_index] + pre.len()),
+                    end: AbsoluteOffset::from(line_starts[line_index] + line.len()),
+                };
+
                 // Push onto the list of expected diagnostics.
-                self.expected_diagnostics
-                    .push(ExpectedDiagnostic { span, message });
+                self.expected_diagnostics.push(ExpectedDiagnostic {
+                    span,
+                    annotation_span,
+                    message,
+                });
             } else if let Some(c) = PROBE_RE.captures(line) {
                 // Find the line on which the diagnostic will be expected to occur.
                 let Some(last_interesting_line) = last_interesting_line else {
