@@ -85,7 +85,11 @@ impl<'db> InferenceVarData<'db> {
     /// or else the error `or_else` will result.
     pub fn set_is(&mut self, predicate: Predicate, or_else: &dyn OrElse<'db>) {
         assert!(!self.is[predicate.index()].is_some());
-        assert!(!self.is[predicate.invert().index()].is_some());
+        assert!(if let Some(predicate_inverted) = predicate.invert() {
+            !self.is[predicate_inverted.index()].is_some()
+        } else {
+            true
+        });
         self.is[predicate.index()] = Some(or_else.to_arc());
     }
 

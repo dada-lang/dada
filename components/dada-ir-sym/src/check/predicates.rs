@@ -53,12 +53,12 @@ impl Predicate {
     /// Returns the "opposite" of this predicate. For example, the opposite of
     /// `Copy` is `Move`, and vice versa. It is not possible for `self` and `Self::invert` to both hold
     /// for thr same term.
-    pub fn invert(self) -> Predicate {
+    pub fn invert(self) -> Option<Predicate> {
         match self {
-            Predicate::Shared => Predicate::Unique,
-            Predicate::Unique => Predicate::Shared,
-            Predicate::Owned => Predicate::Lent,
-            Predicate::Lent => Predicate::Owned,
+            Predicate::Shared => Some(Predicate::Unique),
+            Predicate::Unique => Some(Predicate::Shared),
+            Predicate::Owned => Some(Predicate::Lent),
+            Predicate::Lent => Some(Predicate::Owned),
         }
     }
 }

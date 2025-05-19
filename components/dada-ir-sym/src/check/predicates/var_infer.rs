@@ -51,9 +51,11 @@ pub async fn require_infer_is<'db>(
         return Ok(());
     }
 
-    if let Some(_or_else_invert) = env.infer_is(infer, predicate.invert()) {
-        // Already required NOT to meet this predicate.
-        return Err(or_else.report(env, Because::JustSo)); // FIXME we can do better than JustSo
+    if let Some(predicate_inverted) = predicate.invert() {
+        if let Some(_or_else_invert) = env.infer_is(infer, predicate_inverted) {
+            // Already required NOT to meet this predicate.
+            return Err(or_else.report(env, Because::JustSo)); // FIXME we can do better than JustSo
+        }
     }
 
     // Record that `infer` is required to meet the predicate.
@@ -135,9 +137,11 @@ pub async fn infer_is_provably<'db>(
         return Ok(true);
     }
 
-    if let Some(_or_else_invert) = env.infer_is(infer, predicate.invert()) {
-        // Already required NOT to meet this predicate.
-        return Ok(false);
+    if let Some(predicate_inverted) = predicate.invert() {
+        if let Some(_or_else_invert) = env.infer_is(infer, predicate_inverted) {
+            // Already required NOT to meet this predicate.
+            return Ok(false);
+        }
     }
 
     match predicate {
