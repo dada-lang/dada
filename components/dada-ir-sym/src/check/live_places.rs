@@ -13,6 +13,13 @@ impl LivePlaces {
         Self {}
     }
 
+    /// Special placeholder for when we relate bounds on inference variables.
+    /// For permissions, these bounds are [`RedPerm`](`crate::check::red::RedPerm`)
+    /// values and already contain liveness information.
+    pub fn infer_bounds() -> Self {
+        Self {}
+    }
+
     /// Used where we have to think about the right value
     pub fn fixme() -> Self {
         Self {}

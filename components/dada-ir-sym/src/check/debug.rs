@@ -558,6 +558,7 @@ pub enum TaskDescription<'db> {
     Misc,
     CheckArg(usize),
     ReconcileTyBounds(InferVarIndex),
+    RelateInferBounds,
 }
 
 pub struct InferenceVariable<'db> {

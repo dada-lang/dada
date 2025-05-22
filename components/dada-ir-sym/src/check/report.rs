@@ -12,7 +12,7 @@ use crate::{
     ir::{
         exprs::{SymExpr, SymPlaceExpr},
         generics::SymWhereClause,
-        types::{SymPerm, SymPlace, SymTy, SymTyName},
+        types::{SymGenericTerm, SymPerm, SymPlace, SymTy, SymTyName},
         variables::SymVariable,
     },
 };
@@ -337,26 +337,30 @@ where
 ///
 /// Every usage of this is a bug.
 #[derive(Copy, Clone, Debug)]
-pub struct BadSubtypeError<'db> {
+pub struct BadSubtermError<'db> {
     span: Span<'db>,
-    lower: SymTy<'db>,
-    upper: SymTy<'db>,
+    lower: SymGenericTerm<'db>,
+    upper: SymGenericTerm<'db>,
     compiler_location: &'static Location<'static>,
 }
 
-impl<'db> BadSubtypeError<'db> {
+impl<'db> BadSubtermError<'db> {
     #[track_caller]
-    pub fn new(span: Span<'db>, lower: SymTy<'db>, upper: SymTy<'db>) -> Self {
+    pub fn new(
+        span: Span<'db>,
+        lower: impl Into<SymGenericTerm<'db>>,
+        upper: impl Into<SymGenericTerm<'db>>,
+    ) -> Self {
         Self {
             span,
-            lower,
-            upper,
+            lower: lower.into(),
+            upper: upper.into(),
             compiler_location: Location::caller(),
         }
     }
 }
 
-impl<'db> OrElse<'db> for BadSubtypeError<'db> {
+impl<'db> OrElse<'db> for BadSubtermError<'db> {
     fn or_else(&self, env: &mut Env<'db>, because: Because<'db>) -> Diagnostic {
         let db = env.db();
         let Self {
