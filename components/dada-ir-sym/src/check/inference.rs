@@ -1,3 +1,6 @@
+//! Type and permission inference for Dada.
+#![doc = include_str!("../../docs/type_inference.md")]
+
 use dada_ir_ast::span::Span;
 use salsa::Update;
 use serde::Serialize;
@@ -225,8 +228,8 @@ pub enum InferenceVarBounds<'db> {
 }
 
 /// Trait implemented by types returned by mutation methods
-/// like [`InferenceVarData::insert_lower_infer_bound`][]
-/// or [`InferenceVarData::set_lower_red_ty`][].
+/// like `InferenceVarData::set_red_perm_bound`
+/// or `InferenceVarData::set_red_ty_bound`.
 /// Can be used to check if those return values indicate that
 /// the inference var data was actually changed.
 pub trait InferenceVarDataChanged {

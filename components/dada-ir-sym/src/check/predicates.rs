@@ -1,3 +1,6 @@
+//! Permission system and ownership predicates.
+#![doc = include_str!("../../docs/permission_system.md")]
+
 pub mod is_provably_lent;
 pub mod is_provably_owned;
 pub mod is_provably_shared;

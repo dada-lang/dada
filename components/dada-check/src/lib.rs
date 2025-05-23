@@ -1,3 +1,6 @@
+//! Type checking orchestration for Dada programs.
+#![doc = include_str!("../docs/overview.md")]
+
 use dada_ir_ast::{
     ast::Identifier,
     diagnostic::{Diagnostic, Level},
