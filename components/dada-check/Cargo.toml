@@ -3,6 +3,9 @@ name = "dada-check"
 version.workspace = true
 edition.workspace = true
 
+[lib]
+doctest = false
+
 [dependencies]
 dada-ir-ast = { version = "0.1.0", path = "../dada-ir-ast" }
 dada-ir-sym = { version = "0.1.0", path = "../dada-ir-sym" }

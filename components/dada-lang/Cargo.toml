@@ -3,6 +3,9 @@ name = "dada-lang"
 version.workspace = true
 edition.workspace = true
 
+[lib]
+doctest = false
+
 [dependencies]
 annotate-snippets = { workspace = true }
 dada-check = { version = "0.1.0", path = "../dada-check" }
