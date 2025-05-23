@@ -40,6 +40,7 @@ use super::{
     subtype::{
         is_future::require_future_type,
         is_numeric::{require_my_numeric_type, require_numeric_type},
+        relate_infer_bounds::relate_infer_bounds,
         terms::reconcile_ty_bounds,
     },
 };
@@ -283,6 +284,10 @@ impl<'db> Env<'db> {
             "created inference variable",
             &[&infer, &kind, &span],
         );
+
+        self.spawn(TaskDescription::RelateInferBounds, async move |env| {
+            relate_infer_bounds(env, infer).await
+        });
 
         match kind {
             SymGenericKind::Type => {

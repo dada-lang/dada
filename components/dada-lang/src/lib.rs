@@ -1,4 +1,5 @@
 #![feature(panic_payload_as_str)]
+#![doc = include_str!("../docs/overview.md")]
 
 use dada_debug::DebugOptions;
 use dada_ir_ast::diagnostic::RenderOptions;

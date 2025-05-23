@@ -1,4 +1,5 @@
 //! Defines the type-checking and name-resolution logic. This is what creates the symbolic IR.
+#![doc = include_str!("../docs/type_checking.md")]
 
 use env::Env;
 use live_places::LivePlaces;
@@ -13,14 +14,14 @@ mod exprs;
 pub(crate) mod fields;
 pub(crate) mod functions;
 mod generics;
-mod inference;
+pub(crate) mod inference;
 mod live_places;
 mod member_lookup;
 mod modules;
 mod places;
-mod predicates;
-mod red;
-mod report;
+pub(crate) mod predicates;
+pub(crate) mod red;
+pub(crate) mod report;
 mod resolve;
 mod runtime;
 pub(crate) mod scope;
@@ -29,7 +30,7 @@ pub(crate) mod signature;
 mod statements;
 mod stream;
 mod subst_impls;
-mod subtype;
+pub(crate) mod subtype;
 mod temporaries;
 mod to_red;
 mod types;

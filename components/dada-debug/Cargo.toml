@@ -4,6 +4,9 @@ version.workspace = true
 repository.workspace = true
 edition.workspace = true
 
+[lints.clippy]
+result_large_err = "allow"
+
 [dependencies]
 anyhow.workspace = true
 axum = "0.8.1"

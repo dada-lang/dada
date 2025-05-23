@@ -440,7 +440,7 @@ impl<'input, 'db> Tokenizer<'input, 'db> {
                                 kind: TokenKind::Error(Diagnostic::error(
                                     self.db,
                                     span,
-                                    format!("invalid escape `\\{}`", ch),
+                                    format!("invalid escape `\\{ch}`"),
                                 )),
                             });
                         }
@@ -525,7 +525,7 @@ impl<'input, 'db> Tokenizer<'input, 'db> {
             kind: TokenKind::Error(Diagnostic::error(
                 self.db,
                 span,
-                format!("missing `{}`", close),
+                format!("missing `{close}`"),
             )),
         });
     }

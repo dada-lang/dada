@@ -1,0 +1,43 @@
+#:skip_codegen # FIXME: codegen doesn't work yet
+
+fn test_shared() {
+    let x: String = "hello, world"
+    is_shared(x.mut) #! /where clause.*not satisfied
+}
+
+fn is_shared(t: type T)
+where
+    T is shared,
+{}
+
+fn test_unique() {
+    let x: String = "hello, world"
+    is_unique(x.mut)
+}
+
+fn is_unique(t: type T)
+where
+    T is unique,
+{
+
+}
+
+fn test_lent() {
+    let x: String = "hello, world"
+    is_lent(x.mut)
+}
+
+fn is_lent(t: type T)
+where
+    T is lent,
+{}
+
+fn test_owned() {
+    let x: String = "hello, world"
+    is_owned(x.mut) #! /where clause.*not satisfied
+}
+
+fn is_owned(t: type T)
+where
+    T is owned,
+{}

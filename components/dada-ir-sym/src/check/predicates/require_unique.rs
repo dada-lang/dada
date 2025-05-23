@@ -47,30 +47,28 @@ async fn require_ty_is_unique<'db>(
             RedTy::Error(reported) => Err(reported),
 
             // Never
-            RedTy::Never => Ok(()),
+            RedTy::Never => require_perm_is_unique(env, perm, or_else).await,
 
             // Variable and inference
             RedTy::Infer(infer) => {
                 require_infer_is(env, perm, infer, Predicate::Unique, or_else).await
             }
 
-            RedTy::Var(var) => require_var_is(env, var, Predicate::Unique, or_else),
+            RedTy::Var(var) => {
+                // The variable must be unique, but in that case, the permission must also be
+                env.require_both(
+                    async |env| require_perm_is_unique(env, perm, or_else).await,
+                    async |env| require_var_is(env, var, Predicate::Unique, or_else),
+                )
+                .await
+            }
 
             // Named types
             RedTy::Named(sym_ty_name, ref generics) => match sym_ty_name.style(db) {
                 SymAggregateStyle::Struct => {
                     require_some_generic_is_unique(env, perm, generics, or_else).await
                 }
-                SymAggregateStyle::Class => {
-                    env.require_both(
-                        async |env| require_perm_is_unique(env, perm, or_else).await,
-                        async |env| {
-                            require_some_generic_is_unique(env, SymPerm::my(db), generics, or_else)
-                                .await
-                        },
-                    )
-                    .await
-                }
+                SymAggregateStyle::Class => require_perm_is_unique(env, perm, or_else).await,
             },
 
             RedTy::Perm => require_perm_is_unique(env, perm, or_else).await,
@@ -93,7 +91,8 @@ async fn require_some_generic_is_unique<'db>(
             })
             .await
         },
-        |env| or_else.report(env, Because::JustSo),
+        |_env| Because::JustSo,
+        or_else,
     )
     .await
 }
@@ -124,7 +123,8 @@ async fn require_perm_is_unique<'db>(
                         })
                         .await
                     },
-                    |env| or_else.report(env, Because::LeasedFromCopyIsCopy(places.to_vec())),
+                    |_env| Because::LeasedFromCopyIsCopy(places.to_vec()),
+                    or_else,
                 )
                 .await
             }

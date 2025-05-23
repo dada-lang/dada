@@ -93,7 +93,8 @@ async fn require_ty_is_shared<'db>(
                         )
                         .await
                     },
-                    |env| or_else.report(env, Because::JustSo),
+                    |_env| Because::JustSo,
+                    or_else,
                 )
                 .await
             }

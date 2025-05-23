@@ -17,6 +17,9 @@ url = "2.5.3"
 annotate-snippets = "0.11.4"
 wasm-encoder = "0.220.0"
 
+[workspace.lints.clippy]
+needless_lifetimes = "allow"
+
 [package]
 name = "dada"
 version.workspace = true

@@ -1,0 +1,48 @@
+#:skip_codegen # FIXME: codegen doesn't work yet
+
+##################################################
+## `our String`
+
+fn test_our_shared() { is_shared[our String]() }
+fn test_our_unique() { is_unique[our String]() } #! /where clause.*not satisfied
+fn test_our_lent() { is_lent[our String]() }     #! /where clause.*not satisfied
+fn test_our_owned() { is_owned[our String]() }
+
+##################################################
+## `my String`
+
+fn test_my_shared() { is_shared[my String]() } #! /where clause.*not satisfied
+fn test_my_unique() { is_unique[my String]() } 
+fn test_my_lent() { is_lent[my String]() }     #! /where clause.*not satisfied
+fn test_my_owned() { is_owned[my String]() }
+
+##################################################
+## `ref[x] String` where `x: my String`
+
+fn test_refmy_shared(x: my String) { is_shared[ref[x] String]() }
+fn test_refmy_unique(x: my String) { is_unique[ref[x] String]() } #! /where clause.*not satisfied
+fn test_refmy_lent(x: my String) { is_lent[ref[x] String]() }     
+fn test_refmy_owned(x: my String) { is_owned[ref[x] String]() }   #! /where clause.*not satisfied
+
+##################################################
+## TEST FUNCTIONS
+
+fn is_shared[type T]()
+where
+    T is shared,
+{}
+
+fn is_unique[type T]()
+where
+    T is unique,
+{}
+
+fn is_lent[type T]()
+where
+    T is lent,
+{}
+
+fn is_owned[type T]()
+where
+    T is owned,
+{}

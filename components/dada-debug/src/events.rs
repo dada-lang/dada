@@ -20,7 +20,7 @@ pub async fn events(
     state: &State,
 ) -> anyhow::Result<Vec<crate::root::RootEvent>> {
     check_accept_header(headers)?;
-    crate::root::root_data(&state).await
+    crate::root::root_data(state).await
 }
 
 pub async fn try_event_data(

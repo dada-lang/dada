@@ -119,27 +119,23 @@ impl<'member, 'db> MemberLookup<'member, 'db> {
     ) -> Reported {
         let db = self.env.db();
         let SpannedIdentifier { span: id_span, id } = id;
-        Diagnostic::error(
-            db,
-            id_span,
-            format!("unrecognized field or method `{}`", id),
-        )
-        .label(
-            db,
-            Level::Error,
-            id_span,
-            format!("I could not find a field or method named `{id}`"),
-        )
-        .label(
-            db,
-            Level::Info,
-            owner_span,
-            format!(
-                "this has type `{ty}`, which doesn't appear to have a field or method `{id}`",
-                ty = self.env.describe_ty(owner_ty)
-            ),
-        )
-        .report(db)
+        Diagnostic::error(db, id_span, format!("unrecognized field or method `{id}`"))
+            .label(
+                db,
+                Level::Error,
+                id_span,
+                format!("I could not find a field or method named `{id}`"),
+            )
+            .label(
+                db,
+                Level::Info,
+                owner_span,
+                format!(
+                    "this has type `{ty}`, which doesn't appear to have a field or method `{id}`",
+                    ty = self.env.describe_ty(owner_ty)
+                ),
+            )
+            .report(db)
     }
 
     fn search_lower_bound_for_member(

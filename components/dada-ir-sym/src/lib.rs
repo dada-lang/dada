@@ -1,8 +1,9 @@
 //! "Symbolic IR": High-level, type checked representaton. Derived from the AST.
+#![doc = include_str!("../docs/overview.md")]
 
 pub use dada_ir_ast::Db;
 
-mod check;
+pub mod check;
 pub mod ir;
 pub mod well_known;
 

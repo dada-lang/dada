@@ -105,7 +105,7 @@ fn extract_span(
     let text = if text.len() > 65 {
         let first_40 = &text[..40];
         let last_20 = &text[text.len() - 20..];
-        format!("{} ... {}", first_40, last_20)
+        format!("{first_40} ... {last_20}")
     } else {
         text.to_string()
     };

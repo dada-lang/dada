@@ -4,7 +4,7 @@ use std::{
 };
 
 use dada_compiler::{Compiler, RealFs};
-use dada_ir_ast::diagnostic::Diagnostic;
+use dada_ir_ast::diagnostic::{Diagnostic, Level};
 use dada_util::{Fallible, bail};
 use expected::{ExpectedDiagnostic, Probe};
 use indicatif::ProgressBar;
@@ -30,6 +30,7 @@ struct FailedTest {
     path: PathBuf,
     full_compiler_output: String,
     failures: Vec<Failure>,
+    is_fixme: bool,
 }
 
 #[derive(Debug)]
@@ -91,12 +92,45 @@ impl Main {
             });
 
         let mut failed_tests = vec![];
+        let mut fixme_failed_tests = vec![];
         for failed_or_errored_test in failed_or_errored_tests {
-            failed_tests.extend(failed_or_errored_test?);
+            if let Some(failed_test) = failed_or_errored_test? {
+                if failed_test.is_fixme {
+                    fixme_failed_tests.push(failed_test);
+                } else {
+                    failed_tests.push(failed_test);
+                }
+            }
         }
 
+        // Report fixme failures to stderr but don't count them as failures
+        for fixme_test in &fixme_failed_tests {
+            eprintln!(
+                "FIXME test failed (not counted): {}",
+                fixme_test.path.display()
+            );
+            eprintln!("  {}", fixme_test.summarize());
+        }
+
+        if failed_tests.len() == 1 {
+            for failed_test in &failed_tests {
+                let test_report = std::fs::read_to_string(failed_test.test_report_path())?;
+                progress_bar.println(test_report);
+            }
+        }
+
+        let total_passed = tests.len() - failed_tests.len() - fixme_failed_tests.len();
         if failed_tests.is_empty() {
-            progress_bar.finish_with_message(format!("All {} tests passed", tests.len()));
+            let message = if fixme_failed_tests.is_empty() {
+                format!("All {} tests passed", tests.len())
+            } else {
+                format!(
+                    "{} tests passed, {} fixme tests failed (ignored)",
+                    total_passed,
+                    fixme_failed_tests.len()
+                )
+            };
+            progress_bar.finish_with_message(message);
 
             Ok(())
         } else {
@@ -226,6 +260,7 @@ impl FailedTest {
             path: path.to_path_buf(),
             full_compiler_output: "(Internal Compiler Error)\n".to_string(),
             failures: vec![Failure::InternalCompilerError(captured_panic)],
+            is_fixme: false,
         }
     }
 
@@ -270,7 +305,7 @@ impl FailedTest {
                     writeln!(result)?;
 
                     let render = diagnostic.render(db, &opts.render_opts());
-                    writeln!(result, "```\n{}\n```", render)?;
+                    writeln!(result, "```\n{render}\n```")?;
                     writeln!(result)?;
                     writeln!(result, "```\n{diagnostic:#?}\n```\n")?;
                 }
@@ -281,7 +316,7 @@ impl FailedTest {
 
                     writeln!(result, "Diagnostic:")?;
                     let render = actual.render(db, &opts.render_opts());
-                    writeln!(result, "```\n{}\n```", render)?;
+                    writeln!(result, "```\n{render}\n```")?;
                     writeln!(result)?;
                     writeln!(result, "```\n{actual:#?}\n```\n")?;
                     writeln!(result)?;
@@ -293,7 +328,22 @@ impl FailedTest {
                     writeln!(result, "# Missing expected diagnostic")?;
                     writeln!(result)?;
 
-                    writeln!(result, "```\n{expected:#?}\n```")?;
+                    // Format this nicely
+                    let annotation_span = expected.annotation_span.into_span(db);
+                    let diagnostic = Diagnostic::new(
+                        db,
+                        Level::Error,
+                        annotation_span,
+                        "missing expected diagnostic",
+                    )
+                    .label(
+                        db,
+                        Level::Error,
+                        annotation_span,
+                        "this diagnostic was never reported",
+                    );
+                    let render = diagnostic.render(db, &opts.render_opts());
+                    writeln!(result, "```\n{render}\n```")?;
                 }
                 Failure::Auxiliary {
                     kind,
@@ -365,12 +415,13 @@ impl FailedTest {
                         writeln!(
                             result,
                             "{s}{c} probe `{k:?}` expected `{e}`, got `{a}`",
-                            s = std::iter::repeat(' ')
-                                .take(probe_start_col.as_usize())
+                            s = std::iter::repeat_n(' ', probe_start_col.as_usize())
                                 .collect::<String>(),
-                            c = std::iter::repeat('^')
-                                .take((probe_end_col - probe_start_col).as_usize())
-                                .collect::<String>(),
+                            c = std::iter::repeat_n(
+                                '^',
+                                (probe_end_col - probe_start_col).as_usize()
+                            )
+                            .collect::<String>(),
                             k = probe.kind,
                             e = probe.message,
                             a = actual,

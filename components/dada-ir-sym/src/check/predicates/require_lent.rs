@@ -58,7 +58,8 @@ async fn require_application_is_lent<'db>(
             )
             .await
         },
-        |env| or_else.report(env, Because::JustSo),
+        |_env| Because::JustSo,
+        or_else,
     )
     .await
 }
@@ -135,10 +136,10 @@ async fn require_perm_is_lent<'db>(
             SymPermKind::Error(reported) => Err(reported),
 
             // My = Move & Owned
-            SymPermKind::My => Err(or_else.report(env, Because::JustSo)),
+            SymPermKind::My => Err(or_else.report(env, Because::PermIsNot(perm, Predicate::Lent))),
 
             // Our = Copy & Owned
-            SymPermKind::Our => Err(or_else.report(env, Because::JustSo)),
+            SymPermKind::Our => Err(or_else.report(env, Because::PermIsNot(perm, Predicate::Lent))),
 
             // Shared = Copy & Lent, Mutable = Move & Lent
             SymPermKind::Referenced(ref places) | SymPermKind::Mutable(ref places) => {
@@ -160,7 +161,8 @@ async fn require_perm_is_lent<'db>(
                         })
                         .await
                     },
-                    |env| or_else.report(env, Because::JustSo),
+                    |_env| Because::PermIsNot(perm, Predicate::Lent),
+                    or_else,
                 )
                 .await
             }

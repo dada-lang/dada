@@ -38,7 +38,7 @@ use super::{
     debug::TaskDescription,
     live_places::LivePlaces,
     report::{
-        AwaitNonFuture, BadSubtypeError, InvalidAssignmentType, InvalidReturnValue,
+        AwaitNonFuture, BadSubtermError, InvalidAssignmentType, InvalidReturnValue,
         NumericTypeExpected, OperatorArgumentsMustHaveSameType, OperatorRequiresNumericType,
         WhereClauseError,
     },
@@ -794,7 +794,7 @@ async fn check_expr<'db>(
                         live_after,
                         arm.body.ty(db),
                         if_ty,
-                        &BadSubtypeError::new(arm.body.span(db), arm.body.ty(db), if_ty),
+                        &BadSubtermError::new(arm.body.span(db), arm.body.ty(db), if_ty),
                     );
                 }
 
@@ -820,6 +820,7 @@ async fn check_expr<'db>(
                             PermissionOp::Mutate => place_expr.ty(db).mutable(db, sym_place),
                             PermissionOp::Reference => place_expr.ty(db).referenced(db, sym_place),
                             PermissionOp::Give => place_expr.ty(db),
+                            PermissionOp::Share => place_expr.ty(db).shared(db),
                         },
                         SymExprKind::PermissionOp(*op, place_expr),
                     )
@@ -1235,7 +1236,7 @@ async fn check_call_common<'db>(
             LivePlaces::fixme(),
             expr.ty(db),
             input_output.input_tys[i],
-            &BadSubtypeError::new(expr.span(db), expr.ty(db), input_output.input_tys[i]),
+            &BadSubtermError::new(expr.span(db), expr.ty(db), input_output.input_tys[i]),
         );
         ExprResult::from_expr(env.db(), expr, arg_temporaries)
     };

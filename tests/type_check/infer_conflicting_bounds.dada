@@ -1,0 +1,22 @@
+#:FIXME
+class Contents {
+    s: my String
+}
+
+fn test(c: my Contents) {
+    let s = any_string()
+    #! subtype expected
+    s = lower_bound()
+    upper_bound(s.give)
+}
+
+fn any_string[perm P]() -> P String {
+    #! invalid return value
+}
+
+fn upper_bound(s: my String) {
+}
+
+fn lower_bound() -> our String {
+    "Hello, world".share
+}

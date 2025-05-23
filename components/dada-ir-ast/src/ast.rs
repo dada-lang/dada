@@ -169,6 +169,9 @@ impl<'db> Spanned<'db> for SpannedIdentifier<'db> {
 /// For functions, classes, and other items we often defer parsing their contents.
 /// This struct captures the contents and the span at which they appeared.
 /// It can then be used to parse the contents later.
+/// We also use it to parse an expression like `a[...]`,
+/// as the `...` may wind up being parsed as a generic term
+/// or an expression.
 #[derive(Clone, PartialEq, Eq, PartialOrd, Ord, Hash, Update, Debug, Serialize)]
 pub struct DeferredParse<'db> {
     pub span: Span<'db>,

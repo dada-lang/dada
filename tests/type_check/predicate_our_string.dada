@@ -1,0 +1,61 @@
+#:skip_codegen # FIXME: codegen doesn't work yet
+
+fn test_shared() {
+    let x: String = "hello, world"
+    is_shared(x.share)
+}
+
+fn is_shared(t: type T)
+where
+    T is shared,
+{}
+
+fn test_unique() {
+    let x: String = "hello, world"
+    is_unique(x.share) #! /where clause.*not satisfied
+}
+
+fn is_unique(t: type T)
+where
+    T is unique,
+{
+
+}
+
+fn test_lent() {
+    let x: String = "hello, world"
+
+    # Interesting example: this is not an error
+    # because `our` can be upcast to `ref[]`.
+    is_lent(x.share)
+}
+
+fn is_lent(t: type T)
+where
+    T is lent,
+{}
+
+fn test_lent_identity() {
+    let x: String = "hello, world"
+
+    # This forces the result to be `our String`
+    # and so we get an error
+    let y: our String = is_lent_identity(x.share) #! /where clause.*not satisfied
+}
+
+fn is_lent_identity(t: type T) -> T
+where
+    T is lent,
+{
+    t.give
+}
+
+fn test_owned() {
+    let x: String = "hello, world"
+    is_owned(x.share)
+}
+
+fn is_owned(t: type T)
+where
+    T is owned,
+{}

@@ -1,3 +1,6 @@
+//! Type and permission inference for Dada.
+#![doc = include_str!("../../docs/type_inference.md")]
+
 use dada_ir_ast::span::Span;
 use salsa::Update;
 use serde::Serialize;
@@ -84,8 +87,12 @@ impl<'db> InferenceVarData<'db> {
     /// Record that this inference variable must meet `predicate`
     /// or else the error `or_else` will result.
     pub fn set_is(&mut self, predicate: Predicate, or_else: &dyn OrElse<'db>) {
-        assert!(!self.is[predicate.index()].is_some());
-        assert!(!self.is[predicate.invert().index()].is_some());
+        assert!(self.is[predicate.index()].is_none());
+        assert!(if let Some(predicate_inverted) = predicate.invert() {
+            self.is[predicate_inverted.index()].is_none()
+        } else {
+            true
+        });
         self.is[predicate.index()] = Some(or_else.to_arc());
     }
 
@@ -221,8 +228,8 @@ pub enum InferenceVarBounds<'db> {
 }
 
 /// Trait implemented by types returned by mutation methods
-/// like [`InferenceVarData::insert_lower_infer_bound`][]
-/// or [`InferenceVarData::set_lower_red_ty`][].
+/// like `InferenceVarData::set_red_perm_bound`
+/// or `InferenceVarData::set_red_ty_bound`.
 /// Can be used to check if those return values indicate that
 /// the inference var data was actually changed.
 pub trait InferenceVarDataChanged {

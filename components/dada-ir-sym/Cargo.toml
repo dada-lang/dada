@@ -3,6 +3,15 @@ name = "dada-ir-sym"
 version.workspace = true
 edition.workspace = true
 
+[lints.clippy]
+needless_lifetimes = "allow"
+too_many_arguments = "allow"
+wrong_self_convention = "allow"
+format_in_format_args = "allow"
+
+[lib]
+doctest = false
+
 [dependencies]
 dada-ir-ast = { version = "0.1.0", path = "../dada-ir-ast" }
 dada-parser = { version = "0.1.0", path = "../dada-parser" }
