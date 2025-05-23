@@ -3,6 +3,10 @@ name = "dada-ir-sym"
 version.workspace = true
 edition.workspace = true
 
+[lints.clippy]
+needless_lifetimes = "allow"
+too_many_arguments = "allow"
+
 [lib]
 doctest = false
 

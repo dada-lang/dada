@@ -384,7 +384,6 @@ fn generalize<'db>(env: &mut Env<'db>, red_ty: &RedTy<'db>, span: Span<'db>) -> 
 
 /// A task that runs for each type inference variable. It awaits any upper/lower bounds
 /// and propagates a corresponding bound.
-#[expect(clippy::needless_lifetimes)]
 pub async fn reconcile_ty_bounds<'db>(env: &mut Env<'db>, infer: InferVarIndex) -> Errors<()> {
     assert_eq!(env.infer_var_kind(infer), InferVarKind::Type);
 
@@ -410,7 +409,6 @@ pub async fn reconcile_ty_bounds<'db>(env: &mut Env<'db>, infer: InferVarIndex) 
 ///
 /// NB. In some cases (e.g., `Vec[i32]` for sure...) we could avoid creating the inference
 /// variable but right now we just *always* create one since I didn't want to think about it.
-#[expect(clippy::needless_lifetimes)]
 async fn propagate_inverse_bound<'db>(
     env: &mut Env<'db>,
     infer: InferVarIndex,

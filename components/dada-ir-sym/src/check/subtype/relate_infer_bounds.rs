@@ -9,7 +9,6 @@ use super::terms::require_sub_terms;
 
 /// A task that runs for each type inference variable. It awaits any upper/lower bounds
 /// and propagates a corresponding bound.
-#[expect(clippy::needless_lifetimes)]
 pub async fn relate_infer_bounds<'db>(env: &mut Env<'db>, infer: InferVarIndex) -> Errors<()> {
     let mut lower_bound = None;
     let mut upper_bound = None;

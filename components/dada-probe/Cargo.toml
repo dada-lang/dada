@@ -4,6 +4,9 @@ version.workspace = true
 repository.workspace = true
 edition.workspace = true
 
+[lints.clippy]
+needless_lifetimes = "allow"
+
 [dependencies]
 dada-ir-ast = { version = "0.1.0", path = "../dada-ir-ast" }
 dada-ir-sym = { version = "0.1.0", path = "../dada-ir-sym" }
