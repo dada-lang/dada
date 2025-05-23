@@ -30,6 +30,7 @@ struct FailedTest {
     path: PathBuf,
     full_compiler_output: String,
     failures: Vec<Failure>,
+    is_fixme: bool,
 }
 
 #[derive(Debug)]
@@ -91,8 +92,21 @@ impl Main {
             });
 
         let mut failed_tests = vec![];
+        let mut fixme_failed_tests = vec![];
         for failed_or_errored_test in failed_or_errored_tests {
-            failed_tests.extend(failed_or_errored_test?);
+            if let Some(failed_test) = failed_or_errored_test? {
+                if failed_test.is_fixme {
+                    fixme_failed_tests.push(failed_test);
+                } else {
+                    failed_tests.push(failed_test);
+                }
+            }
+        }
+
+        // Report fixme failures to stderr but don't count them as failures
+        for fixme_test in &fixme_failed_tests {
+            eprintln!("FIXME test failed (not counted): {}", fixme_test.path.display());
+            eprintln!("  {}", fixme_test.summarize());
         }
 
         if failed_tests.len() == 1 {
@@ -102,8 +116,14 @@ impl Main {
             }
         }
 
+        let total_passed = tests.len() - failed_tests.len() - fixme_failed_tests.len();
         if failed_tests.is_empty() {
-            progress_bar.finish_with_message(format!("All {} tests passed", tests.len()));
+            let message = if fixme_failed_tests.is_empty() {
+                format!("All {} tests passed", tests.len())
+            } else {
+                format!("{} tests passed, {} fixme tests failed (ignored)", total_passed, fixme_failed_tests.len())
+            };
+            progress_bar.finish_with_message(message);
 
             Ok(())
         } else {
@@ -233,6 +253,7 @@ impl FailedTest {
             path: path.to_path_buf(),
             full_compiler_output: "(Internal Compiler Error)\n".to_string(),
             failures: vec![Failure::InternalCompilerError(captured_panic)],
+            is_fixme: false,
         }
     }
 

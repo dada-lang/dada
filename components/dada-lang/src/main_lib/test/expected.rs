@@ -39,6 +39,7 @@ pub struct TestExpectations {
     expected_diagnostics: Vec<ExpectedDiagnostic>,
     fn_asts: bool,
     codegen: bool,
+    fixme: bool,
     probes: Vec<Probe>,
 }
 
@@ -119,6 +120,7 @@ impl TestExpectations {
             expected_diagnostics: vec![],
             fn_asts: false,
             codegen: true,
+            fixme: false,
             probes: vec![],
         };
         expectations.initialize(db)?;
@@ -313,6 +315,11 @@ impl TestExpectations {
             return Ok(());
         }
 
+        if line == "FIXME" {
+            self.fixme = true;
+            return Ok(());
+        }
+
         bail!(
             "{}:{}: unrecognized configuration comment",
             self.source_file.url_display(db),
@@ -327,6 +334,7 @@ impl TestExpectations {
             path: self.source_file.url(compiler).to_file_path().unwrap(),
             full_compiler_output: Default::default(),
             failures: vec![],
+            is_fixme: self.fixme,
         };
 
         test.failures.extend(self.compare_auxiliary(
