@@ -122,7 +122,7 @@ impl<'member, 'db> MemberLookup<'member, 'db> {
         Diagnostic::error(
             db,
             id_span,
-            format!("unrecognized field or method `{}`", id),
+            format!("unrecognized field or method `{id}`"),
         )
         .label(
             db,

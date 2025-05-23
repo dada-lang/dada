@@ -158,10 +158,10 @@ pub fn report_all(db: &dyn crate::Db, diagnostics: Vec<Diagnostic>) {
 
 pub fn ordinal(n: usize) -> impl std::fmt::Display {
     match n % 10 {
-        1 => format!("{}st", n),
-        2 => format!("{}nd", n),
-        3 => format!("{}rd", n),
-        _ => format!("{}th", n),
+        1 => format!("{n}st"),
+        2 => format!("{n}nd"),
+        3 => format!("{n}rd"),
+        _ => format!("{n}th"),
     }
 }
 

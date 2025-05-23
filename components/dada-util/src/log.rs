@@ -48,7 +48,7 @@ impl std::fmt::Debug for MessageKind {
             MessageKind::Indent => write!(f, "> "),
             MessageKind::Undent => write!(f, "< "),
             MessageKind::EnterTask(id, location) => {
-                write!(f, "> task {id} (spawned at {:?})", location)
+                write!(f, "> task {id} (spawned at {location:?})")
             }
             MessageKind::LeaveTask(id) => write!(f, "< task {id}"),
         }
@@ -66,7 +66,7 @@ fn enabled() -> &'static Option<LogKind> {
             Ok("json") => Some(LogKind::Json(File::create("dada_debug.json").unwrap())),
             Ok("human") => Some(LogKind::Human(File::create("dada_debug.txt").unwrap())),
             Ok("1") => Some(LogKind::Human(File::create("dada_debug.txt").unwrap())),
-            Ok(value) => panic!("invalid value for DADA_DEBUG: expected `json` or `human`, found {}", value),
+            Ok(value) => panic!("invalid value for DADA_DEBUG: expected `json` or `human`, found {value}"),
             Err(_) => None,
         };
     }
@@ -205,7 +205,7 @@ fn debug_cold(
                 width = indent_level * 2
             )
             .unwrap();
-            write!(writer, "{}", message_text).unwrap();
+            write!(writer, "{message_text}").unwrap();
             for arg in args {
                 write!(
                     writer,

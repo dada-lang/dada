@@ -122,7 +122,7 @@ fn check_for_duplicates<'db, S: Spanned<'db>>(
         Diagnostic::error(
             db,
             value.span(db),
-            format!("duplicate parameter name `{}`", id),
+            format!("duplicate parameter name `{id}`"),
         )
         .label(
             db,

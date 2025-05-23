@@ -38,14 +38,14 @@ impl<'db> RedTyExt<'db> for RedTy<'db> {
                 match &self.ty {
                     RedTy::Error(_reported) => write!(f, "<error>"),
                     RedTy::Named(sym_ty_name, sym_generic_terms) => {
-                        write!(f, "{}[{:?}]", sym_ty_name, sym_generic_terms)
+                        write!(f, "{sym_ty_name}[{sym_generic_terms:?}]")
                     }
                     RedTy::Never => write!(f, "!"),
 
                     // FIXME: do better by querying the env state
                     RedTy::Infer(v) => write!(f, "?{}", v.as_usize()),
 
-                    RedTy::Var(sym_variable) => write!(f, "{}", sym_variable),
+                    RedTy::Var(sym_variable) => write!(f, "{sym_variable}"),
                     RedTy::Perm => write!(f, "<perm>"),
                 }
             }

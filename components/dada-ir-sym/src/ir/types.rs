@@ -477,7 +477,7 @@ impl std::fmt::Display for SymTyName<'_> {
         salsa::with_attached_database(|db| {
             let db: &dyn crate::Db = db.as_view();
             match self {
-                SymTyName::Primitive(primitive) => write!(f, "{}", primitive),
+                SymTyName::Primitive(primitive) => write!(f, "{primitive}"),
                 SymTyName::Aggregate(class) => write!(f, "{}", class.name(db)),
                 SymTyName::Tuple { arity } => write!(f, "{arity}-tuple"),
                 SymTyName::Future => write!(f, "Future"),
@@ -605,7 +605,7 @@ impl std::fmt::Display for SymPerm<'_> {
                     }
                     write!(f, "]")
                 }
-                SymPermKind::Apply(perm1, perm2) => write!(f, "{} {}", perm1, perm2),
+                SymPermKind::Apply(perm1, perm2) => write!(f, "{perm1} {perm2}"),
                 SymPermKind::Infer(infer_var_index) => write!(f, "?{}", infer_var_index.as_usize()),
                 SymPermKind::Var(sym_variable) => write!(f, "{sym_variable}"),
                 SymPermKind::Or(l, r) => write!(f, "({l} | {r})"),
@@ -716,8 +716,8 @@ impl std::fmt::Display for SymPlace<'_> {
             let db: &dyn crate::Db = db.as_view();
             match self.kind(db) {
                 SymPlaceKind::Var(var) => write!(f, "{var}"),
-                SymPlaceKind::Field(place, field) => write!(f, "{}.{}", place, field),
-                SymPlaceKind::Index(place) => write!(f, "{}[_]", place),
+                SymPlaceKind::Field(place, field) => write!(f, "{place}.{field}"),
+                SymPlaceKind::Index(place) => write!(f, "{place}[_]"),
                 SymPlaceKind::Error(_) => write!(f, "<error>"),
                 SymPlaceKind::Erased => write!(f, "_"),
             }

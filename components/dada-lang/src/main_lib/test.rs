@@ -277,7 +277,7 @@ impl FailedTest {
                     writeln!(result)?;
 
                     let render = diagnostic.render(db, &opts.render_opts());
-                    writeln!(result, "```\n{}\n```", render)?;
+                    writeln!(result, "```\n{render}\n```")?;
                     writeln!(result)?;
                     writeln!(result, "```\n{diagnostic:#?}\n```\n")?;
                 }
@@ -288,7 +288,7 @@ impl FailedTest {
 
                     writeln!(result, "Diagnostic:")?;
                     let render = actual.render(db, &opts.render_opts());
-                    writeln!(result, "```\n{}\n```", render)?;
+                    writeln!(result, "```\n{render}\n```")?;
                     writeln!(result)?;
                     writeln!(result, "```\n{actual:#?}\n```\n")?;
                     writeln!(result)?;
@@ -387,11 +387,9 @@ impl FailedTest {
                         writeln!(
                             result,
                             "{s}{c} probe `{k:?}` expected `{e}`, got `{a}`",
-                            s = std::iter::repeat(' ')
-                                .take(probe_start_col.as_usize())
+                            s = std::iter::repeat_n(' ', probe_start_col.as_usize())
                                 .collect::<String>(),
-                            c = std::iter::repeat('^')
-                                .take((probe_end_col - probe_start_col).as_usize())
+                            c = std::iter::repeat_n('^', (probe_end_col - probe_start_col).as_usize())
                                 .collect::<String>(),
                             k = probe.kind,
                             e = probe.message,

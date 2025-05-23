@@ -77,8 +77,8 @@ fn find_func<'db>(db: &'db dyn crate::Db, span: AbsoluteSpan) -> Option<SymFunct
         SymItem::SymClass(aggr) => aggr
             .methods(db)
             .find(|m| m.source_span(db).absolute_span(db).contains(span)),
-        SymItem::SymFunction(func) => return Some(func),
-        SymItem::SymPrimitive(_) => return None,
+        SymItem::SymFunction(func) => Some(func),
+        SymItem::SymPrimitive(_) => None,
     }
 }
 

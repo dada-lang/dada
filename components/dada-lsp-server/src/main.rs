@@ -5,7 +5,6 @@ use dada_compiler::{Compiler, Fork, RealFs};
 use dada_ir_ast::diagnostic::{Diagnostic, DiagnosticLabel, Level};
 use dada_ir_ast::inputs::SourceFile;
 use dada_ir_ast::span::{AbsoluteOffset, AbsoluteSpan};
-use dada_probe;
 use dada_util::{Fallible, Map, Set, bail};
 use lsp::{Editor, Lsp, LspFork};
 use lsp_types::{
@@ -184,7 +183,7 @@ impl lsp::Lsp for Server {
                 return Ok(Some(lsp_types::Hover {
                     contents: lsp_types::HoverContents::Markup(lsp_types::MarkupContent {
                         kind: lsp_types::MarkupKind::Markdown,
-                        value: format!("Type: `{}`", type_str),
+                        value: format!("Type: `{type_str}`"),
                     }),
                     range: None,
                 }));

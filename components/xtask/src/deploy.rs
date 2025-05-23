@@ -32,7 +32,7 @@ impl Deploy {
 
         // Generate rustdocs and copy to book/build/impl
         {
-            let _directory = xshell::pushd(&manifest_dir)?;
+            let _directory = xshell::pushd(manifest_dir)?;
 
             // Generate rustdocs
             xshell::Cmd::new("cargo")

@@ -130,7 +130,7 @@ impl<'scope, 'db> Scope<'scope, 'db> {
         }
 
         Err(
-            Diagnostic::error(db, span, format!("could not find anything named `{}`", id,))
+            Diagnostic::error(db, span, format!("could not find anything named `{id}`",))
                 .label(
                     db,
                     Level::Error,

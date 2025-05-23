@@ -220,8 +220,7 @@ impl<'db> Because<'db> {
                 db,
                 span,
                 format!(
-                    "to conclude that `{}` is `{}`, I would need you to add a declaration",
-                    v, predicate
+                    "to conclude that `{v}` is `{predicate}`, I would need you to add a declaration"
                 ),
             )),
             Because::NeverIsNotCopy => Some(Diagnostic::info(
