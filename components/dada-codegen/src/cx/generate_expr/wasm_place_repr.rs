@@ -13,9 +13,8 @@ use crate::cx::wasm_repr::WasmRepr;
 use super::ExprCodegen;
 
 /// The WASM representation for a Dada place. Dada places can be
-/// spread across the WASM local variables and
-/// The [`EmplacedWasmRepr`][] type tells you which values are stored
-/// where.
+/// spread across the WASM local variables and WASM memory.
+/// This type tells you which values are stored where.
 #[derive(Debug)]
 pub enum WasmPlaceRepr {
     /// A primitive value stored in a WASM local variable.
@@ -27,8 +26,8 @@ pub enum WasmPlaceRepr {
 }
 
 impl<'db> ExprCodegen<'_, 'db> {
-    /// Returns a [`WasmPointer`][] to the current start of a callee's stack frame.
-    /// This value is only valid until [`Self::insert_variable`][] is next called.
+    /// Returns a [`WasmPointer`] to the current start of a callee's stack frame.
+    /// This value is only valid until [`Self::insert_variable`] is next called.
     pub(super) fn next_stack_frame(&self) -> WasmPointer {
         WasmPointer {
             base_variable: self.wasm_stack_pointer,
@@ -38,7 +37,7 @@ impl<'db> ExprCodegen<'_, 'db> {
 
     /// Introduce the variable `lv` into scope and create a place for it.
     /// This can allocate more stack space in WASM memory.
-    /// You can find this place by invoking [`Self::local`][] later on.
+    /// You can find this place by invoking [`Self::place_for_local`] later on.
     pub(super) fn insert_variable(&mut self, lv: SymVariable<'db>, ty: SymTy<'db>) {
         let ty_repr = self.wasm_repr_of_type(ty);
         let emplaced_repr = self.emplace_local(&ty_repr);

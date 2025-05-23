@@ -224,7 +224,7 @@ impl<'scope, 'db> Scope<'scope, 'db> {
 }
 
 /// A link in the scope resolution chain. We first attempt to resolve an identifier
-/// in the associated [`ScopeChainLink`][] and, if nothing is found, proceed to
+/// in the associated [`ScopeChainKind`] and, if nothing is found, proceed to
 /// the next link.
 #[derive(Clone, Debug, PartialEq, Eq)]
 struct ScopeChain<'scope, 'db> {

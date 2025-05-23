@@ -260,7 +260,7 @@ impl<'db> Env<'db> {
     /// that appears under `perm`, yielding terms:
     ///
     /// * If this is a permission inference variable, the result are series of permission terms.
-    ///   These are directly converted from the [`RedPerm`] bounds you get if you call [`Self::red_perm_bounds`].
+    ///   These are directly converted from the [`RedPerm`](crate::check::red::RedPerm) bounds you get if you call [`Self::red_perm_bounds`].
     /// * If this is a type inference variable, the result are series of type terms.
     ///   They do not include the permission inference variable.
     ///

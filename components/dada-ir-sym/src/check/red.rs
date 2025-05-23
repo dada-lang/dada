@@ -217,7 +217,7 @@ pub enum RedTy<'db> {
     /// A variable.
     Var(SymVariable<'db>),
 
-    /// A permission -- this variant occurs when we convert a [`SymPerm`] to a [`RedTerm`].
+    /// A permission -- this variant occurs when we convert a [`SymPerm`] to a [`RedTy`].
     Perm,
 }
 
