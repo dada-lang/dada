@@ -105,7 +105,10 @@ impl Main {
 
         // Report fixme failures to stderr but don't count them as failures
         for fixme_test in &fixme_failed_tests {
-            eprintln!("FIXME test failed (not counted): {}", fixme_test.path.display());
+            eprintln!(
+                "FIXME test failed (not counted): {}",
+                fixme_test.path.display()
+            );
             eprintln!("  {}", fixme_test.summarize());
         }
 
@@ -121,7 +124,11 @@ impl Main {
             let message = if fixme_failed_tests.is_empty() {
                 format!("All {} tests passed", tests.len())
             } else {
-                format!("{} tests passed, {} fixme tests failed (ignored)", total_passed, fixme_failed_tests.len())
+                format!(
+                    "{} tests passed, {} fixme tests failed (ignored)",
+                    total_passed,
+                    fixme_failed_tests.len()
+                )
             };
             progress_bar.finish_with_message(message);
 
@@ -410,8 +417,11 @@ impl FailedTest {
                             "{s}{c} probe `{k:?}` expected `{e}`, got `{a}`",
                             s = std::iter::repeat_n(' ', probe_start_col.as_usize())
                                 .collect::<String>(),
-                            c = std::iter::repeat_n('^', (probe_end_col - probe_start_col).as_usize())
-                                .collect::<String>(),
+                            c = std::iter::repeat_n(
+                                '^',
+                                (probe_end_col - probe_start_col).as_usize()
+                            )
+                            .collect::<String>(),
                             k = probe.kind,
                             e = probe.message,
                             a = actual,

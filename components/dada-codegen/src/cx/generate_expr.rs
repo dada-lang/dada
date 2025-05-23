@@ -236,9 +236,9 @@ impl<'cx, 'db> ExprCodegen<'cx, 'db> {
             }
             Err(e) => match e {
                 NotPrimitive::DeadCode => (),
-                NotPrimitive::OtherType => panic!(
-                    "don't know how to execute a binary op on ({lhs_ty:?}, {rhs_ty:?})"
-                ),
+                NotPrimitive::OtherType => {
+                    panic!("don't know how to execute a binary op on ({lhs_ty:?}, {rhs_ty:?})")
+                }
             },
         }
     }
