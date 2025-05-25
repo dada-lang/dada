@@ -131,3 +131,18 @@ Major documentation sections:
 - Verify referenced types/methods actually exist before documenting them
 - Use `--document-private-items` compatible linking for internal docs
 - Test documentation builds regularly with `just doc`
+
+## Interaction Style
+
+- Avoid unnecessary adjectives or commentary
+- Identify potential errors in reasoning and suggest fixes
+- Defer to user judgment after providing analysis
+- Focus on direct, factual communication
+
+## Ongoing Work Tracking
+
+The `.ongoing/` directory contains documentation for work in progress that may span multiple sessions:
+- Each ongoing task gets its own markdown file
+- Files should include: status, context, work completed, next steps
+- Update files when resuming or pausing work
+- Remove files when work is complete

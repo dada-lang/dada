@@ -35,37 +35,6 @@ pub enum Predicate {
     Lent,
 }
 
-impl Predicate {
-    pub const ALL: [Predicate; 4] = [
-        Predicate::Shared,
-        Predicate::Unique,
-        Predicate::Owned,
-        Predicate::Lent,
-    ];
-    pub const LEN: usize = Self::ALL.len();
-
-    pub fn index(self) -> usize {
-        match self {
-            Predicate::Shared => 0,
-            Predicate::Unique => 1,
-            Predicate::Owned => 2,
-            Predicate::Lent => 3,
-        }
-    }
-
-    /// Returns the "opposite" of this predicate. For example, the opposite of
-    /// `Copy` is `Move`, and vice versa. It is not possible for `self` and `Self::invert` to both hold
-    /// for thr same term.
-    pub fn invert(self) -> Option<Predicate> {
-        match self {
-            Predicate::Shared => Some(Predicate::Unique),
-            Predicate::Unique => Some(Predicate::Shared),
-            Predicate::Owned => Some(Predicate::Lent),
-            Predicate::Lent => Some(Predicate::Owned),
-        }
-    }
-}
-
 impl std::fmt::Display for Predicate {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
         match self {

@@ -46,22 +46,6 @@ pub async fn require_infer_is<'db>(
     predicate: Predicate,
     or_else: &dyn OrElse<'db>,
 ) -> Errors<()> {
-    if env.infer_is(infer, predicate).is_some() {
-        // Already required to meet this predicate.
-        return Ok(());
-    }
-
-    if let Some(predicate_inverted) = predicate.invert() {
-        if let Some(_or_else_invert) = env.infer_is(infer, predicate_inverted) {
-            // Already required NOT to meet this predicate.
-            return Err(or_else.report(env, Because::JustSo)); // FIXME we can do better than JustSo
-        }
-    }
-
-    // Record that `infer` is required to meet the predicate.
-    env.set_infer_is(infer, predicate, or_else);
-
-    // Enforce the result implications of that
     match predicate {
         Predicate::Lent => {
             // If `infer` must be lent, its upper bounds must be lent.
@@ -132,18 +116,6 @@ pub async fn infer_is_provably<'db>(
     infer: InferVarIndex,
     predicate: Predicate,
 ) -> Errors<bool> {
-    if env.infer_is(infer, predicate).is_some() {
-        // Already required to meet this predicate.
-        return Ok(true);
-    }
-
-    if let Some(predicate_inverted) = predicate.invert() {
-        if let Some(_or_else_invert) = env.infer_is(infer, predicate_inverted) {
-            // Already required NOT to meet this predicate.
-            return Ok(false);
-        }
-    }
-
     match predicate {
         Predicate::Lent => {
             // If some lower bound is lent, then this must be lent.

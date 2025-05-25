@@ -2,6 +2,7 @@ target
 .vscode
 playground
 dada_debug
+.ongoing
 
 # Internal IR files used for debugging
 syntax.debug
