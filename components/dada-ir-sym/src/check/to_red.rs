@@ -360,11 +360,13 @@ impl<'db> ToRedLinkVecs<'db> for SymPerm<'db> {
                 .await
             }
             SymPermKind::Infer(v) => {
-                let mut bounds = env.red_perm_bounds(v, Some(direction));
-                while let Some((_, red_perm)) = bounds.next(env).await {
-                    for &chain in red_perm.chains(db) {
-                        let links = chain.links(db).to_vec();
-                        consumer.consume(env, vec![links]).await?;
+                let mut bounds = env.red_perm_bounds(v);
+                while let Some((direction_bound, red_perm)) = bounds.next(env).await {
+                    if direction_bound == direction {
+                        for &chain in red_perm.chains(db) {
+                            let links = chain.links(db).to_vec();
+                            consumer.consume(env, vec![links]).await?;
+                        }
                     }
                 }
                 Ok(())

@@ -1,11 +1,11 @@
-use std::pin::pin;
-
 use dada_util::FromImpls;
+use serde::Serialize;
 
 use crate::{
     check::{
-        inference::{Direction, InferVarKind},
+        inference::{Direction, InferVarKind, InferenceVarData},
         red::{RedPerm, RedTy},
+        report::ArcOrElse,
     },
     ir::{
         indices::InferVarIndex,
@@ -36,18 +36,13 @@ enum SymGenericTermBoundIteratorKind<'db> {
 }
 
 impl<'db> SymGenericTermBoundIterator<'db> {
-    pub fn new(
-        env: &Env<'db>,
-        perm: SymPerm<'db>,
-        infer: InferVarIndex,
-        direction: Option<Direction>,
-    ) -> Self {
+    pub fn new(env: &Env<'db>, perm: SymPerm<'db>, infer: InferVarIndex) -> Self {
         Self {
             perm,
             infer,
             kind: match env.infer_var_kind(infer) {
-                InferVarKind::Type => RedTyBoundIterator::new(env, infer, direction).into(),
-                InferVarKind::Perm => RedPermBoundIterator::new(env, infer, direction).into(),
+                InferVarKind::Type => RedTyBoundIterator::new(env, infer).into(),
+                InferVarKind::Perm => RedPermBoundIterator::new(env, infer).into(),
             },
         }
     }
@@ -59,14 +54,20 @@ impl<'db> SymGenericTermBoundIterator<'db> {
                 let (direction, red_ty) = iter.next(env).await?;
                 let sym_ty = red_ty.to_sym_ty(db);
                 let result = self.perm.apply_to(db, sym_ty);
-                env.log("next_bound", &[&self.infer, &result]);
+                env.log(
+                    "next_bound",
+                    &[&self.infer, &InferVarKind::Type, &direction, &result],
+                );
                 Some((direction, result.into()))
             }
             SymGenericTermBoundIteratorKind::Perm(iter) => {
                 let (direction, red_perm) = iter.next(env).await?;
                 let sym_perm = red_perm.to_sym_perm(db);
                 let result = self.perm.apply_to(db, sym_perm);
-                env.log("next_bound", &[&self.infer, &result]);
+                env.log(
+                    "next_bound",
+                    &[&self.infer, &InferVarKind::Perm, &direction, &result],
+                );
                 Some((direction, result.into()))
             }
         }
@@ -77,75 +78,30 @@ impl<'db> SymGenericTermBoundIterator<'db> {
 /// that are coming from a given direction (above/below).
 pub struct RedTyBoundIterator<'db> {
     infer: InferVarIndex,
-    direction: Option<Direction>,
-    storage: [Option<Option<RedTy<'db>>>; 2],
+    storage: [Option<RedTy<'db>>; 2],
 }
 
 impl<'db> RedTyBoundIterator<'db> {
-    pub fn new(env: &Env<'db>, infer: InferVarIndex, direction: Option<Direction>) -> Self {
+    pub fn new(env: &Env<'db>, infer: InferVarIndex) -> Self {
         assert_eq!(env.infer_var_kind(infer), InferVarKind::Type);
         Self {
             infer,
-            direction,
             storage: [None, None],
         }
     }
 
-    pub async fn next(&mut self, env: &Env<'db>) -> Option<(Direction, RedTy<'db>)> {
-        match self.direction {
-            None => {
-                let [storage0, storage1] = &mut self.storage;
-                futures::future::select(
-                    pin!(Self::next_from_direction(
-                        self.infer,
-                        env,
-                        Direction::FromAbove,
-                        storage0,
-                    )),
-                    pin!(Self::next_from_direction(
-                        self.infer,
-                        env,
-                        Direction::FromBelow,
-                        storage1,
-                    )),
-                )
-                .await
-                .into_inner()
-                .0
-            }
-
-            Some(direction) => {
-                Self::next_from_direction(self.infer, env, direction, &mut self.storage[0]).await
-            }
-        }
-    }
-
-    async fn next_from_direction(
-        infer: InferVarIndex,
+    #[track_caller]
+    pub fn next(
+        &mut self,
         env: &Env<'db>,
-        direction: Direction,
-        storage: &mut Option<Option<RedTy<'db>>>,
-    ) -> Option<(Direction, RedTy<'db>)> {
-        loop {
-            let bound = env
-                .watch_inference_var(
-                    infer,
-                    |data| data.red_ty_bound(direction).map(|pair| pair.0),
-                    storage,
-                )
-                .await;
-
-            match bound {
-                // Inference is complete.
-                None => return None,
-
-                // New bound value.
-                Some(Some(bound)) => return Some((direction, bound)),
-
-                // No current bound. Loop until one arrives.
-                Some(None) => (),
-            }
-        }
+    ) -> impl Future<Output = Option<(Direction, RedTy<'db>)>> {
+        env.log("next", &[&self.infer]);
+        next_bound(
+            env,
+            self.infer,
+            InferenceVarData::red_ty_bound,
+            &mut self.storage,
+        )
     }
 }
 
@@ -153,74 +109,56 @@ impl<'db> RedTyBoundIterator<'db> {
 /// that are coming from a given direction (above/below).
 pub struct RedPermBoundIterator<'db> {
     infer: InferVarIndex,
-    direction: Option<Direction>,
-    storage: [Option<Option<RedPerm<'db>>>; 2],
+    storage: [Option<RedPerm<'db>>; 2],
 }
 
 impl<'db> RedPermBoundIterator<'db> {
-    pub fn new(env: &Env<'db>, infer: InferVarIndex, direction: Option<Direction>) -> Self {
+    pub fn new(env: &Env<'db>, infer: InferVarIndex) -> Self {
         assert_eq!(env.infer_var_kind(infer), InferVarKind::Perm);
         Self {
             infer,
-            direction,
             storage: [None, None],
         }
     }
 
-    pub async fn next(&mut self, env: &Env<'db>) -> Option<(Direction, RedPerm<'db>)> {
-        match self.direction {
-            None => {
-                let [storage0, storage1] = &mut self.storage;
-                futures::future::select(
-                    pin!(Self::next_from_direction(
-                        self.infer,
-                        env,
-                        Direction::FromAbove,
-                        storage0,
-                    )),
-                    pin!(Self::next_from_direction(
-                        self.infer,
-                        env,
-                        Direction::FromBelow,
-                        storage1,
-                    )),
-                )
-                .await
-                .into_inner()
-                .0
-            }
-
-            Some(direction) => {
-                Self::next_from_direction(self.infer, env, direction, &mut self.storage[0]).await
-            }
-        }
-    }
-
-    async fn next_from_direction(
-        infer: InferVarIndex,
+    #[track_caller]
+    pub fn next(
+        &mut self,
         env: &Env<'db>,
-        direction: Direction,
-        storage: &mut Option<Option<RedPerm<'db>>>,
-    ) -> Option<(Direction, RedPerm<'db>)> {
-        loop {
-            let bound = env
-                .watch_inference_var(
-                    infer,
-                    |data| data.red_perm_bound(direction).map(|pair| pair.0),
-                    storage,
-                )
-                .await;
-
-            match bound {
-                // Inference is complete.
-                None => return None,
-
-                // New bound value.
-                Some(Some(bound)) => return Some((direction, bound)),
-
-                // No current bound. Loop until one arrives.
-                Some(None) => (),
-            }
-        }
+    ) -> impl Future<Output = Option<(Direction, RedPerm<'db>)>> {
+        env.log("next", &[&self.infer]);
+        next_bound(
+            env,
+            self.infer,
+            InferenceVarData::red_perm_bound,
+            &mut self.storage,
+        )
     }
+}
+
+#[track_caller]
+fn next_bound<'db, B>(
+    env: &Env<'db>,
+    infer: InferVarIndex,
+    bound_op: impl Fn(&InferenceVarData<'db>, Direction) -> Option<(B, ArcOrElse<'db>)>,
+    storage: &mut [Option<B>; 2],
+) -> impl Future<Output = Option<(Direction, B)>>
+where
+    B: PartialEq + Serialize + 'db + Clone,
+{
+    env.loop_on_inference_var(infer, move |data| {
+        if let Some((bound, _)) = bound_op(data, Direction::FromAbove)
+            && Some(&bound) != storage[0].as_ref()
+        {
+            storage[0] = Some(bound.clone());
+            Some((Direction::FromAbove, bound))
+        } else if let Some((bound, _)) = bound_op(data, Direction::FromBelow)
+            && Some(&bound) != storage[1].as_ref()
+        {
+            storage[1] = Some(bound.clone());
+            Some((Direction::FromBelow, bound))
+        } else {
+            None
+        }
+    })
 }

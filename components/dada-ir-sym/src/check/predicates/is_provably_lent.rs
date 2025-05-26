@@ -19,9 +19,10 @@ use super::{is_provably_unique::place_is_provably_unique, var_infer::infer_is_pr
 
 pub async fn term_is_provably_lent<'db>(
     env: &mut Env<'db>,
-    term: SymGenericTerm<'db>,
+    term: impl Into<SymGenericTerm<'db>>,
 ) -> Errors<bool> {
     let db = env.db();
+    let term: SymGenericTerm<'db> = term.into();
     let (red_ty, perm) = term.to_red_ty(env);
     match red_ty {
         RedTy::Infer(infer) => infer_is_provably(env, perm, infer, Predicate::Lent).await,
@@ -108,5 +109,5 @@ pub(crate) async fn place_is_provably_lent<'db>(
     place: SymPlace<'db>,
 ) -> Errors<bool> {
     let ty = place.place_ty(env).await;
-    term_is_provably_lent(env, ty.into()).await
+    term_is_provably_lent(env, ty).await
 }

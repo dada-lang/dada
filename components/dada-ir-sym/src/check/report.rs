@@ -12,6 +12,7 @@ use crate::{
     ir::{
         exprs::{SymExpr, SymPlaceExpr},
         generics::SymWhereClause,
+        indices::InferVarIndex,
         types::{SymGenericTerm, SymPerm, SymPlace, SymTy, SymTyName},
         variables::SymVariable,
     },
@@ -197,8 +198,8 @@ pub enum Because<'db> {
     /// this lower bound "or else" the given error would occur.
     InferredLowerBound(RedTy<'db>, ArcOrElse<'db>),
 
-    /// The inference variable declared here needs more constraints
-    UnconstrainedInfer(Span<'db>),
+    /// The given inference variable needs more constraints
+    UnconstrainedInfer(InferVarIndex),
 }
 
 impl<'db> Because<'db> {
@@ -289,9 +290,9 @@ impl<'db> Because<'db> {
                             )
                             .child(or_else_diagnostic))
             }
-            Because::UnconstrainedInfer(span) => Some(Diagnostic::info(
+            Because::UnconstrainedInfer(infer) => Some(Diagnostic::info(
                 db,
-                *span,
+                env.infer_var_span(*infer),
                 "this error might well be bogus, I just can't infer the type here".to_string(),
             )),
             Because::NoWhereClause(var, predicate) => Some(Diagnostic::info(
