@@ -327,14 +327,14 @@ impl TestExpectations {
         );
     }
 
-    pub fn compare(self, compiler: &mut Compiler) -> Fallible<Option<FailedTest>> {
+    pub fn compare(self, compiler: &mut Compiler) -> Fallible<(Option<FailedTest>, bool)> {
         use std::fmt::Write;
 
+        let is_fixme = self.fixme;
         let mut test = FailedTest {
             path: self.source_file.url(compiler).to_file_path().unwrap(),
             full_compiler_output: Default::default(),
             failures: vec![],
-            is_fixme: self.fixme,
         };
 
         test.failures.extend(self.compare_auxiliary(
@@ -364,9 +364,9 @@ impl TestExpectations {
             .extend(self.compare_diagnostics(actual_diagnostics));
 
         if test.failures.is_empty() {
-            Ok(None)
+            Ok((None, is_fixme))
         } else {
-            Ok(Some(test))
+            Ok((Some(test), is_fixme))
         }
     }
 

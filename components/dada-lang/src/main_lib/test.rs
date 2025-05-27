@@ -30,7 +30,16 @@ struct FailedTest {
     path: PathBuf,
     full_compiler_output: String,
     failures: Vec<Failure>,
-    is_fixme: bool,
+}
+
+#[derive(Debug)]
+enum TestResult {
+    /// Test passed as expected
+    Passed,
+    /// Test failed as expected (not FIXME)
+    Failed(FailedTest),
+    /// FIXME test failed as expected
+    FixmeFailed(FailedTest),
 }
 
 #[derive(Debug)]
@@ -39,6 +48,9 @@ enum Failure {
     MultipleMatches(ExpectedDiagnostic, Diagnostic),
     MissingDiagnostic(ExpectedDiagnostic),
     InternalCompilerError(Option<CapturedPanic>),
+
+    /// A test marked as FIXME did not fail
+    FixmePassed,
 
     /// The probe at the given location did not yield the expected result.
     Probe {
@@ -76,40 +88,28 @@ impl Main {
 
         let progress_bar = ProgressBar::new(tests.len() as u64);
 
-        let failed_or_errored_tests: Vec<Fallible<Option<FailedTest>>> =
-            panic_hook::recording_panics(|| {
-                if options.verbose {
-                    tests
-                        .iter()
-                        .map(|input| self.run_test_with_progress(&options, input, &progress_bar))
-                        .collect()
-                } else {
-                    tests
-                        .par_iter()
-                        .map(|input| self.run_test_with_progress(&options, input, &progress_bar))
-                        .collect()
-                }
-            });
+        let test_results: Vec<Fallible<TestResult>> = panic_hook::recording_panics(|| {
+            if options.verbose {
+                tests
+                    .iter()
+                    .map(|input| self.run_test_with_progress(&options, input, &progress_bar))
+                    .collect()
+            } else {
+                tests
+                    .par_iter()
+                    .map(|input| self.run_test_with_progress(&options, input, &progress_bar))
+                    .collect()
+            }
+        });
 
         let mut failed_tests = vec![];
         let mut fixme_failed_tests = vec![];
-        for failed_or_errored_test in failed_or_errored_tests {
-            if let Some(failed_test) = failed_or_errored_test? {
-                if failed_test.is_fixme {
-                    fixme_failed_tests.push(failed_test);
-                } else {
-                    failed_tests.push(failed_test);
-                }
+        for test_result in test_results {
+            match test_result? {
+                TestResult::Passed => {}
+                TestResult::Failed(failed_test) => failed_tests.push(failed_test),
+                TestResult::FixmeFailed(failed_test) => fixme_failed_tests.push(failed_test),
             }
-        }
-
-        // Report fixme failures to stderr but don't count them as failures
-        for fixme_test in &fixme_failed_tests {
-            eprintln!(
-                "FIXME test failed (not counted): {}",
-                fixme_test.path.display()
-            );
-            eprintln!("  {}", fixme_test.summarize());
         }
 
         if failed_tests.len() == 1 {
@@ -125,15 +125,21 @@ impl Main {
                 format!("All {} tests passed", tests.len())
             } else {
                 format!(
-                    "{} tests passed, {} fixme tests failed (ignored)",
+                    "{} tests passed, {} FIXME tests failed (ignored)",
                     total_passed,
                     fixme_failed_tests.len()
                 )
             };
-            progress_bar.finish_with_message(message);
+            progress_bar.println(message);
+            progress_bar.finish();
 
             Ok(())
         } else {
+            // Include unexpected passing FIXME tests in the error count
+            let message = format!("{} test failure(s)", failed_tests.len());
+            progress_bar.println(message);
+            progress_bar.finish();
+
             Err(FailedTests { failed_tests }.into())
         }
     }
@@ -181,7 +187,7 @@ impl Main {
         options: &TestOptions,
         input: &Path,
         progress_bar: &ProgressBar,
-    ) -> Fallible<Option<FailedTest>> {
+    ) -> Fallible<TestResult> {
         timeout_warning::timeout_warning(input, || {
             if options.verbose {
                 progress_bar.println(format!("{}: beginning test", input.display(),));
@@ -189,9 +195,20 @@ impl Main {
 
             let result = self.run_test(input);
             match &result {
-                Ok(None) => {}
-                Ok(Some(error)) => {
+                Ok(TestResult::Passed) => {}
+                Ok(TestResult::Failed(error)) => {
                     progress_bar.println(format!("{}: {}", input.display(), error.summarize()));
+                    if options.verbose {
+                        let test_report = std::fs::read_to_string(error.test_report_path())?;
+                        progress_bar.println(test_report);
+                    }
+                }
+                Ok(TestResult::FixmeFailed(error)) => {
+                    progress_bar.println(format!(
+                        "{}: FIXME test failed (as expected), {}",
+                        input.display(),
+                        error.summarize()
+                    ));
                     if options.verbose {
                         let test_report = std::fs::read_to_string(error.test_report_path())?;
                         progress_bar.println(test_report);
@@ -213,9 +230,8 @@ impl Main {
     /// # Returns
     ///
     /// * `Err(e)` for some failure in the test harness itself.
-    /// * `Ok(Some(error))` if the test failed.
-    /// * `Ok(None)` if the test passed.
-    fn run_test(&self, input: &Path) -> Fallible<Option<FailedTest>> {
+    /// * `Ok(result)` with the test result.
+    fn run_test(&self, input: &Path) -> Fallible<TestResult> {
         assert!(is_dada_file(input));
         let mut compiler = Compiler::new(RealFs::default(), None);
 
@@ -226,25 +242,34 @@ impl Main {
             expectations.compare(&mut compiler)
         }));
 
-        let failed_test = match result {
+        let (failed_test, is_fixme) = match result {
             // No panic occurred: just propagate test harness errors and continue
             Ok(r) => r?,
 
             // Panic occurred: convert that into a test failure
             Err(_unwound) => {
                 let captured_panic = panic_hook::captured_panic();
-                Some(FailedTest::ice(input, captured_panic))
+                (Some(FailedTest::ice(input, captured_panic)), false)
             }
         };
 
-        match failed_test {
-            None => {
+        match (failed_test, is_fixme) {
+            (None, false) => {
                 delete_test_report(input)?;
-                Ok(None)
+                Ok(TestResult::Passed)
             }
-            Some(failed_test) => {
+            (None, true) => {
+                let failed_test = FailedTest::fixme_passed(input);
                 failed_test.generate_test_report(&compiler)?;
-                Ok(Some(failed_test))
+                Ok(TestResult::Failed(failed_test))
+            }
+            (Some(failed_test), is_fixme) => {
+                failed_test.generate_test_report(&compiler)?;
+                if is_fixme {
+                    Ok(TestResult::FixmeFailed(failed_test))
+                } else {
+                    Ok(TestResult::Failed(failed_test))
+                }
             }
         }
     }
@@ -260,7 +285,14 @@ impl FailedTest {
             path: path.to_path_buf(),
             full_compiler_output: "(Internal Compiler Error)\n".to_string(),
             failures: vec![Failure::InternalCompilerError(captured_panic)],
-            is_fixme: false,
+        }
+    }
+
+    fn fixme_passed(path: &Path) -> Self {
+        FailedTest {
+            path: path.to_path_buf(),
+            full_compiler_output: "FIXME test passed!\n".to_string(),
+            failures: vec![Failure::FixmePassed],
         }
     }
 
@@ -429,6 +461,12 @@ impl FailedTest {
                         writeln!(result, "```")?;
                         writeln!(result)?;
                     }
+                }
+                Failure::FixmePassed => {
+                    writeln!(result)?;
+                    writeln!(result, "# Test marked as FIXME and yet it passed")?;
+                    writeln!(result)?;
+                    writeln!(result, "Perhaps the bug was fixed?")?;
                 }
             }
         }
