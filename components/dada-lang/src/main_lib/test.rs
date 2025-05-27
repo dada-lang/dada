@@ -459,5 +459,5 @@ fn delete_test_report(path: &Path) -> Fallible<()> {
 }
 
 fn test_report_path(path: &Path) -> PathBuf {
-    path.with_extension("test-report.ansi")
+    path.with_extension("test-report.md")
 }
