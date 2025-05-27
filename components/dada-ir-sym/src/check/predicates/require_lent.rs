@@ -138,8 +138,8 @@ async fn require_perm_is_lent<'db>(
             // My = Move & Owned
             SymPermKind::My => Err(or_else.report(env, Because::PermIsNot(perm, Predicate::Lent))),
 
-            // Our = Copy & Owned
-            SymPermKind::Our => Err(or_else.report(env, Because::PermIsNot(perm, Predicate::Lent))),
+            // Our = Copy & Owned & Lent -- the latter because of subtyping
+            SymPermKind::Our => Ok(()),
 
             // Shared = Copy & Lent, Mutable = Move & Lent
             SymPermKind::Referenced(ref places) | SymPermKind::Mutable(ref places) => {
