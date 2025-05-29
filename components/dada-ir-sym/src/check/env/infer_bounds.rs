@@ -52,7 +52,7 @@ impl<'db> SymGenericTermBoundIterator<'db> {
         match &mut self.kind {
             SymGenericTermBoundIteratorKind::Ty(iter) => {
                 let (direction, red_ty) = iter.next(env).await?;
-                let sym_ty = red_ty.to_sym_ty(db);
+                let sym_ty = red_ty.into_sym_ty(db);
                 let result = self.perm.apply_to(db, sym_ty);
                 env.log(
                     "next_bound",

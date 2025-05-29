@@ -228,7 +228,7 @@ impl<'db> Err<'db> for RedTy<'db> {
 }
 
 impl<'db> RedTy<'db> {
-    pub fn to_sym_ty(self, db: &'db dyn crate::Db) -> SymTy<'db> {
+    pub fn into_sym_ty(self, db: &'db dyn crate::Db) -> SymTy<'db> {
         match self {
             RedTy::Error(reported) => SymTy::err(db, reported),
             RedTy::Named(name, terms) => SymTy::named(db, name, terms),
