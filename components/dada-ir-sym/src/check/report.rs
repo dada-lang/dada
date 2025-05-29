@@ -19,7 +19,7 @@ use crate::{
 };
 
 use super::{
-    inference::Direction,
+    inference::{Direction, InferVarKind},
     red::{RedPerm, RedTy},
     to_red::RedTyExt,
 };
@@ -877,6 +877,56 @@ impl<'db> OrElse<'db> for OperatorArgumentsMustHaveSameType<'db> {
                     rhs.span(db),
                     format!("has type `{}`", rhs.ty(db)),
                 ),
+        )
+    }
+
+    fn to_arc(&self) -> ArcOrElse<'db> {
+        Arc::new(*self).into()
+    }
+
+    fn compiler_location(&self) -> &'static Location<'static> {
+        self.compiler_location
+    }
+}
+
+#[derive(Copy, Clone, Debug)]
+pub struct InferenceFallback<'db> {
+    span: Span<'db>,
+    kind: InferVarKind,
+    term: SymGenericTerm<'db>,
+    compiler_location: &'static Location<'static>,
+}
+
+impl<'db> InferenceFallback<'db> {
+    #[track_caller]
+    pub fn new(span: Span<'db>, kind: InferVarKind, term: impl Into<SymGenericTerm<'db>>) -> Self {
+        Self {
+            span,
+            kind,
+            term: term.into(),
+            compiler_location: Location::caller(),
+        }
+    }
+}
+
+impl<'db> OrElse<'db> for InferenceFallback<'db> {
+    fn or_else(&self, env: &mut Env<'db>, because: Because<'db>) -> Diagnostic {
+        let db = env.db();
+        let Self {
+            span,
+            kind,
+            term,
+            compiler_location: _,
+        } = *self;
+
+        because.annotate_diagnostic(
+            env,
+            Diagnostic::error(db, span, "unconstrained inference variable").label(
+                db,
+                Level::Error,
+                span,
+                format!("I resolved this {kind} to {term}",),
+            ),
         )
     }
 

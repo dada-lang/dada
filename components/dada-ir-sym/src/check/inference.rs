@@ -9,7 +9,7 @@ use crate::ir::{indices::InferVarIndex, types::SymGenericKind};
 
 use super::{
     red::{RedPerm, RedTy},
-    report::{ArcOrElse, OrElse},
+    report::{ArcOrElse, InferenceFallback, OrElse},
 };
 
 mod serialize;
@@ -152,12 +152,54 @@ impl<'db> InferenceVarData<'db> {
         };
         *red_ty_bound = Some((red_ty, or_else.to_arc()));
     }
+
+    /// If this inference variable is unbounded, apply a default type. This is invoked
+    /// during [`Runtime::mark_complete`](`crate::check::runtime::Runtime::mark_complete`)
+    pub fn fallback(&mut self, db: &'db dyn crate::Db) {
+        match &mut self.bounds {
+            InferenceVarBounds::Perm { lower, upper } => {
+                if lower.is_none() && upper.is_none() {
+                    let fallback = RedPerm::fallback(db);
+                    let fallback_term = fallback.to_sym_perm(db);
+                    *lower = Some((
+                        fallback,
+                        InferenceFallback::new(self.span, InferVarKind::Perm, fallback_term)
+                            .to_arc(),
+                    ));
+                }
+            }
+            InferenceVarBounds::Ty {
+                perm: _,
+                lower,
+                upper,
+            } => {
+                if lower.is_none() && upper.is_none() {
+                    let fallback = RedTy::fallback(db);
+                    let fallback_term = fallback.clone().into_sym_ty(db);
+                    *lower = Some((
+                        fallback,
+                        InferenceFallback::new(self.span, InferVarKind::Perm, fallback_term)
+                            .to_arc(),
+                    ));
+                }
+            }
+        }
+    }
 }
 
 #[derive(Copy, Clone, PartialEq, Eq, PartialOrd, Ord, Hash, Update, Debug, Serialize)]
 pub enum InferVarKind {
     Type,
     Perm,
+}
+
+impl std::fmt::Display for InferVarKind {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        match self {
+            InferVarKind::Type => write!(f, "type"),
+            InferVarKind::Perm => write!(f, "perm"),
+        }
+    }
 }
 
 impl From<InferVarKind> for SymGenericKind {

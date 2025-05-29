@@ -100,7 +100,8 @@ impl<'env, 'db> Resolver<'env, 'db> {
         } else if let Some(t) = self.bounding_ty(infer, Direction::FromAbove)? {
             t
         } else {
-            SymTy::fallback(self.db)
+            // we always insert a fallback bound, so this should not occur
+            panic!("found no inference bounds, odd")
         };
 
         self.memoized_ty.insert(infer, Ok(ty));
@@ -154,7 +155,8 @@ impl<'env, 'db> Resolver<'env, 'db> {
         } else if let Some(t) = self.bounding_perm(infer, Direction::FromAbove) {
             t
         } else {
-            SymPerm::fallback(self.db)
+            // we always insert a fallback bound, so this should not occur
+            panic!("found no inference bounds, odd")
         };
 
         self.memoized_perm.insert(infer, perm);

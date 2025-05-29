@@ -1,13 +1,11 @@
-#:FIXME
 class Contents {
     s: my String
 }
 
 fn test(c: my Contents) {
-    let s = any_string()
-    #! subtype expected
-    s = lower_bound()
-    upper_bound(s.give)
+    let s = any_string()         #! subtype expected
+    s = lower_bound()            #! wrong type in assignment
+    upper_bound(s.give)          #! subtype expected
 }
 
 fn any_string[perm P]() -> P String {

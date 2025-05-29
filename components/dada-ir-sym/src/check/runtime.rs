@@ -204,6 +204,14 @@ impl<'db> Runtime<'db> {
     /// Mark the inference process as complete and wake all tasks.
     fn mark_complete(&self) {
         self.complete.store(true, Ordering::Relaxed);
+
+        {
+            let mut inference_vars = self.inference_vars.write().unwrap();
+            for data in inference_vars.iter_mut() {
+                data.fallback(self.db);
+            }
+        }
+
         let map = std::mem::take(&mut *self.waiting_on_inference_var.lock().unwrap());
         for EqWaker { waker } in map.into_values().flatten() {
             waker.wake();
