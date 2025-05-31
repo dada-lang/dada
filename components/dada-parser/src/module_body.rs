@@ -1,6 +1,10 @@
 use dada_ir_ast::{
-    ast::{AstAggregate, AstFunction, AstItem, AstModule, AstPath, AstUse, SpanVec},
+    ast::{
+        AstAggregate, AstFunction, AstItem, AstMainFunction, AstModule, AstPath, AstStatement,
+        AstUse, SpanVec,
+    },
     diagnostic::Diagnostic,
+    span::Spanned,
 };
 
 use crate::tokenizer::operator;
@@ -14,27 +18,65 @@ impl<'db> Parse<'db> for AstModule<'db> {
         db: &'db dyn crate::Db,
         parser: &mut Parser<'_, 'db>,
     ) -> Result<Option<Self>, ParseFail<'db>> {
-        let mut items: Vec<AstItem<'db>> = vec![];
-
         // Derive the name of the module from the source file in the span.
         let name = parser.last_span().source_file(db).module_name(db);
 
-        // Parse items, skipping unrecognized tokens.
+        // Parse (item* statement*), skipping unrecognized tokens.
+        let mut items: Vec<AstItem<'db>> = vec![];
+        let mut statements = vec![];
         let start_span = parser.peek_span();
-        while let Some(token) = parser.peek() {
-            let span = token.span;
-            match AstItem::opt_parse(db, parser) {
-                Ok(Some(v)) => items.push(v),
-                Err(e) => parser.push_diagnostic(e.into_diagnostic(db)),
-                Ok(None) => {
-                    parser.eat_next_token().unwrap();
-                    parser.push_diagnostic(Diagnostic::error(
-                        db,
-                        span,
-                        "expected a module-level item",
-                    ));
+        while let Some(_) = parser.peek() {
+            if statements.is_empty() {
+                match AstItem::opt_parse(db, parser) {
+                    Ok(Some(v)) => {
+                        items.push(v);
+                        continue;
+                    }
+
+                    Err(e) => {
+                        parser.push_diagnostic(e.into_diagnostic(db));
+                        continue;
+                    }
+
+                    Ok(None) => {}
                 }
             }
+
+            match AstStatement::opt_parse(db, parser) {
+                Ok(Some(s)) => {
+                    statements.push(s);
+                    continue;
+                }
+
+                Err(e) => {
+                    parser.push_diagnostic(e.into_diagnostic(db));
+                    continue;
+                }
+
+                Ok(None) => {}
+            }
+
+            parser.eat_next_token().unwrap();
+            parser.push_diagnostic(Diagnostic::error(
+                db,
+                parser.last_span(),
+                "expected a statement or a module-level item",
+            ));
+        }
+
+        // If we have statements on their own, wrap them in a `main` function
+        if let Some(first) = statements.first()
+            && let Some(last) = statements.last()
+        {
+            let span = first.span(db).to(db, last.span(db));
+            let main_fn = AstMainFunction::new(
+                db,
+                SpanVec {
+                    span,
+                    values: statements,
+                },
+            );
+            items.push(main_fn.into());
         }
 
         Ok(Some(AstModule::new(

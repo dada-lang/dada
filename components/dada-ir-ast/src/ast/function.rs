@@ -2,7 +2,7 @@ use dada_util::{FromImpls, SalsaSerialize};
 use salsa::Update;
 use serde::Serialize;
 
-use super::{AstGenericDecl, AstPerm, AstTy, SpanVec, SpannedIdentifier};
+use super::{AstGenericDecl, AstPerm, AstStatement, AstTy, SpanVec, SpannedIdentifier};
 use crate::{
     ast::{AstVisibility, AstWhereClauses, DeferredParse},
     span::{Span, Spanned},
@@ -45,6 +45,21 @@ pub struct AstFunction<'db> {
     /// Body (if provided)
     #[return_ref]
     pub body: Option<DeferredParse<'db>>,
+}
+
+/// `print("Hello world")` appearing at the top of a module.
+/// This creates an implicit `fn main() { ... }` later on.
+#[derive(SalsaSerialize)]
+#[salsa::tracked(debug)]
+pub struct AstMainFunction<'db> {
+    #[return_ref]
+    pub statements: SpanVec<'db, AstStatement<'db>>,
+}
+
+impl<'db> Spanned<'db> for AstMainFunction<'db> {
+    fn span(&self, db: &'db dyn crate::Db) -> Span<'db> {
+        self.statements(db).span
+    }
 }
 
 #[derive(Copy, Clone, Default, PartialEq, Eq, PartialOrd, Ord, Hash, Update, Debug, Serialize)]

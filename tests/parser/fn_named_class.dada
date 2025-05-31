@@ -1,6 +1,6 @@
      fn class() {
 #!   ^^ expected an identifier to come next
 #!      ^^^^^ expected an identifier to come next
-#!           ^^ expected a module-level item
-#! expected a module-level item
+#!           ^^ expected a statement or a module-level item
+#! expected a statement or a module-level item
 }

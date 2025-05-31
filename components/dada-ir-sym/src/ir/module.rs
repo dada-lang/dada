@@ -139,12 +139,20 @@ impl<'db> Symbol<'db> for AstModule<'db> {
                         SymAggregate::new(db, self.into(), ast_class_item),
                     );
                 }
-                AstItem::Function(ast_function) => {
+                AstItem::Function(func) => {
                     insert(
                         db,
                         &mut function_map,
-                        ast_function.name(db).id,
-                        SymFunction::new(db, self.into(), ast_function.into()),
+                        func.name(db).id,
+                        SymFunction::new(db, self.into(), func.into()),
+                    );
+                }
+                AstItem::MainFunction(mfunc) => {
+                    insert(
+                        db,
+                        &mut function_map,
+                        Identifier::main(db),
+                        SymFunction::new(db, self.into(), mfunc.into()),
                     );
                 }
             }

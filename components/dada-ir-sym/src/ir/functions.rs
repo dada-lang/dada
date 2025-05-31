@@ -2,8 +2,8 @@ use std::borrow::Cow;
 
 use dada_ir_ast::{
     ast::{
-        AstAggregate, AstFunction, AstFunctionEffects, AstFunctionInput, Identifier,
-        SpannedIdentifier,
+        AstAggregate, AstFunction, AstFunctionEffects, AstFunctionInput, AstMainFunction,
+        Identifier, SpannedIdentifier,
     },
     span::{SourceSpanned, Span, Spanned},
 };
@@ -72,6 +72,7 @@ impl<'db> ScopeTreeNode<'db> for SymFunction<'db> {
         let wc = match self.source(db) {
             SymFunctionSource::Function(ast) => ast.where_clauses(db),
             SymFunctionSource::Constructor(_, ast) => ast.where_clauses(db),
+            SymFunctionSource::MainFunction(_) => &None,
         };
 
         if let Some(wc) = wc {
@@ -145,6 +146,9 @@ impl<'db> SymFunction<'db> {
 pub enum SymFunctionSource<'db> {
     Function(AstFunction<'db>),
 
+    /// Generated `fn main()` from statements appearing at the top of a module
+    MainFunction(AstMainFunction<'db>),
+
     /// Generated constructor from an aggregate like `struct Foo(x: u32)`
     #[no_from_impl] // I'd prefer to be explicit
     Constructor(SymAggregate<'db>, AstAggregate<'db>),
@@ -154,7 +158,7 @@ impl<'db> SymFunctionSource<'db> {
     fn effects(self, db: &'db dyn crate::Db) -> AstFunctionEffects<'db> {
         match self {
             Self::Function(ast_function) => ast_function.effects(db),
-            Self::Constructor(..) => AstFunctionEffects::default(),
+            Self::MainFunction(_) | Self::Constructor(..) => AstFunctionEffects::default(),
         }
     }
 
@@ -164,6 +168,10 @@ impl<'db> SymFunctionSource<'db> {
             Self::Constructor(class, _) => SpannedIdentifier {
                 span: class.name_span(db),
                 id: Identifier::new_ident(db),
+            },
+            Self::MainFunction(mfunc) => SpannedIdentifier {
+                span: mfunc.statements(db).span,
+                id: Identifier::main(db),
             },
         }
     }
@@ -180,6 +188,7 @@ impl<'db> SymFunctionSource<'db> {
                     .map(|i| i.variable(db).into())
                     .collect::<Vec<_>>(),
             ),
+            Self::MainFunction(_) => Cow::Borrowed(&[]),
         }
     }
 }
@@ -189,6 +198,7 @@ impl<'db> SourceSpanned<'db> for SymFunctionSource<'db> {
         match self {
             SymFunctionSource::Function(ast_function) => ast_function.span(db),
             SymFunctionSource::Constructor(_, ast_aggregate) => ast_aggregate.span(db),
+            SymFunctionSource::MainFunction(mfunc) => mfunc.span(db),
         }
     }
 }
