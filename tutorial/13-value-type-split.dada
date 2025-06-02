@@ -1,0 +1,7 @@
+let x = 22
+x = 33
+update(x)
+
+fn update(x: u32) {
+    x += 1
+}

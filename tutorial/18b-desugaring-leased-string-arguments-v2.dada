@@ -1,0 +1,5 @@
+fn read_string[perm P](s: String)
+where
+    leased(P),
+{
+}

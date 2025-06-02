@@ -1,0 +1,13 @@
+class Character(name: Name) {
+    drop {
+        # owned types can have a destructor
+    }
+}
+
+@repr(box) # <-- maybe just infer it? Not decided yet.
+enum class Expression {
+    enum class Place {
+        class Var(name: String)
+        class Field(base: Expression, name: String)
+    }
+}

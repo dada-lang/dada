@@ -1,0 +1,4 @@
+fn main() {
+    let i: u32 = 22
+    print_u32(i)
+}

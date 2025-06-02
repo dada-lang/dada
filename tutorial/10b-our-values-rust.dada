@@ -1,0 +1,3 @@
+let s: String = ...
+let t: Rc<String> = Rc::new(s);
+let u: Rc<String> = t.clone();

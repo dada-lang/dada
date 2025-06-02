@@ -1,0 +1,14 @@
+fn read_data(strings: Vec[String]) -> shared[strings] String {
+    for string in strings {
+        if string.len() > 10 {
+            return string.slice(5);
+        }
+    }
+    
+    "foo"
+}
+
+fn main() {
+    let i: u32 = 22
+    print_u32(i)
+}

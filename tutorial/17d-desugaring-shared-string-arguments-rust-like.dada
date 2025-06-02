@@ -1,0 +1,4 @@
+# Rust-like setup: generic over the place
+fn read_string[place 'P](s: shared['P] String)
+{
+}

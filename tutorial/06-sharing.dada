@@ -1,0 +1,14 @@
+class String {
+    data: Array[u8] # <-- primitive
+    length: u32
+    capacity: u32
+}
+
+let s: my String = "Hello, world"
+read_string(s.share) # prints "Hello, world"
+read_string(s) # prints "Hello, world"
+read_string(s.slice_from(3)) # prints "lo, world"
+
+fn read_string(s: shared String) {
+    print("{s}")
+}

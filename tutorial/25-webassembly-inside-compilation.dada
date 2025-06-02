@@ -1,0 +1,6 @@
+@macro(arguments)
+fn foo() { }
+
+fn macro(arguments..., input: FnAst) -> FnAst {
+    ...
+}

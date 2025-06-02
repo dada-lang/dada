@@ -1,0 +1,5 @@
+class Character(name: String)
+
+fn get_name[perm P](character: P Character) -> P String {
+    character.name.move
+}

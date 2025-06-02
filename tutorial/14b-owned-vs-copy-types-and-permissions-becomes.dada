@@ -1,0 +1,3 @@
+let s: my String = "Hello, world"
+let m: Option[my String] = Some(s.give)
+let p: Option[shared[m] String] = m

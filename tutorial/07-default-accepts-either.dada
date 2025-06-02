@@ -1,0 +1,8 @@
+let s: my String = "Hello, world"
+read_string(s)      # OK
+read_string(s.move) # OK
+read_string(s)      # ERROR
+
+fn read_string(s: String) {
+    print("{s}")
+}

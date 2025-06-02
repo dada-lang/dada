@@ -1,0 +1,12 @@
+let s: my String = "Hello, "
+push_string(s.lease)
+read_string(s)
+
+fn push_string(s: leased String) {
+    s.lease.push("world")
+    read_string(s)
+}
+
+fn read_string(s: String) {
+    print("{s}")
+}

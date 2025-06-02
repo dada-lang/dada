@@ -1,0 +1,7 @@
+let s: my String = "Hello, world"
+take_string(s) # ERROR: expected my String, found: shared[s] String
+take_string(s.move)
+
+fn take_string(s: my String) {
+    print("{s}")
+}

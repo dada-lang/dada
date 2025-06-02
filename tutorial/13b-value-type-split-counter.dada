@@ -1,0 +1,7 @@
+class Counter(x: u32)
+let c = Counter(22)
+update(c.lease)
+
+fn update(c: leased Counter) {
+    c.x += 1
+}
