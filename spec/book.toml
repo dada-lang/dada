@@ -1,0 +1,12 @@
+[book]
+authors = ["Dada Contributors"]
+language = "en"
+multilingual = false
+src = "src"
+title = "Dada Language Specification"
+
+[output.html]
+default-theme = "light"
+preferred-dark-theme = "navy"
+git-repository-url = "https://github.com/dada-lang/dada"
+git-repository-icon = "fa-github"
