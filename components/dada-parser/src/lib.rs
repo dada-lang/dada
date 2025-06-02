@@ -1,3 +1,5 @@
+#![doc = include_str!("../docs/overview.md")]
+
 use salsa::Update;
 use tokenizer::{
     Delimiter, Keyword, Skipped, Token, TokenKind, is_op_char,
