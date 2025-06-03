@@ -9,12 +9,10 @@ This file provides Claude-specific guidance when working with the Dada compiler 
 1. **Check patterns first** - Before exploring or rediscovering, consult:
    - This file for Claude-specific instructions
    - `.development/` directory for established patterns and documentation
-   
-2. **Keep documentation updated** - When discovering new patterns or making decisions:
-   - Update relevant files in `.development/`
-   - Add to `.claude/ongoing/` for multi-session work
 
-3. **Follow established patterns** - Use the documented conventions rather than inferring new ones
+2. **Track ongoing tasks** - always update the appropriate file in `.claude/ongoing` with status reports after reaching a milestone or finishing a major task. If we are beginning a new task, offer to create a directory in `.claude/ongoing` to track it.
+
+3. **Follow established patterns** - Use the conventions documented in `.development` rather than inferring new ones
 
 ## Project Documentation Structure
 
