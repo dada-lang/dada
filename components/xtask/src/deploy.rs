@@ -30,6 +30,34 @@ impl Deploy {
             xshell::Cmd::new(npm).arg("run").arg("build").run()?;
         }
 
+        // Build RFC and spec mdbooks
+        {
+            let rfcs_dir = manifest_dir.join("rfcs");
+            let spec_dir = manifest_dir.join("spec");
+            let rfcs_output_dir = book_dir.join("build").join("rfcs");
+            let spec_output_dir = book_dir.join("build").join("spec");
+
+            // Build RFCs mdbook
+            {
+                let _directory = xshell::pushd(&rfcs_dir)?;
+                xshell::Cmd::new("mdbook")
+                    .arg("build")
+                    .arg("--dest-dir")
+                    .arg(&rfcs_output_dir)
+                    .run()?;
+            }
+
+            // Build spec mdbook
+            {
+                let _directory = xshell::pushd(&spec_dir)?;
+                xshell::Cmd::new("mdbook")
+                    .arg("build")
+                    .arg("--dest-dir")
+                    .arg(&spec_output_dir)
+                    .run()?;
+            }
+        }
+
         // Generate rustdocs and copy to book/build/impl
         {
             let _directory = xshell::pushd(manifest_dir)?;

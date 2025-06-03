@@ -5,7 +5,11 @@ multilingual = false
 src = "src"
 title = "Dada RFCs"
 
+[preprocessor.dada-mdbook-preprocessor]
+command = "cargo run --bin dada-mdbook-preprocessor --"
+
 [output.html]
+site-url = "/rfcs/"
 default-theme = "light"
 preferred-dark-theme = "navy"
 git-repository-url = "https://github.com/dada-lang/dada"
