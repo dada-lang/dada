@@ -107,10 +107,29 @@ We want to establish a clear RFC and specification workflow for Dada language de
 
 3. **Decision authority** - ✅ RESOLVED: nikomatsakis acts as BDFL for RFC acceptance decisions
 
-## Next Steps
-- Decide on markdown linking strategy (leaning toward starting with `/spec/...` URLs)
-- Create initial mdbook structures for rfcs/ and spec/
-- Update cargo xtask deploy to handle multiple sites
-- Create RFC template and workflow documentation
-- Implement paragraph labeling system with `r[...]` syntax
+## Progress Update (2025-06-02)
+
+### Recently Completed
+- ✅ **mdbook structures** - Both `rfcs/` and `spec/` mdbooks created and working
+- ✅ **Deploy script updated** - `cargo xtask deploy` now builds all three sites (Docusaurus, RFC mdbook, spec mdbook, rustdocs)
+- ✅ **Paragraph labeling implemented** - `r[...]` syntax working in spec files
+- ✅ **Markdown preprocessor created** - `dada-mdbook-preprocessor` processes `r[...]` labels into styled HTML anchors
+- ✅ **Preprocessor applied to both books** - Both RFC and spec books use the preprocessor
+
+### Current Task: CSS Consolidation ✅ COMPLETED
+
+**Solution Implemented**: 
+- Discovered that mdbook preprocessors cannot modify configuration dynamically
+- Implemented inline CSS injection approach instead
+- Preprocessor now:
+  1. Scans each chapter for `r[...]` labels
+  2. Processes labels into HTML with proper anchors
+  3. Injects `<style>` tags at the end of chapters that contain labels
+- Removed manual `additional-css` entries from both book.toml files
+- Tested with both RFC and spec books - working correctly
+
+### Next Steps
+- Create RFC template and workflow documentation  
 - Set up test annotation system with `#:spec` comments
+- Decide on markdown linking strategy
+- Create example RFC using the new infrastructure
