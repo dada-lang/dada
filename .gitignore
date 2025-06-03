@@ -10,3 +10,8 @@ validated.debug
 bir.debug
 lsp.debug
 dada_debug.*
+
+# mdBook build artifacts
+book/book/
+rfcs/book/
+spec/book/
