@@ -1,6 +1,9 @@
 # Summary
 
 - [Introduction](README.md)
+- [RFC-0000: Template](0000-template/README.md)
+  - [Implementation notes](0000-template/impl.md)
+  - [Specification draft](0000-template/spec.md)
 
 # Active RFCs
 

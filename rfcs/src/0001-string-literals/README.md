@@ -244,6 +244,6 @@ A: The simpler `{}` syntax is more consistent with Rust's format strings and req
 
 ## Future possibilities
 
-- **Raw string literals** - A syntax to dicsable escape sequence processing (e.g., `r"C:\path\to\file"` would not interpret `\p`, `\t`, `\f` as escape sequences)
+- **Raw string literals** - A syntax to disable escape sequence processing (e.g., `r"C:\path\to\file"` would not interpret `\p`, `\t`, `\f` as escape sequences)
 - **Method-based formatting** - Rather than format specifiers like `{x:02}`, Dada will use method calls like `{x.padded(2)}` to maintain syntactic consistency
 - **Display trait** - Once Dada's trait system is designed, add a trait to allow interpolating expressions that don't directly produce `String` values (similar to Rust's `Display`)

@@ -13,58 +13,33 @@ Each RFC lives in its own directory under `rfcs/src/`:
 ```
 rfcs/src/
   SUMMARY.md                    # Table of contents, organized by status
+  0000-template/                # Template for new RFCs
   0001-feature-name/
     README.md                   # The RFC document
     impl.md                     # Implementation progress tracking
     spec.md                     # Draft specification text
-    todo.md                     # Ongoing work and session context
     examples/                   # Example code (optional)
 ```
 
 ## Creating an RFC
-1. Choose the next sequential number (e.g., `0002` if `0001` exists)
-2. Create directory `rfcs/src/XXXX-feature-name/`
-3. Write RFC in `README.md` using the template below
-4. Create placeholder `impl.md` and `spec.md` files
-5. Update `rfcs/src/SUMMARY.md` to include your RFC in the appropriate status section
 
-## RFC Template
-```markdown
-# RFC-XXXX: Title
-
----
-status: active
-tracking-issue: #123  # optional
-implemented-version: 0.1.0  # when implemented
----
-
-## Summary
-Brief one-paragraph explanation
-
-## Motivation
-Why are we doing this? What use cases does it support?
-
-## Design tenets
-Ordered list of design principles that guide decisions (most important first).
-Each tenet should have a short, memorable phrase and optional clarifying text.
-
-Example:
-1. **Correctness over convenience** - We never sacrifice memory safety for ergonomics
-2. **Common case is concise** - Optimize syntax for frequent operations
-3. **Explicit over implicit** - When safety matters, require clear intent
-
-## Guide-level explanation
-Explain the proposal as if teaching it to another Dada programmer
-
-## Reference-level explanation
-Technical details and edge cases
-
-## Frequently asked questions
-Common questions and concerns about this design
-
-## Future possibilities
-What future extensions or changes might this enable?
+### Quick Start
+```bash
+cargo xtask rfc new feature-name
 ```
+
+This command will:
+1. Find the next sequential RFC number automatically
+2. Create directory `rfcs/src/NNNN-feature-name/`
+3. Copy template files from `0000-template/`
+4. Update `rfcs/src/SUMMARY.md` with your new RFC
+5. Replace placeholders with your RFC number and title
+
+### Template
+The RFC template is available in the RFC book at `/rfcs/` under "RFC-0000: Template". It includes:
+- Complete RFC document structure with all required sections
+- Implementation tracking template in `impl.md`
+- Specification draft template in `spec.md`
 
 ## Iterative Development
 RFCs, implementation, and specification evolve together:

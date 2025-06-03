@@ -128,8 +128,20 @@ We want to establish a clear RFC and specification workflow for Dada language de
 - Removed manual `additional-css` entries from both book.toml files
 - Tested with both RFC and spec books - working correctly
 
+### Recent Progress (2025-06-03)
+
+**✅ RFC Template and Workflow Completed**
+- Created RFC-0000 template as concise skeleton in RFC mdbook
+- Implemented `cargo xtask rfc new` command that:
+  - Auto-finds next RFC number
+  - Creates RFC directory from template
+  - Copies all template files with placeholder replacement
+  - Updates SUMMARY.md automatically
+- Updated `.development/rfc.md` workflow documentation
+- Removed duplicate content and updated structure
+
 ### Next Steps
-- Create RFC template and workflow documentation  
+- Modify RFC preprocessor to auto-populate SUMMARY.md based on existing directories
 - Set up test annotation system with `#:spec` comments
 - Decide on markdown linking strategy
 - Create example RFC using the new infrastructure
