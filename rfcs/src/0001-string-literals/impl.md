@@ -1,4 +1,4 @@
-# Implementation Progress
+# Implementation notes
 
 *This file tracks implementation progress for RFC-0001: String Literals*
 

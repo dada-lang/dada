@@ -1,4 +1,4 @@
-# RFC-0000: Specification draft
+# Specification draft
 
 Draft specification text that will be integrated into the main specification when this RFC is implemented.
 

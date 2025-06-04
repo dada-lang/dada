@@ -1,9 +1,10 @@
-use anyhow::Result;
+use anyhow::{bail, Result};
 use clap::{Arg, ArgMatches, Command};
-use mdbook::book::{Book, BookItem};
+use mdbook::book::{Book, BookItem, Chapter};
 use mdbook::preprocess::{CmdPreprocessor, Preprocessor, PreprocessorContext};
 use regex::Regex;
 use std::io;
+use std::path::Path;
 use std::process;
 
 pub fn make_app() -> Command<'static> {
@@ -77,17 +78,18 @@ impl Preprocessor for DadaPreprocessor {
         "dada-mdbook-preprocessor"
     }
 
-    fn run(&self, _ctx: &PreprocessorContext, mut book: Book) -> Result<Book> {
+    fn run(&self, ctx: &PreprocessorContext, mut book: Book) -> Result<Book> {
         let re = Regex::new(r"^r\[([^\]]+)\]$").unwrap();
-        
+
+        // First pass: process r[...] labels
         book.for_each_mut(|item: &mut BookItem| {
             if let BookItem::Chapter(chapter) = item {
                 // Check if this chapter has any labels
                 let has_labels = chapter.content.lines().any(|line| re.is_match(line.trim()));
-                
+
                 // Process the content
                 chapter.content = process_r_labels(&chapter.content);
-                
+
                 // If this chapter has labels, inject CSS at the end
                 if has_labels {
                     chapter.content.push_str("\n");
@@ -95,6 +97,9 @@ impl Preprocessor for DadaPreprocessor {
                 }
             }
         });
+
+        // Second pass: populate RFC sections
+        populate_rfc_sections(ctx, &mut book)?;
 
         Ok(book)
     }
@@ -106,7 +111,7 @@ impl Preprocessor for DadaPreprocessor {
 
 fn process_r_labels(content: &str) -> String {
     let re = Regex::new(r"^r\[([^\]]+)\]$").unwrap();
-    
+
     content
         .lines()
         .map(|line| {
@@ -163,4 +168,165 @@ fn get_inline_css() -> String {
     border-color: #30363d;
 }
 </style>"#.to_string()
+}
+
+fn populate_rfc_sections(ctx: &PreprocessorContext, book: &mut Book) -> Result<()> {
+    // Find the position of the "All RFCs" chapter
+    let mut rfc_chapter_index = None;
+
+    for (index, item) in book.sections.iter().enumerate() {
+        if let BookItem::Chapter(chapter) = item {
+            // Check if this is the All RFCs chapter
+            if chapter.name.trim() == "All RFCs" {
+                rfc_chapter_index = Some(index);
+                break;
+            }
+        }
+    }
+
+    // If we found the All RFCs chapter, populate it
+    if let Some(index) = rfc_chapter_index {
+        // Get a mutable reference to the chapter
+        if let Some(BookItem::Chapter(chapter)) = book.sections.get_mut(index) {
+            populate_all_rfcs_section(ctx, chapter)?;
+        }
+    }
+
+    Ok(())
+}
+
+fn populate_all_rfcs_section(ctx: &PreprocessorContext, chapter: &mut Chapter) -> Result<()> {
+    let src_dir = ctx.config.book.src.clone();
+
+    // Find all RFC directories
+    let mut rfc_dirs = Vec::new();
+    if let Ok(entries) = std::fs::read_dir(&src_dir) {
+        for entry in entries {
+            let entry = entry?;
+            let path = entry.path();
+            if path.is_dir() {
+                if let Some(name) = path.file_name().and_then(|n| n.to_str()) {
+                    // Match directories like 0001-feature-name
+                    if name.len() > 4
+                        && name[..4].chars().all(|c| c.is_ascii_digit())
+                        && name.chars().nth(4) == Some('-')
+                    {
+                        rfc_dirs.push((name.to_string(), path));
+                    }
+                }
+            }
+        }
+    }
+
+    // Sort by RFC number
+    rfc_dirs.sort_by(|a, b| a.0.cmp(&b.0));
+
+    // Process each RFC directory
+    for ((dir_name, dir_path), index) in rfc_dirs.iter().zip(0..) {
+        if let Ok(rfc_chapter) = create_rfc_chapter(&src_dir, dir_name, dir_path, &chapter, index) {
+            chapter.sub_items.push(BookItem::Chapter(rfc_chapter));
+        }
+    }
+
+    Ok(())
+}
+
+fn create_rfc_chapter(
+    src_dir: &Path,
+    dir_name: &str,
+    dir_path: &Path,
+    all_rfcs_chapter: &Chapter,
+    rfc_index: u32,
+) -> Result<Chapter> {
+    // Read README.md to get the title
+    let readme_path = dir_path.join("README.md");
+    let readme_content = std::fs::read_to_string(&readme_path)?;
+
+    // Extract title from first # line
+    let title = readme_content
+        .lines()
+        .find(|line| line.starts_with("# "))
+        .map(|line| line[2..].trim())
+        .unwrap_or(dir_name)
+        .to_string();
+
+    // Create relative path for mdbook
+    let relative_path = readme_path.strip_prefix(src_dir)?.to_path_buf();
+
+    // Create proper parent names for nested structure
+    let mut rfc_parent_names = all_rfcs_chapter.parent_names.clone();
+    rfc_parent_names.push(all_rfcs_chapter.name.clone());
+
+    // Get the section number of the parent and convert it to the section number of the new child
+    let Some(mut section_number) = all_rfcs_chapter.number.clone() else {
+        bail!("All RFCs chapter has no number")
+    };
+    section_number.push(rfc_index);
+
+    let mut rfc_chapter = Chapter::new(
+        &title,
+        readme_content,
+        relative_path,
+        rfc_parent_names.clone(),
+    );
+    rfc_chapter.number = Some(section_number.clone());
+
+    // Find all other .md files in the directory
+    if let Ok(entries) = std::fs::read_dir(dir_path) {
+        let mut sub_files = Vec::new();
+
+        for entry in entries {
+            let entry = entry?;
+            let path = entry.path();
+
+            if path.is_file() && path.extension().and_then(|s| s.to_str()) == Some("md") {
+                let file_name = path.file_name().and_then(|n| n.to_str()).unwrap_or("");
+                if file_name != "README.md" {
+                    sub_files.push(path);
+                }
+            }
+        }
+
+        // Sort sub-files for consistent ordering
+        sub_files.sort();
+
+        // Create sub-chapters for each .md file
+        let mut sub_parent_names = rfc_parent_names.clone();
+        sub_parent_names.push(title.clone());
+
+        for (sub_path, sub_index) in sub_files.iter().zip(0..) {
+            if let Ok(sub_content) = std::fs::read_to_string(sub_path) {
+                // Extract title from first # line
+                let sub_title = sub_content
+                    .lines()
+                    .find(|line| line.starts_with("# "))
+                    .map(|line| line[2..].trim())
+                    .unwrap_or_else(|| {
+                        sub_path
+                            .file_stem()
+                            .and_then(|s| s.to_str())
+                            .unwrap_or("Untitled")
+                    })
+                    .to_string();
+
+                let sub_relative_path = sub_path.strip_prefix(src_dir)?.to_path_buf();
+
+                let mut sub_chapter = Chapter::new(
+                    &sub_title,
+                    sub_content,
+                    sub_relative_path,
+                    sub_parent_names.clone(),
+                );
+
+                // assign the section number for this subchapter
+                section_number.push(sub_index);
+                sub_chapter.number = Some(section_number.clone());
+                section_number.pop().unwrap();
+
+                rfc_chapter.sub_items.push(BookItem::Chapter(sub_chapter));
+            }
+        }
+    }
+
+    Ok(rfc_chapter)
 }

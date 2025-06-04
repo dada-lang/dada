@@ -1,4 +1,4 @@
-# RFC-0000: Implementation notes
+# Implementation notes
 
 ## Status: Not started
 

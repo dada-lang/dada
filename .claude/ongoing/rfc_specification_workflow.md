@@ -140,8 +140,29 @@ We want to establish a clear RFC and specification workflow for Dada language de
 - Updated `.development/rfc.md` workflow documentation
 - Removed duplicate content and updated structure
 
+### ✅ COMPLETED: Auto-populate SUMMARY.md (2025-06-03)
+
+**Goal**: Modify the mdbook preprocessor to auto-populate the "All RFCs" section in SUMMARY.md
+
+**Implementation Summary**:
+- Modified `dada-mdbook-preprocessor` to scan for RFC directories and populate the book structure
+- The preprocessor modifies the in-memory `Book` structure without touching files on disk
+- Pattern inspired by rust-project-goals preprocessor
+
+**Key Changes**:
+1. Added `populate_rfc_sections` function that finds chapters to populate
+2. Implemented `populate_all_rfcs_section` that:
+   - Scans for directories matching `NNNN-*` pattern
+   - Reads RFC titles from README.md files
+   - Creates Chapter objects for each RFC and its sub-files
+   - Extracts titles from first `#` heading in each file
+3. Updated SUMMARY.md to use `- [All RFCs <!-- populate -->]()` format
+4. Successfully tested with existing RFCs (0000-template and 0001-string-literals)
+
+**Result**: The RFC book now automatically includes all RFCs with their sub-pages in the navigation
+
 ### Next Steps
-- Modify RFC preprocessor to auto-populate SUMMARY.md based on existing directories
 - Set up test annotation system with `#:spec` comments
 - Decide on markdown linking strategy
 - Create example RFC using the new infrastructure
+- Later: Add status-based sections with tables (Active RFCs, Accepted RFCs, etc.)

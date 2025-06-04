@@ -1,4 +1,4 @@
-# Specification Draft
+# Specification draft
 
 *This file contains draft specification text for RFC-0001: String Literals*
 
