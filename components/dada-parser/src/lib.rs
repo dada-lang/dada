@@ -229,10 +229,15 @@ impl<'token, 'db> Parser<'token, 'db> {
         }
     }
 
-    /// Eat any pending errors and add them to the list of errors to report.
+    /// Eats any pending error tokens and adds them to the diagnostic list.
     /// Does not adjust `last_span`.
     ///
-    /// Invoked automatically after each call to `eat_next_token`.
+    /// This implements **eager error consumption** - error tokens from the tokenizer
+    /// are immediately converted to diagnostics rather than disrupting normal parsing.
+    /// Called automatically after each `eat_next_token()` to maintain clean token streams.
+    /// 
+    /// This pattern allows parsing to continue after tokenizer errors, enabling
+    /// better error recovery and multiple error reporting in a single pass.
     fn eat_errors(&mut self) {
         while let Some(Token {
             kind: TokenKind::Error(diagnostic),

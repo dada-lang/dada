@@ -19,23 +19,22 @@ Implement interpolated string literals in Dada, including both single (`"`) and 
   - Added commitment model explanation
   - Linked to actual code examples
 
-### Next Session Tasks
+### Completed Tasks (2025-06-15)
 
-#### 1. Continue Parser Documentation
-Focus areas for documentation:
+#### ✅ Parser Documentation Complete
 - **Tokenizer** (`tokenizer.rs`)
-  - How string literals are tokenized
-  - Token types and structure
-  - Handling of quotes and escape sequences
+  - ✅ Documented `string_literal()` method with current behavior and future extensions
+  - ✅ Documented token types and escape sequence handling
+  - ✅ Added notes about raw text storage and missing escape interpretation
 - **Parse trait** (`lib.rs`)
-  - Full trait documentation with examples
-  - Helper methods and their use cases
-  - Error handling patterns
-
-Suggested additional documentation targets:
-- **Expression parsing** (`expr.rs`) - Since strings are expressions
-- **Literal parsing** - How literals are currently handled
-- **Error recovery** - Important for string literal edge cases
+  - ✅ Documented commitment model and parsing methods
+  - ✅ Added examples showing parse vs eat distinction  
+  - ✅ Documented error handling and diagnostic accumulation
+  - ✅ Documented general error recovery patterns
+- **Expression parsing** (`expr.rs`)
+  - ✅ Documented `base_expr_precedence()` and literal handling
+  - ✅ Documented `Literal::opt_parse()` implementation
+  - ✅ Added notes about current escape sequence bug
 
 #### 2. Implement Triple-Quoted Strings
 - Update tokenizer to recognize `"""` delimiters
@@ -66,3 +65,21 @@ Suggested additional documentation targets:
 - Follow established parsing patterns (check existing literal parsing)
 - Consider error recovery for malformed string literals
 - Remember parse methods return `Ok(None)` if no commitment
+
+## Refactoring Decisions (2025-06-15)
+
+### Literal Value Processing
+**Decision**: Tokenizer should process literal values rather than storing raw text
+- **Current**: Both strings and integers store raw text, interpretation happens later
+- **Proposed**: Tokenizer processes escape sequences in strings, parses integers with underscores
+- **Rationale**: Source spans can recover original text when needed; consistency between literal types
+- **Impact**: Changes to `TokenKind::Literal`, `Literal` AST struct, and tokenizer methods
+- **Status**: Deferred until after documentation phase
+
+### Bug Discovered: Escape Sequence Processing Missing
+**Issue**: String escape sequences are validated but never interpreted
+- **Current behavior**: Tokenizer validates `\n`, `\"`, etc. but stores raw text `"hello\nworld"`
+- **Expected behavior**: `\n` should become actual newline character somewhere in the pipeline
+- **Impact**: String literals with escape sequences don't work correctly
+- **Location**: No escape processing in tokenizer, parser, or compilation phases
+- **Fix**: When implementing literal value processing above, ensure escape sequences are actually interpreted
