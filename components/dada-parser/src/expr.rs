@@ -399,10 +399,10 @@ impl<'db> Parse<'db> for Literal<'db> {
     ) -> Result<Option<Self::Output>, crate::ParseFail<'db>> {
         match parser.peek() {
             Some(Token {
-                kind: TokenKind::Literal(kind, text),
+                kind: TokenKind::Literal(kind, token_text),
                 ..
             }) => {
-                let literal = Literal::new(db, *kind, text.to_string());
+                let literal = Literal::new(db, *kind, token_text.text(db).clone());
 
                 parser.eat_next_token().unwrap();
 

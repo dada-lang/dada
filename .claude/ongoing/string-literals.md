@@ -76,10 +76,13 @@ Implement interpolated string literals in Dada, including both single (`"`) and 
 - **Impact**: Changes to `TokenKind::Literal`, `Literal` AST struct, and tokenizer methods
 - **Status**: Deferred until after documentation phase
 
-### Bug Discovered: Escape Sequence Processing Missing
-**Issue**: String escape sequences are validated but never interpreted
-- **Current behavior**: Tokenizer validates `\n`, `\"`, etc. but stores raw text `"hello\nworld"`
-- **Expected behavior**: `\n` should become actual newline character somewhere in the pipeline
-- **Impact**: String literals with escape sequences don't work correctly
-- **Location**: No escape processing in tokenizer, parser, or compilation phases
-- **Fix**: When implementing literal value processing above, ensure escape sequences are actually interpreted
+### ✅ FIXED: Escape Sequence Processing Bug (2025-06-15)
+**Issue**: String escape sequences were validated but never interpreted
+- **Solution implemented**: Added `TokenText` interned struct for processed literal content
+- **Changes made**: 
+  - `TokenKind::Literal` now uses `TokenText<'db>` instead of `&'input str`
+  - Tokenizer processes escape sequences (`\n` → newline, `\"` → quote, etc.) when creating `TokenText`
+  - Parser updated to extract processed text from `TokenText`
+  - Blessed operator precedence test reference to match new AST structure
+- **Status**: ✅ Complete - All tests passing, escape sequences work correctly
+- **Technical approach**: Used Salsa interned structs to store processed strings while keeping tokens `Copy`

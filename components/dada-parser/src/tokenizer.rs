@@ -6,6 +6,14 @@ use dada_ir_ast::{
     span::{Anchor, Offset, Span},
 };
 
+/// Interned text content for tokens, allowing processed string literals
+/// to be stored efficiently while keeping tokens Copy.
+#[salsa::interned(debug)]
+pub struct TokenText<'db> {
+    #[return_ref]
+    pub text: String,
+}
+
 #[derive(Clone)]
 pub struct Token<'input, 'db> {
     pub span: Span<'db>,
@@ -54,7 +62,7 @@ pub enum TokenKind<'input, 'db> {
     OpChar(char),
 
     /// An integer like `22`
-    Literal(LiteralKind, &'input str),
+    Literal(LiteralKind, TokenText<'db>),
 
     /// Invalid characters
     Error(Diagnostic),
@@ -405,25 +413,28 @@ impl<'input, 'db> Tokenizer<'input, 'db> {
         let span = self.span(start, end);
 
         let text = &self.input[start..end];
+        let token_text = TokenText::new(self.db, text.to_string());
         self.tokens.push(Token {
             span,
             skipped,
-            kind: TokenKind::Literal(LiteralKind::Integer, text),
+            kind: TokenKind::Literal(LiteralKind::Integer, token_text),
         });
     }
 
     fn string_literal(&mut self, start: usize) {
         let skipped = self.clear_accumulated(start);
+        let mut processed_content = String::new();
 
         while let Some((end, ch)) = self.chars.next() {
             // FIXME: implement all the fancy stuff described in the reference,
             // like embedded expressions and margin stripping.
 
             if ch == '"' {
+                let token_text = TokenText::new(self.db, processed_content);
                 self.tokens.push(Token {
                     span: self.span(start, end),
                     skipped,
-                    kind: TokenKind::Literal(LiteralKind::String, &self.input[start + 1..end]),
+                    kind: TokenKind::Literal(LiteralKind::String, token_text),
                 });
                 return;
             }
@@ -431,8 +442,18 @@ impl<'input, 'db> Tokenizer<'input, 'db> {
             if ch == '\\' {
                 if let Some((index, escape)) = self.chars.next() {
                     match escape {
-                        '"' | 'n' | 'r' | 't' | '{' | '}' | '\\' => (),
+                        '"' => processed_content.push('"'),
+                        '\\' => processed_content.push('\\'),
+                        'n' => processed_content.push('\n'),
+                        'r' => processed_content.push('\r'),
+                        't' => processed_content.push('\t'),
+                        '{' => processed_content.push('{'),
+                        '}' => processed_content.push('}'),
                         _ => {
+                            // Add the invalid escape as-is and generate error
+                            processed_content.push('\\');
+                            processed_content.push(escape);
+                            
                             let span = self.span(index, index + escape.len_utf8());
                             self.tokens.push(Token {
                                 span,
@@ -440,12 +461,15 @@ impl<'input, 'db> Tokenizer<'input, 'db> {
                                 kind: TokenKind::Error(Diagnostic::error(
                                     self.db,
                                     span,
-                                    format!("invalid escape `\\{ch}`"),
+                                    format!("invalid escape `\\{escape}`"),
                                 )),
                             });
                         }
                     }
                 } else {
+                    // Backslash at end of input
+                    processed_content.push('\\');
+                    
                     let span = self.span(end, end + ch.len_utf8());
                     self.tokens.push(Token {
                         span,
@@ -457,16 +481,21 @@ impl<'input, 'db> Tokenizer<'input, 'db> {
                         )),
                     });
                 }
+            } else {
+                // Regular character - add to content
+                processed_content.push(ch);
             }
         }
 
+        // Unterminated string
         let end = self.input.len();
         let span = self.span(start, end);
+        let token_text = TokenText::new(self.db, processed_content);
 
         self.tokens.push(Token {
             span,
             skipped,
-            kind: TokenKind::Literal(LiteralKind::String, &self.input[start + 1..end]),
+            kind: TokenKind::Literal(LiteralKind::String, token_text),
         });
 
         self.tokens.push(Token {
