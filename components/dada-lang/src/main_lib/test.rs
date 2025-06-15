@@ -17,6 +17,7 @@ use crate::{GlobalOptions, TestOptions};
 use super::Main;
 
 mod expected;
+mod spec_validation;
 mod timeout_warning;
 
 #[derive(thiserror::Error, Debug)]
@@ -60,6 +61,9 @@ enum Failure {
         /// Actual result returned
         actual: String,
     },
+
+    /// Invalid spec reference in #:spec comment
+    InvalidSpecReference(String),
 
     /// Auxiliary file at `path` did not have expected contents.
     ///
@@ -467,6 +471,13 @@ impl FailedTest {
                     writeln!(result, "# Test marked as FIXME and yet it passed")?;
                     writeln!(result)?;
                     writeln!(result, "Perhaps the bug was fixed?")?;
+                }
+                Failure::InvalidSpecReference(spec_ref) => {
+                    writeln!(result)?;
+                    writeln!(result, "# Invalid spec reference")?;
+                    writeln!(result)?;
+                    writeln!(result, "The spec reference `{}` does not exist in the spec mdbook.", spec_ref)?;
+                    writeln!(result, "Check the spec files in `spec/src/` for valid `r[...]` labels.")?;
                 }
             }
         }

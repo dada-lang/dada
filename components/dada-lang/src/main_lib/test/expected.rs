@@ -13,6 +13,7 @@ use regex::Regex;
 use crate::GlobalOptions;
 
 use super::{FailedTest, Failure};
+use super::spec_validation::SpecValidator;
 
 #[derive(Clone, Debug)]
 pub struct ExpectedDiagnostic {
@@ -41,6 +42,7 @@ pub struct TestExpectations {
     codegen: bool,
     fixme: bool,
     probes: Vec<Probe>,
+    spec_refs: Vec<String>,
 }
 
 /// A "probe" is a test where we inspect some piece of compiler state
@@ -122,6 +124,7 @@ impl TestExpectations {
             codegen: true,
             fixme: false,
             probes: vec![],
+            spec_refs: vec![],
         };
         expectations.initialize(db)?;
         Ok(expectations)
@@ -320,6 +323,11 @@ impl TestExpectations {
             return Ok(());
         }
 
+        if let Some(spec_ref) = line.strip_prefix("spec ") {
+            self.spec_refs.push(spec_ref.trim().to_string());
+            return Ok(());
+        }
+
         bail!(
             "{}:{}: unrecognized configuration comment",
             self.source_file.url_display(db),
@@ -351,6 +359,7 @@ impl TestExpectations {
         }
 
         test.failures.extend(self.perform_probes(compiler));
+        test.failures.extend(self.validate_spec_refs());
 
         for diagnostic in &actual_diagnostics {
             writeln!(
@@ -533,6 +542,33 @@ impl TestExpectations {
                 }),
                 true,
             )
+    }
+
+    /// Validates all spec references in this test file
+    fn validate_spec_refs(&self) -> Vec<Failure> {
+        // Skip validation if no spec refs
+        if self.spec_refs.is_empty() {
+            return vec![];
+        }
+
+        // Create spec validator - if it fails, we'll report all spec refs as invalid
+        let validator = match SpecValidator::new() {
+            Ok(validator) => validator,
+            Err(_) => {
+                // If we can't load the spec, report all spec refs as invalid
+                return self.spec_refs
+                    .iter()
+                    .map(|spec_ref| Failure::InvalidSpecReference(spec_ref.clone()))
+                    .collect();
+            }
+        };
+
+        // Validate each spec reference
+        validator
+            .validate_spec_refs(&self.spec_refs)
+            .into_iter()
+            .map(Failure::InvalidSpecReference)
+            .collect()
     }
 }
 

@@ -194,3 +194,120 @@ We want to establish a clear RFC and specification workflow for Dada language de
 
 ### Session Summary (2025-06-13)
 Successfully completed the RFC All RFCs page implementation with a polished, GitHub-inspired interface that provides excellent UX for browsing RFCs by status with collapsible summaries.
+
+## Progress Update: Test-Spec Linking Design (2025-06-13)
+
+### ✅ COMPLETED: `#:spec` Comment System Design
+
+**Design Decisions**:
+1. **Syntax**: `#:spec topic.subtopic.detail` following existing `#:` configuration pattern
+2. **Granularity**: Per-file (entire test file tests specified spec paragraphs)
+3. **Location**: Must appear in file header like other `#:` configurations
+4. **Multiple specs**: Each test file can reference multiple spec paragraphs (one per `#:spec` line)
+5. **Validation**: Test runner will parse spec mdbook to validate spec IDs exist
+
+**Implementation Plan**:
+- Update `TestExpectations` struct in `expected.rs` to include `spec_refs: Vec<String>`
+- Add parsing in `configuration()` method to handle `#:spec` lines
+- Create spec validation module to parse spec mdbook and extract `r[...]` labels
+- Generate spec coverage reports showing tested/untested paragraphs
+
+### ✅ COMPLETED: Spec-to-Test Cross-linking Design
+
+**Enhanced User Experience**:
+1. **Visual indicator**: Test icon (🧪) next to each `r[...]` label in spec
+2. **Dedicated test pages**: Each spec ID gets a page showing all related tests
+3. **Interactive test viewer**:
+   - Collapsible test content with disclosure triangles
+   - "Expand All" / "Collapse All" buttons
+   - Syntax-highlighted test code
+   - GitHub links for each test file
+   - Similar styling to RFC "All" page
+
+**Implementation Approach**:
+- Enhance mdbook preprocessor to:
+  - Scan test files for `#:spec` annotations during build
+  - Build index mapping spec IDs → test files
+  - Modify `r[...]` rendering to add test icon links
+  - Generate test pages for each spec ID
+  - Include necessary CSS/JS for interactivity
+
+**Example test page** (`spec/src/tests/syntax.string-literals.escape-sequences.md`):
+- Lists all tests that reference this spec paragraph
+- Shows test content in collapsible sections
+- Links to GitHub for each test file
+- Maintains consistent GitHub-inspired styling
+
+### Implementation Plan
+
+**Phase 1: Test Runner Foundation**
+1. **Start with test runner** (`components/dada-lang/src/main_lib/test/expected.rs`)
+   - Add `spec_refs: Vec<String>` to `TestExpectations` struct
+   - Update `configuration()` method to parse `#:spec` lines
+   - This gives us basic parsing without breaking anything
+
+**Phase 2: Spec Validation**
+2. **Create spec validation module** (`components/dada-lang/src/main_lib/test/spec_validation.rs`)
+   - Parse spec mdbook to extract all `r[...]` labels
+   - Validate `#:spec` references against actual spec paragraphs
+   - Add validation to test runner
+
+**Phase 3: Test Integration**
+3. **Add spec validation to test execution** (update `test.rs`)
+   - Call spec validation during test runs
+   - Report invalid spec references as test failures
+
+**Phase 4: mdbook Enhancement**
+4. **Enhance mdbook preprocessor** (`components/dada-mdbook-preprocessor/src/lib.rs`)
+   - Scan test files for `#:spec` annotations during build
+   - Build spec-to-tests index
+   - Modify `r[...]` rendering to add test icons
+
+**Phase 5: Test Viewer Pages**
+5. **Generate test viewer pages**
+   - Create test pages showing related tests
+   - Add collapsible content and GitHub links
+
+**Phase 6: Polish**
+6. **Add CSS/JS for interactivity**
+   - Expand/collapse functionality
+   - Styling consistent with RFC pages
+
+## Progress Update: Test-Spec Linking Implementation (2025-06-15)
+
+### ✅ COMPLETED: Phases 1-3 of Test-Spec Linking System
+
+**Implementation Summary:**
+Successfully implemented the core `#:spec` comment validation system that validates test file spec references against actual spec paragraphs.
+
+**What's Working:**
+- ✅ **Phase 1**: Test runner foundation - Added `spec_refs: Vec<String>` to `TestExpectations` struct and parsing for `#:spec` configuration comments
+- ✅ **Phase 2**: Spec validation module - Created `SpecValidator` that scans `spec/src/` directory and extracts all `r[...]` labels using regex
+- ✅ **Phase 3**: Test integration - Added `InvalidSpecReference` failure type and integrated validation into test execution flow
+- ✅ **Error reporting**: Clear error messages in test reports when spec references are invalid
+- ✅ **Validation logic**: Validates `#:spec topic.subtopic.detail` annotations against actual spec paragraph labels
+
+**Technical Details:**
+- `SpecValidator::new()` recursively scans spec mdbook source files
+- Extracts spec IDs using pattern `r\[([^\]]+)\]` 
+- Validation runs during `TestExpectations::compare()` method
+- Invalid references reported as test failures with helpful guidance
+- Added test file `tests/test_spec_parsing.dada` demonstrating usage
+
+**Commit:** `319d9217` - "Implement #:spec comment validation system for test-spec linking"
+
+### Remaining Tasks (Lower Priority)
+
+**Phase 4-6: Enhanced mdbook Integration**
+- **Phase 4**: Enhance mdbook preprocessor to scan test files and build spec-to-tests index
+- **Phase 5**: Generate interactive test viewer pages showing tests for each spec paragraph  
+- **Phase 6**: Add CSS/JS for expand/collapse functionality and GitHub-consistent styling
+
+**Design for Future Phases:**
+- Test icon (🧪) next to `r[...]` labels linking to test pages
+- Dedicated pages like `spec/src/tests/syntax.string-literals.basic.md` showing related tests
+- Collapsible test content with syntax highlighting and GitHub links
+- "Expand All" / "Collapse All" buttons for test viewer pages
+
+### Session Summary (2025-06-15)
+Core `#:spec` validation system is production-ready. Test files can now reference spec paragraphs and get immediate validation feedback. The foundation is in place for future enhanced mdbook integration phases.
