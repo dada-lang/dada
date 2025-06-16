@@ -195,119 +195,85 @@ We want to establish a clear RFC and specification workflow for Dada language de
 ### Session Summary (2025-06-13)
 Successfully completed the RFC All RFCs page implementation with a polished, GitHub-inspired interface that provides excellent UX for browsing RFCs by status with collapsible summaries.
 
-## Progress Update: Test-Spec Linking Design (2025-06-13)
+## Progress Update: RFC-0002 Meta-RFC Completed (2025-06-16)
 
-### ✅ COMPLETED: `#:spec` Comment System Design
+### ✅ COMPLETED: RFC-0002 - RFC Process and Specification Workflow
 
-**Design Decisions**:
-1. **Syntax**: `#:spec topic.subtopic.detail` following existing `#:` configuration pattern
-2. **Granularity**: Per-file (entire test file tests specified spec paragraphs)
-3. **Location**: Must appear in file header like other `#:` configurations
-4. **Multiple specs**: Each test file can reference multiple spec paragraphs (one per `#:spec` line)
-5. **Validation**: Test runner will parse spec mdbook to validate spec IDs exist
+**What was accomplished:**
+- ✅ **Created RFC-0002** using `cargo xtask rfc new` command
+- ✅ **Documented complete RFC workflow** including RFC-to-spec integration
+- ✅ **Resolved all major design decisions** from previous sessions
+- ✅ **Comprehensive tooling comparison** between mdbook and Sphinx approaches
 
-**Implementation Plan**:
-- Update `TestExpectations` struct in `expected.rs` to include `spec_refs: Vec<String>`
-- Add parsing in `configuration()` method to handle `#:spec` lines
-- Create spec validation module to parse spec mdbook and extract `r[...]` labels
-- Generate spec coverage reports showing tested/untested paragraphs
+**Key Design Elements Finalized:**
 
-### ✅ COMPLETED: Spec-to-Test Cross-linking Design
+1. **RFC Annotation System**:
+   ```markdown
+   r[syntax.string-literals.basic]
+   rfc[123]
+   String literals support both single and double quotes.
+   ```
+   - `rfc[123]` or `rfc[123, 456]` for multiple RFCs
+   - Annotations on separate line following paragraph ID
+   - Version management with automatic bumps when RFC tags removed
 
-**Enhanced User Experience**:
-1. **Visual indicator**: Test icon (🧪) next to each `r[...]` label in spec
-2. **Dedicated test pages**: Each spec ID gets a page showing all related tests
-3. **Interactive test viewer**:
-   - Collapsible test content with disclosure triangles
-   - "Expand All" / "Collapse All" buttons
-   - Syntax-highlighted test code
-   - GitHub links for each test file
-   - Similar styling to RFC "All" page
+2. **Interactive Specification Viewer**:
+   - **Default**: Stable content only with visual RFC indicators
+   - **Expandable sections**: Click to reveal RFC variants inline
+   - **Toggle controls**: Show/hide specific RFCs globally
+   - **Visual badges**: Clear indication of available RFC variants
 
-**Implementation Approach**:
-- Enhance mdbook preprocessor to:
-  - Scan test files for `#:spec` annotations during build
-  - Build index mapping spec IDs → test files
-  - Modify `r[...]` rendering to add test icon links
-  - Generate test pages for each spec ID
-  - Include necessary CSS/JS for interactivity
+3. **Test Integration with Prefix Matching**:
+   - `#:spec syntax.string-literals` matches all sub-paragraphs
+   - Forces conscious review when new spec versions added
+   - Already implemented and working in test runner
 
-**Example test page** (`spec/src/tests/syntax.string-literals.escape-sequences.md`):
-- Lists all tests that reference this spec paragraph
-- Shows test content in collapsible sections
-- Links to GitHub for each test file
-- Maintains consistent GitHub-inspired styling
+4. **Recommended Tooling Approach**:
+   - **Custom Sphinx extension** generating layered HTML output
+   - Combines build-time processing with dynamic user interaction
+   - Leverages Sphinx's mature ecosystem while enabling interactive features
 
-### Implementation Plan
+**RFC Structure Validated:**
+- Used the RFC process to document itself as validation
+- Removed `spec.md` files from RFC template (spec text goes in main spec)
+- Documented complete lifecycle from authoring to implementation
+- Included comprehensive FAQ addressing design trade-offs
 
-**Phase 1: Test Runner Foundation**
-1. **Start with test runner** (`components/dada-lang/src/main_lib/test/expected.rs`)
-   - Add `spec_refs: Vec<String>` to `TestExpectations` struct
-   - Update `configuration()` method to parse `#:spec` lines
-   - This gives us basic parsing without breaking anything
+### Previous Completed Work Summary
 
-**Phase 2: Spec Validation**
-2. **Create spec validation module** (`components/dada-lang/src/main_lib/test/spec_validation.rs`)
-   - Parse spec mdbook to extract all `r[...]` labels
-   - Validate `#:spec` references against actual spec paragraphs
-   - Add validation to test runner
+**✅ RFC Workflow Infrastructure (2025-06-13)**
+- mdbook structures for both RFCs and spec
+- Auto-population of RFC navigation with status badges
+- Paragraph labeling system with `r[...]` syntax
+- Deploy script for all documentation sites
 
-**Phase 3: Test Integration**
-3. **Add spec validation to test execution** (update `test.rs`)
-   - Call spec validation during test runs
-   - Report invalid spec references as test failures
+**✅ Test-Spec Linking Foundation (2025-06-15)**  
+- Core `#:spec` comment validation system implemented
+- Test runner validates spec references against actual paragraphs
+- Foundation ready for enhanced mdbook integration phases
 
-**Phase 4: mdbook Enhancement**
-4. **Enhance mdbook preprocessor** (`components/dada-mdbook-preprocessor/src/lib.rs`)
-   - Scan test files for `#:spec` annotations during build
-   - Build spec-to-tests index
-   - Modify `r[...]` rendering to add test icons
+### Next Implementation Phases (When Resumed)
 
-**Phase 5: Test Viewer Pages**
-5. **Generate test viewer pages**
-   - Create test pages showing related tests
-   - Add collapsible content and GitHub links
+**Phase 1: Enhanced mdbook Preprocessor**
+- Parse `rfc[123]` annotations in spec files  
+- Implement prefix matching for test validation
+- Generate RFC-aware spec navigation
 
-**Phase 6: Polish**
-6. **Add CSS/JS for interactivity**
-   - Expand/collapse functionality
-   - Styling consistent with RFC pages
+**Phase 2: Interactive Specification Viewer**
+- Visual indicators for RFC content availability
+- Expandable sections with JavaScript controls
+- CSS styling for RFC variants and stable content
 
-## Progress Update: Test-Spec Linking Implementation (2025-06-15)
+**Phase 3: Alternative Tooling Evaluation**
+- Prototype custom Sphinx extension approach
+- Compare user experience between mdbook and Sphinx implementations
+- Make final tooling decision based on actual usage
 
-### ✅ COMPLETED: Phases 1-3 of Test-Spec Linking System
+### Session Summary (2025-06-16)
+Successfully completed comprehensive RFC-0002 documenting the entire RFC process and specification workflow. All major design decisions resolved and documented. Ready for implementation when development resumes.
 
-**Implementation Summary:**
-Successfully implemented the core `#:spec` comment validation system that validates test file spec references against actual spec paragraphs.
-
-**What's Working:**
-- ✅ **Phase 1**: Test runner foundation - Added `spec_refs: Vec<String>` to `TestExpectations` struct and parsing for `#:spec` configuration comments
-- ✅ **Phase 2**: Spec validation module - Created `SpecValidator` that scans `spec/src/` directory and extracts all `r[...]` labels using regex
-- ✅ **Phase 3**: Test integration - Added `InvalidSpecReference` failure type and integrated validation into test execution flow
-- ✅ **Error reporting**: Clear error messages in test reports when spec references are invalid
-- ✅ **Validation logic**: Validates `#:spec topic.subtopic.detail` annotations against actual spec paragraph labels
-
-**Technical Details:**
-- `SpecValidator::new()` recursively scans spec mdbook source files
-- Extracts spec IDs using pattern `r\[([^\]]+)\]` 
-- Validation runs during `TestExpectations::compare()` method
-- Invalid references reported as test failures with helpful guidance
-- Added test file `tests/test_spec_parsing.dada` demonstrating usage
-
-**Commit:** `319d9217` - "Implement #:spec comment validation system for test-spec linking"
-
-### Remaining Tasks (Lower Priority)
-
-**Phase 4-6: Enhanced mdbook Integration**
-- **Phase 4**: Enhance mdbook preprocessor to scan test files and build spec-to-tests index
-- **Phase 5**: Generate interactive test viewer pages showing tests for each spec paragraph  
-- **Phase 6**: Add CSS/JS for expand/collapse functionality and GitHub-consistent styling
-
-**Design for Future Phases:**
-- Test icon (🧪) next to `r[...]` labels linking to test pages
-- Dedicated pages like `spec/src/tests/syntax.string-literals.basic.md` showing related tests
-- Collapsible test content with syntax highlighting and GitHub links
-- "Expand All" / "Collapse All" buttons for test viewer pages
-
-### Session Summary (2025-06-15)
-Core `#:spec` validation system is production-ready. Test files can now reference spec paragraphs and get immediate validation feedback. The foundation is in place for future enhanced mdbook integration phases.
+## Context for Future Sessions
+- RFC-0002 serves as canonical reference for the workflow
+- All design questions resolved - ready for tooling implementation
+- Choice between enhanced mdbook vs custom Sphinx extension documented
+- Test-spec linking foundation already implemented and working
