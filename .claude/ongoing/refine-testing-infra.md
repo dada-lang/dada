@@ -218,3 +218,48 @@ The refactored code is now:
 
 **Lines of code eliminated**: ~100+ lines of duplicate logic
 **Maintainability impact**: Significant - changes to test execution logic now only need to be made in one place
+
+## Simplified Porcelain Output and Enhanced Test Reports (2025-01-22)
+
+### ✅ COMPLETED: Simplified Approach with Rich Test Reports
+
+**Problem Addressed**: The porcelain output was getting complex with multiple failure reason categories and trying to be "smart" in the JSON. This duplicated logic and made maintenance harder.
+
+**Solution Implemented**: 
+- ✅ **Simplified porcelain output** - All failures now return `"test_failure"` with suggestion to consult test report
+- ✅ **Enhanced test reports** - Added "🎯 Next Steps" section with intelligent failure analysis and guidance
+- ✅ **Accurate diagnostic annotation guidance** - Documented the correct `#!` syntax with regex support and line matching rules
+- ✅ **Streamlined CLAUDE.md** - Concise guidance focusing on the essential workflow
+
+### Architecture Benefits Achieved
+
+**Better Separation of Concerns**:
+- **Porcelain output**: Simple, consistent, machine-readable (25-word guidance in CLAUDE.md)
+- **Test reports**: Rich, detailed, intelligent analysis with specific commands and decision trees
+
+**Enhanced AI Guidance**:
+- Test reports now include targeted advice for diagnostic expectation issues
+- Clear decision trees: add annotations vs fix compiler vs bless references  
+- Accurate format details for `#!` diagnostic annotations with regex patterns
+- Specific guidance for different failure types (ICE, spec validation, etc.)
+
+**Maintainability Improvements**:
+- Eliminated complex categorization logic in `analyze_failure()` (~50 lines removed)  
+- Added comprehensive `add_guidance_section()` method (~80 lines) with reusable failure analysis
+- All intelligent guidance now centralized in test report generation
+
+### Resolution of Follow-up Issues
+
+**Issue 1 (Porcelain Output Purity)**: ✅ RESOLVED - Confirmed that stderr output is expected and doesn't break JSON parsing from stdout
+
+**Issue 2 (Actionability of Failure Details)**: ✅ RESOLVED - Moved all detailed guidance into test reports where it belongs, with much richer context than could fit in JSON
+
+### Final Status: PRODUCTION READY
+
+The testing infrastructure now provides:
+- ✅ Clean, simple porcelain output for AI parsing
+- ✅ Rich, actionable test reports with step-by-step guidance  
+- ✅ Accurate documentation for diagnostic annotation syntax
+- ✅ Optimized AI assistant workflow
+
+**Commit**: `086c4eda` - "Simplify porcelain output and enhance test report guidance"
