@@ -81,6 +81,10 @@ pub struct TestOptions {
     #[structopt(long, short)]
     verbose: bool,
 
+    /// Output machine-readable JSON instead of human-friendly text
+    #[structopt(long)]
+    porcelain: bool,
+
     /// Test file(s) or directory
     inputs: Vec<String>,
 }

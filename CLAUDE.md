@@ -2,6 +2,7 @@
 
 **IMPORTANT: Always check this file and `.development/` FIRST before analyzing the codebase or answering questions about established patterns.**
 
+
 This file provides Claude-specific guidance when working with the Dada compiler repository.
 
 ## Behavior Guidelines
@@ -37,6 +38,23 @@ cargo dada test               # Run test suite
 just test                     # Run all tests
 just doc-open                 # Generate and open documentation
 ```
+
+### Testing Quick Reference  
+- **Run tests**: `cargo dada test` (from repo root, not component dirs)
+- **AI-friendly output**: `cargo dada test --porcelain` (structured JSON output)
+- **Bless references**: `UPDATE_EXPECT=1 cargo dada test` (updates `.ref` files)
+
+### Parsing `--porcelain` Output
+JSON structure: `{summary: {total, passed, failed, duration_ms}, tests: [...]}`
+
+For each test object:
+- `status`: "pass" or "fail"  
+- `reason`: failure category (only present when status is "fail")
+- `annotations`: array of `#:` comments from test file
+- `suggestion`: actionable guidance (or null)
+- `details`: technical error information
+
+Follow the `suggestion` field for next steps on failures.
 
 ### Language Characteristics
 - **Async-first**: Functions are async by default

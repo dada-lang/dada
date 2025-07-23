@@ -335,6 +335,22 @@ impl TestExpectations {
         );
     }
 
+    pub fn fn_asts(&self) -> bool {
+        self.fn_asts
+    }
+
+    pub fn codegen(&self) -> bool {
+        self.codegen
+    }
+
+    pub fn fixme(&self) -> bool {
+        self.fixme
+    }
+
+    pub fn spec_refs(&self) -> &[String] {
+        &self.spec_refs
+    }
+
     pub fn compare(self, compiler: &mut Compiler) -> Fallible<(Option<FailedTest>, bool)> {
         use std::fmt::Write;
 

@@ -1,6 +1,7 @@
 use std::{
     panic::AssertUnwindSafe,
     path::{Path, PathBuf},
+    time::Instant,
 };
 
 use dada_compiler::{Compiler, RealFs};
@@ -10,6 +11,7 @@ use expected::{ExpectedDiagnostic, Probe};
 use indicatif::ProgressBar;
 use panic_hook::CapturedPanic;
 use rayon::prelude::*;
+use serde::Serialize;
 use walkdir::WalkDir;
 
 use crate::{GlobalOptions, TestOptions};
@@ -41,6 +43,15 @@ enum TestResult {
     Failed(FailedTest),
     /// FIXME test failed as expected
     FixmeFailed(FailedTest),
+}
+
+/// Enhanced test result with timing and metadata for porcelain output
+#[derive(Debug)]
+struct DetailedTestResult {
+    path: PathBuf,
+    result: TestResult,
+    duration_ms: u64,
+    annotations: Vec<String>,
 }
 
 #[derive(Debug)]
@@ -80,36 +91,74 @@ enum Failure {
 
 impl Failure {}
 
+/// JSON output structures for --porcelain mode
+#[derive(Serialize)]
+struct PorcelainOutput {
+    summary: PorcelainSummary,
+    tests: Vec<PorcelainTest>,
+}
+
+#[derive(Serialize)]
+struct PorcelainSummary {
+    total: usize,
+    passed: usize,
+    failed: usize,
+    duration_ms: u64,
+}
+
+#[derive(Serialize)]
+struct PorcelainTest {
+    path: String,
+    status: String,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    reason: Option<String>,
+    annotations: Vec<String>,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    suggestion: Option<String>,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    details: Option<String>,
+    duration_ms: u64,
+}
+
 mod panic_hook;
 
-impl Main {
-    pub(super) fn test(&mut self, mut options: TestOptions) -> Fallible<()> {
-        let tests = if options.inputs.is_empty() {
-            self.assemble_tests(&["tests"], &mut false)?
-        } else {
-            self.assemble_tests(&options.inputs, &mut options.verbose)?
-        };
+/// Trait for formatting test output in different modes
+trait TestOutputFormatter: Sync + Send {
+    fn format_results(&self, results: Vec<DetailedTestResult>, total_duration_ms: u64) -> Fallible<()>;
+    fn show_progress(&self, path: &Path, result: &DetailedTestResult, verbose: bool);
+}
 
-        let progress_bar = ProgressBar::new(tests.len() as u64);
+/// Formats output for human consumption with progress bars
+struct RegularFormatter {
+    progress_bar: ProgressBar,
+}
 
-        let test_results: Vec<Fallible<TestResult>> = panic_hook::recording_panics(|| {
-            if options.verbose {
-                tests
-                    .iter()
-                    .map(|input| self.run_test_with_progress(&options, input, &progress_bar))
-                    .collect()
-            } else {
-                tests
-                    .par_iter()
-                    .map(|input| self.run_test_with_progress(&options, input, &progress_bar))
-                    .collect()
+impl TestOutputFormatter for RegularFormatter {
+    fn show_progress(&self, path: &Path, result: &DetailedTestResult, verbose: bool) {
+        if verbose {
+            self.progress_bar.println(format!("{}: beginning test", path.display()));
+            match &result.result {
+                TestResult::Passed => {}
+                TestResult::Failed(error) => {
+                    self.progress_bar.println(format!("{}: {}", path.display(), error.summarize()));
+                }
+                TestResult::FixmeFailed(error) => {
+                    self.progress_bar.println(format!("{}: {} (FIXME)", path.display(), error.summarize()));
+                }
             }
-        });
+        }
+        
+        // Increment progress bar after each test
+        self.progress_bar.inc(1);
+    }
 
+    fn format_results(&self, results: Vec<DetailedTestResult>, _total_duration_ms: u64) -> Fallible<()> {
         let mut failed_tests = vec![];
         let mut fixme_failed_tests = vec![];
-        for test_result in test_results {
-            match test_result? {
+        
+        let total_tests = results.len();
+        for detailed_result in results {
+            match detailed_result.result {
                 TestResult::Passed => {}
                 TestResult::Failed(failed_test) => failed_tests.push(failed_test),
                 TestResult::FixmeFailed(failed_test) => fixme_failed_tests.push(failed_test),
@@ -119,14 +168,15 @@ impl Main {
         if failed_tests.len() == 1 {
             for failed_test in &failed_tests {
                 let test_report = std::fs::read_to_string(failed_test.test_report_path())?;
-                progress_bar.println(test_report);
+                self.progress_bar.println(test_report);
             }
         }
 
-        let total_passed = tests.len() - failed_tests.len() - fixme_failed_tests.len();
+        let total_passed = total_tests - failed_tests.len() - fixme_failed_tests.len();
+        
         if failed_tests.is_empty() {
             let message = if fixme_failed_tests.is_empty() {
-                format!("All {} tests passed", tests.len())
+                format!("All {} tests passed", total_tests)
             } else {
                 format!(
                     "{} tests passed, {} FIXME tests failed (ignored)",
@@ -134,18 +184,110 @@ impl Main {
                     fixme_failed_tests.len()
                 )
             };
-            progress_bar.println(message);
-            progress_bar.finish();
-
+            self.progress_bar.println(message);
+            self.progress_bar.finish();
             Ok(())
         } else {
-            // Include unexpected passing FIXME tests in the error count
             let message = format!("{} test failure(s)", failed_tests.len());
-            progress_bar.println(message);
-            progress_bar.finish();
-
+            self.progress_bar.println(message);
+            self.progress_bar.finish();
             Err(FailedTests { failed_tests }.into())
         }
+    }
+}
+
+/// Formats output as machine-readable JSON
+struct PorcelainFormatter;
+
+impl TestOutputFormatter for PorcelainFormatter {
+    fn show_progress(&self, _path: &Path, _result: &DetailedTestResult, _verbose: bool) {
+        // No progress output for porcelain mode
+    }
+
+    fn format_results(&self, results: Vec<DetailedTestResult>, total_duration_ms: u64) -> Fallible<()> {
+        let mut porcelain_tests = Vec::new();
+        let mut failed_count = 0;
+
+        for detailed_result in &results {
+            let porcelain_test = convert_to_porcelain_test(detailed_result);
+            if porcelain_test.status == "fail" {
+                failed_count += 1;
+            }
+            porcelain_tests.push(porcelain_test);
+        }
+
+        let passed_count = results.len() - failed_count;
+
+        let output = PorcelainOutput {
+            summary: PorcelainSummary {
+                total: results.len(),
+                passed: passed_count,
+                failed: failed_count,
+                duration_ms: total_duration_ms,
+            },
+            tests: porcelain_tests,
+        };
+
+        println!("{}", serde_json::to_string_pretty(&output)?);
+
+        if failed_count > 0 {
+            // Create dummy failed tests for error handling
+            let failed_tests: Vec<FailedTest> = output.tests
+                .iter()
+                .filter(|t| t.status == "fail")
+                .map(|t| FailedTest {
+                    path: PathBuf::from(&t.path),
+                    full_compiler_output: t.details.clone().unwrap_or_default(),
+                    failures: vec![], // We don't need detailed failures for porcelain mode
+                })
+                .collect();
+            Err(FailedTests { failed_tests }.into())
+        } else {
+            Ok(())
+        }
+    }
+}
+
+impl Main {
+    pub(super) fn test(&mut self, mut options: TestOptions) -> Fallible<()> {
+        let tests = if options.inputs.is_empty() {
+            self.assemble_tests(&["tests"], &mut false)?
+        } else {
+            self.assemble_tests(&options.inputs, &mut options.verbose)?
+        };
+
+        let start_time = Instant::now();
+
+        // Create appropriate formatter
+        let formatter: Box<dyn TestOutputFormatter> = if options.porcelain {
+            Box::new(PorcelainFormatter)
+        } else {
+            Box::new(RegularFormatter {
+                progress_bar: ProgressBar::new(tests.len() as u64),
+            })
+        };
+
+        // Run tests
+        let test_results: Vec<Fallible<DetailedTestResult>> = panic_hook::recording_panics(|| {
+            let runner = |input: &Path| -> Fallible<DetailedTestResult> {
+                let result = self.run_test(input)?;
+                formatter.show_progress(input, &result, options.verbose);
+                Ok(result)
+            };
+
+            if options.verbose {
+                tests.iter().map(|input| runner(input)).collect()
+            } else {
+                tests.par_iter().map(|input| runner(input)).collect()
+            }
+        });
+
+        // Collect results
+        let results: Result<Vec<DetailedTestResult>, _> = test_results.into_iter().collect();
+        let results = results?;
+
+        let total_duration = start_time.elapsed().as_millis() as u64;
+        formatter.format_results(results, total_duration)
     }
 
     fn assemble_tests(
@@ -186,97 +328,181 @@ impl Main {
         Ok(result)
     }
 
-    fn run_test_with_progress(
-        &self,
-        options: &TestOptions,
-        input: &Path,
-        progress_bar: &ProgressBar,
-    ) -> Fallible<TestResult> {
-        timeout_warning::timeout_warning(input, || {
-            if options.verbose {
-                progress_bar.println(format!("{}: beginning test", input.display(),));
-            }
-
-            let result = self.run_test(input);
-            match &result {
-                Ok(TestResult::Passed) => {}
-                Ok(TestResult::Failed(error)) => {
-                    progress_bar.println(format!("{}: {}", input.display(), error.summarize()));
-                    if options.verbose {
-                        let test_report = std::fs::read_to_string(error.test_report_path())?;
-                        progress_bar.println(test_report);
-                    }
-                }
-                Ok(TestResult::FixmeFailed(error)) => {
-                    progress_bar.println(format!(
-                        "{}: FIXME test failed (as expected), {}",
-                        input.display(),
-                        error.summarize()
-                    ));
-                    if options.verbose {
-                        let test_report = std::fs::read_to_string(error.test_report_path())?;
-                        progress_bar.println(test_report);
-                    }
-                }
-                Err(error) => progress_bar.println(format!(
-                    "{}: test harness errored, {}",
-                    input.display(),
-                    error
-                )),
-            }
-            progress_bar.inc(1);
-            result
-        })
-    }
-
     /// Run a single test found at the given path.
     ///
     /// # Returns
     ///
     /// * `Err(e)` for some failure in the test harness itself.
-    /// * `Ok(result)` with the test result.
-    fn run_test(&self, input: &Path) -> Fallible<TestResult> {
+    /// * `Ok(result)` with the detailed test result including timing and annotations.
+    fn run_test(&self, input: &Path) -> Fallible<DetailedTestResult> {
+        let start_time = Instant::now();
+        
         assert!(is_dada_file(input));
         let mut compiler = Compiler::new(RealFs::default(), None);
 
+        // Get test annotations and run the test
+        let source_file = compiler.load_source_file(input)?;
+        let expectations = expected::TestExpectations::new(&compiler, source_file)?;
+        let annotations = extract_annotations(&expectations);
+        
         // Run the test and capture panics
         let result = std::panic::catch_unwind(AssertUnwindSafe(|| {
-            let source_file = compiler.load_source_file(input)?;
-            let expectations = expected::TestExpectations::new(&compiler, source_file)?;
             expectations.compare(&mut compiler)
         }));
 
-        let (failed_test, is_fixme) = match result {
-            // No panic occurred: just propagate test harness errors and continue
-            Ok(r) => r?,
+        let duration_ms = start_time.elapsed().as_millis() as u64;
 
-            // Panic occurred: convert that into a test failure
+        let test_result = match result {
+            Ok(r) => {
+                let (failed_test, is_fixme) = r?;
+                match (failed_test, is_fixme) {
+                    (None, false) => {
+                        delete_test_report(input)?;
+                        TestResult::Passed
+                    }
+                    (None, true) => {
+                        let failed_test = FailedTest::fixme_passed(input);
+                        failed_test.generate_test_report(&compiler)?;
+                        TestResult::Failed(failed_test)
+                    }
+                    (Some(failed_test), is_fixme) => {
+                        failed_test.generate_test_report(&compiler)?;
+                        if is_fixme {
+                            TestResult::FixmeFailed(failed_test)
+                        } else {
+                            TestResult::Failed(failed_test)
+                        }
+                    }
+                }
+            }
             Err(_unwound) => {
                 let captured_panic = panic_hook::captured_panic();
-                (Some(FailedTest::ice(input, captured_panic)), false)
+                let failed_test = FailedTest::ice(input, captured_panic);
+                failed_test.generate_test_report(&compiler)?;
+                TestResult::Failed(failed_test)
             }
         };
 
-        match (failed_test, is_fixme) {
-            (None, false) => {
-                delete_test_report(input)?;
-                Ok(TestResult::Passed)
+        Ok(DetailedTestResult {
+            path: input.to_path_buf(),
+            result: test_result,
+            duration_ms,
+            annotations,
+        })
+    }
+
+}
+
+fn extract_annotations(expectations: &expected::TestExpectations) -> Vec<String> {
+    let mut annotations = Vec::new();
+    
+    // Check the TestExpectations struct fields and convert to string annotations
+    if expectations.fn_asts() {
+        annotations.push("#:fn_asts".to_string());
+    }
+    if !expectations.codegen() {
+        annotations.push("#:skip_codegen".to_string());
+    }
+    if expectations.fixme() {
+        annotations.push("#:FIXME".to_string());
+    }
+    
+    // Add spec references
+    for spec_ref in expectations.spec_refs() {
+        annotations.push(format!("#:spec {}", spec_ref));
+    }
+    
+    annotations
+}
+
+fn convert_to_porcelain_test(detailed_result: &DetailedTestResult) -> PorcelainTest {
+    let path = detailed_result.path.to_string_lossy().to_string();
+    
+    match &detailed_result.result {
+        TestResult::Passed => PorcelainTest {
+            path,
+            status: "pass".to_string(),
+            reason: None,
+            annotations: detailed_result.annotations.clone(),
+            suggestion: None,
+            details: None,
+            duration_ms: detailed_result.duration_ms,
+        },
+        TestResult::Failed(failed_test) => {
+            let (reason, suggestion, details) = analyze_failure(failed_test);
+            PorcelainTest {
+                path,
+                status: "fail".to_string(),
+                reason: Some(reason),
+                annotations: detailed_result.annotations.clone(),
+                suggestion: Some(suggestion),
+                details: Some(details),
+                duration_ms: detailed_result.duration_ms,
             }
-            (None, true) => {
-                let failed_test = FailedTest::fixme_passed(input);
-                failed_test.generate_test_report(&compiler)?;
-                Ok(TestResult::Failed(failed_test))
+        },
+        TestResult::FixmeFailed(_failed_test) => PorcelainTest {
+            path,
+            status: "pass".to_string(), // FIXME failures are treated as expected (passed)
+            reason: None,
+            annotations: detailed_result.annotations.clone(),
+            suggestion: None,
+            details: None,
+            duration_ms: detailed_result.duration_ms,
+        },
+    }
+}
+
+fn analyze_failure(failed_test: &FailedTest) -> (String, String, String) {
+    // Analyze the failure to categorize it and provide appropriate suggestion
+    for failure in &failed_test.failures {
+        match failure {
+            Failure::Auxiliary { ref_path, .. } => {
+                let suggestion = format!(
+                    "Run UPDATE_EXPECT=1 cargo dada test {} to update the reference file",
+                    failed_test.path.to_string_lossy()
+                );
+                let details = format!("Output differs from reference file: {}", ref_path.to_string_lossy());
+                return ("reference_mismatch".to_string(), suggestion, details);
             }
-            (Some(failed_test), is_fixme) => {
-                failed_test.generate_test_report(&compiler)?;
-                if is_fixme {
-                    Ok(TestResult::FixmeFailed(failed_test))
+            Failure::UnexpectedDiagnostic(diag) | Failure::MultipleMatches(_, diag) => {
+                if diag.level == Level::Error {
+                    return (
+                        "compilation_error".to_string(),
+                        "Fix the compilation error shown in details".to_string(),
+                        diag.message.clone(),
+                    );
                 } else {
-                    Ok(TestResult::Failed(failed_test))
+                    return (
+                        "runtime_error".to_string(),
+                        "Fix the runtime error shown in details".to_string(),
+                        diag.message.clone(),
+                    );
                 }
             }
+            Failure::InternalCompilerError(_) => {
+                return (
+                    "runtime_error".to_string(),
+                    "Internal compiler error - this may be a bug in the compiler".to_string(),
+                    failed_test.full_compiler_output.clone(),
+                );
+            }
+            Failure::InvalidSpecReference(spec_ref) => {
+                return (
+                    "spec_validation_error".to_string(),
+                    "Fix the #:spec annotation - the referenced spec paragraph may not exist".to_string(),
+                    format!("Invalid spec reference: {}", spec_ref),
+                );
+            }
+            _ => continue,
         }
     }
+
+    // Default case
+    (
+        "runtime_error".to_string(),
+        "Check the test output for errors".to_string(),
+        failed_test.full_compiler_output.clone(),
+    )
 }
 
 fn is_dada_file(input: &Path) -> bool {
