@@ -453,55 +453,14 @@ fn convert_to_porcelain_test(detailed_result: &DetailedTestResult) -> PorcelainT
 }
 
 fn analyze_failure(failed_test: &FailedTest) -> (String, String, String) {
-    // Analyze the failure to categorize it and provide appropriate suggestion
-    for failure in &failed_test.failures {
-        match failure {
-            Failure::Auxiliary { ref_path, .. } => {
-                let suggestion = format!(
-                    "Run UPDATE_EXPECT=1 cargo dada test {} to update the reference file",
-                    failed_test.path.to_string_lossy()
-                );
-                let details = format!("Output differs from reference file: {}", ref_path.to_string_lossy());
-                return ("reference_mismatch".to_string(), suggestion, details);
-            }
-            Failure::UnexpectedDiagnostic(diag) | Failure::MultipleMatches(_, diag) => {
-                if diag.level == Level::Error {
-                    return (
-                        "compilation_error".to_string(),
-                        "Fix the compilation error shown in details".to_string(),
-                        diag.message.clone(),
-                    );
-                } else {
-                    return (
-                        "runtime_error".to_string(),
-                        "Fix the runtime error shown in details".to_string(),
-                        diag.message.clone(),
-                    );
-                }
-            }
-            Failure::InternalCompilerError(_) => {
-                return (
-                    "runtime_error".to_string(),
-                    "Internal compiler error - this may be a bug in the compiler".to_string(),
-                    failed_test.full_compiler_output.clone(),
-                );
-            }
-            Failure::InvalidSpecReference(spec_ref) => {
-                return (
-                    "spec_validation_error".to_string(),
-                    "Fix the #:spec annotation - the referenced spec paragraph may not exist".to_string(),
-                    format!("Invalid spec reference: {}", spec_ref),
-                );
-            }
-            _ => continue,
-        }
-    }
-
-    // Default case
+    // Simplified approach: always point to test report for detailed guidance
+    let test_report_path = failed_test.test_report_path();
+    let suggestion = format!("Consult {} for details and guidance", test_report_path.display());
+    
     (
-        "runtime_error".to_string(),
-        "Check the test output for errors".to_string(),
-        failed_test.full_compiler_output.clone(),
+        "test_failure".to_string(),
+        suggestion,
+        "See test report for detailed analysis and next steps".to_string(),
     )
 }
 
@@ -708,7 +667,96 @@ impl FailedTest {
             }
         }
 
+        // Add intelligent guidance section
+        self.add_guidance_section(&mut result)?;
+
         Ok(result)
+    }
+
+    fn add_guidance_section(&self, result: &mut String) -> Fallible<()> {
+        use std::fmt::Write;
+        
+        // Count different types of failures to provide targeted guidance
+        let mut unexpected_diagnostics = 0;
+        let mut missing_diagnostics = 0;
+        let mut multiple_matches = 0;
+        let mut auxiliary_failures = 0;
+        let mut ice_failures = 0;
+        let mut spec_failures = 0;
+        let mut fixme_passed = 0;
+        
+        for failure in &self.failures {
+            match failure {
+                Failure::UnexpectedDiagnostic(_) => unexpected_diagnostics += 1,
+                Failure::MissingDiagnostic(_) => missing_diagnostics += 1,
+                Failure::MultipleMatches(_, _) => multiple_matches += 1,
+                Failure::Auxiliary { .. } => auxiliary_failures += 1,
+                Failure::InternalCompilerError(_) => ice_failures += 1,
+                Failure::InvalidSpecReference(_) => spec_failures += 1,
+                Failure::FixmePassed => fixme_passed += 1,
+                _ => {}
+            }
+        }
+        
+        writeln!(result)?;
+        writeln!(result, "# 🎯 Next Steps")?;
+        writeln!(result)?;
+        
+        // Provide specific guidance based on failure types
+        if unexpected_diagnostics > 0 || missing_diagnostics > 0 || multiple_matches > 0 {
+            writeln!(result, "## Diagnostic Expectation Issues")?;
+            writeln!(result)?;
+            writeln!(result, "This test has diagnostic-related failures. Choose one approach:")?;
+            writeln!(result)?;
+            writeln!(result, "**Option 1: Add diagnostic annotations** (if these errors are expected)")?;
+            writeln!(result, "- Add `#! error message` or `#! ^^^ error message` annotations")?;
+            writeln!(result, "- Use `#! /regex/` or `#! ^^^ /regex/` for regex matching (e.g., `#! /could not find.*Baz/`)")?;
+            writeln!(result, "- Annotation can be on the same line as the error OR on any following line")?;
+            writeln!(result, "- The `^^^` markers indicate exact column positioning (optional)")?;
+            writeln!(result, "- Without `^^^`, the diagnostic just needs to start somewhere on the most recent non-empty, non-comment line")?;
+            writeln!(result, "- Look at other test files for annotation examples")?;
+            writeln!(result)?;
+            writeln!(result, "**Option 2: Fix the compiler/code** (if these errors are bugs)")?;
+            writeln!(result, "- If diagnostics are incorrect, investigate the compiler logic")?;
+            writeln!(result, "- If test code is wrong, fix the test source")?;
+            writeln!(result)?;
+            writeln!(result, "💡 **When in doubt**: Consult the user to clarify the test's intent")?;
+            writeln!(result)?;
+        }
+        
+        if auxiliary_failures > 0 {
+            writeln!(result, "## Reference File Mismatch")?;
+            writeln!(result)?;
+            writeln!(result, "Output differs from reference files. If the new output is correct:")?;
+            writeln!(result, "```bash")?;
+            writeln!(result, "UPDATE_EXPECT=1 cargo dada test {}", self.path.to_string_lossy())?;
+            writeln!(result, "```")?;
+            writeln!(result)?;
+        }
+        
+        if ice_failures > 0 {
+            writeln!(result, "## Internal Compiler Error")?;
+            writeln!(result)?;
+            writeln!(result, "The compiler crashed - this indicates a compiler bug that needs investigation.")?;
+            writeln!(result)?;
+        }
+        
+        if spec_failures > 0 {
+            writeln!(result, "## Invalid Spec Reference")?;
+            writeln!(result)?;
+            writeln!(result, "Fix the `#:spec` annotation to reference a valid spec paragraph.")?;
+            writeln!(result)?;
+        }
+        
+        if fixme_passed > 0 {
+            writeln!(result, "## FIXME Test Passed")?;
+            writeln!(result)?;
+            writeln!(result, "This test was marked as FIXME but now passes - the bug may be fixed!")?;
+            writeln!(result, "Consider removing the FIXME annotation.")?;
+            writeln!(result)?;
+        }
+        
+        Ok(())
     }
 
     fn relativize<'aux>(&self, test_path: &Path, aux_path: &'aux Path) -> &'aux Path {

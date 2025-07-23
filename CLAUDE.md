@@ -56,6 +56,12 @@ For each test object:
 
 Follow the `suggestion` field for next steps on failures.
 
+### Handling Test Failures
+
+When tests fail (`"reason": "test_failure"`):
+1. **Read the test report** - Path is in the `suggestion` field
+2. **Follow "🎯 Next Steps"** - The report contains specific guidance and commands
+
 ### Language Characteristics
 - **Async-first**: Functions are async by default
 - **Permission system**: Uses `my`, `our`, `leased` annotations for memory management
