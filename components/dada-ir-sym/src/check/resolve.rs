@@ -166,9 +166,9 @@ impl<'env, 'db> Resolver<'env, 'db> {
     /// Return the bounding perm on the permission inference variable `v` from the given `direction`.
     fn bounding_perm(&self, infer: InferVarIndex, direction: Direction) -> Option<SymPerm<'db>> {
         let runtime = self.env.runtime().clone();
-        runtime.with_inference_var_data(infer, |data| match data.red_perm_bound(direction) {
-            Some((bound, _)) => Some(bound.to_sym_perm(self.db)),
-            None => None,
+        runtime.with_inference_var_data(infer, |data| {
+            data.red_perm_bound(direction)
+                .map(|(bound, _)| bound.to_sym_perm(self.db))
         })
     }
 

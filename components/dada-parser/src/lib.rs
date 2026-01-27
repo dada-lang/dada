@@ -235,7 +235,7 @@ impl<'token, 'db> Parser<'token, 'db> {
     /// This implements **eager error consumption** - error tokens from the tokenizer
     /// are immediately converted to diagnostics rather than disrupting normal parsing.
     /// Called automatically after each `eat_next_token()` to maintain clean token streams.
-    /// 
+    ///
     /// This pattern allows parsing to continue after tokenizer errors, enabling
     /// better error recovery and multiple error reporting in a single pass.
     fn eat_errors(&mut self) {

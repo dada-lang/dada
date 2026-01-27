@@ -233,7 +233,6 @@ impl<'db> crate::prelude::FunctionBlock<'db> for AstFunction<'db> {
     }
 }
 
-
 impl<'db> Parse<'db> for AstBlock<'db> {
     type Output = Self;
 

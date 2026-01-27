@@ -42,7 +42,12 @@ impl Rfc {
         // Update SUMMARY.md
         self.update_summary(&rfcs_dir, rfc_number, name, &rfc_dir_name)?;
 
-        println!("Created RFC-{:04}: {} in {}", rfc_number, name, rfc_dir.display());
+        println!(
+            "Created RFC-{:04}: {} in {}",
+            rfc_number,
+            name,
+            rfc_dir.display()
+        );
         println!("Don't forget to update the RFC status when ready!");
 
         Ok(())
@@ -56,7 +61,7 @@ impl Rfc {
             if entry.file_type()?.is_dir() {
                 let dir_name = entry.file_name();
                 let dir_str = dir_name.to_string_lossy();
-                
+
                 // Extract number from directory names like "0001-feature-name"
                 if let Some(number_str) = dir_str.split('-').next() {
                     if let Ok(number) = number_str.parse::<u32>() {
@@ -69,9 +74,15 @@ impl Rfc {
         Ok(max_number + 1)
     }
 
-    fn copy_template_files(&self, rfcs_dir: &PathBuf, rfc_dir: &PathBuf, rfc_number: u32, name: &str) -> anyhow::Result<()> {
+    fn copy_template_files(
+        &self,
+        rfcs_dir: &PathBuf,
+        rfc_dir: &PathBuf,
+        rfc_number: u32,
+        name: &str,
+    ) -> anyhow::Result<()> {
         let template_dir = rfcs_dir.join("0000-template");
-        
+
         // Iterate through all files in the template directory
         for entry in fs::read_dir(&template_dir)? {
             let entry = entry?;
@@ -79,13 +90,13 @@ impl Rfc {
                 let file_name = entry.file_name();
                 let template_file = entry.path();
                 let target_file = rfc_dir.join(&file_name);
-                
+
                 // Read template content
                 let content = fs::read_to_string(&template_file)?;
-                
+
                 // Replace template placeholders
                 let updated_content = self.process_template_content(&content, rfc_number, name);
-                
+
                 // Write to new RFC directory
                 fs::write(&target_file, updated_content)?;
             }
@@ -96,24 +107,39 @@ impl Rfc {
 
     fn process_template_content(&self, content: &str, rfc_number: u32, name: &str) -> String {
         let rfc_title = name.replace('-', " ");
-        
+
         content
             .replace("RFC-0000", &format!("RFC-{:04}", rfc_number))
-            .replace("RFC-0000: Template", &format!("RFC-{:04}: {}", rfc_number, rfc_title))
-            .replace("> **Note:** To create a new RFC, run `cargo xtask rfc new feature-name`\n\n", "")
+            .replace(
+                "RFC-0000: Template",
+                &format!("RFC-{:04}: {}", rfc_number, rfc_title),
+            )
+            .replace(
+                "> **Note:** To create a new RFC, run `cargo xtask rfc new feature-name`\n\n",
+                "",
+            )
     }
 
-    fn update_summary(&self, rfcs_dir: &PathBuf, rfc_number: u32, name: &str, rfc_dir_name: &str) -> anyhow::Result<()> {
+    fn update_summary(
+        &self,
+        rfcs_dir: &PathBuf,
+        rfc_number: u32,
+        name: &str,
+        rfc_dir_name: &str,
+    ) -> anyhow::Result<()> {
         let summary_path = rfcs_dir.join("SUMMARY.md");
         let summary_content = fs::read_to_string(&summary_path)?;
 
         // Find the "# Active RFCs" section and add the new RFC
         let rfc_title = name.replace('-', " ");
-        let new_rfc_line = format!("- [RFC-{:04}: {}]({}/README.md)", rfc_number, rfc_title, rfc_dir_name);
-        
+        let new_rfc_line = format!(
+            "- [RFC-{:04}: {}]({}/README.md)",
+            rfc_number, rfc_title, rfc_dir_name
+        );
+
         let updated_content = if let Some(_active_pos) = summary_content.find("# Active RFCs") {
             let mut lines: Vec<&str> = summary_content.lines().collect();
-            
+
             // Find the line after "# Active RFCs"
             let mut insert_pos = None;
             for (i, line) in lines.iter().enumerate() {
@@ -122,7 +148,7 @@ impl Rfc {
                     break;
                 }
             }
-            
+
             if let Some(pos) = insert_pos {
                 lines.insert(pos, &new_rfc_line);
                 lines.join("\n")

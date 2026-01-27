@@ -30,13 +30,12 @@ fn parse_serde_attrs(attrs: &[Attribute]) -> SerdeAttrs {
                             {
                                 result.rename = Some(lit.value());
                             }
-                        } else if name_value.path.is_ident("serialize_with") {
-                            if let Expr::Lit(ExprLit {
+                        } else if name_value.path.is_ident("serialize_with")
+                            && let Expr::Lit(ExprLit {
                                 lit: Lit::Str(lit), ..
                             }) = name_value.value
-                            {
-                                result.serialize_with = Some(lit.value());
-                            }
+                        {
+                            result.serialize_with = Some(lit.value());
                         }
                     }
                     Meta::Path(path) => {

@@ -24,7 +24,7 @@ impl SpecValidator {
     /// Loads all spec IDs from the spec mdbook source files
     fn load_spec_ids(&mut self) -> Fallible<()> {
         let spec_src_path = Path::new("spec/src");
-        
+
         if !spec_src_path.exists() {
             bail!(
                 "Spec source directory not found at {}. Make sure you're running from the dada project root.",
@@ -41,7 +41,7 @@ impl SpecValidator {
         for entry in fs::read_dir(dir)? {
             let entry = entry?;
             let path = entry.path();
-            
+
             if path.is_dir() {
                 self.scan_directory(&path)?;
             } else if let Some(extension) = path.extension() {
@@ -78,22 +78,25 @@ impl SpecValidator {
             .cloned()
             .collect()
     }
-
 }
 
 #[cfg(test)]
 mod tests {
     use super::*;
 
-    #[test] 
+    #[test]
     fn test_spec_validation() {
         // Mock validator for testing
         let mut validator = SpecValidator {
             valid_spec_ids: HashSet::new(),
         };
-        validator.valid_spec_ids.insert("syntax.string-literals.basic".to_string());
-        validator.valid_spec_ids.insert("permissions.lease.transfer".to_string());
-        
+        validator
+            .valid_spec_ids
+            .insert("syntax.string-literals.basic".to_string());
+        validator
+            .valid_spec_ids
+            .insert("permissions.lease.transfer".to_string());
+
         // Test batch validation
         let refs = vec![
             "syntax.string-literals.basic".to_string(),

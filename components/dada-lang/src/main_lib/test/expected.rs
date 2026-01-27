@@ -12,8 +12,8 @@ use regex::Regex;
 
 use crate::GlobalOptions;
 
-use super::{FailedTest, Failure};
 use super::spec_validation::SpecValidator;
+use super::{FailedTest, Failure};
 
 #[derive(Clone, Debug)]
 pub struct ExpectedDiagnostic {
@@ -572,7 +572,8 @@ impl TestExpectations {
             Ok(validator) => validator,
             Err(_) => {
                 // If we can't load the spec, report all spec refs as invalid
-                return self.spec_refs
+                return self
+                    .spec_refs
                     .iter()
                     .map(|spec_ref| Failure::InvalidSpecReference(spec_ref.clone()))
                     .collect();

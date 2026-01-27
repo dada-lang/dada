@@ -205,24 +205,24 @@ fn postfix_expr_precedence<'db, const SELECT: u32>(
 }
 
 /// Parses base expressions - the "atoms" of the expression grammar.
-/// 
+///
 /// Base expressions are those that don't involve operators or complex precedence:
 /// - **Literals**: Numbers, strings, booleans (`42`, `"hello"`, `true`)
 /// - **Identifiers**: Variable names and `self`
 /// - **Control flow**: `if` expressions, `return` statements
 /// - **Constructors**: `Type { field: value }` (when `SELECT_STRUCT` is enabled)
 /// - **Unary operators**: `!expr`, `-expr`
-/// 
+///
 /// This function is called at the highest precedence level, meaning these expressions
 /// bind most tightly and are parsed first before any binary operators.
-/// 
+///
 /// # String Literal Handling
-/// 
+///
 /// String literals are parsed through [`Literal::opt_parse`], which:
 /// 1. Recognizes `TokenKind::Literal(LiteralKind::String, text)` tokens
 /// 2. Creates a `Literal` AST node with the raw tokenizer text
 /// 3. Wraps it in `AstExprKind::Literal` for the expression tree
-/// 
+///
 /// Note: The current implementation has a bug where escape sequences are validated
 /// but never interpreted - `"hello\nworld"` remains as literal `\n` characters.
 fn base_expr_precedence<'db, const SELECT: u32>(
@@ -373,24 +373,24 @@ impl<'db> Parse<'db> for Literal<'db> {
     type Output = Self;
 
     /// Parses literal values from tokens.
-    /// 
+    ///
     /// This implementation demonstrates the parser's commitment model:
     /// - **No commitment**: Returns `Ok(None)` if no literal token is found
     /// - **Commitment**: Once a literal token is detected, consumes it and returns the value
     /// - **Error after commitment**: If token consumption fails, would return `Err` (though this is unlikely for literals)
-    /// 
+    ///
     /// # Supported Literals
-    /// 
+    ///
     /// * **Tokenizer literals**: Integers and strings from `TokenKind::Literal`
     /// * **Boolean keywords**: `true` and `false` keywords are treated as boolean literals
-    /// 
+    ///
     /// # String Literal Processing
-    /// 
+    ///
     /// For string literals, this method:
     /// 1. Takes the raw text from the tokenizer (with escape sequences still as text)
     /// 2. Creates a `Literal::new(db, LiteralKind::String, raw_text)`
     /// 3. **Does not interpret escape sequences** - this is currently a bug
-    /// 
+    ///
     /// Future implementations should either have the tokenizer pre-process escapes
     /// or add escape interpretation here.
     fn opt_parse(

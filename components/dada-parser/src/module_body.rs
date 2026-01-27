@@ -25,7 +25,7 @@ impl<'db> Parse<'db> for AstModule<'db> {
         let mut items: Vec<AstItem<'db>> = vec![];
         let mut statements = vec![];
         let start_span = parser.peek_span();
-        while let Some(_) = parser.peek() {
+        while parser.peek().is_some() {
             if statements.is_empty() {
                 match AstItem::opt_parse(db, parser) {
                     Ok(Some(v)) => {

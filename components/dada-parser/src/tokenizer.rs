@@ -453,7 +453,7 @@ impl<'input, 'db> Tokenizer<'input, 'db> {
                             // Add the invalid escape as-is and generate error
                             processed_content.push('\\');
                             processed_content.push(escape);
-                            
+
                             let span = self.span(index, index + escape.len_utf8());
                             self.tokens.push(Token {
                                 span,
@@ -469,7 +469,7 @@ impl<'input, 'db> Tokenizer<'input, 'db> {
                 } else {
                     // Backslash at end of input
                     processed_content.push('\\');
-                    
+
                     let span = self.span(end, end + ch.len_utf8());
                     self.tokens.push(Token {
                         span,

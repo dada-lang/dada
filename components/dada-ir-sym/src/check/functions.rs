@@ -52,7 +52,7 @@ fn check_main_function<'db>(
             let mut env: Env<'db> = Env::new(runtime, function.scope(db));
             let statements = mfunc.statements(db);
             let live_after = LivePlaces::none(&env);
-            check_block_statements(&mut env, live_after, statements.span, &statements).await
+            check_block_statements(&mut env, live_after, statements.span, statements).await
         },
         |expr| expr,
     )

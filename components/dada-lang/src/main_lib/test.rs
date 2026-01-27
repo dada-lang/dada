@@ -20,7 +20,6 @@ use super::Main;
 
 mod expected;
 mod spec_validation;
-mod timeout_warning;
 
 #[derive(thiserror::Error, Debug)]
 #[error("{} test failure(s)", failed_tests.len())]
@@ -124,7 +123,11 @@ mod panic_hook;
 
 /// Trait for formatting test output in different modes
 trait TestOutputFormatter: Sync + Send {
-    fn format_results(&self, results: Vec<DetailedTestResult>, total_duration_ms: u64) -> Fallible<()>;
+    fn format_results(
+        &self,
+        results: Vec<DetailedTestResult>,
+        total_duration_ms: u64,
+    ) -> Fallible<()>;
     fn show_progress(&self, path: &Path, result: &DetailedTestResult, verbose: bool);
 }
 
@@ -136,26 +139,36 @@ struct RegularFormatter {
 impl TestOutputFormatter for RegularFormatter {
     fn show_progress(&self, path: &Path, result: &DetailedTestResult, verbose: bool) {
         if verbose {
-            self.progress_bar.println(format!("{}: beginning test", path.display()));
+            self.progress_bar
+                .println(format!("{}: beginning test", path.display()));
             match &result.result {
                 TestResult::Passed => {}
                 TestResult::Failed(error) => {
-                    self.progress_bar.println(format!("{}: {}", path.display(), error.summarize()));
+                    self.progress_bar
+                        .println(format!("{}: {}", path.display(), error.summarize()));
                 }
                 TestResult::FixmeFailed(error) => {
-                    self.progress_bar.println(format!("{}: {} (FIXME)", path.display(), error.summarize()));
+                    self.progress_bar.println(format!(
+                        "{}: {} (FIXME)",
+                        path.display(),
+                        error.summarize()
+                    ));
                 }
             }
         }
-        
+
         // Increment progress bar after each test
         self.progress_bar.inc(1);
     }
 
-    fn format_results(&self, results: Vec<DetailedTestResult>, _total_duration_ms: u64) -> Fallible<()> {
+    fn format_results(
+        &self,
+        results: Vec<DetailedTestResult>,
+        _total_duration_ms: u64,
+    ) -> Fallible<()> {
         let mut failed_tests = vec![];
         let mut fixme_failed_tests = vec![];
-        
+
         let total_tests = results.len();
         for detailed_result in results {
             match detailed_result.result {
@@ -173,10 +186,10 @@ impl TestOutputFormatter for RegularFormatter {
         }
 
         let total_passed = total_tests - failed_tests.len() - fixme_failed_tests.len();
-        
+
         if failed_tests.is_empty() {
             let message = if fixme_failed_tests.is_empty() {
-                format!("All {} tests passed", total_tests)
+                format!("All {total_tests} tests passed")
             } else {
                 format!(
                     "{} tests passed, {} FIXME tests failed (ignored)",
@@ -204,7 +217,11 @@ impl TestOutputFormatter for PorcelainFormatter {
         // No progress output for porcelain mode
     }
 
-    fn format_results(&self, results: Vec<DetailedTestResult>, total_duration_ms: u64) -> Fallible<()> {
+    fn format_results(
+        &self,
+        results: Vec<DetailedTestResult>,
+        total_duration_ms: u64,
+    ) -> Fallible<()> {
         let mut porcelain_tests = Vec::new();
         let mut failed_count = 0;
 
@@ -232,7 +249,8 @@ impl TestOutputFormatter for PorcelainFormatter {
 
         if failed_count > 0 {
             // Create dummy failed tests for error handling
-            let failed_tests: Vec<FailedTest> = output.tests
+            let failed_tests: Vec<FailedTest> = output
+                .tests
                 .iter()
                 .filter(|t| t.status == "fail")
                 .map(|t| FailedTest {
@@ -336,7 +354,7 @@ impl Main {
     /// * `Ok(result)` with the detailed test result including timing and annotations.
     fn run_test(&self, input: &Path) -> Fallible<DetailedTestResult> {
         let start_time = Instant::now();
-        
+
         assert!(is_dada_file(input));
         let mut compiler = Compiler::new(RealFs::default(), None);
 
@@ -344,11 +362,10 @@ impl Main {
         let source_file = compiler.load_source_file(input)?;
         let expectations = expected::TestExpectations::new(&compiler, source_file)?;
         let annotations = extract_annotations(&expectations);
-        
+
         // Run the test and capture panics
-        let result = std::panic::catch_unwind(AssertUnwindSafe(|| {
-            expectations.compare(&mut compiler)
-        }));
+        let result =
+            std::panic::catch_unwind(AssertUnwindSafe(|| expectations.compare(&mut compiler)));
 
         let duration_ms = start_time.elapsed().as_millis() as u64;
 
@@ -390,12 +407,11 @@ impl Main {
             annotations,
         })
     }
-
 }
 
 fn extract_annotations(expectations: &expected::TestExpectations) -> Vec<String> {
     let mut annotations = Vec::new();
-    
+
     // Check the TestExpectations struct fields and convert to string annotations
     if expectations.fn_asts() {
         annotations.push("#:fn_asts".to_string());
@@ -406,18 +422,18 @@ fn extract_annotations(expectations: &expected::TestExpectations) -> Vec<String>
     if expectations.fixme() {
         annotations.push("#:FIXME".to_string());
     }
-    
+
     // Add spec references
     for spec_ref in expectations.spec_refs() {
-        annotations.push(format!("#:spec {}", spec_ref));
+        annotations.push(format!("#:spec {spec_ref}"));
     }
-    
+
     annotations
 }
 
 fn convert_to_porcelain_test(detailed_result: &DetailedTestResult) -> PorcelainTest {
     let path = detailed_result.path.to_string_lossy().to_string();
-    
+
     match &detailed_result.result {
         TestResult::Passed => PorcelainTest {
             path,
@@ -439,7 +455,7 @@ fn convert_to_porcelain_test(detailed_result: &DetailedTestResult) -> PorcelainT
                 details: Some(details),
                 duration_ms: detailed_result.duration_ms,
             }
-        },
+        }
         TestResult::FixmeFailed(_failed_test) => PorcelainTest {
             path,
             status: "pass".to_string(), // FIXME failures are treated as expected (passed)
@@ -455,8 +471,11 @@ fn convert_to_porcelain_test(detailed_result: &DetailedTestResult) -> PorcelainT
 fn analyze_failure(failed_test: &FailedTest) -> (String, String, String) {
     // Simplified approach: always point to test report for detailed guidance
     let test_report_path = failed_test.test_report_path();
-    let suggestion = format!("Consult {} for details and guidance", test_report_path.display());
-    
+    let suggestion = format!(
+        "Consult {} for details and guidance",
+        test_report_path.display()
+    );
+
     (
         "test_failure".to_string(),
         suggestion,
@@ -661,8 +680,14 @@ impl FailedTest {
                     writeln!(result)?;
                     writeln!(result, "# Invalid spec reference")?;
                     writeln!(result)?;
-                    writeln!(result, "The spec reference `{}` does not exist in the spec mdbook.", spec_ref)?;
-                    writeln!(result, "Check the spec files in `spec/src/` for valid `:::\\{{spec}}` directives.")?;
+                    writeln!(
+                        result,
+                        "The spec reference `{spec_ref}` does not exist in the spec mdbook."
+                    )?;
+                    writeln!(
+                        result,
+                        "Check the spec files in `spec/src/` for valid `:::\\{{spec}}` directives."
+                    )?;
                 }
             }
         }
@@ -675,7 +700,7 @@ impl FailedTest {
 
     fn add_guidance_section(&self, result: &mut String) -> Fallible<()> {
         use std::fmt::Write;
-        
+
         // Count different types of failures to provide targeted guidance
         let mut unexpected_diagnostics = 0;
         let mut missing_diagnostics = 0;
@@ -684,7 +709,7 @@ impl FailedTest {
         let mut ice_failures = 0;
         let mut spec_failures = 0;
         let mut fixme_passed = 0;
-        
+
         for failure in &self.failures {
             match failure {
                 Failure::UnexpectedDiagnostic(_) => unexpected_diagnostics += 1,
@@ -697,65 +722,111 @@ impl FailedTest {
                 _ => {}
             }
         }
-        
+
         writeln!(result)?;
         writeln!(result, "# 🎯 Next Steps")?;
         writeln!(result)?;
-        
+
         // Provide specific guidance based on failure types
         if unexpected_diagnostics > 0 || missing_diagnostics > 0 || multiple_matches > 0 {
             writeln!(result, "## Diagnostic Expectation Issues")?;
             writeln!(result)?;
-            writeln!(result, "This test has diagnostic-related failures. Choose one approach:")?;
+            writeln!(
+                result,
+                "This test has diagnostic-related failures. Choose one approach:"
+            )?;
             writeln!(result)?;
-            writeln!(result, "**Option 1: Add diagnostic annotations** (if these errors are expected)")?;
-            writeln!(result, "- Add `#! error message` or `#! ^^^ error message` annotations")?;
-            writeln!(result, "- Use `#! /regex/` or `#! ^^^ /regex/` for regex matching (e.g., `#! /could not find.*Baz/`)")?;
-            writeln!(result, "- Annotation can be on the same line as the error OR on any following line")?;
-            writeln!(result, "- The `^^^` markers indicate exact column positioning (optional)")?;
-            writeln!(result, "- Without `^^^`, the diagnostic just needs to start somewhere on the most recent non-empty, non-comment line")?;
+            writeln!(
+                result,
+                "**Option 1: Add diagnostic annotations** (if these errors are expected)"
+            )?;
+            writeln!(
+                result,
+                "- Add `#! error message` or `#! ^^^ error message` annotations"
+            )?;
+            writeln!(
+                result,
+                "- Use `#! /regex/` or `#! ^^^ /regex/` for regex matching (e.g., `#! /could not find.*Baz/`)"
+            )?;
+            writeln!(
+                result,
+                "- Annotation can be on the same line as the error OR on any following line"
+            )?;
+            writeln!(
+                result,
+                "- The `^^^` markers indicate exact column positioning (optional)"
+            )?;
+            writeln!(
+                result,
+                "- Without `^^^`, the diagnostic just needs to start somewhere on the most recent non-empty, non-comment line"
+            )?;
             writeln!(result, "- Look at other test files for annotation examples")?;
             writeln!(result)?;
-            writeln!(result, "**Option 2: Fix the compiler/code** (if these errors are bugs)")?;
-            writeln!(result, "- If diagnostics are incorrect, investigate the compiler logic")?;
+            writeln!(
+                result,
+                "**Option 2: Fix the compiler/code** (if these errors are bugs)"
+            )?;
+            writeln!(
+                result,
+                "- If diagnostics are incorrect, investigate the compiler logic"
+            )?;
             writeln!(result, "- If test code is wrong, fix the test source")?;
             writeln!(result)?;
-            writeln!(result, "💡 **When in doubt**: Consult the user to clarify the test's intent")?;
+            writeln!(
+                result,
+                "💡 **When in doubt**: Consult the user to clarify the test's intent"
+            )?;
             writeln!(result)?;
         }
-        
+
         if auxiliary_failures > 0 {
             writeln!(result, "## Reference File Mismatch")?;
             writeln!(result)?;
-            writeln!(result, "Output differs from reference files. If the new output is correct:")?;
+            writeln!(
+                result,
+                "Output differs from reference files. If the new output is correct:"
+            )?;
             writeln!(result, "```bash")?;
-            writeln!(result, "UPDATE_EXPECT=1 cargo dada test {}", self.path.to_string_lossy())?;
+            writeln!(
+                result,
+                "UPDATE_EXPECT=1 cargo dada test {}",
+                self.path.to_string_lossy()
+            )?;
             writeln!(result, "```")?;
             writeln!(result)?;
         }
-        
+
         if ice_failures > 0 {
             writeln!(result, "## Internal Compiler Error")?;
             writeln!(result)?;
-            writeln!(result, "The compiler crashed - this indicates a compiler bug that needs investigation.")?;
+            writeln!(
+                result,
+                "The compiler crashed - this indicates a compiler bug that needs investigation."
+            )?;
             writeln!(result)?;
         }
-        
+
         if spec_failures > 0 {
             writeln!(result, "## Invalid Spec Reference")?;
             writeln!(result)?;
-            writeln!(result, "Fix the `#:spec` annotation to reference a valid spec paragraph.")?;
+            writeln!(
+                result,
+                "Fix the `#:spec` annotation to reference a valid spec paragraph."
+            )?;
             writeln!(result)?;
         }
-        
+
         if fixme_passed > 0 {
             writeln!(result, "## FIXME Test Passed")?;
             writeln!(result)?;
-            writeln!(result, "This test was marked as FIXME but now passes - the bug may be fixed!")?;
+            writeln!(
+                result,
+                "This test was marked as FIXME but now passes - the bug may be fixed!"
+            )?;
             writeln!(result, "Consider removing the FIXME annotation.")?;
             writeln!(result)?;
         }
-        
+
         Ok(())
     }
 
