@@ -1,5 +1,5 @@
 use std::fs;
-use std::path::PathBuf;
+use std::path::{Path, PathBuf};
 use structopt::StructOpt;
 
 #[derive(StructOpt)]
@@ -30,7 +30,7 @@ impl Rfc {
 
         // Find the next RFC number
         let rfc_number = self.find_next_rfc_number(&rfcs_dir)?;
-        let rfc_dir_name = format!("{:04}-{}", rfc_number, name);
+        let rfc_dir_name = format!("{rfc_number:04}-{name}");
         let rfc_dir = rfcs_dir.join(&rfc_dir_name);
 
         // Create RFC directory
@@ -76,8 +76,8 @@ impl Rfc {
 
     fn copy_template_files(
         &self,
-        rfcs_dir: &PathBuf,
-        rfc_dir: &PathBuf,
+        rfcs_dir: &Path,
+        rfc_dir: &Path,
         rfc_number: u32,
         name: &str,
     ) -> anyhow::Result<()> {
@@ -109,10 +109,10 @@ impl Rfc {
         let rfc_title = name.replace('-', " ");
 
         content
-            .replace("RFC-0000", &format!("RFC-{:04}", rfc_number))
+            .replace("RFC-0000", &format!("RFC-{rfc_number:04}"))
             .replace(
                 "RFC-0000: Template",
-                &format!("RFC-{:04}: {}", rfc_number, rfc_title),
+                &format!("RFC-{rfc_number:04}: {rfc_title}"),
             )
             .replace(
                 "> **Note:** To create a new RFC, run `cargo xtask rfc new feature-name`\n\n",
@@ -122,7 +122,7 @@ impl Rfc {
 
     fn update_summary(
         &self,
-        rfcs_dir: &PathBuf,
+        rfcs_dir: &Path,
         rfc_number: u32,
         name: &str,
         rfc_dir_name: &str,
@@ -132,10 +132,8 @@ impl Rfc {
 
         // Find the "# Active RFCs" section and add the new RFC
         let rfc_title = name.replace('-', " ");
-        let new_rfc_line = format!(
-            "- [RFC-{:04}: {}]({}/README.md)",
-            rfc_number, rfc_title, rfc_dir_name
-        );
+        let new_rfc_line =
+            format!("- [RFC-{rfc_number:04}: {rfc_title}]({rfc_dir_name}/README.md)");
 
         let updated_content = if let Some(_active_pos) = summary_content.find("# Active RFCs") {
             let mut lines: Vec<&str> = summary_content.lines().collect();
