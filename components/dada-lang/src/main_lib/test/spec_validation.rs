@@ -53,19 +53,20 @@ impl SpecValidator {
         Ok(())
     }
 
-    /// Extracts all r[...] spec IDs from a markdown file
+    /// Extracts spec IDs from MyST directive syntax: `:::{spec} paragraph.id [rfcN...]`
     fn extract_spec_ids_from_file(&mut self, file_path: &Path) -> Fallible<()> {
         let content = fs::read_to_string(file_path)?;
-        
-        // Regex to match r[spec.id] patterns
-        let re = Regex::new(r"r\[([^\]]+)\]")?;
-        
+
+        // 💡 Regex matches MyST directive: `:::{spec} id [optional-rfc-tags]`
+        // The paragraph ID is the first word after `{spec}`, RFC tags are optional
+        let re = Regex::new(r":::\{spec\}\s+(\S+)")?;
+
         for cap in re.captures_iter(&content) {
             if let Some(spec_id) = cap.get(1) {
                 self.valid_spec_ids.insert(spec_id.as_str().to_string());
             }
         }
-        
+
         Ok(())
     }
 

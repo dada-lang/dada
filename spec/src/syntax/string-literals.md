@@ -4,8 +4,9 @@ This chapter specifies string literal syntax in Dada.
 
 ## Basic String Literals
 
-r[syntax.string-literals.basic]
+:::{spec} syntax.string-literals.basic
 A basic string literal is delimited by double quotes (`"`).
+:::
 
 ## Escape Sequences
 

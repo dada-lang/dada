@@ -11,7 +11,7 @@ use std::process;
 
 pub fn make_app() -> Command<'static> {
     Command::new("dada-mdbook-preprocessor")
-        .about("An mdbook preprocessor for processing Dada r[...] labels")
+        .about("An mdbook preprocessor for processing Dada spec directives")
         .subcommand(
             Command::new("supports")
                 .arg(Arg::new("renderer").required(true))
@@ -103,16 +103,17 @@ impl Preprocessor for DadaPreprocessor {
     }
 
     fn run(&self, ctx: &PreprocessorContext, mut book: Book) -> Result<Book> {
-        let re = Regex::new(r"^r\[([^\]]+)\]$").unwrap();
+        // 💡 Match MyST directive syntax: `:::{spec} paragraph.id [rfcN...]`
+        let re = Regex::new(r"^:::\{spec\}").unwrap();
 
-        // First pass: process r[...] labels
+        // First pass: process spec directives
         book.for_each_mut(|item: &mut BookItem| {
             if let BookItem::Chapter(chapter) = item {
-                // Check if this chapter has any labels
+                // Check if this chapter has any spec directives
                 let has_labels = chapter.content.lines().any(|line| re.is_match(line.trim()));
 
                 // Process the content
-                chapter.content = process_r_labels(&chapter.content);
+                chapter.content = process_spec_directives(&chapter.content);
 
                 // If this chapter has labels, inject CSS at the end
                 if has_labels {
@@ -150,32 +151,112 @@ impl Preprocessor for DadaPreprocessor {
     }
 }
 
-fn process_r_labels(content: &str) -> String {
-    let re = Regex::new(r"^r\[([^\]]+)\]$").unwrap();
+/// Processes MyST `{spec}` directives into HTML with anchors and styling.
+///
+/// 💡 Transforms directive blocks like:
+/// ```markdown
+/// :::{spec} syntax.foo rfc123
+/// Content here.
+/// :::
+/// ```
+/// Into styled HTML with anchor links and RFC badges.
+fn process_spec_directives(content: &str) -> String {
+    // Match the opening directive: `:::{spec} id [rfc-tags...]`
+    let directive_start = Regex::new(r"^:::\{spec\}\s+(\S+)(.*)$").unwrap();
+    let directive_end = Regex::new(r"^:::$").unwrap();
 
-    content
-        .lines()
-        .map(|line| {
-            if let Some(captures) = re.captures(line.trim()) {
-                let label = &captures[1];
-                // Convert to HTML with anchor and styling
-                format!(
-                    "<div class=\"spec-label\"><a id=\"{}\" href=\"#{}\" class=\"spec-label-link\">r[{}]</a></div>",
-                    label, label, label
-                )
+    let mut result = Vec::new();
+    let mut in_directive = false;
+    let mut current_id = String::new();
+    let mut current_rfc_tags: Vec<String> = Vec::new();
+    let mut directive_content: Vec<String> = Vec::new();
+
+    for line in content.lines() {
+        let trimmed = line.trim();
+
+        if !in_directive {
+            if let Some(captures) = directive_start.captures(trimmed) {
+                // Start of a spec directive
+                in_directive = true;
+                current_id = captures[1].to_string();
+
+                // Parse optional RFC tags from the rest of the line
+                let rest = captures.get(2).map(|m| m.as_str()).unwrap_or("");
+                current_rfc_tags = rest
+                    .split_whitespace()
+                    .filter(|s| !s.is_empty())
+                    .map(|s| s.to_string())
+                    .collect();
+
+                directive_content.clear();
             } else {
-                line.to_string()
+                result.push(line.to_string());
             }
-        })
-        .collect::<Vec<_>>()
-        .join("\n")
+        } else if directive_end.is_match(trimmed) {
+            // End of directive - generate HTML
+            let rfc_badges = if current_rfc_tags.is_empty() {
+                String::new()
+            } else {
+                let badges: Vec<String> = current_rfc_tags
+                    .iter()
+                    .map(|tag| {
+                        if tag.starts_with('!') {
+                            format!("<span class=\"spec-rfc-badge spec-rfc-deleted\">{}</span>", tag)
+                        } else {
+                            format!("<span class=\"spec-rfc-badge\">{}</span>", tag)
+                        }
+                    })
+                    .collect();
+                format!(" {}", badges.join(" "))
+            };
+
+            // Generate HTML wrapper
+            result.push(format!(
+                "<div class=\"spec-paragraph\" id=\"{}\">",
+                current_id
+            ));
+            result.push(format!(
+                "<div class=\"spec-label\"><a href=\"#{}\" class=\"spec-label-link\">{}</a>{}</div>",
+                current_id, current_id, rfc_badges
+            ));
+            result.push("<div class=\"spec-content\">".to_string());
+            result.push(String::new()); // Empty line for markdown processing
+            for content_line in &directive_content {
+                result.push(content_line.clone());
+            }
+            result.push(String::new()); // Empty line for markdown processing
+            result.push("</div>".to_string());
+            result.push("</div>".to_string());
+
+            in_directive = false;
+            current_id.clear();
+            current_rfc_tags.clear();
+        } else {
+            // Inside directive - collect content
+            directive_content.push(line.to_string());
+        }
+    }
+
+    result.join("\n")
 }
 
 fn get_inline_css() -> String {
     r#"<style>
-/* Generated by dada-mdbook-preprocessor - Styling for specification paragraph labels */
+/* Generated by dada-mdbook-preprocessor - Styling for specification paragraphs */
+.spec-paragraph {
+    margin: 1rem 0;
+    padding: 0.75rem 1rem;
+    border-left: 3px solid #d0d7de;
+    background-color: #f8f9fa;
+    border-radius: 0 4px 4px 0;
+}
+
 .spec-label {
-    margin-bottom: 0.25rem;
+    margin-bottom: 0.5rem;
+    display: flex;
+    align-items: center;
+    gap: 0.5rem;
+    flex-wrap: wrap;
 }
 
 .spec-label-link {
@@ -183,10 +264,10 @@ fn get_inline_css() -> String {
     color: #666;
     text-decoration: none;
     font-family: 'SFMono-Regular', 'Monaco', 'Inconsolata', 'Fira Code', 'Source Code Pro', monospace;
-    background-color: #f6f8fa;
-    padding: 0.125rem 0.25rem;
+    background-color: #fff;
+    padding: 0.125rem 0.375rem;
     border-radius: 0.25rem;
-    border: 1px solid #e1e8ed;
+    border: 1px solid #d0d7de;
 }
 
 .spec-label-link:hover {
@@ -196,17 +277,56 @@ fn get_inline_css() -> String {
     text-decoration: none;
 }
 
+.spec-content {
+    margin: 0;
+}
+
+.spec-content > p:first-child {
+    margin-top: 0;
+}
+
+.spec-content > p:last-child {
+    margin-bottom: 0;
+}
+
+.spec-rfc-badge {
+    font-size: 0.65rem;
+    color: #fff;
+    background-color: #0969da;
+    padding: 0.1rem 0.3rem;
+    border-radius: 0.25rem;
+    font-family: 'SFMono-Regular', 'Monaco', 'Inconsolata', 'Fira Code', 'Source Code Pro', monospace;
+}
+
+.spec-rfc-badge.spec-rfc-deleted {
+    background-color: #cf222e;
+}
+
 /* Dark theme support */
+.navy .spec-paragraph {
+    border-color: #30363d;
+    background-color: #161b22;
+}
+
 .navy .spec-label-link {
     color: #c5c5c5;
-    background-color: #1e1e1e;
-    border-color: #404040;
+    background-color: #21262d;
+    border-color: #30363d;
 }
 
 .navy .spec-label-link:hover {
     color: #79b8ff;
     background-color: #1c2128;
     border-color: #30363d;
+}
+
+.navy .spec-rfc-badge {
+    background-color: #58a6ff;
+    color: #0d1117;
+}
+
+.navy .spec-rfc-badge.spec-rfc-deleted {
+    background-color: #f85149;
 }
 
 /* RFC Table Styling - GitHub-inspired */

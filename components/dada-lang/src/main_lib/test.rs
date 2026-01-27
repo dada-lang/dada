@@ -662,7 +662,7 @@ impl FailedTest {
                     writeln!(result, "# Invalid spec reference")?;
                     writeln!(result)?;
                     writeln!(result, "The spec reference `{}` does not exist in the spec mdbook.", spec_ref)?;
-                    writeln!(result, "Check the spec files in `spec/src/` for valid `r[...]` labels.")?;
+                    writeln!(result, "Check the spec files in `spec/src/` for valid `:::\\{{spec}}` directives.")?;
                 }
             }
         }
