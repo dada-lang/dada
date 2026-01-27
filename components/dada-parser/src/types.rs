@@ -85,11 +85,12 @@ impl<'db> TyOrPerm<'db> {
         db: &'db dyn crate::Db,
         parser: &mut Parser<'_, 'db>,
     ) -> Result<Option<Self>, ParseFail<'db>> {
-        if self.can_be_perm(db) && parser.next_token_on_same_line() {
-            if let Some(ty) = AstTy::opt_parse(db, parser)? {
-                let perm = self.into_perm(db).unwrap();
-                return Ok(Some(TyOrPerm::Apply(perm, ty)));
-            }
+        if self.can_be_perm(db)
+            && parser.next_token_on_same_line()
+            && let Some(ty) = AstTy::opt_parse(db, parser)?
+        {
+            let perm = self.into_perm(db).unwrap();
+            return Ok(Some(TyOrPerm::Apply(perm, ty)));
         }
 
         Ok(Some(self))

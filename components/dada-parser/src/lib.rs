@@ -329,11 +329,10 @@ impl<'token, 'db> Parser<'token, 'db> {
             skipped: _,
             span,
         }) = self.peek()
+            && kw == kw1
         {
-            if kw == kw1 {
-                self.eat_next_token().unwrap();
-                return Ok(span);
-            }
+            self.eat_next_token().unwrap();
+            return Ok(span);
         }
         Err(self.illformed(Expected::Keyword(kw)))
     }
@@ -430,11 +429,10 @@ impl<'token, 'db> Parser<'token, 'db> {
             span: _,
             skipped: _,
         }) = self.peek()
+            && delimiter == delimiter1
         {
-            if delimiter == delimiter1 {
-                self.eat_next_token().unwrap();
-                return Ok(text);
-            }
+            self.eat_next_token().unwrap();
+            return Ok(text);
         }
 
         Err(self.illformed(Expected::Delimited(delimiter)))

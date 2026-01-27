@@ -173,31 +173,31 @@ fn postfix_expr_precedence<'db, const SELECT: u32>(
         }
 
         // Postfix `[]` is only valid on the same line, since `[..]` is also valid as the start of an expression
-        if parser.next_token_on_same_line() {
-            if let Ok(text) = parser.eat_delimited(crate::tokenizer::Delimiter::SquareBrackets) {
-                let owner = AstExpr::new(start_span.to(db, mid_span), kind);
-                let deferred = DeferredParse {
-                    span: parser.last_span(),
-                    contents: text.to_string(),
-                };
-                let args = SquareBracketArgs::new(db, deferred);
-                kind = AstExprKind::SquareBracketOp(owner, args);
-                continue;
-            }
+        if parser.next_token_on_same_line()
+            && let Ok(text) = parser.eat_delimited(crate::tokenizer::Delimiter::SquareBrackets)
+        {
+            let owner = AstExpr::new(start_span.to(db, mid_span), kind);
+            let deferred = DeferredParse {
+                span: parser.last_span(),
+                contents: text.to_string(),
+            };
+            let args = SquareBracketArgs::new(db, deferred);
+            kind = AstExprKind::SquareBracketOp(owner, args);
+            continue;
         }
 
         // Postfix `()` is only valid on the same line, since `[..]` is also valid as the start of an expression
-        if parser.next_token_on_same_line() {
-            if let Some(args) = AstExpr::opt_parse_delimited(
+        if parser.next_token_on_same_line()
+            && let Some(args) = AstExpr::opt_parse_delimited(
                 db,
                 parser,
                 crate::tokenizer::Delimiter::Parentheses,
                 AstExpr::eat_comma,
-            )? {
-                let owner = AstExpr::new(start_span.to(db, mid_span), kind);
-                kind = AstExprKind::ParenthesisOp(owner, args);
-                continue;
-            }
+            )?
+        {
+            let owner = AstExpr::new(start_span.to(db, mid_span), kind);
+            kind = AstExprKind::ParenthesisOp(owner, args);
+            continue;
         }
 
         return Ok(Some(kind));
@@ -239,16 +239,17 @@ fn base_expr_precedence<'db, const SELECT: u32>(
 
     if let Ok(id) = parser.eat_id() {
         // Could be `X { field1: value1, .. }`
-        if (SELECT & SELECT_STRUCT != 0) && parser.next_token_on_same_line() {
-            if let Some(fields) = AstConstructorField::opt_parse_delimited(
+        if (SELECT & SELECT_STRUCT != 0)
+            && parser.next_token_on_same_line()
+            && let Some(fields) = AstConstructorField::opt_parse_delimited(
                 db,
                 parser,
                 crate::tokenizer::Delimiter::CurlyBraces,
                 AstConstructorField::eat_comma,
-            )? {
-                let path = AstPath::new(db, AstPathKind::Identifier(id));
-                return Ok(Some(AstExprKind::Constructor(path, fields)));
-            }
+            )?
+        {
+            let path = AstPath::new(db, AstPathKind::Identifier(id));
+            return Ok(Some(AstExprKind::Constructor(path, fields)));
         }
 
         return Ok(Some(AstExprKind::Id(id)));
@@ -264,10 +265,10 @@ fn base_expr_precedence<'db, const SELECT: u32>(
 
     if parser.eat_keyword(Keyword::Return).is_ok() {
         // Could be `return foo`
-        if parser.next_token_on_same_line() {
-            if let Some(expr) = AstExpr::opt_parse(db, parser)? {
-                return Ok(Some(AstExprKind::Return(Some(expr))));
-            }
+        if parser.next_token_on_same_line()
+            && let Some(expr) = AstExpr::opt_parse(db, parser)?
+        {
+            return Ok(Some(AstExprKind::Return(Some(expr))));
         }
         return Ok(Some(AstExprKind::Return(None)));
     }
