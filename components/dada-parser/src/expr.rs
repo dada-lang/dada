@@ -316,11 +316,7 @@ fn if_chain<'db>(
         result: block0,
     }];
 
-    loop {
-        let Ok(_else_span) = parser.eat_keyword(Keyword::Else) else {
-            break;
-        };
-
+    while parser.eat_keyword(Keyword::Else).is_ok() {
         if let Ok(_if_span) = parser.eat_keyword(Keyword::If) {
             let else_if_condition = eat_expr_with_precedence(
                 db,

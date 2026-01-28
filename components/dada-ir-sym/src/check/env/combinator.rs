@@ -311,10 +311,10 @@ impl<'db> Env<'db> {
             let new_pair = self
                 .loop_on_inference_var(infer, |data| {
                     let (red_ty, or_else) = data.red_ty_bound(direction)?;
-                    if let Some(previous_ty) = &previous_red_ty {
-                        if red_ty == *previous_ty {
-                            return None;
-                        }
+                    if let Some(previous_ty) = &previous_red_ty
+                        && red_ty == *previous_ty
+                    {
+                        return None;
                     }
                     Some((red_ty, or_else))
                 })

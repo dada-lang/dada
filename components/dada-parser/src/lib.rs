@@ -354,13 +354,13 @@ impl<'token, 'db> Parser<'token, 'db> {
         const MAX_LEN: usize = 5;
         assert!(op.len() < MAX_LEN, "unexpectedly long operator");
 
-        if cfg!(debug_assertions) {
-            if let Some(invalid_ch) = op.iter().find(|&&ch| !is_op_char(ch)) {
-                debug_assert!(
-                    false,
-                    "eat_op({op:?}): `{invalid_ch:?}` is not a valid operator"
-                );
-            }
+        if cfg!(debug_assertions)
+            && let Some(invalid_ch) = op.iter().find(|&&ch| !is_op_char(ch))
+        {
+            debug_assert!(
+                false,
+                "eat_op({op:?}): `{invalid_ch:?}` is not a valid operator"
+            );
         }
 
         // Check that next character is an operator character.

@@ -143,10 +143,10 @@ impl<'l, L: Lsp + 'l> LspDispatch<'l, L> {
         std::thread::scope(|scope| {
             for message in &connection.receiver {
                 // Check for shutdown requests:
-                if let Message::Request(req) = &message {
-                    if self.connection.handle_shutdown(req)? {
-                        break;
-                    }
+                if let Message::Request(req) = &message
+                    && self.connection.handle_shutdown(req)?
+                {
+                    break;
                 }
 
                 // Otherwise:

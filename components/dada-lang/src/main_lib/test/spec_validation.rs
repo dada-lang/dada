@@ -44,10 +44,10 @@ impl SpecValidator {
 
             if path.is_dir() {
                 self.scan_directory(&path)?;
-            } else if let Some(extension) = path.extension() {
-                if extension == "md" {
-                    self.extract_spec_ids_from_file(&path)?;
-                }
+            } else if let Some(extension) = path.extension()
+                && extension == "md"
+            {
+                self.extract_spec_ids_from_file(&path)?;
             }
         }
         Ok(())

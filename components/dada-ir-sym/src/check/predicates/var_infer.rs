@@ -178,10 +178,10 @@ async fn exists_bounding_term<'db>(
         let db = env.db();
         let mut bounds = env.term_bounds(perm, infer);
         while let Some((direction_bound, bound)) = bounds.next(env).await {
-            if let Some(direction) = direction {
-                if direction_bound != direction {
-                    continue;
-                }
+            if let Some(direction) = direction
+                && direction_bound != direction
+            {
+                continue;
             }
 
             if term_is_provably(env, perm.apply_to(db, bound), predicate).await? {
