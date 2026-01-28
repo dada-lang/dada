@@ -514,9 +514,7 @@ where
 {
     let var_appears_free = !bound_vars.contains(&var);
 
-    if var_appears_free
-        && let Some(term) = (subst_fns.free_var)(var)
-    {
+    if var_appears_free && let Some(term) = (subst_fns.free_var)(var) {
         return term.assert_kind(db);
     }
 
