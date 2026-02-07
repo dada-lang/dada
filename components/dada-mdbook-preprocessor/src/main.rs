@@ -1,7 +1,7 @@
 use anyhow::{bail, Result};
 use clap::{Arg, ArgMatches, Command};
-use mdbook::book::{Book, BookItem, Chapter};
-use mdbook::preprocess::{CmdPreprocessor, Preprocessor, PreprocessorContext};
+use mdbook_preprocessor::book::{Book, BookItem, Chapter};
+use mdbook_preprocessor::{Preprocessor, PreprocessorContext};
 use regex::Regex;
 use serde::Deserialize;
 use std::collections::HashMap;
@@ -9,7 +9,7 @@ use std::io;
 use std::path::Path;
 use std::process;
 
-pub fn make_app() -> Command<'static> {
+pub fn make_app() -> Command {
     Command::new("dada-mdbook-preprocessor")
         .about("An mdbook preprocessor for processing Dada spec directives")
         .subcommand(
@@ -33,8 +33,10 @@ fn main() {
 }
 
 fn handle_supports(pre: &dyn Preprocessor, sub_args: &ArgMatches) -> ! {
-    let renderer = sub_args.value_of("renderer").expect("Required argument");
-    let supported = pre.supports_renderer(renderer);
+    let renderer = sub_args
+        .get_one::<String>("renderer")
+        .expect("Required argument");
+    let supported = pre.supports_renderer(renderer).unwrap();
 
     if supported {
         process::exit(0);
@@ -44,17 +46,17 @@ fn handle_supports(pre: &dyn Preprocessor, sub_args: &ArgMatches) -> ! {
 }
 
 fn handle_preprocessing(pre: &dyn Preprocessor) -> Result<()> {
-    let (ctx, book) = CmdPreprocessor::parse_input(io::stdin())?;
+    let (ctx, book) = mdbook_preprocessor::parse_input(io::stdin())?;
 
     let book_version = Version::parse(&ctx.mdbook_version)?;
-    let version_req = VersionReq::parse(mdbook::MDBOOK_VERSION)?;
+    let version_req = VersionReq::parse(mdbook_preprocessor::MDBOOK_VERSION)?;
 
     if !version_req.matches(&book_version) {
         eprintln!(
             "Warning: The {} plugin was built against version {} of mdbook, \
              but we're being called from version {}",
             pre.name(),
-            mdbook::MDBOOK_VERSION,
+            mdbook_preprocessor::MDBOOK_VERSION,
             ctx.mdbook_version
         );
     }
@@ -99,7 +101,8 @@ impl Preprocessor for DadaPreprocessor {
         "dada-mdbook-preprocessor"
     }
 
-    fn run(&self, ctx: &PreprocessorContext, mut book: Book) -> Result<Book> {
+    fn run(&self, ctx: &PreprocessorContext, book: Book) -> Result<Book> {
+        let mut book = book;
         // 💡 Match MyST directive syntax: `:::{spec} paragraph.id [rfcN...]`
         let re = Regex::new(r"^:::\{spec\}").unwrap();
 
@@ -145,8 +148,8 @@ impl Preprocessor for DadaPreprocessor {
         Ok(book)
     }
 
-    fn supports_renderer(&self, renderer: &str) -> bool {
-        renderer != "not-supported"
+    fn supports_renderer(&self, renderer: &str) -> Result<bool> {
+        Ok(renderer != "not-supported")
     }
 }
 
@@ -459,7 +462,7 @@ fn populate_rfc_sections(ctx: &PreprocessorContext, book: &mut Book) -> Result<(
     // Find the position of the "All RFCs" chapter
     let mut rfc_chapter_index = None;
 
-    for (index, item) in book.sections.iter().enumerate() {
+    for (index, item) in book.items.iter().enumerate() {
         if let BookItem::Chapter(chapter) = item {
             // Check if this is the All RFCs chapter
             if chapter.name.trim() == "All RFCs" {
@@ -472,7 +475,7 @@ fn populate_rfc_sections(ctx: &PreprocessorContext, book: &mut Book) -> Result<(
     // If we found the All RFCs chapter, populate it
     if let Some(index) = rfc_chapter_index {
         // Get a mutable reference to the chapter
-        if let Some(BookItem::Chapter(chapter)) = book.sections.get_mut(index) {
+        if let Some(BookItem::Chapter(chapter)) = book.items.get_mut(index) {
             populate_all_rfcs_section(ctx, chapter)?;
         }
     }
