@@ -30,6 +30,9 @@ impl Deploy {
             xshell::Cmd::new(npm).arg("run").arg("build").run()?;
         }
 
+        // Ensure mdbook is installed at the expected version
+        ensure_mdbook_installed()?;
+
         // Build RFC and spec mdbooks
         {
             let rfcs_dir = manifest_dir.join("rfcs");
@@ -85,6 +88,47 @@ impl Deploy {
 
         Ok(())
     }
+}
+
+const MDBOOK_VERSION: &str = "0.5.2";
+
+/// Ensures mdbook is installed at the expected version.
+///
+/// 💡 Netlify (and other CI-like environments) don't have mdbook pre-installed,
+/// unlike GitHub Actions where we use peaceiris/actions-mdbook. This function
+/// makes `cargo xtask deploy` self-contained by installing mdbook if needed.
+fn ensure_mdbook_installed() -> anyhow::Result<()> {
+    // Check if mdbook is already installed at the right version
+    let output = std::process::Command::new("mdbook")
+        .arg("--version")
+        .output();
+
+    match output {
+        Ok(output) if output.status.success() => {
+            let version_str = String::from_utf8_lossy(&output.stdout);
+            // mdbook --version outputs "mdbook v0.5.2"
+            if version_str.contains(MDBOOK_VERSION) {
+                tracing::info!("mdbook {MDBOOK_VERSION} already installed");
+                return Ok(());
+            }
+            tracing::info!(
+                "mdbook installed but wrong version ({}), installing {MDBOOK_VERSION}",
+                version_str.trim()
+            );
+        }
+        _ => {
+            tracing::info!("mdbook not found, installing {MDBOOK_VERSION}");
+        }
+    }
+
+    xshell::Cmd::new("cargo")
+        .arg("install")
+        .arg("mdbook")
+        .arg("--version")
+        .arg(MDBOOK_VERSION)
+        .run()?;
+
+    Ok(())
 }
 
 fn cargo_path(env_var: &str) -> anyhow::Result<PathBuf> {
