@@ -1,0 +1,6 @@
+# the fn trait is similar
+
+trait Fn[perm P, type Args] {
+    type Output;
+    fn get(P self, args: Args) -> P Self::Output;
+}

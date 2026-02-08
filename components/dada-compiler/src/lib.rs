@@ -442,6 +442,13 @@ fn fn_asts(db: &dyn Db, source_file: SourceFile) -> String {
                 writeln!(output).unwrap();
                 writeln!(output, "{}", fn_asts_fn(db, function)).unwrap();
             }
+            AstItem::MainFunction(ast_main_function) => {
+                writeln!(output, "## main fn").unwrap();
+                writeln!(output).unwrap();
+                for statement in ast_main_function.statements(db) {
+                    writeln!(output, "{statement:?}").unwrap();
+                }
+            }
         }
     }
 

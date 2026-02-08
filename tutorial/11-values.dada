@@ -1,0 +1,4 @@
+let s: i32 = 22
+let t: i32 = s
+let u: i32 = u
+let v: i32 = v

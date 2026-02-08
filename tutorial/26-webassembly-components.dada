@@ -1,0 +1,5 @@
+# https://github.com/WebAssembly/wasi-http
+
+use wasi.http.fetch
+
+fetch("https://example.org")

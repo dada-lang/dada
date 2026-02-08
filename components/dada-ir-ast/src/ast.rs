@@ -90,6 +90,7 @@ pub enum AstItem<'db> {
     Use(AstUse<'db>),
     Aggregate(AstAggregate<'db>),
     Function(AstFunction<'db>),
+    MainFunction(AstMainFunction<'db>),
 }
 
 /// A "path" identifies an item and a partial set of substitutions.

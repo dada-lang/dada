@@ -2,7 +2,7 @@ use dada_util::{FromImpls, SalsaSerialize};
 use salsa::Update;
 use serde::Serialize;
 
-use crate::span::Span;
+use crate::span::{Span, Spanned};
 
 use super::{AstGenericTerm, AstPath, AstTy, DeferredParse, SpanVec, SpannedIdentifier};
 
@@ -17,6 +17,15 @@ pub struct AstBlock<'db> {
 pub enum AstStatement<'db> {
     Let(AstLetStatement<'db>),
     Expr(AstExpr<'db>),
+}
+
+impl<'db> Spanned<'db> for AstStatement<'db> {
+    fn span(&self, db: &'db dyn crate::Db) -> Span<'db> {
+        match self {
+            AstStatement::Let(s) => s.span(db),
+            AstStatement::Expr(e) => e.span,
+        }
+    }
 }
 
 /// `let x = v`, `let x: t = v`, etc

@@ -1,0 +1,8 @@
+let s: my String = "Hello, "
+read_string(s) # ==> read_string[shared[s]](s)
+read_string(s.move) # ==> read_string[my](s.move)
+read_string(s.move) # ==> read_string[my](s.move), ERROR
+
+# fn read_string(s: String)
+fn read_string[perm P](s: P String) {
+}

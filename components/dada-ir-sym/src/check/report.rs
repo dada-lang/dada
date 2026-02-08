@@ -12,13 +12,14 @@ use crate::{
     ir::{
         exprs::{SymExpr, SymPlaceExpr},
         generics::SymWhereClause,
+        indices::InferVarIndex,
         types::{SymGenericTerm, SymPerm, SymPlace, SymTy, SymTyName},
         variables::SymVariable,
     },
 };
 
 use super::{
-    inference::Direction,
+    inference::{Direction, InferVarKind},
     red::{RedPerm, RedTy},
     to_red::RedTyExt,
 };
@@ -197,8 +198,8 @@ pub enum Because<'db> {
     /// this lower bound "or else" the given error would occur.
     InferredLowerBound(RedTy<'db>, ArcOrElse<'db>),
 
-    /// The inference variable declared here needs more constraints
-    UnconstrainedInfer(Span<'db>),
+    /// The given inference variable needs more constraints
+    UnconstrainedInfer(InferVarIndex),
 }
 
 impl<'db> Because<'db> {
@@ -289,9 +290,9 @@ impl<'db> Because<'db> {
                             )
                             .child(or_else_diagnostic))
             }
-            Because::UnconstrainedInfer(span) => Some(Diagnostic::info(
+            Because::UnconstrainedInfer(infer) => Some(Diagnostic::info(
                 db,
-                *span,
+                env.infer_var_span(*infer),
                 "this error might well be bogus, I just can't infer the type here".to_string(),
             )),
             Because::NoWhereClause(var, predicate) => Some(Diagnostic::info(
@@ -876,6 +877,56 @@ impl<'db> OrElse<'db> for OperatorArgumentsMustHaveSameType<'db> {
                     rhs.span(db),
                     format!("has type `{}`", rhs.ty(db)),
                 ),
+        )
+    }
+
+    fn to_arc(&self) -> ArcOrElse<'db> {
+        Arc::new(*self).into()
+    }
+
+    fn compiler_location(&self) -> &'static Location<'static> {
+        self.compiler_location
+    }
+}
+
+#[derive(Copy, Clone, Debug)]
+pub struct InferenceFallback<'db> {
+    span: Span<'db>,
+    kind: InferVarKind,
+    term: SymGenericTerm<'db>,
+    compiler_location: &'static Location<'static>,
+}
+
+impl<'db> InferenceFallback<'db> {
+    #[track_caller]
+    pub fn new(span: Span<'db>, kind: InferVarKind, term: impl Into<SymGenericTerm<'db>>) -> Self {
+        Self {
+            span,
+            kind,
+            term: term.into(),
+            compiler_location: Location::caller(),
+        }
+    }
+}
+
+impl<'db> OrElse<'db> for InferenceFallback<'db> {
+    fn or_else(&self, env: &mut Env<'db>, because: Because<'db>) -> Diagnostic {
+        let db = env.db();
+        let Self {
+            span,
+            kind,
+            term,
+            compiler_location: _,
+        } = *self;
+
+        because.annotate_diagnostic(
+            env,
+            Diagnostic::error(db, span, "unconstrained inference variable").label(
+                db,
+                Level::Error,
+                span,
+                format!("I resolved this {kind} to {term}",),
+            ),
         )
     }
 

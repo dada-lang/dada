@@ -5,7 +5,7 @@
 
 fn test_our_shared() { is_shared[our String]() }
 fn test_our_unique() { is_unique[our String]() } #! /where clause.*not satisfied
-fn test_our_lent() { is_lent[our String]() }     #! /where clause.*not satisfied
+fn test_our_lent() { is_lent[our String]() }
 fn test_our_owned() { is_owned[our String]() }
 
 ##################################################

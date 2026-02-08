@@ -1,0 +1,6 @@
+# in Dada, no need for Deref and DerefMut, just need one trait that is generic over the permission
+
+trait Place[perm P] {
+    type Output;
+    fn get(P self) -> P Self::Output;
+}

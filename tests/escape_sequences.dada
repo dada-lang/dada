@@ -1,0 +1,18 @@
+#:skip_codegen
+
+async fn main() {
+    # Test basic escape sequences
+    let quote = "\""
+    let newline = "hello\nworld"
+    let tab = "hello\tworld"  
+    let backslash = "hello\\world"
+    
+    # Test curly braces for future interpolation compatibility
+    let curly = "hello\{world\}"
+    
+    print(quote).await
+    print(newline).await
+    print(tab).await
+    print(backslash).await
+    print(curly).await
+}

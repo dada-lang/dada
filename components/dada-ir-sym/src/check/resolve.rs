@@ -1,7 +1,9 @@
 //! Code to resolve inference variables to concrete types and permissions.
 
+use std::collections::hash_map::Entry;
+
 use dada_ir_ast::diagnostic::{Diagnostic, Err, Reported};
-use dada_util::Set;
+use dada_util::Map;
 
 use crate::ir::{
     classes::SymAggregateStyle,
@@ -19,7 +21,28 @@ use super::{
 pub struct Resolver<'env, 'db> {
     db: &'db dyn crate::Db,
     env: &'env mut Env<'db>,
-    var_stack: Set<InferVarIndex>,
+
+    // For a type inference variable, the algorithm is
+    // that we prefer the lower bound if present,
+    // then the upper bound if not, and fallback to
+    // `!` (never).
+    //
+    // Types can include other types which must be
+    // recursively resolved. To account for the possibility
+    // of cycles, we insert `Err` when we begin resolving
+    // a type's value, and `Ok` when we finish.
+    // If we encounter a cycle, we error.
+    memoized_ty: Map<InferVarIndex, Result<SymTy<'db>, ResolverCycle>>,
+
+    // For a permission inference variable, the algorithm is
+    // that we prefer the lower bound if present,
+    // then the upper bound if not, and fallback to
+    // `my`.
+    //
+    // Permissions cannot encounter cycles since `RedPerm`
+    // bounds do not reference other inference variables or
+    // have recursive structure.
+    memoized_perm: Map<InferVarIndex, SymPerm<'db>>,
 }
 
 impl<'env, 'db> Resolver<'env, 'db> {
@@ -32,7 +55,8 @@ impl<'env, 'db> Resolver<'env, 'db> {
         Self {
             db: env.db(),
             env,
-            var_stack: Default::default(),
+            memoized_ty: Default::default(),
+            memoized_perm: Default::default(),
         }
     }
 
@@ -54,48 +78,34 @@ impl<'env, 'db> Resolver<'env, 'db> {
     fn resolve_infer_var(
         &mut self,
         infer: InferVarIndex,
-    ) -> Result<SymGenericTerm<'db>, ResolverError> {
-        if self.var_stack.insert(infer) {
-            let mut compute_result = || -> Result<SymGenericTerm<'db>, ResolverError> {
-                match self.env.infer_var_kind(infer) {
-                    InferVarKind::Type => {
-                        if let Some(ty) = self.bounding_ty(infer, Direction::FromBelow)? {
-                            Ok(ty.into())
-                        } else if let Some(ty) = self.bounding_ty(infer, Direction::FromAbove)? {
-                            Ok(ty.into())
-                        } else {
-                            self.env
-                                .log("no bounds found for type inference variable", &[&infer]);
-                            Err(ResolverError::NoBounds)
-                        }
-                    }
-
-                    InferVarKind::Perm => {
-                        Ok(self.bounding_perm(infer, Direction::FromBelow)?.into())
-                    }
-                }
-            };
-
-            let result = compute_result();
-            self.var_stack.remove(&infer);
-            result
-        } else {
-            Err(ResolverError::Cycle)
+    ) -> Result<SymGenericTerm<'db>, ResolverCycle> {
+        match self.env.infer_var_kind(infer) {
+            InferVarKind::Type => Ok(self.resolve_ty_var(infer)?.into()),
+            InferVarKind::Perm => Ok(self.resolve_perm_var(infer).into()),
         }
     }
 
-    fn report(&self, infer: InferVarIndex, err: ResolverError) -> Reported {
-        let span = self.env.infer_var_span(infer);
-        match err {
-            ResolverError::NoBounds => {
-                Diagnostic::error(self.db, span, "no bounds found for inference variable")
-                    .report(self.db)
+    fn resolve_ty_var(&mut self, infer: InferVarIndex) -> Result<SymTy<'db>, ResolverCycle> {
+        match self.memoized_ty.entry(infer) {
+            Entry::Occupied(entry) => {
+                return *entry.get();
             }
-            ResolverError::Cycle => {
-                Diagnostic::error(self.db, span, "cyclic bounds found for inference variable")
-                    .report(self.db)
+            Entry::Vacant(entry) => {
+                entry.insert(Err(ResolverCycle));
             }
         }
+
+        let ty = if let Some(t) = self.bounding_ty(infer, Direction::FromBelow)? {
+            t
+        } else if let Some(t) = self.bounding_ty(infer, Direction::FromAbove)? {
+            t
+        } else {
+            // we always insert a fallback bound, so this should not occur
+            panic!("found no inference bounds, odd")
+        };
+
+        self.memoized_ty.insert(infer, Ok(ty));
+        Ok(ty)
     }
 
     /// Return the bounding type on the type inference variable `v` from the given `direction`.
@@ -103,7 +113,7 @@ impl<'env, 'db> Resolver<'env, 'db> {
         &mut self,
         infer: InferVarIndex,
         direction: Direction,
-    ) -> Result<Option<SymTy<'db>>, ResolverError> {
+    ) -> Result<Option<SymTy<'db>>, ResolverCycle> {
         let db = self.env.db();
 
         let bound = self.env.red_bound(infer, direction).peek_ty();
@@ -114,8 +124,8 @@ impl<'env, 'db> Resolver<'env, 'db> {
 
         let apply_perm = |this: &mut Self, sym_ty: SymTy<'db>| {
             let perm_infer = this.env.perm_infer(infer);
-            let sym_perm = this.bounding_perm(perm_infer, direction)?;
-            Ok(SymTy::new(db, SymTyKind::Perm(sym_perm, sym_ty)))
+            let sym_perm = this.resolve_perm_var(perm_infer);
+            sym_perm.apply_to(db, sym_ty)
         };
 
         Ok(Some(match red_ty {
@@ -125,38 +135,49 @@ impl<'env, 'db> Resolver<'env, 'db> {
                 let ty = SymTy::new(db, SymTyKind::Named(name, args));
                 match name.style(db) {
                     SymAggregateStyle::Struct => ty,
-                    SymAggregateStyle::Class => apply_perm(self, ty)?,
+                    SymAggregateStyle::Class => apply_perm(self, ty),
                 }
             }
             RedTy::Never => SymTy::new(db, SymTyKind::Never),
             RedTy::Infer(_) => panic!("infer bound cannot be another infer"),
-            RedTy::Var(var) => apply_perm(self, SymTy::new(db, SymTyKind::Var(var)))?,
+            RedTy::Var(var) => apply_perm(self, SymTy::new(db, SymTyKind::Var(var))),
             RedTy::Perm => panic!("infer bound cannot be a perm"),
         }))
     }
 
+    fn resolve_perm_var(&mut self, infer: InferVarIndex) -> SymPerm<'db> {
+        if let Some(perm) = self.memoized_perm.get(&infer) {
+            return *perm;
+        }
+
+        let perm = if let Some(t) = self.bounding_perm(infer, Direction::FromBelow) {
+            t
+        } else if let Some(t) = self.bounding_perm(infer, Direction::FromAbove) {
+            t
+        } else {
+            // we always insert a fallback bound, so this should not occur
+            panic!("found no inference bounds, odd")
+        };
+
+        self.memoized_perm.insert(infer, perm);
+        perm
+    }
+
     /// Return the bounding perm on the permission inference variable `v` from the given `direction`.
-    fn bounding_perm(
-        &mut self,
-        infer: InferVarIndex,
-        direction: Direction,
-    ) -> Result<SymPerm<'db>, ResolverError> {
+    fn bounding_perm(&self, infer: InferVarIndex, direction: Direction) -> Option<SymPerm<'db>> {
         let runtime = self.env.runtime().clone();
-        runtime.with_inference_var_data(infer, |data| match data.red_perm_bound(direction) {
-            Some((bound, _)) => Ok(bound.to_sym_perm(self.db)),
-            None => {
-                self.env.log(
-                    "no bounds found for perm inference variable",
-                    &[&infer, &direction],
-                );
-                Err(ResolverError::NoBounds)
-            }
+        runtime.with_inference_var_data(infer, |data| {
+            data.red_perm_bound(direction)
+                .map(|(bound, _)| bound.to_sym_perm(self.db))
         })
+    }
+
+    fn report(&self, infer: InferVarIndex, _err: ResolverCycle) -> Reported {
+        let span = self.env.infer_var_span(infer);
+        Diagnostic::error(self.db, span, "cyclic bounds found for inference variable")
+            .report(self.db)
     }
 }
 
-enum ResolverError {
-    NoBounds,
-
-    Cycle,
-}
+#[derive(Copy, Clone)]
+struct ResolverCycle;

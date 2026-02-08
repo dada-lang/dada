@@ -141,7 +141,7 @@ async fn require_perm_is_unique<'db>(
             // Variable and inference
             SymPermKind::Var(var) => require_var_is(env, var, Predicate::Unique, or_else),
             SymPermKind::Infer(infer) => {
-                require_infer_is(env, perm, infer, Predicate::Unique, or_else).await
+                require_infer_is(env, SymPerm::my(db), infer, Predicate::Unique, or_else).await
             }
 
             SymPermKind::Or(_, _) => todo!(),

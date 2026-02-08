@@ -34,6 +34,7 @@ pub async fn try_view_data(event_index: usize, state: &State) -> anyhow::Result<
 
 #[derive(Embed)]
 #[folder = "templates"]
+#[allow(dead_code)]
 struct Assets;
 
 handlebars_helper!(index: |events: array, i: usize| events[i].clone());

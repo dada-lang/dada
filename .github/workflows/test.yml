@@ -37,6 +37,9 @@ jobs:
       - uses: actions/setup-node@v3
         with:
           node-version-file: '.nvmrc'
+      - uses: peaceiris/actions-mdbook@v2
+        with:
+          mdbook-version: '0.5.2'
       - run: cargo xtask deploy --check
 
   rustfmt:

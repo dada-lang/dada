@@ -30,6 +30,11 @@ pub(crate) struct RedPerm<'db> {
 }
 
 impl<'db> RedPerm<'db> {
+    /// Returns the fallback bound for a permission (`my`)
+    pub fn fallback(db: &'db dyn crate::Db) -> Self {
+        RedPerm::new(db, vec![RedChain::new(db, vec![])])
+    }
+
     pub fn is_provably(self, env: &Env<'db>, predicate: Predicate) -> Errors<bool> {
         let chains = self.chains(env.db());
         assert!(!chains.is_empty());
@@ -228,7 +233,12 @@ impl<'db> Err<'db> for RedTy<'db> {
 }
 
 impl<'db> RedTy<'db> {
-    pub fn to_sym_ty(self, db: &'db dyn crate::Db) -> SymTy<'db> {
+    /// Inference fallback
+    pub fn fallback(_db: &'db dyn crate::Db) -> Self {
+        RedTy::Never
+    }
+
+    pub fn into_sym_ty(self, db: &'db dyn crate::Db) -> SymTy<'db> {
         match self {
             RedTy::Error(reported) => SymTy::err(db, reported),
             RedTy::Named(name, terms) => SymTy::named(db, name, terms),

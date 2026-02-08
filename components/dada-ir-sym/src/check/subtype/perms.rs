@@ -168,7 +168,7 @@ async fn require_infer_bounded_by_perm<'db>(
         .await
 }
 
-async fn require_perm_sub_perm<'db>(
+pub(crate) async fn require_perm_sub_perm<'db>(
     env: &mut Env<'db>,
     live_after: LivePlaces,
     lower_perm: SymPerm<'db>,

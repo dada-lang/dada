@@ -1,0 +1,7 @@
+# Permissions table:
+# |       | move        | copy      |
+# | ----- | ----        | ----      |
+# | owned | `my`        | `our`       |
+# | lent  | `leased[v]` | `shared[v, v2, a.b]` | 
+#
+# (This is a first approximation, there is actually a touch more subtlety, we'll get to that)

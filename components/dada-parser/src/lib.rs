@@ -1,3 +1,5 @@
+#![doc = include_str!("../docs/overview.md")]
+
 use salsa::Update;
 use tokenizer::{
     Delimiter, Keyword, Skipped, Token, TokenKind, is_op_char,
@@ -227,10 +229,15 @@ impl<'token, 'db> Parser<'token, 'db> {
         }
     }
 
-    /// Eat any pending errors and add them to the list of errors to report.
+    /// Eats any pending error tokens and adds them to the diagnostic list.
     /// Does not adjust `last_span`.
     ///
-    /// Invoked automatically after each call to `eat_next_token`.
+    /// This implements **eager error consumption** - error tokens from the tokenizer
+    /// are immediately converted to diagnostics rather than disrupting normal parsing.
+    /// Called automatically after each `eat_next_token()` to maintain clean token streams.
+    ///
+    /// This pattern allows parsing to continue after tokenizer errors, enabling
+    /// better error recovery and multiple error reporting in a single pass.
     fn eat_errors(&mut self) {
         while let Some(Token {
             kind: TokenKind::Error(diagnostic),
@@ -322,11 +329,10 @@ impl<'token, 'db> Parser<'token, 'db> {
             skipped: _,
             span,
         }) = self.peek()
+            && kw == kw1
         {
-            if kw == kw1 {
-                self.eat_next_token().unwrap();
-                return Ok(span);
-            }
+            self.eat_next_token().unwrap();
+            return Ok(span);
         }
         Err(self.illformed(Expected::Keyword(kw)))
     }
@@ -348,13 +354,13 @@ impl<'token, 'db> Parser<'token, 'db> {
         const MAX_LEN: usize = 5;
         assert!(op.len() < MAX_LEN, "unexpectedly long operator");
 
-        if cfg!(debug_assertions) {
-            if let Some(invalid_ch) = op.iter().find(|&&ch| !is_op_char(ch)) {
-                debug_assert!(
-                    false,
-                    "eat_op({op:?}): `{invalid_ch:?}` is not a valid operator"
-                );
-            }
+        if cfg!(debug_assertions)
+            && let Some(invalid_ch) = op.iter().find(|&&ch| !is_op_char(ch))
+        {
+            debug_assert!(
+                false,
+                "eat_op({op:?}): `{invalid_ch:?}` is not a valid operator"
+            );
         }
 
         // Check that next character is an operator character.
@@ -423,11 +429,10 @@ impl<'token, 'db> Parser<'token, 'db> {
             span: _,
             skipped: _,
         }) = self.peek()
+            && delimiter == delimiter1
         {
-            if delimiter == delimiter1 {
-                self.eat_next_token().unwrap();
-                return Ok(text);
-            }
+            self.eat_next_token().unwrap();
+            return Ok(text);
         }
 
         Err(self.illformed(Expected::Delimited(delimiter)))

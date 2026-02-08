@@ -1,0 +1,10 @@
+class Character(name: String) {
+    fn get_name(self) -> moved[self] String {
+        self.name.move
+    }
+}
+
+let c = Character("Tzara")
+let n1 = c.get_name()       # shared[c] String
+c.lease.get_name().push(" Tzara") # modifies the name in place to be "Tzara Tzara"
+let n2 = c.move.get_name()  # my String

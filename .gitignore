@@ -1,7 +1,9 @@
 target
+.claude
 .vscode
 playground
 dada_debug
+.ongoing
 
 # Internal IR files used for debugging
 syntax.debug
@@ -9,3 +11,8 @@ validated.debug
 bir.debug
 lsp.debug
 dada_debug.*
+
+# mdBook build artifacts
+book/book/
+rfcs/book/
+spec/book/

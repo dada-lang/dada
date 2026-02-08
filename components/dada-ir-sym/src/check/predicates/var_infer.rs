@@ -6,9 +6,13 @@ use crate::{
         env::Env,
         inference::Direction,
         predicates::{Predicate, term_is_provably},
-        report::{Because, OrElse},
+        report::{Because, OrElse, OrElseHelper},
     },
-    ir::{indices::InferVarIndex, types::SymPerm, variables::SymVariable},
+    ir::{
+        indices::InferVarIndex,
+        types::{SymGenericTerm, SymPerm},
+        variables::SymVariable,
+    },
 };
 
 use super::require_term_is;
@@ -46,78 +50,77 @@ pub async fn require_infer_is<'db>(
     predicate: Predicate,
     or_else: &dyn OrElse<'db>,
 ) -> Errors<()> {
-    if env.infer_is(infer, predicate).is_some() {
-        // Already required to meet this predicate.
-        return Ok(());
-    }
+    // The algorithms here are tied to the code in resolve.
+    //
+    // In particular to the fact that permissions fallback to `SymPerm::My`
+    // if no bounds are found.
 
-    if let Some(predicate_inverted) = predicate.invert() {
-        if let Some(_or_else_invert) = env.infer_is(infer, predicate_inverted) {
-            // Already required NOT to meet this predicate.
-            return Err(or_else.report(env, Because::JustSo)); // FIXME we can do better than JustSo
-        }
-    }
-
-    // Record that `infer` is required to meet the predicate.
-    env.set_infer_is(infer, predicate, or_else);
-
-    // Enforce the result implications of that
-    match predicate {
-        Predicate::Lent => {
-            // If `infer` must be lent, its upper bounds must be lent.
-            // Lower bounds don't have to be.
-            //
-            // FIXME: Well, lower bounds have to be "maybe" lent.
-            require_bounding_terms_are(
-                env,
-                perm,
-                infer,
-                Some(Direction::FromAbove),
-                Predicate::Lent,
-                or_else,
-            )
-            .await
-        }
-
-        Predicate::Owned => {
-            // If `infer` must be owned, its lower bounds must be owned.
-            // Upper bounds don't have to be.
-            //
-            // FIXME: Well, upper bounds have to be "maybe" owned.
-            require_bounding_terms_are(
-                env,
-                perm,
-                infer,
-                Some(Direction::FromBelow),
-                Predicate::Owned,
-                or_else,
-            )
-            .await
-        }
-
-        Predicate::Shared | Predicate::Unique => {
-            require_bounding_terms_are(env, perm, infer, None, predicate, or_else).await
-        }
-    }
-}
-
-async fn require_bounding_terms_are<'db>(
-    env: &mut Env<'db>,
-    perm: SymPerm<'db>,
-    infer: InferVarIndex,
-    direction: Option<Direction>,
-    predicate: Predicate,
-    or_else: &dyn OrElse<'db>,
-) -> Errors<()> {
+    let db = env.db();
     env.indent(
-        "require_bounding_terms_are",
-        &[&perm, &infer],
+        "require_infer_is",
+        &[&infer, &env.infer_var_kind(infer), &predicate],
         async |env| {
-            let mut bounds = env.term_bounds(perm, infer, direction);
-            while let Some((_, bound)) = bounds.next(env).await {
+            // We leverage two key Lemmas.
+            //
+            // If `P1 <: P2` and for predicate C in {unique, owned, shared, lent} then
+            //
+            // 1. P2 is C => P1 is C
+            // 2. not (P1 is C) => not (P2 is C)
+            //
+            // (Note that because of the possibility of `|` types,
+            // Lemma 2 is weaker than it seems like it should be.
+            // Intuitively I expected `P1 is shared => P2 is shared`,
+            // for example, but because `our <: (our | my)`, that does not hold.
+            // However, `not (P1 is unique) => not (P2 is unique)` does,
+            // as does `not (P1 is shared) => not (Pr is shared)` etc.)
+            //
+            // Let's talk through the algorithm using the example of `Predicate::Owned`.
+            // The Unique and Shared predicates are analogous.
+            //
+            // If we see a **lower bound** B1, we cannot not yet that the
+            // final value will be owned. A future upper bound B2 could
+            // be added that is not owned. However, Lemma 2 tells us that
+            // B1 must be owned, since otherwise any future upper bound
+            // could not be owned. So we can enforce that and then
+            // continue waiting for future bounds.
+            //
+            // If see an **upper bound** B2, we can enforce it is owned
+            // and then stop, since by Lemma 1, any future lower bound
+            // B1 compatible with B2 must also be owned.
+            //
+            // If we reach the end of inference and we have only seen
+            // lower bounds, then we can return successfully.
+            // This is because the final value of the permission will be
+            // equal to the final lower bound, and required it to be owned.
+            // Otherwise we check that the fallback permission meets
+            // the predicate.
+
+            let mut bounds = env.term_bounds(perm, infer);
+            let mut observed_lower_bound = false;
+            while let Some((direction, bound)) = bounds.next(env).await {
+                env.log("observed bound", &[&infer, &direction, &bound, &predicate]);
+
                 require_term_is(env, bound, predicate, or_else).await?;
+
+                match direction {
+                    Direction::FromBelow => observed_lower_bound = true,
+                    Direction::FromAbove => return Ok(()),
+                }
             }
-            Ok(())
+
+            env.log("observed_lower_bound", &[&observed_lower_bound]);
+
+            if observed_lower_bound {
+                Ok(())
+            } else {
+                require_term_is(
+                    env,
+                    perm.apply_to(db, SymGenericTerm::fallback(db, env.infer_var_kind(infer))),
+                    predicate,
+                    &or_else.map_because(move |_| Because::UnconstrainedInfer(infer)),
+                )
+                .await
+            }
         },
     )
     .await
@@ -132,18 +135,6 @@ pub async fn infer_is_provably<'db>(
     infer: InferVarIndex,
     predicate: Predicate,
 ) -> Errors<bool> {
-    if env.infer_is(infer, predicate).is_some() {
-        // Already required to meet this predicate.
-        return Ok(true);
-    }
-
-    if let Some(predicate_inverted) = predicate.invert() {
-        if let Some(_or_else_invert) = env.infer_is(infer, predicate_inverted) {
-            // Already required NOT to meet this predicate.
-            return Ok(false);
-        }
-    }
-
     match predicate {
         Predicate::Lent => {
             // If some lower bound is lent, then this must be lent.
@@ -185,8 +176,14 @@ async fn exists_bounding_term<'db>(
 ) -> Errors<bool> {
     env.indent("exists_bounding_term", &[&perm, &infer], async |env| {
         let db = env.db();
-        let mut bounds = env.term_bounds(perm, infer, direction);
-        while let Some((_, bound)) = bounds.next(env).await {
+        let mut bounds = env.term_bounds(perm, infer);
+        while let Some((direction_bound, bound)) = bounds.next(env).await {
+            if let Some(direction) = direction
+                && direction_bound != direction
+            {
+                continue;
+            }
+
             if term_is_provably(env, perm.apply_to(db, bound), predicate).await? {
                 return Ok(true);
             }

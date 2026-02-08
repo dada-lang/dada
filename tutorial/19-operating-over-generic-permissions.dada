@@ -1,0 +1,10 @@
+class Character(name: String)
+
+fn get_name(character: Character) -> moved[character] String {
+    character.name.move
+}
+
+let c = Character("Tzara")
+let n1 = get_name(c)      # get_name[shared[c]](c) -> shared[c] String
+let n2 = get_name(c.lease)# get_name[leased[c]](c) -> leased[c] String
+let n3 = get_name(c.move) # get_name[my](c.move) -> my String

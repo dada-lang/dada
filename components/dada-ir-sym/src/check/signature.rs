@@ -172,6 +172,7 @@ async fn output_ty<'db>(env: &mut Env<'db>, function: &SymFunction<'db>) -> SymT
             Some(ast_ty) => ast_ty.check_in_env(env).await,
             None => SymTy::unit(db),
         },
+        SymFunctionSource::MainFunction(_) => SymTy::unit(env.db()),
         SymFunctionSource::Constructor(sym_aggregate, _ast_aggregate) => {
             sym_aggregate.self_ty(db, &env.scope)
         }

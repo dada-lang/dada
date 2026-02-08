@@ -19,36 +19,47 @@ use super::{is_provably_unique::place_is_provably_unique, var_infer::infer_is_pr
 
 pub async fn term_is_provably_lent<'db>(
     env: &mut Env<'db>,
-    term: SymGenericTerm<'db>,
+    term: impl Into<SymGenericTerm<'db>>,
 ) -> Errors<bool> {
-    let db = env.db();
-    let (red_ty, perm) = term.to_red_ty(env);
-    match red_ty {
-        RedTy::Infer(infer) => infer_is_provably(env, perm, infer, Predicate::Lent).await,
-        RedTy::Var(var) => Ok(test_var_is_provably(env, var, Predicate::Lent)),
-        RedTy::Never => perm_is_provably_lent(env, perm).await,
-        RedTy::Error(reported) => Err(reported),
-        RedTy::Named(name, generics) => match name {
-            SymTyName::Primitive(_) => Ok(false),
-            SymTyName::Aggregate(sym_aggregate) => match sym_aggregate.style(db) {
-                SymAggregateStyle::Struct => {
+    let term: SymGenericTerm<'db> = term.into();
+    env.indent("term_is_provably_lent", &[&term], async |env| {
+        let db = env.db();
+        let (red_ty, perm) = term.to_red_ty(env);
+        match red_ty {
+            RedTy::Infer(infer) => infer_is_provably(env, perm, infer, Predicate::Lent).await,
+            RedTy::Var(var) => {
+                // Subtle: `perm` doesn't matter here because...
+                //
+                // (1) the generic variable could be a struct, in which case it would be ignored
+                // (2) even if it's not, if it's a lent thing (e.g., `ref[x] S` or `mut[x] S`),
+                // then whatever perm we apply, the result will still be lent.
+                Ok(test_var_is_provably(env, var, Predicate::Lent))
+            }
+            RedTy::Never => perm_is_provably_lent(env, perm).await,
+            RedTy::Error(reported) => Err(reported),
+            RedTy::Named(name, generics) => match name {
+                SymTyName::Primitive(_) => Ok(false),
+                SymTyName::Aggregate(sym_aggregate) => match sym_aggregate.style(db) {
+                    SymAggregateStyle::Struct => {
+                        env.exists(generics, async |env, generic| {
+                            term_is_provably_lent(env, perm.apply_to(db, generic)).await
+                        })
+                        .await
+                    }
+                    SymAggregateStyle::Class => perm_is_provably_lent(env, perm).await,
+                },
+                SymTyName::Future => Ok(false),
+                SymTyName::Tuple { arity: _ } => {
                     env.exists(generics, async |env, generic| {
                         term_is_provably_lent(env, perm.apply_to(db, generic)).await
                     })
                     .await
                 }
-                SymAggregateStyle::Class => Ok(false),
             },
-            SymTyName::Future => Ok(false),
-            SymTyName::Tuple { arity: _ } => {
-                env.exists(generics, async |env, generic| {
-                    term_is_provably_lent(env, perm.apply_to(db, generic)).await
-                })
-                .await
-            }
-        },
-        RedTy::Perm => perm_is_provably_lent(env, perm).await,
-    }
+            RedTy::Perm => perm_is_provably_lent(env, perm).await,
+        }
+    })
+    .await
 }
 
 async fn application_is_provably_lent<'db>(
@@ -72,7 +83,10 @@ pub(crate) async fn perm_is_provably_lent<'db>(
     match *perm.kind(db) {
         SymPermKind::Error(reported) => Err(reported),
         SymPermKind::My => Ok(false),
-        SymPermKind::Our => Ok(false),
+
+        // Somewhat surprising, but `our` is considered lent because of subtyping.
+        SymPermKind::Our => Ok(true),
+
         SymPermKind::Referenced(ref places) | SymPermKind::Mutable(ref places) => {
             // This one is tricky. If the places are copy,
             // then we will reduce to their chains, but then
@@ -98,7 +112,9 @@ pub(crate) async fn perm_is_provably_lent<'db>(
             Ok(application_is_provably_lent(env, lhs.into(), rhs.into()).await?)
         }
         SymPermKind::Var(var) => Ok(test_var_is_provably(env, var, Predicate::Lent)),
-        SymPermKind::Infer(infer) => infer_is_provably(env, perm, infer, Predicate::Lent).await,
+        SymPermKind::Infer(infer) => {
+            infer_is_provably(env, SymPerm::my(db), infer, Predicate::Lent).await
+        }
         SymPermKind::Or(_, _) => todo!(),
     }
 }
@@ -108,5 +124,5 @@ pub(crate) async fn place_is_provably_lent<'db>(
     place: SymPlace<'db>,
 ) -> Errors<bool> {
     let ty = place.place_ty(env).await;
-    term_is_provably_lent(env, ty.into()).await
+    term_is_provably_lent(env, ty).await
 }

@@ -1,0 +1,4 @@
+let s: my String = "Hello, "
+let t: shared[s] String = s
+s.lease.push("world") # <-- ERROR
+print("{t}")

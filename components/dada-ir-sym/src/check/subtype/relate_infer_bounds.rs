@@ -13,7 +13,7 @@ pub async fn relate_infer_bounds<'db>(env: &mut Env<'db>, infer: InferVarIndex) 
     let mut lower_bound = None;
     let mut upper_bound = None;
 
-    let mut bounds = env.term_bounds(SymPerm::my(env.db()), infer, None);
+    let mut bounds = env.term_bounds(SymPerm::my(env.db()), infer);
     while let Some((direction, new_bound)) = bounds.next(env).await {
         match direction {
             Direction::FromBelow => lower_bound = Some(new_bound),

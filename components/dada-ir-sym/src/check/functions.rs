@@ -6,7 +6,7 @@ use crate::{
     },
 };
 use dada_ir_ast::{
-    ast::{AstAggregate, AstBlock},
+    ast::{AstAggregate, AstBlock, AstMainFunction},
     diagnostic::{Diagnostic, Err, Level},
 };
 use dada_parser::prelude::FunctionBlock;
@@ -18,7 +18,8 @@ use crate::{
 };
 
 use super::{
-    CheckExprInEnv, live_places::LivePlaces, report::InvalidReturnValue, resolve::Resolver,
+    CheckExprInEnv, env::Env, live_places::LivePlaces, report::InvalidReturnValue,
+    resolve::Resolver, statements::check_block_statements,
 };
 
 pub(crate) fn check_function_body<'db>(
@@ -30,10 +31,31 @@ pub(crate) fn check_function_body<'db>(
             let block = ast_function.body_block(db)?;
             Some(check_function_body_ast_block(db, function, block))
         }
+        SymFunctionSource::MainFunction(mfunc) => Some(check_main_function(db, function, mfunc)),
         SymFunctionSource::Constructor(sym_class, ast_class_item) => Some(
             check_function_body_class_constructor(db, function, sym_class, ast_class_item),
         ),
     }
+}
+
+fn check_main_function<'db>(
+    db: &'db dyn crate::Db,
+    function: SymFunction<'db>,
+    mfunc: AstMainFunction<'db>,
+) -> SymExpr<'db> {
+    Runtime::execute(
+        db,
+        mfunc.statements(db).span,
+        "check_main_function",
+        &[&mfunc],
+        async move |runtime| -> SymExpr<'db> {
+            let mut env: Env<'db> = Env::new(runtime, function.scope(db));
+            let statements = mfunc.statements(db);
+            let live_after = LivePlaces::none(&env);
+            check_block_statements(&mut env, live_after, statements.span, statements).await
+        },
+        |expr| expr,
+    )
 }
 
 /// Check the automatic construct that results when user writes parentheses, like `class Foo(...)`.

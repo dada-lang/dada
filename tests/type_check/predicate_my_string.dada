@@ -1,5 +1,4 @@
 #:skip_codegen # FIXME: codegen doesn't work yet
-#:FIXME
 
 fn test_shared() {
     let x: String = "hello, world"
@@ -20,7 +19,6 @@ fn is_unique(t: type T)
 where
     T is unique,
 {
-
 }
 
 fn test_lent() {

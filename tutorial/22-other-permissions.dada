@@ -1,0 +1,36 @@
+# * `moved[x]`
+# * `shared[x]`
+# * `leased[x]`
+# * `copied[x]` (`character.name.copy`) 
+#     * my => our
+#     * or copy type => copy type
+
+
+class Character(name: String) {
+    fn moved_name(self) -> moved[self] String {
+        self.name.move
+    }
+
+    fn shared_name(self) -> shared[self] String {
+        self.name
+    }
+    
+    fn leased_name(self) -> leased[self] String {
+        self.name.lease # maybe an error? I don't know
+    }
+    
+    fn copied_name(self) -> copied[self] String {
+        self.name.copy
+    }
+}
+
+let c = Character("Hello")
+c.leased_name().push_str("Hi") # ERROR
+c.leased_name() # is being called like `c.share.leased_name()` and `leased[shared] = shared` so you get back a shared string
+# and you can't call `push_str`
+
+c.lease.leased_name().push_str("Hi")
+
+c.copied_name() # shared[c] String
+#let d: our Character = c.copy
+c.our.copied_name() # our String

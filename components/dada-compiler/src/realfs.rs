@@ -58,10 +58,10 @@ impl VirtualFileSystem for RealFs {
         match url.scheme() {
             "file" => match url.to_file_path() {
                 Ok(path) => {
-                    if let Some(base_dir) = &self.base_dir {
-                        if let Ok(suffix) = path.strip_prefix(base_dir) {
-                            return suffix.display().to_string();
-                        }
+                    if let Some(base_dir) = &self.base_dir
+                        && let Ok(suffix) = path.strip_prefix(base_dir)
+                    {
+                        return suffix.display().to_string();
                     }
                     path.display().to_string()
                 }

@@ -1,4 +1,3 @@
-#![feature(panic_payload_as_str)]
 #![doc = include_str!("../docs/overview.md")]
 
 use dada_debug::DebugOptions;
@@ -80,6 +79,10 @@ pub struct TestOptions {
     /// Print each test as we run it
     #[structopt(long, short)]
     verbose: bool,
+
+    /// Output machine-readable JSON instead of human-friendly text
+    #[structopt(long)]
+    porcelain: bool,
 
     /// Test file(s) or directory
     inputs: Vec<String>,

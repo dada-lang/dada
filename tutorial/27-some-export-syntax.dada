@@ -1,0 +1,5 @@
+use wasi.http.fetch;
+
+fn wasi.cli.main() {
+    fetch("https://example.org")
+}

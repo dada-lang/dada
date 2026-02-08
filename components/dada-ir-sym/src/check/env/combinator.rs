@@ -263,47 +263,26 @@ impl<'db> Env<'db> {
     ///   These are directly converted from the [`RedPerm`](crate::check::red::RedPerm) bounds you get if you call [`Self::red_perm_bounds`].
     /// * If this is a type inference variable, the result are series of type terms.
     ///   They do not include the permission inference variable.
-    ///
-    /// In both cases, you get back bounds from the direction you provide or from
-    /// either direction if you provide `None`. Multiple bounds from the same direction
-    /// indicate that the bounds got tighter.
     pub fn term_bounds(
         &self,
         perm: SymPerm<'db>,
         infer: InferVarIndex,
-        direction: Option<Direction>,
     ) -> SymGenericTermBoundIterator<'db> {
-        SymGenericTermBoundIterator::new(self, perm, infer, direction)
+        SymGenericTermBoundIterator::new(self, perm, infer)
     }
 
     /// Returns an iterator over the red perm bounds on a permission inference variable.
-    ///
-    /// You get back bounds from the direction you provide or from
-    /// either direction if you provide `None`. Multiple bounds from the same direction
-    /// indicate that the bounds got tighter.
-    pub fn red_perm_bounds(
-        &self,
-        infer: InferVarIndex,
-        direction: Option<Direction>,
-    ) -> RedPermBoundIterator<'db> {
-        RedPermBoundIterator::new(self, infer, direction)
+    pub fn red_perm_bounds(&self, infer: InferVarIndex) -> RedPermBoundIterator<'db> {
+        RedPermBoundIterator::new(self, infer)
     }
 
     /// Returns an iterator over the red ty bounds on a type inference variable.
     /// Note that each type inference variable has an associated permission
     /// inference variable and that this permission is not reflected in the red ty
     /// bound. Use [`Self::term_bounds`] to get back the complete inferred type.
-    ///
-    /// You get back bounds from the direction you provide or from
-    /// either direction if you provide `None`. Multiple bounds from the same direction
-    /// indicate that the bounds got tighter.
     #[expect(dead_code)]
-    pub fn red_ty_bounds(
-        &self,
-        infer: InferVarIndex,
-        direction: Option<Direction>,
-    ) -> RedTyBoundIterator<'db> {
-        RedTyBoundIterator::new(self, infer, direction)
+    pub fn red_ty_bounds(&self, infer: InferVarIndex) -> RedTyBoundIterator<'db> {
+        RedTyBoundIterator::new(self, infer)
     }
 
     #[track_caller]
@@ -320,36 +299,6 @@ impl<'db> Env<'db> {
             .loop_on_inference_var(infer, compiler_location, &self.log, op)
     }
 
-    /// Given a function `op` that extracts value from an inference var,
-    /// returns a future that blocks until a new value is observed.
-    /// A "new" value here means one not already found in `storage`;
-    /// the `storage` parameter is updated to track values across invocations.
-    #[track_caller]
-    pub fn watch_inference_var<T>(
-        &self,
-        infer: InferVarIndex,
-        mut op: impl FnMut(&InferenceVarData<'db>) -> T,
-        storage: &mut Option<T>,
-    ) -> impl Future<Output = Option<T>>
-    where
-        T: Serialize + Eq + Clone,
-    {
-        let compiler_location = Location::caller();
-        self.runtime
-            .loop_on_inference_var(infer, compiler_location, &self.log, move |data| {
-                let new_value = op(data);
-
-                if let Some(old_value) = &storage {
-                    if *old_value == new_value {
-                        return None;
-                    }
-                }
-
-                *storage = Some(new_value.clone());
-                Some(new_value)
-            })
-    }
-
     /// Invoke `op` for each new lower (or upper, depending on direction) bound on `?X`.
     pub async fn for_each_bound(
         &mut self,
@@ -362,10 +311,10 @@ impl<'db> Env<'db> {
             let new_pair = self
                 .loop_on_inference_var(infer, |data| {
                     let (red_ty, or_else) = data.red_ty_bound(direction)?;
-                    if let Some(previous_ty) = &previous_red_ty {
-                        if red_ty == *previous_ty {
-                            return None;
-                        }
+                    if let Some(previous_ty) = &previous_red_ty
+                        && red_ty == *previous_ty
+                    {
+                        return None;
                     }
                     Some((red_ty, or_else))
                 })

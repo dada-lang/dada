@@ -1,0 +1,4 @@
+# rust
+trait Foo {
+    fn name(&self) -> &str; # must be a reference
+}

@@ -3,6 +3,7 @@ use tracing_subscriber::{EnvFilter, prelude::*};
 
 mod build;
 mod deploy;
+mod rfc;
 
 fn main() -> anyhow::Result<()> {
     Options::from_args().main()
@@ -26,6 +27,10 @@ pub enum Command {
     Deploy {
         #[structopt(flatten)]
         options: deploy::Deploy,
+    },
+    Rfc {
+        #[structopt(flatten)]
+        options: rfc::Rfc,
     },
 }
 
@@ -55,6 +60,7 @@ impl Options {
         match &self.command {
             Command::Build { options } => options.main(),
             Command::Deploy { options } => options.main(),
+            Command::Rfc { options } => options.main(),
         }
     }
 }

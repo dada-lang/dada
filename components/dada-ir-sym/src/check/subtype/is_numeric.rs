@@ -76,9 +76,7 @@ async fn require_numeric_red_type<'db>(
             let Some((lower_red_ty, arc_or_else)) =
                 env.red_bound(infer, Direction::FromBelow).ty().await
             else {
-                return Err(
-                    or_else.report(env, Because::UnconstrainedInfer(env.infer_var_span(infer)))
-                );
+                return Err(or_else.report(env, Because::UnconstrainedInfer(infer)));
             };
             require_numeric_red_type(
                 env,

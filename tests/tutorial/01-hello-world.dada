@@ -1,0 +1,3 @@
+#:skip_codegen # FIXME: codegen doesn't work yet
+
+print("Hello, world")

@@ -166,7 +166,7 @@ async fn require_perm_is_owned<'db>(
             // Variable and inference
             SymPermKind::Var(var) => require_var_is(env, var, Predicate::Owned, or_else),
             SymPermKind::Infer(infer) => {
-                require_infer_is(env, perm, infer, Predicate::Owned, or_else).await
+                require_infer_is(env, SymPerm::my(db), infer, Predicate::Owned, or_else).await
             }
 
             SymPermKind::Or(_, _) => todo!(),

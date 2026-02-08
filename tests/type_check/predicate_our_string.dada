@@ -25,9 +25,14 @@ where
 fn test_lent() {
     let x: String = "hello, world"
 
-    # Interesting example: this is not an error
-    # because `our` can be upcast to `ref[]`.
+    # Interesting example: this is an error
+    # because `our` can be upcast to `ref[]`
     is_lent(x.share)
+}
+
+fn test_lent_share() {
+    let x: String = "hello, world"
+    is_lent(x)
 }
 
 fn is_lent(t: type T)
@@ -37,10 +42,7 @@ where
 
 fn test_lent_identity() {
     let x: String = "hello, world"
-
-    # This forces the result to be `our String`
-    # and so we get an error
-    let y: our String = is_lent_identity(x.share) #! /where clause.*not satisfied
+    let y: our String = is_lent_identity(x.share)
 }
 
 fn is_lent_identity(t: type T) -> T

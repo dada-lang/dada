@@ -1,0 +1,5 @@
+fn read_string[perm P](s: P String)
+where
+    copy(P), # P = shared[v], P = our
+{
+}

@@ -1,5 +1,6 @@
 use crate::{
     Db,
+    check::inference::InferVarKind,
     ir::{
         binder::LeafBoundTerm,
         classes::{SymAggregate, SymField},
@@ -267,6 +268,13 @@ impl<'db> SymGenericTerm<'db> {
             SymGenericTerm::Error(_) => "(error)".to_string(),
         }
     }
+
+    pub fn fallback(db: &'db dyn crate::Db, kind: InferVarKind) -> Self {
+        match kind {
+            InferVarKind::Type => SymTy::fallback(db).into(),
+            InferVarKind::Perm => SymPerm::fallback(db).into(),
+        }
+    }
 }
 
 #[derive(SalsaSerialize)]
@@ -328,6 +336,12 @@ impl<'db> SymTy<'db> {
     /// Returns a [`SymTyKind::Named`][] type for `bool`.
     pub fn boolean(db: &'db dyn Db) -> Self {
         SymTy::named(db, SymPrimitiveKind::Bool.intern(db).into(), vec![])
+    }
+
+    /// Returns the type we fallback to for type inference variables
+    /// that wind up unconstrained (never).
+    pub fn fallback(db: &'db dyn Db) -> Self {
+        Self::never(db)
     }
 
     /// Returns a [`SymTyKind::Never`][] type.
@@ -495,6 +509,12 @@ pub struct SymPerm<'db> {
 }
 
 impl<'db> SymPerm<'db> {
+    /// When we have an inference variable without any bounds,
+    /// returns the permission we will fallback to (`my`).
+    pub fn fallback(db: &'db dyn crate::Db) -> Self {
+        Self::my(db)
+    }
+
     /// Returns the permission `my`.
     pub fn my(db: &'db dyn crate::Db) -> Self {
         SymPerm::new(db, SymPermKind::My)

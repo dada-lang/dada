@@ -198,6 +198,7 @@ impl<'db> PopulateSignatureSymbols<'db> for SymFunctionSource<'db> {
                     .iter()
                     .for_each(|i| i.populate_signature_symbols(db, symbols));
             }
+            Self::MainFunction(_) => {}
         }
     }
 }
@@ -341,6 +342,7 @@ impl<'db> PopulateDefaultSymbols<'db> for SymFunctionSource<'db> {
                     .iter()
                     .for_each(|i| i.populate_default_symbols(db, scope, symbols));
             }
+            Self::MainFunction(_) => {}
         }
     }
 }

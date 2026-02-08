@@ -68,7 +68,7 @@ async fn require_ty_is_shared<'db>(
     term: SymTy<'db>,
     or_else: &dyn OrElse<'db>,
 ) -> Errors<()> {
-    env.indent("require_ty_is_copy", &[&term], async |env| {
+    env.indent("require_ty_is_shared", &[&term], async |env| {
         let db = env.db();
         let (red_ty, perm) = term.to_red_ty(env);
         match red_ty {
@@ -136,12 +136,12 @@ async fn require_generics_are_shared<'db>(
 }
 
 #[boxed_async_fn]
-async fn require_perm_is_shared<'db>(
+pub(super) async fn require_perm_is_shared<'db>(
     env: &mut Env<'db>,
     perm: SymPerm<'db>,
     or_else: &dyn OrElse<'db>,
 ) -> Errors<()> {
-    env.indent("require_perm_is_copy", &[&perm], async |env| {
+    env.indent("require_perm_is_shared", &[&perm], async |env| {
         let db = env.db();
         match *perm.kind(db) {
             SymPermKind::Error(reported) => Err(reported),
@@ -183,7 +183,7 @@ pub(crate) async fn require_place_is_shared<'db>(
     place: SymPlace<'db>,
     or_else: &dyn OrElse<'db>,
 ) -> Errors<()> {
-    env.indent("require_place_is_copy", &[&place], async |env| {
+    env.indent("require_place_is_shared", &[&place], async |env| {
         let ty = place.place_ty(env).await;
         require_ty_is_shared(env, ty, or_else).await
     })

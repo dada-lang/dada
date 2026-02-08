@@ -8,9 +8,8 @@ use serde::Serialize;
 use crate::ir::{indices::InferVarIndex, types::SymGenericKind};
 
 use super::{
-    predicates::Predicate,
     red::{RedPerm, RedTy},
-    report::{ArcOrElse, OrElse},
+    report::{ArcOrElse, InferenceFallback, OrElse},
 };
 
 mod serialize;
@@ -24,21 +23,13 @@ pub enum Direction {
 pub(crate) struct InferenceVarData<'db> {
     span: Span<'db>,
 
-    /// Records whether the inference variable is required to meet a given predicate
-    /// (and what error results if it doesn't).
-    is: [Option<ArcOrElse<'db>>; Predicate::LEN],
-
     /// Bounds on this variable suitable for its kind.
     bounds: InferenceVarBounds<'db>,
 }
 
 impl<'db> InferenceVarData<'db> {
     fn new(span: Span<'db>, bounds: InferenceVarBounds<'db>) -> Self {
-        Self {
-            span,
-            is: [None, None, None, None],
-            bounds,
-        }
+        Self { span, bounds }
     }
 
     /// Create the data for a new permission inference variable.
@@ -76,24 +67,6 @@ impl<'db> InferenceVarData<'db> {
             InferenceVarBounds::Perm { .. } => InferVarKind::Perm,
             InferenceVarBounds::Ty { .. } => InferVarKind::Type,
         }
-    }
-
-    /// If this inference variable must meet `predicate`,
-    /// returns `Some(_)` with the error that will result otherwise.
-    pub fn is(&self, predicate: Predicate) -> Option<ArcOrElse<'db>> {
-        self.is[predicate.index()].clone()
-    }
-
-    /// Record that this inference variable must meet `predicate`
-    /// or else the error `or_else` will result.
-    pub fn set_is(&mut self, predicate: Predicate, or_else: &dyn OrElse<'db>) {
-        assert!(self.is[predicate.index()].is_none());
-        assert!(if let Some(predicate_inverted) = predicate.invert() {
-            self.is[predicate_inverted.index()].is_none()
-        } else {
-            true
-        });
-        self.is[predicate.index()] = Some(or_else.to_arc());
     }
 
     /// Returns the upper or lower bounds on this permission variable.
@@ -179,12 +152,54 @@ impl<'db> InferenceVarData<'db> {
         };
         *red_ty_bound = Some((red_ty, or_else.to_arc()));
     }
+
+    /// If this inference variable is unbounded, apply a default type. This is invoked
+    /// during [`Runtime::mark_complete`](`crate::check::runtime::Runtime::mark_complete`)
+    pub fn fallback(&mut self, db: &'db dyn crate::Db) {
+        match &mut self.bounds {
+            InferenceVarBounds::Perm { lower, upper } => {
+                if lower.is_none() && upper.is_none() {
+                    let fallback = RedPerm::fallback(db);
+                    let fallback_term = fallback.to_sym_perm(db);
+                    *lower = Some((
+                        fallback,
+                        InferenceFallback::new(self.span, InferVarKind::Perm, fallback_term)
+                            .to_arc(),
+                    ));
+                }
+            }
+            InferenceVarBounds::Ty {
+                perm: _,
+                lower,
+                upper,
+            } => {
+                if lower.is_none() && upper.is_none() {
+                    let fallback = RedTy::fallback(db);
+                    let fallback_term = fallback.clone().into_sym_ty(db);
+                    *lower = Some((
+                        fallback,
+                        InferenceFallback::new(self.span, InferVarKind::Perm, fallback_term)
+                            .to_arc(),
+                    ));
+                }
+            }
+        }
+    }
 }
 
-#[derive(Copy, Clone, PartialEq, Eq, PartialOrd, Ord, Hash, Update, Debug)]
+#[derive(Copy, Clone, PartialEq, Eq, PartialOrd, Ord, Hash, Update, Debug, Serialize)]
 pub enum InferVarKind {
     Type,
     Perm,
+}
+
+impl std::fmt::Display for InferVarKind {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        match self {
+            InferVarKind::Type => write!(f, "type"),
+            InferVarKind::Perm => write!(f, "perm"),
+        }
+    }
 }
 
 impl From<InferVarKind> for SymGenericKind {

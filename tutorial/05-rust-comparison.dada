@@ -1,0 +1,13 @@
+# my String
+struct StringBuf {
+    data: Box<[char]>,
+    length: u32,
+    capacity: u32,
+}
+
+# shared String
+struct String<'a> {
+    data: &'a [char],
+    length: u32,
+    capacity: u32,
+}

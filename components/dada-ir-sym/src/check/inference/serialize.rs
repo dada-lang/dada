@@ -14,7 +14,6 @@ use super::{InferenceVarBounds, InferenceVarData};
 #[derive(Serialize)]
 struct InferenceVarDataExport<'a, 'db> {
     span: Span<'db>,
-    is: Vec<bool>,
     bounds: InferenceVarBoundsExport<'a, 'db>,
 }
 
@@ -37,7 +36,7 @@ impl Serialize for InferenceVarData<'_> {
     where
         S: serde::Serializer,
     {
-        let Self { span, is, bounds } = self;
+        let Self { span, bounds } = self;
 
         let bounds = match bounds {
             InferenceVarBounds::Perm { lower, upper } => InferenceVarBoundsExport::Perm {
@@ -53,7 +52,6 @@ impl Serialize for InferenceVarData<'_> {
 
         let export = InferenceVarDataExport {
             span: *span,
-            is: is.iter().map(|option| option.is_some()).collect(),
             bounds,
         };
 

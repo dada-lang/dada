@@ -1,0 +1,10 @@
+struct Point(x: i32, y: i32) {
+    fn manhattan_distance(self) -> i32 {
+        x + y
+    }
+}
+
+enum Option[T] {
+    Some(T),
+    None
+}

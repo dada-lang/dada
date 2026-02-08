@@ -1,0 +1,4 @@
+let s: my String = "Hello, world"
+let t: our String = s # <-- not sure the best syntax here
+let u: our String = t # <-- once something is our, it copies
+let v: our String = t
