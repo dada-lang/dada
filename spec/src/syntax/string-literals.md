@@ -16,6 +16,10 @@ The syntax `"""` is interpreted as the start of a triple-quoted string literal
 and not a single-quoted string literal followed by the start of another single-quoted string literal.
 :::
 
+:::{spec} triple-quote-termination rfc0001 unimpl
+A triple-quoted string literal cannot contain three consecutive unescaped double-quote characters.
+:::
+
 ## Type
 
 :::{spec} rfc0001 unimpl
@@ -54,8 +58,7 @@ Any valid Dada expression may appear inside the braces.
 :::
 
 :::{spec} brace-escaping rfc0001 unimpl
-Literal brace characters are produced by doubling:
-`{{` produces `{` and `}}` produces `}`.
+Literal brace characters are produced by the `\{` and `\}` escape sequences.
 :::
 
 :::{spec} nesting rfc0001 unimpl
@@ -118,3 +121,16 @@ disables automatic dedenting.
 The string preserves its content exactly as written,
 including the leading newline and all indentation.
 :::
+
+## String Conversion
+
+:::{spec} rfc0001 unimpl
+Interpolated expressions must produce values that can be converted to strings.
+The exact conversion mechanism is not yet defined
+and depends on Dada's trait/interface system.
+:::
+
+## Implementation Notes
+
+> A string literal with no interpolation expressions can be compiled
+> as a simple string constant with no runtime overhead.

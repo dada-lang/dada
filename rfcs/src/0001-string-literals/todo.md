@@ -24,11 +24,11 @@ RFC drafted with multiline string support, ready for implementation planning
   - Common whitespace prefix removal
   - `"\` syntax to disable dedenting
   - `\n` before closing quote for trailing newline
-- Updated spec.md with multiline string specification entries
+- Spec paragraphs are authored directly in `spec/src/syntax/string-literals.md` (not in a separate RFC spec.md)
 - Created executable examples using `assert` syntax
 - Added design tenets section with three core principles:
   - Do what I mean
   - Rust-like syntax
   - Simple escape hatch
 - Added triple-quoted string literals (`"""`) for embedded quotes
-- Restructured spec.md with cleaner rule separation
+- Restructured spec paragraphs with cleaner rule separation

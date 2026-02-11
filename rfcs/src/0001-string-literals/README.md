@@ -62,9 +62,9 @@ result := "The sum is {calculate_sum(a, b)}"
 status := "Processing {completed}/{total} items ({(completed * 100 / total).round()}%)"
 ```
 
-For cases where literal braces are needed, they can be escaped by doubling:
+For cases where literal braces are needed, they can be escaped with a backslash:
 ```dada
-json := "{{ \"name\": \"{name}\" }}"  # Produces: { "name": "Alice" }
+json := "\{ \"name\": \"{name}\" \}"  # Produces: { "name": "Alice" }
 ```
 
 ### Triple-quoted strings
@@ -215,8 +215,8 @@ nested := "Result: {if true { "yes" } else { "no" }}"  # Results in: Result: yes
 
 ### Escape Sequences
 
-- `{{` produces a literal `{`
-- `}}` produces a literal `}`
+- `\{` produces a literal `{`
+- `\}` produces a literal `}`
 - `\"` produces a literal quote (not needed in triple-quoted strings)
 - `\n`, `\r`, `\t`, `\\` follow standard conventions
 - Triple-quoted strings cannot contain three consecutive quote characters
@@ -236,11 +236,18 @@ A: Experience from Rust and other languages shows that building strings with dyn
 **Q: What about purely static strings with no interpolation?**
 A: The compiler can easily detect string literals that contain no interpolation expressions and optimize them accordingly.
 
-**Q: How does this interact with raw strings or multi-line strings?**
-A: This RFC focuses on basic string literals. Raw strings and multi-line strings will be addressed in future RFCs, but they will follow the same principle of supporting interpolation by default.
-
 **Q: Why `{}` instead of `${}` like JavaScript?**
 A: The simpler `{}` syntax is more consistent with Rust's format strings and requires less visual noise. Since interpolation is the default, the syntax should be as lightweight as possible.
+
+**Q: Why `\{` instead of `{{` to escape braces?**
+A: Two reasons. First, Dada string literals already use backslash escapes (`\n`, `\t`, `\\`, `\"`), so `\{` is consistent with the existing escape system — it would be odd to have two different escaping mechanisms in the same literal. Second, keeping `{{` free means it works as an interpolated block expression, which is useful for embedding multiline code:
+```dada
+result := "the value is {{
+    x := foo()
+    bar(x)
+}}"
+```
+Languages like Rust and Python use `{{` for brace escaping because their interpolation lives in format macros or f-strings where backslash escapes aren't available. Dada strings have backslash escapes natively, so there's no reason not to use them.
 
 ## Future possibilities
 
