@@ -7,40 +7,85 @@ This chapter describes the conventions used throughout this specification.
 Specification paragraphs use MyST directive syntax with the `{spec}` directive:
 
 ```markdown
-:::{spec} topic.subtopic.detail
+:::{spec} local-name rfc123
 Paragraph content.
 :::
+```
+
+### ID Resolution
+
+Paragraph IDs are resolved automatically from context:
+
+1. **File path**: `syntax/string-literals.md` contributes prefix `syntax.string-literals`
+2. **Section headings**: `## Escape Sequences` contributes segment `escape-sequences`
+3. **Local name**: The name in the `:::{spec}` directive (e.g., `invalid`)
+
+These combine to form the full ID: `syntax.string-literals.escape-sequences.invalid`
+
+The local name is optional. A directive with only tags uses the heading context as its ID:
+
+```markdown
+## Type
+
+:::{spec} rfc0001 unimpl
+String literals have type `my String`.
+:::
+```
+
+This paragraph's ID is `syntax.string-literals.type` (file prefix + heading).
+
+### Inline Sub-paragraphs
+
+List items within a `:::{spec}` block can be marked as individually referenceable
+sub-paragraphs using the `` {spec}`name` `` syntax:
+
+```markdown
+:::{spec} rfc0001 unimpl
+There are multiple forms of string literals:
+
+* {spec}`quoted` Single-quoted string literals begin with `"` and end with `"`.
+* {spec}`triple-quoted` Triple-quoted string literals begin with `"""` and end with `"""`.
+:::
+```
+
+Under `## Delimiters` in `syntax/string-literals.md`, this creates:
+- `syntax.string-literals.delimiters` (parent paragraph)
+- `syntax.string-literals.delimiters.quoted` (sub-paragraph)
+- `syntax.string-literals.delimiters.triple-quoted` (sub-paragraph)
+
+Each sub-paragraph gets its own linkable anchor in the rendered output.
+
+### RFC and Status Annotations
+
+Paragraphs include tags after the optional local name:
+
+```markdown
+:::{spec} local-name rfc123 unimpl
+Content added by RFC 123, not yet implemented.
+:::
+```
+
+Available tags:
+- `rfcN` — content added or modified by RFC N
+- `!rfcN` — content deleted by RFC N
+- `unimpl` — specified but not yet implemented
+
+Multiple tags can be combined: `:::{spec} local-name rfc123 rfc456 unimpl`
+
+### Test Annotations
+
+Tests reference spec paragraphs using `#:spec` comments with the fully-qualified ID:
+
+```dada
+#:spec syntax.string-literals.delimiters.quoted
 ```
 
 These labels serve multiple purposes:
 - Cross-referencing within the specification
 - Linking from RFC documents
-- Test annotations via `#:spec topic.subtopic.detail`
+- Test validation via `#:spec` annotations in `.dada` test files
 
-Identifiers use semantic names rather than numbers to remain stable as the specification evolves. Examples include:
-- `syntax.string-literals.escape-sequences`
-- `permissions.lease.transfer-rules`
-- `types.classes.field-access`
-
-### RFC Annotations
-
-Paragraphs modified by an RFC include RFC tags after the paragraph ID:
-
-```markdown
-:::{spec} syntax.foo rfc123
-Content added or modified by RFC 123.
-:::
-```
-
-Content deleted by an RFC uses the `!` prefix:
-
-```markdown
-:::{spec} syntax.old-feature !rfc123
-This feature is removed.
-:::
-```
-
-Multiple RFCs can be specified: `:::{spec} topic.foo rfc123 rfc456`
+Identifiers use semantic names rather than numbers to remain stable as the specification evolves.
 
 ## Normative Language
 

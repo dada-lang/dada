@@ -113,7 +113,10 @@ impl Preprocessor for DadaPreprocessor {
                 let has_labels = chapter.content.lines().any(|line| re.is_match(line.trim()));
 
                 // Process the content
-                chapter.content = process_spec_directives(&chapter.content);
+                chapter.content = process_spec_directives(
+                    &chapter.content,
+                    chapter.source_path.as_deref(),
+                );
 
                 // If this chapter has labels, inject CSS at the end
                 if has_labels {
@@ -155,17 +158,27 @@ impl Preprocessor for DadaPreprocessor {
 
 /// Processes MyST `{spec}` directives into HTML with anchors and styling.
 ///
-/// 💡 Transforms directive blocks like:
-/// ```markdown
-/// :::{spec} syntax.foo rfc123
-/// Content here.
-/// :::
-/// ```
-/// Into styled HTML with anchor links and RFC badges.
-fn process_spec_directives(content: &str) -> String {
-    // Match the opening directive: `:::{spec} id [rfc-tags...]`
-    let directive_start = Regex::new(r"^:::\{spec\}\s+(\S+)(.*)$").unwrap();
+/// 💡 Spec paragraph IDs are resolved from context:
+/// - File path prefix derived from `source_path` (e.g., `syntax/string-literals.md` → `syntax.string-literals`)
+/// - Current heading stack (e.g., `## Delimiters` → `delimiters`)
+/// - Local name from the directive (e.g., `:::{spec} quoted` → `quoted`)
+///
+/// The directive `:::{spec} quoted rfc0001 unimpl` under `## Delimiters` in
+/// `syntax/string-literals.md` resolves to `syntax.string-literals.delimiters.quoted`.
+///
+/// Inline sub-paragraphs `` {spec}`name` `` within a directive block create
+/// individually linkable sub-paragraph anchors.
+fn process_spec_directives(content: &str, source_path: Option<&Path>) -> String {
+    // 💡 Changed from matching the full ID to just detecting the directive start.
+    // The tokens after `{spec}` are parsed by `dada_spec_common::parse_spec_tokens`
+    // to distinguish local names from tags.
+    let directive_start = Regex::new(r"^:::\{spec\}(.*)$").unwrap();
     let directive_end = Regex::new(r"^:::$").unwrap();
+
+    let file_prefix = source_path
+        .map(dada_spec_common::file_path_to_prefix)
+        .unwrap_or_default();
+    let mut heading_tracker = dada_spec_common::HeadingTracker::new();
 
     let mut result = Vec::new();
     let mut in_directive = false;
@@ -177,18 +190,22 @@ fn process_spec_directives(content: &str) -> String {
         let trimmed = line.trim();
 
         if !in_directive {
+            // Track headings for auto-prefix resolution
+            heading_tracker.process_line(trimmed);
+
             if let Some(captures) = directive_start.captures(trimmed) {
                 // Start of a spec directive
                 in_directive = true;
-                current_id = captures[1].to_string();
 
-                // Parse optional RFC tags from the rest of the line
-                let rest = captures.get(2).map(|m| m.as_str()).unwrap_or("");
-                current_rfc_tags = rest
-                    .split_whitespace()
-                    .filter(|s| !s.is_empty())
-                    .map(|s| s.to_string())
-                    .collect();
+                let rest = captures.get(1).map(|m| m.as_str()).unwrap_or("");
+                let (local_name, tags) = dada_spec_common::parse_spec_tokens(rest);
+
+                current_id = dada_spec_common::resolve_spec_id(
+                    &file_prefix,
+                    &heading_tracker.current_segments(),
+                    local_name.as_deref().unwrap_or(""),
+                );
+                current_rfc_tags = tags;
 
                 directive_content.clear();
             } else {
@@ -204,6 +221,8 @@ fn process_spec_directives(content: &str) -> String {
                     .map(|tag| {
                         if tag.starts_with('!') {
                             format!("<span class=\"spec-rfc-badge spec-rfc-deleted\">{tag}</span>")
+                        } else if tag == "unimpl" {
+                            format!("<span class=\"spec-rfc-badge spec-rfc-unimpl\">{tag}</span>")
                         } else {
                             format!("<span class=\"spec-rfc-badge\">{tag}</span>")
                         }
@@ -211,6 +230,10 @@ fn process_spec_directives(content: &str) -> String {
                     .collect();
                 format!(" {}", badges.join(" "))
             };
+
+            // Transform inline sub-paragraphs in the content
+            let transformed_content =
+                dada_spec_common::transform_inline_sub_paragraphs(&directive_content, &current_id);
 
             // Generate HTML wrapper
             result.push(format!(
@@ -221,7 +244,7 @@ fn process_spec_directives(content: &str) -> String {
             ));
             result.push("<div class=\"spec-content\">".to_string());
             result.push(String::new()); // Empty line for markdown processing
-            for content_line in &directive_content {
+            for content_line in &transformed_content {
                 result.push(content_line.clone());
             }
             result.push(String::new()); // Empty line for markdown processing
@@ -240,8 +263,10 @@ fn process_spec_directives(content: &str) -> String {
     result.join("\n")
 }
 
+/// 💡 Returns inline CSS with blank lines stripped. Blank lines inside `<style>` tags
+/// cause mdbook's markdown processor to insert `<p>` tags, which breaks the CSS.
 fn get_inline_css() -> String {
-    r#"<style>
+    let css = r#"<style>
 /* Generated by dada-mdbook-preprocessor - Styling for specification paragraphs */
 .spec-paragraph {
     margin: 1rem 0;
@@ -302,6 +327,22 @@ fn get_inline_css() -> String {
     background-color: #cf222e;
 }
 
+.spec-rfc-badge.spec-rfc-unimpl {
+    background-color: #bf8700;
+}
+
+.spec-sub-label {
+    font-size: 0.65rem;
+    color: #999;
+    text-decoration: none;
+    font-family: 'SFMono-Regular', 'Monaco', 'Inconsolata', 'Fira Code', 'Source Code Pro', monospace;
+}
+
+.spec-sub-label:hover {
+    color: #0366d6;
+    text-decoration: none;
+}
+
 /* Dark theme support */
 .navy .spec-paragraph {
     border-color: #30363d;
@@ -327,6 +368,19 @@ fn get_inline_css() -> String {
 
 .navy .spec-rfc-badge.spec-rfc-deleted {
     background-color: #f85149;
+}
+
+.navy .spec-rfc-badge.spec-rfc-unimpl {
+    background-color: #d29922;
+    color: #0d1117;
+}
+
+.navy .spec-sub-label {
+    color: #7d8590;
+}
+
+.navy .spec-sub-label:hover {
+    color: #79b8ff;
 }
 
 /* RFC Table Styling - GitHub-inspired */
@@ -455,7 +509,11 @@ fn get_inline_css() -> String {
     color: #7d8590;
     background-color: #161b22;
 }
-</style>"#.to_string()
+</style>"#;
+    css.lines()
+        .filter(|line| !line.trim().is_empty())
+        .collect::<Vec<_>>()
+        .join("\n")
 }
 
 fn populate_rfc_sections(ctx: &PreprocessorContext, book: &mut Book) -> Result<()> {
