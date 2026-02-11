@@ -4,11 +4,11 @@ This chapter specifies string literal syntax in Dada.
 
 ## Delimiters
 
-:::{spec} rfc0001 unimpl
+:::{spec} rfc0001
 There are multiple forms of string literals:
 
 * {spec}`quoted` Single-quoted string literals begin with a `"` and end with a `"`.
-* {spec}`triple-quoted` Triple-quoted string literals begin with a `"""` and end with a `"""`.
+* {spec}`triple-quoted unimpl` Triple-quoted string literals begin with a `"""` and end with a `"""`.
 :::
 
 :::{spec} disambiguation rfc0001 unimpl
@@ -22,13 +22,13 @@ A triple-quoted string literal cannot contain three consecutive unescaped double
 
 ## Type
 
-:::{spec} rfc0001 unimpl
+:::{spec} rfc0001
 String literals have type `my String`.
 :::
 
 ## Escape Sequences
 
-:::{spec} rfc0001 unimpl
+:::{spec} rfc0001
 String literals support the following escape sequences:
 
 * {spec}`backslash` `\\` produces a literal backslash.
@@ -45,7 +45,7 @@ The `\"` escape sequence is not needed in triple-quoted strings,
 since embedded double quotes do not terminate the string.
 :::
 
-:::{spec} invalid rfc0001 unimpl
+:::{spec} invalid rfc0001
 A `\` followed by a character not listed above is an error.
 :::
 
@@ -57,7 +57,7 @@ delimited by curly braces (`{` and `}`).
 Any valid Dada expression may appear inside the braces.
 :::
 
-:::{spec} brace-escaping rfc0001 unimpl
+:::{spec} brace-escaping rfc0001
 Literal brace characters are produced by the `\{` and `\}` escape sequences.
 :::
 

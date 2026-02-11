@@ -213,23 +213,7 @@ fn process_spec_directives(content: &str, source_path: Option<&Path>) -> String 
             }
         } else if directive_end.is_match(trimmed) {
             // End of directive - generate HTML
-            let rfc_badges = if current_rfc_tags.is_empty() {
-                String::new()
-            } else {
-                let badges: Vec<String> = current_rfc_tags
-                    .iter()
-                    .map(|tag| {
-                        if tag.starts_with('!') {
-                            format!("<span class=\"spec-rfc-badge spec-rfc-deleted\">{tag}</span>")
-                        } else if tag == "unimpl" {
-                            format!("<span class=\"spec-rfc-badge spec-rfc-unimpl\">{tag}</span>")
-                        } else {
-                            format!("<span class=\"spec-rfc-badge\">{tag}</span>")
-                        }
-                    })
-                    .collect();
-                format!(" {}", badges.join(" "))
-            };
+            let rfc_badges = dada_spec_common::render_tag_badges(&current_rfc_tags);
 
             // Transform inline sub-paragraphs in the content
             let transformed_content =

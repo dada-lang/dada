@@ -166,23 +166,57 @@ impl Default for HeadingTracker {
     }
 }
 
+/// Renders a list of spec tags (e.g., `rfc0001`, `unimpl`, `!rfc0001`) as HTML badge spans.
+///
+/// Returns an empty string if tags is empty, otherwise returns a space-prefixed
+/// string of badge spans (matching the block-level directive badge format).
+pub fn render_tag_badges(tags: &[String]) -> String {
+    if tags.is_empty() {
+        return String::new();
+    }
+
+    let badges: Vec<String> = tags
+        .iter()
+        .map(|tag| {
+            if tag.starts_with('!') {
+                format!("<span class=\"spec-rfc-badge spec-rfc-deleted\">{tag}</span>")
+            } else if tag == "unimpl" {
+                format!("<span class=\"spec-rfc-badge spec-rfc-unimpl\">{tag}</span>")
+            } else {
+                format!("<span class=\"spec-rfc-badge\">{tag}</span>")
+            }
+        })
+        .collect();
+    format!(" {}", badges.join(" "))
+}
+
 /// A parsed inline sub-paragraph marker found within a spec directive's content.
 pub struct InlineSubParagraph {
     pub name: String,
+    pub tags: Vec<String>,
     /// The index of the line within the directive content where this marker appears.
     pub line_index: usize,
 }
 
-/// Extracts inline `` {spec}`name` `` markers from the content lines of a spec directive block.
+/// Extracts inline `` {spec}`name [tags...]` `` markers from the content lines of a spec directive block.
+///
+/// The backtick content is parsed the same way as block directive arguments:
+/// first token is the name, remaining tokens are tags (rfc, unimpl, etc.).
 pub fn extract_inline_sub_paragraphs(content_lines: &[String]) -> Vec<InlineSubParagraph> {
     let re = Regex::new(r"\{spec\}`([^`]+)`").unwrap();
     let mut results = Vec::new();
 
     for (i, line) in content_lines.iter().enumerate() {
         for cap in re.captures_iter(line) {
-            if let Some(name) = cap.get(1) {
+            if let Some(content) = cap.get(1) {
+                let (name, tags) = parse_spec_tokens(content.as_str());
+                // 💡 For inline sub-paragraphs the first token is always the name,
+                // even if it looks like a tag — unlike block directives where a
+                // leading tag means "no local name". Inline markers must have a name.
+                let name = name.unwrap_or_else(|| content.as_str().to_string());
                 results.push(InlineSubParagraph {
-                    name: name.as_str().to_string(),
+                    name,
+                    tags,
                     line_index: i,
                 });
             }
@@ -192,10 +226,11 @@ pub fn extract_inline_sub_paragraphs(content_lines: &[String]) -> Vec<InlineSubP
     results
 }
 
-/// Replaces inline `` {spec}`name` `` markers in content lines with HTML anchor spans.
+/// Replaces inline `` {spec}`name [tags...]` `` markers in content lines with HTML anchor spans
+/// and tag badges.
 ///
 /// Each marker becomes:
-/// `<span id="parent_id.name" class="spec-sub-paragraph"><a href="#parent_id.name" class="spec-sub-label">.name</a></span>`
+/// `<span id="parent_id.name" class="spec-sub-paragraph"><a href="#parent_id.name" class="spec-sub-label">.name</a> [badges]</span>`
 pub fn transform_inline_sub_paragraphs(content_lines: &[String], parent_id: &str) -> Vec<String> {
     let re = Regex::new(r"\{spec\}`([^`]+)`").unwrap();
 
@@ -203,11 +238,14 @@ pub fn transform_inline_sub_paragraphs(content_lines: &[String], parent_id: &str
         .iter()
         .map(|line| {
             re.replace_all(line, |caps: &regex::Captures| {
-                let name = &caps[1];
+                let content = &caps[1];
+                let (name, tags) = parse_spec_tokens(content);
+                let name = name.unwrap_or_else(|| content.to_string());
                 let full_id = format!("{parent_id}.{name}");
+                let badges = render_tag_badges(&tags);
                 format!(
                     "<span id=\"{full_id}\" class=\"spec-sub-paragraph\">\
-                     <a href=\"#{full_id}\" class=\"spec-sub-label\">.{name}</a></span>"
+                     <a href=\"#{full_id}\" class=\"spec-sub-label\">.{name}</a>{badges}</span>"
                 )
             })
             .into_owned()
@@ -360,6 +398,25 @@ mod tests {
     }
 
     #[test]
+    fn test_render_tag_badges() {
+        assert_eq!(render_tag_badges(&[]), "");
+
+        let result = render_tag_badges(&["rfc0001".to_string()]);
+        assert!(result.contains("class=\"spec-rfc-badge\""));
+        assert!(result.contains("rfc0001"));
+
+        let result = render_tag_badges(&["unimpl".to_string()]);
+        assert!(result.contains("spec-rfc-unimpl"));
+
+        let result = render_tag_badges(&["!rfc0001".to_string()]);
+        assert!(result.contains("spec-rfc-deleted"));
+
+        let result = render_tag_badges(&["rfc0001".to_string(), "unimpl".to_string()]);
+        assert!(result.contains("spec-rfc-badge\">rfc0001"));
+        assert!(result.contains("spec-rfc-unimpl\">unimpl"));
+    }
+
+    #[test]
     fn test_extract_inline_sub_paragraphs() {
         let lines = vec![
             "There are multiple forms:".to_string(),
@@ -371,9 +428,31 @@ mod tests {
         let subs = extract_inline_sub_paragraphs(&lines);
         assert_eq!(subs.len(), 2);
         assert_eq!(subs[0].name, "quoted");
+        assert!(subs[0].tags.is_empty());
         assert_eq!(subs[0].line_index, 2);
         assert_eq!(subs[1].name, "triple-quoted");
+        assert!(subs[1].tags.is_empty());
         assert_eq!(subs[1].line_index, 3);
+    }
+
+    #[test]
+    fn test_extract_inline_sub_paragraphs_with_tags() {
+        let lines = vec![
+            "* {spec}`quoted` Implemented.".to_string(),
+            "* {spec}`triple-quoted unimpl` Not yet.".to_string(),
+            "* {spec}`raw rfc0002 unimpl` Future RFC.".to_string(),
+        ];
+        let subs = extract_inline_sub_paragraphs(&lines);
+        assert_eq!(subs.len(), 3);
+
+        assert_eq!(subs[0].name, "quoted");
+        assert!(subs[0].tags.is_empty());
+
+        assert_eq!(subs[1].name, "triple-quoted");
+        assert_eq!(subs[1].tags, vec!["unimpl"]);
+
+        assert_eq!(subs[2].name, "raw");
+        assert_eq!(subs[2].tags, vec!["rfc0002", "unimpl"]);
     }
 
     #[test]
@@ -388,5 +467,24 @@ mod tests {
         assert!(result[1].contains("id=\"syntax.string-literals.delimiters.quoted\""));
         assert!(result[1].contains(">.quoted</a>"));
         assert!(result[1].contains("Single quote literals."));
+    }
+
+    #[test]
+    fn test_transform_inline_sub_paragraphs_with_tags() {
+        let lines = vec![
+            "* {spec}`quoted` Implemented.".to_string(),
+            "* {spec}`triple-quoted unimpl` Not yet.".to_string(),
+        ];
+        let result = transform_inline_sub_paragraphs(&lines, "s.delimiters");
+
+        // quoted: no badges
+        assert!(result[0].contains("id=\"s.delimiters.quoted\""));
+        assert!(!result[0].contains("spec-rfc-badge"));
+
+        // triple-quoted: unimpl badge, and ID uses only the name
+        assert!(result[1].contains("id=\"s.delimiters.triple-quoted\""));
+        assert!(result[1].contains(">.triple-quoted</a>"));
+        assert!(result[1].contains("spec-rfc-unimpl"));
+        assert!(result[1].contains("Not yet."));
     }
 }
