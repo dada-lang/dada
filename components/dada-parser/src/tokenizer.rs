@@ -422,6 +422,22 @@ impl<'input, 'db> Tokenizer<'input, 'db> {
     }
 
     fn string_literal(&mut self, start: usize) {
+        // Check for triple-quoted string: opening `"` already consumed,
+        // peek to see if next two chars are also `"`.
+        if let Some(&(_, '"')) = self.chars.peek() {
+            // Could be empty string `""` or triple-quoted `"""...`.
+            // We need to look one more character ahead. Use the byte index
+            // to check the input slice directly.
+            let second_quote_index = self.chars.peek().unwrap().0;
+            let after_second = second_quote_index + 1;
+            if after_second < self.input.len() && self.input.as_bytes()[after_second] == b'"' {
+                // Triple-quoted string: consume the two additional `"` chars
+                self.chars.next(); // consume second `"`
+                self.chars.next(); // consume third `"`
+                return self.triple_quoted_string_literal(start);
+            }
+        }
+
         let skipped = self.clear_accumulated(start);
         let mut processed_content = String::new();
 
@@ -505,6 +521,105 @@ impl<'input, 'db> Tokenizer<'input, 'db> {
                 self.db,
                 span,
                 "missing end quote for string",
+            )),
+        });
+    }
+
+    /// Lex a triple-quoted string literal. Called after the opening `"""`
+    /// has been consumed. Scans until the closing `"""` is found.
+    fn triple_quoted_string_literal(&mut self, start: usize) {
+        let skipped = self.clear_accumulated(start);
+        let mut processed_content = String::new();
+
+        while let Some((end, ch)) = self.chars.next() {
+            if ch == '"' {
+                // Check if this is `"""` (closing delimiter).
+                // Peek at next char; if it's `"`, peek further via input slice.
+                if let Some(&(second_idx, '"')) = self.chars.peek() {
+                    let after_second = second_idx + 1;
+                    if after_second < self.input.len()
+                        && self.input.as_bytes()[after_second] == b'"'
+                    {
+                        // Found closing `"""` — consume the two additional quotes
+                        self.chars.next(); // second `"`
+                        let (third_idx, _) = self.chars.next().unwrap(); // third `"`
+                        let token_text = TokenText::new(self.db, processed_content);
+                        self.tokens.push(Token {
+                            span: self.span(start, third_idx),
+                            skipped,
+                            kind: TokenKind::Literal(LiteralKind::String, token_text),
+                        });
+                        return;
+                    }
+                }
+                // Not `"""` — just a `"` (or `""`) inside the string, add to content
+                processed_content.push('"');
+                continue;
+            }
+
+            if ch == '\\' {
+                if let Some((index, escape)) = self.chars.next() {
+                    match escape {
+                        '"' => processed_content.push('"'),
+                        '\\' => processed_content.push('\\'),
+                        'n' => processed_content.push('\n'),
+                        'r' => processed_content.push('\r'),
+                        't' => processed_content.push('\t'),
+                        '{' => processed_content.push('{'),
+                        '}' => processed_content.push('}'),
+                        _ => {
+                            processed_content.push('\\');
+                            processed_content.push(escape);
+
+                            let span = self.span(index, index + escape.len_utf8());
+                            self.tokens.push(Token {
+                                span,
+                                skipped: None,
+                                kind: TokenKind::Error(Diagnostic::error(
+                                    self.db,
+                                    span,
+                                    format!("invalid escape `\\{escape}`"),
+                                )),
+                            });
+                        }
+                    }
+                } else {
+                    processed_content.push('\\');
+
+                    let span = self.span(end, end + ch.len_utf8());
+                    self.tokens.push(Token {
+                        span,
+                        skipped: None,
+                        kind: TokenKind::Error(Diagnostic::error(
+                            self.db,
+                            span,
+                            "`\\` must be followed by an escape character",
+                        )),
+                    });
+                }
+            } else {
+                processed_content.push(ch);
+            }
+        }
+
+        // Unterminated triple-quoted string
+        let end = self.input.len();
+        let span = self.span(start, end);
+        let token_text = TokenText::new(self.db, processed_content);
+
+        self.tokens.push(Token {
+            span,
+            skipped,
+            kind: TokenKind::Literal(LiteralKind::String, token_text),
+        });
+
+        self.tokens.push(Token {
+            span,
+            skipped: None,
+            kind: TokenKind::Error(Diagnostic::error(
+                self.db,
+                span,
+                "missing end quotes for triple-quoted string",
             )),
         });
     }

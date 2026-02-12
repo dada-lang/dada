@@ -1,0 +1,10 @@
+#:spec syntax.string-literals.delimiters.triple-quoted
+#:skip_codegen
+
+async fn main() {
+    print("""hello""").await
+    print("""""").await
+    print("""hello world""").await
+    print("""hello
+world""").await
+}

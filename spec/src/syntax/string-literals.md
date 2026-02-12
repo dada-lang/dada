@@ -8,15 +8,15 @@ This chapter specifies string literal syntax in Dada.
 There are multiple forms of string literals:
 
 * {spec}`quoted` Single-quoted string literals begin with a `"` and end with a `"`.
-* {spec}`triple-quoted unimpl` Triple-quoted string literals begin with a `"""` and end with a `"""`.
+* {spec}`triple-quoted` Triple-quoted string literals begin with a `"""` and end with a `"""`.
 :::
 
-:::{spec} disambiguation rfc0001 unimpl
+:::{spec} disambiguation rfc0001
 The syntax `"""` is interpreted as the start of a triple-quoted string literal
 and not a single-quoted string literal followed by the start of another single-quoted string literal.
 :::
 
-:::{spec} triple-quote-termination rfc0001 unimpl
+:::{spec} triple-quote-termination rfc0001
 A triple-quoted string literal cannot contain three consecutive unescaped double-quote characters.
 :::
 
@@ -40,7 +40,7 @@ String literals support the following escape sequences:
 * {spec}`close-brace` `\}` produces a literal `}`.
 :::
 
-:::{spec} triple-quoted rfc0001 unimpl
+:::{spec} triple-quoted rfc0001
 The `\"` escape sequence is not needed in triple-quoted strings,
 since embedded double quotes do not terminate the string.
 :::

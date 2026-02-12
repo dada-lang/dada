@@ -1,0 +1,13 @@
+#:spec syntax.string-literals.delimiters.triple-quote-termination
+#:skip_codegen
+
+# A triple-quoted string cannot contain three consecutive unescaped
+# double-quote characters — the first """ always terminates the string.
+# So """hello"""world""" is parsed as the string "hello" followed by
+# the identifier `world` and then an unterminated string.
+
+async fn main() {
+    print("""hello"""world""").await
+    #!               ^^^^^ /extra input
+    #! /missing end quotes for triple-quoted string
+}
