@@ -1,0 +1,11 @@
+#:spec syntax.string-literals.escape-sequences.invalid
+#:skip_codegen
+
+async fn main() {
+    print("\a").await
+    #!      ^ /invalid escape
+    print("\z").await
+    #!      ^ /invalid escape
+    print("\1").await
+    #!      ^ /invalid escape
+}

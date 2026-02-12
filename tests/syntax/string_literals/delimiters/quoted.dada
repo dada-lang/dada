@@ -1,0 +1,9 @@
+#:spec syntax.string-literals.delimiters.quoted
+#:skip_codegen
+
+async fn main() {
+    print("hello").await
+    print("").await
+    print("a").await
+    print("hello world").await
+}

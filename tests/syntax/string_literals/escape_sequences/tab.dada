@@ -1,0 +1,8 @@
+#:spec syntax.string-literals.escape-sequences.tab
+#:skip_codegen
+
+async fn main() {
+    print("hello\tworld").await
+    print("\t").await
+    print("col1\tcol2\tcol3").await
+}

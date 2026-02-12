@@ -1,0 +1,7 @@
+#:spec syntax.string-literals.type
+#:skip_codegen
+
+fn main() {
+    let x = "hello"
+    #?  ^ VariableType: String
+}

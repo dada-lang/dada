@@ -1,0 +1,11 @@
+#:spec syntax.string-literals.escape-sequences.open-brace
+#:skip_codegen
+
+# 💡 Using balanced \{ and \} in same string because the tokenizer's
+# delimited() scanner doesn't skip string contents — unbalanced braces
+# inside strings confuse brace-depth tracking. This is a known bug that
+# will be fixed when implementing interpolation (which requires the same fix).
+async fn main() {
+    print("\{\}").await
+    print("hello\{world\}").await
+}

@@ -1,0 +1,8 @@
+#:spec syntax.string-literals.escape-sequences.newline
+#:skip_codegen
+
+async fn main() {
+    print("hello\nworld").await
+    print("\n").await
+    print("a\nb\nc").await
+}
