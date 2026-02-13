@@ -139,17 +139,11 @@ raw_message := "\
 assert raw_message == "\n    Hello, Alice!\n    Welcome to Dada.\n    This is preserved exactly as written.\n"
 ```
 
-To include a trailing newline in the dedented string, end with `\n`:
+Leading and trailing whitespace is stripped; only internal content is preserved.
+Escape sequences like `\n` are part of the content, not whitespace,
+so they survive stripping:
 
 ```dada
-# With trailing newline
-with_newline := "
-    Line 1
-    Line 2
-    Line 3\n
-"
-assert with_newline == "Line 1\nLine 2\nLine 3\n"
-
 # Without trailing newline (default)
 without_newline := "
     Line 1
@@ -157,6 +151,14 @@ without_newline := "
     Line 3
 "
 assert without_newline == "Line 1\nLine 2\nLine 3"
+
+# With trailing newline via escape sequence
+with_newline := "
+    Line 1
+    Line 2
+    Line 3\n
+"
+assert with_newline == "Line 1\nLine 2\nLine 3\n"
 ```
 
 Interpolation works seamlessly with multiline strings:

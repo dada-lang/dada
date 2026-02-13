@@ -1,0 +1,20 @@
+#:spec syntax.string-literals.multiline-strings.trailing-whitespace
+#:skip_codegen
+
+async fn main() {
+    # The trailing newline and whitespace before the closing quote is removed.
+    # Closing quote indentation does not affect string content.
+
+    # Standard case: trailing newline + spaces stripped
+    let s = "
+        hello
+        "
+    #?  ^ Ast: Literal(String, "hello")
+
+    # Multiple content lines: trailing line stripped
+    let t = "
+        hello
+        world
+        "
+    #?  ^ Ast: Literal(String, "hello\nworld")
+}

@@ -70,6 +70,9 @@ pub struct Probe {
 
     /// Message expected
     pub message: Regex,
+
+    /// 1-based line number of the `#?` annotation in the source file.
+    pub annotation_line: usize,
 }
 
 #[derive(Copy, Clone, Debug)]
@@ -79,6 +82,9 @@ pub enum ProbeKind {
 
     /// Tests the type of the smallest containing expression
     ExprType,
+
+    /// Dumps the compact AST representation of the smallest containing expression
+    Ast,
 }
 
 enum Bless {
@@ -256,6 +262,7 @@ impl TestExpectations {
                 let valid_probe_kinds = &[
                     ("VariableType", ProbeKind::VariableType),
                     ("ExprType", ProbeKind::ExprType),
+                    ("Ast", ProbeKind::Ast),
                 ];
                 let user_probe_kind = c.name("kind").unwrap().as_str();
                 let Some(&(_, kind)) = valid_probe_kinds
@@ -273,9 +280,14 @@ impl TestExpectations {
                 };
 
                 // Find the expected message (which may be a regular expression).
+                // Probes use exact (anchored) matching, unlike diagnostics which use substring matching.
                 let message = match c.name("re") {
-                    Some(_) => Regex::new(c.name("msg").unwrap().as_str())?,
-                    None => Regex::new(&regex::escape(c.name("msg").unwrap().as_str()))?,
+                    Some(_) => {
+                        Regex::new(&format!("^(?:{})$", c.name("msg").unwrap().as_str()))?
+                    }
+                    None => {
+                        Regex::new(&format!("^{}$", regex::escape(c.name("msg").unwrap().as_str())))?
+                    }
                 };
 
                 // Push onto the list of expected diagnostics.
@@ -283,6 +295,7 @@ impl TestExpectations {
                     span,
                     kind,
                     message,
+                    annotation_line: line_index + 1,
                 });
             } else if let Some(c) = ERROR_RE.captures(line) {
                 bail!(
@@ -405,6 +418,9 @@ impl TestExpectations {
                         .unwrap_or_else(|| "<no variable found>".to_string()),
                     ProbeKind::ExprType => compiler
                         .probe_expression_type(probe.span)
+                        .unwrap_or_else(|| "<no expression found>".to_string()),
+                    ProbeKind::Ast => compiler
+                        .probe_ast(probe.span)
                         .unwrap_or_else(|| "<no expression found>".to_string()),
                 };
 

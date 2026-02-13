@@ -90,29 +90,29 @@ The permission system applies normally to interpolated expressions.
 
 ## Multiline Strings
 
-:::{spec} rfc0001 unimpl
+:::{spec} rfc0001
 A string literal that begins with a newline immediately after the opening quote
 (either `"` or `"""`) is a multiline string literal
 with automatic indentation handling.
 :::
 
-:::{spec} leading-newline rfc0001 unimpl
+:::{spec} leading-newline rfc0001
 The leading newline immediately after the opening quote is removed.
 :::
 
-:::{spec} trailing-whitespace rfc0001 unimpl
+:::{spec} trailing-whitespace rfc0001
 The trailing newline immediately before the closing quote is removed,
 along with any whitespace on the final line.
 :::
 
-:::{spec} dedenting rfc0001 unimpl
+:::{spec} dedenting rfc0001
 The common whitespace prefix across all non-empty lines is removed
 from the start of each line.
 :::
 
-:::{spec} trailing-newline rfc0001 unimpl
-A multiline string literal ending with `\n` before the closing quote
-includes a trailing newline in the final string value.
+:::{spec} escape-sequences-are-content rfc0001
+Escape sequences are part of the string content, not whitespace.
+They are not affected by leading/trailing stripping or dedenting.
 :::
 
 :::{spec} raw rfc0001 unimpl

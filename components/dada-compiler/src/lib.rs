@@ -174,6 +174,11 @@ impl Compiler {
         self.attach(|db| dada_probe::probe_expression_type(db, span))
     }
 
+    /// Return compact AST representation of the expression at the given `span`.
+    pub fn probe_ast(&self, span: AbsoluteSpan) -> Option<String> {
+        self.attach(|db| dada_probe::probe_ast(db, span))
+    }
+
     fn deduplicated(mut diagnostics: Vec<&Diagnostic>) -> Vec<&Diagnostic> {
         let mut new = Set::default();
         diagnostics.retain(|&d| new.insert(d));

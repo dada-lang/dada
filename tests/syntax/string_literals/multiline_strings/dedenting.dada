@@ -1,0 +1,36 @@
+#:spec syntax.string-literals.multiline-strings.dedenting
+#:skip_codegen
+
+async fn main() {
+    # Common whitespace prefix is removed from all lines
+    let s = "
+        Line 1
+        Line 2
+        Line 3
+        "
+    #?  ^ Ast: Literal(String, "Line 1\nLine 2\nLine 3")
+
+    # Nested indentation is preserved relative to the common prefix
+    let t = "
+        Header
+          Indented
+            More indented
+        "
+    #?  ^ Ast: Literal(String, "Header\n  Indented\n    More indented")
+
+    # Empty lines don't affect the common prefix calculation
+    let u = "
+        Line 1
+
+        Line 3
+        "
+    #?  ^ Ast: Literal(String, "Line 1\n\nLine 3")
+
+    # Multiple lines with varying indentation
+    let v = "
+        a
+          b
+        c
+        "
+    #?  ^ Ast: Literal(String, "a\n  b\nc")
+}

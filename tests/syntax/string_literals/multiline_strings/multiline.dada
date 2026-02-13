@@ -1,0 +1,21 @@
+#:spec syntax.string-literals.multiline-strings
+#:skip_codegen
+
+async fn main() {
+    # A string beginning with a newline after the opening quote is multiline.
+    # Leading newline, trailing whitespace, and common indentation are removed.
+    let s = "
+        hello world
+        "
+    #?  ^ Ast: Literal(String, "hello world")
+
+    # Works with triple-quoted strings too
+    let t = """
+        hello world
+        """
+    #?  ^^^ Ast: Literal(String, "hello world")
+
+    # A string NOT beginning with a newline is not multiline (no dedenting)
+    let u = "hello world"
+    #?      ^^^^^^^^^^^^^ Ast: Literal(String, "hello world")
+}

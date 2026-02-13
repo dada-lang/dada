@@ -466,13 +466,35 @@ impl<'input, 'db> Tokenizer<'input, 'db> {
     }
 
     /// Emit a string literal token with the given span and processed content.
+    ///
+    /// `quote_len` is the number of quote characters in the delimiter (1 for `"`, 3 for `"""`).
+    /// When the raw source content begins with a newline, multiline dedenting is applied:
+    /// the raw content is dedented and escape sequences are re-processed on the result,
+    /// replacing the `content` that was built during scanning.
     fn emit_string_literal(
         &mut self,
         span: Span<'db>,
         skipped: Option<Skipped>,
         content: String,
+        quote_len: usize,
     ) {
-        let token_text = TokenText::new(self.db, content);
+        // Extract the raw source content between the quote delimiters.
+        let raw_start = (span.start - self.input_offset).as_usize() + quote_len;
+        let raw_end = (span.end - self.input_offset).as_usize() - quote_len;
+        let raw_content = &self.input[raw_start..raw_end];
+
+        // 💡 Multiline detection: if the raw content begins with a newline,
+        // we apply dedenting on the raw source text (before escape processing)
+        // and then re-process escapes. This ensures escape sequences like `\n`
+        // are treated as content, not as line delimiters for dedenting.
+        let final_content = if raw_content.starts_with('\n') {
+            let dedented = dedent_multiline(raw_content);
+            process_escape_sequences(&dedented)
+        } else {
+            content
+        };
+
+        let token_text = TokenText::new(self.db, final_content);
         self.tokens.push(Token {
             span,
             skipped,
@@ -482,6 +504,7 @@ impl<'input, 'db> Tokenizer<'input, 'db> {
 
     /// Emit tokens for an unterminated string literal: a literal token
     /// with whatever content was accumulated, plus an error token.
+    /// No multiline dedenting is applied since the string is malformed.
     fn emit_unterminated_string(
         &mut self,
         start: usize,
@@ -490,7 +513,12 @@ impl<'input, 'db> Tokenizer<'input, 'db> {
         message: &str,
     ) {
         let span = self.span(start, self.input.len());
-        self.emit_string_literal(span, skipped, content);
+        let token_text = TokenText::new(self.db, content);
+        self.tokens.push(Token {
+            span,
+            skipped,
+            kind: TokenKind::Literal(LiteralKind::String, token_text),
+        });
         self.tokens.push(Token {
             span,
             skipped: None,
@@ -514,21 +542,19 @@ impl<'input, 'db> Tokenizer<'input, 'db> {
             }
 
             // Empty string `""`
-            self.emit_string_literal(self.span(start, start + 2), skipped, String::new());
+            self.emit_string_literal(self.span(start, start + 2), skipped, String::new(), 1);
             return;
         }
 
         let mut processed_content = String::new();
 
         while let Some((end, ch)) = self.chars.next() {
-            // FIXME: implement all the fancy stuff described in the reference,
-            // like embedded expressions and margin stripping.
-
             if ch == '"' {
                 self.emit_string_literal(
                     self.span(start, end + ch.len_utf8()),
                     skipped,
                     processed_content,
+                    1,
                 );
                 return;
             }
@@ -572,6 +598,7 @@ impl<'input, 'db> Tokenizer<'input, 'db> {
                             self.span(start, third_idx + '"'.len_utf8()),
                             skipped,
                             processed_content,
+                            3,
                         );
                         return;
                     }
@@ -673,3 +700,94 @@ pub fn is_op_char(ch: char) -> bool {
 }
 
 type CharIndices<'input> = std::iter::Peekable<std::str::CharIndices<'input>>;
+
+/// Apply multiline string dedenting to raw source content.
+///
+/// Given raw content that starts with a newline (multiline string detected by caller),
+/// this function:
+/// 1. Strips the leading newline
+/// 2. Strips the trailing line (newline + any whitespace before closing quote)
+/// 3. Computes the common whitespace prefix across all non-empty lines
+/// 4. Removes that prefix from the start of each line
+///
+/// # Example
+/// ```text
+/// Input (raw):  "\n        hello\n          world\n        "
+/// After strip:  "        hello\n          world"
+/// Common prefix: "        " (8 spaces)
+/// Result:       "hello\n  world"
+/// ```
+fn dedent_multiline(raw: &str) -> String {
+    // Step 1: strip leading newline.
+    let content = &raw[1..];
+
+    // Step 2: strip the trailing line (everything after the last newline, inclusive).
+    let content = match content.rfind('\n') {
+        Some(pos) => &content[..pos],
+        None => {
+            // No newlines left — single-line content after stripping.
+            // No dedenting needed.
+            return content.to_string();
+        }
+    };
+
+    // Step 3: compute common whitespace prefix across non-empty lines.
+    let lines: Vec<&str> = content.split('\n').collect();
+    let common_prefix = lines
+        .iter()
+        .filter(|line| !line.is_empty())
+        .map(|line| line.len() - line.trim_start().len())
+        .min()
+        .unwrap_or(0);
+
+    // Step 4: remove the common prefix from each line and rejoin.
+    lines
+        .iter()
+        .map(|line| {
+            if line.len() >= common_prefix {
+                &line[common_prefix..]
+            } else {
+                // Empty or shorter than prefix (shouldn't happen for non-empty lines)
+                line
+            }
+        })
+        .collect::<Vec<_>>()
+        .join("\n")
+}
+
+/// Process escape sequences in raw source text, producing the final string content.
+///
+/// This mirrors the escape processing in `Tokenizer::escape_sequence()` but operates
+/// on a standalone string. Invalid escapes are kept as-is (errors were already emitted
+/// during the scanning phase).
+fn process_escape_sequences(raw: &str) -> String {
+    let mut result = String::with_capacity(raw.len());
+    let mut chars = raw.chars();
+
+    while let Some(ch) = chars.next() {
+        if ch == '\\' {
+            match chars.next() {
+                Some('"') => result.push('"'),
+                Some('\\') => result.push('\\'),
+                Some('n') => result.push('\n'),
+                Some('r') => result.push('\r'),
+                Some('t') => result.push('\t'),
+                Some('{') => result.push('{'),
+                Some('}') => result.push('}'),
+                Some(escape) => {
+                    // Invalid escape — keep as-is (error already emitted during scan)
+                    result.push('\\');
+                    result.push(escape);
+                }
+                None => {
+                    // Trailing backslash — keep as-is
+                    result.push('\\');
+                }
+            }
+        } else {
+            result.push(ch);
+        }
+    }
+
+    result
+}

@@ -7,7 +7,7 @@ use std::{
 use dada_compiler::{Compiler, RealFs};
 use dada_ir_ast::diagnostic::{Diagnostic, Level};
 use dada_util::{Fallible, bail};
-use expected::{ExpectedDiagnostic, Probe};
+use expected::{ExpectedDiagnostic, Probe, ProbeKind};
 use indicatif::ProgressBar;
 use panic_hook::CapturedPanic;
 use rayon::prelude::*;
@@ -665,6 +665,23 @@ impl FailedTest {
                             k = probe.kind,
                             e = probe.message,
                             a = actual,
+                        )?;
+                        writeln!(result, "```")?;
+                        writeln!(result)?;
+                    }
+
+                    if matches!(probe.kind, ProbeKind::Ast) {
+                        let escaped_actual = actual
+                            .replace('\\', "\\\\")
+                            .replace('/', "\\/")
+                            .replace('&', "\\&");
+                        writeln!(result, "**Fix command** (if the new AST is correct):")?;
+                        writeln!(result, "```bash")?;
+                        writeln!(
+                            result,
+                            "sed -i '' '{line}s/Ast: .*/Ast: {escaped_actual}/' {path}",
+                            line = probe.annotation_line,
+                            path = self.path.display(),
                         )?;
                         writeln!(result, "```")?;
                         writeln!(result)?;
