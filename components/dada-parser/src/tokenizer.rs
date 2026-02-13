@@ -421,20 +421,6 @@ impl<'input, 'db> Tokenizer<'input, 'db> {
         });
     }
 
-    /// Check whether the byte immediately after the peeked character is the
-    /// given ASCII byte. Used to look two characters ahead when `Peekable`
-    /// only offers one element of lookahead. Only correct for ASCII targets
-    /// (single-byte UTF-8).
-    fn peek_next_is_ascii(&mut self, byte: u8) -> bool {
-        debug_assert!(byte.is_ascii());
-        if let Some(&(idx, _)) = self.chars.peek() {
-            let after = idx + 1;
-            after < self.input.len() && self.input.as_bytes()[after] == byte
-        } else {
-            false
-        }
-    }
-
     /// Process an escape sequence after consuming `\`.
     /// `backslash_offset` is the byte index of the `\` character.
     fn escape_sequence(&mut self, backslash_offset: usize, content: &mut String) {
@@ -479,6 +465,21 @@ impl<'input, 'db> Tokenizer<'input, 'db> {
         }
     }
 
+    /// Emit a string literal token with the given span and processed content.
+    fn emit_string_literal(
+        &mut self,
+        span: Span<'db>,
+        skipped: Option<Skipped>,
+        content: String,
+    ) {
+        let token_text = TokenText::new(self.db, content);
+        self.tokens.push(Token {
+            span,
+            skipped,
+            kind: TokenKind::Literal(LiteralKind::String, token_text),
+        });
+    }
+
     /// Emit tokens for an unterminated string literal: a literal token
     /// with whatever content was accumulated, plus an error token.
     fn emit_unterminated_string(
@@ -488,16 +489,8 @@ impl<'input, 'db> Tokenizer<'input, 'db> {
         content: String,
         message: &str,
     ) {
-        let end = self.input.len();
-        let span = self.span(start, end);
-        let token_text = TokenText::new(self.db, content);
-
-        self.tokens.push(Token {
-            span,
-            skipped,
-            kind: TokenKind::Literal(LiteralKind::String, token_text),
-        });
-
+        let span = self.span(start, self.input.len());
+        self.emit_string_literal(span, skipped, content);
         self.tokens.push(Token {
             span,
             skipped: None,
@@ -506,20 +499,25 @@ impl<'input, 'db> Tokenizer<'input, 'db> {
     }
 
     fn string_literal(&mut self, start: usize) {
+        let skipped = self.clear_accumulated(start);
+
         // Check for triple-quoted string: opening `"` already consumed,
         // peek to see if next two chars are also `"`.
         if let Some(&(_, '"')) = self.chars.peek() {
             // Could be empty string `""` or triple-quoted `"""...`.
-            // Look one more character ahead to disambiguate.
-            if self.peek_next_is_ascii(b'"') {
-                // Triple-quoted string: consume the two additional `"` chars
-                self.chars.next(); // consume second `"`
-                self.chars.next(); // consume third `"`
-                return self.triple_quoted_string_literal(start);
+            // Consume the second `"` and peek again to disambiguate.
+            self.chars.next();
+            if let Some(&(_, '"')) = self.chars.peek() {
+                // Triple-quoted string: consume the third `"`
+                self.chars.next();
+                return self.triple_quoted_string_literal(start, skipped);
             }
+
+            // Empty string `""`
+            self.emit_string_literal(self.span(start, start + 2), skipped, String::new());
+            return;
         }
 
-        let skipped = self.clear_accumulated(start);
         let mut processed_content = String::new();
 
         while let Some((end, ch)) = self.chars.next() {
@@ -527,12 +525,11 @@ impl<'input, 'db> Tokenizer<'input, 'db> {
             // like embedded expressions and margin stripping.
 
             if ch == '"' {
-                let token_text = TokenText::new(self.db, processed_content);
-                self.tokens.push(Token {
-                    span: self.span(start, end + ch.len_utf8()),
+                self.emit_string_literal(
+                    self.span(start, end + ch.len_utf8()),
                     skipped,
-                    kind: TokenKind::Literal(LiteralKind::String, token_text),
-                });
+                    processed_content,
+                );
                 return;
             }
 
@@ -553,29 +550,32 @@ impl<'input, 'db> Tokenizer<'input, 'db> {
 
     /// Lex a triple-quoted string literal. Called after the opening `"""`
     /// has been consumed. Scans until the closing `"""` is found.
-    fn triple_quoted_string_literal(&mut self, start: usize) {
-        let skipped = self.clear_accumulated(start);
+    fn triple_quoted_string_literal(&mut self, start: usize, skipped: Option<Skipped>) {
         let mut processed_content = String::new();
 
         while let Some((end, ch)) = self.chars.next() {
             if ch == '"' {
                 // Check if this is `"""` (closing delimiter).
+                // Consume quotes one at a time; if we don't reach three,
+                // they're content.
+                processed_content.push('"');
                 if let Some(&(_, '"')) = self.chars.peek() {
-                    if self.peek_next_is_ascii(b'"') {
-                        // Found closing `"""` — consume the two additional quotes
-                        self.chars.next(); // second `"`
-                        let (third_idx, _) = self.chars.next().unwrap(); // third `"`
-                        let token_text = TokenText::new(self.db, processed_content);
-                        self.tokens.push(Token {
-                            span: self.span(start, third_idx + '"'.len_utf8()),
+                    self.chars.next();
+                    processed_content.push('"');
+                    if let Some(&(third_idx, '"')) = self.chars.peek() {
+                        // Found closing `"""` — consume the third quote
+                        // and remove the two content quotes we speculatively added.
+                        self.chars.next();
+                        processed_content.pop();
+                        processed_content.pop();
+                        self.emit_string_literal(
+                            self.span(start, third_idx + '"'.len_utf8()),
                             skipped,
-                            kind: TokenKind::Literal(LiteralKind::String, token_text),
-                        });
+                            processed_content,
+                        );
                         return;
                     }
                 }
-                // Not `"""` — just a `"` (or `""`) inside the string
-                processed_content.push('"');
             } else if ch == '\\' {
                 self.escape_sequence(end, &mut processed_content);
             } else {
