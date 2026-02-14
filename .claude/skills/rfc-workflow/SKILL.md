@@ -116,10 +116,13 @@ What we're working on right now
 
 Keep these synchronized. When adding a new spec paragraph, check if tests exist. When writing tests, add the `#:spec` annotation.
 
-## Removing `unimpl` Tags
+## Implementation Workflow
 
-When implementing a feature:
+When implementing an RFC feature, follow this cycle for each piece of work:
+
 1. Implement the feature in the compiler
 2. Write tests with `#:spec` annotations
 3. Remove `unimpl` from the spec paragraph tag
-4. Update RFC impl.md progress
+4. **Update the RFC's `impl.md`** — check off completed items, add new items discovered during implementation
+
+Keep `impl.md` current as you go. It's the living record of what's done and what's next — don't wait until the end of a session to update it.

@@ -19,7 +19,9 @@ gh issue view <number>
 
 ## When to Use
 
-If a feature takes 2+ sessions or spans multiple code areas, it warrants a tracking issue.
+**Not for RFC features.** RFC-tracked work uses `impl.md` in the RFC directory for detailed progress tracking. A GitHub issue for an RFC should just be a lightweight pointer with links to the RFC and its impl status (e.g., `https://dada-lang.org/rfcs/NNNN-feature-name/impl.html`).
+
+For non-RFC work (refactors, bug investigations, infrastructure) that spans 2+ sessions or multiple code areas, use a tracking issue.
 
 ## Issue Structure
 
