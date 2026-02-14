@@ -477,6 +477,7 @@ impl<'input, 'db> Tokenizer<'input, 'db> {
         skipped: Option<Skipped>,
         content: String,
         quote_len: usize,
+        raw: bool,
     ) {
         // Extract the raw source content between the quote delimiters.
         let raw_start = (span.start - self.input_offset).as_usize() + quote_len;
@@ -487,7 +488,15 @@ impl<'input, 'db> Tokenizer<'input, 'db> {
         // we apply dedenting on the raw source text (before escape processing)
         // and then re-process escapes. This ensures escape sequences like `\n`
         // are treated as content, not as line delimiters for dedenting.
-        let final_content = if raw_content.starts_with('\n') {
+        //
+        // Raw strings (`"\` prefix) skip dedenting — the raw_content starts
+        // with `\<newline>`, so we skip the `\` marker and process escape
+        // sequences on the rest without dedenting.
+        let final_content = if raw {
+            // Skip the `\` marker; content from `\n` onward is preserved as-is
+            let after_marker = &raw_content[1..]; // skip `\`
+            process_escape_sequences(after_marker)
+        } else if raw_content.starts_with('\n') {
             let dedented = dedent_multiline(raw_content);
             process_escape_sequences(&dedented)
         } else {
@@ -542,8 +551,24 @@ impl<'input, 'db> Tokenizer<'input, 'db> {
             }
 
             // Empty string `""`
-            self.emit_string_literal(self.span(start, start + 2), skipped, String::new(), 1);
+            self.emit_string_literal(self.span(start, start + 2), skipped, String::new(), 1, false);
             return;
+        }
+
+        // Check for raw string prefix: `\` followed by newline disables dedenting.
+        // The `\` is consumed as a marker (not an escape sequence).
+        let raw = if let Some(&(_, '\\')) = self.chars.peek() {
+            // Peek two ahead: we need `\` + `\n`
+            let mut lookahead = self.chars.clone();
+            lookahead.next(); // skip `\`
+            matches!(lookahead.next(), Some((_, '\n')))
+        } else {
+            false
+        };
+
+        if raw {
+            // Consume the `\` marker (not treated as an escape)
+            self.chars.next();
         }
 
         let mut processed_content = String::new();
@@ -555,6 +580,7 @@ impl<'input, 'db> Tokenizer<'input, 'db> {
                     skipped,
                     processed_content,
                     1,
+                    raw,
                 );
                 return;
             }
@@ -599,6 +625,7 @@ impl<'input, 'db> Tokenizer<'input, 'db> {
                             skipped,
                             processed_content,
                             3,
+                            false,
                         );
                         return;
                     }

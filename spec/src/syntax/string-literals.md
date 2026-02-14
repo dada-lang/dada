@@ -115,7 +115,7 @@ Escape sequences are part of the string content, not whitespace.
 They are not affected by leading/trailing stripping or dedenting.
 :::
 
-:::{spec} raw rfc0001 unimpl
+:::{spec} raw rfc0001
 A string literal beginning with `"\` followed by a newline
 disables automatic dedenting.
 The string preserves its content exactly as written,
