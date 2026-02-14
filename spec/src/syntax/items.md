@@ -7,11 +7,12 @@ This chapter specifies the top-level items that can appear in a Dada source file
 :::{spec}
 A Dada source file defines a module.
 The module name is derived from the file name.
-:::
-
-:::{spec} contents
 A source file contains zero or more items,
-optionally followed by zero or more statements.
+optionally followed by zero or more statements:
+
+```ebnf
+SourceFile ::= Item* Statement*
+```
 :::
 
 :::{spec} implicit-main
@@ -19,105 +20,128 @@ If a source file contains top-level statements,
 they are wrapped in an implicit `async fn main()` function.
 :::
 
+:::{spec} kinds
+An item `Item` is one of the following:
+
+```ebnf
+Item ::= ... see list below ...
+```
+
+* {spec}`function` A function `Function`.
+* {spec}`class` A class `Class`.
+* {spec}`struct` A struct `Struct`.
+* {spec}`use` A use declaration `UseDeclaration`.
+:::
+
 ## Visibility
 
 :::{spec}
-Items and fields may have a visibility modifier:
+Items and fields may have a visibility modifier.
+Without a modifier, the item is private to the enclosing module.
+
+```ebnf
+Visibility ::= ... see list below ... | ε
+```
 
 * {spec}`pub` `pub` makes the item visible within the crate.
 * {spec}`export` `export` makes the item visible outside the crate.
 :::
 
-:::{spec} default
-Items without a visibility modifier are private to the enclosing module.
-:::
-
 ## Functions
 
 :::{spec}
-A function is declared with the `fn` keyword:
+A function `Function` is declared with the `fn` keyword,
+optionally preceded by effect keywords
+and followed by a name, optional generic parameters,
+parameters, optional return type, optional where clause,
+and a body or semicolon:
 
-```dada
-fn name(parameters) -> ReturnType {
-    body
-}
+```ebnf
+Function ::= Visibility Effect* `fn` Identifier GenericParameters?
+             `(` Parameters `)` (`->` Type)? WhereClause? FunctionBody
+FunctionBody ::= Block | ε
 ```
 :::
 
 ### Effects
 
 :::{spec}
-A function may be preceded by effect keywords:
+Effect keywords may appear in any order before `fn`:
+
+```ebnf
+Effect ::= ... see list below ...
+```
 
 * {spec}`async` `async` declares an asynchronous function.
 * {spec}`unsafe` `unsafe` declares an unsafe function.
 :::
 
-:::{spec} effect-combination
-Effect keywords may be combined and appear in any order before `fn`.
-:::
-
 ### Parameters
 
 :::{spec}
-Function parameters are enclosed in parentheses and separated by commas.
+Function parameters are enclosed in parentheses and separated by commas:
+
+```ebnf
+Parameters ::= SelfParameter? (`,` Parameter)* | Parameter (`,` Parameter)*
+```
 :::
 
 :::{spec} self
-A function may have a `self` parameter,
-which makes it a method.
-:::
+A function may have a `self` parameter as its first parameter,
+optionally preceded by a permission keyword,
+which makes it a method:
 
-:::{spec} self-permission
-The `self` parameter may be preceded by a permission keyword:
-`ref self`, `mut self`, `my self`, `our self`, or `given self`.
+```ebnf
+SelfParameter ::= PermissionKeyword? `self`
+```
 :::
 
 :::{spec} parameter-syntax
-Each non-self parameter has the form `name: Type`
-where `Type` may include a permission prefix.
-:::
-
-:::{spec} mutable-parameters
+Each non-self parameter has the form `name: Type`.
 A parameter may be preceded by `mut`
-to declare a mutable binding: `mut name: Type`.
+to declare a mutable binding:
+
+```ebnf
+Parameter ::= `mut`? Identifier `:` Type
+```
 :::
 
 ### Return Type
 
 :::{spec}
-A function may declare a return type with `-> Type` after the parameters.
+A function may declare a return type with `->` followed by a `Type` after the parameters.
 :::
 
 ### Generics
 
 :::{spec}
 A function may declare generic parameters in square brackets after the name:
-`fn name[type T, perm P](...)`.
-:::
 
-:::{spec} type-parameters
-A type parameter is declared with `type` followed by a name: `type T`.
-:::
+```ebnf
+GenericParameters ::= `[` GenericParameter (`,` GenericParameter)* `]`
+GenericParameter ::= ... see list below ...
+```
 
-:::{spec} permission-parameters
-A permission parameter is declared with `perm` followed by a name: `perm P`.
+* {spec}`type-parameters` A type parameter `type` followed by a name: `type T`.
+* {spec}`permission-parameters` A permission parameter `perm` followed by a name: `perm P`.
 :::
 
 ### Where Clauses
 
 :::{spec}
 A function may have a `where` clause after the return type
-that constrains its generic parameters.
-:::
+that constrains its generic parameters:
 
-:::{spec} where-syntax
-A where clause consists of `where` followed by one or more comma-separated constraints
-of the form `Subject is Kind`.
-:::
+```ebnf
+WhereClause ::= `where` WhereConstraint (`,` WhereConstraint)*
+WhereConstraint ::= Type `is` WhereKind (`+` WhereKind)*
+```
 
-:::{spec} where-kinds
-The constraint kinds are:
+```ebnf
+WhereKind ::= ... see list below ...
+```
+
+The constraint kinds `WhereKind` are:
 
 * {spec}`ref` `ref`
 * {spec}`mut` `mut`
@@ -127,56 +151,48 @@ The constraint kinds are:
 * {spec}`lent` `lent`
 :::
 
-:::{spec} where-combination
-Multiple kinds may be combined with `+`: `where T is shared + owned`.
-:::
-
-### Body
-
-:::{spec}
-A function body is a block enclosed in curly braces.
-:::
-
-:::{spec} body-optional
-A function may be declared without a body.
-:::
-
 ## Classes
 
 :::{spec}
-A class is declared with the `class` keyword:
-
-```dada
-class Name(fields) {
-    members
-}
-```
-:::
-
-:::{spec} reference-semantics
+A class `Class` is declared with the `class` keyword.
 Classes have reference semantics.
+
+```ebnf
+Class ::= Visibility `class` Identifier GenericParameters?
+          ConstructorFields? WhereClause? ClassBody?
+```
 :::
 
 ### Constructor Fields
 
 :::{spec}
-A class may declare constructor fields in parentheses after the name.
-Each field has the form `[visibility] [mut] name: Type`.
+A class may declare constructor fields in parentheses after the name:
+
+```ebnf
+ConstructorFields ::= `(` Field (`,` Field)* `)`
+```
 :::
 
 ### Members
 
 :::{spec}
-A class body enclosed in curly braces may contain field declarations and method definitions.
+A class body enclosed in curly braces may contain field declarations and method definitions:
+
+```ebnf
+ClassBody ::= `{` ClassMember* `}`
+ClassMember ::= ... see list below ...
+```
+
+* {spec}`field-member` A field declaration `Field`.
+* {spec}`method-member` A method `Function`.
 :::
 
 :::{spec} field-syntax
-A field declaration has the form `[visibility] [mut] name: Type`.
-:::
+A field declaration `Field` has the form:
 
-:::{spec} method-syntax
-A method is a function declaration within the class body.
-Methods typically take `self` as their first parameter.
+```ebnf
+Field ::= Visibility `mut`? Identifier `:` Type
+```
 :::
 
 ### Generics and Where Clauses
@@ -189,25 +205,23 @@ with the same syntax as functions.
 ## Structs
 
 :::{spec}
-A struct is declared with the `struct` keyword.
-The syntax is identical to `class`.
-:::
+A struct `Struct` is declared with the `struct` keyword.
+The syntax is identical to `Class` but structs have value semantics.
 
-:::{spec} value-semantics
-Structs have value semantics.
+```ebnf
+Struct ::= Visibility `struct` Identifier GenericParameters?
+           ConstructorFields? WhereClause? ClassBody?
+```
 :::
 
 ## Use Declarations
 
 :::{spec}
-A `use` declaration imports a name from another crate:
+A `use` declaration `UseDeclaration` imports a name from another crate,
+optionally renaming it with `as`:
 
-```dada
-use crate_name.path
+```ebnf
+UseDeclaration ::= `use` Path (`as` Identifier)?
+Path ::= Identifier (`.` Identifier)*
 ```
-:::
-
-:::{spec} renaming
-A `use` declaration may rename the imported item with `as`:
-`use crate_name.path as new_name`.
 :::

@@ -13,13 +13,19 @@ Dada source files are encoded as UTF-8.
 ## Tokens
 
 :::{spec}
-The lexer produces a sequence of tokens. A token is one of the following kinds:
+The lexer produces a sequence of tokens:
 
-* {spec}`identifier` An identifier.
-* {spec}`keyword` A keyword.
-* {spec}`literal` A literal (integer, string, or boolean).
-* {spec}`op-char` A single punctuation or operator character.
-* {spec}`delimited` A delimited group: matched pair of brackets and their contents.
+```ebnf
+Token ::= ... see list below ...
+```
+
+A token `Token` is one of the following kinds:
+
+* {spec}`identifier` An identifier `Identifier`.
+* {spec}`keyword` A keyword `Keyword`.
+* {spec}`literal` A literal `Literal` (integer, string, or boolean).
+* {spec}`op-char` A single punctuation or operator character `Operator`.
+* {spec}`delimited` A delimited group `Delimited`: matched pair of brackets and their contents.
 :::
 
 :::{spec} preceding-whitespace
@@ -53,30 +59,30 @@ The content of a comment, including the leading `#`, is ignored by the lexer.
 A comment implies a newline for the purpose of preceding-whitespace tracking.
 :::
 
-:::{spec} no-block-comments
-Dada does not have block comments.
-:::
-
 ## Identifiers
 
 :::{spec}
-An identifier begins with a Unicode alphabetic character or underscore (`_`),
-followed by zero or more Unicode alphanumeric characters or underscores.
+An identifier `Identifier` begins with a Unicode alphabetic character or underscore (`_`),
+followed by zero or more Unicode alphanumeric characters or underscores,
+provided it is not a keyword `Keyword`:
+
+```ebnf
+Identifier ::= (Alphabetic | `_`) (Alphanumeric | `_`)*    (not a Keyword)
+```
 :::
 
 :::{spec} case-sensitivity
 Identifiers are case-sensitive.
 :::
 
-:::{spec} keyword-recognition
-A word that matches a keyword is always lexed as a keyword token,
-not as an identifier.
-:::
-
 ## Keywords
 
 :::{spec}
 The following words are reserved as keywords:
+
+```ebnf
+Keyword ::= ... see list below ...
+```
 
 * {spec}`as` `as`
 * {spec}`async` `async`
@@ -117,6 +123,10 @@ The following words are reserved as keywords:
 :::{spec}
 The following single characters are recognized as operator tokens:
 
+```ebnf
+Operator ::= ... see list below ...
+```
+
 * {spec}`plus` `+`
 * {spec}`minus` `-`
 * {spec}`star` `*`
@@ -145,6 +155,10 @@ are formed by the parser from adjacent operator tokens.
 :::{spec}
 A delimited token contains a matched pair of brackets and their contents:
 
+```ebnf
+Delimiter ::= ... see list below ...
+```
+
 * {spec}`parentheses` Parentheses: `(` and `)`.
 * {spec}`square-brackets` Square brackets: `[` and `]`.
 * {spec}`curly-braces` Curly braces: `{` and `}`.
@@ -163,21 +177,38 @@ which enables deferred parsing of function bodies and other nested structures.
 
 ## Literals
 
+:::{spec}
+A literal `Literal` is one of the following:
+
+```ebnf
+Literal ::= ... see list below ...
+```
+
+* {spec}`integer` An integer literal `IntegerLiteral`.
+* {spec}`boolean` A boolean literal `BooleanLiteral`.
+* {spec}`string` A string literal `StringLiteral`.
+:::
+
 ### Integer Literals
 
 :::{spec}
-An integer literal is a sequence of one or more ASCII decimal digits (`0`–`9`).
-:::
+An integer literal `IntegerLiteral` is a sequence of one or more ASCII decimal digits (`0`–`9`),
+optionally separated by underscores (`_`) that do not affect the value:
 
-:::{spec} underscores
-Underscores (`_`) may appear between digits as visual separators.
-They do not affect the value of the literal.
+```ebnf
+IntegerLiteral ::= Digit (`_`? Digit)*
+Digit ::= `0` | `1` | ... | `9`
+```
 :::
 
 ### Boolean Literals
 
 :::{spec}
-The keywords `true` and `false` are boolean literals.
+The keywords `true` and `false` are boolean literals:
+
+```ebnf
+BooleanLiteral ::= `true` | `false`
+```
 :::
 
 ### String Literals
