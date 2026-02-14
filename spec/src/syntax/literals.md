@@ -4,11 +4,13 @@ This chapter describes literal expressions in Dada.
 
 ## Numeric Literals
 
-*To be specified*
+See [Integer Literals](lexical-structure.md#integer-literals) for lexical syntax.
+
+*Numeric type inference and overflow behavior to be specified.*
 
 ## Boolean Literals
 
-*To be specified*
+See [Boolean Literals](lexical-structure.md#boolean-literals) for lexical syntax.
 
 ## String Literals
 

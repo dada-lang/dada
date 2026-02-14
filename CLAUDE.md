@@ -24,10 +24,9 @@ Use these skills (via `/skill-name`) at the right moments:
 
 # Codebase documentation
 
-The `.development` directory includes numerous development guides. Consult them when appropriate:
+Implementation details are documented in rustdoc within each crate. Key crates with comprehensive docs:
 
-- [**Architecture**](.development/architecture.md) - Compiler structure and design
-- [**Patterns**](.development/patterns.md) - Code conventions and established patterns
-- [**Workflows**](.development/workflows.md) - Build, test, and development processes
-- [**Documentation**](.development/documentation.md) - Rustdoc guidelines and standards
-- [**RFC Process**](.development/rfc.md) - RFC workflow, specification development, and authorship style guide
+- **`dada-lang`** — High-level language and compiler overview (`cargo doc --open`)
+- **`dada-parser`** — Parser architecture, `Parse` trait, commitment model
+- **`dada-ir-sym`** — Symbolic IR, type system, permissions
+- **`dada-check`** — Type checking orchestration

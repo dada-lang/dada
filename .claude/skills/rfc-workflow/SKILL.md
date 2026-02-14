@@ -5,7 +5,7 @@ description: RFC and specification workflow for Dada language features. Use when
 
 # RFC and Specification Workflow
 
-See [.development/rfc.md](../../.development/rfc.md) for the full RFC process. This skill focuses on the practical spec integration workflow.
+This skill covers the practical RFC and spec integration workflow.
 
 ## RFC Directory Structure
 

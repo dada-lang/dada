@@ -84,6 +84,5 @@ Capture consistency requirements:
 
 ## References
 
-- [Architecture](.development/architecture.md) — compiler structure and design
-- [Patterns](.development/patterns.md) — full code conventions
-- [Documentation](.development/documentation.md) — rustdoc guidelines
+- Crate-level rustdoc — each crate has `docs/overview.md` included via `#![doc = include_str!(...)]`
+- Run `cargo doc --open` to browse implementation docs
