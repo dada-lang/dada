@@ -253,6 +253,142 @@ pub fn transform_inline_sub_paragraphs(content_lines: &[String], parent_id: &str
         .collect()
 }
 
+/// Converts a kebab-case name to PascalCase.
+///
+/// # Examples
+/// - `function` → `Function`
+/// - `use-declaration` → `UseDeclaration`
+/// - `class-member` → `ClassMember`
+pub fn kebab_to_pascal_case(name: &str) -> String {
+    name.split('-')
+        .map(|word| {
+            let mut chars = word.chars();
+            match chars.next() {
+                None => String::new(),
+                Some(first) => {
+                    let mut s = first.to_uppercase().to_string();
+                    s.extend(chars);
+                    s
+                }
+            }
+        })
+        .collect()
+}
+
+/// Converts a spec sub-paragraph name to its EBNF grammar symbol.
+///
+/// 💡 Names ending in `-nt` are nonterminals: strip the suffix and PascalCase the rest.
+/// All other names are terminals: wrap in backticks.
+///
+/// # Examples
+/// - `function-nt` → `Function` (nonterminal)
+/// - `use-declaration-nt` → `UseDeclaration` (nonterminal)
+/// - `as` → `` `as` `` (terminal)
+/// - `pub` → `` `pub` `` (terminal)
+pub fn spec_name_to_grammar_symbol(name: &str) -> String {
+    if let Some(stem) = name.strip_suffix("-nt") {
+        kebab_to_pascal_case(stem)
+    } else {
+        format!("`{name}`")
+    }
+}
+
+/// Expands `...` placeholders in EBNF code blocks using the sub-paragraph names
+/// from the same spec directive.
+///
+/// When a ` ```ebnf ``` ` block contains `...`, this function:
+/// 1. Replaces `...` with plain-text alternatives (one per line, aligned)
+/// 2. Removes the `{spec}` sub-bullet lines (the EBNF already shows the alternatives)
+/// 3. Preserves any suffix after `...` (like `| ε`)
+///
+/// The output keeps markdown ` ```ebnf ``` ` fences — HTML rendering with links
+/// is handled separately by the preprocessor.
+pub fn expand_ebnf_in_directive(content_lines: &[String]) -> Vec<String> {
+    let sub_paragraphs = extract_inline_sub_paragraphs(content_lines);
+    if sub_paragraphs.is_empty() {
+        return content_lines.to_vec();
+    }
+
+    // 💡 First pass: check if any ebnf block contains `...`.
+    // If not, return unchanged — no expansion needed.
+    let has_expandable = {
+        let mut in_ebnf = false;
+        let mut found = false;
+        for line in content_lines {
+            let trimmed = line.trim();
+            if trimmed == "```ebnf" {
+                in_ebnf = true;
+            } else if trimmed == "```" && in_ebnf {
+                in_ebnf = false;
+            } else if in_ebnf && line.contains("...") {
+                found = true;
+                break;
+            }
+        }
+        found
+    };
+
+    if !has_expandable {
+        return content_lines.to_vec();
+    }
+
+    // Collect the lines that are sub-paragraph bullets (to remove them)
+    let bullet_lines: std::collections::HashSet<usize> = sub_paragraphs
+        .iter()
+        .map(|sp| sp.line_index)
+        .collect();
+
+    let alternatives: Vec<String> = sub_paragraphs
+        .iter()
+        .map(|sp| spec_name_to_grammar_symbol(&sp.name))
+        .collect();
+
+    let mut in_ebnf = false;
+    let mut result = Vec::new();
+
+    for (i, line) in content_lines.iter().enumerate() {
+        let trimmed = line.trim();
+
+        if trimmed == "```ebnf" {
+            in_ebnf = true;
+            result.push(line.clone());
+        } else if trimmed == "```" && in_ebnf {
+            in_ebnf = false;
+            result.push(line.clone());
+        } else if in_ebnf {
+            if let Some(dots_pos) = line.find("...") {
+                let prefix = &line[..dots_pos];
+                let suffix = line[dots_pos + 3..].trim();
+
+                // 💡 Compute alignment padding for continuation lines.
+                let align_width = prefix.len();
+                let padding = " ".repeat(align_width);
+
+                for (j, alt) in alternatives.iter().enumerate() {
+                    if j == 0 {
+                        result.push(format!("{prefix}{alt}"));
+                    } else {
+                        result.push(format!("{padding}| {alt}"));
+                    }
+                }
+                // Append suffix (e.g., `| ε`) as a final alternative
+                if !suffix.is_empty() {
+                    let suffix = suffix.strip_prefix("| ").unwrap_or(suffix);
+                    result.push(format!("{padding}| {suffix}"));
+                }
+            } else {
+                result.push(line.clone());
+            }
+        } else if bullet_lines.contains(&i) {
+            // Skip sub-bullet lines — the expanded EBNF replaces them
+        } else {
+            result.push(line.clone());
+        }
+    }
+
+    result
+}
+
 #[cfg(test)]
 mod tests {
     use super::*;
@@ -486,5 +622,126 @@ mod tests {
         assert!(result[1].contains(">.triple-quoted</a>"));
         assert!(result[1].contains("spec-rfc-unimpl"));
         assert!(result[1].contains("Not yet."));
+    }
+
+    #[test]
+    fn test_kebab_to_pascal_case() {
+        assert_eq!(kebab_to_pascal_case("function"), "Function");
+        assert_eq!(kebab_to_pascal_case("use-declaration"), "UseDeclaration");
+        assert_eq!(kebab_to_pascal_case("class-member"), "ClassMember");
+        assert_eq!(kebab_to_pascal_case("a"), "A");
+        assert_eq!(
+            kebab_to_pascal_case("generic-parameter"),
+            "GenericParameter"
+        );
+    }
+
+    #[test]
+    fn test_spec_name_to_grammar_symbol() {
+        // Nonterminals: -nt suffix → PascalCase
+        assert_eq!(spec_name_to_grammar_symbol("function-nt"), "Function");
+        assert_eq!(
+            spec_name_to_grammar_symbol("use-declaration-nt"),
+            "UseDeclaration"
+        );
+        assert_eq!(spec_name_to_grammar_symbol("class-nt"), "Class");
+
+        // Terminals: no suffix → backtick-wrapped
+        assert_eq!(spec_name_to_grammar_symbol("as"), "`as`");
+        assert_eq!(spec_name_to_grammar_symbol("pub"), "`pub`");
+        assert_eq!(spec_name_to_grammar_symbol("async"), "`async`");
+    }
+
+    #[test]
+    fn test_expand_ebnf_nonterminals() {
+        let lines = vec![
+            "An item `Item` is one of the following:".to_string(),
+            "".to_string(),
+            "```ebnf".to_string(),
+            "Item ::= ...".to_string(),
+            "```".to_string(),
+            "".to_string(),
+            "* {spec}`function-nt` A function `Function`.".to_string(),
+            "* {spec}`class-nt` A class `Class`.".to_string(),
+            "* {spec}`struct-nt` A struct `Struct`.".to_string(),
+        ];
+        let result = expand_ebnf_in_directive(&lines);
+        // Plain text, one alternative per line
+        assert!(result.iter().any(|l| l.contains("Item ::= Function")));
+        assert!(result.iter().any(|l| l.contains("| Class")));
+        assert!(result.iter().any(|l| l.contains("| Struct")));
+        // Bullet lines removed
+        assert!(!result.iter().any(|l| l.contains("{spec}")));
+        // Prose preserved
+        assert!(result.iter().any(|l| l.contains("An item")));
+        // Still has markdown fences
+        assert!(result.iter().any(|l| l.contains("```ebnf")));
+    }
+
+    #[test]
+    fn test_expand_ebnf_terminals() {
+        let lines = vec![
+            "Keywords:".to_string(),
+            "```ebnf".to_string(),
+            "Keyword ::= ...".to_string(),
+            "```".to_string(),
+            "* {spec}`as` `as`".to_string(),
+            "* {spec}`async` `async`".to_string(),
+            "* {spec}`await` `await`".to_string(),
+        ];
+        let result = expand_ebnf_in_directive(&lines);
+        // Terminals wrapped in backticks (plain text)
+        assert!(result.iter().any(|l| l.contains("Keyword ::= `as`")));
+        assert!(result.iter().any(|l| l.contains("| `async`")));
+        assert!(result.iter().any(|l| l.contains("| `await`")));
+        // Bullet lines removed
+        assert!(!result.iter().any(|l| l.contains("{spec}")));
+    }
+
+    #[test]
+    fn test_expand_ebnf_with_suffix() {
+        let lines = vec![
+            "Visibility:".to_string(),
+            "```ebnf".to_string(),
+            "Visibility ::= ... | ε".to_string(),
+            "```".to_string(),
+            "* {spec}`pub` `pub`.".to_string(),
+            "* {spec}`export` `export`.".to_string(),
+        ];
+        let result = expand_ebnf_in_directive(&lines);
+        assert!(result.iter().any(|l| l.contains("Visibility ::= `pub`")));
+        assert!(result.iter().any(|l| l.contains("| `export`")));
+        assert!(result.iter().any(|l| l.contains("| ε")));
+        assert!(!result.iter().any(|l| l.contains("{spec}")));
+    }
+
+    #[test]
+    fn test_expand_ebnf_no_dots() {
+        // EBNF without `...` should pass through unchanged, even with sub-paragraphs
+        let lines = vec![
+            "```ebnf".to_string(),
+            "ClassMember ::= Field | Function".to_string(),
+            "```".to_string(),
+            "* {spec}`field-member` A field.".to_string(),
+        ];
+        let result = expand_ebnf_in_directive(&lines);
+        assert_eq!(result[0], "```ebnf");
+        assert_eq!(result[1], "ClassMember ::= Field | Function");
+        assert_eq!(result[2], "```");
+        assert_eq!(result[3], "* {spec}`field-member` A field.");
+    }
+
+    #[test]
+    fn test_expand_ebnf_no_sub_paragraphs() {
+        // `...` but no sub-paragraphs — no expansion
+        let lines = vec![
+            "```ebnf".to_string(),
+            "Item ::= ...".to_string(),
+            "```".to_string(),
+        ];
+        let result = expand_ebnf_in_directive(&lines);
+        assert_eq!(result[0], "```ebnf");
+        assert_eq!(result[1], "Item ::= ...");
+        assert_eq!(result[2], "```");
     }
 }

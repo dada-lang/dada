@@ -16,16 +16,16 @@ Dada source files are encoded as UTF-8.
 The lexer produces a sequence of tokens:
 
 ```ebnf
-Token ::= ... see list below ...
+Token ::= ...
 ```
 
 A token `Token` is one of the following kinds:
 
-* {spec}`identifier` An identifier `Identifier`.
-* {spec}`keyword` A keyword `Keyword`.
-* {spec}`literal` A literal `Literal` (integer, string, or boolean).
-* {spec}`op-char` A single punctuation or operator character `Operator`.
-* {spec}`delimited` A delimited group `Delimited`: matched pair of brackets and their contents.
+* {spec}`identifier-nt` An identifier `Identifier`.
+* {spec}`keyword-nt` A keyword `Keyword`.
+* {spec}`literal-nt` A literal `Literal` (integer, string, or boolean).
+* {spec}`operator-nt` A single punctuation or operator character `Operator`.
+* {spec}`delimiter-nt` A delimited group `Delimiter`: matched pair of brackets and their contents.
 :::
 
 :::{spec} preceding-whitespace
@@ -59,7 +59,7 @@ The content of a comment, including the leading `#`, is ignored by the lexer.
 A comment implies a newline for the purpose of preceding-whitespace tracking.
 :::
 
-## Identifiers
+## `Identifier` definition
 
 :::{spec}
 An identifier `Identifier` begins with a Unicode alphabetic character or underscore (`_`),
@@ -75,13 +75,13 @@ Identifier ::= (Alphabetic | `_`) (Alphanumeric | `_`)*    (not a Keyword)
 Identifiers are case-sensitive.
 :::
 
-## Keywords
+## `Keyword` definition
 
 :::{spec}
 The following words are reserved as keywords:
 
 ```ebnf
-Keyword ::= ... see list below ...
+Keyword ::= ...
 ```
 
 * {spec}`as` `as`
@@ -118,13 +118,14 @@ Keyword ::= ... see list below ...
 * {spec}`where` `where`
 :::
 
-## Punctuation and Operators
+## `Operator` definition
 
 :::{spec}
 The following single characters are recognized as operator tokens:
 
 ```ebnf
-Operator ::= ... see list below ...
+Operator ::= `+` | `-` | `*` | `/` | `%` | `=` | `!`
+           | `<` | `>` | `&` | `|` | `:` | `,` | `.` | `;` | `?`
 ```
 
 * {spec}`plus` `+`
@@ -150,13 +151,13 @@ Multi-character operators such as `&&`, `||`, `==`, `<=`, `>=`, and `->`
 are formed by the parser from adjacent operator tokens.
 :::
 
-## Delimiters
+## `Delimiter` definition
 
 :::{spec}
 A delimited token contains a matched pair of brackets and their contents:
 
 ```ebnf
-Delimiter ::= ... see list below ...
+Delimiter ::= `(` Token* `)` | `[` Token* `]` | `{` Token* `}`
 ```
 
 * {spec}`parentheses` Parentheses: `(` and `)`.
@@ -175,21 +176,21 @@ Content between matching delimiters is treated as a unit,
 which enables deferred parsing of function bodies and other nested structures.
 :::
 
-## Literals
+## `Literal` definition
 
 :::{spec}
 A literal `Literal` is one of the following:
 
 ```ebnf
-Literal ::= ... see list below ...
+Literal ::= ...
 ```
 
-* {spec}`integer` An integer literal `IntegerLiteral`.
-* {spec}`boolean` A boolean literal `BooleanLiteral`.
-* {spec}`string` A string literal `StringLiteral`.
+* {spec}`integer-literal-nt` An integer literal `IntegerLiteral`.
+* {spec}`boolean-literal-nt` A boolean literal `BooleanLiteral`.
+* {spec}`string-literal-nt` A string literal `StringLiteral`.
 :::
 
-### Integer Literals
+### `IntegerLiteral` definition
 
 :::{spec}
 An integer literal `IntegerLiteral` is a sequence of one or more ASCII decimal digits (`0`–`9`),
@@ -201,7 +202,7 @@ Digit ::= `0` | `1` | ... | `9`
 ```
 :::
 
-### Boolean Literals
+### `BooleanLiteral` definition
 
 :::{spec}
 The keywords `true` and `false` are boolean literals:
@@ -211,7 +212,7 @@ BooleanLiteral ::= `true` | `false`
 ```
 :::
 
-### String Literals
+### `StringLiteral` definition
 
 :::{spec}
 String literal syntax is specified in [String Literals](string-literals.md).
