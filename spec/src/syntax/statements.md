@@ -2,25 +2,42 @@
 
 This chapter specifies the statement syntax of Dada.
 
-## Blocks
+## `Block` definition
 
 :::{spec}
-A block is a sequence of zero or more statements
-enclosed in curly braces: `{ statements }`.
+A block `Block` is a sequence of zero or more statements
+enclosed in curly braces:
+
+```ebnf
+Block ::= `{` Statement* `}`
+```
 :::
 
 :::{spec} value
 A block evaluates to the value of its last expression,
-if the last statement is an expression without a trailing semicolon.
+if the last statement is an expression statement.
 :::
 
-## Let Statements
+## `Statement` definition
 
 :::{spec}
-A `let` statement introduces a new variable binding:
+A statement `Statement` is one of the following:
 
-```dada
-let name = value
+```ebnf
+Statement ::= ...
+```
+
+* {spec}`let-statement-nt` A let statement `LetStatement`.
+* {spec}`expr-statement-nt` An expression statement `ExprStatement`.
+:::
+
+## `LetStatement` definition
+
+:::{spec}
+A let statement `LetStatement` introduces a new variable binding:
+
+```ebnf
+LetStatement ::= `let` `mut`? Identifier (`:` Type)? (`=` Expr)?
 ```
 :::
 
@@ -38,9 +55,13 @@ The initializer (`= value`) is optional.
 A variable may be declared without an initial value.
 :::
 
-## Expression Statements
+## `ExprStatement` definition
 
 :::{spec}
-An expression followed by a newline or end of block
-is an expression statement.
+An expression statement `ExprStatement` is an expression
+followed by a newline or end of block:
+
+```ebnf
+ExprStatement ::= Expr
+```
 :::

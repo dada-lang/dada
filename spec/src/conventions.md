@@ -87,6 +87,24 @@ These labels serve multiple purposes:
 
 Identifiers use semantic names rather than numbers to remain stable as the specification evolves.
 
+## EBNF Notation
+
+This specification uses Extended Backus-Naur Form (EBNF) to describe syntax.
+Standard EBNF operators apply:
+
+- `A*` — zero or more repetitions of A
+- `A+` — one or more repetitions of A
+- `A?` — optional A
+- `A | B` — A or B
+- `` `keyword` `` — a literal terminal
+- `ε` — the empty production
+
+In addition, this specification uses the following shorthand
+for comma-separated lists with optional trailing commas:
+
+- `A,*` — zero or more comma-separated occurrences of A
+- `A,+` — one or more comma-separated occurrences of A
+
 ## Normative Language
 
 This specification uses the following terms to indicate requirements:

@@ -58,8 +58,7 @@ and a body or semicolon:
 
 ```ebnf
 Function ::= Visibility Effect* `fn` Identifier GenericParameters?
-             `(` Parameters `)` (`->` Type)? WhereClause? FunctionBody
-FunctionBody ::= Block | ε
+             `(` Parameters `)` ReturnType? WhereClause? FunctionBody
 ```
 :::
 
@@ -82,7 +81,8 @@ Effect ::= ...
 Function parameters are enclosed in parentheses and separated by commas:
 
 ```ebnf
-Parameters ::= SelfParameter? (`,` Parameter)* | Parameter (`,` Parameter)*
+Parameters ::= FunctionInput,*
+FunctionInput ::= SelfParameter | Parameter
 ```
 :::
 
@@ -106,10 +106,23 @@ Parameter ::= `mut`? Identifier `:` Type
 ```
 :::
 
-### Return Type
+### `FunctionBody` definition
+
+:::{spec}
+A function may have a body, which is a block enclosed in curly braces.
+If no body is present, the function has no definition.
+
+```ebnf
+FunctionBody ::= Block | ε
+```
+:::
+
+### `ReturnType` definition
 
 :::{spec}
 A function may declare a return type with `->` followed by a `Type` after the parameters.
+
+ReturnType ::= `->` Type
 :::
 
 ### `GenericParameters` definition
@@ -118,7 +131,7 @@ A function may declare a return type with `->` followed by a `Type` after the pa
 A function may declare generic parameters in square brackets after the name:
 
 ```ebnf
-GenericParameters ::= `[` GenericParameter (`,` GenericParameter)* `]`
+GenericParameters ::= `[` GenericParameter,* `]`
 GenericParameter ::= `type` Identifier | `perm` Identifier
 ```
 
@@ -133,7 +146,7 @@ A function may have a `where` clause after the return type
 that constrains its generic parameters:
 
 ```ebnf
-WhereClause ::= `where` WhereConstraint (`,` WhereConstraint)*
+WhereClause ::= `where` WhereConstraint,+
 WhereConstraint ::= Type `is` WhereKind (`+` WhereKind)*
 WhereKind ::= ...
 ```
@@ -164,7 +177,7 @@ Class ::= Visibility `class` Identifier GenericParameters?
 A class may declare constructor fields in parentheses after the name:
 
 ```ebnf
-ConstructorFields ::= `(` Field (`,` Field)* `)`
+ConstructorFields ::= `(` Field,* `)`
 ```
 :::
 
@@ -178,11 +191,21 @@ ClassBody ::= `{` ClassMember* `}`
 ClassMember ::= ...
 ```
 
-* {spec}`field-member` A field declaration `Field`.
-* {spec}`method-member` A method `Function`.
+* {spec}`field-nt` A field declaration `Field`.
+* {spec}`method-nt` A method `Method`.
 :::
 
-### `FieldMember` definition
+### `Method` definition
+
+:::{spec}
+A method `Method` is a function declared inside a class or struct body:
+
+```ebnf
+Method ::= Function
+```
+:::
+
+### `Field` definition
 
 :::{spec} field-syntax
 A field declaration `Field` has the form:

@@ -2,178 +2,248 @@
 
 This chapter specifies the expression syntax of Dada.
 
-## Primary Expressions
-
-### Identifiers
+## `Expr` definition
 
 :::{spec}
-An identifier used as an expression refers to a variable or item in scope.
+An expression `Expr` is parsed using precedence climbing.
+From lowest to highest precedence:
+
+```ebnf
+Expr ::= ...
+```
+
+* {spec}`assign-expr-nt` An assignment expression `AssignExpr`.
 :::
 
-### Self
+## `AssignExpr` definition
 
 :::{spec}
-The keyword `self` refers to the receiver of the current method.
+The assignment operator `=` assigns a value to a place expression.
+It has the lowest precedence among binary operators:
+
+```ebnf
+AssignExpr ::= ...
+```
+
+* {spec}`or-expr-nt` A logical OR expression `OrExpr` (`=` `OrExpr`)?
 :::
 
-### Parenthesized Expressions
+## `OrExpr` definition
 
 :::{spec}
-An expression may be enclosed in parentheses: `(expr)`.
-Parentheses control evaluation order without changing the value.
+The logical OR operator `||` performs short-circuit boolean logic:
+
+```ebnf
+OrExpr ::= ...
+```
+
+* {spec}`and-expr-nt` An AND expression `AndExpr` (`||` `AndExpr`)*
 :::
 
-### Block Expressions
+## `AndExpr` definition
 
 :::{spec}
-A block `{ statements }` is an expression.
-See [Blocks](statements.md#blocks) for details.
+The logical AND operator `&&` performs short-circuit boolean logic:
+
+```ebnf
+AndExpr ::= ...
+```
+
+* {spec}`compare-expr-nt` A comparison expression `CompareExpr` (`&&` `CompareExpr`)*
 :::
 
-### Literal Expressions
+## `CompareExpr` definition
 
 :::{spec}
-Integer literals, boolean literals, and string literals
-are expressions.
-See [Literals](literals.md) and [String Literals](string-literals.md) for details.
+The comparison operators compare two values and produce a boolean result:
+
+```ebnf
+CompareExpr ::= ...
+```
+
+* {spec}`add-expr-nt` An additive expression `AddExpr` (`CompareOp` `AddExpr`)*
+
+```ebnf
+CompareOp ::= `==` | `<` | `>` | `<=` | `>=`
+```
 :::
 
-## Operator Expressions
-
-### Binary Operators
+## `AddExpr` definition
 
 :::{spec}
-Binary operators combine two expressions.
-All binary operators are left-associative.
+The additive operators perform addition and subtraction:
+
+```ebnf
+AddExpr ::= ...
+```
+
+* {spec}`mul-expr-nt` A multiplicative expression `MulExpr` ((`+` | `-`) `MulExpr`)*
 :::
 
-:::{spec} precedence
-Binary operators have the following precedence, from lowest to highest:
-
-1. Assignment: `=`
-2. Logical OR: `||`
-3. Logical AND: `&&`
-4. Comparison: `==`, `<`, `>`, `<=`, `>=`
-5. Addition and subtraction: `+`, `-`
-6. Multiplication and division: `*`, `/`
-:::
-
-:::{spec} assignment
-The `=` operator assigns a value to a place expression.
-:::
-
-:::{spec} comparison
-The comparison operators `==`, `<`, `>`, `<=`, `>=`
-compare two values and produce a boolean result.
-:::
-
-:::{spec} arithmetic
-The arithmetic operators `+`, `-`, `*`, `/`
-perform arithmetic on numeric values.
-:::
-
-:::{spec} logical
-The logical operators `&&` and `||`
-perform short-circuit boolean logic.
-:::
-
-### Unary Operators
+## `MulExpr` definition
 
 :::{spec}
-The prefix operator `!` performs logical negation.
+The multiplicative operators perform multiplication and division:
+
+```ebnf
+MulExpr ::= ...
+```
+
+* {spec}`unary-expr-nt` A unary expression `UnaryExpr` ((`*` | `/`) `UnaryExpr`)*
 :::
 
-:::{spec} negate
-The prefix operator `-` performs arithmetic negation.
+## `UnaryExpr` definition
+
+:::{spec}
+A unary expression applies a prefix operator to a postfix expression:
+
+```ebnf
+UnaryExpr ::= UnaryOp* PostfixExpr
+UnaryOp ::= `!` | `-`
+```
+
+* {spec}`not` `!` performs logical negation.
+* {spec}`negate` `-` performs arithmetic negation.
 :::
 
-### Newline Sensitivity
+## Newline Sensitivity
 
 :::{spec}
 A binary operator must appear on the same line as its left operand.
 An operator on a new line begins a new expression or is interpreted as a prefix operator.
 :::
 
-## Postfix Expressions
-
-### Field Access
+## `PostfixExpr` definition
 
 :::{spec}
-A field of a value is accessed with dot notation: `expr.field`.
+A postfix expression applies zero or more postfix operators
+to a primary expression:
+
+```ebnf
+PostfixExpr ::= PrimaryExpr PostfixOp*
+```
 :::
 
-### Method Calls
+### `PostfixOp` definition
 
 :::{spec}
-A method is called with dot notation followed by arguments:
-`expr.method(args)`.
+A postfix operator `PostfixOp` is one of the following:
+
+```ebnf
+PostfixOp ::= ...
+```
+
+* {spec}`field-access-nt` A field access `FieldAccess`.
+* {spec}`call-nt` A function or method call `Call`.
+* {spec}`await-nt` An await expression `Await`.
+* {spec}`permission-op-nt` A permission operation `PermissionOp`.
 :::
 
-### Function Calls
+### `FieldAccess` definition
 
 :::{spec}
-A function is called by following an expression with parenthesized arguments:
-`expr(args)`.
-Arguments are separated by commas.
+A field access `FieldAccess` uses dot notation to access a field or name a method:
+
+```ebnf
+FieldAccess ::= `.` Identifier
+```
 :::
 
-### Await
+### `Call` definition
 
 :::{spec}
-The `.await` postfix operator awaits a future: `expr.await`.
+A function or method call `Call` follows an expression with parenthesized arguments
+separated by commas.
+The opening parenthesis must appear on the same line as the callee:
+
+```ebnf
+Call ::= `(` Expr,* `)`
+```
 :::
 
-### Permission Operations
+### `Await` definition
 
 :::{spec}
-The following postfix operations request specific permissions on a value:
+The `.await` postfix operator awaits the result of a future:
 
-* {spec}`give` `.give` transfers ownership of the value.
-* {spec}`share` `.share` creates a shared reference.
-* {spec}`lease` `.mut` creates a mutable lease.
-* {spec}`ref` `.ref` creates an immutable reference.
+```ebnf
+Await ::= `.` `await`
+```
 :::
 
-## Control Flow
-
-### If Expressions
+### `PermissionOp` definition
 
 :::{spec}
-An `if` expression evaluates a condition and executes a block:
+A permission operation `PermissionOp` requests specific permissions on a value:
 
-```dada
-if condition {
-    body
-}
+```ebnf
+PermissionOp ::= ...
+```
+
+* {spec}`give` `.` `give` transfers ownership of the value.
+* {spec}`share` `.` `share` creates a shared reference.
+* {spec}`lease` `.` `mut` creates a mutable lease.
+* {spec}`ref` `.` `ref` creates an immutable reference.
+:::
+
+## `PrimaryExpr` definition
+
+:::{spec}
+A primary expression `PrimaryExpr` is one of the following:
+
+```ebnf
+PrimaryExpr ::= ...
+```
+
+* {spec}`literal-nt` A literal `Literal`.
+* {spec}`identifier` An identifier `Identifier` referring to a variable or item in scope.
+* {spec}`self` The keyword `self`, referring to the receiver of the current method.
+* {spec}`if-expr-nt` An if expression `IfExpr`.
+* {spec}`return-expr-nt` A return expression `ReturnExpr`.
+* {spec}`constructor-expr-nt` A constructor expression `ConstructorExpr`.
+* {spec}`paren-expr` A parenthesized expression `(` Expr `)`.
+* {spec}`block-expr` A block expression `Block`.
+:::
+
+### `IfExpr` definition
+
+:::{spec}
+An if expression `IfExpr` evaluates a condition and executes a block:
+
+```ebnf
+IfExpr ::= `if` Expr Block (`else` `if` Expr Block)* (`else` Block)?
 ```
 :::
 
 :::{spec} else
-An `if` expression may have an `else` clause:
-`if condition { body } else { body }`.
+An `if` expression may have an `else` clause.
 :::
 
 :::{spec} else-if
-Multiple conditions may be chained with `else if`:
-`if c1 { } else if c2 { } else { }`.
+Multiple conditions may be chained with `else if`.
 :::
 
-### Return
+### `ReturnExpr` definition
 
 :::{spec}
-A `return` expression exits the enclosing function.
+A return expression `ReturnExpr` exits the enclosing function,
+optionally with a value.
+The value, if present, must appear on the same line as `return`:
+
+```ebnf
+ReturnExpr ::= `return` Expr?
+```
 :::
 
-:::{spec} return-value
-`return` may be followed by a value: `return expr`.
-:::
-
-## Constructor Expressions
+### `ConstructorExpr` definition
 
 :::{spec}
-A constructor expression creates a new instance of a class or struct:
+A constructor expression `ConstructorExpr` creates a new instance
+of a class or struct.
+The opening brace must appear on the same line as the type name:
 
-```dada
-TypeName(field1: value1, field2: value2)
+```ebnf
+ConstructorExpr ::= Identifier `{` ConstructorField,* `}`
+ConstructorField ::= Identifier `:` Expr
 ```
 :::
