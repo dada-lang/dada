@@ -101,11 +101,9 @@ impl SpecValidator {
                 // (e.g., `triple-quoted unimpl` → name="triple-quoted", tags=["unimpl"]).
                 for cap in inline_re.captures_iter(trimmed) {
                     if let Some(content) = cap.get(1) {
-                        let (name, _tags) =
-                            dada_spec_common::parse_spec_tokens(content.as_str());
+                        let (name, _tags) = dada_spec_common::parse_spec_tokens(content.as_str());
                         // For inline sub-paragraphs, the first token is always the name
-                        let name =
-                            name.unwrap_or_else(|| content.as_str().to_string());
+                        let name = name.unwrap_or_else(|| content.as_str().to_string());
                         let sub_id = format!("{}.{}", current_parent_id, name);
                         self.valid_spec_ids.insert(sub_id);
                     }

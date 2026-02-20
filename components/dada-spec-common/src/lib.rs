@@ -49,11 +49,7 @@ pub fn heading_to_segment(heading_text: &str) -> String {
 ///
 /// Given a file prefix, the current heading segments, and an optional local name,
 /// produces the fully-qualified spec paragraph ID.
-pub fn resolve_spec_id(
-    file_prefix: &str,
-    heading_segments: &[String],
-    local_name: &str,
-) -> String {
+pub fn resolve_spec_id(file_prefix: &str, heading_segments: &[String], local_name: &str) -> String {
     let mut parts: Vec<&str> = Vec::new();
 
     if !file_prefix.is_empty() {
@@ -333,10 +329,8 @@ pub fn expand_ebnf_in_directive(content_lines: &[String]) -> Vec<String> {
     }
 
     // Collect the lines that are sub-paragraph bullets (to remove them)
-    let bullet_lines: std::collections::HashSet<usize> = sub_paragraphs
-        .iter()
-        .map(|sp| sp.line_index)
-        .collect();
+    let bullet_lines: std::collections::HashSet<usize> =
+        sub_paragraphs.iter().map(|sp| sp.line_index).collect();
 
     let alternatives: Vec<String> = sub_paragraphs
         .iter()
@@ -400,10 +394,7 @@ mod tests {
             file_path_to_prefix(Path::new("syntax/string-literals.md")),
             "syntax.string-literals"
         );
-        assert_eq!(
-            file_path_to_prefix(Path::new("syntax/README.md")),
-            "syntax"
-        );
+        assert_eq!(file_path_to_prefix(Path::new("syntax/README.md")), "syntax");
         assert_eq!(
             file_path_to_prefix(Path::new("conventions.md")),
             "conventions"
@@ -425,11 +416,7 @@ mod tests {
     #[test]
     fn test_resolve_spec_id() {
         assert_eq!(
-            resolve_spec_id(
-                "syntax.string-literals",
-                &["delimiters".into()],
-                "quoted"
-            ),
+            resolve_spec_id("syntax.string-literals", &["delimiters".into()], "quoted"),
             "syntax.string-literals.delimiters.quoted"
         );
         // No local name — ID is just context

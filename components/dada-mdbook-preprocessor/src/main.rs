@@ -170,11 +170,7 @@ fn build_nonterminal_map(book: &Book) -> HashMap<String, String> {
     let heading_re = Regex::new(r"^#{2,6}\s+`([A-Z][A-Za-z]*)`\s+definition").unwrap();
     let mut map = HashMap::new();
 
-    fn scan_items(
-        items: &[BookItem],
-        heading_re: &Regex,
-        map: &mut HashMap<String, String>,
-    ) {
+    fn scan_items(items: &[BookItem], heading_re: &Regex, map: &mut HashMap<String, String>) {
         for item in items {
             if let BookItem::Chapter(chapter) = item {
                 let chapter_path = chapter
@@ -186,10 +182,7 @@ fn build_nonterminal_map(book: &Book) -> HashMap<String, String> {
                 for line in chapter.content.lines() {
                     if let Some(caps) = heading_re.captures(line.trim()) {
                         let nt_name = caps[1].to_string();
-                        let anchor = format!(
-                            "{}-definition",
-                            nt_name.to_lowercase()
-                        );
+                        let anchor = format!("{}-definition", nt_name.to_lowercase());
                         let url = if chapter_path.is_empty() {
                             format!("#{anchor}")
                         } else {
@@ -396,9 +389,7 @@ fn render_ebnf_line(
             if let Some(url) = nt_map.get(&word) {
                 // 💡 Make the link relative to the current chapter.
                 let href = make_relative_link(url, current_html_path);
-                result.push_str(&format!(
-                    "<a href=\"{href}\" class=\"ebnf-nt\">{word}</a>"
-                ));
+                result.push_str(&format!("<a href=\"{href}\" class=\"ebnf-nt\">{word}</a>"));
             } else {
                 result.push_str(&word);
             }

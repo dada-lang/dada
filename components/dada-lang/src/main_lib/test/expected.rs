@@ -282,12 +282,11 @@ impl TestExpectations {
                 // Find the expected message (which may be a regular expression).
                 // Probes use exact (anchored) matching, unlike diagnostics which use substring matching.
                 let message = match c.name("re") {
-                    Some(_) => {
-                        Regex::new(&format!("^(?:{})$", c.name("msg").unwrap().as_str()))?
-                    }
-                    None => {
-                        Regex::new(&format!("^{}$", regex::escape(c.name("msg").unwrap().as_str())))?
-                    }
+                    Some(_) => Regex::new(&format!("^(?:{})$", c.name("msg").unwrap().as_str()))?,
+                    None => Regex::new(&format!(
+                        "^{}$",
+                        regex::escape(c.name("msg").unwrap().as_str())
+                    ))?,
                 };
 
                 // Push onto the list of expected diagnostics.

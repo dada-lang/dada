@@ -551,7 +551,13 @@ impl<'input, 'db> Tokenizer<'input, 'db> {
             }
 
             // Empty string `""`
-            self.emit_string_literal(self.span(start, start + 2), skipped, String::new(), 1, false);
+            self.emit_string_literal(
+                self.span(start, start + 2),
+                skipped,
+                String::new(),
+                1,
+                false,
+            );
             return;
         }
 
