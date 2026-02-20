@@ -41,6 +41,7 @@ pub struct TestExpectations {
     fn_asts: bool,
     codegen: bool,
     fixme: bool,
+    fixme_ice: bool,
     probes: Vec<Probe>,
     spec_refs: Vec<String>,
 }
@@ -129,6 +130,7 @@ impl TestExpectations {
             fn_asts: false,
             codegen: true,
             fixme: false,
+            fixme_ice: false,
             probes: vec![],
             spec_refs: vec![],
         };
@@ -335,6 +337,11 @@ impl TestExpectations {
             return Ok(());
         }
 
+        if line == "FIXME_ICE" {
+            self.fixme_ice = true;
+            return Ok(());
+        }
+
         if let Some(spec_ref) = line.strip_prefix("spec ") {
             self.spec_refs.push(spec_ref.trim().to_string());
             return Ok(());
@@ -357,6 +364,10 @@ impl TestExpectations {
 
     pub fn fixme(&self) -> bool {
         self.fixme
+    }
+
+    pub fn fixme_ice(&self) -> bool {
+        self.fixme_ice
     }
 
     pub fn spec_refs(&self) -> &[String] {
