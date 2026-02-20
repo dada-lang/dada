@@ -223,11 +223,11 @@ fn find_smallest_containing_ast_expr<'db>(
             }
             AstItem::Aggregate(aggr) => {
                 for member in &aggr.members(db).values {
-                    if let AstMember::Function(func) = member {
-                        if let Some(block) = func.body_block(db) {
-                            for stmt in &block.statements(db).values {
-                                walk_ast_statement(db, stmt, target, &mut best, &mut best_size);
-                            }
+                    if let AstMember::Function(func) = member
+                        && let Some(block) = func.body_block(db)
+                    {
+                        for stmt in &block.statements(db).values {
+                            walk_ast_statement(db, stmt, target, &mut best, &mut best_size);
                         }
                     }
                 }
