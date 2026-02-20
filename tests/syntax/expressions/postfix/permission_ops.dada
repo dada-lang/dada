@@ -1,0 +1,31 @@
+#:spec syntax.expressions.postfixexpr-definition.permissionop-definition
+#:skip_codegen
+#:FIXME_ICE
+
+class Point(x: u32, y: u32)
+
+fn main() {
+    let p = Point { x: 1, y: 2 }
+
+    # .give transfers ownership
+    p.give
+    #? ^^^^^^ Ast: PermissionOp(Give, Id(p))
+
+    let q = Point { x: 3, y: 4 }
+
+    # .share creates a shared reference
+    q.share
+    #? ^^^^^^^ Ast: PermissionOp(Share, Id(q))
+
+    let r = Point { x: 5, y: 6 }
+
+    # .mut creates a mutable lease
+    r.mut
+    #? ^^^^^ Ast: PermissionOp(Mutate, Id(r))
+
+    let s = Point { x: 7, y: 8 }
+
+    # .ref creates an immutable reference
+    s.ref
+    #? ^^^^^ Ast: PermissionOp(Reference, Id(s))
+}

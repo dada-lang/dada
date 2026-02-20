@@ -1,0 +1,18 @@
+#:spec syntax.expressions.postfixexpr-definition.fieldaccess-definition
+#:skip_codegen
+#:FIXME_ICE
+
+class Point(x: u32, y: u32)
+
+fn main() {
+    let p = Point { x: 1, y: 2 }
+    p.x
+    #? ^^^ Ast: DotId(Id(p), x)
+
+    # chained field access
+    p.x
+    #? ^ Ast: Id(p)
+}
+
+fn set(x: u32) {
+}

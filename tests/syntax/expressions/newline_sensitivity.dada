@@ -1,0 +1,20 @@
+#:spec syntax.expressions.newline-sensitivity
+#:skip_codegen
+#:FIXME_ICE
+
+fn main() {
+    # binary op on same line: parsed as one expression
+    let a = 1 + 2
+    #?      ^^^^^ Ast: BinaryOp(+, Literal(Integer, "1"), Literal(Integer, "2"))
+    set(a)
+
+    # operator on new line: parsed as separate expressions
+    # (the second line is a new expression starting with +)
+    let b = 1
+    #?      ^ Ast: Literal(Integer, "1")
+    + 2
+    set(b)
+}
+
+fn set(x: u32) {
+}

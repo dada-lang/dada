@@ -1,0 +1,47 @@
+#:spec syntax.expressions.addexpr-definition
+#:skip_codegen
+
+fn main() {
+    # addition
+    let a = 1 + 2
+    #?      ^^^^^ Ast: BinaryOp(+, Literal(Integer, "1"), Literal(Integer, "2"))
+    set(a)
+
+    # subtraction
+    let b = 5 - 3
+    #?      ^^^^^ Ast: BinaryOp(-, Literal(Integer, "5"), Literal(Integer, "3"))
+    set(b)
+
+    # multiplication
+    let c = 2 * 3
+    #?      ^^^^^ Ast: BinaryOp(*, Literal(Integer, "2"), Literal(Integer, "3"))
+    set(c)
+
+    # division
+    let d = 6 / 2
+    #?      ^^^^^ Ast: BinaryOp(/, Literal(Integer, "6"), Literal(Integer, "2"))
+    set(d)
+
+    # mul binds tighter than add: 1 + 2 * 3 = 1 + (2 * 3)
+    let e = 1 + 2 * 3
+    #?      ^^^^^^^^^ Ast: BinaryOp(+, Literal(Integer, "1"), BinaryOp(*, Literal(Integer, "2"), Literal(Integer, "3")))
+    set(e)
+
+    # right-associative: 1 + 2 + 3 = 1 + (2 + 3)
+    let f = 1 + 2 + 3
+    #?      ^^^^^^^^^ Ast: BinaryOp(+, Literal(Integer, "1"), BinaryOp(+, Literal(Integer, "2"), Literal(Integer, "3")))
+    set(f)
+
+    # right-associative: 6 / 3 / 2 = 6 / (3 / 2)
+    let g = 6 / 3 / 2
+    #?      ^^^^^^^^^ Ast: BinaryOp(/, Literal(Integer, "6"), BinaryOp(/, Literal(Integer, "3"), Literal(Integer, "2")))
+    set(g)
+
+    # mixed: 1 * 2 + 3 * 4 = (1 * 2) + (3 * 4)
+    let h = 1 * 2 + 3 * 4
+    #?      ^^^^^^^^^^^^^ Ast: BinaryOp(+, BinaryOp(*, Literal(Integer, "1"), Literal(Integer, "2")), BinaryOp(*, Literal(Integer, "3"), Literal(Integer, "4")))
+    set(h)
+}
+
+fn set(x: u32) {
+}

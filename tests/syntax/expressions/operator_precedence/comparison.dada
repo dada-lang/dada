@@ -1,0 +1,38 @@
+#:spec syntax.expressions.compareexpr-definition
+#:skip_codegen
+#:FIXME_ICE
+
+fn main() {
+    # equal
+    let a = 1 == 2
+    #?      ^^^^^^ Ast: BinaryOp(==, Literal(Integer, "1"), Literal(Integer, "2"))
+    check(a)
+
+    # less than
+    let b = 1 < 2
+    #?      ^^^^^ Ast: BinaryOp(<, Literal(Integer, "1"), Literal(Integer, "2"))
+    check(b)
+
+    # greater than
+    let c = 1 > 2
+    #?      ^^^^^ Ast: BinaryOp(>, Literal(Integer, "1"), Literal(Integer, "2"))
+    check(c)
+
+    # less than or equal
+    let d = 1 <= 2
+    #?      ^^^^^^ Ast: BinaryOp(<=, Literal(Integer, "1"), Literal(Integer, "2"))
+    check(d)
+
+    # greater than or equal
+    let e = 1 >= 2
+    #?      ^^^^^^ Ast: BinaryOp(>=, Literal(Integer, "1"), Literal(Integer, "2"))
+    check(e)
+
+    # comparison has lower precedence than addition: 1 + 2 == 3
+    let f = 1 + 2 == 3
+    #?      ^^^^^^^^^^ Ast: BinaryOp(==, BinaryOp(+, Literal(Integer, "1"), Literal(Integer, "2")), Literal(Integer, "3"))
+    check(f)
+}
+
+fn check(x: bool) {
+}

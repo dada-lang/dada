@@ -1,0 +1,16 @@
+#:spec syntax.expressions.unaryexpr-definition.not
+#:skip_codegen
+
+fn main() {
+    # logical not
+    let a = !true
+    #?      ^^^^^ Ast: UnaryOp(!, Literal(Boolean, "true"))
+    check(a)
+
+    let b = !false
+    #?      ^^^^^^ Ast: UnaryOp(!, Literal(Boolean, "false"))
+    check(b)
+}
+
+fn check(x: bool) {
+}

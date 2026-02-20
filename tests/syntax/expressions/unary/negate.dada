@@ -1,0 +1,23 @@
+#:spec syntax.expressions.unaryexpr-definition.negate
+#:skip_codegen
+#:FIXME_ICE
+
+fn main() {
+    # arithmetic negation
+    let a = -42
+    #?      ^^^ Ast: UnaryOp(-, Literal(Integer, "42"))
+    set(a)
+
+    # double negation
+    let b = --1
+    #?      ^^^ Ast: UnaryOp(-, UnaryOp(-, Literal(Integer, "1")))
+    set(b)
+
+    # negate binds tighter than binary ops: -1 + 2 = (-1) + 2
+    let c = -1 + 2
+    #?      ^^^^^^ Ast: BinaryOp(+, UnaryOp(-, Literal(Integer, "1")), Literal(Integer, "2"))
+    set(c)
+}
+
+fn set(x: u32) {
+}

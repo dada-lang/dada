@@ -1,0 +1,20 @@
+#:spec syntax.expressions.assignexpr-definition
+#:skip_codegen
+#:FIXME
+
+fn main() {
+    # simple assignment
+    let mut x = 0
+    x = 42
+#?  ^^^^^^ Ast: BinaryOp(=, Id(x), Literal(Integer, "42"))
+    set(x)
+
+    # assignment binds tighter than addition: y = 1 + 2 parses as (y = 1) + 2
+    let mut y = 0
+    y = 1 + 2
+#?  ^^^^^^^^^ Ast: BinaryOp(+, BinaryOp(=, Id(y), Literal(Integer, "1")), Literal(Integer, "2"))
+    set(y)
+}
+
+fn set(x: u32) {
+}

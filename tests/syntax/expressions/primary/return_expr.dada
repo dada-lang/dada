@@ -1,0 +1,20 @@
+#:spec syntax.expressions.primaryexpr-definition.returnexpr-definition
+#:skip_codegen
+
+fn add(a: u32, b: u32) -> u32 {
+    return a + b
+#?  ^^^^^^^^^^^^ Ast: Return(BinaryOp(+, Id(a), Id(b)))
+}
+
+fn nothing() {
+    return
+#?  ^^^^^^ Ast: Return
+}
+
+fn main() {
+    let x = add(1, 2)
+    set(x)
+}
+
+fn set(x: u32) {
+}
