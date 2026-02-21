@@ -13,6 +13,7 @@ dada-compiler = { version = "0.1.0", path = "../dada-compiler" }
 dada-debug = { version = "0.1.0", path = "../dada-debug" }
 dada-ir-ast = { version = "0.1.0", path = "../dada-ir-ast" }
 dada-parser = { version = "0.1.0", path = "../dada-parser" }
+dada-spec-common = { version = "0.1.0", path = "../dada-spec-common" }
 dada-util = { version = "0.1.0", path = "../dada-util" }
 indicatif = "0.17.8"
 lazy_static = "1.5.0"

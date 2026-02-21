@@ -1,0 +1,27 @@
+#:spec syntax.expressions.orexpr-definition
+#:skip_codegen
+
+fn main() {
+    # logical or
+    let a = true || false
+    #?      ^^^^^^^^^^^^^ Ast: BinaryOp(||, Literal(Boolean, "true"), Literal(Boolean, "false"))
+    check(a)
+
+    # logical and
+    let b = true && false
+    #?      ^^^^^^^^^^^^^ Ast: BinaryOp(&&, Literal(Boolean, "true"), Literal(Boolean, "false"))
+    check(b)
+
+    # or binds tighter than and: a || b && c = (a || b) && c
+    let c = true || false && true
+    #?      ^^^^^^^^^^^^^^^^^^^^^ Ast: BinaryOp(&&, BinaryOp(||, Literal(Boolean, "true"), Literal(Boolean, "false")), Literal(Boolean, "true"))
+    check(c)
+
+    # right-associative: a && b && c = a && (b && c)
+    let d = true && false && true
+    #?      ^^^^^^^^^^^^^^^^^^^^^ Ast: BinaryOp(&&, Literal(Boolean, "true"), BinaryOp(&&, Literal(Boolean, "false"), Literal(Boolean, "true")))
+    check(d)
+}
+
+fn check(x: bool) {
+}

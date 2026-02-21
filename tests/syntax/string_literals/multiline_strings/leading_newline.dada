@@ -1,0 +1,16 @@
+#:spec syntax.string-literals.multiline-strings.leading-newline
+#:skip_codegen
+
+async fn main() {
+    # The leading newline immediately after the opening quote is removed
+    let s = "
+        hello
+        "
+    #?  ^ Ast: Literal(String, "hello")
+
+    # Same with triple-quoted
+    let t = """
+        hello
+        """
+    #?  ^^^ Ast: Literal(String, "hello")
+}

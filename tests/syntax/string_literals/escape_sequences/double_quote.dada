@@ -1,0 +1,8 @@
+#:spec syntax.string-literals.escape-sequences.double-quote
+#:skip_codegen
+
+async fn main() {
+    print("\"").await
+    print("hello\"world").await
+    print("\"hello\"").await
+}

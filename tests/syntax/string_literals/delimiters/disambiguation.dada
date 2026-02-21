@@ -1,0 +1,7 @@
+#:spec syntax.string-literals.delimiters.disambiguation
+#:skip_codegen
+
+async fn main() {
+    # """ is a triple-quoted string, not "" followed by "
+    print("""hello""").await
+}

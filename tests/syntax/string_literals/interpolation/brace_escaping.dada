@@ -1,0 +1,8 @@
+#:spec syntax.string-literals.interpolation.brace-escaping
+#:skip_codegen
+
+async fn main() {
+    print("\{hello\}").await
+    print("\{\}").await
+    print("before\{middle\}after").await
+}

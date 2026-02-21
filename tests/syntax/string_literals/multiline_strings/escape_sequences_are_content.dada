@@ -1,0 +1,18 @@
+#:spec syntax.string-literals.multiline-strings.escape-sequences-are-content
+#:skip_codegen
+
+async fn main() {
+    # Escape sequences are content, not whitespace — they survive stripping.
+    # A trailing \n escape before the closing quote line is preserved.
+    let s = "
+        Line 1
+        Line 2\n
+        "
+    #?  ^ Ast: Literal(String, "Line 1\nLine 2\n")
+
+    # An escaped newline in the middle of content is preserved
+    let t = "
+        hello\nworld
+        "
+    #?  ^ Ast: Literal(String, "hello\nworld")
+}

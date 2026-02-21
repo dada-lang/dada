@@ -1,0 +1,8 @@
+#:spec syntax.string-literals.escape-sequences.backslash
+#:skip_codegen
+
+async fn main() {
+    print("hello\\world").await
+    print("\\").await
+    print("\\\\").await
+}

@@ -1,0 +1,8 @@
+#:spec syntax.expressions.postfixexpr-definition.await-definition
+#:skip_codegen
+
+async fn main() {
+    # the Await probe on the whole expression
+    print("hello").await
+    #?    ^^^^^^^^^^^^^^ Ast: Await(ParenthesisOp(Id(print), [Literal(String, "hello")]))
+}

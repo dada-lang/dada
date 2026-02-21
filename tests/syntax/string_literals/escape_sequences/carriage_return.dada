@@ -1,0 +1,7 @@
+#:spec syntax.string-literals.escape-sequences.carriage-return
+#:skip_codegen
+
+async fn main() {
+    print("hello\rworld").await
+    print("\r\n").await
+}

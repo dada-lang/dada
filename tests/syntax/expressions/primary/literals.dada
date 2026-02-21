@@ -1,0 +1,28 @@
+#:spec syntax.expressions.primaryexpr-definition.literal-nt
+#:skip_codegen
+
+async fn main() {
+    # string literal
+    print("hello").await
+    #?    ^^^^^^^ Ast: Literal(String, "hello")
+
+    # integer literal
+    let x = 42
+    #?      ^^ Ast: Literal(Integer, "42")
+    set(x)
+
+    # boolean literals
+    let t = true
+    #?      ^^^^ Ast: Literal(Boolean, "true")
+    check(t)
+
+    let f = false
+    #?      ^^^^^ Ast: Literal(Boolean, "false")
+    check(f)
+}
+
+fn set(x: u32) {
+}
+
+fn check(x: bool) {
+}

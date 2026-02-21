@@ -1,4 +1,0 @@
-#:spec syntax.string-literals.basic
-#:skip_codegen
-
-print("hello")

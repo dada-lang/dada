@@ -1,0 +1,21 @@
+#:spec syntax.expressions.primaryexpr-definition.ifexpr-definition
+#:skip_codegen
+
+fn main() {
+    # simple if
+    let x = if true { 1 } else { 2 }
+    #?      ^^^^^^^^^^^^^^^^^^^^^^^^ Ast: If([Literal(Boolean, "true") => Block([Literal(Integer, "1")]), else => Block([Literal(Integer, "2")])])
+    set(x)
+
+    # if-else-if
+    let y = if true { 1 } else if false { 2 } else { 3 }
+    #?      ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^ Ast: If([Literal(Boolean, "true") => Block([Literal(Integer, "1")]), Literal(Boolean, "false") => Block([Literal(Integer, "2")]), else => Block([Literal(Integer, "3")])])
+    set(y)
+
+    # if without else
+    if true { set(1) }
+#?  ^^^^^^^^^^^^^^^^^^ Ast: If([Literal(Boolean, "true") => Block([ParenthesisOp(Id(set), [Literal(Integer, "1")])])])
+}
+
+fn set(x: u32) {
+}

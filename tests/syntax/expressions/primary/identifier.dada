@@ -1,0 +1,12 @@
+#:spec syntax.expressions.primaryexpr-definition.identifier
+#:skip_codegen
+
+fn main() {
+    let x = 42
+    #?      ^^ Ast: Literal(Integer, "42")
+    set(x)
+    #?  ^ Ast: Id(x)
+}
+
+fn set(x: u32) {
+}

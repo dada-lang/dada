@@ -1,0 +1,12 @@
+#:spec syntax.string-literals.escape-sequences.triple-quoted
+#:skip_codegen
+
+async fn main() {
+    # \" is not needed in triple-quoted strings
+    print("""hello "world" goodbye""").await
+    # One or two embedded quotes are fine
+    print("""she said "hi" and "bye" """).await
+    print(""" "quoted" """).await
+    # Two consecutive quotes inside triple-quoted strings
+    print("""empty "" inside""").await
+}

@@ -1,0 +1,27 @@
+#:spec syntax.string-literals.multiline-strings.raw
+#:skip_codegen
+
+async fn main() {
+    # Raw string: "\ prefix disables dedenting
+    # The leading newline is preserved, indentation is preserved exactly
+    let s = "\
+        hello
+        world
+        "
+    #?  ^ Ast: Literal(String, "\n        hello\n        world\n        ")
+
+    # Compare: without raw prefix, dedenting occurs
+    let t = "
+        hello
+        world
+        "
+    #?  ^ Ast: Literal(String, "hello\nworld")
+
+    # Raw string with varying indentation — all preserved exactly
+    let u = "\
+      a
+        b
+          c
+        "
+    #?  ^ Ast: Literal(String, "\n      a\n        b\n          c\n        ")
+}

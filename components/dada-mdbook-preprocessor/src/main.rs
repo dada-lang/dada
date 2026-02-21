@@ -106,6 +106,9 @@ impl Preprocessor for DadaPreprocessor {
         // 💡 Match MyST directive syntax: `:::{spec} paragraph.id [rfcN...]`
         let re = Regex::new(r"^:::\{spec\}").unwrap();
 
+        // Pre-pass: build nonterminal → URL map from headings like `## \`Function\` definition`
+        let nt_map = build_nonterminal_map(&book);
+
         // First pass: process spec directives
         book.for_each_mut(|item: &mut BookItem| {
             if let BookItem::Chapter(chapter) = item {
@@ -113,7 +116,11 @@ impl Preprocessor for DadaPreprocessor {
                 let has_labels = chapter.content.lines().any(|line| re.is_match(line.trim()));
 
                 // Process the content
-                chapter.content = process_spec_directives(&chapter.content);
+                chapter.content = process_spec_directives(
+                    &chapter.content,
+                    chapter.source_path.as_deref(),
+                    &nt_map,
+                );
 
                 // If this chapter has labels, inject CSS at the end
                 if has_labels {
@@ -153,19 +160,74 @@ impl Preprocessor for DadaPreprocessor {
     }
 }
 
+/// Scans all chapters for headings matching `` ## `Nonterminal` definition ``
+/// and builds a map from nonterminal name to relative URL for cross-chapter linking.
+///
+/// 💡 The heading convention is `` ## `Function` definition `` which mdbook generates
+/// as an anchor like `#function-definition`. For cross-chapter links, we also need
+/// the chapter's path (e.g., `syntax/items.html`).
+fn build_nonterminal_map(book: &Book) -> HashMap<String, String> {
+    let heading_re = Regex::new(r"^#{2,6}\s+`([A-Z][A-Za-z]*)`\s+definition").unwrap();
+    let mut map = HashMap::new();
+
+    fn scan_items(items: &[BookItem], heading_re: &Regex, map: &mut HashMap<String, String>) {
+        for item in items {
+            if let BookItem::Chapter(chapter) = item {
+                let chapter_path = chapter
+                    .path
+                    .as_ref()
+                    .map(|p| p.with_extension("html").to_string_lossy().to_string())
+                    .unwrap_or_default();
+
+                for line in chapter.content.lines() {
+                    if let Some(caps) = heading_re.captures(line.trim()) {
+                        let nt_name = caps[1].to_string();
+                        let anchor = format!("{}-definition", nt_name.to_lowercase());
+                        let url = if chapter_path.is_empty() {
+                            format!("#{anchor}")
+                        } else {
+                            format!("{chapter_path}#{anchor}")
+                        };
+                        map.insert(nt_name, url);
+                    }
+                }
+
+                scan_items(&chapter.sub_items, heading_re, map);
+            }
+        }
+    }
+
+    scan_items(&book.items, &heading_re, &mut map);
+    map
+}
+
 /// Processes MyST `{spec}` directives into HTML with anchors and styling.
 ///
-/// 💡 Transforms directive blocks like:
-/// ```markdown
-/// :::{spec} syntax.foo rfc123
-/// Content here.
-/// :::
-/// ```
-/// Into styled HTML with anchor links and RFC badges.
-fn process_spec_directives(content: &str) -> String {
-    // Match the opening directive: `:::{spec} id [rfc-tags...]`
-    let directive_start = Regex::new(r"^:::\{spec\}\s+(\S+)(.*)$").unwrap();
+/// 💡 Spec paragraph IDs are resolved from context:
+/// - File path prefix derived from `source_path` (e.g., `syntax/string-literals.md` → `syntax.string-literals`)
+/// - Current heading stack (e.g., `## Delimiters` → `delimiters`)
+/// - Local name from the directive (e.g., `:::{spec} quoted` → `quoted`)
+///
+/// The directive `:::{spec} quoted rfc0001 unimpl` under `## Delimiters` in
+/// `syntax/string-literals.md` resolves to `syntax.string-literals.delimiters.quoted`.
+///
+/// Inline sub-paragraphs `` {spec}`name` `` within a directive block create
+/// individually linkable sub-paragraph anchors.
+fn process_spec_directives(
+    content: &str,
+    source_path: Option<&Path>,
+    nt_map: &HashMap<String, String>,
+) -> String {
+    // 💡 Changed from matching the full ID to just detecting the directive start.
+    // The tokens after `{spec}` are parsed by `dada_spec_common::parse_spec_tokens`
+    // to distinguish local names from tags.
+    let directive_start = Regex::new(r"^:::\{spec\}(.*)$").unwrap();
     let directive_end = Regex::new(r"^:::$").unwrap();
+
+    let file_prefix = source_path
+        .map(dada_spec_common::file_path_to_prefix)
+        .unwrap_or_default();
+    let mut heading_tracker = dada_spec_common::HeadingTracker::new();
 
     let mut result = Vec::new();
     let mut in_directive = false;
@@ -177,18 +239,22 @@ fn process_spec_directives(content: &str) -> String {
         let trimmed = line.trim();
 
         if !in_directive {
+            // Track headings for auto-prefix resolution
+            heading_tracker.process_line(trimmed);
+
             if let Some(captures) = directive_start.captures(trimmed) {
                 // Start of a spec directive
                 in_directive = true;
-                current_id = captures[1].to_string();
 
-                // Parse optional RFC tags from the rest of the line
-                let rest = captures.get(2).map(|m| m.as_str()).unwrap_or("");
-                current_rfc_tags = rest
-                    .split_whitespace()
-                    .filter(|s| !s.is_empty())
-                    .map(|s| s.to_string())
-                    .collect();
+                let rest = captures.get(1).map(|m| m.as_str()).unwrap_or("");
+                let (local_name, tags) = dada_spec_common::parse_spec_tokens(rest);
+
+                current_id = dada_spec_common::resolve_spec_id(
+                    &file_prefix,
+                    &heading_tracker.current_segments(),
+                    local_name.as_deref().unwrap_or(""),
+                );
+                current_rfc_tags = tags;
 
                 directive_content.clear();
             } else {
@@ -196,21 +262,17 @@ fn process_spec_directives(content: &str) -> String {
             }
         } else if directive_end.is_match(trimmed) {
             // End of directive - generate HTML
-            let rfc_badges = if current_rfc_tags.is_empty() {
-                String::new()
-            } else {
-                let badges: Vec<String> = current_rfc_tags
-                    .iter()
-                    .map(|tag| {
-                        if tag.starts_with('!') {
-                            format!("<span class=\"spec-rfc-badge spec-rfc-deleted\">{tag}</span>")
-                        } else {
-                            format!("<span class=\"spec-rfc-badge\">{tag}</span>")
-                        }
-                    })
-                    .collect();
-                format!(" {}", badges.join(" "))
-            };
+            let rfc_badges = dada_spec_common::render_tag_badges(&current_rfc_tags);
+
+            // Expand EBNF `...` placeholders from sub-paragraph names
+            let expanded_content = dada_spec_common::expand_ebnf_in_directive(&directive_content);
+
+            // Convert EBNF code fences to HTML with linked nonterminals
+            let linked_content = render_ebnf_blocks(&expanded_content, nt_map, source_path);
+
+            // Transform inline sub-paragraphs in the content
+            let transformed_content =
+                dada_spec_common::transform_inline_sub_paragraphs(&linked_content, &current_id);
 
             // Generate HTML wrapper
             result.push(format!(
@@ -221,7 +283,7 @@ fn process_spec_directives(content: &str) -> String {
             ));
             result.push("<div class=\"spec-content\">".to_string());
             result.push(String::new()); // Empty line for markdown processing
-            for content_line in &directive_content {
+            for content_line in &transformed_content {
                 result.push(content_line.clone());
             }
             result.push(String::new()); // Empty line for markdown processing
@@ -240,8 +302,154 @@ fn process_spec_directives(content: &str) -> String {
     result.join("\n")
 }
 
+/// Converts markdown ` ```ebnf ``` ` code fences into HTML `<pre>` blocks with linked nonterminals.
+///
+/// Within EBNF blocks:
+/// - PascalCase words that exist in `nt_map` become `<a>` links to their definition
+/// - Backtick-quoted terminals become `<code class="ebnf-t">` spans
+///
+/// 💡 Links are made relative to the current chapter. If the nonterminal is defined
+/// in a different chapter, we compute a relative path; if same chapter, just `#anchor`.
+fn render_ebnf_blocks(
+    content_lines: &[String],
+    nt_map: &HashMap<String, String>,
+    current_source: Option<&Path>,
+) -> Vec<String> {
+    let current_html_path = current_source
+        .map(|p| p.with_extension("html").to_string_lossy().to_string())
+        .unwrap_or_default();
+
+    let mut in_ebnf = false;
+    let mut ebnf_lines: Vec<String> = Vec::new();
+    let mut result = Vec::new();
+
+    for line in content_lines {
+        let trimmed = line.trim();
+
+        if trimmed == "```ebnf" {
+            in_ebnf = true;
+            ebnf_lines.clear();
+        } else if trimmed == "```" && in_ebnf {
+            in_ebnf = false;
+            // Render the collected EBNF as HTML
+            result.push("<pre class=\"ebnf-block\"><code>".to_string());
+            for ebnf_line in &ebnf_lines {
+                let rendered = render_ebnf_line(ebnf_line, nt_map, &current_html_path);
+                result.push(rendered);
+            }
+            result.push("</code></pre>".to_string());
+        } else if in_ebnf {
+            ebnf_lines.push(line.clone());
+        } else {
+            result.push(line.clone());
+        }
+    }
+
+    result
+}
+
+/// Renders a single EBNF line, replacing nonterminal references with links
+/// and backtick-quoted terminals with styled `<code>` spans.
+fn render_ebnf_line(
+    line: &str,
+    nt_map: &HashMap<String, String>,
+    current_html_path: &str,
+) -> String {
+    let mut result = String::new();
+    let mut chars = line.chars().peekable();
+
+    while let Some(&ch) = chars.peek() {
+        if ch == '`' {
+            // Terminal in backticks
+            chars.next(); // consume opening backtick
+            let mut terminal = String::new();
+            while let Some(&c) = chars.peek() {
+                if c == '`' {
+                    chars.next(); // consume closing backtick
+                    break;
+                }
+                terminal.push(c);
+                chars.next();
+            }
+            result.push_str(&format!(
+                "<span class=\"ebnf-t\">{}</span>",
+                html_escape(&terminal)
+            ));
+        } else if ch.is_uppercase() {
+            // Potential nonterminal — collect PascalCase word
+            let mut word = String::new();
+            while let Some(&c) = chars.peek() {
+                if c.is_alphanumeric() {
+                    word.push(c);
+                    chars.next();
+                } else {
+                    break;
+                }
+            }
+            if let Some(url) = nt_map.get(&word) {
+                // 💡 Make the link relative to the current chapter.
+                let href = make_relative_link(url, current_html_path);
+                result.push_str(&format!("<a href=\"{href}\" class=\"ebnf-nt\">{word}</a>"));
+            } else {
+                result.push_str(&word);
+            }
+        } else {
+            // Regular character — HTML-escape it
+            match ch {
+                '<' => result.push_str("&lt;"),
+                '>' => result.push_str("&gt;"),
+                '&' => result.push_str("&amp;"),
+                _ => result.push(ch),
+            }
+            chars.next();
+        }
+    }
+
+    result
+}
+
+/// Escapes HTML special characters in terminal content.
+fn html_escape(s: &str) -> String {
+    s.replace('&', "&amp;")
+        .replace('<', "&lt;")
+        .replace('>', "&gt;")
+}
+
+/// Computes a relative link from `current_path` to `target_url`.
+///
+/// If the target is in the same file, returns just the `#anchor` part.
+/// Otherwise returns a relative path like `../syntax/items.html#anchor`.
+fn make_relative_link(target_url: &str, current_path: &str) -> String {
+    if let Some(hash_pos) = target_url.find('#') {
+        let target_file = &target_url[..hash_pos];
+        let anchor = &target_url[hash_pos..];
+
+        if target_file == current_path || target_file.is_empty() {
+            // Same file — just the anchor
+            anchor.to_string()
+        } else {
+            // 💡 Compute relative path: go up from current dir, then down to target.
+            let current_dir = std::path::Path::new(current_path)
+                .parent()
+                .map(|p| p.to_str().unwrap_or(""))
+                .unwrap_or("");
+            if current_dir.is_empty() {
+                target_url.to_string()
+            } else {
+                let depth = current_dir.matches('/').count() + 1;
+                let up = "../".repeat(depth);
+                format!("{up}{target_file}{anchor}")
+            }
+        }
+    } else {
+        target_url.to_string()
+    }
+}
+
+/// 💡 Returns inline CSS with blank lines stripped. Blank lines inside `<style>` tags
+/// cause mdbook's markdown processor to insert `<p>` tags, which breaks the CSS.
 fn get_inline_css() -> String {
-    r#"<style>
+    let css = r#"<style>
 /* Generated by dada-mdbook-preprocessor - Styling for specification paragraphs */
 .spec-paragraph {
     margin: 1rem 0;
@@ -302,6 +510,45 @@ fn get_inline_css() -> String {
     background-color: #cf222e;
 }
 
+.spec-rfc-badge.spec-rfc-unimpl {
+    background-color: #bf8700;
+}
+
+.spec-sub-label {
+    font-size: 0.65rem;
+    color: #999;
+    text-decoration: none;
+    font-family: 'SFMono-Regular', 'Monaco', 'Inconsolata', 'Fira Code', 'Source Code Pro', monospace;
+}
+
+.spec-sub-label:hover {
+    color: #0366d6;
+    text-decoration: none;
+}
+
+/* EBNF grammar blocks — inherits mdbook's default pre/code styling */
+.ebnf-block > code {
+    background: none;
+    border: none;
+    padding: 0;
+}
+
+.ebnf-nt {
+    color: #0969da;
+    text-decoration: none;
+}
+
+.ebnf-nt:hover {
+    text-decoration: underline;
+}
+
+.ebnf-t {
+    color: #0a3069;
+    background-color: rgba(175, 184, 193, 0.2);
+    padding: 0.1rem 0.3rem;
+    border-radius: 3px;
+}
+
 /* Dark theme support */
 .navy .spec-paragraph {
     border-color: #30363d;
@@ -327,6 +574,28 @@ fn get_inline_css() -> String {
 
 .navy .spec-rfc-badge.spec-rfc-deleted {
     background-color: #f85149;
+}
+
+.navy .spec-rfc-badge.spec-rfc-unimpl {
+    background-color: #d29922;
+    color: #0d1117;
+}
+
+.navy .spec-sub-label {
+    color: #7d8590;
+}
+
+.navy .spec-sub-label:hover {
+    color: #79b8ff;
+}
+
+.navy .ebnf-nt {
+    color: #58a6ff;
+}
+
+.navy .ebnf-t {
+    color: #79c0ff;
+    background-color: rgba(110, 118, 129, 0.2);
 }
 
 /* RFC Table Styling - GitHub-inspired */
@@ -455,7 +724,11 @@ fn get_inline_css() -> String {
     color: #7d8590;
     background-color: #161b22;
 }
-</style>"#.to_string()
+</style>"#;
+    css.lines()
+        .filter(|line| !line.trim().is_empty())
+        .collect::<Vec<_>>()
+        .join("\n")
 }
 
 fn populate_rfc_sections(ctx: &PreprocessorContext, book: &mut Book) -> Result<()> {

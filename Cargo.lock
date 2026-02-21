@@ -531,6 +531,7 @@ dependencies = [
  "dada-debug",
  "dada-ir-ast",
  "dada-parser",
+ "dada-spec-common",
  "dada-util",
  "indicatif",
  "lazy_static",
@@ -572,6 +573,7 @@ version = "0.1.0"
 dependencies = [
  "anyhow",
  "clap 4.5.55",
+ "dada-spec-common",
  "mdbook-preprocessor",
  "regex",
  "semver",
@@ -598,6 +600,13 @@ dependencies = [
  "dada-parser",
  "dada-util",
  "salsa",
+]
+
+[[package]]
+name = "dada-spec-common"
+version = "0.1.0"
+dependencies = [
+ "regex",
 ]
 
 [[package]]

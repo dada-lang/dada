@@ -12,32 +12,21 @@ You can run a Dada program using the `cargo dada` alias:
 cargo dada run <file.dada>     # Run a Dada program
 ```
 
-# Running tests
+# Skills
 
-To run tests, you `cargo dada test --porcelain [tests]`. The `tests` parameter is optional and is a path to a directory or a specific test file. The command will output to a JSON structure to stdout describing test results and guiding you on how to resolve test failures. The `suggestion` field of the test provides actionable guidance on how to resolve individual test failures.
+Use these skills (via `/skill-name`) at the right moments:
 
-# Track ongoing tasks with github issues
-
-@.socratic-shell/github-tracking-issues.md
-
-# Authoring code: include insightful comments
-
-@.socratic-shell/ai-insights.md
+- **author-code** — When writing or modifying Rust code. Covers conventions and patterns.
+- **rfc-workflow** — When implementing an RFC feature: writing spec paragraphs, removing `unimpl` tags, or updating `impl.md`. **Always update the RFC's `impl.md` when you complete implementation work.**
+- **write-tests** — When creating test files. Covers spec alignment and directory conventions.
+- **run-tests** — When running tests or debugging failures.
+- **tracking-issues** — For non-RFC long-running work only. RFC features track progress in `impl.md`, not GitHub issues.
 
 # Codebase documentation
 
-The `.development` directory includes numerous development guides. Consult them when appropriate:
+Implementation details are documented in rustdoc within each crate. Key crates with comprehensive docs:
 
-- [**Architecture**](.development/architecture.md) - Compiler structure and design
-- [**Patterns**](.development/patterns.md) - Code conventions and established patterns  
-- [**Workflows**](.development/workflows.md) - Build, test, and development processes
-- [**Documentation**](.development/documentation.md) - Rustdoc guidelines and standards
-- [**RFC Process**](.development/rfc.md) - RFC workflow, specification development, and authorship style guide
-
-# RFC and Specification Workflow
-
-When working with RFCs or specifications:
-- Follow the RFC workflow documented in [.development/rfc.md](.development/rfc.md)
-- Keep RFC files (README.md, impl.md, spec.md, todo.md) updated iteratively as work progresses
-- Use todo.md within each RFC directory to track ongoing work and session context
-- Ensure cross-references between tests, specs, and RFCs remain synchronized
+- **`dada-lang`** — High-level language and compiler overview (`cargo doc --open`)
+- **`dada-parser`** — Parser architecture, `Parse` trait, commitment model
+- **`dada-ir-sym`** — Symbolic IR, type system, permissions
+- **`dada-check`** — Type checking orchestration

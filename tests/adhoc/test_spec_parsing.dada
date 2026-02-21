@@ -1,0 +1,4 @@
+#:spec syntax.string-literals.delimiters.quoted
+#:skip_codegen
+
+print("hello")

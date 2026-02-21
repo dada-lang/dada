@@ -1,0 +1,7 @@
+[package]
+name = "dada-spec-common"
+version.workspace = true
+edition.workspace = true
+
+[dependencies]
+regex = "1.0"

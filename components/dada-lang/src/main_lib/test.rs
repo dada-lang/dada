@@ -7,7 +7,7 @@ use std::{
 use dada_compiler::{Compiler, RealFs};
 use dada_ir_ast::diagnostic::{Diagnostic, Level};
 use dada_util::{Fallible, bail};
-use expected::{ExpectedDiagnostic, Probe};
+use expected::{ExpectedDiagnostic, Probe, ProbeKind};
 use indicatif::ProgressBar;
 use panic_hook::CapturedPanic;
 use rayon::prelude::*;
@@ -362,6 +362,7 @@ impl Main {
         let source_file = compiler.load_source_file(input)?;
         let expectations = expected::TestExpectations::new(&compiler, source_file)?;
         let annotations = extract_annotations(&expectations);
+        let is_fixme_ice = expectations.fixme_ice();
 
         // Run the test and capture panics
         let result =
@@ -370,6 +371,13 @@ impl Main {
         let duration_ms = start_time.elapsed().as_millis() as u64;
 
         let test_result = match result {
+            Ok(r) if is_fixme_ice => {
+                // FIXME_ICE test didn't panic — the ICE is fixed, remove the annotation
+                let _ = r; // discard normal test result
+                let failed_test = FailedTest::fixme_passed(input);
+                failed_test.generate_test_report(&compiler)?;
+                TestResult::Failed(failed_test)
+            }
             Ok(r) => {
                 let (failed_test, is_fixme) = r?;
                 match (failed_test, is_fixme) {
@@ -396,7 +404,11 @@ impl Main {
                 let captured_panic = panic_hook::captured_panic();
                 let failed_test = FailedTest::ice(input, captured_panic);
                 failed_test.generate_test_report(&compiler)?;
-                TestResult::Failed(failed_test)
+                if is_fixme_ice {
+                    TestResult::FixmeFailed(failed_test)
+                } else {
+                    TestResult::Failed(failed_test)
+                }
             }
         };
 
@@ -421,6 +433,9 @@ fn extract_annotations(expectations: &expected::TestExpectations) -> Vec<String>
     }
     if expectations.fixme() {
         annotations.push("#:FIXME".to_string());
+    }
+    if expectations.fixme_ice() {
+        annotations.push("#:FIXME_ICE".to_string());
     }
 
     // Add spec references
@@ -665,6 +680,23 @@ impl FailedTest {
                             k = probe.kind,
                             e = probe.message,
                             a = actual,
+                        )?;
+                        writeln!(result, "```")?;
+                        writeln!(result)?;
+                    }
+
+                    if matches!(probe.kind, ProbeKind::Ast) {
+                        let escaped_actual = actual
+                            .replace('\\', "\\\\")
+                            .replace('/', "\\/")
+                            .replace('&', "\\&");
+                        writeln!(result, "**Fix command** (if the new AST is correct):")?;
+                        writeln!(result, "```bash")?;
+                        writeln!(
+                            result,
+                            "sed -i '' '{line}s/Ast: .*/Ast: {escaped_actual}/' {path}",
+                            line = probe.annotation_line,
+                            path = self.path.display(),
                         )?;
                         writeln!(result, "```")?;
                         writeln!(result)?;

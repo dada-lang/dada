@@ -1,0 +1,16 @@
+#:spec syntax.expressions.postfixexpr-definition.call-definition
+#:skip_codegen
+
+async fn main() {
+    # function call with one argument
+    print("hello").await
+    #? ^^^^^^^^^^ Ast: ParenthesisOp(Id(print), [Literal(String, "hello")])
+
+    # function call with no arguments
+    greet().await
+    #?    ^^^^^^^ Ast: Await(ParenthesisOp(Id(greet), []))
+}
+
+async fn greet() {
+    print("hi").await
+}

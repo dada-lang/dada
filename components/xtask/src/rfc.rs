@@ -63,10 +63,10 @@ impl Rfc {
                 let dir_str = dir_name.to_string_lossy();
 
                 // Extract number from directory names like "0001-feature-name"
-                if let Some(number_str) = dir_str.split('-').next() {
-                    if let Ok(number) = number_str.parse::<u32>() {
-                        max_number = max_number.max(number);
-                    }
+                if let Some(number_str) = dir_str.split('-').next()
+                    && let Ok(number) = number_str.parse::<u32>()
+                {
+                    max_number = max_number.max(number);
                 }
             }
         }

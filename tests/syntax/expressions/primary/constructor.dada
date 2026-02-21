@@ -1,0 +1,15 @@
+#:spec syntax.expressions.primaryexpr-definition.constructorexpr-definition
+#:skip_codegen
+#:FIXME_ICE
+
+class Point(x: u32, y: u32)
+
+fn main() {
+    # constructor with fields
+    Point { x: 1, y: 2 }
+    #? ^^^^^^^^^^^^^^^^^^^^^ Ast: Constructor(Point, [x: Literal(Integer, "1"), y: Literal(Integer, "2")])
+
+    # constructor with expressions
+    Point { x: 1 + 2, y: 3 * 4 }
+    #? ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^ Ast: Constructor(Point, [x: BinaryOp(+, Literal(Integer, "1"), Literal(Integer, "2")), y: BinaryOp(*, Literal(Integer, "3"), Literal(Integer, "4"))])
+}

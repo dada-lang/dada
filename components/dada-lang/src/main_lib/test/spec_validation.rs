@@ -53,17 +53,61 @@ impl SpecValidator {
         Ok(())
     }
 
-    /// Extracts spec IDs from MyST directive syntax: `:::{spec} paragraph.id [rfcN...]`
+    /// Extracts spec IDs from MyST directive syntax, resolving relative IDs
+    /// using the file path and heading context.
+    ///
+    /// 💡 Uses the same resolution logic as the preprocessor (via `dada_spec_common`)
+    /// to ensure test `#:spec` annotations match the IDs generated in the spec HTML.
     fn extract_spec_ids_from_file(&mut self, file_path: &Path) -> Fallible<()> {
         let content = fs::read_to_string(file_path)?;
 
-        // 💡 Regex matches MyST directive: `:::{spec} id [optional-rfc-tags]`
-        // The paragraph ID is the first word after `{spec}`, RFC tags are optional
-        let re = Regex::new(r":::\{spec\}\s+(\S+)")?;
+        let spec_src = Path::new("spec/src");
+        let relative_path = file_path.strip_prefix(spec_src).unwrap_or(file_path);
+        let file_prefix = dada_spec_common::file_path_to_prefix(relative_path);
 
-        for cap in re.captures_iter(&content) {
-            if let Some(spec_id) = cap.get(1) {
-                self.valid_spec_ids.insert(spec_id.as_str().to_string());
+        let directive_start = Regex::new(r"^:::\{spec\}(.*)$")?;
+        let directive_end = Regex::new(r"^:::$")?;
+        let inline_re = Regex::new(r"\{spec\}`([^`]+)`")?;
+
+        let mut heading_tracker = dada_spec_common::HeadingTracker::new();
+        let mut in_directive = false;
+        let mut current_parent_id = String::new();
+
+        for line in content.lines() {
+            let trimmed = line.trim();
+
+            if !in_directive {
+                heading_tracker.process_line(trimmed);
+
+                if let Some(captures) = directive_start.captures(trimmed) {
+                    let rest = captures.get(1).map(|m| m.as_str()).unwrap_or("");
+                    let (local_name, _tags) = dada_spec_common::parse_spec_tokens(rest);
+
+                    let full_id = dada_spec_common::resolve_spec_id(
+                        &file_prefix,
+                        &heading_tracker.current_segments(),
+                        local_name.as_deref().unwrap_or(""),
+                    );
+                    self.valid_spec_ids.insert(full_id.clone());
+                    current_parent_id = full_id;
+                    in_directive = true;
+                }
+            } else if directive_end.is_match(trimmed) {
+                in_directive = false;
+                current_parent_id.clear();
+            } else {
+                // Inside directive: check for inline sub-paragraphs.
+                // Parse the backtick content to separate the name from tags
+                // (e.g., `triple-quoted unimpl` → name="triple-quoted", tags=["unimpl"]).
+                for cap in inline_re.captures_iter(trimmed) {
+                    if let Some(content) = cap.get(1) {
+                        let (name, _tags) = dada_spec_common::parse_spec_tokens(content.as_str());
+                        // For inline sub-paragraphs, the first token is always the name
+                        let name = name.unwrap_or_else(|| content.as_str().to_string());
+                        let sub_id = format!("{}.{}", current_parent_id, name);
+                        self.valid_spec_ids.insert(sub_id);
+                    }
+                }
             }
         }
 
@@ -92,14 +136,14 @@ mod tests {
         };
         validator
             .valid_spec_ids
-            .insert("syntax.string-literals.basic".to_string());
+            .insert("syntax.string-literals.delimiters.quoted".to_string());
         validator
             .valid_spec_ids
             .insert("permissions.lease.transfer".to_string());
 
         // Test batch validation
         let refs = vec![
-            "syntax.string-literals.basic".to_string(),
+            "syntax.string-literals.delimiters.quoted".to_string(),
             "invalid.spec.ref".to_string(),
             "permissions.lease.transfer".to_string(),
         ];

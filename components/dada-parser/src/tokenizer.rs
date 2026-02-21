@@ -421,92 +421,234 @@ impl<'input, 'db> Tokenizer<'input, 'db> {
         });
     }
 
-    fn string_literal(&mut self, start: usize) {
-        let skipped = self.clear_accumulated(start);
-        let mut processed_content = String::new();
+    /// Process an escape sequence after consuming `\`.
+    /// `backslash_offset` is the byte index of the `\` character.
+    fn escape_sequence(&mut self, backslash_offset: usize, content: &mut String) {
+        if let Some((index, escape)) = self.chars.next() {
+            match escape {
+                '"' => content.push('"'),
+                '\\' => content.push('\\'),
+                'n' => content.push('\n'),
+                'r' => content.push('\r'),
+                't' => content.push('\t'),
+                '{' => content.push('{'),
+                '}' => content.push('}'),
+                _ => {
+                    content.push('\\');
+                    content.push(escape);
 
-        while let Some((end, ch)) = self.chars.next() {
-            // FIXME: implement all the fancy stuff described in the reference,
-            // like embedded expressions and margin stripping.
-
-            if ch == '"' {
-                let token_text = TokenText::new(self.db, processed_content);
-                self.tokens.push(Token {
-                    span: self.span(start, end),
-                    skipped,
-                    kind: TokenKind::Literal(LiteralKind::String, token_text),
-                });
-                return;
-            }
-
-            if ch == '\\' {
-                if let Some((index, escape)) = self.chars.next() {
-                    match escape {
-                        '"' => processed_content.push('"'),
-                        '\\' => processed_content.push('\\'),
-                        'n' => processed_content.push('\n'),
-                        'r' => processed_content.push('\r'),
-                        't' => processed_content.push('\t'),
-                        '{' => processed_content.push('{'),
-                        '}' => processed_content.push('}'),
-                        _ => {
-                            // Add the invalid escape as-is and generate error
-                            processed_content.push('\\');
-                            processed_content.push(escape);
-
-                            let span = self.span(index, index + escape.len_utf8());
-                            self.tokens.push(Token {
-                                span,
-                                skipped: None,
-                                kind: TokenKind::Error(Diagnostic::error(
-                                    self.db,
-                                    span,
-                                    format!("invalid escape `\\{escape}`"),
-                                )),
-                            });
-                        }
-                    }
-                } else {
-                    // Backslash at end of input
-                    processed_content.push('\\');
-
-                    let span = self.span(end, end + ch.len_utf8());
+                    let span = self.span(index, index + escape.len_utf8());
                     self.tokens.push(Token {
                         span,
                         skipped: None,
                         kind: TokenKind::Error(Diagnostic::error(
                             self.db,
                             span,
-                            "`\\` must be followed by an escape character",
+                            format!("invalid escape `\\{escape}`"),
                         )),
                     });
                 }
-            } else {
-                // Regular character - add to content
-                processed_content.push(ch);
             }
+        } else {
+            content.push('\\');
+
+            let span = self.span(backslash_offset, backslash_offset + '\\'.len_utf8());
+            self.tokens.push(Token {
+                span,
+                skipped: None,
+                kind: TokenKind::Error(Diagnostic::error(
+                    self.db,
+                    span,
+                    "`\\` must be followed by an escape character",
+                )),
+            });
         }
+    }
 
-        // Unterminated string
-        let end = self.input.len();
-        let span = self.span(start, end);
-        let token_text = TokenText::new(self.db, processed_content);
+    /// Emit a string literal token with the given span and processed content.
+    ///
+    /// `quote_len` is the number of quote characters in the delimiter (1 for `"`, 3 for `"""`).
+    /// When the raw source content begins with a newline, multiline dedenting is applied:
+    /// the raw content is dedented and escape sequences are re-processed on the result,
+    /// replacing the `content` that was built during scanning.
+    fn emit_string_literal(
+        &mut self,
+        span: Span<'db>,
+        skipped: Option<Skipped>,
+        content: String,
+        quote_len: usize,
+        raw: bool,
+    ) {
+        // Extract the raw source content between the quote delimiters.
+        let raw_start = (span.start - self.input_offset).as_usize() + quote_len;
+        let raw_end = (span.end - self.input_offset).as_usize() - quote_len;
+        let raw_content = &self.input[raw_start..raw_end];
 
+        // 💡 Multiline detection: if the raw content begins with a newline,
+        // we apply dedenting on the raw source text (before escape processing)
+        // and then re-process escapes. This ensures escape sequences like `\n`
+        // are treated as content, not as line delimiters for dedenting.
+        //
+        // Raw strings (`"\` prefix) skip dedenting — the raw_content starts
+        // with `\<newline>`, so we skip the `\` marker and process escape
+        // sequences on the rest without dedenting.
+        let final_content = if raw {
+            // Skip the `\` marker; content from `\n` onward is preserved as-is
+            let after_marker = &raw_content[1..]; // skip `\`
+            process_escape_sequences(after_marker)
+        } else if raw_content.starts_with('\n') {
+            let dedented = dedent_multiline(raw_content);
+            process_escape_sequences(&dedented)
+        } else {
+            content
+        };
+
+        let token_text = TokenText::new(self.db, final_content);
         self.tokens.push(Token {
             span,
             skipped,
             kind: TokenKind::Literal(LiteralKind::String, token_text),
         });
+    }
 
+    /// Emit tokens for an unterminated string literal: a literal token
+    /// with whatever content was accumulated, plus an error token.
+    /// No multiline dedenting is applied since the string is malformed.
+    fn emit_unterminated_string(
+        &mut self,
+        start: usize,
+        skipped: Option<Skipped>,
+        content: String,
+        message: &str,
+    ) {
+        let span = self.span(start, self.input.len());
+        let token_text = TokenText::new(self.db, content);
+        self.tokens.push(Token {
+            span,
+            skipped,
+            kind: TokenKind::Literal(LiteralKind::String, token_text),
+        });
         self.tokens.push(Token {
             span,
             skipped: None,
-            kind: TokenKind::Error(Diagnostic::error(
-                self.db,
-                span,
-                "missing end quote for string",
-            )),
+            kind: TokenKind::Error(Diagnostic::error(self.db, span, message)),
         });
+    }
+
+    fn string_literal(&mut self, start: usize) {
+        let skipped = self.clear_accumulated(start);
+
+        // Check for triple-quoted string: opening `"` already consumed,
+        // peek to see if next two chars are also `"`.
+        if let Some(&(_, '"')) = self.chars.peek() {
+            // Could be empty string `""` or triple-quoted `"""...`.
+            // Consume the second `"` and peek again to disambiguate.
+            self.chars.next();
+            if let Some(&(_, '"')) = self.chars.peek() {
+                // Triple-quoted string: consume the third `"`
+                self.chars.next();
+                return self.triple_quoted_string_literal(start, skipped);
+            }
+
+            // Empty string `""`
+            self.emit_string_literal(
+                self.span(start, start + 2),
+                skipped,
+                String::new(),
+                1,
+                false,
+            );
+            return;
+        }
+
+        // Check for raw string prefix: `\` followed by newline disables dedenting.
+        // The `\` is consumed as a marker (not an escape sequence).
+        let raw = if let Some(&(_, '\\')) = self.chars.peek() {
+            // Peek two ahead: we need `\` + `\n`
+            let mut lookahead = self.chars.clone();
+            lookahead.next(); // skip `\`
+            matches!(lookahead.next(), Some((_, '\n')))
+        } else {
+            false
+        };
+
+        if raw {
+            // Consume the `\` marker (not treated as an escape)
+            self.chars.next();
+        }
+
+        let mut processed_content = String::new();
+
+        while let Some((end, ch)) = self.chars.next() {
+            if ch == '"' {
+                self.emit_string_literal(
+                    self.span(start, end + ch.len_utf8()),
+                    skipped,
+                    processed_content,
+                    1,
+                    raw,
+                );
+                return;
+            }
+
+            if ch == '\\' {
+                self.escape_sequence(end, &mut processed_content);
+            } else {
+                processed_content.push(ch);
+            }
+        }
+
+        self.emit_unterminated_string(
+            start,
+            skipped,
+            processed_content,
+            "missing end quote for string",
+        );
+    }
+
+    /// Lex a triple-quoted string literal. Called after the opening `"""`
+    /// has been consumed. Scans until the closing `"""` is found.
+    fn triple_quoted_string_literal(&mut self, start: usize, skipped: Option<Skipped>) {
+        let mut processed_content = String::new();
+
+        while let Some((end, ch)) = self.chars.next() {
+            if ch == '"' {
+                // Check if this is `"""` (closing delimiter).
+                // Consume quotes one at a time; if we don't reach three,
+                // they're content.
+                processed_content.push('"');
+                if let Some(&(_, '"')) = self.chars.peek() {
+                    self.chars.next();
+                    processed_content.push('"');
+                    if let Some(&(third_idx, '"')) = self.chars.peek() {
+                        // Found closing `"""` — consume the third quote
+                        // and remove the two content quotes we speculatively added.
+                        self.chars.next();
+                        processed_content.pop();
+                        processed_content.pop();
+                        self.emit_string_literal(
+                            self.span(start, third_idx + '"'.len_utf8()),
+                            skipped,
+                            processed_content,
+                            3,
+                            false,
+                        );
+                        return;
+                    }
+                }
+            } else if ch == '\\' {
+                self.escape_sequence(end, &mut processed_content);
+            } else {
+                processed_content.push(ch);
+            }
+        }
+
+        self.emit_unterminated_string(
+            start,
+            skipped,
+            processed_content,
+            "missing end quotes for triple-quoted string",
+        );
     }
 
     fn delimited(&mut self, start: usize, delim: Delimiter, close: char) {
@@ -591,3 +733,94 @@ pub fn is_op_char(ch: char) -> bool {
 }
 
 type CharIndices<'input> = std::iter::Peekable<std::str::CharIndices<'input>>;
+
+/// Apply multiline string dedenting to raw source content.
+///
+/// Given raw content that starts with a newline (multiline string detected by caller),
+/// this function:
+/// 1. Strips the leading newline
+/// 2. Strips the trailing line (newline + any whitespace before closing quote)
+/// 3. Computes the common whitespace prefix across all non-empty lines
+/// 4. Removes that prefix from the start of each line
+///
+/// # Example
+/// ```text
+/// Input (raw):  "\n        hello\n          world\n        "
+/// After strip:  "        hello\n          world"
+/// Common prefix: "        " (8 spaces)
+/// Result:       "hello\n  world"
+/// ```
+fn dedent_multiline(raw: &str) -> String {
+    // Step 1: strip leading newline.
+    let content = &raw[1..];
+
+    // Step 2: strip the trailing line (everything after the last newline, inclusive).
+    let content = match content.rfind('\n') {
+        Some(pos) => &content[..pos],
+        None => {
+            // No newlines left — single-line content after stripping.
+            // No dedenting needed.
+            return content.to_string();
+        }
+    };
+
+    // Step 3: compute common whitespace prefix across non-empty lines.
+    let lines: Vec<&str> = content.split('\n').collect();
+    let common_prefix = lines
+        .iter()
+        .filter(|line| !line.is_empty())
+        .map(|line| line.len() - line.trim_start().len())
+        .min()
+        .unwrap_or(0);
+
+    // Step 4: remove the common prefix from each line and rejoin.
+    lines
+        .iter()
+        .map(|line| {
+            if line.len() >= common_prefix {
+                &line[common_prefix..]
+            } else {
+                // Empty or shorter than prefix (shouldn't happen for non-empty lines)
+                line
+            }
+        })
+        .collect::<Vec<_>>()
+        .join("\n")
+}
+
+/// Process escape sequences in raw source text, producing the final string content.
+///
+/// This mirrors the escape processing in `Tokenizer::escape_sequence()` but operates
+/// on a standalone string. Invalid escapes are kept as-is (errors were already emitted
+/// during the scanning phase).
+fn process_escape_sequences(raw: &str) -> String {
+    let mut result = String::with_capacity(raw.len());
+    let mut chars = raw.chars();
+
+    while let Some(ch) = chars.next() {
+        if ch == '\\' {
+            match chars.next() {
+                Some('"') => result.push('"'),
+                Some('\\') => result.push('\\'),
+                Some('n') => result.push('\n'),
+                Some('r') => result.push('\r'),
+                Some('t') => result.push('\t'),
+                Some('{') => result.push('{'),
+                Some('}') => result.push('}'),
+                Some(escape) => {
+                    // Invalid escape — keep as-is (error already emitted during scan)
+                    result.push('\\');
+                    result.push(escape);
+                }
+                None => {
+                    // Trailing backslash — keep as-is
+                    result.push('\\');
+                }
+            }
+        } else {
+            result.push(ch);
+        }
+    }
+
+    result
+}

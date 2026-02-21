@@ -1,0 +1,11 @@
+#:skip_codegen
+
+async fn main() {
+    # Test Ast probe on a string literal
+    print("hello").await
+    #?    ^^^^^^^ Ast: Literal(String, "hello")
+
+    # Test Ast probe on a function call
+    print("hello").await
+    #?   ^^^^^^^^^ Ast: ParenthesisOp(Id(print), [Literal(String, "hello")])
+}
