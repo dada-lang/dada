@@ -29,6 +29,12 @@ http://127.0.0.1:3000/playground. The script uses an April 2024 Rust nightly and
 wasm-bindgen 0.2.92, bypassing the old x86-only wasm-pack downloader. It was
 verified with Node 24.21.0. Set `PORT` to use another local port.
 
+For a static production build, run `./demo-playground.sh --build`. This writes
+the site to `book/build`. `netlify.toml` configures this command and publish
+directory. Connect a separate Netlify project to this repository with
+`codex/legacy-playground-demo` as its production branch and assign
+`old.dada-lang.org` as its custom domain.
+
 Try this program, then click within a statement to see the permission graph:
 
 ```text

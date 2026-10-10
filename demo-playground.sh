@@ -4,6 +4,11 @@
 set -euo pipefail
 cd "$(dirname "$0")"
 
+case "${1:-}" in
+    ""|--build) ;;
+    *) echo "Usage: $0 [--build]" >&2; exit 2 ;;
+esac
+
 toolchain=nightly-2024-04-05
 rustup toolchain install "$toolchain" --profile minimal --target wasm32-unknown-unknown
 if [[ ! -x target/demo-tools/bin/wasm-bindgen ]] ||
@@ -18,4 +23,7 @@ cat > target/dada-web/package.json <<'JSON'
 JSON
 cd book
 npm ci --no-audit --no-fund
+if [[ "${1:-}" == --build ]]; then
+    exec npm run build
+fi
 exec npm start -- --host 127.0.0.1 --port "${PORT:-3000}" --no-open

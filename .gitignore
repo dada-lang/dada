@@ -1,4 +1,5 @@
 target
+.netlify
 .vscode
 playground
 

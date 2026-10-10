@@ -1,0 +1,7 @@
+[build]
+  command = "./demo-playground.sh --build"
+  publish = "book/build"
+
+[build.environment]
+  NODE_VERSION = "24.21.0"
+  RUST_VERSION = "nightly-2024-04-05"
