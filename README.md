@@ -19,6 +19,34 @@ As of right now, Dada doesn't really exist, though we have some experimental pro
 * On the web, visit https://dada-lang.org/playground to see how things work today.
 * On your own computer, clone this repository and do `cargo dada run dada_tests/hello_world.dada` (requires [Rust and Cargo to be installed](https://doc.rust-lang.org/cargo/getting-started/installation.html)).
 
+## Preserved playground demo
+
+This branch preserves the interpreter and borrow-visualization playground from
+`5f5cbd92`, immediately before its removal in June 2024.
+
+With rustup and Node.js/npm installed, run `./demo-playground.sh`, then open
+http://127.0.0.1:3000/playground. The script uses an April 2024 Rust nightly and
+wasm-bindgen 0.2.92, bypassing the old x86-only wasm-pack downloader. It was
+verified with Node 24.21.0. Set `PORT` to use another local port.
+
+Try this program, then click within a statement to see the permission graph:
+
+```text
+class Point(x, y)
+
+async fn main() {
+    let p = Point(22, 44)
+    let q = p.lease
+    let r = q.lease
+    r.x += 1
+    print(r.x).await
+}
+```
+
+It prints `23`. The graph follows the cursor and shows the owning permission
+and the two leases. Reload the page if you switch output modes and want to
+return to the initial graph view; the historical UI has no dedicated debug radio button.
+
 ## License
 
 Licensed under either of [Apache License, Version 2.0][apache] or [MIT license][mit] at your option.
